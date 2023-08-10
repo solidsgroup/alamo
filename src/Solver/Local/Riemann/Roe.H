@@ -54,8 +54,6 @@ public:
         Set::Scalar eta_r = right.eta;
         Set::Scalar h_r = (e_r + p_r) / rho_r;
 
-        //Util::Message()
-
         // roe averages
         Set::Scalar srl = std::sqrt(rho_l);
         Set::Scalar srr = std::sqrt(rho_r);
@@ -66,6 +64,11 @@ public:
         Set::Scalar a_RL = std::sqrt(a_RL2);
         Set::Scalar eta_RL = (srr * eta_r + srl * eta_l) / (srl + srr);
 
+	Set::Scalar sgn;
+	if (u_RL > 0) {sgn = 1;}
+	if (u_RL < 0) {sgn = -1;}
+	else {sgn = 0;};
+
         // eigenvalues
         std::array<Set::Scalar, 4> ev;
         ev[0] = u_RL;
@@ -75,9 +78,9 @@ public:
 
         std::array<Set::Scalar, 4> dv;
 
-        Set::Scalar drho = rho_r * eta_r - rho_l * eta_l;
-        Set::Scalar dp = p_r - p_l;
-        Set::Scalar dvel = u_r * eta_r - u_l * eta_l;
+        Set::Scalar drho = sgn * std::abs(rho_r * eta_r - rho_l * eta_l);
+        Set::Scalar dp   = sgn * std::abs(p_r - p_l);
+        Set::Scalar dvel = sgn * std::abs(u_r * eta_r - u_l * eta_l);
 
         dv[0] = drho - dp * eta_RL / a_RL2;
         dv[2] = dvel + dp * eta_RL / (rho_RL * a_RL);
@@ -120,19 +123,19 @@ public:
         // upwinding
 
         fl.mass += -0.5 * rev_0[0] * std::abs(ev[0]) * dv[0];
-        fl.mass += -0.5 * rev_1[0] * std::abs(ev[0]) * dv[0];
-        fl.mass += -0.5 * rev_2[0] * std::abs(ev[0]) * dv[0];
-        fl.mass += -0.5 * rev_3[0] * std::abs(ev[0]) * dv[0];
+        fl.mass += -0.5 * rev_1[0] * std::abs(ev[1]) * dv[1];
+        fl.mass += -0.5 * rev_2[0] * std::abs(ev[2]) * dv[2];
+        fl.mass += -0.5 * rev_3[0] * std::abs(ev[3]) * dv[3];
 
-        fl.momentum(1) += -0.5 * rev_0[2] * std::abs(ev[2]) * dv[2];
-        fl.momentum(1) += -0.5 * rev_1[2] * std::abs(ev[2]) * dv[2];
-        fl.momentum(1) += -0.5 * rev_2[2] * std::abs(ev[2]) * dv[2];
-        fl.momentum(1) += -0.5 * rev_3[2] * std::abs(ev[2]) * dv[2];
+        fl.momentum(0) += -0.5 * rev_0[2] * std::abs(ev[0]) * dv[0];
+        fl.momentum(0) += -0.5 * rev_1[2] * std::abs(ev[1]) * dv[1];
+        fl.momentum(0) += -0.5 * rev_2[2] * std::abs(ev[2]) * dv[2];
+        fl.momentum(0) += -0.5 * rev_3[2] * std::abs(ev[3]) * dv[3];
 
-        fl.energy += -0.5 * rev_0[1] * std::abs(ev[1]) * dv[1];
+        fl.energy += -0.5 * rev_0[1] * std::abs(ev[0]) * dv[0];
         fl.energy += -0.5 * rev_1[1] * std::abs(ev[1]) * dv[1];
-        fl.energy += -0.5 * rev_2[1] * std::abs(ev[1]) * dv[1];
-        fl.energy += -0.5 * rev_3[1] * std::abs(ev[1]) * dv[1];
+        fl.energy += -0.5 * rev_2[1] * std::abs(ev[2]) * dv[2];
+        fl.energy += -0.5 * rev_3[1] * std::abs(ev[3]) * dv[3];
 
         return fl;
     }
@@ -177,13 +180,13 @@ public:
             Flux plus = Solve(hi, lo, 1.4);
             Flux minus = Solve(lo, hi, 1.4);
 
-            if (fabs(plus.mass + minus.mass) > 1E-10)  
+            if (fabs(plus.mass - minus.mass) > 1E-10)  
             {Util::Warning(INFO,"mass flux error: plus=", plus.mass, " minus=",minus.mass); failed++;}
-            if (fabs(plus.momentum(0) + minus.momentum(0)) > 1E-10)  
+            if (fabs(plus.momentum(0) - minus.momentum(0)) > 1E-10)  
             {Util::Warning(INFO,"momentum x flux error: plus=", plus.momentum(0), " minus=",minus.momentum(0)); failed++;}
-            if (fabs(plus.momentum(1) + minus.momentum(1)) > 1E-10)  
+            if (fabs(plus.momentum(1) - minus.momentum(1)) > 1E-10)  
             {Util::Warning(INFO,"momentum y flux error: plus=", plus.momentum(1), " minus=",minus.momentum(1)); failed++;}
-            if (fabs(plus.energy + minus.energy) > 1E-10)  
+            if (fabs(plus.energy - minus.energy) > 1E-10)  
             {Util::Warning(INFO,"energy flux error: plus=", plus.energy, " minus=",minus.energy); failed++;}
 
 

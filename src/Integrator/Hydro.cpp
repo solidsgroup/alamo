@@ -233,7 +233,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() / eta_max;
 
             Solver::Local::Riemann::Roe::State state(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
-
+	    Solver::Local::Riemann::Roe::State test_state(rho(i, j, k), -M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
             Solver::Local::Riemann::Roe::State lo_statex(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k) );
             Solver::Local::Riemann::Roe::State hi_statex(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k) );
             Solver::Local::Riemann::Roe::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k) ); //veloctiy input is always normal, then tangential to interface
@@ -243,6 +243,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             //lo interface fluxes
             flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state, gamma);
+	    
             flux_test = Solver::Local::Riemann::Roe::Solve(state, lo_statex, gamma);
             Util::Message(INFO, "mass flux ", flux_xlo.mass, " ", flux_test.mass);
             Util::Message(INFO, "energy flux ", flux_xlo.energy, " ", flux_test.energy);
@@ -255,31 +256,27 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state, hi_statex, gamma);
             flux_yhi = Solver::Local::Riemann::Roe::Solve(state, hi_statey, gamma);
 
-            //if (i==0&&j==0) Util::Message(INFO,flux_xlo[0]," ",flux_xlo[1]," ",flux_xlo[2]," ",flux_xlo[3]);
-            //if (i==0&&j==0) Util::Message(INFO,flux_xhi[0]," ",flux_xhi[1]," ",flux_xhi[2]," ",flux_xhi[3]);
-        //Util::Message(INFO, M(i, j - 1, k, 1), " ", M(i, j, k, 1)," ",M(i, j + 1, k, 1));
-
 
             //Godunov fluxes
             E_new(i, j, k) =
                 E(i, j, k)
-                - (flux_xhi.energy - flux_xlo.energy) * dt / DX[0]
-                - (flux_yhi.energy - flux_ylo.energy) * dt / DX[1];
+                + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
+                + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
 
             rho_new(i, j, k) =
                 rho(i, j, k)
-                - (flux_xhi.mass - flux_xlo.mass) * dt / DX[0]
-                - (flux_yhi.mass - flux_ylo.mass) * dt / DX[1];
+                + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
+                + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             M_new(i, j, k, 0) =
                 M(i, j, k, 0)
-                - (flux_xhi.momentum(0) - flux_xlo.momentum(0)) * dt / DX[0]
-                - (flux_yhi.momentum(1) - flux_ylo.momentum(1)) * dt / DX[1];
+                + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
+                + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
 
             M_new(i, j, k, 1) =
                 M(i, j, k, 1)
-                - (flux_xhi.momentum(1) - flux_xlo.momentum(1)) * dt / DX[0];
-            //-(flux_yhi.momentum(0) - flux_ylo.momentum(0)) * dt / DX[1];
+                + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
+                + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
 
             //if (i==0&&j==0) 
             //{
