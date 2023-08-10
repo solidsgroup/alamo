@@ -6,6 +6,9 @@ sudo yum install -y gcc gcc-c++ make
 # Install mpich
 sudo yum install -y mpich2 mpich2-devel mpich-autoload
 
+# Install eigen
+sudo yum install -y eigen3-devel
+
 # Install python and node.js
 sudo yum install -y python3 python3-pip npm
 

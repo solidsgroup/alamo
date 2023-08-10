@@ -47,6 +47,14 @@ If you are using Ubuntu (or a debian-based distribution) you can install all nec
 If you are using a non-debian based system such as RedHat, you can install the corresponding packages in :code:`dependencies.sh`. 
 Windows and Mac OS are not supported.
 
+:fab:`ubuntu;fa-fw` Ubuntu
+--------------------------
+
+
+:fab:`fedora;fa-fw` Fedora
+--------------------------
+
+
 Setting MPICH as default MPI
 ============================
 

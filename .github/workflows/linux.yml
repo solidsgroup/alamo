@@ -30,25 +30,6 @@ jobs:
       run: bash .github/workflows/dependencies.sh
     - name: make
       run: make docs
-  rhel-ub8-build:
-    name: Build on RHEL UBI 8
-    runs-on: ubuntu-latest
-    container:
-      image: redhat/ubi8
-    steps:
-      - name: install git and sudo
-        run: yum install -y sudo git
-      - name: configure git safe directories
-        run: git config --global --add safe.directory '*'
-      - uses: actions/checkout@v2
-      - name: installing preliminaries
-        run: bash .github/workflows/dependencies-yum.sh
-      - name: configure
-        run: ./configure --get-eigen
-      - name: make
-        run: make
-      - name: unit tests
-        run: ./bin/test-2d-g++
   fedora-latest-build:
     name: Build on Fedora (latest)
     runs-on: ubuntu-latest
@@ -63,7 +44,7 @@ jobs:
       - name: installing preliminaries
         run: bash .github/workflows/dependencies-yum.sh
       - name: configure
-        run: ./configure --get-eigen
+        run: ./configure
       - name: make
         run: make
       - name: unit tests
