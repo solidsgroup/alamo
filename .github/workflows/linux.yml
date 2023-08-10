@@ -30,6 +30,25 @@ jobs:
       run: bash .github/workflows/dependencies.sh
     - name: make
       run: make docs
+  rhel-ub8-build:
+    name: Build on RHEL UBI 8
+    runs-on: ubuntu-latest
+    container:
+      image: redhat/ub8
+    steps:
+      - name: install git and sudo
+        run: yum install -y sudo git
+      - name: configure git safe directories
+        run: git config --global --add safe.directory '*'
+      - uses: actions/checkout@v2
+      - name: installing preliminaries
+        run: bash .github/workflows/dependencies-yum.sh
+      - name: configure
+        run: ./configure --get-eigen
+      - name: make
+        run: make
+      - name: unit tests
+        run: ./bin/test-2d-g++
   test-2d-20-04:
     name: 2D Build & Test (20.04)
     runs-on: ubuntu-20.04
