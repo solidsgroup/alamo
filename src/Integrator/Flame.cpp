@@ -350,10 +350,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar rho = thermal.rho_ap * phi(i, j, k) + thermal.rho_htpb * (1.0 - phi(i, j, k)); // No special interface mixure rule is needed here.
                     Set::Scalar cp = thermal.cp_ap * phi(i, j, k) + thermal.cp_htpb * (1.0 - phi(i, j, k));
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
-                    etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
-                    if (etanew(i,j,k) < _small && etanew(i,j,k) > small) etanew(i,j,k) -= small;
+                    etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;                   
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt
+                    if (etanew(i,j,k) < _small && etanew(i,j,k) > small) etanew(i,j,k) -= small;
                 });
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
