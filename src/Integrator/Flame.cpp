@@ -370,7 +370,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX, sten);
+                    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
                     Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX, sten);
