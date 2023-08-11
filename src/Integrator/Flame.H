@@ -68,6 +68,9 @@ private:
 
     Set::Field<Set::Scalar> laser_mf;
 
+    Set::Field<Set::Scalar> dtdt_mf;
+    Set::Field<Set::Scalar> tsolid_mf;
+
     BC::BC<Set::Scalar>* bc_temp;
     BC::BC<Set::Scalar>* bc_eta;
     IC::IC* ic_phi;
@@ -79,8 +82,6 @@ private:
     Set::Scalar zeta = 1.0e-5;
     Set::Scalar zeta_0 = 1.0e-5;
     Set::Scalar small = 1.0e-8;
-    Set::Scalar small_ = 0.001;
-    Set::Scalar _small = 0.01;
     Set::Scalar base_time = 1.0e-4;
     IC::IC* ic_eta;
 
@@ -104,8 +105,8 @@ private:
             int dependency = 1;
         } arrhenius;
         struct {
-            Set::Scalar r_ap, r_htpb, r_comb;
-            Set::Scalar n_ap, n_htpb, n_comb;
+            Set::Scalar r_ap=0.0, r_htpb=0.0, r_comb=0.0;
+            Set::Scalar n_ap=0.0, n_htpb=0.0, n_comb=0.0;
         } power;
     } pressure;
 

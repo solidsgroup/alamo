@@ -1,8 +1,8 @@
 alamo.program = flame
 plot_file = output 
-amr.plot_dt = 0.001
-#amr.plot_int = 1
-amr.max_level = 6
+#amr.plot_dt = 0.001
+amr.plot_int = 1
+amr.max_level = 7
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
@@ -15,7 +15,7 @@ amr.n_cell = 8 2 2
 geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
 geometry.prob_hi = 0.004 0.001 0.001 # [ m ]
 
-geometry.is_periodic = 0 1 1
+geometry.is_periodic = 0 1 1 
 
 conditional.round = 1000.0
 
@@ -26,7 +26,7 @@ stop_time = 0.1
 small = 1.0e-8
 pf.min_eta = 0.1
 
-pf.eps = 0.000001 #0.0005 # [m]
+pf.eps = 0.00001 #0.0005 # [m]
 pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
@@ -36,7 +36,7 @@ eta.ic.type = constant #laminate
 
 phi.ic.type = psread
 phi.zeta_0 = 0.00001
-phi.ic.psread.eps = 0.00001
+phi.ic.psread.eps = 0.00002
 phi.ic.psread.filename = ../2d.xyzr
 
 pf.kappa = 1.0
