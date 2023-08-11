@@ -10,7 +10,7 @@ sudo yum install -y mpich mpich-devel mpich-autoload
 # If you are installing Alamo yourself, you will want to add these two 
 # lines to your .bashrc file
 export PATH=${PATH}:/usr/lib64/mpich/bin/
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib64/mpich/lib/
+export LD_LIBRARY_PATH=/usr/lib64/mpich/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 
 # Install eigen
 sudo yum install -y eigen3-devel
