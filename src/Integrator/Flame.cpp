@@ -96,10 +96,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
             value.RegisterNewFab(value.temp_mf, value.bc_temp     , 1, 3, "temp"     , true);
             value.RegisterNewFab(value.temp_old_mf, value.bc_temp , 1, 3, "temp_old" , false);
-            value.RegisterNewFab(value.temps_mf, value.bc_temp    , 1, 3, "temps"    , true);
+            value.RegisterNewFab(value.temps_mf, value.bc_temp    , 1, 3, "temps"    , false);
             value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 3, "temps_old", false);
 
-            value.RegisterNewFab(value.mdot_mf    , 1, "mdot"    , true);
+            value.RegisterNewFab(value.mdot_mf    , 1, "mdot"    , false);
             value.RegisterNewFab(value.mob_mf     , 1, "mob"     , true);
             value.RegisterNewFab(value.alpha_mf   , 1, "alpha"   , true);
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
