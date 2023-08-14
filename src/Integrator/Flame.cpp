@@ -220,16 +220,20 @@ void Flame::UpdateModel(int /*a_step*/)
 
     for (int lev = 0; lev <= finest_level; ++lev)
     {
+
+        amrex::Box domain = this->geom[lev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+
         //psi_mf[lev]->setVal(1.0);
         phi_mf[lev]->FillBoundary();
         eta_mf[lev]->FillBoundary();
         temp_mf[lev]->FillBoundary();
 
-        for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
-            //amrex::Box bx = mfi.grownnodaltilebox();
-            amrex::Box bx = mfi.nodaltilebox();
-            bx.grow(1);
+            amrex::Box bx = mfi.grownnodaltilebox() & domain;
+            //amrex::Box bx = mfi.nodaltilebox();
+            //bx.grow(1);
             amrex::Array4<model_type>        const& model = model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
 
