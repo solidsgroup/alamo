@@ -66,8 +66,7 @@ public:
 
 	Set::Scalar sgn;
 	if (u_RL > 0) {sgn = 1;}
-	if (u_RL < 0) {sgn = -1;}
-	else {sgn = 0;};
+	else {sgn = -1;};
 
         // eigenvalues
         std::array<Set::Scalar, 4> ev;

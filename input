@@ -41,12 +41,12 @@ stop_time = 1.0
 
 ### ETA IC ###
 
-# rho0 = 10
-# V0 = 0.1
-mdot = 0.01    # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
-Pdot_x = 0.00016  # = rho0 * V0 * V0
+# rho0 = 1
+# V0 = 0.001
+mdot = 0.001    # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
+Pdot_x = 0.00001  # = rho0 * V0 * V0
 Pdot_y = 0.0
-Qdot = 0.0000032
+Qdot = 0.0000001
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.0001
@@ -55,7 +55,7 @@ eta.ic.expression.region0 = "0.5 + 0.5*tanh((x-vel*t)/eps)"
 etadot.ic.type = expression
 etadot.ic.expression.constant.eps = 0.0001 # must match above!
 etadot.ic.expression.constant.vel = 0.0 #-0.004 # must match above!
-etadot.ic.expression.region0 = "0.5*(1 - (tanh((x-vel*t)/eps)**2)*(-vel))" # Derivative by hand
+etadot.ic.expression.region0 = "0.0" #"0.5*(1 - (tanh((x-vel*t)/eps)**2)*(-vel))" # Derivative by hand
 
 
 
@@ -81,7 +81,7 @@ gamma = 1.4
 cfl = 0.4
 
 rho_solid = 1500 #kg/m^3
-rho_fluid = 10 #kg/m^3
+rho_fluid = 1 #kg/m^3
 E_solid = 2.5 #7500000
 E_fluid = 2.5 #7500000
 Mx_init = 0.0

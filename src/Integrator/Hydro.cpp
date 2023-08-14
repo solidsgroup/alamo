@@ -294,10 +294,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             source[2] = Pdot_y * grad_eta_mag;
             source[3] = Qdot * grad_eta_mag;
 
-            E_new(i, j, k) += source[3] + E(i, j, k) * etadot(i, j, k);
-            rho_new(i, j, k) += source[0] + rho(i, j, k) * etadot(i, j, k);
-            M_new(i, j, k, 0) += source[1] + M(i, j, k, 0) * etadot(i, j, k);
-            M_new(i, j, k, 1) += source[2] + M(i, j, k, 1) * etadot(i, j, k);
+            E_new(i, j, k) += source[3]; //+ E(i, j, k) * etadot(i, j, k);
+	    rho_new(i, j, k) += source[0]; //+ rho(i, j, k) * etadot(i, j, k);
+            M_new(i, j, k, 0) += source[1]; //+ M(i, j, k, 0) * etadot(i, j, k);
+            M_new(i, j, k, 1) += source[2]; //+ M(i, j, k, 1) * etadot(i, j, k);
         });
     }
 }//end Advance
