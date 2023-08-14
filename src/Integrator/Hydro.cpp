@@ -35,9 +35,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp.query("Mx_init", value.Mx_init);
         pp.query("My_init", value.My_init);
-
-        pp.query("eps", value.eps);
-
+	
         pp.query("mdot", value.mdot);
         pp.query("Pdot_x", value.Pdot_x);
         pp.query("Pdot_y", value.Pdot_y);
