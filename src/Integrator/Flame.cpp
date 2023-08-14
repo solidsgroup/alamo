@@ -400,9 +400,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     else L = thermal.m_ap * exp(-thermal.E_ap / tempnew(i, j, k)) * phi(i, j, k);
                     L += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i, j, k)) * (1.0 - phi(i, j, k));
                     //L += thermal.m_comb * (0.5 * tempnew(i, j, k) / thermal.bound) * phi(i, j, k) * (1.0 - phi(i, j, k));
-                    //if (tempnew(i, j, k) <= thermal.bound) mob(i, j, k) = 0;
-                    //else mob(i, j, k) = L;
-                    mob(i,j,k) = L;
+                    if (tempnew(i, j, k) <= thermal.bound) mob(i, j, k) = 0;
+                    else mob(i, j, k) = L;
+                    //mob(i,j,k) = L;
                     if (isnan(mob(i,j,k)) ){
                         Util::Message(INFO, mob(i,j,k),"mob contains nan (i=",i,"j = ",j,")");                       
                         Util::Abort(INFO);
