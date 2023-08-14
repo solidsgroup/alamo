@@ -345,9 +345,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
                     if (isnan(etanew(i,j,k)) || isnan(alpha(i,j,k)) || isnan(mdot(i,j,k))){
-                        Util::Message(INFO, etanew(i,j,k)," contains nan (i=",i,"j = ",j,")");
-                        Util::Message(INFO, mdot(i,j,k)," contains nan (i=",i,"j = ",j,")");
-                        Util::Message(INFO, alpha(i,j,k)," contains nan (i=",i,"j = ",j,")");
+                        Util::Message(INFO, etanew(i,j,k),"etanew contains nan (i=",i,"j = ",j,")");
+                        Util::Message(INFO, mdot(i,j,k),"mdot contains nan (i=",i,"j = ",j,")");
+                        Util::Message(INFO, alpha(i,j,k),"alpha contains nan (i=",i,"j = ",j,")");
                         Util::Abort(INFO);
                     }                  
                 });
@@ -363,7 +363,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
                     heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
                     if (isnan(heatflux(i,j,k))){
-                        Util::Message(INFO, heatflux(i,j,k)," contains nan (i=",i,"j = ",j,")");
+                        Util::Message(INFO, heatflux(i,j,k),"heat contains nan (i=",i,"j = ",j,")");
                         Util::Abort(INFO);
                     }
                 });
@@ -386,8 +386,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
                     tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
                     if (isnan(tempsnew(i,j,k)) || isnan(temps(i,j,k))){
-                        Util::Message(INFO, tempsnew(i,j,k)," contains nan (i=",i,"j = ",j,")");
-                        Util::Message(INFO, temps(i,j,k)," contains nan (i=",i,"j = ",j,")");
+                        Util::Message(INFO, tempsnew(i,j,k),"tempsnew contains nan (i=",i,"j = ",j,")");
+                        Util::Message(INFO, temps(i,j,k),"temps contains nan (i=",i,"j = ",j,")");
                         Util::Abort(INFO);
                     }
 
@@ -404,8 +404,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     //else mob(i, j, k) = L;
                     mob(i,j,k) = L;
                     if (isnan(mob(i,j,k)) ){
-                        Util::Message(INFO, mob(i,j,k)," contains nan (i=",i,"j = ",j,")");
-                        
+                        Util::Message(INFO, mob(i,j,k),"mob contains nan (i=",i,"j = ",j,")");                       
                         Util::Abort(INFO);
                     }
                 });
