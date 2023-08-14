@@ -502,7 +502,7 @@ protected:
         }
     }
 
-    void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter &mfi, const amrex::Box &box)
+    void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter &mfi, const amrex::Box &box) override
     {
         const amrex::Real* DX = geom[amrlev].CellSize();
         const Set::Scalar DV = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
@@ -519,7 +519,7 @@ protected:
                                 });
     }
 
-    void TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
+    void TimeStepComplete(amrex::Real /*time*/,int /*iter*/) override
     {
         if (elastic.do_solve_now)
             crack.driving_force_reference = crack.driving_force_norm;

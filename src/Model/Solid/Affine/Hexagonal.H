@@ -43,7 +43,7 @@ public:
     {
         return Linear::Hexagonal::DDW(gradu - F0);
     }
-    virtual void Print(std::ostream &out) const //override 
+    virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }

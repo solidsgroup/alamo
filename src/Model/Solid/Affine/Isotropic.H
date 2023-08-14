@@ -49,7 +49,7 @@ public:
     {
         out << "lambda=" << ddw.Lambda() << ", mu=" << ddw.Mu() << ", F0=\n" << F0;
     }
-    virtual bool ContainsNan()
+    virtual bool ContainsNan() override
     {
         if (F0.hasNaN()) return true;
         if (ddw.contains_nan()) return true;

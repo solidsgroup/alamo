@@ -149,7 +149,6 @@ public:
     }
 
 private:
-    int dim = AMREX_SPACEDIM;
     Set::Vector center = Set::Vector::Zero();
     Set::Scalar radius = 1.0;
     Set::Scalar alpha_in = 1.0;

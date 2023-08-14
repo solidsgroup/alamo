@@ -27,7 +27,7 @@
 namespace Integrator
 {
 
-class Flame : virtual public Integrator::Integrator,
+class Flame: virtual public Integrator::Integrator,
     virtual public Base::Mechanics<Model::Solid::Elastic::NeoHookeanPredeformed>
 {
 
@@ -84,6 +84,7 @@ private:
     IC::IC* ic_eta;
 
     struct {
+        // Set::Scalar M = 0.0;
         Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;
         Set::Scalar lambda = 0.0;

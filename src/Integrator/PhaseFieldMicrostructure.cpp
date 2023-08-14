@@ -1,7 +1,6 @@
 
 #include <eigen3/Eigen/Eigenvalues>
 
-#include <omp.h>
 #include <cmath>
 
 #include <AMReX_SPACE.H>

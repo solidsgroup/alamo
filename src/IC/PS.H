@@ -1,3 +1,12 @@
+//
+// Fill a domain with randomly packed and sized spheres.
+//
+// .. WARNING::
+//
+//    This is not used for anything useful as far as we can see.
+//    It will likely be removed shortly.
+//
+
 #ifndef IC_PS_H_
 #define IC_PS_H_
 

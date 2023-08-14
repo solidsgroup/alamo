@@ -45,7 +45,7 @@ public:
     {
         return ddw;
     }
-    virtual void Print(std::ostream &out) const //override 
+    virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }

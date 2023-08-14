@@ -1,3 +1,7 @@
+//
+// Class of BC operators that work with :ref:`Operator::Elastic`.
+//
+
 #ifndef BC_OPERATOR_ELASTIC_H
 #define BC_OPERATOR_ELASTIC_H
 

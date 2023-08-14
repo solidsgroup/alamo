@@ -126,7 +126,7 @@ protected:
 
     virtual int getNComp() const override {return AMREX_SPACEDIM;};
     virtual bool isCrossStencil () const { return false; }
-    virtual void prepareForSolve ()
+    virtual void prepareForSolve () override
     {
         if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
         if (!m_bc_set) Util::Warning(INFO,"Attempting to use operator before calling SetBC!");

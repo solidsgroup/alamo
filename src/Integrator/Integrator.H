@@ -1,3 +1,42 @@
+//
+// Pure abstract class for managing data structures, time integration (with substepping),
+// mesh refinement, and I/O. 
+//
+// Native input file parameters:
+//
+// .. code-block:: make
+//
+//     max_step  = [maximum number of timesteps]
+//     stop_time = [maximum simulation time]
+//     timestep  = [time step for coarsest level]
+//
+//     amr.regrid_int = [number of timesteps between regridding]
+//     amr.plot_int   = [number of timesteps between dumping output]
+//     amr.plot_file  = [base name of output directory]
+//     
+//     amr.nsubsteps  = [number of temporal substeps at each level. This can be
+//                       either a single int (which is then applied to every refinement
+//                       level) or an array of ints (equal to amr.max_level) 
+//                       corresponding to the refinement for each level.]
+//
+// Inherited input file parameters (from amrex AmrMesh class):
+//
+// .. code-block:: make
+//
+//     amr.v                  = [verbosity level]
+//     amr.max_level          = [maximum level of refinement]
+//     amr.n_proper           = 
+//     amr.grid_eff           = 
+//     amr.n_error_buff       = 
+//     amr.ref_ratio_vect     = [refinement ratios in each direction]
+//     amr.ref_ratio          = [refinement ratio in all directions (cannot be used with ref_ratio_vect)]
+//     amr.max_grid_x         = 
+//     amr.blocking_factor    =
+//     amr.n_cell             = [number of cells on coarsest level]
+//     amr.refine_grid_layout = 
+//     amr.check_input        = 
+//
+
 #ifndef INTEGRATOR_INTEGRATOR_H
 #define INTEGRATOR_INTEGRATOR_H
 
@@ -31,42 +70,6 @@
 namespace Integrator
 {
 
-///
-/// \class Integrator
-/// \brief Pure abstract class for managing data structures, time integration (with substepping),
-///        mesh refinement, and I/O. 
-///
-/// ## Input file parameters ##
-/// ### Native input file parameters ###
-///
-///     max_step  = [maximum number of timesteps]
-///     stop_time = [maximum simulation time]
-///     timestep  = [time step for coarsest level]
-///
-///     amr.regrid_int = [number of timesteps between regridding]
-///     amr.plot_int   = [number of timesteps between dumping output]
-///     amr.plot_file  = [base name of output directory]
-///     
-///     amr.nsubsteps  = [number of temporal substeps at each level. This can be
-///                       either a single int (which is then applied to every refinement
-///                       level) or an array of ints (equal to amr.max_level) 
-///                       corresponding to the refinement for each level.]
-///
-/// ### Inherited input file parameters (from amrex AmrMesh class) ###
-///
-///     amr.v                  = [verbosity level]
-///     amr.max_level          = [maximum level of refinement]
-///     amr.n_proper           = 
-///     amr.grid_eff           = 
-///     amr.n_error_buff       = 
-///     amr.ref_ratio_vect     = [refinement ratios in each direction]
-///     amr.ref_ratio          = [refinement ratio in all directions (cannot be used with ref_ratio_vect)]
-///     amr.max_grid_x         = 
-///     amr.blocking_factor    =
-///     amr.n_cell             = [number of cells on coarsest level]
-///     amr.refine_grid_layout = 
-///     amr.check_input        = 
-///
 class Integrator
     : public amrex::AmrCore
 {

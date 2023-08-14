@@ -1001,7 +1001,7 @@ template<int index, int SYM>
 Set::Matrix3
 Divergence(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>>&,
     const int, const int, const int, const Set::Scalar[AMREX_SPACEDIM],
-    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    std::array<StencilType, AMREX_SPACEDIM> /*stecil*/ = DefaultType)
 {
     Util::Abort(INFO, "Not implemented yet"); return Set::Matrix3::Zero();
 }

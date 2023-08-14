@@ -24,7 +24,10 @@ public:
 
     enum Type { Static, Dynamic, Disable };
 
-    Mechanics() {}
+    Mechanics() : Integrator()
+    {
+        Util::Message(INFO);
+    }
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
@@ -128,7 +131,7 @@ protected:
         if (m_interval && a_step % m_interval) return;
 
 
-        if (!m_type == Mechanics<MODEL>::Type::Static) return;
+        if (m_type != Mechanics<MODEL>::Type::Static) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {

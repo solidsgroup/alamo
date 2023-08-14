@@ -1,3 +1,8 @@
+//
+// Basic IC that just sets the entire field to a constant value.
+// Works with a single or multiple-component field.
+//
+
 #ifndef IC_CONSTANT_H_
 #define IC_CONSTANT_H_
 
