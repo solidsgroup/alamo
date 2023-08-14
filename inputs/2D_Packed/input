@@ -1,7 +1,7 @@
 alamo.program = flame
 plot_file = output 
-#amr.plot_dt = 0.001
-amr.plot_int = 1
+amr.plot_dt = 0.001
+#amr.plot_int = 1
 amr.max_level = 7
 amr.max_grid_size = 50
 amr.blocking_factor = 2

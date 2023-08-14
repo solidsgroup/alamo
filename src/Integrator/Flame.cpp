@@ -399,7 +399,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi(i, j, k);
                     else L = thermal.m_ap * exp(-thermal.E_ap / tempnew(i, j, k)) * phi(i, j, k);
                     L += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i, j, k)) * (1.0 - phi(i, j, k));
-                    L += thermal.m_comb * (0.5 * tempnew(i, j, k) / thermal.bound) * phi(i, j, k) * (1.0 - phi(i, j, k));
+                    //L += thermal.m_comb * (0.5 * tempnew(i, j, k) / thermal.bound) * phi(i, j, k) * (1.0 - phi(i, j, k));
                     //if (tempnew(i, j, k) <= thermal.bound) mob(i, j, k) = 0;
                     //else mob(i, j, k) = L;
                     mob(i,j,k) = L;
