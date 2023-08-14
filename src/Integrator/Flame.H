@@ -68,9 +68,6 @@ private:
 
     Set::Field<Set::Scalar> laser_mf;
 
-    Set::Field<Set::Scalar> dtdt_mf;
-    Set::Field<Set::Scalar> tsolid_mf;
-
     BC::BC<Set::Scalar>* bc_temp;
     BC::BC<Set::Scalar>* bc_eta;
     IC::IC* ic_phi;

@@ -1,8 +1,8 @@
 alamo.program = flame
-plot_file = output 
-#amr.plot_dt = 0.001
-amr.plot_int = 1
-amr.max_level = 6
+plot_file = output
+amr.plot_dt = 0.001
+#amr.plot_int = 1
+amr.max_level = 7
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
@@ -15,7 +15,7 @@ amr.n_cell = 8 2 2
 geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
 geometry.prob_hi = 0.004 0.001 0.001 # [ m ]
 
-geometry.is_periodic = 0 0 0 
+geometry.is_periodic = 0 1 1
 
 conditional.round = 1000.0
 
@@ -36,8 +36,9 @@ eta.ic.type = constant #laminate
 
 phi.ic.type = psread
 phi.zeta_0 = 0.00001
-phi.ic.psread.eps = 0.000001
-phi.ic.psread.filename = ../2d.xyzr
+phi.ic.psread.eps = 0.00001
+phi.ic.psread.filename = 2d.xyzr
+
 
 pf.kappa = 1.0
 pf.gamma = 0.02726
@@ -47,10 +48,10 @@ pf.w0 = 0.0
 
 pf.eta.bc.type.xlo = dirichlet
 pf.eta.bc.type.xhi = dirichlet
-pf.eta.bc.type.ylo = neumann
-pf.eta.bc.type.yhi = neumann 
-pf.eta.bc.type.zlo = neumann
-pf.eta.bc.type.zhi = neumann
+pf.eta.bc.type.ylo = periodic
+pf.eta.bc.type.yhi = periodic
+pf.eta.bc.type.zlo = periodic
+pf.eta.bc.type.zhi = periodic
 
 pf.eta.bc.val.xlo = 0.0
 pf.eta.bc.val.xhi = 1.0
@@ -63,7 +64,7 @@ pf.eta.bc.val.zhi = 0.0
 conditional.evolve = 1
 
 # THERMAL VARIABLES ######################################################### THERMAL
-thermal.T_fluid = 600.0
+thermal.T_fluid = 2000.0
 
 thermal.m_ap = 1.45e5 #[m/s]
 thermal.m_htpb = 1.4e2 # 0.2 # [m/s]
@@ -107,7 +108,7 @@ thermal.mlocal_comb = 0.0
 
 pressure.P = 2.0  ## Pressure is to be inputed in MPa units.
 pressure.mob_ap = 0
-pressure.dependency = 1
+
 
 pressure.a3 = 2.797
 pressure.a1 = 1.114
@@ -122,10 +123,9 @@ pressure.c1 = -0.09906
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 
 elastic.type = disable
-elastic.on = 0 
+elastic.on = 0
 
 laser.ic.type = "expression"
-#laser.ic.type = "constant" 
 #laser.ic.constant.value = 1.0e6
-#laser.ic.constant.value = 1.0e6
-laser.ic.expression.region0 = "(t < 0.02)*6.0e6"
+#laser.ic.expression.value = 1.0e6
+laser.ic.expression.region0 = "(t < 0.02)*1.0e7"
