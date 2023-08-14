@@ -18,7 +18,7 @@ geometry.prob_hi = 0.004 0.001 0.001 # [ m ]
 geometry.is_periodic = 0 0 0 
 
 conditional.round = 1000.0
-
+ 
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1.0e-5 # 0.00005 # [s]
