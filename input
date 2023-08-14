@@ -50,12 +50,12 @@ Qdot = 0.0000032
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.0001
-eta.ic.expression.constant.vel = -0.004
+eta.ic.expression.constant.vel = 0.0 #-0.004
 eta.ic.expression.region0 = "0.5 + 0.5*tanh((x-vel*t)/eps)"
 etadot.ic.type = expression
 etadot.ic.expression.constant.eps = 0.0001 # must match above!
-etadot.ic.expression.constant.vel = -0.004 # must match above!
-etadot.ic.expression.region0 = "0.0" #"0.5*(1 - (tanh((x-vel*t)/eps)**2)*(-vel/eps))" # Derivative by hand
+etadot.ic.expression.constant.vel = 0.0 #-0.004 # must match above!
+etadot.ic.expression.region0 = "0.5*(1 - (tanh((x-vel*t)/eps)**2)*(-vel))" # Derivative by hand
 
 
 
