@@ -56,8 +56,10 @@ public:
         if (pp.contains("F0")) {
             Set::Matrix a_F0;
             pp.queryarr("F0", a_F0);
-            Set::Matrix Id = Set::Matrix::Identity();
-            value.F0 = a_F0 + Id;
+            //Set::Matrix Id = Set::Matrix::Identity();
+            value.F0 = a_F0; //  + Id;
+            
+            
         }
     }
 
