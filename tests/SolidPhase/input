@@ -134,7 +134,6 @@ pressure.n_htpb = 0.0
 pressure.n_comb = 0.0
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC
-
 elastic.type = disable
 
 
