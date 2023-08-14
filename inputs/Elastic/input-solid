@@ -2,7 +2,7 @@
 alamo.program = mechanics
 alamo.program.mechanics.model = elastic.neohookean
 
-plot_file		    = ../solidphase/Solid/outputap
+plot_file		    = inputs/Elastic/output-solid
 
 type=static
 

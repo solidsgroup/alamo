@@ -1,6 +1,6 @@
 alamo.program = mechanics
 alamo.program.mechanics.model = elastic.neohookean
-plot_file = output
+plot_file = inputs/Elastic/output-rubber
 type = static
 timestep = 0.1
 stop_time = 10.0
@@ -17,7 +17,7 @@ geometry.prob_lo = 0 0 0
 geometry.prob_hi = 0.001 0.001 0.001
 
 ic.type = psread
-ic.psread.filename = 2d.xyzr
+ic.psread.filename = inputs/2d.xyzr
 ic.psread.eps = 0.00002
 ic.psread.verbose = 1
 
