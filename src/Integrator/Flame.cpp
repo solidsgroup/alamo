@@ -221,9 +221,9 @@ void Flame::UpdateModel(int /*a_step*/)
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         //psi_mf[lev]->setVal(1.0);
-        ///phi_mf[lev]->FillBoundary();
-        //eta_mf[lev]->FillBoundary();
-        //temp_mf[lev]->FillBoundary();
+        phi_mf[lev]->FillBoundary();
+        eta_mf[lev]->FillBoundary();
+        temp_mf[lev]->FillBoundary();
 
         for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
