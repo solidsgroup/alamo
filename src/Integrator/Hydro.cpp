@@ -245,10 +245,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state, gamma);
 	    
             flux_test = Solver::Local::Riemann::Roe::Solve(state, lo_statex, gamma);
-            Util::Message(INFO, "mass flux ", flux_xlo.mass, " ", flux_test.mass);
-            Util::Message(INFO, "energy flux ", flux_xlo.energy, " ", flux_test.energy);
-            Util::Message(INFO, "momentum x flux ", flux_xlo.momentum(0), " ", flux_test.momentum(0));
-            Util::Message(INFO, "momentum y flux ", flux_xlo.momentum(1), " ", flux_test.momentum(1));
+            // Util::Message(INFO, "mass flux ", flux_xlo.mass, " ", flux_test.mass);
+            // Util::Message(INFO, "energy flux ", flux_xlo.energy, " ", flux_test.energy);
+            // Util::Message(INFO, "momentum x flux ", flux_xlo.momentum(0), " ", flux_test.momentum(0));
+            // Util::Message(INFO, "momentum y flux ", flux_xlo.momentum(1), " ", flux_test.momentum(1));
 
             flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state, gamma);
 
