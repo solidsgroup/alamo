@@ -53,14 +53,27 @@ public:
     static void Parse(NeoHookeanPredeformed& value, IO::ParmParse& pp)
     {
         NeoHookean::Parse(value, pp);
-        if (pp.contains("F0")) {
-            Set::Matrix a_F0;
-            pp.queryarr("F0", a_F0);
-            //Set::Matrix Id = Set::Matrix::Identity();
-            value.F0 = a_F0; //  + Id;
-            
-            
+        if (pp.contains("eps0") && pp.contains("F0"))
+        {
+            Util::Abort("Cannot specify both F0 and eps0");
         }
+        else if (pp.contains("F0")) 
+        {
+            Set::Matrix F0;
+            pp.queryarr("F0", F0);
+            value.F0 = F0;
+        }
+        else if (pp.contains("eps0"))
+        {
+            Set::Matrix eps0;
+            pp.queryarr("eps0",eps0);
+            value.F0 = eps0 + Set::Matrix::Identity();
+        }
+        else
+        {
+            value.F0 = Set::Matrix::Identity();
+        }
+        Util::Assert(INFO,TEST(fabs(value.F0.determinant()) > 1E-8 ),"F0 must be non-singular");
     }
 
 #define OP_CLASS NeoHookeanPredeformed
