@@ -92,20 +92,20 @@
 #@
 
 alamo.program = mechanics
-alamo.program.mechanics.model = elastic.neohookean
 
-plot_file		    = /home/meier/solidphase/Solid/outputap
+
+plot_file		    = tests/Solid/output
 
 type=static
 
-timestep		    = 0.001
+timestep		    = 0.01
 stop_time		    = 1.0
 
 # amr parameters
 amr.plot_dt		    = 0.1
-amr.max_level		= 6
+amr.max_level		    = 0
 amr.n_cell		    = 4 4 4
-amr.blocking_factor = 2
+amr.blocking_factor         = 2
 
 amr.thermo.int = 1
 amr.thermo.plot_int = 1
@@ -115,15 +115,13 @@ geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 1 1 1
 
 nmodels = 1
-model1.E= 3244.699 
-model1.nu=0.143305
-#model1.E = 25.61
-#model1.nu = 0.4994
+model1.E=210 
+model1.nu=0.3
 
 solver.verbose = 3
 solver.nriters = 1
-solver.max_iter = 1000 #30
+solver.max_iter = 30 #30
 
 bc.type = tension_test
 bc.tension_test.type = uniaxial_stress
-bc.tension_test.disp=(0,1:0,0.2)
+bc.tension_test.disp=(0,1:0,0.01)
