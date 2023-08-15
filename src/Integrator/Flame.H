@@ -73,6 +73,7 @@ private:
     IC::IC* ic_phi;
     IC::IC* ic_laser;
 
+    Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     Set::Scalar t_refinement_restriction = 0.1;
@@ -125,6 +126,7 @@ private:
 
     struct {
         int on = 0;
+        Set::Scalar Tref = 300.0;
         model_type model_ap, model_htpb;
     } elastic;
 
