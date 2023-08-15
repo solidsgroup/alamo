@@ -414,11 +414,11 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //   Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 //   amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
 //   amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//   	volume += eta(i, j, k, 0) * dv;
-//   	Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-//   	Set::Scalar normgrad = grad.lpNorm<2>();
-//   	Set::Scalar da = normgrad * dv;
-//   	area += da;
+//   volume += eta(i, j, k, 0) * dv;
+//   Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+//   Set::Scalar normgrad = grad.lpNorm<2>();
+//   Set::Scalar da = normgrad * dv;
+//   area += da;
 //   });
 
 
@@ -435,13 +435,13 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //      
 //      for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 //      {
-//	amrex::Box bx = mfi.nodaltilebox();
-//	amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+//amrex::Box bx = mfi.nodaltilebox();
+//amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
 //
-//	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//	  // TODO
+//amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+//// TODO
 //
-//	});
+//});
 //
 //
 //     } // end For2
@@ -449,8 +449,8 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //     Util::RealFillBoundary(*model_mf[lev], geom[lev]);
 //     amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]-> nGrow());
 
-  //    } //end For1
-  //}//end update
+//    } //end For1
+//}//end update
 
 
 }//end code
