@@ -144,6 +144,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion);
     // Eta value to restrict the refinament for the temperature field
     pp.query("amr.refinament_restriction", value.t_refinement_restriction);
+    // Refinement criterion for phi field [infinity]
+    pp.query("amr.phi_refinement_criterion", value.phi_refinement_criterion);
     // small value
     pp.query("small", value.small);
 
@@ -170,13 +172,15 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         }
         else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
         else Util::Abort(INFO, "Invalid IC type ", type);
-        value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 2, "phi", true);
+        value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
     }
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
     
     if (value.m_type != Type::Disable)
     {
+        value.elastic.Tref = value.thermal.bound;
+        pp.query("Tref", value.elastic.Tref);
         pp.queryclass("model_ap", value.elastic.model_ap);
         pp.queryclass("model_htpb", value.elastic.model_htpb);
 
@@ -242,16 +246,16 @@ void Flame::UpdateModel(int /*a_step*/)
                 amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
+                    Set::Scalar phi_avg = phi(i,j,k,0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
 
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
-                    model_ap.F0 *= (temp_avg - thermal.bound);
+                    model_ap.F0 *= (temp_avg - elastic.Tref);
                     model_ap.F0 += Set::Matrix::Identity();
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 -= Set::Matrix::Identity();
-                    model_htpb.F0 *= (temp_avg - thermal.bound);
+                    model_htpb.F0 *= (temp_avg - elastic.Tref);
                     model_htpb.F0 += Set::Matrix::Identity();
 
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
@@ -340,10 +344,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
+
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
-                    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi(i, j, k) + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi(i, j, k)); // Calculate effective thermal conductivity
-                    Set::Scalar rho = thermal.rho_ap * phi(i, j, k) + thermal.rho_htpb * (1.0 - phi(i, j, k)); // No special interface mixure rule is needed here.
-                    Set::Scalar cp = thermal.cp_ap * phi(i, j, k) + thermal.cp_htpb * (1.0 - phi(i, j, k));
+                    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
+                    Set::Scalar rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
+                    Set::Scalar cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);                 
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;                   
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
@@ -358,11 +364,13 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi(i, j, k) + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi(i, j, k));
-                    Set::Scalar qflux = k1 * phi(i, j, k) +
-                        k2 * (1.0 - phi(i, j, k)) +
-                        (zeta_1 / zeta) * exp(k3 * phi(i, j, k) * (1.0 - phi(i, j, k)));
-                    Set::Scalar mlocal = (thermal.mlocal_ap) * phi(i, j, k) + (thermal.mlocal_htpb) * (1.0 - phi(i, j, k)) + thermal.mlocal_comb * phi(i, j, k) * (1.0 - phi(i, j, k));
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
+                    
+                    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
+                    Set::Scalar qflux = k1 * phi_avg +
+                        k2 * (1.0 - phi_avg) +
+                        (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
+                    Set::Scalar mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
                     Set::Scalar mdota = fabs(mdot(i, j, k));
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
                     heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
@@ -399,10 +407,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
+
                     Set::Scalar L;
-                    if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi(i, j, k);
-                    else L = thermal.m_ap * exp(-thermal.E_ap / tempnew(i, j, k)) * phi(i, j, k);
-                    L += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i, j, k)) * (1.0 - phi(i, j, k));
+                    if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
+                    else L = thermal.m_ap * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
+                    L += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i, j, k)) * (1.0 - phi_avg);
                     //L += thermal.m_comb * (0.5 * tempnew(i, j, k) / thermal.bound) * phi(i, j, k) * (1.0 - phi(i, j, k));
                     if (tempnew(i, j, k) <= thermal.bound) mob(i, j, k) = 0;
                     else mob(i, j, k) = L;
@@ -439,10 +449,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
+
                     Set::Scalar fs_actual;
-                    fs_actual = fmod_ap * phi(i, j, k)
-                        + fmod_htpb * (1.0 - phi(i, j, k))
-                        + 4.0 * fmod_comb * phi(i, j, k) * (1.0 - phi(i, j, k));
+                    fs_actual = fmod_ap * phi_avg
+                        + fmod_htpb * (1.0 - phi_avg)
+                        + 4.0 * fmod_comb * phi_avg * (1.0 - phi_avg);
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
@@ -478,6 +490,22 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
+
+    // Phi criterion for refinement 
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
+            if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)
+                tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
+
 
     // Thermal criterion for refinement 
     if (thermal.on) {
