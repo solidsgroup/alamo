@@ -20,7 +20,7 @@ geometry.is_periodic = 0 0 0
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1.0e-5 # 0.00005 # [s]
-stop_time = 0.05
+stop_time = 1.0
 small = 1.0e-8
 pf.min_eta = 0.1
 
@@ -154,7 +154,7 @@ elastic.solver.fixed_iter = 500
 elastic.solver.nriters = 200
 elastic.solver.nrtolerance = 1E-4
 elastic.print_model = 1
-elastic.solver.bottom_solver = smoother
+#elastic.solver.bottom_solver = smoother
 
 #elastic.solver.dump_on_fail = 1
 #amrex.signalhandling=0
