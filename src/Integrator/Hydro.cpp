@@ -35,7 +35,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp.query("Mx_init", value.Mx_init);
         pp.query("My_init", value.My_init);
-	
+
+        pp.query("eps", value.eps);
+
         pp.query("mdot", value.mdot);
         pp.query("Pdot_x", value.Pdot_x);
         pp.query("Pdot_y", value.Pdot_y);
@@ -294,10 +296,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             source[2] = Pdot_y * grad_eta_mag;
             source[3] = Qdot * grad_eta_mag;
 
-            E_new(i, j, k) += source[3]; //+ E(i, j, k) * etadot(i, j, k);
-	    rho_new(i, j, k) += source[0]; //+ rho(i, j, k) * etadot(i, j, k);
-            M_new(i, j, k, 0) += source[1]; //+ M(i, j, k, 0) * etadot(i, j, k);
-            M_new(i, j, k, 1) += source[2]; //+ M(i, j, k, 1) * etadot(i, j, k);
+            E_new(i, j, k) += source[3];
+            rho_new(i, j, k) += source[0];
+            M_new(i, j, k, 0) += source[1];
+            M_new(i, j, k, 1) += source[2];
         });
     }
 }//end Advance

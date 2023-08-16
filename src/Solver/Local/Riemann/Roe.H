@@ -66,7 +66,8 @@ public:
 
 	Set::Scalar sgn;
 	if (u_RL > 0) {sgn = 1;}
-	else {sgn = -1;};
+	if (u_RL < 0) {sgn = -1;}
+	else {sgn = 0;};
 
         // eigenvalues
         std::array<Set::Scalar, 4> ev;
@@ -121,20 +122,20 @@ public:
 
         // upwinding
 
-        fl.mass += -0.5 * rev_0[0] * std::abs(ev[0]) * dv[0];
-        fl.mass += -0.5 * rev_1[0] * std::abs(ev[1]) * dv[1];
-        fl.mass += -0.5 * rev_2[0] * std::abs(ev[2]) * dv[2];
-        fl.mass += -0.5 * rev_3[0] * std::abs(ev[3]) * dv[3];
+        // fl.mass += -0.5 * rev_0[0] * std::abs(ev[0]) * dv[0];
+        // fl.mass += -0.5 * rev_1[0] * std::abs(ev[1]) * dv[1];
+        // fl.mass += -0.5 * rev_2[0] * std::abs(ev[2]) * dv[2];
+        // fl.mass += -0.5 * rev_3[0] * std::abs(ev[3]) * dv[3];
 
-        fl.momentum(0) += -0.5 * rev_0[2] * std::abs(ev[0]) * dv[0];
-        fl.momentum(0) += -0.5 * rev_1[2] * std::abs(ev[1]) * dv[1];
-        fl.momentum(0) += -0.5 * rev_2[2] * std::abs(ev[2]) * dv[2];
-        fl.momentum(0) += -0.5 * rev_3[2] * std::abs(ev[3]) * dv[3];
+        // fl.momentum(0) += -0.5 * rev_0[2] * std::abs(ev[0]) * dv[0];
+        // fl.momentum(0) += -0.5 * rev_1[2] * std::abs(ev[1]) * dv[1];
+        // fl.momentum(0) += -0.5 * rev_2[2] * std::abs(ev[2]) * dv[2];
+        // fl.momentum(0) += -0.5 * rev_3[2] * std::abs(ev[3]) * dv[3];
 
-        fl.energy += -0.5 * rev_0[1] * std::abs(ev[0]) * dv[0];
-        fl.energy += -0.5 * rev_1[1] * std::abs(ev[1]) * dv[1];
-        fl.energy += -0.5 * rev_2[1] * std::abs(ev[2]) * dv[2];
-        fl.energy += -0.5 * rev_3[1] * std::abs(ev[3]) * dv[3];
+        // fl.energy += -0.5 * rev_0[1] * std::abs(ev[0]) * dv[0];
+        // fl.energy += -0.5 * rev_1[1] * std::abs(ev[1]) * dv[1];
+        // fl.energy += -0.5 * rev_2[1] * std::abs(ev[2]) * dv[2];
+        // fl.energy += -0.5 * rev_3[1] * std::abs(ev[3]) * dv[3];
 
         return fl;
     }
