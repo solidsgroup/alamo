@@ -146,7 +146,7 @@ public:
         for (int i = 0; i < 10; i++)
         {
 
-            State hi, lo, fixed;
+	    State hi, lo, fixed, pos_vel1, pos_vel2, neg_vel1, neg_vel2;
             hi.rho = Util::Random();
             hi.momentum = Set::Vector::Random();
             hi.energy = Util::Random();
@@ -162,6 +162,26 @@ public:
             lo.energy = Util::Random();
             lo.eta = Util::Random();
 
+	    pos_vel1.rho = Util::Random();
+	    pos_vel1.momentum = Set::Vector::Random();
+	    pos_vel1.energy = Util::Random();
+	    pos_vel1.eta = Util::Random();
+
+	    neg_vel1.rho = pos_vel1.rho;
+	    neg_vel1.momentum = -pos_vel1.momentum;
+	    neg_vel1.energy = pos_vel1.energy;
+	    neg_vel1.eta = pos_vel1.eta;
+
+	    pos_vel2.rho = Util::Random();
+	    pos_vel2.momentum = Set::Vector::Random();
+	    pos_vel2.energy = Util::Random();
+	    pos_vel2.eta = Util::Random();
+
+	    neg_vel2.rho = pos_vel2.rho;
+	    neg_vel2.momentum = -pos_vel2.momentum;
+	    neg_vel2.energy = pos_vel2.energy;
+	    neg_vel2.eta = pos_vel2.eta;
+
             // 
             // Zero flux test: if the state is the same on both sides,
             //                 the flux should be zero.
@@ -174,7 +194,7 @@ public:
 
             // 
             // Antisymmetry test: reversing hi and lo should produce the same
-            //                    output but negative
+            //                    output 
             // 
 
             Flux plus = Solve(hi, lo, 1.4);
@@ -188,6 +208,24 @@ public:
             {Util::Warning(INFO,"momentum y flux error: plus=", plus.momentum(1), " minus=",minus.momentum(1)); failed++;}
             if (fabs(plus.energy - minus.energy) > 1E-10)  
             {Util::Warning(INFO,"energy flux error: plus=", plus.energy, " minus=",minus.energy); failed++;}
+
+
+	    // 
+            // Wave Propogation Test: changing the sign of velocity should produce negative mass
+            //                   and energy fluxes and the same momentum flux
+            // 
+
+            Flux pos = Solve(pos_vel1, pos_vel2, 1.4);
+            Flux neg = Solve(neg_vel1, neg_vel2, 1.4);
+
+            if (fabs(pos.mass + neg.mass) > 1E-10)  
+            {Util::Warning(INFO,"mass flux error: positive vel=", pos.mass, " negative vel=", neg.mass); failed++;}
+            if (fabs(pos.momentum(0) - neg.momentum(0)) > 1E-10)  
+            {Util::Warning(INFO,"momentum x flux error: positive vel=", pos.momentum(0), " negative vel=", neg.momentum(0)); failed++;}
+            if (fabs(pos.momentum(1) - neg.momentum(1)) > 1E-10)  
+            {Util::Warning(INFO,"momentum y flux error: positive vel=", pos.momentum(1), " negative vel=", neg.momentum(1)); failed++;}
+            if (fabs(pos.energy + neg.energy) > 1E-10)  
+            {Util::Warning(INFO,"energy flux error: positive vel=", pos.energy, " negative vel=", neg.energy); failed++;}
 
 
         }
