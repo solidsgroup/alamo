@@ -34,7 +34,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep = 1.0e-6
+timestep = 1.0e-5
 stop_time = 1.0
 #small = 1.0e-5
 
@@ -51,7 +51,7 @@ Qdot = 0.0000001
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.0001
 eta.ic.expression.constant.vel = 0.0 #-0.004
-eta.ic.expression.region0 = "0.5 + 0.5*tanh((x-vel*t)/eps)"
+eta.ic.expression.region0 = "1.0" #"0.5 + 0.5*tanh((x-vel*t)/eps)"
 etadot.ic.type = expression
 etadot.ic.expression.constant.eps = 0.0001 # must match above!
 etadot.ic.expression.constant.vel = 0.0 #-0.004 # must match above!
@@ -81,9 +81,9 @@ gamma = 1.4
 cfl = 0.4
 
 rho_solid = 1500 #kg/m^3
-rho_fluid = 1 #kg/m^3
-E_solid = 2.5 #7500000
-E_fluid = 2.5 #7500000
+rho_fluid = 10 #kg/m^3
+E_solid = 7500000
+E_fluid = 7500000
 Mx_init = 0.0
 My_init = 0.0
 
@@ -124,7 +124,7 @@ M.bc.type.yhi = neumann
 M.bc.type.zlo = neumann
 M.bc.type.zhi = neumann
 
-M.bc.val.xlo = 0.0 0.0
+M.bc.val.xlo = 0.01 0.0
 M.bc.val.xhi = 0.0 0.0
 M.bc.val.ylo = 0.0 0.0
 M.bc.val.yhi = 0.0 0.0
