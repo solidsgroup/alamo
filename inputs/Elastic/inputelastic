@@ -1,16 +1,18 @@
 alamo.program = flame
 plot_file = inputs/Elastic/outputelastic
 #amr.plot_dt = 0.001
-amr.plot_int = 10
-amr.max_level = 2
+amr.plot_int = 100
+amr.max_level = 3
 #amr.max_grid_size = 50
 amr.blocking_factor = 4
-amr.base_regrid_int = 10
-amr.grid_eff = 0.8
+amr.base_regrid_int = 200
+amr.grid_eff = 1
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 10.0
 amr.refinement_restriction = 0.1
-amr.n_cell = 64 64 64   #128 128
+amr.phi_refinement_criterion = 0.05
+
+amr.n_cell = 32 32 32   #128 128
 geometry.prob_lo = 0.0 -0.0005 -0.00025 # [ m ] 
 geometry.prob_hi = 0.001 0.0005 0.00025 # [ m ]
 
@@ -18,7 +20,7 @@ geometry.is_periodic = 0 0 0
 
 ## TIME EPS ############################################################ TIME EPS
 
-timestep = 6.25e-7 # 0.00005 # [s]
+timestep = 1.25e-6 # 0.00005 # [s]
 stop_time = 1.0
 small = 1.0e-8
 pf.min_eta = 0.1
@@ -133,7 +135,7 @@ laser.ic.constant.value = 1.0e6
 
 #elastic.type = disable
 elastic.on = 1
-elastic.interval = 10
+elastic.interval = 100
 Tref = 300 #300
 
 model_ap.mu    = 140
@@ -167,7 +169,7 @@ elastic.bc.constant.type.yhi = trac disp trac
 elastic.bc.constant.type.xloylo = trac disp disp
 elastic.bc.constant.type.xloyhi = trac disp disp
 
-elastic.elastic_ref_threshold = 0.0005
+elastic.elastic_ref_threshold = 0.00005
 
 
 amr.node.all = 1
