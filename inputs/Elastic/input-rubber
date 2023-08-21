@@ -1,13 +1,13 @@
 alamo.program = mechanics
 alamo.program.mechanics.model = elastic.neohookean
-plot_file = inputs/Elastic/output-rubber
+plot_file = output-rubber
 type = static
-timestep = 0.1
+timestep = 0.001
 stop_time = 10.0
 
 amr.grid_eff = 1.0
 amr.plot_int = 1
-amr.max_level = 5
+amr.max_level = 4
 amr.n_cell = 2 2 2  # 16 16 16 
 amr.blocking_factor = 2
 amr.thermo.int = 1
@@ -17,7 +17,7 @@ geometry.prob_lo = 0 0 0
 geometry.prob_hi = 0.001 0.001 0.001
 
 ic.type = psread
-ic.psread.filename = inputs/2d.xyzr
+ic.psread.filename = pack3d.out
 ic.psread.eps = 0.00002
 ic.psread.verbose = 1
 
@@ -29,9 +29,9 @@ model2.mu = 8
 model2.kappa = 210
 # model2.F0  = 0.0000255 0 0 0 0.0000255 0 0 0 0.0000255  # alpha = 51e-6 # eigenstrain
 
-solver.verbose = 1
-solver.max_iter = 1000
-#solver.fixed_iter = 200
+solver.verbose = 3
+#solver.max_iter = 1000
+solver.fixed_iter = 500
 solver.nriters = 200
 solver.nrtolerance = 1E-4
 
