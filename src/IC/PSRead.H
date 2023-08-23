@@ -107,6 +107,9 @@ public:
         pp.query("eps", value.eps); // Diffuseness of the sphere boundary
         pp.query("filename", filename); // Location of .xyzr file
         pp.query("verbose", verbose); // Verbosity (used in parser only)
+        pp.query("mult",value.mult); // Coordinate multiplier
+        if (pp.contains("x0"))
+            pp.queryarr("x0",value.x0); // Coordinate offset
         std::ifstream datafile(filename);
         std::string line;
         if (datafile.is_open())
@@ -120,8 +123,8 @@ public:
 
                 std::string strx, stry, strz, strR;
                 in >> strx >> stry >> strz >> strR;
-                value.X.push_back(Set::Vector(AMREX_D_DECL(std::stod(strx), std::stod(stry), std::stod(strz))));
-                value.R.push_back(std::stod(strR));
+                value.X.push_back(value.x0 + value.mult*Set::Vector(AMREX_D_DECL(std::stod(strx), std::stod(stry), std::stod(strz))));
+                value.R.push_back(value.mult*std::stod(strR));
                 if (verbose > 0)
                     Util::Message(INFO, "x=", value.X.back().transpose(), " r=", value.R.back());
             }
@@ -137,6 +140,8 @@ private:
     std::vector<Set::Vector> X;
     std::vector<Set::Scalar> R;
     Set::Scalar eps;
+    Set::Scalar mult = 1.0;
+    Set::Vector x0 = Set::Vector::Zero();
 };
 }
 #endif
