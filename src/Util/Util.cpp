@@ -263,8 +263,8 @@ std::vector<std::string> Split(std::string &str, const char delim)
 }
 bool Contains(std::string &str, const std::string find)
 {
-  if (str.find(find) != std::string::npos) return true;
-  else return false;
+    if (str.find(find) != std::string::npos) return true;
+    else return false;
 }
 
 template<>
