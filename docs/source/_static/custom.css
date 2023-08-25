@@ -77,3 +77,8 @@ li[class="toctree-l1"] a:hover
 h1 {font-size:xx-large!important;}
 h2 {font-size:x-large!important;}
 h3 {font-size:large!important;}
+
+
+.wy-nav-content {
+    max-width: none;
+}

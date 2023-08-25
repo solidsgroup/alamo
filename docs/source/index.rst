@@ -2,11 +2,12 @@ Documentation for alamo
 =======================
 
 
-.. grid:: 2
+.. grid:: 1 2 1 2
+    :gutter: 3
    
     .. grid-item-card::
         :link: getting-started
-	:link-type: ref
+        :link-type: ref
         
         :fas:`forward;fa-fw` Getting Started
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -19,7 +20,7 @@ Documentation for alamo
 
     .. grid-item-card::  
         :link: tests
-	:link-type: ref
+        :link-type: ref
 
         :fas:`flask;fa-fw` Running Tests
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -29,12 +30,9 @@ Documentation for alamo
         ++++++++++++++++++++++++++++++++++++++++++++++++++++
         :bdg-success-line:`Next steps after compiling Alamo` 
         
-        
-.. grid:: 2
-
     .. grid-item-card:: 
         :link: simba
-	:link-type: ref
+        :link-type: ref
 
         :fas:`paw;fa-fw` SimBA
         ^^^^^^^^^^^^^^^^^^^^^^
@@ -47,7 +45,7 @@ Documentation for alamo
         
     .. grid-item-card:: 
         :link: inputs
-	:link-type: ref
+        :link-type: ref
 
         :fas:`cube;fa-fw` API and Inputs
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,11 +56,9 @@ Documentation for alamo
         :bdg-warning-line:`For those using existing code to run new siulations.` 
         
 
-.. grid:: 2
-
     .. grid-item-card:: 
         :link: developers
-	:link-type: ref
+        :link-type: ref
 
         :fas:`code;fa-fw` Developer Instructions
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -76,7 +72,7 @@ Documentation for alamo
         
     .. grid-item-card:: 
         :link: autodoc
-	:link-type: ref
+        :link-type: ref
 
         :fas:`swatchbook;fa-fw` Alamo's autodoc system
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
