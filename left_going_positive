@@ -35,7 +35,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep = 1.0e-6
-stop_time = 1.0
+stop_time = 1.0e-3
 #small = 1.0e-5
 
 
@@ -44,12 +44,12 @@ stop_time = 1.0
 eps = 0.0001
 
 
-# rho0 = 10
+# rho0 = 1
 # V0 = 0.1
-mdot = 1.0    # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
-Pdot_x = 0.1  # = rho0 * V0 * V0
+mdot = 0.1    # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
+Pdot_x = 0.01  # = rho0 * V0 * V0
 Pdot_y = 0.0
-Qdot = 0.01   #0.0000032
+Qdot = 0.001   #0.0000032
 
 #eta.ic.type = laminate
 #eta.ic.laminate.number_of_inclusions = 1
@@ -94,7 +94,7 @@ gamma = 1.4
 cfl = 0.4
 
 rho_solid = 1500 #kg/m^3
-rho_fluid = 0.5 #kg/m^3
+rho_fluid = 1.0 #kg/m^3
 E_solid = 2.5 #7500000
 E_fluid = 2.5 #7500000
 Mx_init = 0.0
@@ -138,7 +138,7 @@ M.bc.type.zlo = neumann
 M.bc.type.zhi = neumann
 
 M.bc.val.xlo = 0.0 0.0
-M.bc.val.xhi = -0.0001 0.0
+M.bc.val.xhi = 0.0001 0.0
 M.bc.val.ylo = 0.0 0.0
 M.bc.val.yhi = 0.0 0.0
 M.bc.val.zlo = 0.0 0.0

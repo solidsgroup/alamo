@@ -48,22 +48,6 @@ public:
         Set::Scalar p_hi = (gamma - 1) * ue_hi;
         Set::Scalar h_hi = (hi.energy + p_hi) / hi.rho;
 
-	Set::Scalar drho, dp, dvel;
-	// if (u_hi > u_lo) {
-	// drho = hi.rho * hi.eta - lo.rho * lo.eta;
-        // dp   = p_hi - p_lo;
-        // dvel = u_hi * hi.eta - u_lo * lo.eta;
-	// }
-	// else {
-	// drho = lo.rho * lo.eta - hi.rho * hi.eta;
-        // dp   = p_lo - p_hi;
-        // dvel = u_lo * lo.eta - u_hi * hi.eta;
-	// };
-     
-	drho = hi.rho * hi.eta - lo.rho * lo.eta;
-        dp   = p_hi - p_lo;
-        dvel = u_hi * hi.eta - u_lo * lo.eta;
-
         // roe averages
         Set::Scalar rho_RL = std::sqrt(lo.rho) * std::sqrt(hi.rho);
         Set::Scalar u_RL   = (std::sqrt(hi.rho) * u_hi + std::sqrt(lo.rho) * u_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
@@ -72,66 +56,58 @@ public:
         Set::Scalar a_RL   = std::sqrt(a_RL2);
         Set::Scalar eta_RL = (std::sqrt(hi.rho) * hi.eta + std::sqrt(lo.rho) * lo.eta) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
 
-        // eigenvalues
-        std::array<Set::Scalar, 4> ev;
-        ev[0] = u_RL;
-        ev[2] = u_RL + a_RL;
-        ev[3] = 0;
-        ev[1] = u_RL - a_RL;
-
-        std::array<Set::Scalar, 4> dv;
-
-        dv[0] = drho - dp * eta_RL / a_RL2;
-        dv[2] = dvel + dp * eta_RL / (rho_RL * a_RL);
-        dv[3] = 0;
-        dv[1] = dvel - dp * eta_RL / (rho_RL * a_RL);
-
-        // right characteristic eigenvectors
-        std::array<Set::Scalar, 4> rev_0;
-        rev_0[0] = 1;
-        rev_0[2] = u_RL;
-        rev_0[3] = 0;
-        rev_0[1] = 0.5 * u_RL * u_RL;
-
-        std::array<Set::Scalar, 4> rev_1;
-        rev_1[0] = (rho_RL / 2. / a_RL) * eta_RL;
-        rev_1[2] = (rho_RL / 2. / a_RL) * (u_RL + a_RL) * eta_RL;
-        rev_1[3] = 0;
-        rev_1[1] = (rho_RL / 2. / a_RL) * (h_RL + a_RL * u_RL) * eta_RL;
-
-        std::array<Set::Scalar, 4> rev_2;
-        rev_2[0] = 0;
-        rev_2[2] = 0;
-        rev_2[3] = 0;
-        rev_2[1] = 0;
-
-        std::array<Set::Scalar, 4> rev_3;
-        rev_3[0] = (-rho_RL / 2 / a_RL) * eta_RL;
-        rev_3[2] = (-rho_RL / 2 / a_RL) * (u_RL - a_RL) * eta_RL;
-        rev_3[3] = 0;
-        rev_3[1] = (-rho_RL / 2 / a_RL) * (h_RL - a_RL * u_RL) * eta_RL;
-
         // flux
-        //std::array<Set::Scalar, 4> fl;
         Flux fl;
-        fl.mass = 0.5 * (lo.rho * u_lo * lo.eta + hi.rho * u_hi * hi.eta);
+        fl.mass =        0.5 * (lo.rho * u_lo * lo.eta + hi.rho * u_hi * hi.eta);
         fl.momentum(0) = 0.5 * (lo.rho * u_lo * u_lo * lo.eta + hi.rho * u_hi * u_hi * hi.eta) + 0.5 * (p_lo + p_hi) * eta_RL;
         fl.momentum(1) = 0.0;
-        fl.energy = 0.5 * (u_lo * ke_lo * lo.eta + u_hi * ke_hi * hi.eta) + 0.5 * (u_lo * (ue_lo + p_lo) + u_hi * (ue_hi + p_hi)) * eta_RL;
+        fl.energy =      0.5 * (u_lo * ke_lo * lo.eta + u_hi * ke_hi * hi.eta) + 0.5 * (u_lo * (ue_lo + p_lo) + u_hi * (ue_hi + p_hi)) * eta_RL;
 
-        // upwinding
+	//compute eigenvalues
+	std::array <double, 3> ev;
+        ev[0] = std::abs(u_RL);
+        ev[1] = std::abs(u_RL + a_RL);
+        ev[2] = std::abs(u_RL - a_RL);
+	
+	//compute wave strengths
 
-        // fl.mass        += - 0.5 * rev_0[0] * std::abs(ev[0]) * dv[0]
-        //                   - 0.5 * rev_1[0] * std::abs(ev[1]) * dv[1]
-        //                   - 0.5 * rev_2[0] * std::abs(ev[2]) * dv[2];
+	Set::Scalar drho, dp, dvel;
+	if (p_hi < p_lo) {
+	dvel = u_hi * hi.eta - u_lo * lo.eta;
+	dp   = p_hi - p_lo;
+	drho = hi.rho * hi.eta - lo.rho * lo.eta;
+	}
+	else {
+	dvel = -(u_hi * hi.eta - u_lo * lo.eta);
+	dp   = -(p_hi - p_lo);
+	drho = -(hi.rho * hi.eta - lo.rho * lo.eta);
+	};
 
-        // fl.momentum(0) += - 0.5 * rev_0[2] * std::abs(ev[0]) * dv[0]
-        //                   - 0.5 * rev_1[2] * std::abs(ev[1]) * dv[1]
-        //                   - 0.5 * rev_2[2] * std::abs(ev[2]) * dv[2];
+	std::array <double, 3> dv;
+        dv[0] = drho - dp / a_RL2;
+        dv[1] = dvel + dp / (rho_RL * a_RL);
+        dv[2] = dvel - dp / (rho_RL * a_RL);
+	
+	//construct right characteristic eigenvectors
+        std::array <double, 3> rev_0;
+        rev_0[0] = 1;
+	rev_0[1] = u_RL;
+	rev_0[2] = 0.5 * u_RL * u_RL;
 
-        // fl.energy      += - 0.5 * rev_0[1] * std::abs(ev[0]) * dv[0]
-        //                   - 0.5 * rev_1[1] * std::abs(ev[1]) * dv[1]
-        //                   - 0.5 * rev_2[1] * std::abs(ev[2]) * dv[2];
+	std::array <double, 3> rev_1;
+	rev_1[0] = (rho_RL / 2 / a_RL);
+	rev_1[1] = (rho_RL / 2 / a_RL) * (u_RL + a_RL);
+	rev_1[2] = (rho_RL / 2 / a_RL) * (h_RL + a_RL * u_RL);
+
+	std::array <double, 3> rev_2;
+	rev_2[0] = -(rho_RL / 2 / a_RL);
+	rev_2[1] = -(rho_RL / 2 / a_RL) * (u_RL - a_RL);
+	rev_2[2] = -(rho_RL / 2 / a_RL) * (h_RL - a_RL * u_RL);
+	
+	//upwinding term 
+	fl.mass        += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
+	fl.momentum(0) += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
+	fl.energy      += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
 
         return fl;
     }

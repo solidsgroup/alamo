@@ -215,7 +215,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         const amrex::Box& bx = mfi.validbox();
 
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
@@ -243,13 +242,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             //lo interface fluxes
             flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state, gamma);
-	    
-            flux_test = Solver::Local::Riemann::Roe::Solve(state, lo_statex, gamma);
-            // Util::Message(INFO, "mass flux ", flux_xlo.mass, " ", flux_test.mass);
-            // Util::Message(INFO, "energy flux ", flux_xlo.energy, " ", flux_test.energy);
-            // Util::Message(INFO, "momentum x flux ", flux_xlo.momentum(0), " ", flux_test.momentum(0));
-            // Util::Message(INFO, "momentum y flux ", flux_xlo.momentum(1), " ", flux_test.momentum(1));
-
             flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state, gamma);
 
             //hi interface fluxes

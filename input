@@ -13,9 +13,6 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-#amr.refinement_criterion = 0.001
-#amr.refinement_criterion_temp = 275.16
-#amr.refinement_restriction = 0.1
 #amr.n_cell = 1600 200 0
 #amr.n_cell = 800 800 200
 #amr.n_cell = 400 100 0
@@ -51,24 +48,15 @@ Pdot_x = 0.00016  # = rho0 * V0 * V0
 Pdot_y = 0.0
 Qdot = 0.00000032
 
-#eta.ic.type = laminate
-#eta.ic.laminate.number_of_inclusions = 1
-#eta.ic.laminate.center = 0 0 0
-#eta.ic.laminate.thickness = 0.2
-#eta.ic.laminate.orientation = 0 1
-#eta.ic.laminate.mollifier = gaussian
-#eta.ic.laminate.eps = 0.05
-#eta.ic.laminate.singlefab = 1
-#eta.ic.laminate.invert = 0
-
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.0001
-eta.ic.expression.constant.vel = 0.004
+eta.ic.expression.constant.vel = 0.0
 eta.ic.expression.region0 = "0.5 + 0.5*tanh((x-vel*t)/eps)"
+
 etadot.ic.type = expression
 etadot.ic.expression.constant.eps = 0.0001 # must match above!
-etadot.ic.expression.constant.vel = 0.004 # must match above!
-etadot.ic.expression.region0 = "0.5/(cosh((x-vel*t)/eps)*cosh((x-vel*t)/eps)) * (-vel)" # Derivative by hand
+etadot.ic.expression.constant.vel = 0.0 # must match above!
+etadot.ic.expression.region0 = "0.0" # Derivative by hand
 
 
 
