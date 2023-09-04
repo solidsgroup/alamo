@@ -40,9 +40,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         value.bc_eta = new BC::Constant(1);
         pp.queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
-        value.RegisterNewFab(value.eta_mf    , value.bc_eta, 1, 2, "eta"    , true);
+        value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
-        
+
 
         std::string eta_bc_str = "constant";
         pp.query("pf.eta.ic.type", eta_bc_str);
@@ -63,7 +63,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
         pp.query("elastic.on", value.elastic.on);
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
-        
+
 
         if (value.thermal.on) {
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
@@ -94,16 +94,16 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
-            value.RegisterNewFab(value.temp_mf, value.bc_temp     , 1, 3, "temp"     , true);
-            value.RegisterNewFab(value.temp_old_mf, value.bc_temp , 1, 3, "temp_old" , false);
-            value.RegisterNewFab(value.temps_mf, value.bc_temp    , 1, 3, "temps"    , false);
+            value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
+            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
+            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 3, "temps", false);
             value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 3, "temps_old", false);
 
-            value.RegisterNewFab(value.mdot_mf    , 1, "mdot"    , false);
-            value.RegisterNewFab(value.mob_mf     , 1, "mob"     , true);
-            value.RegisterNewFab(value.alpha_mf   , 1, "alpha"   , true);
+            value.RegisterNewFab(value.mdot_mf, 1, "mdot", false);
+            value.RegisterNewFab(value.mob_mf, 1, "mob", true);
+            value.RegisterNewFab(value.alpha_mf, 1, "alpha", true);
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
-            value.RegisterNewFab(value.laser_mf   , 1, "laser"   , true);
+            value.RegisterNewFab(value.laser_mf, 1, "laser", true);
 
             std::string laser_ic_type = "constant";
             pp.query("laser.ic.type", laser_ic_type);
@@ -117,22 +117,22 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("pressure.P", value.pressure.P);
         if (value.thermal.on)
         {
-            pp.query("pressure.a1"        , value.pressure.arrhenius.a1);
-            pp.query("pressure.a2"        , value.pressure.arrhenius.a2);
-            pp.query("pressure.a3"        , value.pressure.arrhenius.a3);
-            pp.query("pressure.b1"        , value.pressure.arrhenius.b1);
-            pp.query("pressure.b2"        , value.pressure.arrhenius.b2);
-            pp.query("pressure.b3"        , value.pressure.arrhenius.b3);
-            pp.query("pressure.c1"        , value.pressure.arrhenius.c1);
-            pp.query("pressure.mob_ap"    , value.pressure.arrhenius.mob_ap);
+            pp.query("pressure.a1", value.pressure.arrhenius.a1);
+            pp.query("pressure.a2", value.pressure.arrhenius.a2);
+            pp.query("pressure.a3", value.pressure.arrhenius.a3);
+            pp.query("pressure.b1", value.pressure.arrhenius.b1);
+            pp.query("pressure.b2", value.pressure.arrhenius.b2);
+            pp.query("pressure.b3", value.pressure.arrhenius.b3);
+            pp.query("pressure.c1", value.pressure.arrhenius.c1);
+            pp.query("pressure.mob_ap", value.pressure.arrhenius.mob_ap);
             pp.query("pressure.dependency", value.pressure.arrhenius.dependency);
         }
         else
         {
-            pp.query("pressure.r_ap"  , value.pressure.power.r_ap);
+            pp.query("pressure.r_ap", value.pressure.power.r_ap);
             pp.query("pressure.r_htpb", value.pressure.power.r_htpb);
             pp.query("pressure.r_comb", value.pressure.power.r_comb);
-            pp.query("pressure.n_ap"  , value.pressure.power.n_ap);
+            pp.query("pressure.n_ap", value.pressure.power.n_ap);
             pp.query("pressure.n_htpb", value.pressure.power.n_htpb);
             pp.query("pressure.n_comb", value.pressure.power.n_comb);
         }
@@ -177,7 +177,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     }
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
-    
+
     if (value.m_type != Type::Disable)
     {
         value.elastic.Tref = value.thermal.bound;
@@ -216,7 +216,7 @@ void Flame::Initialize(int lev)
         thermal.T_fluid = thermal.bound;
         ic_laser->Initialize(lev, laser_mf);
         thermal.mlocal_htpb = 685000.0 - 850e3 * thermal.massfraction;
-    }   
+    }
 }
 
 void Flame::UpdateModel(int /*a_step*/)
@@ -247,7 +247,7 @@ void Flame::UpdateModel(int /*a_step*/)
                 amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = phi(i,j,k,0);
+                    Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
 
                     model_type model_ap = elastic.model_ap;
@@ -287,7 +287,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
-    if (thermal.on) {        
+    if (thermal.on) {
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
     }
@@ -345,28 +345,28 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
 
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
                     Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
                     Set::Scalar rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
                     Set::Scalar cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
-                    Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);                 
-                    etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;                   
+                    Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
+                    etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
-                    if (isnan(etanew(i,j,k)) || isnan(alpha(i,j,k)) || isnan(mdot(i,j,k))){
-                        Util::Message(INFO, etanew(i,j,k),"etanew contains nan (i=",i,"j = ",j,")");
-                        Util::Message(INFO, mdot(i,j,k),"mdot contains nan (i=",i,"j = ",j,")");
-                        Util::Message(INFO, alpha(i,j,k),"alpha contains nan (i=",i,"j = ",j,")");
+                    if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
+                        Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, "j = ", j, ")");
+                        Util::Message(INFO, mdot(i, j, k), "mdot contains nan (i=", i, "j = ", j, ")");
+                        Util::Message(INFO, alpha(i, j, k), "alpha contains nan (i=", i, "j = ", j, ")");
                         Util::Abort(INFO);
-                    }                  
+                    }
                 });
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
-                    
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+
                     Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
                     Set::Scalar qflux = k1 * phi_avg +
                         k2 * (1.0 - phi_avg) +
@@ -375,8 +375,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mdota = fabs(mdot(i, j, k));
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
                     heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
-                    if (isnan(heatflux(i,j,k))){
-                        Util::Message(INFO, heatflux(i,j,k),"heat contains nan (i=",i,"j = ",j,")");
+                    if (isnan(heatflux(i, j, k))) {
+                        Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, "j = ", j, ")");
                         Util::Abort(INFO);
                     }
                 });
@@ -398,9 +398,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                     tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
                     tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
-                    if (isnan(tempsnew(i,j,k)) || isnan(temps(i,j,k))){
-                        Util::Message(INFO, tempsnew(i,j,k),"tempsnew contains nan (i=",i,"j = ",j,")");
-                        Util::Message(INFO, temps(i,j,k),"temps contains nan (i=",i,"j = ",j,")");
+                    if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
+                        Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, "j = ", j, ")");
+                        Util::Message(INFO, temps(i, j, k), "temps contains nan (i=", i, "j = ", j, ")");
                         Util::Abort(INFO);
                     }
 
@@ -408,7 +408,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
 
                     Set::Scalar L;
                     if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
@@ -418,8 +418,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     if (tempnew(i, j, k) <= thermal.bound) mob(i, j, k) = 0;
                     else mob(i, j, k) = L;
                     //mob(i,j,k) = L;
-                    if (isnan(mob(i,j,k)) ){
-                        Util::Message(INFO, mob(i,j,k),"mob contains nan (i=",i,"j = ",j,")");                       
+                    if (isnan(mob(i, j, k))) {
+                        Util::Message(INFO, mob(i, j, k), "mob contains nan (i=", i, "j = ", j, ")");
                         Util::Abort(INFO);
                     }
                 });
@@ -450,7 +450,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi,i,j,k,0);
+                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
 
                     Set::Scalar fs_actual;
                     fs_actual = fmod_ap * phi_avg
@@ -487,7 +487,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i,j,k) >= t_refinement_restriction)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
@@ -519,7 +519,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-                if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i,j,k) >= t_refinement_restriction)
+                if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }

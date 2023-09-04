@@ -103,8 +103,8 @@ private:
             int dependency = 1;
         } arrhenius;
         struct {
-            Set::Scalar r_ap=0.0, r_htpb=0.0, r_comb=0.0;
-            Set::Scalar n_ap=0.0, n_htpb=0.0, n_comb=0.0;
+            Set::Scalar r_ap = 0.0, r_htpb = 0.0, r_comb = 0.0;
+            Set::Scalar n_ap = 0.0, n_htpb = 0.0, n_comb = 0.0;
         } power;
     } pressure;
 

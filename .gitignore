@@ -43,3 +43,5 @@ obj
 *.gif
 *.mp4
 *.png
+*.curve
+*.pdf
