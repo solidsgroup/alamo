@@ -62,6 +62,7 @@ private:
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
+    Set::Field<Set::Scalar> phicell_mf;
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
     Set::Field<Set::Scalar> heatflux_mf;
@@ -71,6 +72,7 @@ private:
     BC::BC<Set::Scalar>* bc_temp;
     BC::BC<Set::Scalar>* bc_eta;
     IC::IC* ic_phi;
+    IC::IC* ic_phicell;
     IC::IC* ic_laser;
 
     Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();

@@ -76,3 +76,4 @@ pf.eta.bc.val.yhi = 0.0
 
 thermal.on = 0 
 elastic.type = disable
+#amr.node.any = 0

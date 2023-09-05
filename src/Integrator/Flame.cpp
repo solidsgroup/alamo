@@ -157,23 +157,30 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("phi.ic.type", type); // IC type (psread, laminate, constant)
         if (type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
+            value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             pp.query("phi.ic.psread.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
         else if (type == "laminate") {
             value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
+            value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             pp.query("phi.ic.laminate.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
         else if (type == "expression") {
             value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
+            value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
             pp.query("phi.zeta_0", value.zeta_0);
             pp.query("phi.zeta", value.zeta);
         }
-        else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
+        else if (type == "constant") {
+            value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
+            value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
+        }
         else Util::Abort(INFO, "Invalid IC type ", type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
         value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
+        value.RegisterNewFab(value.phicell_mf, 1, "phi", true);
     }
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
@@ -201,6 +208,7 @@ void Flame::Initialize(int lev)
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
     ic_phi->Initialize(lev, phi_mf);
+    ic_phicell->Initialize(lev, phicell_mf);
 
     if (elastic.on) psi_mf[lev]->setVal(1.0);
     if (thermal.on) {
@@ -300,7 +308,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
 
-    if (true) // (lev == finest_level) //(true)
+    if (true) //lev == finest_level) //(true)
     {
         if (thermal.on)
         {
@@ -450,12 +458,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+                    //Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
 
                     Set::Scalar fs_actual;
-                    fs_actual = fmod_ap * phi_avg
-                        + fmod_htpb * (1.0 - phi_avg)
-                        + 4.0 * fmod_comb * phi_avg * (1.0 - phi_avg);
+                    fs_actual = fmod_ap * phi(i,j,k)
+                        + fmod_htpb * (1.0 - phi(i,j,k))
+                        + 4.0 * fmod_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
@@ -534,6 +542,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
     //if (lev < finest_level) return;
     //phi_mf[lev]->setVal(0.0);
     ic_phi->Initialize(lev, phi_mf, time);
+    ic_phicell -> Initialize(lev, phi_mf, time);
 }
 
 void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,

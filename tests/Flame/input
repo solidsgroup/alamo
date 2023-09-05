@@ -1,6 +1,7 @@
 #@ [2D-Thermal-Sandwich]
 #@ dim = 2
 #@ nprocs = 4 
+#@ check = true
 
 alamo.program = flame
 
