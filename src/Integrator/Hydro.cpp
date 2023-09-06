@@ -6,6 +6,7 @@
 #include "IC/PSRead.H"
 #include "IC/Expression.H"
 #include "Solver/Local/Riemann/Roe.H"
+#include "Solver/Local/Riemann/HLLC.H"
 
 namespace Integrator
 {
@@ -125,7 +126,7 @@ void Hydro::Initialize(int lev)
     }
 
     c_max = 0.0;
-    eta_max = 0.0;
+    grad_eta_max = 1.0;
     vx_max = 0.0;
     vy_max = 0.0;
 }
@@ -177,9 +178,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-
+	
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& M = (*Momentum_old_mf[lev]).array(mfi);
@@ -203,8 +202,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             // if (c > c_max) { c_max = c; }
             // if (v(i, j, k, 0) > vx_max) { vx_max = v(i, j, k, 0); }
             // if (v(i, j, k, 1) > vy_max) { vy_max = v(i, j, k, 1); }
-
-            if (eta(i, j, k) > eta_max) { eta_max = eta(i, j, k); }
         });
     }
     Pressure_mf[lev]->FillBoundary();
@@ -229,46 +226,47 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             //Advance eta
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() / eta_max;
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
 
-            Solver::Local::Riemann::Roe::State state(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
-	    Solver::Local::Riemann::Roe::State test_state(rho(i, j, k), -M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::Roe::State lo_statex(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k) );
-            Solver::Local::Riemann::Roe::State hi_statex(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k) );
-            Solver::Local::Riemann::Roe::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k) ); //veloctiy input is always normal, then tangential to interface
-            Solver::Local::Riemann::Roe::State hi_statey(rho(i, j + 1, k), M(i, j + 1, k, 1), M(i, j + 1, k, 0), E(i, j + 1, k), eta(i, j + 1, k) ); //veloctiy input is always normal, then tangential to interface
+	    //Godunov flux
+            Solver::Local::Riemann::HLLC::State state(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
+	    Solver::Local::Riemann::HLLC::State test_state(rho(i, j, k), -M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::HLLC::State lo_statex(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k) );
+            Solver::Local::Riemann::HLLC::State hi_statex(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k) );
+            Solver::Local::Riemann::HLLC::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k) ); //veloctiy input is always normal, then tangential to interface
+            Solver::Local::Riemann::HLLC::State hi_statey(rho(i, j + 1, k), M(i, j + 1, k, 1), M(i, j + 1, k, 0), E(i, j + 1, k), eta(i, j + 1, k) ); //veloctiy input is always normal, then tangential to interface
 
-            Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
+            Solver::Local::Riemann::HLLC::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 
             //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state, gamma);
-            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state, gamma);
+            flux_xlo = Solver::Local::Riemann::HLLC::Solve(lo_statex, state, gamma);
+            flux_ylo = Solver::Local::Riemann::HLLC::Solve(lo_statey, state, gamma);
 
             //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann::Roe::Solve(state, hi_statex, gamma);
-            flux_yhi = Solver::Local::Riemann::Roe::Solve(state, hi_statey, gamma);
+            flux_xhi = Solver::Local::Riemann::HLLC::Solve(state, hi_statex, gamma);
+            flux_yhi = Solver::Local::Riemann::HLLC::Solve(state, hi_statey, gamma);
 
 
             //Godunov fluxes
             E_new(i, j, k) =
                 E(i, j, k)
-                + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
-                + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
+	      + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0];
+	      //+ (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
 
             rho_new(i, j, k) =
                 rho(i, j, k)
-                + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
-                + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
+	      + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0];
+	      //+ (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             M_new(i, j, k, 0) =
                 M(i, j, k, 0)
-                + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
-                + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
+	      + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0];
+	      //+ (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
 
             M_new(i, j, k, 1) =
                 M(i, j, k, 1)
-                + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
-                + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
+	      + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0];
+	      //+ (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
 
             //if (i==0&&j==0) 
             //{
@@ -283,10 +281,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             ///////////////////////////
 
             std::array<Set::Scalar, 3> source;
-            source[0] = mdot * grad_eta_mag;
-            source[1] = Pdot_x * grad_eta_mag;
-            source[2] = Pdot_y * grad_eta_mag;
-            source[3] = Qdot * grad_eta_mag;
+            source[0] = mdot * grad_eta_mag * eta(i,j,k);
+            source[1] = Pdot_x * grad_eta[0] * eta(i,j,k);
+            source[2] = Pdot_y * grad_eta[1] * eta(i,j,k);
+            source[3] = Qdot * grad_eta_mag * eta(i,j,k);
 
             E_new(i, j, k) += source[3];
             rho_new(i, j, k) += source[0];

@@ -72,7 +72,7 @@ private:
     IC::IC* ic_etadot;
 
     Set::Scalar c_max = 0.0;
-    Set::Scalar eta_max = 0.0;
+    Set::Scalar grad_eta_max = 1.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
