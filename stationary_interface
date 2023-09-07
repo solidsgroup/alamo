@@ -35,7 +35,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep = 1.0e-6
-stop_time = 1.0e-3
+stop_time = 1.0e-2
 #small = 1.0e-5
 
 

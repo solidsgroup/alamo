@@ -290,6 +290,15 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             rho_new(i, j, k) += source[0];
             M_new(i, j, k, 0) += source[1];
             M_new(i, j, k, 1) += source[2];
+
+	    //////////////////////////
+            //////SOLID STAND-IN//////
+            //////////////////////////
+
+	    E_new(i, j, k) = E_solid * (1 - eta(i,j,k)) + E_new(i, j, k) * eta(i,j,k);
+            rho_new(i, j, k) = rho_solid * (1 - eta(i,j,k)) + rho_new(i, j, k) * eta(i,j,k);
+            M_new(i, j, k, 0) = M_new(i, j, k, 0) * eta(i,j,k);
+            M_new(i, j, k, 1) = M_new(i, j, k, 1) * eta(i,j,k);
         });
     }
 }//end Advance
