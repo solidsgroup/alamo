@@ -3,6 +3,7 @@
 #@ dim = 2
 #@ args=stop_time=1.0
 #@ check=false
+#@ benchmark-waldorf = 11.30
 #@ 
 
 alamo.program               = topop
