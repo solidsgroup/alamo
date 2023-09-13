@@ -56,7 +56,7 @@ if dim == 2:
     if math.isnan(err): raise(Exception("Errir is nan"))
 
     err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.temp) - ref.temp)**2))
-    print("eta error",err)
+    print("temp error",err)
     if err > tolerance: raise(Exception("Error in Temp"))
     if math.isnan(err): raise(Exception("Errir is Temp"))
 
