@@ -24,6 +24,7 @@
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/TopOp.H"
+#include "Integrator/Dendrite.H"
 
 int main (int argc, char* argv[])
 {
@@ -64,6 +65,7 @@ int main (int argc, char* argv[])
     else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
     else if (program == "degradation")          integrator = new Integrator::PolymerDegradation();
     else if (program == "fracture")             integrator = new Integrator::Fracture();
+    else if (program == "dendrite")             integrator = new Integrator::Dendrite();
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();
