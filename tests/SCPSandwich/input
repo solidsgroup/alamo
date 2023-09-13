@@ -8,6 +8,7 @@
 #@  dim = 2
 #@  nprocs = 4
 #@  check = true
+#@  benchmark-waldorf = 83.9
 #@  
 
 alamo.program = flame

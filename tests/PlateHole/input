@@ -9,12 +9,14 @@
 #@  check  = false
 #@  benchmark-beaker = 13.52
 #@  benchmark-statler = 11.48
+#@  benchmark-waldorf = 7.05
 #@
 #@  [3D-serial]
 #@  dim    = 3
 #@  nprocs = 1
 #@  check  = false
 #@  benchmark-beaker = 42.00
+#@  benchmark-waldorf = 21.28
 
 
 
