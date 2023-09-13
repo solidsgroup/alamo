@@ -4,7 +4,7 @@
 #@ benchmark-beaker = 65.12
 #@ benchmark-statler = 45.09
 #@ benchmark-github = 70.39
-#@ benchmark-github = 29.65
+#@ benchmark-waldorf = 29.65
 #@
 #@ [2d-parallel]
 #@ dim=2
