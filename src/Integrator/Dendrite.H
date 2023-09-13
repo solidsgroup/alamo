@@ -54,7 +54,7 @@ public:
 
         // Expressions for ICs
         value.ic_temp = new IC::Expression(value.geom, pp, "ic.temp");
-        value.ic_phi  = new IC::Expression(value.geom, pp, "ic.phi");
+        value.ic_phi = new IC::Expression(value.geom, pp, "ic.phi");
 
         // Use a constant BC object for temperature
         value.bc_temp = new BC::Constant(1);
@@ -105,40 +105,41 @@ protected:
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                
-                Set::Vector gradphi = Numeric::Gradient(phi,i,j,k,0,DX);
+
+                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
 
                 // 
                 // Calculate anisotropy function
                 // [ equation 2.12 in reference]
                 //
-                Set::Scalar v44 = AMREX_D_TERM(gradphi(0)*gradphi(0)*gradphi(0)*gradphi(0), 
-                                               + gradphi(1)*gradphi(1)*gradphi(1)*gradphi(1),
-                                               + gradphi(2)*gradphi(2)*gradphi(2)*gradphi(2));
-                Set::Scalar v22 = gradphi.squaredNorm(); v22 *= v22; 
+                Set::Scalar v44 = AMREX_D_TERM(
+                    gradphi(0) * gradphi(0) * gradphi(0) * gradphi(0),
+                    +gradphi(1) * gradphi(1) * gradphi(1) * gradphi(1),
+                    +gradphi(2) * gradphi(2) * gradphi(2) * gradphi(2));
+                Set::Scalar v22 = gradphi.squaredNorm(); v22 *= v22;
                 Set::Scalar sigma = 1.0 - delta * (1.0 - v44 / (v22 + 1E-12));
 
                 // 
                 // Calculate anisotropic barrier height
                 // [ unnumbered equation on page 67 in the reference ]
                 //
-                Set::Scalar m = -(alpha/Set::Constant::Pi) * std::atan(gamma * sigma * temp(i,j,k));
+                Set::Scalar m = -(alpha / Set::Constant::Pi) * std::atan(gamma * sigma * temp(i, j, k));
 
 
                 //
                 // Evolve order paramter
                 // [ equation 2.10 in the reference ]
                 //                
-                Set::Scalar lapphi = Numeric::Laplacian(phi,i,j,k,0,DX);
-                Set::Scalar Dphi = (eps*eps*lapphi + phi(i,j,k)*(1.0 - phi(i,j,k))*(phi(i,j,k) - 0.5 + m)) / tau;
-                phi_new(i,j,k) = phi(i,j,k) + dt * Dphi;
+                Set::Scalar lapphi = Numeric::Laplacian(phi, i, j, k, 0, DX);
+                Set::Scalar Dphi = (eps * eps * lapphi + phi(i, j, k) * (1.0 - phi(i, j, k)) * (phi(i, j, k) - 0.5 + m)) / tau;
+                phi_new(i, j, k) = phi(i, j, k) + dt * Dphi;
 
                 //
                 // Evolve temperature
                 // [ equation 2.11 in the reference ]
                 //
-                Set::Scalar laptemp = Numeric::Laplacian(temp,i,j,k,0,DX);
-                temp_new(i,j,k) = temp(i,j,k) + dt * (laptemp + Dphi);
+                Set::Scalar laptemp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                temp_new(i, j, k) = temp(i, j, k) + dt * (laptemp + Dphi);
             });
         }
     }
@@ -180,7 +181,7 @@ protected:
 protected:
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
-    Set::Field<Set::Scalar> phi_mf;    
+    Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> phi_old_mf;
 
 private:
@@ -194,10 +195,10 @@ private:
     Set::Scalar eps, tau;
 
     Set::Scalar refinement_threshold_temp = 0.01; // Criterion for cell refinement
-    Set::Scalar refinement_threshold_phi  = 0.01; // Criterion for cell refinement
+    Set::Scalar refinement_threshold_phi = 0.01; // Criterion for cell refinement
 
-    IC::IC *ic_temp, *ic_phi;
-    BC::BC<Set::Scalar> *bc_temp, *bc_phi;
+    IC::IC* ic_temp, * ic_phi;
+    BC::BC<Set::Scalar>* bc_temp, * bc_phi;
 };
 } // namespace Integrator
 #endif
