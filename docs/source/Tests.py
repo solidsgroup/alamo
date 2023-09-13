@@ -94,29 +94,33 @@ for testdirname in sorted(glob.glob("../../tests/*")):
 
     if len(config) <= 1:
         docfile.write("    * - :icon-gray:`warning`\n\n")
-        docfile.write("      - {}\n\n".format(testname))
+        if os.path.isfile(testdirname+"/Readme.rst"):
+            docfile.write("      - :ref:`{}`\n".format(testname))
+        else: 
+            docfile.write("      - {}\n\n".format(testname))
+    else:
+        docfile.write("    * - :icon-green:`check_circle`\n\n")
+        docfile.write("      - :ref:`{}`\n".format(testname))
+        docfile.write("      - {}\n".format(str(len(config)-1)))
+    
+        has2D = False
+        has3D = False
+        for c in config:
+            if "dim" in config[c]:
+                if config[c]["dim"] == "2": has2D = True
+                if config[c]["dim"] == "3": has3D = True
+        
+        dimstr = ""
+        if has2D: dimstr += ":icon:`2d` "
+        if has3D: dimstr += ":icon:`3d_rotation` "
+        docfile.write("      - {}\n".format(dimstr))
+        
+        if os.path.isfile(testdirname+"/test"):
+            docfile.write("      - :icon-green:`verified`\n")
+        docfile.write("\n")
+
+    if len(config) <= 1 and not os.path.isfile(testdirname+"/Readme.rst"):
         continue
-
-    docfile.write("    * - :icon-green:`check_circle`\n\n")
-    docfile.write("      - :ref:`{}`\n".format(testname))
-    docfile.write("      - {}\n".format(str(len(config)-1)))
-
-    has2D = False
-    has3D = False
-    for c in config:
-        if "dim" in config[c]:
-            if config[c]["dim"] == "2": has2D = True
-            if config[c]["dim"] == "3": has3D = True
-    
-    dimstr = ""
-    if has2D: dimstr += ":icon:`2d` "
-    if has3D: dimstr += ":icon:`3d_rotation` "
-    docfile.write("      - {}\n".format(dimstr))
-    
-    if os.path.isfile(testdirname+"/test"):
-        docfile.write("      - :icon-green:`verified`\n")
-    docfile.write("\n")
-
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)
 
