@@ -1,17 +1,20 @@
+//
+// This is a BASIC phase field method for dendritic growth as described in
+// "A Numerical Approach to Three-Dimensional Dendritic Solidification" by Ryo Kobayashi (1994)
+// Reference: https://doi.org/10.1080/10586458.1994.10504577
+//
+
 #ifndef INTEGRATOR_DENDRITE_H // Include guards
 #define INTEGRATOR_DENDRITE_H // 
 
-// Standard library includes
 #include <iostream>
 #include <fstream>
 #include <iomanip>
 
-// AMReX Includes
 #include "AMReX.H"
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_ParmParse.H"
 
-// Alamo Includes
 #include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
 #include "BC/Constant.H"
@@ -38,24 +41,26 @@ public:
 
     static void Parse(Dendrite& value, IO::ParmParse& pp)
     {
-        pp.query("alpha", value.alpha);
-        pp.query("delta", value.delta);
-        pp.query("gamma", value.gamma);
+        pp.query("alpha", value.alpha); // Pre-multiplier of "m" barrier height
+        pp.query("delta", value.delta); // Anisotropy factor
+        pp.query("gamma", value.gamma); // Anisotropic temperature coupling factor
 
+        pp.query("eps", value.eps); // Diffuse boundary width
+        pp.query("tau", value.tau); // Diffusive timescale
 
         // Refinement criteria
         pp.query("heat.refinement_threshold", value.refinement_threshold_temp);
         pp.query("phi.refinement_threshold", value.refinement_threshold_phi);
 
         // Expressions for ICs
-        value.ic_temp = new IC::Expression(value.geom, pp, "temp.ic");
-        value.ic_phi  = new IC::Expression(value.geom, pp, "phi.ic");
+        value.ic_temp = new IC::Expression(value.geom, pp, "ic.temp");
+        value.ic_phi  = new IC::Expression(value.geom, pp, "ic.phi");
 
         // Use a constant BC object for temperature
         value.bc_temp = new BC::Constant(1);
         value.bc_phi = new BC::Constant(1);
-        pp.queryclass("temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
-        pp.queryclass("phi.bc", *static_cast<BC::Constant*>(value.bc_phi));
+        pp.queryclass("bc.temp", *static_cast<BC::Constant*>(value.bc_temp));
+        pp.queryclass("bc.phi", *static_cast<BC::Constant*>(value.bc_phi));
 
         value.RegisterNewFab(value.temp_mf, value.bc_temp, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
@@ -69,6 +74,8 @@ protected:
     {
         ic_temp->Initialize(lev, temp_old_mf);
         ic_phi->Initialize(lev, phi_old_mf);
+        ic_temp->Initialize(lev, temp_mf);
+        ic_phi->Initialize(lev, phi_mf);
     }
 
 
@@ -101,25 +108,37 @@ protected:
                 
                 Set::Vector gradphi = Numeric::Gradient(phi,i,j,k,0,DX);
 
-                // calculate sigma(gradphi)
+                // 
+                // Calculate anisotropy function
+                // [ equation 2.12 in reference]
+                //
                 Set::Scalar v44 = AMREX_D_TERM(gradphi(0)*gradphi(0)*gradphi(0)*gradphi(0), 
                                                + gradphi(1)*gradphi(1)*gradphi(1)*gradphi(1),
                                                + gradphi(2)*gradphi(2)*gradphi(2)*gradphi(2));
                 Set::Scalar v22 = gradphi.squaredNorm(); v22 *= v22; 
                 Set::Scalar sigma = 1.0 - delta * (1.0 - v44 / (v22 + 1E-12));
 
-                // calculate M
+                // 
+                // Calculate anisotropic barrier height
+                // [ unnumbered equation on page 67 in the reference ]
+                //
                 Set::Scalar m = -(alpha/Set::Constant::Pi) * std::atan(gamma * sigma * temp(i,j,k));
 
 
+                //
+                // Evolve order paramter
+                // [ equation 2.10 in the reference ]
+                //                
                 Set::Scalar lapphi = Numeric::Laplacian(phi,i,j,k,0,DX);
                 Set::Scalar Dphi = (eps*eps*lapphi + phi(i,j,k)*(1.0 - phi(i,j,k))*(phi(i,j,k) - 0.5 + m)) / tau;
                 phi_new(i,j,k) = phi(i,j,k) + dt * Dphi;
 
+                //
+                // Evolve temperature
+                // [ equation 2.11 in the reference ]
+                //
                 Set::Scalar laptemp = Numeric::Laplacian(temp,i,j,k,0,DX);
                 temp_new(i,j,k) = temp(i,j,k) + dt * (laptemp + Dphi);
-
-                //temp(i, j, k) = temp_old(i, j, k) + dt * alpha * Numeric::Laplacian(temp_old, i, j, k, 0, DX);
             });
         }
     }
@@ -166,17 +185,13 @@ protected:
 
 private:
     int number_of_components = 1;            // Number of components
-    int number_of_ghost_cells = 2;           // Number of ghost cells
+    int number_of_ghost_cells = 1;           // Number of ghost cells
 
 
-    // delta
-
-    // calculation of M
+    // calculation of m
     Set::Scalar alpha, delta, gamma;
     // evolution of p
     Set::Scalar eps, tau;
-    //Set::Scalar tau, eps, gamma, m0, Tm;
-    //Set::Scalar lambT, L, cp;
 
     Set::Scalar refinement_threshold_temp = 0.01; // Criterion for cell refinement
     Set::Scalar refinement_threshold_phi  = 0.01; // Criterion for cell refinement
