@@ -1,0 +1,32 @@
+diff --git a/src/Integrator/Hydro.cpp b/src/Integrator/Hydro.cpp
+index f04d3cb3..941a773f 100644
+--- a/src/Integrator/Hydro.cpp
++++ b/src/Integrator/Hydro.cpp
+@@ -281,10 +281,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
+             ///////////////////////////
+ 
+             std::array<Set::Scalar, 3> source;
+-            source[0] = mdot * grad_eta_mag * eta(i,j,k);
+-            source[1] = Pdot_x * grad_eta[0] * eta(i,j,k);
+-            source[2] = Pdot_y * grad_eta[1] * eta(i,j,k);
+-            source[3] = Qdot * grad_eta_mag * eta(i,j,k);
++            source[0] = mdot * grad_eta_mag;
++            source[1] = Pdot_x * grad_eta[0];
++            source[2] = Pdot_y * grad_eta[1];
++            source[3] = Qdot * grad_eta_mag;
+ 
+             E_new(i, j, k) += source[3];
+             rho_new(i, j, k) += source[0];
+diff --git a/stationary_interface b/stationary_interface
+index 3a6194ce..d09bf571 100644
+--- a/stationary_interface
++++ b/stationary_interface
+@@ -2,7 +2,7 @@ alamo.program = hydro
+ 
+ ### OUTPUT ###
+ 
+-plot_file = ./output
++plot_file = ./stationary_interface_transient
+ 
+ ### MESHING ###
+ 

@@ -97,7 +97,6 @@ void Hydro::Initialize(int lev)
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-        //amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
@@ -110,16 +109,20 @@ void Hydro::Initialize(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k);
+	    const Set::Scalar* DX = geom[lev].CellSize();
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
+	    
+            rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k) + mdot * grad_eta_mag;
             rho_new(i, j, k) = rho(i, j, k);
 
-            M(i, j, k, 0) = 0.0 * (1.0 - eta(i, j, k)) + Mx_init * eta(i, j, k);
+            M(i, j, k, 0) = 0.0 * (1.0 - eta(i, j, k)) + Mx_init * eta(i, j, k) + Pdot_x * grad_eta[0];
             M_new(i, j, k, 0) = M(i, j, k, 0);
             ///
-            M(i, j, k, 1) = 0.0 * (1.0 - eta(i, j, k)) + My_init * eta(i, j, k);
+            M(i, j, k, 1) = 0.0 * (1.0 - eta(i, j, k)) + My_init * eta(i, j, k) + Pdot_y * grad_eta[1];
             M_new(i, j, k, 1) = M(i, j, k, 1);
 
-            E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k);
+            E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k) + Qdot * grad_eta_mag;
             E_new(i, j, k) = E(i, j, k);
 
         });
@@ -223,19 +226,13 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-
-            //Advance eta
-            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
-
 	    //Godunov flux
             Solver::Local::Riemann::HLLC::State state(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
-	    Solver::Local::Riemann::HLLC::State test_state(rho(i, j, k), -M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
             Solver::Local::Riemann::HLLC::State lo_statex(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k) );
             Solver::Local::Riemann::HLLC::State hi_statex(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k) );
-            Solver::Local::Riemann::HLLC::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k) ); //veloctiy input is always normal, then tangential to interface
-            Solver::Local::Riemann::HLLC::State hi_statey(rho(i, j + 1, k), M(i, j + 1, k, 1), M(i, j + 1, k, 0), E(i, j + 1, k), eta(i, j + 1, k) ); //veloctiy input is always normal, then tangential to interface
-
+            Solver::Local::Riemann::HLLC::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 0), M(i, j - 1, k, 1), E(i, j - 1, k), eta(i, j - 1, k) ); 
+            Solver::Local::Riemann::HLLC::State hi_statey(rho(i, j + 1, k), M(i, j + 1, k, 0), M(i, j + 1, k, 1), E(i, j + 1, k), eta(i, j + 1, k) );
+	    
             Solver::Local::Riemann::HLLC::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 
             //lo interface fluxes
@@ -250,41 +247,36 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             //Godunov fluxes
             E_new(i, j, k) =
                 E(i, j, k)
-	      + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0];
-	      //+ (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
+	      + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
+	      + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
 
             rho_new(i, j, k) =
                 rho(i, j, k)
-	      + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0];
-	      //+ (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
+	      + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
+	      + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             M_new(i, j, k, 0) =
                 M(i, j, k, 0)
-	      + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0];
-	      //+ (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
+	      + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
+	      + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
 
             M_new(i, j, k, 1) =
                 M(i, j, k, 1)
-	      + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0];
-	      //+ (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
-
-            //if (i==0&&j==0) 
-            //{
-            //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
-            //    Util::Message(INFO,M_new(i, j, k, 1));
-            //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
-            //    Util::Message(INFO,M_new(i, j, k, 1));
-            //}
+	      + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
+	      + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
 
             ///////////////////////////
             //////DIFFUSE SOURCES//////
             ///////////////////////////
 
+	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
+
             std::array<Set::Scalar, 3> source;
-            source[0] = mdot * grad_eta_mag * eta(i,j,k);
-            source[1] = Pdot_x * grad_eta[0] * eta(i,j,k);
-            source[2] = Pdot_y * grad_eta[1] * eta(i,j,k);
-            source[3] = Qdot * grad_eta_mag * eta(i,j,k);
+            source[0] = mdot * grad_eta_mag;
+            source[1] = Pdot_x * grad_eta[0];
+            source[2] = Pdot_y * grad_eta[1];
+            source[3] = Qdot * grad_eta_mag;
 
             E_new(i, j, k) += source[3];
             rho_new(i, j, k) += source[0];

@@ -1,0 +1,81 @@
+diff --git a/src/Integrator/Hydro.cpp b/src/Integrator/Hydro.cpp
+index f04d3cb3..fc7615b3 100644
+--- a/src/Integrator/Hydro.cpp
++++ b/src/Integrator/Hydro.cpp
+@@ -97,7 +97,6 @@ void Hydro::Initialize(int lev)
+     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
+         const amrex::Box& bx = mfi.tilebox();
+         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+-        //amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+ 
+         amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
+         amrex::Array4<Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
+@@ -110,16 +109,20 @@ void Hydro::Initialize(int lev)
+ 
+         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+         {
+-            rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k);
++	    const Set::Scalar* DX = geom[lev].CellSize();
++            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
++            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
++	    
++            rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k) + mdot * grad_eta_mag;
+             rho_new(i, j, k) = rho(i, j, k);
+ 
+-            M(i, j, k, 0) = 0.0 * (1.0 - eta(i, j, k)) + Mx_init * eta(i, j, k);
++            M(i, j, k, 0) = 0.0 * (1.0 - eta(i, j, k)) + Mx_init * eta(i, j, k) + Pdot_x * grad_eta[0];
+             M_new(i, j, k, 0) = M(i, j, k, 0);
+             ///
+-            M(i, j, k, 1) = 0.0 * (1.0 - eta(i, j, k)) + My_init * eta(i, j, k);
++            M(i, j, k, 1) = 0.0 * (1.0 - eta(i, j, k)) + My_init * eta(i, j, k) + Pdot_y * grad_eta[1];
+             M_new(i, j, k, 1) = M(i, j, k, 1);
+ 
+-            E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k);
++            E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k) + Qdot * grad_eta_mag;
+             E_new(i, j, k) = E(i, j, k);
+ 
+         });
+@@ -223,11 +226,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
+ 
+         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+         {
+-
+-            //Advance eta
+-            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
+-
+ 	    //Godunov flux
+             Solver::Local::Riemann::HLLC::State state(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
+ 	    Solver::Local::Riemann::HLLC::State test_state(rho(i, j, k), -M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
+@@ -280,11 +278,14 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
+             //////DIFFUSE SOURCES//////
+             ///////////////////////////
+ 
++	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
++            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
++
+             std::array<Set::Scalar, 3> source;
+-            source[0] = mdot * grad_eta_mag * eta(i,j,k);
+-            source[1] = Pdot_x * grad_eta[0] * eta(i,j,k);
+-            source[2] = Pdot_y * grad_eta[1] * eta(i,j,k);
+-            source[3] = Qdot * grad_eta_mag * eta(i,j,k);
++            source[0] = mdot * grad_eta_mag;
++            source[1] = Pdot_x * grad_eta[0];
++            source[2] = Pdot_y * grad_eta[1];
++            source[3] = Qdot * grad_eta_mag;
+ 
+             E_new(i, j, k) += source[3];
+             rho_new(i, j, k) += source[0];
+diff --git a/stationary_interface b/stationary_interface
+index 3a6194ce..d09bf571 100644
+--- a/stationary_interface
++++ b/stationary_interface
+@@ -2,7 +2,7 @@ alamo.program = hydro
+ 
+ ### OUTPUT ###
+ 
+-plot_file = ./output
++plot_file = ./stationary_interface_transient
+ 
+ ### MESHING ###
+ 
