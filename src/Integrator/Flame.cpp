@@ -7,6 +7,7 @@
 #include "IC/PSRead.H"
 #include "Numeric/Function.H"
 #include "IC/Expression.H"
+#include "IC/Cuboid.H"
 #include "Base/Mechanics.H"
 
 #include <cmath>
@@ -159,6 +160,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             pp.query("phi.ic.psread.eps", value.zeta);
+            pp.query("phi.zeta_0", value.zeta_0);
+        }
+        if (type == "cuboid") {
+            value.ic_phi = new IC::ShapeRead(value.geom, pp, "phi.ic.cuboid");
+            value.ic_phicell = new IC::ShapeRead(value.geom, pp, "phi.ic.cuboid");
+            pp.query("phi.ic.cuboid.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
         else if (type == "laminate") {
