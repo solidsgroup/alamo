@@ -162,9 +162,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("phi.ic.psread.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
-        if (type == "cuboid") {
-            value.ic_phi = new IC::ShapeRead(value.geom, pp, "phi.ic.cuboid");
-            value.ic_phicell = new IC::ShapeRead(value.geom, pp, "phi.ic.cuboid");
+        else if (type == "cuboid") {
+            value.ic_phi = new IC::Cuboid(value.geom, pp, "phi.ic.cuboid");
+            value.ic_phicell = new IC::Cuboid(value.geom, pp, "phi.ic.cuboid");
             pp.query("phi.ic.cuboid.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }

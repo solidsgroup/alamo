@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = output
+plot_file = output-3d
 #amr.plot_dt = 0.001
 amr.plot_int = 1000
 amr.max_level = 5 
@@ -46,7 +46,7 @@ eta.ic.constant.value = 1.0
 #phi.ic.laminate.invert = 1
 #phi.ic.laminate.eps = 0.00002
 phi.ic.type = psread
-phi.ic.psread.filename = 2d.xyzr
+phi.ic.psread.filename = pack3d.out #2d.xyzr
 phi.ic.psread.eps = 0.00001
 phi.zeta_0 = 0.00001
 #phi.ic.type = constant 
