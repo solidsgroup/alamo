@@ -28,6 +28,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp.query("gamma", value.gamma);
         pp.query("cfl", value.cfl);
+	pp.query("mu", value.cfl);
 
         pp.query("rho_solid", value.rho_solid);
         pp.query("rho_fluid", value.rho_fluid);
@@ -43,6 +44,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("Pdot_x", value.Pdot_x);
         pp.query("Pdot_y", value.Pdot_y);
         pp.query("Qdot", value.Qdot);
+	pp.query("Ldot_x", value.Ldot_x);
+        pp.query("Ldot_y", value.Ldot_y);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -224,6 +227,9 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& rho_new = (*Density_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& M_new = (*Momentum_mf[lev]).array(mfi);
 
+	amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
 	    //Godunov flux
@@ -265,6 +271,24 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	      + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
 	      + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
 
+	    ///////////////////////////
+            ///////VISCOUS TERMS///////
+            ///////////////////////////
+	    
+	    Set::Scalar lap_ux     = Numeric::Laplacian(v, i, j, k, 0, DX);
+            Set::Scalar lap_uy     = Numeric::Laplacian(v, i, j, k, 1, DX);
+	    Set::Vector grad_ux    = Numeric::Gradient(v, i, j, k, 0, DX);
+	    Set::Vector grad_uy    = Numeric::Gradient(v, i, j, k, 1, DX);
+	    Set::Scalar div_u      = grad_ux(0) + grad_uy(1);
+	    Set::Scalar symgrad_u  = grad_ux(1) + grad_uy(0);
+
+            Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
+
+            M_new(i, j, k, 0) += (mu * lap_ux + mu * hess_u(0)/3.);
+            M_new(i, j, k, 1) += (mu * lap_uy + mu * hess_u(1)/3.);
+
+	    E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
+
             ///////////////////////////
             //////DIFFUSE SOURCES//////
             ///////////////////////////
@@ -272,11 +296,19 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
 
+	    Set::Matrix Ldot_outer_grad_eta;
+	    Ldot_outer_grad_eta(0,0) = Ldot_x * grad_eta(0);
+	    Ldot_outer_grad_eta(0,1) = Ldot_y * grad_eta(0);
+	    Ldot_outer_grad_eta(1,0) = Ldot_x * grad_eta(1);
+	    Ldot_outer_grad_eta(1,1) = Ldot_y * grad_eta(1);
+
+	    Set::Vector div_Ldot_outer_grad_eta = Numeric::Divergence(Ldot_outer_grad_eta, i, j, k, DX); //not working
+
             std::array<Set::Scalar, 3> source;
             source[0] = mdot * grad_eta_mag;
-            source[1] = Pdot_x * grad_eta[0];
-            source[2] = Pdot_y * grad_eta[1];
-            source[3] = Qdot * grad_eta_mag;
+            source[1] = Pdot_x * grad_eta[0] - div_Ldot_outer_grad_eta(0);
+            source[2] = Pdot_y * grad_eta[1] - div_Ldot_outer_grad_eta(1);
+            source[3] = Qdot * grad_eta_mag  - (div_Ldot_outer_grad_eta(0) * v(i, j, k, 0) + div_Ldot_outer_grad_eta(1) * v(i, j, k, 1));
 
             E_new(i, j, k) += source[3];
             rho_new(i, j, k) += source[0];
