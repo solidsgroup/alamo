@@ -1,8 +1,8 @@
 alamo.program = flame
-plot_file = output-3d
+plot_file = output
 #amr.plot_dt = 0.001
 amr.plot_int = 1000
-amr.max_level = 5 
+amr.max_level = 7 
 #amr.max_grid_size = 50
 amr.blocking_factor = 4
 amr.base_regrid_int = 200
@@ -20,8 +20,8 @@ geometry.is_periodic = 0 0 0
 
 ## TIME EPS ############################################################ TIME EPS
 
-timestep = 1.e-6 # 0.00005 # [s]
-stop_time = 0.5
+timestep = 1.e-5 # 0.00005 # [s]
+stop_time = 0.1
 small = 1.0e-8
 pf.min_eta = 0.1
 
@@ -37,20 +37,10 @@ eta.ic.constant.value = 1.0
 #eta.ic.expression.region0 = "0.5 + 0.5*tanh((x-x0)/eps)"
 
 ### Constant IC ############################################################ IC
-#phi.ic.type = laminate
-#phi.ic.number_of_inclusions = 1
-#phi.ic.laminate.center = 0.0 0.0 0.0 
-#phi.ic.laminate.thickness = 0.0001
-#phi.ic.laminate.orientation = 0 1 #0
-#phi.ic.laminate.singlefab = 1 
-#phi.ic.laminate.invert = 1
-#phi.ic.laminate.eps = 0.00002
-phi.ic.type = psread
-phi.ic.psread.filename = pack3d.out #2d.xyzr
-phi.ic.psread.eps = 0.00001
-phi.zeta_0 = 0.00001
-#phi.ic.type = constant 
-#phi.ic.constant.value = 1.0
+phi.ic.type = bmp 
+phi.ic.bmp.filename = SEM1.bmp
+phi.ic.bmp.fit = fitwidth
+phi.ic.bmp.channel = g
 
 pf.kappa = 1.0
 pf.gamma = 0.02726
@@ -150,8 +140,8 @@ model_htpb.kappa = 210
 model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
 
 elastic.solver.verbose = 4
-elastic.solver.max_iter = 10000
-#elastic.solver.fixed_iter = 500
+#elastic.solver.max_iter = 10000
+elastic.solver.fixed_iter = 500
 elastic.solver.nriters = 200
 elastic.solver.nrtolerance = 1E-5
 elastic.print_model = 1

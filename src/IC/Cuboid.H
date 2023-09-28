@@ -27,7 +27,9 @@ public:
         pp.queryclass(name, *this);
     }
 
-    void Define() {};
+    void Define() {
+        
+    };
 
     //void Add(const int lev,amrex::Vector<amrex::MultiFab * > &a_field)
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
@@ -63,9 +65,14 @@ public:
 
                 Set::Scalar xdir = std::abs((x - center[0])) - (length[0] / 2.0);
                 Set::Scalar ydir = std::abs((y - center[1])) - (length[1] / 2.0);
+            #if AMREX_SPACEDIM==3
+                Set::Scalar zdir = std::abs((z - center[2])) - (length[2] / 2.0);
+                field(i, j, k, 0) = 0.5 - 0.5 * std::erf((xdir + ydir + zdir) / eps);
+                if (field.nComp() > 1) field(i, j, k, 1) = 1. - (0.5 - 0.5 * std::erf((xdir + ydir + zdir) / eps));
+            #elif AMREX_SPACEDIM==2
                 field(i, j, k, 0) = 0.5 - 0.5 * std::erf((xdir + ydir) / eps);
-
-                field(i, j, k, 1) = 1. - (0.5 - 0.5 * std::erf((xdir + ydir) / eps));
+                if (field.nComp() > 1) field(i, j, k, 1) = 1. - (0.5 - 0.5 * std::erf((xdir + ydir) / eps));
+            #endif
 
                 //if (AMREX_D_TERM(std::abs(x - center[0]) <= 0.5 * length[0], && std::abs(y - center[1]) <= 0.5 * length[1], && std::abs(z - center[2]) <= 0.5 * length[2]))
                     //field(i, j, k, 0) = 0.5*(1.0+erf(( x - center[0])/eps)) *0.5*(1.0+erf(( y - center[1])/eps)) ;

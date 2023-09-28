@@ -8,6 +8,7 @@
 #include "Numeric/Function.H"
 #include "IC/Expression.H"
 #include "IC/Cuboid.H"
+#include "IC/BMP.H"
 #include "Base/Mechanics.H"
 
 #include <cmath>
@@ -183,6 +184,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         else if (type == "constant") {
             value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
             value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
+        }
+        else if (type == "bmp"){
+            value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
+            value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
         }
         else Util::Abort(INFO, "Invalid IC type ", type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
