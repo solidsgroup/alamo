@@ -38,7 +38,7 @@ eta.ic.constant.value = 1.0
 
 ### Constant IC ############################################################ IC
 phi.ic.type = bmp 
-phi.ic.bmp.filename = SEM1.bmp
+phi.ic.bmp.filename = SEM2.bmp
 phi.ic.bmp.fit = fitwidth
 phi.ic.bmp.channel = g
 
