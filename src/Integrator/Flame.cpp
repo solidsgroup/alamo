@@ -188,6 +188,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         else if (type == "bmp"){
             value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
+            pp.query("phi.zeta_0", value.zeta_0);
+            pp.query("phi.zeta", value.zeta);
         }
         else Util::Abort(INFO, "Invalid IC type ", type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
@@ -251,6 +253,7 @@ void Flame::UpdateModel(int /*a_step*/)
 
         //psi_mf[lev]->setVal(1.0);
         phi_mf[lev]->FillBoundary();
+        phicell_mf[lev]->FillBoundary();
         eta_mf[lev]->FillBoundary();
         temp_mf[lev]->FillBoundary();
 
@@ -366,19 +369,24 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+                    //phi_avg = phi(i,j,k);
+                    
+
 
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
+                    //if (eta(i,j,k) <= 0.0) eta(i,j,k) = 0.0;
                     Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
                     Set::Scalar rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
                     Set::Scalar cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
+                    if (etanew(i,j,k) <= 0.0) etanew(i,j,k) = 0.0;
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
                     if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
-                        Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, "j = ", j, ")");
-                        Util::Message(INFO, mdot(i, j, k), "mdot contains nan (i=", i, "j = ", j, ")");
-                        Util::Message(INFO, alpha(i, j, k), "alpha contains nan (i=", i, "j = ", j, ")");
+                        Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
+                        Util::Message(INFO, mdot(i, j, k), "mdot contains nan (i=", i, " j= ", j, ")");
+                        Util::Message(INFO, alpha(i, j, k), "alpha contains nan (i=", i, " j= ", j, ")");
                         Util::Abort(INFO);
                     }
                 });
@@ -386,6 +394,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+                    //phi_avg = phi(i,j,k);
 
                     Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
                     Set::Scalar qflux = k1 * phi_avg +
@@ -396,7 +405,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
                     heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
                     if (isnan(heatflux(i, j, k))) {
-                        Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, "j = ", j, ")");
+                        Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
                         Util::Abort(INFO);
                     }
                 });
@@ -419,8 +428,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
                     tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
                     if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
-                        Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, "j = ", j, ")");
-                        Util::Message(INFO, temps(i, j, k), "temps contains nan (i=", i, "j = ", j, ")");
+                        Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, " j= ", j, ")");
+                        Util::Message(INFO, temps(i, j, k), "temps contains nan (i=", i, " j= ", j, ")");
                         Util::Abort(INFO);
                     }
 
@@ -428,7 +437,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+                    Set::Scalar phi_avg= Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+                    //phi_avg = phi(i,j,k);
 
                     Set::Scalar L;
                     if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
@@ -439,7 +449,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     else mob(i, j, k) = L;
                     //mob(i,j,k) = L;
                     if (isnan(mob(i, j, k))) {
-                        Util::Message(INFO, mob(i, j, k), "mob contains nan (i=", i, "j = ", j, ")");
+                        Util::Message(INFO, mob(i, j, k), "mob contains nan (i=", i, " j= ", j, ")");
                         Util::Abort(INFO);
                     }
                 });

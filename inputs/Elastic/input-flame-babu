@@ -1,0 +1,78 @@
+alamo.program = flame
+plot_file = output-babu
+amr.plot_int = 1000
+amr.max_level = 6
+amr.blocking_factor = 4
+amr.base_regrid_int = 10
+amr.grid_eff = 1
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 5.0
+amr.refinement_restriction = 0.1
+amr.phi_refinement_criterion = 0.5
+
+amr.n_cell = 16 16 16   #128 128
+geometry.prob_lo = 0.0 0.0 0.0 # 0.0 -0.0005 -0.00025 # [ m ] 
+geometry.prob_hi = 0.001 0.001 0.001 # 0.001 0.0005 0.00025# [ m ]
+
+geometry.is_periodic = 0 0 0
+
+## TIME EPS ############################################################ TIME EPS
+
+timestep = 1.e-5 # 0.00005 # [s]
+stop_time = 0.1
+small = 1.0e-8
+pf.min_eta = 0.1
+
+pf.eps = 0.000001 #0.0005 # [m]
+pf.lambda = 0.001
+
+## ETA IC ################################################################ ETA IC
+eta.ic.type = constant #laminate
+eta.ic.constant.value = 1.0
+
+### Constant IC ############################################################ IC
+phi.ic.type = bmp 
+phi.ic.bmp.filename = inputs/Elastic/SEM3.bmp
+phi.ic.bmp.fit = fitwidth
+phi.ic.bmp.channel = g
+
+pf.kappa = 1.0
+pf.gamma = 0.02726
+pf.w1 = 1.0
+pf.w12 = 2.0
+pf.w0 = 0.0
+
+pf.eta.bc.type.xlo = dirichlet
+pf.eta.bc.type.xhi = dirichlet
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.zlo = neumann
+pf.eta.bc.type.zhi = neumann
+
+pf.eta.bc.val.xlo = 0.0
+pf.eta.bc.val.xhi = 1.0
+pf.eta.bc.val.ylo = 0.0
+pf.eta.bc.val.yhi = 0.0
+pf.eta.bc.val.zlo = 0.0
+pf.eta.bc.val.zhi = 0.0
+
+## Conditional Variables ################################################## Conditional
+conditional.evolve = 1
+
+# THERMAL VARIABLES ######################################################### THERMAL
+thermal.on = 0  #activates the thermal functions
+
+## PRESSURE VARIABLES ######################################################### PRESSURE
+pressure.P = 3.0  ## Pressure is to be inputed in MPa units.
+pressure.r_ap = 1.222e-3 # [ mm / s ]
+pressure.n_ap = 1.042 # [ 1 ]
+pressure.r_htpb = 0.1e-3 # [ mm / s]
+pressure.r_comb = 10.0e-3 # [ mm / s]
+pressure.n_htpb = 0.0 # [ 1 ]
+pressure.n_comb = 0.0 # [ 1 ]
+
+## ELASTIC VARIABLES ######################################################### ELASTIC
+
+elastic.type = disable
+elastic.on = 0
+
