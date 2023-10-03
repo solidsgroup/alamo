@@ -38,7 +38,7 @@ eta.ic.constant.value = 1.0
 
 ### Constant IC ############################################################ IC
 phi.ic.type = bmp 
-phi.ic.bmp.filename = inputs/Elastic/SEM3.bmp
+phi.ic.bmp.filename = inputs/Elastic/SEM4.bmp
 phi.ic.bmp.fit = fitwidth
 phi.ic.bmp.channel = g
 phi.zeta_0 = 1.13e-5
