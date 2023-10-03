@@ -1,11 +1,11 @@
 alamo.program = flame
-plot_file = output
+plot_file = output-elastic
 #amr.plot_dt = 0.001
-amr.plot_int = 1000
+amr.plot_int = 100
 amr.max_level = 7
 #amr.max_grid_size = 50
 amr.blocking_factor = 4
-amr.base_regrid_int = 200
+amr.base_regrid_int = 1
 amr.grid_eff = 1
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 10.0
@@ -21,11 +21,11 @@ geometry.is_periodic = 0 0 0
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1.e-5 # 0.00005 # [s]
-stop_time = 0.1
+stop_time = 0.3
 small = 1.0e-8
 pf.min_eta = 0.1
 
-pf.eps = 0.000001 #0.0005 # [m]
+pf.eps = 0.0000002 #0.0005 # [m]
 pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
@@ -41,6 +41,9 @@ phi.ic.type = bmp
 phi.ic.bmp.filename = inputs/Elastic/SEM3.bmp
 phi.ic.bmp.fit = fitwidth
 phi.ic.bmp.channel = g
+phi.zeta_0 = 1.13e-5
+phi.zeta = 1.13e-5
+pressure.dependency = 0
 
 pf.kappa = 1.0
 pf.gamma = 0.02726
@@ -67,7 +70,7 @@ conditional.evolve = 1
 
 # THERMAL VARIABLES ######################################################### THERMAL
 thermal.on = 1  #activates the thermal functions
-thermal.bound = 400.0
+thermal.bound = 300.0
 thermal.T_fluid = 600.0
 thermal.m_ap = 1.45e5 #[m/s]
 thermal.m_htpb = 1.04e2 # 0.2 # [m/s]
@@ -128,7 +131,7 @@ laser.ic.constant.value = 1.0e6
 
 #elastic.type = disable
 elastic.on = 1
-elastic.interval = 1000
+elastic.interval = 100
 Tref = 300 #300
 
 model_ap.mu    = 140
@@ -165,6 +168,4 @@ elastic.bc.constant.type.xloyhi = trac disp disp
 #elastic.elastic_ref_threshold = 0.00005
 
 amr.node.all = 1
-
-
 elasticop.small=1E-8

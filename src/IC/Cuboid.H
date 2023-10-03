@@ -73,12 +73,6 @@ public:
                 field(i, j, k, 0) = 0.5 - 0.5 * std::erf((xdir + ydir) / eps);
                 if (field.nComp() > 1) field(i, j, k, 1) = 1. - (0.5 - 0.5 * std::erf((xdir + ydir) / eps));
             #endif
-
-                //if (AMREX_D_TERM(std::abs(x - center[0]) <= 0.5 * length[0], && std::abs(y - center[1]) <= 0.5 * length[1], && std::abs(z - center[2]) <= 0.5 * length[2]))
-                    //field(i, j, k, 0) = 0.5*(1.0+erf(( x - center[0])/eps)) *0.5*(1.0+erf(( y - center[1])/eps)) ;
-                    //"0.5*(1.0+erf(( x - 4.5e-05)/1e-06))* 0.5*(1.0+erf((-x + 5.5e-05)/1e-06))* 0.5*(1.0+erf((y - 4.5e-05)/1e-06))* 0.5*(1.0+erf((-y + 5.5e-05)/1e-06))"
-                //else
-                   // field(i, j, k, 0) = 0.;
             });
         }
 
