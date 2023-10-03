@@ -166,6 +166,6 @@ elastic.bc.constant.type.xloylo = trac disp disp
 elastic.bc.constant.type.xloyhi = trac disp disp
 
 #elastic.elastic_ref_threshold = 0.00005
-
+small = 1E-8
 amr.node.all = 1
 elasticop.small=1E-8
