@@ -2,7 +2,7 @@ alamo.program = flame
 plot_file = output-elastic
 #amr.plot_dt = 0.001
 amr.plot_int = 100
-amr.max_level = 7
+amr.max_level = 6
 #amr.max_grid_size = 50
 amr.blocking_factor = 4
 amr.base_regrid_int = 1
@@ -25,7 +25,7 @@ stop_time = 0.3
 small = 1.0e-8
 pf.min_eta = 0.1
 
-pf.eps = 0.0000002 #0.0005 # [m]
+pf.eps = 0.0000003 #0.0005 # [m]
 pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
@@ -38,7 +38,7 @@ eta.ic.constant.value = 1.0
 
 ### Constant IC ############################################################ IC
 phi.ic.type = bmp 
-phi.ic.bmp.filename = inputs/Elastic/SEM4.bmp
+phi.ic.bmp.filename = inputs/Elastic/SEM3.bmp
 phi.ic.bmp.fit = fitwidth
 phi.ic.bmp.channel = g
 phi.zeta_0 = 1.13e-5

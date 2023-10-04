@@ -103,7 +103,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             value.RegisterNewFab(value.mdot_mf, 1, "mdot", false);
             value.RegisterNewFab(value.mob_mf, 1, "mob", true);
-            value.RegisterNewFab(value.alpha_mf, 1, "alpha", true);
+            value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 2, "alpha", true);
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
             value.RegisterNewFab(value.laser_mf, 1, "laser", true);
 
