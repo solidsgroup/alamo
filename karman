@@ -1,0 +1,155 @@
+alamo.program = hydro
+
+### OUTPUT ###
+
+plot_file = ./VonKarmanVortex
+
+### MESHING ###
+
+#amr.plot_dt = 0.1
+amr.plot_int = 1
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+#amr.regrid_int = 100
+amr.grid_eff = 0.8
+#amr.refinement_criterion = 0.001
+#amr.refinement_criterion_temp = 275.16
+#amr.refinement_restriction = 0.1
+#amr.n_cell = 1600 200 0
+#amr.n_cell = 800 800 200
+amr.n_cell = 200 100 0
+#amr.n_cell = 64 16 0
+
+# Uncomment to test AMR
+#amr.max_level = 2
+#amr.n_cell = 128 32 0
+
+### DIMENSIONS ###
+
+geometry.prob_lo = -0.002 -0.001 0.0 # [ m ] 
+geometry.prob_hi = 0.002 0.001 0.0 # [ m ]
+
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep = 1.0e-6
+stop_time = 1.0e-2
+#small = 1.0e-5
+
+
+### ETA IC ###
+
+eps = 0.00025
+
+
+# rho0 = 10
+# V0 = 0.001
+mdot = 0.0      # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
+Pdot_x = 0.0  # = rho0 * V0 * V0
+Pdot_y = 0.0
+Qdot = 0.0  # = rho0 * V0 * V0 * V0
+
+#eta.ic.type = laminate
+#eta.ic.laminate.number_of_inclusions = 1
+#eta.ic.laminate.center = 0 0 0
+#eta.ic.laminate.thickness = 0.2
+#eta.ic.laminate.orientation = 0 1
+#eta.ic.laminate.mollifier = gaussian
+#eta.ic.laminate.eps = 0.05
+#eta.ic.laminate.singlefab = 1
+#eta.ic.laminate.invert = 0
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps = 0.00025
+eta.ic.expression.constant.vel = 0.0 
+eta.ic.expression.region0 = "1.0 - 0.5*tanh((sqrt(x*x + y*y) + eps)/(0.2*eps)) + 0.5*tanh((sqrt(x*x + y*y) - eps)/(0.2*eps))"
+etadot.ic.type = expression
+etadot.ic.expression.constant.eps = 0.0001 # must match above!
+etadot.ic.expression.constant.vel = 0.0 #-0.04 # must match above!
+etadot.ic.expression.region0 = "0.0" 
+
+
+
+### ETA BC  ###
+
+pf.eta.bc.type.xlo = neumann
+pf.eta.bc.type.xhi = neumann
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.zlo = neumann
+pf.eta.bc.type.zhi = neumann
+
+pf.eta.bc.val.xlo = 0.0
+pf.eta.bc.val.xhi = 0.0
+pf.eta.bc.val.ylo = 0.0
+pf.eta.bc.val.yhi = 0.0
+pf.eta.bc.val.zlo = 0.0
+pf.eta.bc.val.zhi = 0.0
+
+### HYDRO PARAM ###
+
+gamma = 1.4
+cfl = 0.4
+mu = 0.00001
+
+rho_solid = 10000.0 #kg/m^3
+rho_fluid = 1000.0 #kg/m^3
+E_solid = 2.5 #00000
+E_fluid = 2.5 #00000
+Mx_init = -10.0
+My_init = 0.0
+
+### HYDRO BC ###
+
+rho.bc.type.xlo = neumann
+rho.bc.type.xhi = neumann
+rho.bc.type.ylo = neumann
+rho.bc.type.yhi = neumann
+rho.bc.type.zlo = neumann
+rho.bc.type.zhi = neumann
+
+rho.bc.val.xlo = 0.0
+rho.bc.val.xhi = 0.0
+rho.bc.val.ylo = 0.0 
+rho.bc.val.yhi = 0.0
+rho.bc.val.zlo = 0.0 
+rho.bc.val.zhi = 0.0
+
+E.bc.type.xlo = neumann
+E.bc.type.xhi = neumann
+E.bc.type.ylo = neumann
+E.bc.type.yhi = neumann
+E.bc.type.zlo = neumann
+E.bc.type.zhi = neumann
+
+E.bc.val.xlo = 0.0
+E.bc.val.xhi = 0.0
+E.bc.val.ylo = 0.0 
+E.bc.val.yhi = 0.0
+E.bc.val.zlo = 0.0 
+E.bc.val.zhi = 0.0
+
+M.bc.type.xlo = neumann
+M.bc.type.xhi = neumann
+M.bc.type.ylo = neumann
+M.bc.type.yhi = neumann
+M.bc.type.zlo = neumann
+M.bc.type.zhi = neumann
+
+M.bc.val.xlo = 0.0 0.0
+M.bc.val.xhi = 0.0 0.0
+M.bc.val.ylo = 0.0 0.0
+M.bc.val.yhi = 0.0 0.0
+M.bc.val.zlo = 0.0 0.0
+M.bc.val.zhi = 0.0 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+r_refinement_criterion = 0.1
+e_refinement_criterion = 0.1
+m_refinement_criterion = 0.1
+eta_refinement_criterion = 0.1
+
+#TODO
