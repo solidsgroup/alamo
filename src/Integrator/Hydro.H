@@ -56,6 +56,8 @@ private:
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> etadot_mf;
 
+    Set::Field<Set::Scalar> Vorticity_mf;
+
     BC::BC<Set::Scalar>* bc_rho;
     BC::BC<Set::Scalar>* bc_E;
     BC::BC<Set::Scalar>* bc_M;

@@ -28,7 +28,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp.query("gamma", value.gamma);
         pp.query("cfl", value.cfl);
-	pp.query("mu", value.cfl);
+	pp.query("mu", value.mu);
 
         pp.query("rho_solid", value.rho_solid);
         pp.query("rho_fluid", value.rho_fluid);
@@ -69,6 +69,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 2, nghost, "M_old", false);
 
         value.RegisterNewFab(value.Velocity_mf, value.bc_M, 2, nghost, "Velocity", true);
+
+	value.RegisterNewFab(value.Vorticity_mf, value.bc_eta, 1, nghost, "Vorticity", true);
 
         value.RegisterNewFab(value.Pressure_mf, value.bc_E, 1, nghost, "Pressure", true);
     }
@@ -197,7 +199,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
-            v(i, j, k, 1) = 0.0; //M(i, j, k, 1) / rho(i, j, k);
+            v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k); //M(i, j, k, 1) / rho(i, j, k);
 
             Set::Scalar ke = 0.5 * rho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
 
@@ -228,7 +230,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& M_new = (*Momentum_mf[lev]).array(mfi);
 
 	amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
+
+	amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -252,14 +255,14 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             //Godunov fluxes
             E_new(i, j, k) =
-                E(i, j, k)
-	      + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
-	      + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
+	      E(i, j, k);
+	      //+ (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
+	      //+ (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
 
             rho_new(i, j, k) =
-                rho(i, j, k)
-	      + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
-	      + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
+	      rho(i, j, k);
+	      //+ (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
+	      //+ (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             M_new(i, j, k, 0) =
                 M(i, j, k, 0)
@@ -284,34 +287,28 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            M_new(i, j, k, 0) += (mu * lap_ux + mu * hess_u(0)/3.);
-            M_new(i, j, k, 1) += (mu * lap_uy + mu * hess_u(1)/3.);
+            M_new(i, j, k, 0) += mu * lap_ux * eta(i,j,k) * dt;// + mu * hess_u(0)/3.);
+	    M_new(i, j, k, 1) += mu * lap_uy * eta(i,j,k) * dt;// + mu * hess_u(1)/3.);
 
-	    E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
+	    //E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
             ///////////////////////////
             //////DIFFUSE SOURCES//////
             ///////////////////////////
 
 	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
-	    Set::Matrix Ldot_outer_grad_eta;
-	    Ldot_outer_grad_eta(0,0) = Ldot_x * grad_eta(0);
-	    Ldot_outer_grad_eta(0,1) = Ldot_y * grad_eta(0);
-	    Ldot_outer_grad_eta(1,0) = Ldot_x * grad_eta(1);
-	    Ldot_outer_grad_eta(1,1) = Ldot_y * grad_eta(1);
-
-	    Set::Vector div_Ldot_outer_grad_eta = Numeric::Divergence(Ldot_outer_grad_eta, i, j, k, DX); //not working
+	    omega(i,j,k,0) = grad_uy(0) - grad_ux(1);
 
             std::array<Set::Scalar, 3> source;
-            source[0] = mdot * grad_eta_mag;
-            source[1] = Pdot_x * grad_eta[0] - div_Ldot_outer_grad_eta(0);
-            source[2] = Pdot_y * grad_eta[1] - div_Ldot_outer_grad_eta(1);
-            source[3] = Qdot * grad_eta_mag  - (div_Ldot_outer_grad_eta(0) * v(i, j, k, 0) + div_Ldot_outer_grad_eta(1) * v(i, j, k, 1));
+            source[0] = mdot * grad_eta_mag * dt;
+            source[1] = mu * omega(i,j,k) * (-grad_eta[1])  * dt;
+            source[2] = mu * omega(i,j,k) * (grad_eta[0]) * dt;
+            source[3] = Qdot * grad_eta_mag * dt;
 
-            E_new(i, j, k) += source[3];
-            rho_new(i, j, k) += source[0];
+            // E_new(i, j, k) += source[3];
+            // rho_new(i, j, k) += source[0];
             M_new(i, j, k, 0) += source[1];
             M_new(i, j, k, 1) += source[2];
 
@@ -319,10 +316,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             //////SOLID STAND-IN//////
             //////////////////////////
 
-	    E_new(i, j, k) = E_solid * (1 - eta(i,j,k)) + E_new(i, j, k) * eta(i,j,k);
-            rho_new(i, j, k) = rho_solid * (1 - eta(i,j,k)) + rho_new(i, j, k) * eta(i,j,k);
-            M_new(i, j, k, 0) = M_new(i, j, k, 0) * eta(i,j,k);
-            M_new(i, j, k, 1) = M_new(i, j, k, 1) * eta(i,j,k);
+	    // E_new(i, j, k) = E_solid * (1 - eta(i,j,k)) + E_new(i, j, k) * eta(i,j,k);
+            // rho_new(i, j, k) = rho_solid * (1 - eta(i,j,k)) + rho_new(i, j, k) * eta(i,j,k);
+            // M_new(i, j, k, 0) = M_new(i, j, k, 0) * eta(i,j,k);
+            // M_new(i, j, k, 1) = M_new(i, j, k, 1) * eta(i,j,k);
         });
     }
 }//end Advance
