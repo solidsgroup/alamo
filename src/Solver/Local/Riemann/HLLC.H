@@ -35,6 +35,7 @@ public:
 
     // todo: convert to static functor by replacing with static () when c++23 is released
     static Flux Solve(State lo, State hi, Set::Scalar gamma) {
+      
 	//lo primitive variables
         Set::Scalar u_lo = lo.momentum(0) / lo.rho;
 	Set::Scalar v_lo = lo.momentum(1) / lo.rho;
@@ -110,8 +111,8 @@ public:
 
 	//Compute the Godunov flux
         Flux fl;
-        fl.mass = (rho_face * u_face) * eta_face;
-        fl.momentum(0) = (rho_face * u_face * u_face + p_face) * eta_face;
+        fl.mass = rho_face * u_face * eta_face;
+        fl.momentum(0) = rho_face * u_face * u_face * eta_face + p_face;
         if (fl.mass > 0.0) {
 	  fl.momentum(1) = (fl.mass * v_lo) * eta_face;
 	}

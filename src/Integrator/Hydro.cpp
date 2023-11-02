@@ -239,8 +239,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Solver::Local::Riemann::HLLC::State state(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
             Solver::Local::Riemann::HLLC::State lo_statex(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k) );
             Solver::Local::Riemann::HLLC::State hi_statex(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k) );
-            Solver::Local::Riemann::HLLC::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 0), M(i, j - 1, k, 1), E(i, j - 1, k), eta(i, j - 1, k) ); 
-            Solver::Local::Riemann::HLLC::State hi_statey(rho(i, j + 1, k), M(i, j + 1, k, 0), M(i, j + 1, k, 1), E(i, j + 1, k), eta(i, j + 1, k) );
+            Solver::Local::Riemann::HLLC::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k) ); 
+            Solver::Local::Riemann::HLLC::State hi_statey(rho(i, j + 1, k), M(i, j + 1, k, 1), M(i, j + 1, k, 0), E(i, j + 1, k), eta(i, j + 1, k) );
 	    
             Solver::Local::Riemann::HLLC::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 
@@ -255,14 +255,14 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             //Godunov fluxes
             E_new(i, j, k) =
-	      E(i, j, k);
-	      //+ (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
-	      //+ (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
+	      E(i, j, k)
+	      + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
+	      + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
 
             rho_new(i, j, k) =
-	      rho(i, j, k);
-	      //+ (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
-	      //+ (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
+	      rho(i, j, k)
+	      + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
+	      + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             M_new(i, j, k, 0) =
                 M(i, j, k, 0)
@@ -287,8 +287,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            M_new(i, j, k, 0) += mu * lap_ux * eta(i,j,k) * dt;// + mu * hess_u(0)/3.);
-	    M_new(i, j, k, 1) += mu * lap_uy * eta(i,j,k) * dt;// + mu * hess_u(1)/3.);
+            //M_new(i, j, k, 0) += mu * lap_ux * eta(i,j,k) * dt;// + mu * hess_u(0)/3.);
+	    //M_new(i, j, k, 1) += mu * lap_uy * eta(i,j,k) * dt;// + mu * hess_u(1)/3.);
 
 	    //E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
@@ -302,10 +302,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	    omega(i,j,k,0) = grad_uy(0) - grad_ux(1);
 
             std::array<Set::Scalar, 3> source;
-            source[0] = mdot * grad_eta_mag * dt;
-            source[1] = mu * omega(i,j,k) * (-grad_eta[1])  * dt;
-            source[2] = mu * omega(i,j,k) * (grad_eta[0]) * dt;
-            source[3] = Qdot * grad_eta_mag * dt;
+            source[0] = 0.0; //mdot * grad_eta_mag * dt;
+            source[1] = 0.0; //mu * omega(i,j,k) * (grad_eta[1])  * dt + Pdot_x;
+            source[2] = Pdot_y; //mu * omega(i,j,k) * (-grad_eta[0]) * dt + Pdot_y;
+            source[3] = 0.0; //Qdot * grad_eta_mag * dt;
 
             // E_new(i, j, k) += source[3];
             // rho_new(i, j, k) += source[0];
