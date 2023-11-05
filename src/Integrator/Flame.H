@@ -84,7 +84,8 @@ private:
     Set::Scalar small = 1.0e-8;
     Set::Scalar base_time = 1.0e-4;
     IC::IC* ic_eta;
-
+    int ghost_count = 2;
+    int homogeneousSystem = 0; 
     struct {
         Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;
@@ -103,6 +104,8 @@ private:
             Set::Scalar c1 = 0.0;
             int mob_ap = 0;
             int dependency = 1;
+            Set::Scalar h1 = 1.81, h2 = 1.34;
+            
         } arrhenius;
         struct {
             Set::Scalar r_ap = 0.0, r_htpb = 0.0, r_comb = 0.0;

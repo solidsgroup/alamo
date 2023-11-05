@@ -239,8 +239,9 @@ protected:
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     //auto sten = Numeric::GetStencil(i,j,k,bx);
-                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX);
+                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX);                    
                     sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
+                    
                 });
 
                 bx = mfi.nodaltilebox().grow(0) & domain;
@@ -251,6 +252,7 @@ protected:
                     udotdot /= rho;
                     vnew(i, j, k) = v(i, j, k) + dt * udotdot;
                     unew(i, j, k) = u(i, j, k) + dt * vnew(i, j, k);
+
                 });
             }
         }

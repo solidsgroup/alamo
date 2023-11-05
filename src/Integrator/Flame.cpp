@@ -39,11 +39,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("pf.w12", value.pf.w12);  // Barrier energy
         pp.query("pf.w0", value.pf.w0);    // Burned rest energy
         pp.query("pf.min_eta", value.pf.min_eta);
+        pp.query("amr.ghost_cells", value.ghost_count); // number of ghost cells in all fields
 
         value.bc_eta = new BC::Constant(1);
         pp.queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
-        value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
-        value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+        value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, value.ghost_count, "eta", true);
+        value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
 
         std::string eta_bc_str = "constant";
@@ -56,6 +57,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.consntant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
+        else if (eta_ic_type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
         else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
 
     }
@@ -96,22 +98,23 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
-            value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
-            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
-            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 3, "temps", false);
-            value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 3, "temps_old", false);
+            value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, value.ghost_count+ 1, "temp", true);
+            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, value.ghost_count+ 1, "temp_old", false);
+            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, value.ghost_count+ 1, "temps", false);
+            value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, value.ghost_count+ 1, "temps_old", false);
 
-            value.RegisterNewFab(value.mdot_mf, 1, "mdot", false);
-            value.RegisterNewFab(value.mob_mf, 1, "mob", true);
-            value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 2, "alpha", true);
-            value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
-            value.RegisterNewFab(value.laser_mf, 1, "laser", true);
+            value.RegisterNewFab(value.mdot_mf,value.bc_eta, 1, value.ghost_count+ 1, "mdot", true);
+            value.RegisterNewFab(value.mob_mf, value.bc_eta,1, value.ghost_count+ 1, "mob", true);
+            value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, value.ghost_count+ 1, "alpha", true);
+            value.RegisterNewFab(value.heatflux_mf,value.bc_temp, 1, value.ghost_count+ 1, "heatflux", true);
+            value.RegisterNewFab(value.laser_mf,value.bc_temp, 1, value.ghost_count+ 1, "laser", true);
 
             std::string laser_ic_type = "constant";
             pp.query("laser.ic.type", laser_ic_type);
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
             else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
             else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
+
         }
     }
 
@@ -128,6 +131,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.c1", value.pressure.arrhenius.c1);
             pp.query("pressure.mob_ap", value.pressure.arrhenius.mob_ap);
             pp.query("pressure.dependency", value.pressure.arrhenius.dependency);
+
+            
+            pp.query("pressure.h1", value.pressure.arrhenius.h1);
+            pp.query("pressure.h2", value.pressure.arrhenius.h2);
+            pp.query("homogeneousSystem", value.homogeneousSystem);
+            
         }
         else
         {
@@ -193,8 +202,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         }
         else Util::Abort(INFO, "Invalid IC type ", type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
-        value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
-        value.RegisterNewFab(value.phicell_mf, 1, "phi", true);
+        value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count+ 1, "phi", true);
+        value.RegisterNewFab(value.phicell_mf,value.bc_eta, 1, value.ghost_count + 1, "phi", true);
     }
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
@@ -207,7 +216,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.queryclass("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
-        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
+        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1,value.ghost_count, "psi", true);
         value.psi_on = true;
     }
 
@@ -290,6 +299,7 @@ void Flame::UpdateModel(int /*a_step*/)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
+                    //phi_avg = phi(i,j,k,0);
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 *= Set::Matrix::Zero();
                     model_type model_htpb = elastic.model_htpb;
@@ -345,6 +355,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const& phicell = (*phicell_mf[lev]).array(mfi);
                 // Heat transfer fields
                 amrex::Array4<Set::Scalar>       const& tempnew = (*temp_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& temp = (*temp_old_mf[lev]).array(mfi);
@@ -365,11 +376,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar k1 = pressure.arrhenius.a1 * pressure.P + pressure.arrhenius.b1 - zeta_1 / zeta;
                 Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P + pressure.arrhenius.b2 - zeta_1 / zeta;
                 Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
+                Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phi(i,j,k);
+                    //phi_avg = phicell(i,j,k);
                     
 
 
@@ -382,6 +394,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
                     if (etanew(i,j,k) <= small) etanew(i,j,k) = small;
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
+                    
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
                     if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
                         Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
@@ -394,7 +407,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phi(i,j,k);
+                    //phi_avg = phicell(i,j,k);
 
                     Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
                     Set::Scalar qflux = k1 * phi_avg +
@@ -404,6 +417,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mdota = fabs(mdot(i, j, k));
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
                     heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
+
+                    if (homogeneousSystem) heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * (k4 * phi_avg) ) / K;
+
                     if (isnan(heatflux(i, j, k))) {
                         Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
                         Util::Abort(INFO);
@@ -438,7 +454,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg= Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phi(i,j,k);
+                    //phi_avg = phicell(i,j,k);
 
                     Set::Scalar L;
                     if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
