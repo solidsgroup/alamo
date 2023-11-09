@@ -266,12 +266,12 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             M_new(i, j, k, 0) =
                 M(i, j, k, 0)
-	      + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
-	      + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
+	      + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0];
+	    //+ (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
 
             M_new(i, j, k, 1) =
                 M(i, j, k, 1)
-	      + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
+	      //+ (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
 	      + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
 
 	    ///////////////////////////
@@ -287,8 +287,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            //M_new(i, j, k, 0) += mu * lap_ux * eta(i,j,k) * dt;// + mu * hess_u(0)/3.);
-	    //M_new(i, j, k, 1) += mu * lap_uy * eta(i,j,k) * dt;// + mu * hess_u(1)/3.);
+            M_new(i, j, k, 0) += mu * dt/(DX[0] * DX[0] * rho(i,j,k)) * (M(i+1,j,k,0) - 2*M(i,j,k,0) + M(i-1,j,k,0)) +  mu * dt/(DX[1] * DX[1] * rho(i,j,k)) * (M(i,j+1,k,0) - 2*M(i,j,k,0) + M(i,j-1,k,0));// + mu * hess_u(0)/3.);
+	    M_new(i, j, k, 1) += mu * dt/(DX[0] * DX[0] * rho(i,j,k)) * (M(i+1,j,k,1) - 2*M(i,j,k,1) + M(i-1,j,k,1)) +  mu * dt/(DX[1] * DX[1] * rho(i,j,k)) * (M(i,j+1,k,1) - 2*M(i,j,k,1) + M(i,j-1,k,1));// + mu * hess_u(1)/3.);
 
 	    //E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
@@ -303,12 +303,12 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             std::array<Set::Scalar, 3> source;
             source[0] = 0.0; //mdot * grad_eta_mag * dt;
-            source[1] = 0.0; //mu * omega(i,j,k) * (grad_eta[1])  * dt + Pdot_x;
-            source[2] = Pdot_y; //mu * omega(i,j,k) * (-grad_eta[0]) * dt + Pdot_y;
+            source[1] = mu * omega(i,j,k) * (-grad_eta[1])  * dt;
+            source[2] = mu * omega(i,j,k) * (grad_eta[0]) * dt;
             source[3] = 0.0; //Qdot * grad_eta_mag * dt;
 
-            // E_new(i, j, k) += source[3];
-            // rho_new(i, j, k) += source[0];
+            E_new(i, j, k) += source[3];
+            rho_new(i, j, k) += source[0];
             M_new(i, j, k, 0) += source[1];
             M_new(i, j, k, 1) += source[2];
 
