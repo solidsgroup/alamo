@@ -44,8 +44,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("Pdot_x", value.Pdot_x);
         pp.query("Pdot_y", value.Pdot_y);
         pp.query("Qdot", value.Qdot);
-	pp.query("Ldot_x", value.Ldot_x);
-        pp.query("Ldot_y", value.Ldot_y);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -265,13 +263,13 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	      + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             M_new(i, j, k, 0) =
-                M(i, j, k, 0)
-	      + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0];
-	    //+ (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
+	      M(i, j, k, 0)
+	      + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
+	      + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
 
             M_new(i, j, k, 1) =
-                M(i, j, k, 1)
-	      //+ (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
+	      M(i, j, k, 1)
+	      + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
 	      + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
 
 	    ///////////////////////////
@@ -287,8 +285,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            M_new(i, j, k, 0) += mu * dt/(DX[0] * DX[0] * rho(i,j,k)) * (M(i+1,j,k,0) - 2*M(i,j,k,0) + M(i-1,j,k,0)) +  mu * dt/(DX[1] * DX[1] * rho(i,j,k)) * (M(i,j+1,k,0) - 2*M(i,j,k,0) + M(i,j-1,k,0));// + mu * hess_u(0)/3.);
-	    M_new(i, j, k, 1) += mu * dt/(DX[0] * DX[0] * rho(i,j,k)) * (M(i+1,j,k,1) - 2*M(i,j,k,1) + M(i-1,j,k,1)) +  mu * dt/(DX[1] * DX[1] * rho(i,j,k)) * (M(i,j+1,k,1) - 2*M(i,j,k,1) + M(i,j-1,k,1));// + mu * hess_u(1)/3.);
+            M_new(i, j, k, 0) += mu * dt/(DX[0] * DX[0]) * (M(i-1, j, k, 0) - 2*M(i, j, k, 0) + M(i+1, j, k, 0)) + mu * dt/(DX[1] * DX[1]) * (M(i, j-1, k, 0) - 2*M(i, j, k, 0) + M(i+1, j+1, k, 0));// + mu * hess_u(0)/3.);
+	    M_new(i, j, k, 1) += mu * dt/(DX[0] * DX[0]) * (M(i-1, j, k, 1) - 2*M(i, j, k, 1) + M(i+1, j, k, 1)) + mu * dt/(DX[1] * DX[1]) * (M(i, j-1, k, 1) - 2*M(i, j, k, 1) + M(i+1, j+1, k, 1));// + mu * hess_u(1)/3.);
 
 	    //E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
