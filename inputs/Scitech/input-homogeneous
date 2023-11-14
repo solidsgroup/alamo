@@ -30,7 +30,7 @@ pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
 eta.ic.type = bmp #laminate
-eta.ic.bmp.filename=double_circle_l.bmp
+eta.ic.bmp.filename=simple_circle_inverse.bmp
 eta.ic.bmp.fit=stretch 
 eta.ic.bmp.channel = g
 

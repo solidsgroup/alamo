@@ -6,15 +6,18 @@
    height="300mm"
    viewBox="0 0 300 300"
    version="1.1"
-   id="svg5"
+   id="svg9486"
    inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
-   sodipodi:docname="base_circle.svg"
+   sodipodi:docname="double_circle_resize.svg"
+   inkscape:export-filename="simple_circle.png"
+   inkscape:export-xdpi="25.38308"
+   inkscape:export-ydpi="25.38308"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <sodipodi:namedview
-     id="namedview7"
+     id="namedview9488"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
@@ -24,9 +27,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="0.52221046"
-     inkscape:cx="549.58685"
-     inkscape:cy="591.71546"
+     inkscape:zoom="0.73851712"
+     inkscape:cx="450.90356"
+     inkscape:cy="580.89378"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="-8"
@@ -34,23 +37,30 @@
      inkscape:window-maximized="1"
      inkscape:current-layer="layer1" />
   <defs
-     id="defs2" />
+     id="defs9483" />
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1">
     <rect
-       style="opacity:1;mix-blend-mode:normal;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.200923"
-       id="rect234"
-       width="299.79907"
-       height="299.79907"
-       x="0.1004615"
-       y="0.1004615" />
-    <circle
-       style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.23504"
-       id="path6457"
+       style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.199866"
+       id="rect9607"
+       width="299.80014"
+       height="299.80014"
+       x="0.099933378"
+       y="0.099933378" />
+    <ellipse
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.128545"
+       id="path10908"
        cx="150"
        cy="150"
-       r="149.88248" />
+       rx="84.935722"
+       ry="84.93573" />
+    <circle
+       style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.279663"
+       id="path14290"
+       cx="150"
+       cy="150"
+       r="64.860168" />
   </g>
 </svg>

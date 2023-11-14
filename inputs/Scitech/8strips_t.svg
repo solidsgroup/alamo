@@ -8,7 +8,7 @@
    version="1.1"
    id="svg5"
    inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
-   sodipodi:docname="base_circle.svg"
+   sodipodi:docname="8strips.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -25,8 +25,8 @@
      inkscape:document-units="mm"
      showgrid="false"
      inkscape:zoom="0.52221046"
-     inkscape:cx="549.58685"
-     inkscape:cy="591.71546"
+     inkscape:cx="291.07039"
+     inkscape:cy="490.22381"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="-8"
@@ -40,17 +40,39 @@
      inkscape:groupmode="layer"
      id="layer1">
     <rect
-       style="opacity:1;mix-blend-mode:normal;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.200923"
+       style="fill:#ffffff;fill-opacity:1;stroke-width:0.310663"
+       id="rect326"
+       width="300"
+       height="300"
+       x="0"
+       y="0" />
+    <rect
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.141193;stroke-opacity:1"
        id="rect234"
-       width="299.79907"
-       height="299.79907"
-       x="0.1004615"
-       y="0.1004615" />
-    <circle
-       style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.23504"
-       id="path6457"
-       cx="150"
-       cy="150"
-       r="149.88248" />
+       width="320"
+       height="20"
+       x="-10"
+       y="0" />
+    <rect
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.141192;stroke-opacity:1"
+       id="rect234-8"
+       width="320"
+       height="20"
+       x="-10"
+       y="80" />
+    <rect
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.141192;stroke-opacity:1"
+       id="rect234-9"
+       width="320"
+       height="20"
+       x="-10"
+       y="160" />
+    <rect
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.141192;stroke-opacity:1"
+       id="rect234-81"
+       width="320"
+       height="20"
+       x="-10"
+       y="240" />
   </g>
 </svg>
