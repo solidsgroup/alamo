@@ -18,7 +18,7 @@ amr.grid_eff = 0.8
 #amr.refinement_restriction = 0.1
 #amr.n_cell = 1600 200 0
 #amr.n_cell = 800 800 200
-amr.n_cell = 200 100 0
+amr.n_cell = 200 200 0
 #amr.n_cell = 64 16 0
 
 # Uncomment to test AMR
@@ -27,14 +27,14 @@ amr.n_cell = 200 100 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -0.002 -0.001 0.0 # [ m ] 
-geometry.prob_hi = 0.002 0.001 0.0 # [ m ]
+geometry.prob_lo = -0.002 -0.002 0.0 # [ m ] 
+geometry.prob_hi = 0.002 0.002 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-8
+timestep  = 1.0e-6
 stop_time = 0.1
 #small    = 1.0e-5
 
@@ -46,10 +46,10 @@ eps = 0.00025
 
 # rho0 = 10
 # V0 = 0.001
-mdot = 0.0      # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
+mdot   = 0.0  # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
 Pdot_x = 0.0  # = rho0 * V0 * V0
 Pdot_y = 0.0
-Qdot = 0.0  # = rho0 * V0 * V0 * V0
+Qdot   = 0.0  # = rho0 * V0 * V0 * V0
 
 #eta.ic.type = laminate
 #eta.ic.laminate.number_of_inclusions = 1
@@ -99,7 +99,7 @@ rho_fluid = 100.0 #kg/m^3
 E_solid = 2.5 #00000
 E_fluid = 2.5 #00000
 Mx_init = 1.0
-My_init = 1.0
+My_init = 0.0
 
 ### HYDRO BC ###
 

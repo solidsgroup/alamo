@@ -119,10 +119,10 @@ void Hydro::Initialize(int lev)
             rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k) + mdot * grad_eta_mag;
             rho_new(i, j, k) = rho(i, j, k);
 
-            M(i, j, k, 0) = 0.0 * (1.0 - eta(i, j, k)) + Mx_init * eta(i, j, k) + Pdot_x * grad_eta[0];
+            M(i, j, k, 0) = Mx_init * eta(i, j, k) + Pdot_x * grad_eta[0];
             M_new(i, j, k, 0) = M(i, j, k, 0);
             ///
-            M(i, j, k, 1) = 0.0 * (1.0 - eta(i, j, k)) + My_init * eta(i, j, k) + Pdot_y * grad_eta[1];
+            M(i, j, k, 1) = My_init * eta(i, j, k) + Pdot_y * grad_eta[1];
             M_new(i, j, k, 1) = M(i, j, k, 1);
 
             E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k) + Qdot * grad_eta_mag;
@@ -197,7 +197,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
-            v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k); //M(i, j, k, 1) / rho(i, j, k);
+            v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
 
             Set::Scalar ke = 0.5 * rho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
 
@@ -234,7 +234,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
 	    //Godunov flux
-            Solver::Local::Riemann::HLLC::State state(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::HLLC::State state_x(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
+	    Solver::Local::Riemann::HLLC::State state_y(rho(i, j, k), M(i, j, k, 1), M(i, j, k, 0), E(i, j, k), eta(i, j, k));
             Solver::Local::Riemann::HLLC::State lo_statex(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k) );
             Solver::Local::Riemann::HLLC::State hi_statex(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k) );
             Solver::Local::Riemann::HLLC::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k) ); 
@@ -243,12 +244,12 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Solver::Local::Riemann::HLLC::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 
             //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann::HLLC::Solve(lo_statex, state, gamma);
-            flux_ylo = Solver::Local::Riemann::HLLC::Solve(lo_statey, state, gamma);
+            flux_xlo = Solver::Local::Riemann::HLLC::Solve(lo_statex, state_x, gamma);
+            flux_ylo = Solver::Local::Riemann::HLLC::Solve(lo_statey, state_y, gamma);
 
             //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann::HLLC::Solve(state, hi_statex, gamma);
-            flux_yhi = Solver::Local::Riemann::HLLC::Solve(state, hi_statey, gamma);
+            flux_xhi = Solver::Local::Riemann::HLLC::Solve(state_x, hi_statex, gamma);
+            flux_yhi = Solver::Local::Riemann::HLLC::Solve(state_y, hi_statey, gamma);
 
 
             //Godunov fluxes
@@ -276,17 +277,17 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             ///////VISCOUS TERMS///////
             ///////////////////////////
 	    
-	    Set::Scalar lap_ux     = Numeric::Laplacian(v, i, j, k, 0, DX);
-            Set::Scalar lap_uy     = Numeric::Laplacian(v, i, j, k, 1, DX);
+	    //Set::Scalar lap_ux     = Numeric::Laplacian(v, i, j, k, 0, DX);
+            //Set::Scalar lap_uy     = Numeric::Laplacian(v, i, j, k, 1, DX);
 	    Set::Vector grad_ux    = Numeric::Gradient(v, i, j, k, 0, DX);
 	    Set::Vector grad_uy    = Numeric::Gradient(v, i, j, k, 1, DX);
-	    Set::Scalar div_u      = grad_ux(0) + grad_uy(1);
-	    Set::Scalar symgrad_u  = grad_ux(1) + grad_uy(0);
+	    //Set::Scalar div_u      = grad_ux(0) + grad_uy(1);
+	    //Set::Scalar symgrad_u  = grad_ux(1) + grad_uy(0);
 
-            Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
+            //Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            M_new(i, j, k, 0) += mu * dt/(DX[0] * DX[0]) * (M(i-1, j, k, 0) - 2*M(i, j, k, 0) + M(i+1, j, k, 0)) + mu * dt/(DX[1] * DX[1]) * (M(i, j-1, k, 0) - 2*M(i, j, k, 0) + M(i+1, j+1, k, 0));// + mu * hess_u(0)/3.);
-	    M_new(i, j, k, 1) += mu * dt/(DX[0] * DX[0]) * (M(i-1, j, k, 1) - 2*M(i, j, k, 1) + M(i+1, j, k, 1)) + mu * dt/(DX[1] * DX[1]) * (M(i, j-1, k, 1) - 2*M(i, j, k, 1) + M(i+1, j+1, k, 1));// + mu * hess_u(1)/3.);
+            M_new(i, j, k, 0) += mu * dt * eta(i,j,k)/(DX[0] * DX[0] * rho(i,j,k)) * (M(i-1, j, k, 0) - 2*M(i, j, k, 0) + M(i+1, j, k, 0)) + mu * dt * eta(i,j,k)/(DX[1] * DX[1] * rho(i,j,k)) * (M(i, j-1, k, 0) - 2*M(i, j, k, 0) + M(i+1, j+1, k, 0));// + mu * hess_u(0)/3.);
+	    M_new(i, j, k, 1) += mu * dt * eta(i,j,k)/(DX[0] * DX[0] * rho(i,j,k)) * (M(i-1, j, k, 1) - 2*M(i, j, k, 1) + M(i+1, j, k, 1)) + mu * dt * eta(i,j,k)/(DX[1] * DX[1] * rho(i,j,k)) * (M(i, j-1, k, 1) - 2*M(i, j, k, 1) + M(i+1, j+1, k, 1));// + mu * hess_u(1)/3.);
 
 	    //E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
@@ -297,13 +298,13 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
-	    omega(i,j,k,0) = grad_uy(0) - grad_ux(1);
+	    omega(i,j,k,0) = (grad_uy(0) - grad_ux(1)) * eta(i,j,k);
 
             std::array<Set::Scalar, 3> source;
-            source[0] = 0.0; //mdot * grad_eta_mag * dt;
-            source[1] = mu * omega(i,j,k) * (-grad_eta[1])  * dt;
-            source[2] = mu * omega(i,j,k) * (grad_eta[0]) * dt;
-            source[3] = 0.0; //Qdot * grad_eta_mag * dt;
+            source[0] = mdot * grad_eta_mag * dt;
+            source[1] = mu * omega(i,j,k) * (-grad_eta(1)) * dt;
+            source[2] = mu * omega(i,j,k) * (grad_eta(0)) * dt;
+            source[3] = Qdot * grad_eta_mag * dt;
 
             E_new(i, j, k) += source[3];
             rho_new(i, j, k) += source[0];
