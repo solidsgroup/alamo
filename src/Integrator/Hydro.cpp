@@ -54,6 +54,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         int nghost = 2;
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, nghost, "eta", true);
+	value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
 
         value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", true);
 
@@ -99,7 +100,8 @@ void Hydro::Initialize(int lev)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
@@ -115,14 +117,16 @@ void Hydro::Initialize(int lev)
 	    const Set::Scalar* DX = geom[lev].CellSize();
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() * eps;
+
+	    eta_new(i, j, k) = eta(i, j, k);
 	    
             rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k) + mdot * grad_eta_mag;
             rho_new(i, j, k) = rho(i, j, k);
 
-            M(i, j, k, 0) = Mx_init * eta(i, j, k) + Pdot_x * grad_eta[0];
+            M(i, j, k, 0) = Mx_init * eta(i, j, k) + Pdot_x * grad_eta(0);
             M_new(i, j, k, 0) = M(i, j, k, 0);
             ///
-            M(i, j, k, 1) = My_init * eta(i, j, k) + Pdot_y * grad_eta[1];
+            M(i, j, k, 1) = My_init * eta(i, j, k) + Pdot_y * grad_eta(1);
             M_new(i, j, k, 1) = M(i, j, k, 1);
 
             E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k) + Qdot * grad_eta_mag;
@@ -146,9 +150,9 @@ void Hydro::UpdateEta(Set::Scalar time)
     }
 }
 
-void Hydro::TimeStepBegin(Set::Scalar time, int /*iter*/)
+void Hydro::TimeStepBegin(Set::Scalar , int /*iter*/)
 {
-    UpdateEta(time);
+  //UpdateEta(time);
 }
 
 
@@ -178,6 +182,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
     std::swap(Energy_old_mf[lev], Energy_mf[lev]);
     ///
     std::swap(Density_old_mf[lev], Density_mf[lev]);
+    ///
+    std::swap(eta_old_mf[lev], eta_mf[lev]);
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
@@ -217,15 +223,15 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
     {
         const amrex::Box& bx = mfi.validbox();
 
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& M = (*Momentum_old_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
 
-        amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& E_new   = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& rho_new = (*Density_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& M_new = (*Momentum_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& M_new   = (*Momentum_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
 
 	amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
 
@@ -302,23 +308,14 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             std::array<Set::Scalar, 3> source;
             source[0] = mdot * grad_eta_mag * dt;
-            source[1] = mu * omega(i,j,k) * (-grad_eta(1)) * dt;
-            source[2] = mu * omega(i,j,k) * (grad_eta(0)) * dt;
+            source[1] = mu * omega(i,j,k) * (-grad_eta(1)) * dt + Pdot_x * grad_eta(0);
+            source[2] = mu * omega(i,j,k) * (grad_eta(0)) * dt + Pdot_y * grad_eta(0);
             source[3] = Qdot * grad_eta_mag * dt;
 
             E_new(i, j, k) += source[3];
             rho_new(i, j, k) += source[0];
             M_new(i, j, k, 0) += source[1];
             M_new(i, j, k, 1) += source[2];
-
-	    //////////////////////////
-            //////SOLID STAND-IN//////
-            //////////////////////////
-
-	    // E_new(i, j, k) = E_solid * (1 - eta(i,j,k)) + E_new(i, j, k) * eta(i,j,k);
-            // rho_new(i, j, k) = rho_solid * (1 - eta(i,j,k)) + rho_new(i, j, k) * eta(i,j,k);
-            // M_new(i, j, k, 0) = M_new(i, j, k, 0) * eta(i,j,k);
-            // M_new(i, j, k, 1) = M_new(i, j, k, 1) * eta(i,j,k);
         });
     }
 }//end Advance

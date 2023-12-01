@@ -54,6 +54,7 @@ private:
     Set::Field<Set::Scalar> Pressure_mf;
 
     Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> Vorticity_mf;
