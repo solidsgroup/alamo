@@ -200,7 +200,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
     std::swap(Energy_old_mf[lev], Energy_mf[lev]);
     std::swap(Density_old_mf[lev], Density_mf[lev]);
-    std::swap(eta_old_mf[lev], eta_mf[lev]);
+    //std::swap(eta_old_mf[lev], eta_mf[lev]);
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
