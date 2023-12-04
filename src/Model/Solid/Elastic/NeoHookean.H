@@ -142,24 +142,8 @@ public:
     }
     static void Parse(NeoHookean& value, IO::ParmParse& pp)
     {
-        //Set::Scalar mu = NAN, kappa = NAN;
-        if (pp.contains("shear") && pp.contains("kappa")) {
-            pp.query("shear", value.mu);
-            pp.query("kappa", value.kappa);
-        }
-        else if (pp.contains("lame") && pp.contains("shear")) {
-            Set::Scalar lame;
-            pp.query("shear", value.mu);
-            pp.query("lame", lame);
-            value.kappa = lame + (2.0 * value.mu) / 3.0;
-        }
-        else if (pp.contains("E") && pp.contains("nu")) {
-            Set::Scalar E, nu;
-            pp.query("E", E);
-            pp.query("nu", nu);
-            value.kappa = E / (3.0 - 6.0 * nu);
-            value.mu = E / (2.0 + 2.0 * nu);
-        }
+        pp.query("mu", value.mu);
+        pp.query("kappa", value.kappa);
     }
 
 #define OP_CLASS NeoHookean

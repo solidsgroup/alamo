@@ -22,7 +22,8 @@ public:
         pp.queryarr("length",length); // Lenth of the square/cube edges
     }
   
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
+    void Add(const int lev,
+            amrex::Vector<amrex::MultiFab * > &a_field)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 

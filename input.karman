@@ -2,7 +2,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output.VonKarmanVortex
+plot_file = ./output.karman
 
 ### MESHING ###
 

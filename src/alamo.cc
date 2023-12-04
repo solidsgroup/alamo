@@ -15,6 +15,7 @@
 #include "Model/Solid/Affine/J2.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
+#include "Integrator/AllenCahn.H"
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
@@ -24,6 +25,7 @@
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/TopOp.H"
+#include "Integrator/Dendrite.H"
 #include "Integrator/Hydro.H"
 
 int main (int argc, char* argv[])
@@ -66,6 +68,8 @@ int main (int argc, char* argv[])
     else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
     else if (program == "degradation")          integrator = new Integrator::PolymerDegradation();
     else if (program == "fracture")             integrator = new Integrator::Fracture();
+    else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
+    else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();

@@ -2,7 +2,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = ./output.left_going_positive
 
 ### MESHING ###
 

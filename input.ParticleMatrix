@@ -2,7 +2,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output.particleMatrix
+plot_file = ./output.ParticleMatrix
 
 ### MESHING ###
 

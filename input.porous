@@ -2,7 +2,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output.porousMedia
+plot_file = ./output.porous
 
 ### MESHING ###
 

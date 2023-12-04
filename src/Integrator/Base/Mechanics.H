@@ -18,7 +18,7 @@ namespace Integrator
 namespace Base
 {
 template<class MODEL>
-class Mechanics : virtual public Integrator
+class Mechanics: virtual public Integrator
 {
 public:
 

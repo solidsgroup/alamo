@@ -39,9 +39,10 @@ def wrap(input_string,hanging=True,strcolor=""):
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
-def error(message):
+def error(message,printwrap=True):
     print(color.boldred + "ERROR".ljust(width) + color.reset,end="")
-    wrap(message)
+    if printwrap: wrap(message)
+    else: print(message)
 def code(code):
     return(color.bgdarkgray + color.green + code + color.reset);
 def note(message):
@@ -64,7 +65,14 @@ def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None):
     p = subprocess.run(cmd.split(' '),capture_output=True,cwd=cwd)
     wrap(p.stdout.decode('ascii').replace('\n',' '),hanging=hidecmd,strcolor=color.lightblue)
     wrap(p.stderr.decode('ascii').replace('\n',' '),hanging=hidecmd,strcolor=color.blue)
-    p.check_returncode()
+    try:
+        p.check_returncode()
+    except subprocess.CalledProcessError as e:
+        error("Tried to execute")
+        error(color.bgdarkgray + color.green + ' '.join(e.cmd) + color.reset,printwrap=False)
+        error("but got the following error")
+        print(color.red + e.stderr.decode('ascii') + color.reset)
+        raise e
 
 message("Python",python_version)
 if sys.version_info.minor < 5:
@@ -175,29 +183,20 @@ if args.buildamrex and not args.amrex:
 
     
     if not args.offline:
-        if args.buildamrextag:
-            shellmessage("AMReX-Checkout",
-                            cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrextag)
-            #p = subprocess.Popen(("git -C ext/amrex checkout "+args.buildamrextag).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            #stderr = p.stderr.readlines()
-            #for line in stderr: print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
-            #for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
-            #if len(stderr): raise Exception(error("Problem running git command A"))
-        elif args.buildamrexbranch:
-            shellmessage("AMReX-Checkout",
-                            cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrexbranch)
-            #message("AMReX-Checkout","Checking out branch " + args.buildamrexbranch,False)
-            #p = subprocess.Popen(("git -C ext/amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            #stderr = p.stderr.readlines()
-            #for line in stderr: print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
-            #for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
-            #if len(stderr): raise Exception(error("Problem running git command B"))
-            #message("AMReX-Update","Updating branch " + args.buildamrexbranch,False)
-        else:
-            #message("AMReX-Update","Updating",False)
-            #p = subprocess.Popen("git -C ext/amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            shellmessage("AMReX-Checkout",
-                            cmd="git -C ext/amrex pull")
+        try:
+            if args.buildamrextag:
+                shellmessage("AMReX-Checkout",
+                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrextag)
+            elif args.buildamrexbranch:
+                shellmessage("AMReX-Checkout",
+                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrexbranch)
+            else:
+                shellmessage("AMReX-Checkout",
+                                cmd="git -C ext/amrex pull")
+        except Exception as e:
+            error("There was an error updating AMReX. It often helps to run")
+            error(color.bgdarkgray+color.green+"make realclean"+color.reset)
+            raise e
             
     else:
         message("AMReX","In offline mode, using existing version of AMReX")
