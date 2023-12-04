@@ -322,8 +322,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
 	    //interface velocity normal to the interface
-	    Set::Scalar Vn_x = 0.0 * grad_eta(0);
-	    Set::Scalar Vn_y = 0.0 * grad_eta(1);
+	    Set::Scalar Vn_x = 0.1 * grad_eta(0);
+	    Set::Scalar Vn_y = 0.1 * grad_eta(1);
 
             omega(i, j, k, 0) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
