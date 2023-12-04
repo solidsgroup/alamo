@@ -144,7 +144,7 @@ void Hydro::Initialize(int lev)
     vy_max = 0.0;
 }
 
-void Hydro::UpdateEta(Set::Scalar time)
+void Hydro::UpdateEta(Set::Scalar )
 {
     //for (int lev = 0; lev <= finest_level; ++lev)
     //{
@@ -180,17 +180,17 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
-    std::swap(eta_mf,eta_old_mf);
+  std::swap(eta_old_mf, eta_mf);
     ic_eta->Initialize(lev,eta_mf,time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& etaold = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            etadot(i,j,k) = (eta(i,j,k) - etaold(i,j,k))/dt;
+            etadot(i,j,k) = (eta_new(i,j,k) - eta(i,j,k))/dt;
         });
     }
 
@@ -200,7 +200,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
     std::swap(Energy_old_mf[lev], Energy_mf[lev]);
     std::swap(Density_old_mf[lev], Density_mf[lev]);
-    //std::swap(eta_old_mf[lev], eta_mf[lev]);
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
@@ -250,6 +249,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& M_new = (*Momentum_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
 
+	amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
@@ -274,7 +275,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             flux_xhi = Solver::Local::Riemann::HLLC::Solve(state_x, hi_statex, gamma);
             flux_yhi = Solver::Local::Riemann::HLLC::Solve(state_y, hi_statey, gamma);
 
-
             //Godunov fluxes
             E_new(i, j, k) =
                 E(i, j, k)
@@ -297,42 +297,53 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
 
             ///////////////////////////
-                ///////VISCOUS TERMS///////
-                ///////////////////////////
+            ///////VISCOUS TERMS///////
+            ///////////////////////////
 
             //Set::Scalar lap_ux     = Numeric::Laplacian(v, i, j, k, 0, DX);
-                //Set::Scalar lap_uy     = Numeric::Laplacian(v, i, j, k, 1, DX);
+            //Set::Scalar lap_uy     = Numeric::Laplacian(v, i, j, k, 1, DX);
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
             //Set::Scalar div_u      = grad_ux(0) + grad_uy(1);
             //Set::Scalar symgrad_u  = grad_ux(1) + grad_uy(0);
 
-                //Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
+            //Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
             M_new(i, j, k, 0) += mu * dt * eta(i, j, k) / (DX[0] * DX[0] * rho(i, j, k)) * (M(i - 1, j, k, 0) - 2 * M(i, j, k, 0) + M(i + 1, j, k, 0)) + mu * dt * eta(i, j, k) / (DX[1] * DX[1] * rho(i, j, k)) * (M(i, j - 1, k, 0) - 2 * M(i, j, k, 0) + M(i + 1, j + 1, k, 0));// + mu * hess_u(0)/3.);
             M_new(i, j, k, 1) += mu * dt * eta(i, j, k) / (DX[0] * DX[0] * rho(i, j, k)) * (M(i - 1, j, k, 1) - 2 * M(i, j, k, 1) + M(i + 1, j, k, 1)) + mu * dt * eta(i, j, k) / (DX[1] * DX[1] * rho(i, j, k)) * (M(i, j - 1, k, 1) - 2 * M(i, j, k, 1) + M(i + 1, j + 1, k, 1));// + mu * hess_u(1)/3.);
 
             //E_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
-                ///////////////////////////
-                //////DIFFUSE SOURCES//////
-                ///////////////////////////
+            ///////////////////////////
+            //////DIFFUSE SOURCES//////
+            ///////////////////////////
 
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
+	    //interface velocity normal to the interface
+	    Set::Scalar Vn_x = 0.1 * grad_eta(0);
+	    Set::Scalar Vn_y = 0.1 * grad_eta(1);
+
             omega(i, j, k, 0) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
             std::array<Set::Scalar, 3> source;
-            source[0] = mdot * grad_eta_mag * dt;
-            source[1] = mu * omega(i, j, k) * (-grad_eta(1)) * dt + Pdot_x * grad_eta(0);
-            source[2] = mu * omega(i, j, k) * (grad_eta(0)) * dt + Pdot_y * grad_eta(0);
-            source[3] = Qdot * grad_eta_mag * dt;
+            source[0] = mdot * grad_eta_mag * dt; //rho(i,j,k) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta_mag * dt;
+            source[1] = mu * omega(i, j, k) * (grad_eta(1)) * dt + Pdot_x * grad_eta(0); //rho(i,j,k) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta(0);
+            source[2] = mu * omega(i, j, k) * (-grad_eta(0)) * dt + Pdot_y * grad_eta(1); //rho(i,j,k) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta(1);
+            source[3] = Qdot * grad_eta_mag * dt; //rho(i,j,k) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta_mag * dt;
 
             E_new(i, j, k) += source[3];
             rho_new(i, j, k) += source[0];
             M_new(i, j, k, 0) += source[1];
             M_new(i, j, k, 1) += source[2];
+
+	    //////////////////////
+            //////UPDATE ETA//////
+            //////////////////////
+	    
+	    eta_new(i, j, k) = eta(i, j, k) + (1-eta(i, j, k)) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * dt;
+	    
         });
     }
 }//end Advance

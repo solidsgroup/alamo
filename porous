@@ -7,7 +7,7 @@ plot_file = ./output.porousMedia
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 50
+amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
@@ -34,7 +34,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 1.0e-4
 stop_time = 100.0
 #small    = 1.0e-5
 
@@ -46,15 +46,15 @@ eps = 0.1
 
 # rho0 = 100
 # V0 = 1e-3
-mdot   = 0.1   # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
-Pdot_x = 1e-4  # = rho0 * V0 * V0
-Pdot_y = 1e-4
-Qdot   = 1e-7  # = rho0 * V0 * V0 * V0
+mdot   = 0   # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
+Pdot_x = 0  # = rho0 * V0 * V0
+Pdot_y = 0
+Qdot   = 0  # = rho0 * V0 * V0 * V0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.1
 eta.ic.expression.constant.vel = 0.01 
-eta.ic.expression.region0 = "(1.0 - 0.5*tanh((sqrt(x*x + y*y) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + y*y) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y-0.6)*(y-0.6)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y-0.6)*(y-0.6)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y+0.6)*(y+0.6)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y+0.6)*(y+0.6)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y-1.2)*(y-1.2)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y-1.2)*(y-1.2)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y+1.2)*(y+1.2)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y+1.2)*(y+1.2)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.4)*(y+0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.4)*(y+0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.4)*(y-0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.4)*(y-0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.9)*(y+0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.9)*(y+0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.9)*(y-0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.9)*(y-0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+1.5)*(y+1.5)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+1.5)*(y+1.5)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.4)*(y+0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.4)*(y+0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.4)*(y-0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.4)*(y-0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.9)*(y+0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.9)*(y+0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.9)*(y-0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.9)*(y-0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+1.5)*(y+1.5)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+1.5)*(y+1.5)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+0.4)*(y+0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+0.4)*(y+0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-0.4)*(y-0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-0.4)*(y-0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+0.9)*(y+0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+0.9)*(y+0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-0.9)*(y-0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-0.9)*(y-0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+1.5)*(y+1.5)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+1.5)*(y+1.5)) - (0.4 - vel*t))/(0.2*eps)))"
+eta.ic.expression.region0 = "(1.0 - 0.5*tanh((sqrt(x*x + y*y) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + y*y) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y-0.6)*(y-0.6)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y-0.6)*(y-0.6)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y+0.6)*(y+0.6)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y+0.6)*(y+0.6)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y-1.2)*(y-1.2)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y-1.2)*(y-1.2)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt(x*x + (y+1.2)*(y+1.2)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt(x*x + (y+1.2)*(y+1.2)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.4)*(y+0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.4)*(y+0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.4)*(y-0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.4)*(y-0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.9)*(y+0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+0.9)*(y+0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.9)*(y-0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y-0.9)*(y-0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+1.5)*(y+1.5)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x+0.6)*(x+0.6) + (y+1.5)*(y+1.5)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.4)*(y+0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.4)*(y+0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.4)*(y-0.4)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.4)*(y-0.4)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.9)*(y+0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+0.9)*(y+0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.9)*(y-0.9)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y-0.9)*(y-0.9)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+1.5)*(y+1.5)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.6)*(x-0.6) + (y+1.5)*(y+1.5)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + y*y) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + y*y) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-0.6)*(y-0.6)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-0.6)*(y-0.6)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+0.6)*(y+0.6)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+0.6)*(y+0.6)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-1.2)*(y-1.2)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y-1.2)*(y-1.2)) - (0.4 - vel*t))/(0.2*eps))) * (1.0 - 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+1.2)*(y+1.2)) + (0.4 - vel*t))/(0.2*eps)) + 0.5*tanh((sqrt((x-0.9)*(x-0.9) + (y+1.2)*(y+1.2)) - (0.4 - vel*t))/(0.2*eps)))"
 #etadot.ic.type = expression
 #etadot.ic.expression.constant.eps = 0.1 # must match above!
 #etadot.ic.expression.constant.vel = 0.0  # must match above!
@@ -88,7 +88,7 @@ rho_solid = 1000.0 #kg/m^3
 rho_fluid = 100.0 #kg/m^3
 E_solid = 2.5 #00000
 E_fluid = 2.5 #00000
-Mx_init = 0.1
+Mx_init = 0.0
 My_init = 0.0
 
 ### HYDRO BC ###
