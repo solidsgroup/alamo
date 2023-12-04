@@ -4,12 +4,14 @@
 #@ benchmark-beaker = 65.12
 #@ benchmark-statler = 45.09
 #@ benchmark-github = 70.39
+#@ benchmark-waldorf = 29.65
 #@
 #@ [2d-parallel]
 #@ dim=2
 #@ nprocs=4
 #@ benchmark-beaker=19.99
 #@ benchmark-statler=16.68
+#@ benchmark-waldorf=9.4
 #@
 
 alamo.program			= microstructure

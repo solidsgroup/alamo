@@ -4,6 +4,7 @@
 #@ dim = 2
 #@ benchmark-beaker = 16.04
 #@ benchmark-statler = 11.58
+#@ benchmark-waldorf = 9.32
 #@ 
 #@ [2D-100grain-serial]
 #@ nprocs = 1
@@ -11,6 +12,7 @@
 #@ benchmark-beaker = 50.84
 #@ benchmark-statler = 37.94
 #@ benchmark-github = 60.03
+#@ benchmark-waldorf = 26.9
 #@
 
 alamo.program               = microstructure

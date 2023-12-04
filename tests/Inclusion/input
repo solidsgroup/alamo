@@ -4,6 +4,7 @@
 #@  check = true
 #@  benchmark-beaker = 29.49
 #@  benchmark-statler = 20.54
+#@  benchmark-waldorf = 15.39
 #@  
 
 alamo.program = microstructure

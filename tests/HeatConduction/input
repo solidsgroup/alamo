@@ -6,6 +6,7 @@
 #@ dim=3
 #@ nprocs=4
 #@ benchmark-beaker=7.66
+#@ benchmark-waldorf=21.17
 #@
 
 alamo.program = heat
