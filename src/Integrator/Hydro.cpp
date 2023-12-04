@@ -89,17 +89,37 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         else if (type == "expression") value.ic_etadot = new IC::Expression(value.geom, pp, "etadot.ic.expression");
         else Util::Abort(INFO, "Invalid eta.ic: ", type);
     }
+
+    pp.queryclass("allencahn", static_cast<AllenCahn*>(&value));
 }
 
 
 void Hydro::Initialize(int lev)
 {
+    AllenCahn::Initialize(lev);
+
     BL_PROFILE("Integrator::Hydro::Initialize");
 
-    ic_eta->Initialize(lev,eta_mf,0.0);
-    ic_eta->Initialize(lev,eta_old_mf,0.0);
-    etadot_mf[lev]->setVal(0.0);
-    
+    //ic_eta->Initialize(lev,eta_mf,0.0);
+    //ic_eta->Initialize(lev,eta_old_mf,0.0);
+    //etadot_mf[lev]->setVal(0.0);
+
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox();
+        amrex::Array4<const Set::Scalar> const& alpha_new = (*alpha_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& alpha = (*alpha_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            eta_new(i, j, k) = 1.0 - alpha_new(i, j, k);
+            eta(i, j, k) = 1.0 - alpha(i, j, k);
+            etadot(i, j, k) = 0.0; //(eta_new(i,j,k) - eta(i,j,k))/dt;
+        });
+    }
+
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
@@ -144,7 +164,7 @@ void Hydro::Initialize(int lev)
     vy_max = 0.0;
 }
 
-void Hydro::UpdateEta(Set::Scalar )
+void Hydro::UpdateEta(Set::Scalar)
 {
     //for (int lev = 0; lev <= finest_level; ++lev)
     //{
@@ -180,32 +200,37 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
-  std::swap(eta_old_mf, eta_mf);
-    ic_eta->Initialize(lev,eta_mf,time);
+    AllenCahn::Advance(lev, time, dt);
+    //std::swap(eta_old_mf, eta_mf);
+    //ic_eta->Initialize(lev,eta_mf,time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& alpha_new = (*alpha_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& alpha = (*alpha_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            etadot(i,j,k) = (eta_new(i,j,k) - eta(i,j,k))/dt;
+            eta_new(i, j, k) = 1.0 - alpha_new(i, j, k);
+            eta(i, j, k) = 1.0 - alpha(i, j, k);
+            etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
         });
     }
 
-    
-    
-    
+
+
+
     std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
     std::swap(Energy_old_mf[lev], Energy_mf[lev]);
     std::swap(Density_old_mf[lev], Density_mf[lev]);
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
+        const amrex::Box& bx = mfi.validbox();
 
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
@@ -249,7 +274,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& M_new = (*Momentum_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
 
-	amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
 
@@ -321,9 +346,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
-	    //interface velocity normal to the interface
-	    Set::Scalar Vn_x = 0.1 * grad_eta(0);
-	    Set::Scalar Vn_y = 0.1 * grad_eta(1);
+            //interface velocity normal to the interface
+            //Set::Scalar Vn_x = 0.1 * grad_eta(0);
+            //Set::Scalar Vn_y = 0.1 * grad_eta(1);
 
             omega(i, j, k, 0) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
@@ -338,12 +363,17 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             M_new(i, j, k, 0) += source[1];
             M_new(i, j, k, 1) += source[2];
 
-	    //////////////////////
+
+            // Solid stand-in
+            //rho_new(i,j,k) -= (1.0 - eta(i,j,k))*(rho_new(i,j,k)-rho_solid)*dt;
+            rho_new(i,j,k)  = eta(i,j,k)*rho_new(i,j,k) + (1.0 - eta(i,j,k))*rho_solid;
+
+            //////////////////////
             //////UPDATE ETA//////
             //////////////////////
-	    
-	    eta_new(i, j, k) = eta(i, j, k) + (1-eta(i, j, k)) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * dt;
-	    
+
+            //eta_new(i, j, k) = eta(i, j, k) + (1 - eta(i, j, k)) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * dt;
+
         });
     }
 }//end Advance
