@@ -321,17 +321,17 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
-	    //interface velocity normal to the interface
-	    Set::Scalar Vn_x = 0.1 * grad_eta(0);
-	    Set::Scalar Vn_y = 0.1 * grad_eta(1);
+            omega(i, j, k) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
-            omega(i, j, k, 0) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
+	    //interface velocity normal to the interface
+	    //Set::Scalar Vn_x = 0.01 * mu * omega(i, j, k) * grad_eta(1);
+	    //Set::Scalar Vn_y = -0.01 * mu * omega(i, j, k) * grad_eta(0);
 
             std::array<Set::Scalar, 3> source;
-            source[0] = mdot * grad_eta_mag * dt; //rho(i,j,k) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta_mag * dt;
-            source[1] = mu * omega(i, j, k) * (grad_eta(1)) * dt + Pdot_x * grad_eta(0); //rho(i,j,k) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta(0);
-            source[2] = mu * omega(i, j, k) * (-grad_eta(0)) * dt + Pdot_y * grad_eta(1); //rho(i,j,k) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta(1);
-            source[3] = Qdot * grad_eta_mag * dt; //rho(i,j,k) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta_mag * dt;
+            source[0] = 0.0;//rho_solid * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta_mag * dt;
+            source[1] = mu * omega(i, j, k) * (grad_eta(1)) * dt;// + rho_solid * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta(0);
+            source[2] = mu * omega(i, j, k) * (-grad_eta(0)) * dt;// + Pdot_y * grad_eta(1); //rho(i,j,k) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta(1);
+            source[3] = 0.0;//rho_solid * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta_mag * dt;
 
             E_new(i, j, k) += source[3];
             rho_new(i, j, k) += source[0];
@@ -342,7 +342,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //////UPDATE ETA//////
             //////////////////////
 	    
-	    eta_new(i, j, k) = eta(i, j, k) + (1-eta(i, j, k)) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * dt;
+	    //eta_new(i, j, k) = eta(i, j, k);// + (1-eta(i, j, k)) * (500 * std::abs(omega(i,j,k))) * dt;
 	    
         });
     }

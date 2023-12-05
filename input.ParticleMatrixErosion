@@ -18,7 +18,7 @@ amr.grid_eff = 0.8
 #amr.refinement_restriction = 0.1
 #amr.n_cell = 1600 200 0
 #amr.n_cell = 800 800 200
-amr.n_cell = 300 200 0
+amr.n_cell = 360 200 0
 #amr.n_cell = 64 16 0
 
 # Uncomment to test AMR
@@ -28,7 +28,7 @@ amr.n_cell = 300 200 0
 ### DIMENSIONS ###
 
 geometry.prob_lo = -1.5 -1.0 0.0 # [ m ] 
-geometry.prob_hi =  1.5  1.0 0.0 # [ m ]
+geometry.prob_hi =  2.1  1.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -88,7 +88,7 @@ rho_solid = 1000.0 #kg/m^3
 rho_fluid = 100.0 #kg/m^3
 E_solid = 2.5 #00000
 E_fluid = 2.5 #00000
-Mx_init = 10.0
+Mx_init = 0.1
 My_init = 0.0
 
 ### HYDRO BC ###
