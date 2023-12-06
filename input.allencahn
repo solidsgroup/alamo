@@ -7,7 +7,7 @@ plot_file = ./output.allencahn
 ### MESHING ###
 #
 amr.plot_dt = 0.1
-amr.plot_int = 100
+amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
