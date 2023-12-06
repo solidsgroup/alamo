@@ -20,6 +20,7 @@ Flame::Flame(IO::ParmParse& pp): Flame()
     pp.queryclass(*this);
 }
 
+// [parser]
 void
 Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
