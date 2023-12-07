@@ -93,13 +93,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         else Util::Abort(INFO, "Invalid eta.ic: ", type);
     }
 
-    pp.queryclass("allencahn", static_cast<AllenCahn*>(&value));
+    //pp.queryclass("allencahn", static_cast<AllenCahn*>(&value));
 }
 
 
 void Hydro::Initialize(int lev)
 {
-    AllenCahn::Initialize(lev);
+  //AllenCahn::Initialize(lev);
 
     BL_PROFILE("Integrator::Hydro::Initialize");
 
@@ -210,9 +210,9 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
-    AllenCahn::Advance(lev, time, dt);
-    //std::swap(eta_old_mf, eta_mf);
-    //ic_eta->Initialize(lev,eta_mf,time);
+    //AllenCahn::Advance(lev, time, dt);
+    std::swap(eta_old_mf, eta_mf);
+    ic_eta->Initialize(lev,eta_mf,time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
@@ -340,8 +340,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             ///////VISCOUS TERMS///////
             ///////////////////////////
 
-            //Set::Scalar lap_ux     = Numeric::Laplacian(v, i, j, k, 0, DX);
-            //Set::Scalar lap_uy     = Numeric::Laplacian(v, i, j, k, 1, DX);
+            Set::Scalar lap_ux     = Numeric::Laplacian(v, i, j, k, 0, DX);
+            Set::Scalar lap_uy     = Numeric::Laplacian(v, i, j, k, 1, DX);
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
             //Set::Scalar div_u      = grad_ux(0) + grad_uy(1);
@@ -349,8 +349,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            //etaM_new(i, j, k, 0) += mu * dt * eta(i, j, k) / (DX[0] * DX[0] * rho_mix(i, j, k)) * (M_mix(i - 1, j, k, 0) - 2 * M_mix(i, j, k, 0) + M_mix(i + 1, j, k, 0)) + mu * dt * eta(i, j, k) / (DX[1] * DX[1] * rho_mix(i, j, k)) * (M_mix(i, j - 1, k, 0) - 2 * M_mix(i, j, k, 0) + M_mix(i + 1, j + 1, k, 0));// + mu * hess_u(0)/3.);
-            //etaM_new(i, j, k, 1) += mu * dt * eta(i, j, k) / (DX[0] * DX[0] * rho_mix(i, j, k)) * (M_mix(i - 1, j, k, 1) - 2 * M_mix(i, j, k, 1) + M_mix(i + 1, j, k, 1)) + mu * dt * eta(i, j, k) / (DX[1] * DX[1] * rho_mix(i, j, k)) * (M_mix(i, j - 1, k, 1) - 2 * M_mix(i, j, k, 1) + M_mix(i + 1, j + 1, k, 1));// + mu * hess_u(1)/3.);
+            //etaM_new(i, j, k, 0) += mu * dt * eta(i, j, k) * lap_ux;// + mu * hess_u(0)/3.);
+            //etaM_new(i, j, k, 1) += mu * dt * eta(i, j, k) * lap_uy;// + mu * hess_u(1)/3.);
 
             //etaE_new(i, j, k)    += 2. * eta(i, j, k) * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * eta(i, j, k) * mu * div_u * div_u;
 
@@ -362,8 +362,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
             //interface velocity normal to the interface
-            //Set::Scalar Vn_x = 0.1 * grad_eta(0);
-            //Set::Scalar Vn_y = 0.1 * grad_eta(1);
+            Set::Scalar Vn_x = 0.1;
+            Set::Scalar Vn_y = 0.1;
 
             omega(i, j, k, 0) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
@@ -386,7 +386,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 	    M_mix(i,j,k,1) = etaM_new(i,j,k);
 
             //Update Eta
-            //eta_new(i, j, k) = eta(i, j, k) + (1 - eta(i, j, k)) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * dt;
+            eta_new(i, j, k) = eta(i, j, k) + (1 - eta(i, j, k)) * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * dt;
 
         });
     }
