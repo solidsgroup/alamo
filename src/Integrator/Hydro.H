@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "Integrator/Integrator.H"
+#include "Integrator/AllenCahn.H"
 #include "IO/ParmParse.H"
 
 #include "BC/BC.H"
@@ -19,7 +20,7 @@
 
 namespace Integrator
 {
-class Hydro : virtual public Integrator::Integrator
+class Hydro : virtual public AllenCahn, virtual public Integrator
 {
 public:
 
@@ -40,14 +41,17 @@ protected:
     virtual void UpdateEta(Set::Scalar time);
 private:
 
-    Set::Field<Set::Scalar> Density_mf;
-    Set::Field<Set::Scalar> Density_old_mf;
+    Set::Field<Set::Scalar> etaDensity_mf;
+    Set::Field<Set::Scalar> etaDensity_old_mf;
+    Set::Field<Set::Scalar> DensityMix_mf;
 
-    Set::Field<Set::Scalar> Energy_mf;
-    Set::Field<Set::Scalar> Energy_old_mf;
+    Set::Field<Set::Scalar> etaEnergy_mf;
+    Set::Field<Set::Scalar> etaEnergy_old_mf;
+    Set::Field<Set::Scalar> EnergyMix_mf;
 
-    Set::Field<Set::Scalar> Momentum_mf;
-    Set::Field<Set::Scalar> Momentum_old_mf;
+    Set::Field<Set::Scalar> etaMomentum_mf;
+    Set::Field<Set::Scalar> etaMomentum_old_mf;
+    Set::Field<Set::Scalar> MomentumMix_mf;
 
     Set::Field<Set::Scalar> Velocity_mf;
 
