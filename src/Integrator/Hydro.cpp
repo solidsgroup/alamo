@@ -339,7 +339,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             omega(i, j, k) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
 	    //interface velocity normal to the interface
-	    Set::Scalar Vn_x = -0.1;
+	    Set::Scalar Vn_x = -0.001;
 	    Set::Scalar Vn_y = 0.0;
 
             std::array<Set::Scalar, 3> source;
