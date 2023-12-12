@@ -8,7 +8,7 @@
 #@  
 #@  [2d-serial-coverage]
 #@  dim = 2
-#@  args=coverage=true
+#@  coverage=true
 #@  stop_time=0.02
 #@
 

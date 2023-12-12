@@ -4,6 +4,11 @@
 #@ benchmark-beaker=13.8
 #@ check-file=reference/thermo.dat
 #@
+#@ [serial-2d-coverage]
+#@ dim=2
+#@ check=false
+#@ coverage=true
+#@
 #@ [parallel-2d]
 #@ dim=2
 #@ nprocs=4

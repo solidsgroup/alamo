@@ -190,6 +190,7 @@ test: .FORCE
 	@./scripts/runtests.py
 
 GCDA = $(shell find obj/ -name "*.gcda" )
+GCNO = $(shell find obj/ -name "*.gcno" )
 
 GCDA_DIRS  = $(shell find obj/ -maxdepth 1 -name "*coverage*" )
 GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
@@ -199,6 +200,10 @@ GCDA_LCOVS = $(subst obj-,--add-tracefile cov/coverage_,$(subst -coverage-g++,.i
 cov-report: cov/index.html
 	@echo $(GCDA_LCOVS)
 	@echo "Done - output in cov/index.html"
+
+cov-clean: .FORCE
+	rm -rf $(GCDA) $(GCNO)
+	rm -rf ./cov
 
 cov/index.html: cov/coverage_merged.info
 	genhtml cov/coverage_merged.info --output-directory cov

@@ -41,12 +41,16 @@ jobs:
       run: ./configure --dim=2 --coverage 
     - name: make
       run: make
+    - name: unit tests
+      run: ./bin/test-2d-g++
     - name: configure (3d)
       run: ./configure --dim=3 --coverage
     - name: make
       run: make
+    - name: unit tests
+      run: ./bin/test-3d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=2 --benchmark=github --timeout=200
+      run: scripts/runtests.py --serial --dim=2 --timeout=200
 
   test-2d-20-04:
     name: 2D Build & Test (20.04)
@@ -62,7 +66,7 @@ jobs:
     - name: unit tests
       run: ./bin/test-2d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=2 --benchmark=github --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --timeout=200
   test-3d-20-04:
     name: 3D Build & Test (20.04)
     runs-on: ubuntu-20.04
@@ -77,7 +81,7 @@ jobs:
     - name: unit tests
       run: ./bin/test-3d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=3 --benchmark=github --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github --timeout=200
   test-2d-22-04:
     name: 2D Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -92,7 +96,7 @@ jobs:
     - name: unit tests
       run: ./bin/test-2d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=2 --benchmark=github  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200
   test-3d-22-04:
     name: 3D Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -107,7 +111,7 @@ jobs:
     - name: unit tests
       run: ./bin/test-3d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=3 --benchmark=github  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200
   test-2d-22-04-clang:
     name: 2D Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -124,4 +128,4 @@ jobs:
     - name: unit tests
       run: ./bin/test-2d-clang++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=2 --benchmark=github --comp=clang++  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200
