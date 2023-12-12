@@ -7,14 +7,14 @@ jobs:
     name: Style Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Tabs
         run: .github/workflows/style/check_tabs.py
   editorconfig-compliance:
     name: Editorconfig Compliance
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: installing npm
         run: sudo apt install npm
       - name: installing eclint
@@ -25,7 +25,7 @@ jobs:
     name: Build Docs
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: make
@@ -34,29 +34,35 @@ jobs:
     name: Determine regression test coverage
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure (2d)
       run: ./configure --dim=2 --coverage 
     - name: make
+      continue-on-error: true
       run: make
     - name: unit tests
-      run: ./bin/test-2d-g++
+      continue-on-error: true
+      run: ./bin/test-2d-coverage-g++
     - name: configure (3d)
+      continue-on-error: true
       run: ./configure --dim=3 --coverage
     - name: make
+      continue-on-error: true
       run: make
     - name: unit tests
-      run: ./bin/test-3d-g++
+      continue-on-error: true
+      run: ./bin/test-3d-coverage-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=2 --timeout=200
+      continue-on-error: true
+      run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=200
 
   test-2d-20-04:
     name: 2D Build & Test (20.04)
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure (2d)
@@ -71,7 +77,7 @@ jobs:
     name: 3D Build & Test (20.04)
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure
@@ -86,7 +92,7 @@ jobs:
     name: 2D Build & Test (22.04)
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure (2d)
@@ -101,7 +107,7 @@ jobs:
     name: 3D Build & Test (22.04)
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure
@@ -116,7 +122,7 @@ jobs:
     name: 2D Build & Test (22.04)
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: installing clang

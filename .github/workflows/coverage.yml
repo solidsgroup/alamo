@@ -1,0 +1,43 @@
+name: Coverage
+
+on: [push, pull_request]
+
+jobs:
+  test-coverage:
+    name: Determine regression test coverage
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure (2d)
+      continue-on-error: true
+      run: ./configure --dim=2 --coverage 
+    - name: make
+      continue-on-error: true
+      run: make
+    - name: unit tests
+      continue-on-error: true
+      run: ./bin/test-2d-coverage-g++
+    - name: configure (3d)
+      continue-on-error: true
+      run: ./configure --dim=3 --coverage
+    - name: make
+      continue-on-error: true
+      run: make
+    - name: unit tests
+      continue-on-error: true
+      run: ./bin/test-3d-coverage-g++
+    - name: regression tests
+      continue-on-error: true
+      run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=5
+    - name: generate coverage report
+      run: make cov-report
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        # Upload coverage
+        path: './cov/
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v3
