@@ -30,6 +30,24 @@ jobs:
       run: bash .github/workflows/dependencies.sh
     - name: make
       run: make docs
+  test-coverage:
+    name: Determine regression test coverage
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure (2d)
+      run: ./configure --dim=2 --coverage 
+    - name: make
+      run: make
+    - name: configure (3d)
+      run: ./configure --dim=3 --coverage
+    - name: make
+      run: make
+    - name: regression tests
+      run: scripts/runtests.py --serial --dim=2 --benchmark=github --timeout=200
+
   test-2d-20-04:
     name: 2D Build & Test (20.04)
     runs-on: ubuntu-20.04

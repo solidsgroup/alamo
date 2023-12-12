@@ -3,6 +3,13 @@
 #@ dim=2
 #@ check=false
 #@
+#@ [serial-2d-coverage]
+#@ dim=2
+#@ check=false
+#@ coverage=true
+#@ args = solver.nriters=1
+#@ args = solver.fixed_iter=1
+#@
 
 alamo.program = mechanics
 alamo.program.mechanics.model = elastic.neohookean

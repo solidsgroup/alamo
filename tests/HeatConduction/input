@@ -2,6 +2,12 @@
 #@ [2d-serial]
 #@ dim=2
 #@ 
+#@ [2d-serial-coverage]
+#@ dim=2
+#@ coverage = true
+#@ args=stop_time=0.0002
+#@ check=false
+#@
 #@ [3d-parallel]
 #@ dim=3
 #@ nprocs=4

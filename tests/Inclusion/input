@@ -6,6 +6,11 @@
 #@  benchmark-statler = 20.54
 #@  benchmark-waldorf = 15.39
 #@  
+#@  [2d-serial-coverage]
+#@  dim = 2
+#@  args=coverage=true
+#@  stop_time=0.02
+#@
 
 alamo.program = microstructure
 

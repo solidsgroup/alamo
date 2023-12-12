@@ -189,6 +189,29 @@ test: .FORCE
 	@make docs
 	@./scripts/runtests.py
 
+GCDA = $(shell find obj/ -name "*.gcda" )
+
+GCDA_DIRS  = $(shell find obj/ -maxdepth 1 -name "*coverage*" )
+GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
+GCDA_INFOS = $(subst obj-,cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+GCDA_LCOVS = $(subst obj-,--add-tracefile cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+
+cov-report: cov/index.html
+	@echo $(GCDA_LCOVS)
+	@echo "Done - output in cov/index.html"
+
+cov/index.html: cov/coverage_merged.info
+	genhtml cov/coverage_merged.info --output-directory cov
+
+cov/coverage_merged.info: $(GCDA_INFOS)
+	mkdir -p ./cov/
+	lcov --add-tracefile cov/coverage_2d.info -t 2d --add-tracefile cov/coverage_3d.info -t 3d -o cov/coverage_merged.info
+
+cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
+	mkdir -p ./cov/
+	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
+
+
 ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),realclean)

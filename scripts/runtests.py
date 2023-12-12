@@ -59,6 +59,7 @@ parser.add_argument('--cmd',default=False,action='store_true',help="Print out th
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
@@ -131,6 +132,16 @@ def test(testdir):
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
 
+        # Determine if we want to use the coverage version of the code.
+        coverage = args.coverage
+        if 'coverage' in config[desc].keys():
+            if config[desc]['coverage'] in {"no","No","false","False","0"}:
+                coverage = False
+            elif config[desc]['coverage'] in {"yes","Yes","true","True","1"}:
+                coverage = True
+            else:
+                raise(Exception("Invalid value for coverage: {}".format(config[desc]['coverage'])))
+
         timeout = int(args.timeout)
         if 'timeout' in config[desc].keys():
             timeout = int(config[desc]['timeout'])
@@ -173,10 +184,17 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             
-            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
-            elif args.debug: exe = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
-            elif args.profile: exe = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
-            else: exe = "./bin/alamo-{}d-{}".format(dim,args.comp)
+            exe = "./bin/alamo-{}d".format(dim)
+            if args.debug: exe += "-debug"
+            if args.profile: exe += "-profile"
+            if coverage: exe += "-coverage"
+            exe += "-"+args.comp
+            
+            #if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
+            #elif args.debug: exe = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
+            #elif args.profile: exe = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
+            #else: exe = "./bin/alamo-{}d-{}".format(dim,args.comp)
+
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue

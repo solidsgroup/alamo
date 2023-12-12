@@ -3,6 +3,14 @@
 #@  nprocs = 1
 #@  check  = false
 #@  args   = alamo.stop_time = 1.0
+#@
+#@  [2D-serial-level-coverage]
+#@  coverage = true
+#@  dim    = 2
+#@  nprocs = 1
+#@  check  = false
+#@  args   = stop_time = 2e-3
+
 
 alamo.program = allencahn
 
