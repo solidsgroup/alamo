@@ -2,37 +2,46 @@ name: Coverage
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   test-coverage:
     name: Determine regression test coverage
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
-    - name: configure (2d)
-      continue-on-error: true
-      run: ./configure --dim=2 --coverage 
-    - name: make
-      continue-on-error: true
-      run: make
-    - name: unit tests
-      continue-on-error: true
-      run: ./bin/test-2d-coverage-g++
-    - name: configure (3d)
-      continue-on-error: true
-      run: ./configure --dim=3 --coverage
-    - name: make
-      continue-on-error: true
-      run: make
-    - name: unit tests
-      continue-on-error: true
-      run: ./bin/test-3d-coverage-g++
-    - name: regression tests
-      continue-on-error: true
-      run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=5
-    - name: generate coverage report
-      run: make cov-report
+#    - name: installing preliminaries
+#      run: bash .github/workflows/dependencies.sh
+#    - name: configure (2d)
+#      continue-on-error: true
+#      run: ./configure --dim=2 --coverage 
+    - name: make simple page
+      run: mkdir ./cov/
+    - name: make index
+      run: echo "<h1>Hello world</h1>" > cov/index.html
+#    - name: make
+#      continue-on-error: true
+#      run: make
+#    - name: unit tests
+#      continue-on-error: true
+#      run: ./bin/test-2d-coverage-g++
+#    - name: configure (3d)
+#      continue-on-error: true
+#      run: ./configure --dim=3 --coverage
+#    - name: make
+#      continue-on-error: true
+#      run: make
+#    - name: unit tests
+#      continue-on-error: true
+#      run: ./bin/test-3d-coverage-g++
+#    - name: regression tests
+#      continue-on-error: true
+#      run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=5
+#    - name: generate coverage report
+#      run: make cov-report
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v2
       with:
