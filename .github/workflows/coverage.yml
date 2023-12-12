@@ -24,24 +24,23 @@ jobs:
     - name: unit tests
       continue-on-error: true
       run: ./bin/test-2d-coverage-g++
-#    - name: configure (3d)
-#      continue-on-error: true
-#      run: ./configure --dim=3 --coverage
-#    - name: make
-#      continue-on-error: true
-#      run: make
-#    - name: unit tests
-#      continue-on-error: true
-#      run: ./bin/test-3d-coverage-g++
-#    - name: regression tests
-#      continue-on-error: true
-#      run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=5
+    - name: configure (3d)
+      continue-on-error: true
+      run: ./configure --dim=3 --coverage
+    - name: make
+      continue-on-error: true
+      run: make
+    - name: unit tests
+      continue-on-error: true
+      run: ./bin/test-3d-coverage-g++
+    - name: regression tests
+      continue-on-error: true
+      run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=10
     - name: generate coverage report
       run: make cov-report
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v2
       with:
-        # Upload coverage
         path: './cov/'
     - name: Deploy to GitHub Pages
       id: deployment
