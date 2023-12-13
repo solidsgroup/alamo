@@ -4,6 +4,12 @@
 #@  check = false
 #@  args = stop_time=0.01
 #@  
+#@  [serial-coverage]
+#@  dim = 2
+#@  check = false
+#@  args = stop_time=0.0001
+#@  coverage = true
+#@
 #@  [parallel]
 #@  dim = 2
 #@  nprocs = 4

@@ -40,8 +40,3 @@ amrex.build.log
 eigen3
 IAMR
 obj
-*.gif
-*.mp4
-*.png
-*.curve
-*.pdf

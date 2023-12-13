@@ -18,6 +18,7 @@
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Elastic/NeoHookeanPredeformed.H"
 #include "Model/Solid/Elastic/PseudoLinearCubic.H"
+#include "Model/Solid/Elastic/PseudoLinearCubicPredeformed.H"
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
@@ -48,11 +49,10 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Linear::Hexagonal);
     MODELTEST(Model::Solid::Affine::Hexagonal);
     MODELTEST(Model::Solid::Elastic::NeoHookean);
-    MODELTEST(Model::Solid::Elastic::NeoHookeanPredeformed);
-    
-    #if AMREX_SPACEDIM == 3
     MODELTEST(Model::Solid::Elastic::PseudoLinearCubic);
-    #endif
+    MODELTEST(Model::Solid::Elastic::NeoHookeanPredeformed);
+    MODELTEST(Model::Solid::Elastic::PseudoLinearCubicPredeformed);
+    
 
     Util::Test::Message("Set::Matrix4");
     {

@@ -8,29 +8,25 @@
 
 namespace Integrator
 {
-class ThermoElastic :
+class ThermoElastic : 
     virtual public HeatConduction,
     virtual public Mechanics<Model::Solid::Affine::Isotropic>
 {
-    //using model_type = Model::Solid::Affine::Isotropic;
 public:
-    ThermoElastic() :
-        //Integrator(),
-        HeatConduction(),
+    ThermoElastic():
+        HeatConduction(3),
         Mechanics<Model::Solid::Affine::Isotropic>()
     {
-        Util::Message(INFO, "max level ", max_level);
+        Util::Message(INFO,"max level ", max_level);
     }
-    ThermoElastic(IO::ParmParse& pp) : ThermoElastic()
+    ThermoElastic(IO::ParmParse &pp) : ThermoElastic()
+    {Parse(*this,pp);}
+    static void Parse(ThermoElastic &value, IO::ParmParse &pp)
     {
-        Parse(*this, pp);
-    }
-    static void Parse(ThermoElastic& value, IO::ParmParse& pp)
-    {
-        pp.queryclass("hc", static_cast<HeatConduction*>(&value));
-        pp.queryclass("el", static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
+        pp.queryclass("hc",static_cast<HeatConduction*>(&value));
+        pp.queryclass("el",static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
 
-        pp.queryarr("alpha", value.alpha);
+        pp.queryarr("alpha",value.alpha);
     }
 
 
@@ -47,15 +43,15 @@ protected:
 
         //Set::Scalar alpha[2];
         //alpha[0] = 0.001; alpha[1] = 0.002;
-
+        
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
-                amrex::Array4<Model::Solid::Affine::Isotropic> const& model = model_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const& temp = temp_old_mf[lev]->array(mfi);
+                amrex::Array4<Model::Solid::Affine::Isotropic> const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &temp = temp_old_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix F0 = Set::Matrix::Zero();
                     Set::Scalar tempavg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
