@@ -75,8 +75,8 @@ def validate(path,
         pylab.tight_layout()
         pylab.savefig("{}/2d_{}.png".format(outdir,var))
 
-        new_x,new_y,new_z,new_var = [numpy.array(_x) for _x in zip(*sorted(zip(new_df["x"],new_df["y"],new_df["z"],new_df[var])))]
-        ref_x,ref_y,ref_z,ref_var = [numpy.array(_x) for _x in zip(*sorted(zip(ref_df["x"],ref_df["y"],ref_df["z"],ref_df[var])))]
+        new_x,new_var = [numpy.array(_x) for _x in zip(*sorted(zip(new_df["x"],new_df[var])))]
+        ref_x,ref_var = [numpy.array(_x) for _x in zip(*sorted(zip(ref_df["x"],ref_df[var])))]
 
 
         pylab.clf()
