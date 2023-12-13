@@ -1,15 +1,14 @@
 #@  [2D-serial-level]
 #@  dim    = 2
 #@  nprocs = 1
-#@  check  = false
-#@  args   = alamo.stop_time = 1.0
+#@  check  = true
+#@  args   = stop_time=10.0
 #@
 #@  [2D-serial-level-coverage]
 #@  coverage = true
 #@  dim    = 2
-#@  nprocs = 1
 #@  check  = false
-#@  args   = stop_time = 2e-3
+#@  args   = stop_time=1.0
 
 
 alamo.program = allencahn
@@ -20,19 +19,19 @@ plot_file = tests/AllenCahn/output
 
 ### MESHING ###
 
-amr.plot_int = 10
-amr.max_level = 0
+amr.plot_int = 1000
+amr.max_level = 2
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.grid_eff = 0.8
-amr.n_cell = 300 200 0
+amr.n_cell = 96 64 0
 
 geometry.prob_lo = -1.5 -1.0 0.0 # [ m ] 
 geometry.prob_hi =  1.5  1.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
-timestep  = 1.0e-3
+timestep  = 0.01
 stop_time = 100.0
 
 alpha.bc.type.xlo = neumann

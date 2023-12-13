@@ -1,3 +1,13 @@
+#@ [2d]
+#@ dim=2
+#@
+#@ [2d-coverage]
+#@ dim=2
+#@ coverage=true
+#@ check=false
+#@ args=stop_time=4E-4
+
+
 alamo.program = dendrite
 plot_file     = tests/Dendrite/output
 

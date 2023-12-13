@@ -61,6 +61,7 @@ parser.add_argument('--debug',default=False,action='store_true',help='Use the de
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
 parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code for all tests')
 parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
+parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
 parser.add_argument('--no-coverage',default=False,action='store_true',help='Prevent coverage version of the code from being used')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
@@ -149,6 +150,8 @@ def test(testdir):
             else:
                 raise(Exception("Invalid value for coverage: {}".format(config[desc]['coverage'])))
         if args.only_coverage and not coverage:
+            continue
+        if args.only_non_coverage and coverage:
             continue
         if args.no_coverage:
             coverage = False
@@ -317,13 +320,14 @@ def test(testdir):
                 continue
     
     # Print a quick summary for this test family.
-    if tests: print("  └ {}{} tests run{}".format(color.blue,tests,color.reset),end="")
-    if checks: print("  └ {}{} checks passed{}".format(color.green,checks,color.reset),end="")
-    if fails: print("  └ {}{} tests failed{}".format(color.red,fails,color.reset),end="")
-    #else: print("  └ {}{} tests failed{}".format(color.boldgreen,0,color.reset),end="")
-    if skips: print(", {}{} tests skipped{}".format(color.boldyellow,skips,color.reset),end="")
-    if timeouts: print(", {}{} tests timed out{}".format(color.red,timeouts,color.reset),end="")
-    print("")
+    summary = "  └ "
+    sums = []
+    if tests: sums.append("{}{} tests run{}".format(color.blue,tests,color.reset))
+    if checks: sums.append("{}{} checks passed{}".format(color.green,checks,color.reset))
+    if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
+    if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
+    if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
+    print(summary + ", ".join(sums))
     return fails, checks, tests, skips, fasters, slowers, timeouts
 
 # We may wish to pass in specific test directories. If we do, then test those only.
@@ -358,7 +362,7 @@ for testdir in tests:
 
 # Print a quick summary of all tests
 print("\nTest Summary")
-print("{}{} tests run{}".format(color.green,stats.tests,color.reset))
+print("{}{} tests run{}".format(color.blue,stats.tests,color.reset))
 print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.reset))
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))

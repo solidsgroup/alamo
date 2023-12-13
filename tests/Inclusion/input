@@ -9,7 +9,9 @@
 #@  [2d-serial-coverage]
 #@  dim = 2
 #@  coverage=true
-#@  stop_time=0.02
+#@  check=false
+#@  args = stop_time=0.02
+#@  args = anisotropy.tstart=0
 #@
 
 alamo.program = microstructure

@@ -1,6 +1,8 @@
 name: Coverage
 
-on: [push, pull_request]
+on:
+  push:
+    branches: ["development"]
 
 permissions:
   contents: read
