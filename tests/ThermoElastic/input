@@ -1,3 +1,18 @@
+#@
+#@ [2d]
+#@ dim=2
+#@ check=true
+#@ exe=thermoelastic
+#@ args=stop_time=10
+#@ 
+#@ [2d-coverage]
+#@ dim=2
+#@ check=false
+#@ exe=thermoelastic
+#@ args=stop_time=1
+#@ coverage=true
+#@
+
 alamo.program = thermoelastic
 
 plot_file     = tests/ThermoElastic/output
@@ -14,8 +29,7 @@ amr.blocking_factor	    = 4
 amr.regrid_int		    = 50
 amr.grid_eff		    = 1.0
 
-amr.node.all = 1
-amr.cell.any = 0
+amr.cell.all = 1
 
 # geometry
 geometry.prob_lo	    = -8 -8 -8 

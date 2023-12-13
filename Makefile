@@ -210,7 +210,7 @@ cov/index.html: cov/coverage_merged.info
 
 cov/coverage_merged.info: $(GCDA_INFOS)
 	mkdir -p ./cov/
-	lcov $(GCDA_LCOVS) -o cov/coverage_merged.info
+	lcov --ignore-errors=gcov,source,graph $(GCDA_LCOVS) -o cov/coverage_merged.info  
 
 cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
 	mkdir -p ./cov/

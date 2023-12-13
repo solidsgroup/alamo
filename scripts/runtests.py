@@ -179,6 +179,8 @@ def test(testdir):
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
         else:
+            exe = 'alamo'
+            if 'exe' in config[desc].keys(): exe = config[desc]['exe']
             dim = 3 # Dimension of alamo to use
             if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
@@ -198,27 +200,27 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             
-            exe = "./bin/alamo-{}d".format(dim)
-            if args.debug: exe += "-debug"
-            if args.profile: exe += "-profile"
-            if coverage: exe += "-coverage"
-            exe += "-"+args.comp
+            exestr = "./bin/{}-{}d".format(exe,dim)
+            if args.debug: exestr += "-debug"
+            if args.profile: exestr += "-profile"
+            if coverage: exestr += "-coverage"
+            exestr += "-"+args.comp
             
-            #if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
-            #elif args.debug: exe = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
-            #elif args.profile: exe = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
-            #else: exe = "./bin/alamo-{}d-{}".format(dim,args.comp)
+            #if args.debug and args.profile: exestr = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
+            #elif args.debug: exestr = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
+            #elif args.profile: exestr = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
+            #else: exestr = "./bin/alamo-{}d-{}".format(dim,args.comp)
 
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
-            # If the exe doesn't exist, exit noisily. The script will continue but will return a nonzero
+            # If the exestr doesn't exist, exit noisily. The script will continue but will return a nonzero
             # exit code.
-            if not os.path.isfile(exe):
-                print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exe,color.reset))
+            if not os.path.isfile(exestr):
+                print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exestr,color.reset))
                 skips += 1
                 continue
-            command += exe + " "
+            command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
 
