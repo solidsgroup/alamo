@@ -216,6 +216,11 @@ cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
 	mkdir -p ./cov/
 	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
 
+githubpages: docs cov-report
+	mkdir -p ./githubpages/
+	echo "<head><meta http-equiv=\"refresh\" content=\"0; url='docs/index.html\" /></head>" > githubpages/index.html
+	cp -rf docs/build/html ./githubpages/docs/
+	cp -rf cov/ ./githubpages/cov/
 
 ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
