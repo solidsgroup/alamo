@@ -48,7 +48,7 @@ Qdot   = 0  # = rho0 * V0 * V0 * V0
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.1
 eta.ic.expression.constant.vel = 0.0 
-eta.ic.expression.region0 = "0.5 + 0.5*tanh(x/eps)"]
+eta.ic.expression.region0 = "0.5 + 0.5*tanh(y/eps)"]
 
 
 

@@ -129,19 +129,19 @@ void Hydro::Initialize(int lev)
 
             eta_new(i, j, k) = eta(i, j, k);
 
-            etarho(i, j, k) = rho_fluid * eta(i, j, k) + mdot * grad_eta_mag;
+            etarho(i, j, k) = rho_fluid * eta(i, j, k);
             etarho_new(i, j, k) = etarho(i, j, k);
 	    rho_mix(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + etarho(i, j, k);
 
-            etaM(i, j, k, 0) = Mx_init * eta(i, j, k) + Pdot_x * grad_eta(0);
+            etaM(i, j, k, 0) = Mx_init * eta(i, j, k);
             etaM_new(i, j, k, 0) = etaM(i, j, k, 0);
 	    M_mix(i, j, k, 0) = etaM(i, j, k, 0);
             ///
-            etaM(i, j, k, 1) = My_init * eta(i, j, k) + Pdot_y * grad_eta(1);
+            etaM(i, j, k, 1) = My_init * eta(i, j, k);
             etaM_new(i, j, k, 1) = etaM(i, j, k, 1);
 	    M_mix(i, j, k, 1) = etaM(i, j, k, 1);
 
-            etaE(i, j, k) = E_fluid * eta(i, j, k) + Qdot * grad_eta_mag;
+            etaE(i, j, k) = E_fluid * eta(i, j, k);
             etaE_new(i, j, k) = etaE(i, j, k);
 	    E_mix(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + etaE(i, j, k);
 
@@ -302,9 +302,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             etaM_new(i, j, k, 0) =
-                etaM(i, j, k, 0)
-                + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
-                + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
+	        etaM(i, j, k, 0)
+	        + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
+	        + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
 
             etaM_new(i, j, k, 1) =
                 etaM(i, j, k, 1)
@@ -339,7 +339,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             omega(i, j, k) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
 	    //interface velocity normal to the interface
-	    Set::Scalar Vn_x = -0.001;
+	    Set::Scalar Vn_x = 0.0;
 	    Set::Scalar Vn_y = 0.0;
 
             std::array<Set::Scalar, 3> source;
@@ -348,10 +348,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             source[2] = 0.0;//rho_mix(i,j,k) * Vn_y * Vn_y * grad_eta(1) * dt;// + mu * omega(i, j, k) * (-grad_eta(0)) * dt;
             source[3] = 0.0;//rho_solid * std::sqrt(Vn_x * Vn_x + Vn_y * Vn_y) * (Vn_x * Vn_x + Vn_y * Vn_y) * grad_eta_mag * dt;
 
-            etaE_new(i, j, k)    += source[3] + rho_mix(i, j, k)  * etadot(i, j, k) * dt;
-            etarho_new(i, j, k)  += source[0] + M_mix(i, j, k, 0) * etadot(i, j, k) * dt;
-            etaM_new(i, j, k, 0) += source[1] + M_mix(i, j, k, 1) * etadot(i, j, k) * dt;
-            etaM_new(i, j, k, 1) += source[2] + E_mix(i, j, k)    * etadot(i, j, k) * dt;
+            //etaE_new(i, j, k)    += source[3] + rho_mix(i, j, k)  * etadot(i, j, k) * dt;
+            //etarho_new(i, j, k)  += source[0] + M_mix(i, j, k, 0) * etadot(i, j, k) * dt;
+            //etaM_new(i, j, k, 0) += source[1] + M_mix(i, j, k, 1) * etadot(i, j, k) * dt;
+            //etaM_new(i, j, k, 1) += source[2] + E_mix(i, j, k)    * etadot(i, j, k) * dt;
 
 	    // Solid stand-in
             rho_mix(i,j,k) = etarho_new(i,j,k) + (1.0 - eta_new(i,j,k))*rho_solid;
@@ -363,7 +363,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //////UPDATE ETA//////
             //////////////////////
 	    
-	    eta_new(i, j, k) = eta(i, j, k) - Vn_x * (grad_eta(0)) * dt - Vn_y * (grad_eta(1)) * dt;
+	    //eta_new(i, j, k) = eta(i, j, k) - Vn_x * (grad_eta(0)) * dt - Vn_y * (grad_eta(1)) * dt;
 
 	    
 	    

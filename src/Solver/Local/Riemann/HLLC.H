@@ -110,7 +110,7 @@ public:
 	//Compute the Godunov flux
         Flux fl;
         fl.mass = rho_face * u_face * eta_face;
-        fl.momentum(0) = rho_face * u_face * u_face * eta_face + p_face;
+        fl.momentum(0) = (rho_face * u_face * u_face) * eta_face + p_face;
         if (fl.mass > 0.0) {
 	  fl.momentum(1) = (fl.mass * uTang_lo) * u_face * eta_face;
 	}
