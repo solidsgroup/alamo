@@ -14,6 +14,14 @@
 #@ benchmark-github = 60.03
 #@ benchmark-waldorf = 26.9
 #@
+#@ [2D-20grain-serial-coverage]
+#@ nprocs   = 1
+#@ dim      = 2
+#@ coverage = true
+#@ check    = false
+#@ args     = stop_time=0.01
+#@ args     = ic.voronoi.number_of_grains=20
+#@
 
 alamo.program               = microstructure
 plot_file		    = tests/Voronoi/output

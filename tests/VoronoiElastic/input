@@ -6,6 +6,13 @@
 #@ benchmark-github = 70.39
 #@ benchmark-waldorf = 29.65
 #@
+#@ [2d-serial-coverage]
+#@ dim      = 2
+#@ coverage = true
+#@ check    = false
+#@ args     = stop_time=0.001
+#@ args     = mechanics.solver.fixed_iter=10
+#@
 #@ [2d-parallel]
 #@ dim=2
 #@ nprocs=4
