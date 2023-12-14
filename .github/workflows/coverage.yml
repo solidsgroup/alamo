@@ -20,24 +20,24 @@ jobs:
     - name: configure (2d)
       continue-on-error: true
       run: ./configure --dim=2 --coverage 
-    - name: make
+    - name: make (2d)
       continue-on-error: true
       run: make
-    - name: unit tests
+    - name: unit tests (2d)
       continue-on-error: true
       run: ./bin/test-2d-coverage-g++
     - name: configure (3d)
       continue-on-error: true
       run: ./configure --dim=3 --coverage
-    - name: make
+    - name: make (3d)
       continue-on-error: true
       run: make
-    - name: unit tests
+    - name: unit tests (3d)
       continue-on-error: true
       run: ./bin/test-3d-coverage-g++
-    - name: regression tests
+    - name: regression tests with coverage (2d + 3d)
       continue-on-error: true
-      run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=10
+      run: scripts/runtests.py --only-coverage --serial --timeout=30
     - name: generate coverage report
       run: make cov-report
     - name: generate documentation

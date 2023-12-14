@@ -206,6 +206,13 @@ def test(testdir):
             if coverage: exestr += "-coverage"
             exestr += "-"+args.comp
             
+            #
+            # Sometimes we don't have a coverage version built; in that case,
+            # use the non-coverage version.
+            #
+            if not os.path.isfile(exestr):
+                exestr=exestr.replace("-coverage","")
+
             #if args.debug and args.profile: exestr = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
             #elif args.debug: exestr = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
             #elif args.profile: exestr = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
