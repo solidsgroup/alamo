@@ -11,6 +11,7 @@
 #@  nprocs = 1
 #@  args   = stop_time=0.001
 #@  check  = false
+#@  coverage = true
 #@
 
 alamo.program = mechanics
