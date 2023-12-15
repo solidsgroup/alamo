@@ -131,6 +131,8 @@ protected:
         if (m_interval && a_step % m_interval) return;
 
 
+        UpdateModel(a_step);
+
         if (m_type != Mechanics<MODEL>::Type::Static) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -139,8 +141,6 @@ protected:
             rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
-
-        UpdateModel(a_step);
 
         bc->SetTime(a_time);
         bc->Init(rhs_mf, geom);
