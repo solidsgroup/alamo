@@ -9,7 +9,7 @@ plot_file = ./output.RecedingInterface
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 1
+amr.plot_int = 10
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
@@ -86,47 +86,35 @@ My_init = 0.0
 
 ### HYDRO BC ###
 
-rho.bc.type.xlo = dirichlet
-rho.bc.type.xhi = neumann
+rho.bc.type.xhi = dirichlet
+rho.bc.type.xlo = neumann
 rho.bc.type.ylo = neumann
 rho.bc.type.yhi = neumann
-rho.bc.type.zlo = neumann
-rho.bc.type.zhi = neumann
 
-rho.bc.val.xlo = 1.0
-rho.bc.val.xhi = 0.0
+rho.bc.val.xhi = 1.0
+rho.bc.val.xlo = 0.0
 rho.bc.val.ylo = 0.0 
 rho.bc.val.yhi = 0.0
-rho.bc.val.zlo = 0.0 
-rho.bc.val.zhi = 0.0
 
-E.bc.type.xlo = dirichlet
-E.bc.type.xhi = neumann
+E.bc.type.xhi = dirichlet
+E.bc.type.xlo = neumann
 E.bc.type.ylo = neumann
 E.bc.type.yhi = neumann
-E.bc.type.zlo = neumann
-E.bc.type.zhi = neumann
 
-E.bc.val.xlo = 2.5
-E.bc.val.xhi = 0.0
+E.bc.val.xhi = -2.5
+E.bc.val.xlo = 0.0
 E.bc.val.ylo = 0.0 
 E.bc.val.yhi = 0.0
-E.bc.val.zlo = 0.0 
-E.bc.val.zhi = 0.0
 
-M.bc.type.xlo = dirichlet
-M.bc.type.xhi = neumann
-M.bc.type.ylo = neumann
-M.bc.type.yhi = neumann
-M.bc.type.zlo = neumann
-M.bc.type.zhi = neumann
+M.bc.type.xhi = dirichlet dirichlet
+M.bc.type.xlo = neumann neumann
+M.bc.type.ylo = neumann neumann
+M.bc.type.yhi = neumann neumann
 
-M.bc.val.xlo = 0.01 0.0
-M.bc.val.xhi = 0.0 0.0
+M.bc.val.xhi = 0.01 0.0
+M.bc.val.xlo = 0.0 0.0
 M.bc.val.ylo = 0.0 0.0
 M.bc.val.yhi = 0.0 0.0
-M.bc.val.zlo = 0.0 0.0
-M.bc.val.zhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
