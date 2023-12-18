@@ -56,6 +56,8 @@ public:
         Set::Scalar u_RL = (std::sqrt(hi.rho) * uNorm_hi + std::sqrt(lo.rho) * uNorm_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar h_RL = (std::sqrt(hi.rho) * h_hi + std::sqrt(lo.rho) * h_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar a_RL2 = (gamma - 1) * (h_RL - 0.5 * u_RL * u_RL);
+        if (std::isnan(a_RL2)) Util::Abort(INFO);
+        if (a_RL2 < 0.0) Util::Abort(INFO);
         Set::Scalar a_RL = std::sqrt(a_RL2);
         Set::Scalar eta_RL = (std::sqrt(hi.rho) * hi.eta + std::sqrt(lo.rho) * lo.eta) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
 
