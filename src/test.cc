@@ -21,6 +21,7 @@
 #include "Model/Solid/Affine/Hexagonal.H"
 
 #include "Solver/Local/Riemann/Roe.H"
+#include "Solver/Local/Riemann/HLLC.H"
 
 int main (int argc, char* argv[])
 {
@@ -118,6 +119,13 @@ int main (int argc, char* argv[])
     {
         int subfailed = 0;
         subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::Test::Message("Solver::Nonlocal::Riemann::HLLC test");
+    {
+        int subfailed = 0;
+        subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::HLLC::Test());
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 
