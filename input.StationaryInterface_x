@@ -1,3 +1,5 @@
+# Interface recedes to the left in the x direction and a rarefaction wave propogates into the gas
+
 alamo.program = hydro
 
 ### OUTPUT ###
@@ -7,7 +9,7 @@ plot_file = ./output.RecedingInterface
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 10
+amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
@@ -16,7 +18,7 @@ amr.grid_eff = 0.8
 #amr.refinement_criterion = 0.001
 #amr.refinement_criterion_temp = 275.16
 #amr.refinement_restriction = 0.1
-amr.n_cell = 300 300 0
+amr.n_cell = 90 30 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -24,33 +26,34 @@ amr.n_cell = 300 300 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -1.5 -1.5 0.0 # [ m ] 
-geometry.prob_hi =  1.5  1.5 0.0 # [ m ]
+geometry.prob_lo = -1.5 -0.5 0.0 # [ m ] 
+geometry.prob_hi =  1.5  0.5 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 1.0e-2
 stop_time = 100.0
 #small    = 1.0e-5
 
 
 ### ETA IC ###
 
-eps = 0.1
+eps = 0.001
 
-mdot   = 0  # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
-Pdot_x = 0  # = rho0 * V0 * V0
-Pdot_y = 0
-Qdot   = 0  # = rho0 * V0 * V0 * V0
+mdot   = 0.005  
+Pdot_x = 0.000025  
+Pdot_y = 0 
+Qdot   = 0.000000625  
+InterfaceVel_x = 0.005
+InterfaceVel_y = 0.0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.1
-eta.ic.expression.constant.vel = 0.0 
-eta.ic.expression.region0 = "0.5 + 0.5*tanh(y/eps)"]
-
-
+eta.ic.expression.constant.vel_x = 0.0 # must be consistent with InterfaceVel_x
+eta.ic.expression.constant.vel_y = 0.0 # must be consistent with InterfaceVel_y
+eta.ic.expression.region0 = "0.5 + 0.5*tanh((x - vel_x*t)/eps)"
 
 ### ETA BC  ###
 
@@ -75,7 +78,7 @@ cfl = 0.4
 mu = 0.0
 
 rho_solid = 1000.0 #kg/m^3
-rho_fluid = 100.0 #kg/m^3
+rho_fluid = 1.0 #kg/m^3
 E_solid = 2.5 #00000
 E_fluid = 2.5 #00000
 Mx_init = 0.0

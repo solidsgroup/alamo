@@ -68,48 +68,54 @@ public:
 
 	//Left star region variables
         Set::Scalar rstar_lo   = lo.rho * (S_lo - uNorm_lo)/(S_lo - ustar);
-        Set::Scalar estar_lo   = ((S_lo - uNorm_lo) * lo.energy - p_lo * uNorm_lo + pstar * ustar)/(S_lo - ustar);
+        Set::Scalar uestar_lo   = ((S_lo - uNorm_lo) * ue_lo - p_lo * uNorm_lo + pstar * ustar)/(S_lo - ustar);
+	Set::Scalar kestar_lo   = ((S_lo - uNorm_lo) * ke_lo - p_lo * uNorm_lo + pstar * ustar)/(S_lo - ustar);
 	Set::Scalar etastar_lo = lo.eta * (S_lo - uNorm_lo)/(S_lo - ustar);
 
 	//Right star region variables
         Set::Scalar rstar_hi   = hi.rho * (S_hi - uNorm_hi)/(S_hi - ustar);
-        Set::Scalar estar_hi   = ((S_hi - uNorm_hi) * hi.energy - p_hi * uNorm_hi + pstar * ustar)/(S_hi - ustar);
+        Set::Scalar uestar_hi   = ((S_hi - uNorm_hi) * ue_hi - p_hi * uNorm_hi + pstar * ustar)/(S_hi - ustar);
+	Set::Scalar kestar_hi   = ((S_hi - uNorm_hi) * ke_hi - p_hi * uNorm_hi + pstar * ustar)/(S_hi - ustar);
 	Set::Scalar etastar_hi = hi.eta * (S_hi - uNorm_hi)/(S_hi - ustar);
 
 	//Sample the solution at x/t=0
-	Set::Scalar rho_face, u_face, p_face, e_face, eta_face;
+	Set::Scalar rho_face, u_face, p_face, ke_face, ue_face, eta_face;
         if (S_lo > 0.0) {
 	  rho_face = lo.rho;
           u_face   = uNorm_lo;
           p_face   = p_lo;
-          e_face   = lo.energy;
+          ue_face  = ue_lo;
+	  ke_face  = ke_lo;
 	  eta_face = lo.eta;
 	}
         else if (ustar > 0.0) {
 	  rho_face = rstar_lo;
           u_face   = ustar;
           p_face   = pstar;
-          e_face   = estar_lo;
+          ue_face  = uestar_lo;
+	  ke_face  = kestar_lo;
 	  eta_face = etastar_lo;
 	}
         else if (S_hi > 0.0) {
 	  rho_face = rstar_hi;
           u_face = ustar;
           p_face = pstar;
-          e_face = estar_hi;
+          ue_face  = uestar_hi;
+	  ke_face  = kestar_hi;
 	  eta_face = etastar_hi;
         }
         else {
 	  rho_face = hi.rho;
           u_face = uNorm_hi;
           p_face = p_hi;
-          e_face = hi.energy;
+          ue_face  = ue_hi;
+	  ke_face  = ke_hi;
 	  eta_face = hi.eta;
 	};
 
 	//Compute the Godunov flux
         Flux fl;
-        fl.mass = rho_face * u_face * eta_face;
+        fl.mass = rho_face * u_face;
         fl.momentum(0) = (rho_face * u_face * u_face) * eta_face + p_face;
         if (fl.mass > 0.0) {
 	  fl.momentum(1) = (fl.mass * uTang_lo) * u_face * eta_face;
@@ -117,7 +123,7 @@ public:
 	else {
 	  fl.momentum(1) = (fl.mass * uTang_hi) * u_face * eta_face;
 	};
-        fl.energy = (e_face + p_face) * u_face * eta_face;
+        fl.energy = (ke_face + ue_face) * u_face * eta_face;
 
         return fl;
 	      
