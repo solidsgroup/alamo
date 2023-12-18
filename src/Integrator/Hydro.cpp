@@ -276,22 +276,22 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             //Godunov flux
-            Solver::Local::Riemann::HLLC::State state_x(rho_mix(i, j, k), M_mix(i, j, k, 0), M_mix(i, j, k, 1), E_mix(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::HLLC::State state_y(rho_mix(i, j, k), M_mix(i, j, k, 1), M_mix(i, j, k, 0), E_mix(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::HLLC::State lo_statex(rho_mix(i - 1, j, k), M_mix(i - 1, j, k, 0), M_mix(i - 1, j, k, 1), E_mix(i - 1, j, k), eta(i - 1, j, k));
-            Solver::Local::Riemann::HLLC::State hi_statex(rho_mix(i + 1, j, k), M_mix(i + 1, j, k, 0), M_mix(i + 1, j, k, 1), E_mix(i + 1, j, k), eta(i + 1, j, k));
-            Solver::Local::Riemann::HLLC::State lo_statey(rho_mix(i, j - 1, k), M_mix(i, j - 1, k, 1), M_mix(i, j - 1, k, 0), E_mix(i, j - 1, k), eta(i, j - 1, k));
-            Solver::Local::Riemann::HLLC::State hi_statey(rho_mix(i, j + 1, k), M_mix(i, j + 1, k, 1), M_mix(i, j + 1, k, 0), E_mix(i, j + 1, k), eta(i, j + 1, k));
+            Solver::Local::Riemann::Roe::State state_x(rho_mix(i, j, k), M_mix(i, j, k, 0), M_mix(i, j, k, 1), E_mix(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::Roe::State state_y(rho_mix(i, j, k), M_mix(i, j, k, 1), M_mix(i, j, k, 0), E_mix(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::Roe::State lo_statex(rho_mix(i - 1, j, k), M_mix(i - 1, j, k, 0), M_mix(i - 1, j, k, 1), E_mix(i - 1, j, k), eta(i - 1, j, k));
+            Solver::Local::Riemann::Roe::State hi_statex(rho_mix(i + 1, j, k), M_mix(i + 1, j, k, 0), M_mix(i + 1, j, k, 1), E_mix(i + 1, j, k), eta(i + 1, j, k));
+            Solver::Local::Riemann::Roe::State lo_statey(rho_mix(i, j - 1, k), M_mix(i, j - 1, k, 1), M_mix(i, j - 1, k, 0), E_mix(i, j - 1, k), eta(i, j - 1, k));
+            Solver::Local::Riemann::Roe::State hi_statey(rho_mix(i, j + 1, k), M_mix(i, j + 1, k, 1), M_mix(i, j + 1, k, 0), E_mix(i, j + 1, k), eta(i, j + 1, k));
 
-            Solver::Local::Riemann::HLLC::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
+            Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 
             //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann::HLLC::Solve(lo_statex, state_x, gamma);
-            flux_ylo = Solver::Local::Riemann::HLLC::Solve(lo_statey, state_y, gamma);
+            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, gamma);
+            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, gamma);
 
             //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann::HLLC::Solve(state_x, hi_statex, gamma);
-            flux_yhi = Solver::Local::Riemann::HLLC::Solve(state_y, hi_statey, gamma);
+            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma);
+            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma);
 
             //Godunov fluxes
             etaE_new(i, j, k) =
@@ -306,13 +306,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             etaM_new(i, j, k, 0) =
 	        etaM(i, j, k, 0)
-	        + (flux_xlo.momentum(0) - flux_xhi.momentum(0)) * dt / DX[0]
-	        + (flux_ylo.momentum(1) - flux_yhi.momentum(1)) * dt / DX[1];
+	        + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0]
+	        + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1];
 
-            // etaM_new(i, j, k, 1) =
-            //     etaM(i, j, k, 1)
-            //     + (flux_xlo.momentum(1) - flux_xhi.momentum(1)) * dt / DX[0]
-            //     + (flux_ylo.momentum(0) - flux_yhi.momentum(0)) * dt / DX[1];
+            etaM_new(i, j, k, 1) =
+                etaM(i, j, k, 1)
+                + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
+                + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1];
 
             ///////////////////////////
             ///////VISCOUS TERMS///////
@@ -347,7 +347,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 	    else if (InterfaceVel_x * grad_eta(0) + InterfaceVel_y * grad_eta(1) > 0) {InterfaceVel_sign = 1;}
 	    else {InterfaceVel_sign = 0;};
 
-            std::array<Set::Scalar, 3> source;
+            std::array<Set::Scalar, 4> source;
             source[0] = mdot * grad_eta_mag * dt;
             source[1] = mu * omega(i, j, k) * (grad_eta(1)) * dt  + Pdot_x * grad_eta(0) * dt;
             source[2] = 0.0;//mu * omega(i, j, k) * (-grad_eta(0)) * dt + Pdot_y * grad_eta(1) * dt;
