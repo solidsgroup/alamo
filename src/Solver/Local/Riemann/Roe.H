@@ -44,12 +44,17 @@ public:
         Set::Scalar p_lo = (gamma - 1) * ue_lo;
         Set::Scalar h_lo = (lo.energy + p_lo) / lo.rho;
 
+	//Util::Message(INFO, "lo.rho ", lo.rho);
+	//Util::Message(INFO, "hi.rho ", hi.rho);
+
         Set::Scalar uNorm_hi = hi.momentum_normal / hi.rho;
 	Set::Scalar uTang_hi = hi.momentum_tangent / hi.rho;
         Set::Scalar ke_hi = 0.5 * hi.rho * uNorm_hi * uNorm_hi;
         Set::Scalar ue_hi = hi.energy - ke_hi;
         Set::Scalar p_hi = (gamma - 1) * ue_hi;
         Set::Scalar h_hi = (hi.energy + p_hi) / hi.rho;
+
+	//Util::Message(INFO, "hi.rho ", hi.rho);
 
         // roe averages
         Set::Scalar rho_RL = std::sqrt(lo.rho) * std::sqrt(hi.rho);

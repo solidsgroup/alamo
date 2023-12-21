@@ -74,7 +74,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.Velocity_mf, value.bc_M, 2, nghost, "Velocity", true);
 
-        value.RegisterNewFab(value.Vorticity_mf, value.bc_eta, 1, nghost, "Vorticity", true);
+        value.RegisterNewFab(value.Vorticity_mf, value.bc_M, 1, nghost, "Vorticity", true);
 
         value.RegisterNewFab(value.Pressure_mf, value.bc_E, 1, nghost, "Pressure", true);
     }
@@ -104,10 +104,12 @@ void Hydro::Initialize(int lev)
     ic_eta->Initialize(lev,eta_mf,0.0);
     ic_eta->Initialize(lev,eta_old_mf,0.0);
     etadot_mf[lev]->setVal(0.0);
-    
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
+    Util::Message(INFO, eta_mf[lev] -> nComp());
+
+    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi) {
+        amrex::Box bx = mfi.validbox();
+	bx.grow(1);
         amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
 
@@ -133,6 +135,9 @@ void Hydro::Initialize(int lev)
             etarho(i, j, k) = rho_fluid * eta(i, j, k);
             etarho_new(i, j, k) = etarho(i, j, k);
 	    rho_mix(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + etarho(i, j, k);
+
+	    //Util::Message(INFO, "rho_mix, i, j ", rho_mix, i, j);
+	    //Util::Message(INFO, "etarho, i, j ", etarho, i, j);
 
             etaM(i, j, k, 0) = Mx_init * eta(i, j, k);
             etaM_new(i, j, k, 0) = etaM(i, j, k, 0);
@@ -225,7 +230,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
-	amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+	//amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 
         //Compute primitive variables
 
@@ -282,6 +287,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Solver::Local::Riemann::Roe::State hi_statex(rho_mix(i + 1, j, k), M_mix(i + 1, j, k, 0), M_mix(i + 1, j, k, 1), E_mix(i + 1, j, k), eta(i + 1, j, k));
             Solver::Local::Riemann::Roe::State lo_statey(rho_mix(i, j - 1, k), M_mix(i, j - 1, k, 1), M_mix(i, j - 1, k, 0), E_mix(i, j - 1, k), eta(i, j - 1, k));
             Solver::Local::Riemann::Roe::State hi_statey(rho_mix(i, j + 1, k), M_mix(i, j + 1, k, 1), M_mix(i, j + 1, k, 0), E_mix(i, j + 1, k), eta(i, j + 1, k));
+	    
+	    Util::Message(INFO, "lo y rho ", rho_mix(i, j-1, k), " i =  ", i, " j =  ", j);
 
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 

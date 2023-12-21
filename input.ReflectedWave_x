@@ -18,7 +18,7 @@ amr.grid_eff = 0.8
 #amr.refinement_criterion = 0.001
 #amr.refinement_criterion_temp = 275.16
 #amr.refinement_restriction = 0.1
-amr.n_cell = 90 30 0
+amr.n_cell = 6 2 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
