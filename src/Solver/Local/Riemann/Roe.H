@@ -79,7 +79,7 @@ public:
         ev[1] = std::abs(u_RL + a_RL);
         ev[2] = std::abs(u_RL - a_RL);
 
-        //compute wave strengths
+	//compute wave strengths
 
         Set::Scalar drho, dp, dvel;
         dvel = uNorm_hi * hi.eta - uNorm_lo * lo.eta;
