@@ -49,8 +49,14 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
+	
+        //value.bc_v = new BC::Constant(1, pp, "v.bc");
+        //value.bc_p = new BC::Constant(2, pp, "p.bc");
+	
+	value.bc_M = new BC::Constant(2, pp, "M.bc");
         value.bc_E = new BC::Constant(1, pp, "E.bc");
-        value.bc_M = new BC::Constant(2, pp, "M.bc");
+	
+	//value.bc_omega = new BC::Constant(2, pp, "omega.bc");
     }
     // Register FabFields:
     {
@@ -62,14 +68,17 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.etaDensity_mf, value.bc_rho, 1, nghost, "etaDensity", true);
         value.RegisterNewFab(value.etaDensity_old_mf, value.bc_rho, 1, nghost, "etarho_old", false);
+	
         value.RegisterNewFab(value.DensityMix_mf, value.bc_rho, 1, nghost, "DensityMix", true);
 
         value.RegisterNewFab(value.etaEnergy_mf, value.bc_E, 1, nghost, "etaEnergy", true);
         value.RegisterNewFab(value.etaEnergy_old_mf, value.bc_E, 1, nghost, "etaE_old", false);
+	
         value.RegisterNewFab(value.EnergyMix_mf, value.bc_E, 1, nghost, "EnergyMix", true);
 
         value.RegisterNewFab(value.etaMomentum_mf, value.bc_M, 2, nghost, "etaMomentum", true);
         value.RegisterNewFab(value.etaMomentum_old_mf, value.bc_M, 2, nghost, "etaM_old", false);
+	
         value.RegisterNewFab(value.MomentumMix_mf, value.bc_M, 2, nghost, "MomentumMix", true);
 
         value.RegisterNewFab(value.Velocity_mf, value.bc_M, 2, nghost, "Velocity", true);
@@ -108,49 +117,38 @@ void Hydro::Initialize(int lev)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& etaE_new = (*etaEnergy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& etaE = (*etaEnergy_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& E_mix = (*EnergyMix_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& etarho_new = (*etaDensity_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& etarho = (*etaDensity_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& rho_mix = (*DensityMix_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& etaM_new = (*etaMomentum_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& etaM = (*etaMomentum_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& M_mix = (*MomentumMix_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             const Set::Scalar* DX = geom[lev].CellSize();
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 
-            eta_new(i, j, k) = eta(i, j, k);
-
             etarho(i, j, k) = rho_fluid * eta(i, j, k);
             etarho_new(i, j, k) = etarho(i, j, k);
-            rho_mix(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + etarho(i, j, k);
 
             etaM(i, j, k, 0) = Mx_init * eta(i, j, k);
             etaM_new(i, j, k, 0) = etaM(i, j, k, 0);
-            M_mix(i, j, k, 0) = etaM(i, j, k, 0);
             ///
             etaM(i, j, k, 1) = My_init * eta(i, j, k);
             etaM_new(i, j, k, 1) = etaM(i, j, k, 1);
-            M_mix(i, j, k, 1) = etaM(i, j, k, 1);
 
             etaE(i, j, k) = E_fluid * eta(i, j, k);
             etaE_new(i, j, k) = etaE(i, j, k);
-            E_mix(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + etaE(i, j, k);
 
         });
     }
 
     c_max = 0.0;
-    grad_eta_max = 1.0;
     vx_max = 0.0;
     vy_max = 0.0;
 }
@@ -218,19 +216,28 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
         const amrex::Box& bx = mfi.validbox();
 
-        amrex::Array4<const Set::Scalar> const& E_mix = (*EnergyMix_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& rho_mix = (*DensityMix_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& M_mix = (*MomentumMix_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& E_mix = (*EnergyMix_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& rho_mix = (*DensityMix_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& M_mix = (*MomentumMix_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
+        amrex::Array4<const Set::Scalar> const& etaE = (*etaEnergy_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etarho = (*etaDensity_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etaM = (*etaMomentum_old_mf[lev]).array(mfi);
+
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 
-        //Compute primitive variables
+        //Compute mix variables and then primitive variable over entire domain
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+	    rho_mix(i, j, k) = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid;
+	    E_mix(i, j, k) = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;
+	    M_mix(i, j, k, 0) = etaM(i, j, k, 0);
+	    M_mix(i, j, k, 1) = etaM(i, j, k, 1);
+	  
             v(i, j, k, 0) = M_mix(i, j, k, 0) / rho_mix(i, j, k);
             v(i, j, k, 1) = M_mix(i, j, k, 1) / rho_mix(i, j, k);
 
@@ -247,6 +254,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     }
     Pressure_mf[lev]->FillBoundary();
     Velocity_mf[lev]->FillBoundary();
+    EnergyMix_mf[lev]->FillBoundary();
+    DensityMix_mf[lev]->FillBoundary();
+    MomentumMix_mf[lev]->FillBoundary();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {

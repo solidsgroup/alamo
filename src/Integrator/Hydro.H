@@ -68,6 +68,7 @@ private:
     BC::BC<Set::Scalar>* bc_M;
     BC::BC<Set::Scalar>* bc_v;
     BC::BC<Set::Scalar>* bc_p;
+    BC::BC<Set::Scalar>* bc_omega;
     BC::BC<Set::Scalar>* bc_eta;
 
     IC::IC* ic_rho;
@@ -79,7 +80,6 @@ private:
     IC::IC* ic_etadot;
 
     Set::Scalar c_max = 0.0;
-    Set::Scalar grad_eta_max = 1.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 

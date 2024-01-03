@@ -106,7 +106,7 @@ E.bc.val.xlo = 0.0
 E.bc.val.ylo = 0.0 
 E.bc.val.yhi = 0.0
 
-M.bc.type.xhi = dirichlet dirichlet
+M.bc.type.xhi = dirichlet neumann
 M.bc.type.xlo = neumann neumann
 M.bc.type.ylo = neumann neumann
 M.bc.type.yhi = neumann neumann
