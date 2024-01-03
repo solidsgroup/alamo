@@ -49,12 +49,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
+        value.bc_p = new BC::Constant(1, pp, "p.bc");
+        value.bc_v = new BC::Constant(2, pp, "v.bc");
 	
-        //value.bc_v = new BC::Constant(1, pp, "v.bc");
-        //value.bc_p = new BC::Constant(2, pp, "p.bc");
-	
-	value.bc_M = new BC::Constant(2, pp, "M.bc");
-        value.bc_E = new BC::Constant(1, pp, "E.bc");
+	//value.bc_M = new BC::Constant(2, pp, "M.bc");
+        //value.bc_E = new BC::Constant(1, pp, "E.bc");
 	
 	//value.bc_omega = new BC::Constant(2, pp, "omega.bc");
     }
@@ -62,7 +61,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         int nghost = 2;
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, nghost, "eta", true);
-        //value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
+        value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
 
         value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", true);
 
@@ -71,21 +70,21 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 	
         value.RegisterNewFab(value.DensityMix_mf, value.bc_rho, 1, nghost, "DensityMix", true);
 
-        value.RegisterNewFab(value.etaEnergy_mf, value.bc_E, 1, nghost, "etaEnergy", true);
-        value.RegisterNewFab(value.etaEnergy_old_mf, value.bc_E, 1, nghost, "etaE_old", false);
+        value.RegisterNewFab(value.etaEnergy_mf, value.bc_p, 1, nghost, "etaEnergy", true);
+        value.RegisterNewFab(value.etaEnergy_old_mf, value.bc_p, 1, nghost, "etaE_old", false);
 	
-        value.RegisterNewFab(value.EnergyMix_mf, value.bc_E, 1, nghost, "EnergyMix", true);
+        value.RegisterNewFab(value.EnergyMix_mf, value.bc_p, 1, nghost, "EnergyMix", true);
 
-        value.RegisterNewFab(value.etaMomentum_mf, value.bc_M, 2, nghost, "etaMomentum", true);
-        value.RegisterNewFab(value.etaMomentum_old_mf, value.bc_M, 2, nghost, "etaM_old", false);
+        value.RegisterNewFab(value.etaMomentum_mf, value.bc_v, 2, nghost, "etaMomentum", true);
+        value.RegisterNewFab(value.etaMomentum_old_mf, value.bc_v, 2, nghost, "etaM_old", false);
 	
-        value.RegisterNewFab(value.MomentumMix_mf, value.bc_M, 2, nghost, "MomentumMix", true);
+        value.RegisterNewFab(value.MomentumMix_mf, value.bc_v, 2, nghost, "MomentumMix", true);
 
-        value.RegisterNewFab(value.Velocity_mf, value.bc_M, 2, nghost, "Velocity", true);
+        value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, nghost, "Velocity", true);
 
         value.RegisterNewFab(value.Vorticity_mf, value.bc_eta, 1, nghost, "Vorticity", true);
 
-        value.RegisterNewFab(value.Pressure_mf, value.bc_E, 1, nghost, "Pressure", true);
+        value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, nghost, "Pressure", true);
     }
     {
         std::string type = "constant";

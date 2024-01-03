@@ -55,6 +55,18 @@ eta.ic.expression.constant.vel_x = 0.0 # must be consistent with InterfaceVel_x
 eta.ic.expression.constant.vel_y = 0.0 # must be consistent with InterfaceVel_y
 eta.ic.expression.region0 = "1.0" #"0.5 + 0.5*tanh((x - vel_x*t)/eps)"
 
+etaDensity.ic.type = expression
+etaDensity.ic.expression.constant.rho_init = 1.0 #kg/m^3
+etaDensity.ic.expression.region0 = "rho_init"
+
+Velocity.ic.type = expression
+Velocity.ic.expression.region0 = "0.0"
+
+Pressure.ic.type = expression
+Pressure.ic.expression.constant.E_fluid = 2.5
+Pressure.ic.expression.constant.gamma = 1.4
+Pressure.ic.expression.region0 = "E_fluid/(gamma - 1.0)"
+
 ### ETA BC  ###
 
 pf.eta.bc.type.xlo = neumann
@@ -86,35 +98,35 @@ My_init = 0.0
 
 ### HYDRO BC ###
 
-rho.bc.type.xhi = dirichlet
+rho.bc.type.xhi = neumann
 rho.bc.type.xlo = neumann
 rho.bc.type.ylo = neumann
 rho.bc.type.yhi = neumann
 
-rho.bc.val.xhi = 1.0
+rho.bc.val.xhi = 0.0
 rho.bc.val.xlo = 0.0
 rho.bc.val.ylo = 0.0 
 rho.bc.val.yhi = 0.0
 
-E.bc.type.xhi = dirichlet
-E.bc.type.xlo = neumann
-E.bc.type.ylo = neumann
-E.bc.type.yhi = neumann
+p.bc.type.xhi = neumann
+p.bc.type.xlo = neumann
+p.bc.type.ylo = neumann
+p.bc.type.yhi = neumann
 
-E.bc.val.xhi = -2.5
-E.bc.val.xlo = 0.0
-E.bc.val.ylo = 0.0 
-E.bc.val.yhi = 0.0
+p.bc.val.xhi = 0.0
+p.bc.val.xlo = 0.0
+p.bc.val.ylo = 0.0 
+p.bc.val.yhi = 0.0
 
-M.bc.type.xhi = dirichlet neumann
-M.bc.type.xlo = neumann neumann
-M.bc.type.ylo = neumann neumann
-M.bc.type.yhi = neumann neumann
+v.bc.type.xhi = neumann neumann
+v.bc.type.xlo = neumann neumann
+v.bc.type.ylo = neumann neumann
+v.bc.type.yhi = neumann neumann
 
-M.bc.val.xhi = 0.01 0.0
-M.bc.val.xlo = 0.0 0.0
-M.bc.val.ylo = 0.0 0.0
-M.bc.val.yhi = 0.0 0.0
+v.bc.val.xhi = 0.0 0.0
+v.bc.val.xlo = 0.0 0.0
+v.bc.val.ylo = 0.0 0.0
+v.bc.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
