@@ -278,6 +278,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 	    M_mix(i, j, k, 0) = etaM(i, j, k, 0);
 	    M_mix(i, j, k, 1) = etaM(i, j, k, 1);
 
+	    Util::Message(INFO, "Density ", rho_mix(i, j, k));
+
             // Set::Scalar c = sqrt(gamma * p(i, j, k) / rho(i, j, k));
 
             // if (c > c_max) { c_max = c; }
@@ -297,7 +299,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     etaMomentum_old_mf[lev]->FillBoundary();
 
     EnergyMix_mf[lev]->FillBoundary();
-    DensityMix_mf[lev]->FillBoundary();
+    DensityMix_mf[lev]->FillBoundary(rho_fluid);
     MomentumMix_mf[lev]->FillBoundary();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
@@ -335,7 +337,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Solver::Local::Riemann::Roe::State lo_statey(rho_mix(i, j - 1, k), M_mix(i, j - 1, k, 1), M_mix(i, j - 1, k, 0), E_mix(i, j - 1, k), eta(i, j - 1, k));
             Solver::Local::Riemann::Roe::State hi_statey(rho_mix(i, j + 1, k), M_mix(i, j + 1, k, 1), M_mix(i, j + 1, k, 0), E_mix(i, j + 1, k), eta(i, j + 1, k));
 	    
-	    Util::Message(INFO, "lo y rho ", rho_mix(i, j-1, k), " i =  ", i, " j =  ", j);
+	    //Util::Message(INFO, "lo y rho ", rho_mix(i, j-1, k), " i =  ", i, " j =  ", j);
 
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 

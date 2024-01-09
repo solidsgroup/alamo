@@ -34,7 +34,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 100.0
+stop_time = 1.0
 #small    = 1.0e-5
 
 
@@ -56,11 +56,12 @@ eta.ic.expression.constant.vel_y = 0.0 # must be consistent with InterfaceVel_y
 eta.ic.expression.region0 = "1.0" #"0.5 + 0.5*tanh((x - vel_x*t)/eps)"
 
 etaDensity.ic.type = expression
-etaDensity.ic.expression.constant.rho_init = 1.0 #kg/m^3
-etaDensity.ic.expression.region0 = "rho_init"
+etaDensity.ic.expression.constant.rho_fluid = 1.0 #kg/m^3
+etaDensity.ic.expression.region0 = "rho_fluid"
 
 Velocity.ic.type = expression
 Velocity.ic.expression.region0 = "0.0"
+Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
 Pressure.ic.expression.constant.E_fluid = 2.5
