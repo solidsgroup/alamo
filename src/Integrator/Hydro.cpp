@@ -139,6 +139,18 @@ void Hydro::Initialize(int lev)
     ic_Velocity->Initialize(lev, Velocity_mf, 0.0);
     ic_Pressure->Initialize(lev, Pressure_mf, 0.0);
 
+    // for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    // {
+    //     const amrex::Box& bx = mfi.validbox();
+
+    //     amrex::Array4<Set::Scalar> const& etaDensity = (*etaDensity_mf[lev]).array(mfi);
+
+    //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+    //     {
+    // 	  Util::Message(INFO, "eta * Density for j-1 ", etaDensity(i,j-1,k));
+    //     });
+    // }
+
     Util::Message(INFO, eta_mf[lev] -> nComp());
 
     // for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
@@ -244,6 +256,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
+	amrex::Box big_bx = mfi.validbox();
+	big_bx.grow(2);
 
         amrex::Array4<Set::Scalar> const& E_mix = (*EnergyMix_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& rho_mix = (*DensityMix_mf[lev]).array(mfi);
@@ -263,7 +277,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         //Compute mix variables and then primitive variable over entire domain
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(big_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
 	    etaE(i, j, k) = p(i, j, k)/((gamma - 1.0)) + 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
             etaE_new(i, j, k) = etaE(i, j, k);
@@ -278,7 +292,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 	    M_mix(i, j, k, 0) = etaM(i, j, k, 0);
 	    M_mix(i, j, k, 1) = etaM(i, j, k, 1);
 
-	    Util::Message(INFO, "Density ", rho_mix(i, j, k));
+	    //Util::Message(INFO, "Density i-1 ", rho_mix(i-1, j, k));
 
             // Set::Scalar c = sqrt(gamma * p(i, j, k) / rho(i, j, k));
 
@@ -288,19 +302,17 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
     }
     
-    Pressure_mf[lev]->FillBoundary();
-    Velocity_mf[lev]->FillBoundary();
+    // Pressure_mf[lev]->FillBoundary();
+    // Velocity_mf[lev]->FillBoundary();
     
-    etaEnergy_mf[lev]->FillBoundary();
-    etaEnergy_old_mf[lev]->FillBoundary();
-    etaDensity_mf[lev]->FillBoundary();
-    etaDensity_old_mf[lev]->FillBoundary();
-    etaMomentum_mf[lev]->FillBoundary();
-    etaMomentum_old_mf[lev]->FillBoundary();
+    // etaEnergy_mf[lev]->FillBoundary();
+    // etaEnergy_old_mf[lev]->FillBoundary();
+    // etaMomentum_mf[lev]->FillBoundary();
+    // etaMomentum_old_mf[lev]->FillBoundary();
 
-    EnergyMix_mf[lev]->FillBoundary();
-    DensityMix_mf[lev]->FillBoundary(rho_fluid);
-    MomentumMix_mf[lev]->FillBoundary();
+    // EnergyMix_mf[lev]->FillBoundary();
+    // DensityMix_mf[lev]->FillBoundary();
+    // MomentumMix_mf[lev]->FillBoundary();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
@@ -329,6 +341,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+	  //Util::Message(INFO, "Density i-1 ", rho_mix(i-1, j, k));
+	  
             //Godunov flux
             Solver::Local::Riemann::Roe::State state_x(rho_mix(i, j, k), M_mix(i, j, k, 0), M_mix(i, j, k, 1), E_mix(i, j, k), eta(i, j, k));
             Solver::Local::Riemann::Roe::State state_y(rho_mix(i, j, k), M_mix(i, j, k, 1), M_mix(i, j, k, 0), E_mix(i, j, k), eta(i, j, k));

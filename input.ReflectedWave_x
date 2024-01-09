@@ -18,7 +18,7 @@ amr.grid_eff = 0.8
 #amr.refinement_criterion = 0.001
 #amr.refinement_criterion_temp = 275.16
 #amr.refinement_restriction = 0.1
-amr.n_cell = 6 2 0
+amr.n_cell = 60 20 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -33,7 +33,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-3
 stop_time = 1.0
 #small    = 1.0e-5
 
@@ -60,7 +60,7 @@ etaDensity.ic.expression.constant.rho_fluid = 1.0 #kg/m^3
 etaDensity.ic.expression.region0 = "rho_fluid"
 
 Velocity.ic.type = expression
-Velocity.ic.expression.region0 = "0.0"
+Velocity.ic.expression.region0 = "0.005 + 0.005*tanh((x - 0.5)/0.1)"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
