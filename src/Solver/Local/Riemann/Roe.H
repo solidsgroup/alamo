@@ -83,7 +83,7 @@ public:
 
         Set::Scalar drho, dp, dvel;
         dvel = uNorm_hi * hi.eta - uNorm_lo * lo.eta;
-        dp = p_hi - p_lo;
+        dp = (p_hi - p_lo) * eta_RL;
         drho = hi.rho * hi.eta - lo.rho * lo.eta;
 
         std::array <double, 3> dv;
@@ -183,7 +183,7 @@ public:
             Flux plus = Solve(hi, lo, 1.4);
             Flux minus = Solve(lo, hi, 1.4);
 
-            if (fabs(plus.mass - minus.mass) > 1E-10)
+            if (fabs(plus.mass + minus.mass) > 1E-10)
             {
                 Util::Warning(INFO, "mass flux error: plus=", plus.mass, " minus=", minus.mass); failed++;
             }
@@ -193,9 +193,9 @@ public:
             }
             if (fabs(plus.momentum_tangent - minus.momentum_tangent) > 1E-10)
             {                
-Util::Warning(INFO, "momentum y flux error: plus=", plus.momentum_tangent, " minus=", minus.momentum_tangent); failed++;
+                Util::Warning(INFO, "momentum y flux error: plus=", plus.momentum_tangent, " minus=", minus.momentum_tangent); failed++;
             }
-            if (fabs(plus.energy - minus.energy) > 1E-10)
+            if (fabs(plus.energy + minus.energy) > 1E-10)
             {
                 Util::Warning(INFO, "energy flux error: plus=", plus.energy, " minus=", minus.energy); failed++;
             }
@@ -211,7 +211,7 @@ Util::Warning(INFO, "momentum y flux error: plus=", plus.momentum_tangent, " min
 
             if (fabs(pos.mass + neg.mass) > 1E-10)
             {                
-Util::Warning(INFO, "mass flux error: positive vel=", pos.mass, " negative vel=", neg.mass); failed++;
+                Util::Warning(INFO, "mass flux error: positive vel=", pos.mass, " negative vel=", neg.mass); failed++;
             }
             if (fabs(pos.momentum_normal - neg.momentum_normal) > 1E-10)
             {
