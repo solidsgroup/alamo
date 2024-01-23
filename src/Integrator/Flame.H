@@ -68,7 +68,7 @@ private:
     Set::Field<Set::Scalar> heatflux_mf;
 
     Set::Field<Set::Scalar> laser_mf;
-    Set::Field<Set::Scalar> rhs_mf;
+    //Set::Field<Set::Scalar> rhs_mf;
 
     BC::BC<Set::Scalar>* bc_temp;
     BC::BC<Set::Scalar>* bc_eta;

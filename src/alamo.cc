@@ -11,10 +11,12 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Elastic/PseudoLinearCubic.H"
+#include "Model/Solid/Elastic/PseudoLinearCubicPredeformed.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/J2.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
+#include "Integrator/AllenCahn.H"
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
@@ -70,7 +72,7 @@ int main (int argc, char* argv[])
     else if (program == "degradation")          integrator = new Integrator::PolymerDegradation();
     else if (program == "fracture")             integrator = new Integrator::Fracture();
     else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
-    else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
+    //else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();
