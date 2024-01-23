@@ -275,9 +275,10 @@ void Flame::UpdateModel(int /*a_step*/)
 
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.grownnodaltilebox() & domain;
-            //amrex::Box bx = mfi.nodaltilebox();
-            //bx.grow(1);
+            //amrex::Box bx = mfi.grownnodaltilebox() & domain;
+            amrex::Box bx = mfi.nodaltilebox();
+            bx.grow(1);
+            bx = bx & domain;
             amrex::Array4<model_type>        const& model = model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
