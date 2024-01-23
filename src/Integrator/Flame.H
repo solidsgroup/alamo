@@ -68,6 +68,7 @@ private:
     Set::Field<Set::Scalar> heatflux_mf;
 
     Set::Field<Set::Scalar> laser_mf;
+    Set::Field<Set::Scalar> rhs_mf;
 
     BC::BC<Set::Scalar>* bc_temp;
     BC::BC<Set::Scalar>* bc_eta;
@@ -140,6 +141,8 @@ private:
     Set::Scalar area = 0.0;
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
+
+
 
 };
 }

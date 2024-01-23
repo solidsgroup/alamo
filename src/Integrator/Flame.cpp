@@ -109,6 +109,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.heatflux_mf,value.bc_temp, 1, value.ghost_count+ 1, "heatflux", true);
             value.RegisterNewFab(value.laser_mf,value.bc_temp, 1, value.ghost_count+ 1, "laser", true);
 
+            value.RegisterGeneralFab(value.rhs_mf, 1, value.ghost_count+1, "rhs", false);
+
             std::string laser_ic_type = "constant";
             pp.query("laser.ic.type", laser_ic_type);
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
@@ -233,7 +235,10 @@ void Flame::Initialize(int lev)
     ic_phi->Initialize(lev, phi_mf);
     ic_phicell->Initialize(lev, phicell_mf);
 
-    if (elastic.on) psi_mf[lev]->setVal(1.0);
+    if (elastic.on) {
+        psi_mf[lev]->setVal(1.0);
+        rhs_mf[lev]->setVal(0.0);
+    }
     if (thermal.on) {
         temp_mf[lev]->setVal(thermal.bound);
         temp_old_mf[lev]->setVal(thermal.bound);
@@ -273,6 +278,8 @@ void Flame::UpdateModel(int /*a_step*/)
             //bx.grow(1);
             amrex::Array4<model_type>        const& model = model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& rhs = rhs_mf[lev]->array(mfi);
 
             if (elastic.on)
             {
@@ -281,6 +288,8 @@ void Flame::UpdateModel(int /*a_step*/)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
+                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                    rhs(i,j,k) = value.pressure.P * grad_eta;
 
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
