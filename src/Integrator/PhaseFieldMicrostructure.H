@@ -133,23 +133,25 @@ public:
         pp.query("anisotropy.regularization", regularization_type_input);    // Type of regularization to use  
         value.regularization = regularization_type[regularization_type_input];
 
-        // Set the anisotropic GB model
-        pp.query("anisotropy.gb_type", value.gb_type); // Type of GB energy to use
+        pp.query("anisotropy.gb_type", value.gb_type); 
+        // [switch] Set the anisotropic GB model
         if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
         else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
         else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
         else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
         else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
+        // [end switch]
 
-        // Boundary conditions for Etas
         std::string bc_type = "constant";
-        pp.query("bc.eta.type",bc_type);  // Type (constnat)
+        pp.query("bc.eta.type",bc_type);  
+        // [switch] Boundary conditions type for eta
         if (bc_type == "constant")  value.mybc = new BC::Constant(value.number_of_grains,pp,"bc.eta");
         else if (bc_type == "step") value.mybc = new BC::Step(pp,"bc.eta");
+        // [end switch]
 
-        // Initial conditions for Etas
         std::string ic_type = "constant";
-        pp.query("ic.type", ic_type); // IC Type
+        pp.query("ic.type", ic_type); 
+        // [switch ic.type] Initial conditions for Etas
         if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
         else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");
         else if (ic_type == "tabulated_interface") value.ic = new IC::TabulatedInterface(value.geom,pp,"ic");
@@ -157,6 +159,7 @@ public:
         else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
         else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
         else Util::Abort(INFO, "No valid initial condition specified");
+        // [end switch]
 
 
         value.RegisterNewFab(value.eta_new_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);

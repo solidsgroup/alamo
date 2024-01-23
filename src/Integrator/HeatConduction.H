@@ -41,7 +41,9 @@ class HeatConduction : virtual public Integrator
 {
 public:
     // Empty constructor
-    HeatConduction() : Integrator()
+    HeatConduction(int a_nghost = 2) : 
+        Integrator(),
+        number_of_ghost_cells(a_nghost)
     {}
 
     // Constructor that triggers parse

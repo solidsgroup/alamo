@@ -6,6 +6,12 @@
 #@  benchmark-statler = 12.53
 #@  benchmark-github = 18.75
 #@  
+#@  [perturbed-interface-coverage]
+#@  dim = 2
+#@  check = false
+#@  args=stop_time=0.02
+#@  coverage = true
+#@  
 
 alamo.program = microstructure
 

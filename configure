@@ -101,6 +101,7 @@ parser.add_argument('--python',dest='python',nargs='?',const=python_version,help
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
+parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 #parser.add_argument('--jit',dest='jit',action='store_true',default=False)
@@ -126,6 +127,7 @@ postfix += str(args.dim)+"d"
 if args.debug: postfix += "-debug"
 if fpic: postfix += "-fpic"
 if args.profile: postfix += "-profile"
+if args.coverage: postfix += "-coverage"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
 
@@ -339,8 +341,12 @@ else:
 if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+    if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
+
+    if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
+    elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
 if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")

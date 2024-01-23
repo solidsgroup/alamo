@@ -3,6 +3,13 @@
 #@  nprocs = 1
 #@  check  = true
 #@ 
+#@  [2D-serial-coverage]
+#@  dim    = 2 
+#@  nprocs = 1
+#@  check  = false
+#@  coverage = true
+#@  args=solver.fixed_iter = 1
+#@
 #@  [3D-parallel]
 #@  dim    = 3
 #@  nprocs = 4
