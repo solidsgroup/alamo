@@ -134,6 +134,7 @@ private:
         int on = 0;
         Set::Scalar Tref = 300.0;
         model_type model_ap, model_htpb;
+        Set::Scalar traction = 0.0;
     } elastic;
 
     // Integrated variables

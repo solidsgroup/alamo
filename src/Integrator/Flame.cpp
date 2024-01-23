@@ -68,7 +68,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
         pp.query("elastic.on", value.elastic.on);
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
-
+        pp.query("elastic.traction", value.elastic.traction);
 
         if (value.thermal.on) {
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
@@ -281,7 +281,7 @@ void Flame::UpdateModel(int /*a_step*/)
             bx = bx & domain;
             amrex::Array4<model_type>        const& model = model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& eta = eta_old_mf[lev]->array(mfi);
             amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
 
             if (elastic.on)
@@ -294,7 +294,7 @@ void Flame::UpdateModel(int /*a_step*/)
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX, sten);
 
-                    rhs(i,j,k) = pressure.P * grad_eta / 100.0;
+                    rhs(i,j,k) = elastic.traction * grad_eta;
 
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
