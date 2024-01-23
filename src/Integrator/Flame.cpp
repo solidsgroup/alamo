@@ -288,10 +288,12 @@ void Flame::UpdateModel(int /*a_step*/)
                 amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    auto sten = Numeric::GetStencil(i, j, k, bx);
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                    rhs(i,j,k) = pressure.P * grad_eta;
+                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX, sten);
+
+                    rhs(i,j,k) = pressure.P * grad_eta / 100.0;
 
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
