@@ -7,7 +7,7 @@
 #@ [serial-2d-coverage]
 #@ dim=2
 #@ check=false
-#@ aregs=stop_time=0.1
+#@ args=stop_time=0.1
 #@ coverage=true
 #@
 #@ [parallel-2d]

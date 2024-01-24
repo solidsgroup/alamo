@@ -89,8 +89,8 @@ def validate(path,
 
         relerr = err/mag
 
-        print("{} abs error".format(var),err)
-        print("{} rel error".format(var),relerr)
+        print("{} abs error [tolerance={}]".format(var,tol),err)
+        print("{} rel error [tolerance={}]".format(var,tol),relerr)
         
         if relerr > tol: all_ok = False
         if math.isnan(relerr): all_ok = False

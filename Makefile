@@ -202,7 +202,7 @@ cov-report: cov/index.html
 	@echo "Done - output in cov/index.html"
 
 cov-clean: .FORCE
-	rm -rf $(GCDA) $(GCNO)
+	rm -rf $(GCDA)
 	rm -rf ./cov
 
 cov/index.html: cov/coverage_merged.info

@@ -1,3 +1,19 @@
+#@
+#@  [2D-serial-5levels]
+#@  dim    = 2
+#@  nprocs = 1
+#@  args   = stop_time=0.1
+#@  check  = true
+#@  benchmark-beaker = 53.27
+#@
+#@  [2D-serial-5levels-coverage]
+#@  dim    = 2
+#@  nprocs = 1
+#@  args   = stop_time=0.001
+#@  check  = false
+#@  coverage = true
+#@
+
 alamo.program = mechanics
 alamo.program.mechanics.model = affine.isotropic
 
@@ -40,18 +56,14 @@ ic.ellipse.x0  = 0 0 0 # location of ellipse center
 ic.ellipse.eps = 0.1 # diffuse boundary
 
 # elastic moduli
-elastic.nmodels = 2
-elastic.model1.E = 210 
-elastic.model1.nu = 0.3
-elastic.model1.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
-elastic.model2.E = 210 
-elastic.model2.nu = 0.3
-elastic.model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
+nmodels = 2
+model1.E = 210 
+model1.nu = 0.3
+model1.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
+model2.E = 210 
+model2.nu = 0.3
+model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
 
-elastic.solver.verbose = 3
-elastic.solver.nriters = 1
-elastic.solver.max_iter = 20
-
-elastic.ref_threshold = 1000000000
+ref_threshold = 1000000000
 
 viscous.mu = 25
