@@ -72,7 +72,7 @@ int main (int argc, char* argv[])
     else if (program == "degradation")          integrator = new Integrator::PolymerDegradation();
     else if (program == "fracture")             integrator = new Integrator::Fracture();
     else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
-    //else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
+    else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();
