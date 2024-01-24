@@ -291,7 +291,7 @@ void Flame::UpdateModel(int /*a_step*/)
                     //auto sten = Numeric::GetStencil(i, j, k, bx);
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     rhs(i,j,k) = elastic.traction * grad_eta;
                     
                     model_type model_ap = elastic.model_ap;
