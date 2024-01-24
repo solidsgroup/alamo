@@ -32,6 +32,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("rho_solid", value.rho_solid);
         pp.query("rho_fluid", value.rho_fluid);
 
+	pp.query("E_solid", value.E_solid);
+
         pp.query("eps", value.eps);
 
         pp.query("mdot", value.mdot);
@@ -156,7 +158,7 @@ void Hydro::Initialize(int lev)
 	  etarho_old(i, j, k) = etarho(i, j, k);
 	  
     	  etaE(i, j, k) = p(i, j, k) * eta(i, j, k)/(gamma - 1.0) + 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
-	  E_mix(i, j, k) = etaE(i, j, k) + (1.0 - eta(i, j, k)) * p(i, j, k)/(gamma - 1.0);
+	  E_mix(i, j, k) = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;
 	  etaE_old(i, j, k) = etaE(i, j, k);
 	    
 	  etaM(i, j, k, 0) = etarho(i, j, k) * v(i, j, k, 0);
@@ -342,7 +344,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             // Solid Stand-In
             rho_mix(i, j, k)  = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
-            E_mix(i, j, k)    = etaE_new(i, j, k)   + (1.0 - eta_new(i, j, k)) * p(i, j, k)/(gamma - 1.0);
+            E_mix(i, j, k)    = etaE_new(i, j, k)   + (1.0 - eta_new(i, j, k)) * E_solid;
             M_mix(i, j, k, 0) = etaM_new(i, j, k, 0);
             M_mix(i, j, k, 1) = etaM_new(i, j, k, 1);
         });

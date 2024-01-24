@@ -64,14 +64,13 @@ public:
         if (std::isnan(a_RL2)) Util::Abort(INFO);
         if (a_RL2 < 0.0) Util::Abort(INFO);
         Set::Scalar a_RL = std::sqrt(a_RL2);
-        Set::Scalar eta_RL = (std::sqrt(hi.rho) * hi.eta + std::sqrt(lo.rho) * lo.eta) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
 
         // flux
         Flux fl;
         fl.mass = 0.5 * (lo.rho * uNorm_lo * lo.eta + hi.rho * uNorm_hi * hi.eta);
-        fl.momentum_normal = 0.5 * (lo.rho * uNorm_lo * uNorm_lo * lo.eta + hi.rho * uNorm_hi * uNorm_hi * hi.eta) + 0.5 * (p_lo + p_hi) * eta_RL;
+        fl.momentum_normal = 0.5 * (lo.rho * uNorm_lo * uNorm_lo * lo.eta + hi.rho * uNorm_hi * uNorm_hi * hi.eta) + 0.5 * (p_lo + p_hi);
         fl.momentum_tangent = 0.5 * (lo.rho * uTang_lo * uNorm_lo * lo.eta + hi.rho * uTang_hi * uNorm_hi * hi.eta);
-        fl.energy = 0.5 * (uNorm_lo * ke_lo * lo.eta + uNorm_hi * ke_hi * hi.eta) + 0.5 * (uNorm_lo * (ue_lo + p_lo) + uNorm_hi * (ue_hi + p_hi)) * eta_RL;
+        fl.energy = 0.5 * (uNorm_lo * ke_lo * lo.eta + uNorm_hi * ke_hi * hi.eta) + 0.5 * (uNorm_lo * (ue_lo + p_lo) + uNorm_hi * (ue_hi + p_hi));
 
         //compute eigenvalues
         std::array <double, 3> ev;
@@ -83,7 +82,7 @@ public:
 
         Set::Scalar drho, dp, dvel;
         dvel = uNorm_hi * hi.eta - uNorm_lo * lo.eta;
-        dp = (p_hi - p_lo) * eta_RL;
+        dp = (p_hi - p_lo);
         drho = hi.rho * hi.eta - lo.rho * lo.eta;
 
         std::array <double, 3> dv;

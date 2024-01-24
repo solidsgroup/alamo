@@ -34,7 +34,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-3
-stop_time = 2.0
+stop_time = 5.0
 #small    = 1.0e-5
 
 
@@ -50,7 +50,7 @@ InterfaceVel_x = 0.0
 InterfaceVel_y = 0.0
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps = 0.1
+eta.ic.expression.constant.eps = 0.001
 eta.ic.expression.constant.vel_x = 0.0 # must be consistent with InterfaceVel_x
 eta.ic.expression.constant.vel_y = 0.0 # must be consistent with InterfaceVel_y
 eta.ic.expression.region0 = "1.0 - (0.5 + 0.5*tanh((x - vel_x*t - 1.0)/eps))"
@@ -64,13 +64,16 @@ mu = 0.0
 rho_solid = 1000.0 #kg/m^3
 rho_fluid = 1.0 #kg/m^3
 
+E_solid = 5.0
+
 Velocity.ic.type = expression
-Velocity.ic.expression.region0 = "(0.001 - 0.001*tanh((x + 1.0)/0.05))" #* (1.0 - (0.5 + 0.5*tanh((x - 1.0)/0.1)))"
+Velocity.ic.expression.region0 = "(0.001 - 0.001*tanh((x + 1.0)/0.01))" #* (1.0 - (0.5 + 0.5*tanh((x - 1.0)/0.01)))"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
 Pressure.ic.expression.constant.gamma = 1.4
-Pressure.ic.expression.region0 = "2.0"
+Pressure.ic.expression.constant.E_solid = 5.0
+Pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
 
 ### ETA BC  ###
 
