@@ -162,7 +162,7 @@ void Hydro::Initialize(int lev)
 	  etaE_old(i, j, k) = etaE(i, j, k);
 	    
 	  etaM(i, j, k, 0) = etarho(i, j, k) * v(i, j, k, 0);
-	  etaM(i, j, k, 1) = 0.0;//etarho(i, j, k) * v(i, j, k, 1);
+	  etaM(i, j, k, 1) = etarho(i, j, k) * v(i, j, k, 1);
 	  etaM_old(i, j, k, 0) = etaM(i, j, k, 0);
 	  etaM_old(i, j, k, 1) = etaM(i, j, k, 1);
 	  M_mix(i, j, k, 0) = etaM(i, j, k, 0);
@@ -285,24 +285,24 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Godunov fluxes
             etaE_new(i, j, k) =
-                etaE(i, j, k)
-	      + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0];
-	    //+ (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
+	      etaE(i, j, k)
+	      + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
+	      + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
 
             etarho_new(i, j, k) =
-                etarho(i, j, k)
-	      + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0];
-	    //+ (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
+	      etarho(i, j, k)
+	      + (flux_xlo.mass - flux_xhi.mass) * dt / DX[0]
+	      + (flux_ylo.mass - flux_yhi.mass) * dt / DX[1];
 
             etaM_new(i, j, k, 0) =
-                etaM(i, j, k, 0)
-	      + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0];
-	    //+ (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1];
+	      etaM(i, j, k, 0)
+	      + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0]
+	      + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1];
 
-            etaM_new(i, j, k, 1) = 0.0;
-	      // etaM(i, j, k, 1);
-	    // + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0];
-	    // + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1];
+            etaM_new(i, j, k, 1) =
+	      etaM(i, j, k, 1)
+	      + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
+	      + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1];
 
             ///////////////////////////
             ///////VISCOUS TERMS///////

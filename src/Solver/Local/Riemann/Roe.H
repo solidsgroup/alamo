@@ -34,7 +34,6 @@ public:
         Set::Scalar momentum_tangent;
     };
 
-
     // todo: convert to static functor by replacing with static () when c++23 is released
     static Flux Solve(State lo, State hi, Set::Scalar gamma) {
         Set::Scalar uNorm_lo = lo.momentum_normal / lo.rho;
@@ -109,6 +108,7 @@ public:
         //upwinding term 
         fl.mass += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
         fl.momentum_normal += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
+	fl.momentum_tangent += 0.0;
         fl.energy += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
 
         return fl;
