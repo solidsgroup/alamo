@@ -151,8 +151,13 @@ void Hydro::Initialize(int lev)
 
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 
+	const Set::Scalar* DX = geom[lev].CellSize();
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+	  Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+          Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+	  
 	  rho_mix(i, j, k) = eta(i, j, k) * rho_fluid + (1.0 - eta(i, j, k)) * rho_solid;
 	  etarho(i, j, k) = eta(i, j, k) * rho_fluid;
 	  etarho_old(i, j, k) = etarho(i, j, k);
@@ -276,12 +281,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
             //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, gamma);
-            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, gamma);
+            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, gamma, eta(i, j, k));
+            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, gamma, eta(i, j, k));
 
             //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma);
-            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma);
+            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma, eta(i, j, k));
+            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma, eta(i, j, k));
 
             //Godunov fluxes
             etaE_new(i, j, k) =
@@ -332,10 +337,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             omega(i, j, k) = (grad_uy(0) - grad_ux(1)) * eta(i, j, k);
 
             std::array<Set::Scalar, 4> source;
-            source[0] = mdot * grad_eta_mag * dt;
-            source[1] = mu * omega(i, j, k) * (grad_eta(1)) * dt + Pdot_x * grad_eta(0) * dt;
-            source[2] = mu * omega(i, j, k) * (-grad_eta(0)) * dt + Pdot_y * grad_eta(1) * dt;
-            source[3] = Qdot * grad_eta_mag * dt;
+            source[0] = mdot * grad_eta(0) * dt;
+            source[1] = Pdot_x * grad_eta_mag * dt;
+            source[2] = Pdot_y * grad_eta(1) * dt;
+            source[3] = Qdot * grad_eta(0) * dt;
 
             etaE_new(i, j, k)    += source[3] + E_mix(i, j, k) * etadot(i, j, k) * dt;
             etarho_new(i, j, k)  += source[0] + rho_mix(i, j, k) * etadot(i, j, k) * dt;
