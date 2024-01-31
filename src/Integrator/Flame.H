@@ -86,7 +86,7 @@ private:
     Set::Scalar base_time = 1.0e-4;
     IC::IC* ic_eta;
     int ghost_count = 2;
-    int homogeneousSystem = 0; 
+    int homogeneousSystem = 0;
     struct {
         Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;
@@ -106,7 +106,7 @@ private:
             int mob_ap = 0;
             int dependency = 1;
             Set::Scalar h1 = 1.81, h2 = 1.34;
-            
+
         } arrhenius;
         struct {
             Set::Scalar r_ap = 0.0, r_htpb = 0.0, r_comb = 0.0;
@@ -128,6 +128,9 @@ private:
         Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0, mlocal_comb = 0.0;
         Set::Scalar T_fluid = 300.0;
         Set::Scalar massfraction = 0.8;
+        Set::Scalar disperssion1 = 0.93;
+        Set::Scalar disperssion2 = 920.;
+        Set::Scalar disperssion3 = 2418.29;
     } thermal;
 
     struct {
@@ -135,6 +138,7 @@ private:
         Set::Scalar Tref = 300.0;
         model_type model_ap, model_htpb;
         Set::Scalar traction = 0.0;
+        int phirefinement = 1;
     } elastic;
 
     // Integrated variables

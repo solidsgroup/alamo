@@ -47,7 +47,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, value.ghost_count, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
-
         std::string eta_bc_str = "constant";
         pp.query("pf.eta.ic.type", eta_bc_str);
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
@@ -56,11 +55,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         std::string eta_ic_type = "constant";
         pp.query("eta.ic.type", eta_ic_type);
         if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
-        else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.consntant");
+        else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
         else if (eta_ic_type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
         else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
-
     }
 
     {
@@ -69,6 +67,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("elastic.on", value.elastic.on);
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
         pp.query("elastic.traction", value.elastic.traction);
+        pp.query("elastic.phirefinement", value.elastic.phirefinement);
 
         if (value.thermal.on) {
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
@@ -94,6 +93,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             pp.query("thermal.T_fluid", value.thermal.T_fluid); // Temperature of the Standin Fluid 
 
+            pp.query("thermal.disperssion1", value.thermal.disperssion1); // K; dispersion variables are use to set the outter field properties for the void grain case.
+            pp.query("thermal.disperssion1", value.thermal.disperssion2); // rho; dispersion variables are use to set the outter field properties for the void grain case.
+            pp.query("thermal.disperssion1", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
+
             pp.query("thermal.modeling_ap", value.thermal.modeling_ap);
             pp.query("thermal.modeling_htpb", value.thermal.modeling_htpb);
 
@@ -117,7 +120,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
             else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
             else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
-
         }
     }
 
@@ -134,12 +136,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.c1", value.pressure.arrhenius.c1);
             pp.query("pressure.mob_ap", value.pressure.arrhenius.mob_ap);
             pp.query("pressure.dependency", value.pressure.arrhenius.dependency);
-
-
             pp.query("pressure.h1", value.pressure.arrhenius.h1);
             pp.query("pressure.h2", value.pressure.arrhenius.h2);
             pp.query("homogeneousSystem", value.homogeneousSystem);
-
         }
         else
         {
@@ -167,43 +166,45 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
         // specified using these parameters. 
         //IO::ParmParse pp("phi.ic");
-        std::string type = "packedspheres";
-        pp.query("phi.ic.type", type); // IC type (psread, laminate, constant)
-        if (type == "psread") {
+        std::string phi_ic_type = "packedspheres";
+        pp.query("phi.ic.type", phi_ic_type); // IC type (psread, laminate, constant)
+        if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             pp.query("phi.ic.psread.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
-        else if (type == "cuboid") {
+        else if (phi_ic_type == "cuboid") {
             value.ic_phi = new IC::Cuboid(value.geom, pp, "phi.ic.cuboid");
             value.ic_phicell = new IC::Cuboid(value.geom, pp, "phi.ic.cuboid");
             pp.query("phi.ic.cuboid.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
-        else if (type == "laminate") {
+        else if (phi_ic_type == "laminate") {
             value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             pp.query("phi.ic.laminate.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
-        else if (type == "expression") {
+        else if (phi_ic_type == "expression") {
             value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
             value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
             pp.query("phi.zeta_0", value.zeta_0);
             pp.query("phi.zeta", value.zeta);
         }
-        else if (type == "constant") {
+        else if (phi_ic_type == "constant") {
             value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
             value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
+            pp.query("phi.zeta_0", value.zeta_0);
+            pp.query("phi.zeta", value.zeta);
         }
-        else if (type == "bmp") {
+        else if (phi_ic_type == "bmp") {
             value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             pp.query("phi.zeta_0", value.zeta_0);
             pp.query("phi.zeta", value.zeta);
         }
-        else Util::Abort(INFO, "Invalid IC type ", type);
+        else Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
         value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
         value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
@@ -222,7 +223,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", true);
         value.psi_on = true;
     }
-
 }
 
 void Flame::Initialize(int lev)
@@ -262,7 +262,6 @@ void Flame::UpdateModel(int /*a_step*/)
 
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-
         amrex::Box domain = this->geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
         const Set::Scalar* DX = geom[lev].CellSize();
@@ -320,7 +319,6 @@ void Flame::UpdateModel(int /*a_step*/)
                 });
             }
         }
-
         Util::RealFillBoundary(*model_mf[lev], geom[lev]);
 
         psi_mf[lev]->setVal(1.0);
@@ -398,16 +396,26 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
 
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
-                    //if (eta(i,j,k) <= 0.0) eta(i,j,k) = 0.0;
-                    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
-                    Set::Scalar rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
-                    Set::Scalar cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
+                    Set::Scalar K; // Calculate effective thermal conductivity
+                    Set::Scalar rho; // No special interface mixure rule is needed here.
+                    Set::Scalar cp;
+                    if (homogeneousSystem) {
+                        K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg); // Calculate effective thermal conductivity
+                        rho = (thermal.rho_ap * thermal.massfraction + thermal.rho_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion2 * (1. - phi_avg); // No special interface mixure rule is needed here.
+                        cp = (thermal.cp_ap * thermal.massfraction + thermal.cp_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion3 * (1. - phi_avg);
+                    }
+                    else {
+                        K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
+                        rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
+                        cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
+                    }
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
                     if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
-                    alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
 
+                    alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
+
                     if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
                         Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
                         Util::Message(INFO, mdot(i, j, k), "mdot contains nan (i=", i, " j= ", j, ")");
@@ -420,17 +428,22 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
                     //phi_avg = phicell(i,j,k);
-
-                    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
+                    Set::Scalar K;
                     Set::Scalar qflux = k1 * phi_avg +
                         k2 * (1.0 - phi_avg) +
                         (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
                     Set::Scalar mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
                     Set::Scalar mdota = fabs(mdot(i, j, k));
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
-                    heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
 
-                    if (homogeneousSystem) heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * (k4 * phi_avg)) / K;
+                    if (homogeneousSystem) {
+                        K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg);
+                        heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * (k4 * phi_avg)) / K;
+                    }
+                    else {
+                        K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
+                        heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
+                    }
 
                     if (isnan(heatflux(i, j, k))) {
                         Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
@@ -551,18 +564,20 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     }
 
     // Phi criterion for refinement 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<char> const& tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+    if (elastic.phirefinement) {
+        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
-            Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-            if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)
-                tags(i, j, k) = amrex::TagBox::SET;
-        });
+            const amrex::Box& bx = mfi.tilebox();
+            amrex::Array4<char> const& tags = a_tags.array(mfi);
+            amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
+                if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)
+                    tags(i, j, k) = amrex::TagBox::SET;
+            });
+        }
     }
 
 
