@@ -27,7 +27,6 @@
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/TopOp.H"
 #include "Integrator/Dendrite.H"
-#include "Integrator/Hydro.H"
 
 int main (int argc, char* argv[])
 {

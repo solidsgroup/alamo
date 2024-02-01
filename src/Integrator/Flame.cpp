@@ -173,12 +173,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("phi.ic.psread.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
-        else if (phi_ic_type == "cuboid") {
-            value.ic_phi = new IC::Cuboid(value.geom, pp, "phi.ic.cuboid");
-            value.ic_phicell = new IC::Cuboid(value.geom, pp, "phi.ic.cuboid");
-            pp.query("phi.ic.cuboid.eps", value.zeta);
-            pp.query("phi.zeta_0", value.zeta_0);
-        }
         else if (phi_ic_type == "laminate") {
             value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
