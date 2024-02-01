@@ -83,7 +83,7 @@ public:
 
         Set::Scalar drho, dp, dvel;
         dvel = uNorm_hi * hi.eta - uNorm_lo * lo.eta;
-        dp = (p_hi - p_lo);
+        dp = (p_hi - p_lo) * cell_eta;
         drho = hi.rho * hi.eta - lo.rho * lo.eta;
 
         std::array <double, 3> dv;
@@ -108,10 +108,10 @@ public:
         rev_2[2] = -(rho_RL / 2 / a_RL) * (h_RL - a_RL * u_RL);
 
         //upwinding term 
-        fl.mass += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
-        fl.momentum_normal += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
-	fl.momentum_tangent += 0.0;
-        fl.energy += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
+        fl.mass             += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
+        fl.momentum_normal  += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
+	fl.momentum_tangent += 0.0;//-0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
+        fl.energy           += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
 
         return fl;
     }

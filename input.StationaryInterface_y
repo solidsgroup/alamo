@@ -18,16 +18,16 @@ amr.grid_eff = 0.8
 #amr.refinement_criterion = 0.001
 #amr.refinement_criterion_temp = 275.16
 #amr.refinement_restriction = 0.1
-amr.n_cell = 160 20 0
+amr.n_cell = 20 160 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
-#amr.n_cell = 128 32 0
+#amr.n_cell = 32 128 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -3.0 -0.5 0.0 # [ m ] 
-geometry.prob_hi =  5.0  0.5 0.0 # [ m ]
+geometry.prob_lo = -0.5 -3.0 0.0 # [ m ] 
+geometry.prob_hi =  0.5  5.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -43,8 +43,8 @@ stop_time = 20.0
 eps = 0.05
 
 rho_interface     = 100
-v_x_interface     = 0.001
-v_y_interface     = 0.0 
+v_x_interface     = 0.0
+v_y_interface     = 0.001
 delta_p_interface = 0.0
 
 InterfaceVel_x = 0.0
@@ -54,7 +54,7 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.05
 eta.ic.expression.constant.vel_x = 0.0 # must be consistent with InterfaceVel_x
 eta.ic.expression.constant.vel_y = 0.0 # must be consistent with InterfaceVel_y
-eta.ic.expression.region0 = "0.5 + 0.5*tanh((x - vel_x*t + 1.5)/eps)"
+eta.ic.expression.region0 = "0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
 
 ### HYDRO PARAM ###
 

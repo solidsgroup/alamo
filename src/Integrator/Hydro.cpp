@@ -262,6 +262,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {
 	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+
+	    //Compute New Primitive Variables
+	    v(i, j, k, 0)  = M_mix(i, j, k, 0)/rho_mix(i, j, k);
+	    v(i, j, k, 1)  = M_mix(i, j, k, 1)/rho_mix(i, j, k);
+	    p(i, j, k)     = (E_mix(i, j, k) - 0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1);
 	    
             //Godunov flux
             Solver::Local::Riemann::Roe::State state_x(rho_mix(i, j, k), M_mix(i, j, k, 0), M_mix(i, j, k, 1), E_mix(i, j, k), eta(i, j, k));
@@ -339,10 +344,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             etaM_new(i, j, k, 0) = eta(i, j, k) * M_mix(i, j, k, 0);
             etaM_new(i, j, k, 1) = eta(i, j, k) * M_mix(i, j, k, 1);
 
-            //Compute New Primitive Variables
-	    v(i, j, k, 0)  = M_mix(i, j, k, 0)/rho_mix(i, j, k);
-	    v(i, j, k, 1)  = M_mix(i, j, k, 1)/rho_mix(i, j, k);
-	    p(i, j, k)     = (E_mix(i, j, k) - 0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1);
 	    omega(i, j, k) = (grad_uy(0) - grad_ux(1));
 	    
         });
