@@ -83,7 +83,6 @@
 #include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "IC/PSRead.H"
-#include "IC/Cuboid.H"
 #include "IC/Constant.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
