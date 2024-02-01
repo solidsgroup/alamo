@@ -65,7 +65,6 @@ int main (int argc, char* argv[])
         else Util::Abort(INFO,model," is not a valid model");
     }
     else if (program == "flame")                integrator = new Integrator::Flame(pp);
-    else if (program == "hydro")                integrator = new Integrator::Hydro(pp);
     else if (program == "topop")                integrator = new Integrator::TopOp<Model::Solid::Linear::Isotropic>(pp);
     else if (program == "heat")                 integrator = new Integrator::HeatConduction(pp);
     else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
