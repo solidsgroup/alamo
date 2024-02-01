@@ -51,17 +51,6 @@ public:
         m_defined = false;
     }
 
-    //void setVerbose(int verbosity)
-    //{
-        //m_verbose = verbosity;
-        //MLMG::setVerbose(m_verbose-1);
-        //if (m_verbose > 4) MLMG::setBottomVerbose(m_verbose);
-        //else
-        //{
-        //    MLMG::setBottomVerbose(0);
-        //}
-    //}
-
     Set::Scalar solveaffine(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_sol,
         amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_rhs,
         Real a_tol_rel, Real a_tol_abs, bool copyrhs = false,
@@ -156,11 +145,7 @@ public:
             if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
             if (m_abort_on_fail) Util::Abort(INFO, e.what());
         }
-        //if (a_sol[0]->contains_nan()) 
-        //{
-        //    dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
-        //    Util::Abort(INFO);
-        //}
+
         return retval;
     };
     Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_sol,
@@ -247,11 +232,6 @@ public:
 
     //using MLMG::solve;
 protected:
-    //Operator::Operator<Grid::Node> &linop;
-    //int m_verbose = 0;
-    //Set::Scalar m_tol_rel = 1E-8, m_tol_abs = 1E-8;
-
-
     int max_iter = -1;
     int bottom_max_iter = -1;
     int max_fmg_iter = -1;
