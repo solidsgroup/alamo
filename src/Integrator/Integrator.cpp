@@ -794,8 +794,8 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
             for (int i = 0; i < cell.number_of_fabs; i++)
             {
                 if (!cell.writeout_array[i]) continue;
-                //if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,cnames[i]," contains nan (i=",i,")");
-                //if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
+                if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,cnames[i]," contains nan (i=",i,")");
+                if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
                 amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
                 n += cell.ncomp_array[i];
             }
@@ -851,8 +851,8 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
             for (int i = 0; i < node.number_of_fabs; i++)
             {
                 if (!node.writeout_array[i]) continue;
-                //if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
-                //if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
+                if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
+                if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
                 amrex::MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
                 n += node.ncomp_array[i];
             }
@@ -870,8 +870,8 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
                 for (int i = 0; i < cell.number_of_fabs; i++)
                 {
                     if (!cell.writeout_array[i]) continue;
-                    //if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,cnames[i]," contains nan (i=",i,"). Resetting to zero.");
-                    //if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
+                    if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,cnames[i]," contains nan (i=",i,"). Resetting to zero.");
+                    if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
                     if ((*cell.fab_array[i])[ilev]->nGrow()==0)
                     {
                         if (initial) Util::Warning(INFO,cnames[i]," has no ghost cells and will not be included in nodal output");
