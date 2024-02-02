@@ -37,7 +37,7 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 
 CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
 
-LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
+LINKER_FLAGS += -Bsymbolic-functions
 
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     += -L${AMREX}/lib/ -lamrex -lpthread

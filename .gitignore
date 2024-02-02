@@ -40,3 +40,5 @@ amrex.build.log
 eigen3
 IAMR
 obj
+cov
+githubpages
