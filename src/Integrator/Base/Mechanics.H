@@ -133,12 +133,6 @@ protected:
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
         if (m_interval && a_step % m_interval) return;
 
-
-        UpdateModel(a_step);
-
-        if (m_type != Mechanics<MODEL>::Type::Static) return;
-        if (a_time < tstart) return;
-
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
@@ -147,6 +141,9 @@ protected:
         }
 
         UpdateModel(a_step);
+
+        if (m_type != Mechanics<MODEL>::Type::Static) return;
+        if (a_time < tstart) return;
 
         bc->SetTime(a_time);
         bc->Init(rhs_mf, geom);
