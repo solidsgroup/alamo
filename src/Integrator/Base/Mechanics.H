@@ -107,6 +107,9 @@ public:
         // Set this to true to zero out the displacement before each solve.
         // (This is a temporary fix - we need to figure out why this is needed.)
         pp.query("zero_out_displacement", value.m_zero_out_displacement);
+
+        // Time to start doing the elastic solve
+        pp.query("tstart", value.tstart);
     }
 
 protected:
@@ -130,17 +133,17 @@ protected:
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
         if (m_interval && a_step % m_interval) return;
 
-
-        UpdateModel(a_step);
-
-        if (m_type != Mechanics<MODEL>::Type::Static) return;
-
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
             rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
+
+        UpdateModel(a_step);
+
+        if (m_type != Mechanics<MODEL>::Type::Static) return;
+        if (a_time < tstart) return;
 
         bc->SetTime(a_time);
         bc->Init(rhs_mf, geom);
@@ -381,6 +384,8 @@ protected:
     int m_max_coarsening_level = -1;
 
     bool m_zero_out_displacement = false;
+
+    Set::Scalar tstart = -1;
 };
 }
 }

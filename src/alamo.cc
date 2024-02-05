@@ -57,6 +57,7 @@ int main (int argc, char* argv[])
         else if (model == "affine.isotropic")   integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>(pp);
         else if (model == "linear.laplacian")   integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>(pp);
         else if (model == "elastic.neohookean") integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>(pp);
+        else if (model == "elastic.neohookeanpre") integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookeanPredeformed>(pp);
         else if (model == "elastic.pseudolinearcubic") integrator = new Integrator::Mechanics<Model::Solid::Elastic::PseudoLinearCubic>(pp);
         else if (model == "elastic.pseudolinearcubicpredeformed") integrator = new Integrator::Mechanics<Model::Solid::Elastic::PseudoLinearCubicPredeformed>(pp);
         else if (model == "affine.j2")          integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>(pp);

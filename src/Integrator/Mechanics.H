@@ -82,6 +82,8 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/PSRead.H"
+#include "IC/Constant.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
@@ -129,15 +131,17 @@ public:
 
 
         // Read in IC for eta
-        if (pp.contains("ic.type"))
+        if (nmodels>1 && pp.contains("ic.type"))
         {
             std::string type;
             pp.query("ic.type", type); // Read IC type for the eta field
             if (type == "ellipse")    value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
+            else if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "ic.constant");
             else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
             else if (type == "bmp")        value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
             else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
-            else Util::Abort(INFO,"Invalid valud for ic.type: ",type);
+            else if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
+            else Util::Abort(INFO,"Invalid value for ic.type: ",type);
             
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.
@@ -154,6 +158,7 @@ public:
             if (type == "ellipse")         value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant")   value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else if (type == "expression") value.ic_psi = new IC::Expression(value.geom, pp, "psi.ic.expression");
+            else if (type == "psread")     value.ic_eta = new IC::PSRead(value.geom, pp, "psi.ic.psread");
             else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);
 
             value.bc_psi = new BC::Nothing();
