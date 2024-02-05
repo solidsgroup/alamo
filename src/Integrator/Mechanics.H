@@ -141,7 +141,7 @@ public:
             else if (type == "bmp")        value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
             else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
             else if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
-            else Util::Abort(INFO,"Inval id value for ic.type: ",type);
+            else Util::Abort(INFO,"Invalid value for ic.type: ",type);
             
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.

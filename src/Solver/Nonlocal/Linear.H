@@ -145,7 +145,6 @@ public:
             if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol), GetVecOfConstPtrs(a_rhs));
             if (m_abort_on_fail) Util::Abort(INFO, e.what());
         }
-
         return retval;
     };
     Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> >& a_sol,

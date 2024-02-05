@@ -138,6 +138,8 @@ public:
             value.A.resize(0);
             value.eps.resize(0);
 
+            if (pp.contains("center") && pp.contains("x0")) Util::Abort(INFO,"Cannot specify both center (depricated) and x0");
+            pp.queryarr("center", x0); // center of the ellipse
             pp.queryarr("x0", x0); // center of the ellipse
             
             if(x0.size() != value.number_of_inclusions*AMREX_SPACEDIM){
@@ -202,7 +204,6 @@ public:
                     }
                 }
             }
-
 
             amrex::Vector<Set::Scalar> _eps;
             pp.queryarr("eps",_eps); // Regularization for smooth boundary
