@@ -82,6 +82,7 @@ def validate(path,
         pylab.clf()
         pylab.plot(ref_x,ref_var,color='C0',label='ref')
         pylab.plot(new_x,new_var,color='C1',label='new',linestyle='--')
+        pylab.legend()
         pylab.savefig(outdir+"/{}.png".format(var))
         
         err = numpy.sqrt(integrate(ref_x, (numpy.interp(ref_x, new_x, new_var) - ref_var)**2))

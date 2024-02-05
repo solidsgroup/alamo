@@ -43,7 +43,6 @@ if dim == 2:
     pylab.plot(new.x,new.eta,color='C1',label='new',linestyle='--')
     pylab.savefig("{}/etas.png".format(outdir))
 
-
     err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.eta) - ref.eta)**2))
     print("eta error",err)
     if err > tolerance: raise(Exception("Error in eta"))

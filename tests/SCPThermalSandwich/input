@@ -1,14 +1,22 @@
-#@ [2D-Thermal-Sandwich]
+#@ [2d-serial]
+#@ dim = 2
+#@ check = true
+#@ check-file = reference/serial.dat
+#@ args = stop_time = 0.001
+#@ args = amr.plot_dt = 0.001
+#@
+#@ [2d-parallel]
 #@ dim = 2
 #@ nprocs = 4 
 #@ check = true
+#@ check-file = reference/reference.dat
 
 alamo.program = flame
 
 # * = you almost definitely don't need to change this
 
-plot_file = tests/Flame/output
-amr.plot_dt = 0.01
+plot_file = tests/SCPThermalSandwich/output
+amr.plot_dt = 0.001
 amr.max_level = 7
 amr.max_grid_size = 50
 amr.blocking_factor = 2
