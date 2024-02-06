@@ -42,10 +42,10 @@ public:
         Set::Scalar ue_lo = lo.energy - ke_lo;
         Set::Scalar p_lo = (gamma - 1) * ue_lo;
         Set::Scalar h_lo = (lo.energy + p_lo) / lo.rho;
-	Set::Scalar eta_lo = lo.eta;
+        Set::Scalar eta_lo = lo.eta;
 
-	//Util::Message(INFO, "lo.rho ", lo.rho);
-	//Util::Message(INFO, "hi.rho ", hi.rho);
+        //Util::Message(INFO, "lo.rho ", lo.rho);
+        //Util::Message(INFO, "hi.rho ", hi.rho);
 
         Set::Scalar uNorm_hi = hi.momentum_normal / hi.rho;
         Set::Scalar uTang_hi = hi.momentum_tangent / hi.rho;
@@ -53,11 +53,11 @@ public:
         Set::Scalar ue_hi = hi.energy - ke_hi;
         Set::Scalar p_hi = (gamma - 1) * ue_hi;
         Set::Scalar h_hi = (hi.energy + p_hi) / hi.rho;
-	Set::Scalar eta_hi = hi.eta;
+        Set::Scalar eta_hi = hi.eta;
 
-	//Util::Message(INFO, "hi.rho ", hi.rho);
+        //Util::Message(INFO, "hi.rho ", hi.rho);
 
-        // roe averages
+            // roe averages
         Set::Scalar rho_RL = std::sqrt(lo.rho) * std::sqrt(hi.rho);
         Set::Scalar u_RL = (std::sqrt(hi.rho) * uNorm_hi + std::sqrt(lo.rho) * uNorm_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar h_RL = (std::sqrt(hi.rho) * h_hi + std::sqrt(lo.rho) * h_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
@@ -79,7 +79,7 @@ public:
         ev[1] = std::abs(u_RL + a_RL);
         ev[2] = std::abs(u_RL - a_RL);
 
-	//compute wave strengths
+        //compute wave strengths
 
         Set::Scalar drho, dp, dvel;
         dvel = uNorm_hi * hi.eta - uNorm_lo * lo.eta;
@@ -108,10 +108,10 @@ public:
         rev_2[2] = -(rho_RL / 2 / a_RL) * (h_RL - a_RL * u_RL);
 
         //upwinding term 
-        fl.mass             += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
-        fl.momentum_normal  += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
-	fl.momentum_tangent += 0.0;
-        fl.energy           += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
+        fl.mass += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
+        fl.momentum_normal += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
+        fl.momentum_tangent += 0.0;
+        fl.energy += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
 
         return fl;
     }
