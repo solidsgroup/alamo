@@ -1,9 +1,12 @@
-#@ [stationary]
+#@ [stationary-x]
+#@ check-file = reference/stationary-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = v_y_interface=0.0
 
-#@ [receding]
+
+#@ [receding-x]
+#@ check-file = reference/receding-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = v_x_interface=-0.001
@@ -20,8 +23,8 @@ plot_file = ./tests/InviscidHydro1D/output
 
 ### MESHING ###
 
-#amr.plot_dt = 0.1
-amr.plot_int = 1
+amr.plot_dt = 0.1
+#amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
@@ -42,7 +45,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 20.0
+stop_time = 6.0
 
 ### ETA IC ###
 
