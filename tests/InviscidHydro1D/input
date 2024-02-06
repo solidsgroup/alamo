@@ -1,8 +1,10 @@
 #@ [stationary-x]
+#@ check-file = reference/stationary-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 
 #@ [stationary-y]
+#@ check-file = reference/stationary-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = amr.n_cell = 20 160 0
@@ -13,6 +15,7 @@
 #@ args   = eta.ic.expression.region0="0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
 
 #@ [receding-x]
+#@ check-file = reference/receding-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = v_x_interface=-0.001
@@ -21,6 +24,7 @@
 #@ args   = rho_solid=100.0
 
 #@ [receding-y]
+#@ check-file = reference/receding-y.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = amr.n_cell = 20 160 0
