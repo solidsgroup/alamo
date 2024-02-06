@@ -1,18 +1,37 @@
 #@ [stationary-x]
-#@ check-file = reference/stationary-x.dat
 #@ dim    = 2
 #@ nprocs = 1
-#@ args   = v_y_interface=0.0
 
+#@ [stationary-y]
+#@ dim    = 2
+#@ nprocs = 1
+#@ args   = amr.n_cell = 20 160 0
+#@ args   = geometry.prob_lo = -0.5 -3.0 0.0 # [ m ]
+#@ args   = geometry.prob_hi =  0.5  5.0 0.0 # [ m ]
+#@ args   = v_x_interface=0.0
+#@ args   = v_y_interface=0.005
+#@ args   = eta.ic.expression.region0="0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
 
 #@ [receding-x]
-#@ check-file = reference/receding-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = v_x_interface=-0.001
 #@ args   = eta.ic.expression.constant.vel_x=-0.001
-#@ args   = rho_interface=100
-#@ args   = v_x_interface=-0.001
+#@ args   = rho_interface=100.0
+#@ args   = rho_solid=100.0
+
+#@ [receding-y]
+#@ dim    = 2
+#@ nprocs = 1
+#@ args   = amr.n_cell = 20 160 0
+#@ args   = geometry.prob_lo = -0.5 -3.0 0.0 # [ m ]
+#@ args   = geometry.prob_hi =  0.5  5.0 0.0 # [ m ]
+#@ args   = v_x_interface=0.0
+#@ args   = v_y_interface=-0.001
+#@ args   = eta.ic.expression.constant.vel_x=0.0
+#@ args   = eta.ic.expression.constant.vel_y=-0.001
+#@ args   = eta.ic.expression.region0="0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
+#@ args   = rho_interface=100.0
 #@ args   = rho_solid=100.0
 
 alamo.program = hydro
