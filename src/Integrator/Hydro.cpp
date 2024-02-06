@@ -34,14 +34,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
 	pp.query("E_solid", value.E_solid);
 
-        pp.query("eps", value.eps);
-
         pp.query("rho_interface", value.rho_interface);
         pp.query("v_x_interface", value.v_x_interface);
         pp.query("v_y_interface", value.v_y_interface);
         pp.query("delta_p_interface", value.delta_p_interface);
-        pp.query("InterfaceVel_x", value.InterfaceVel_x);
-        pp.query("InterfaceVel_y", value.InterfaceVel_y);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
