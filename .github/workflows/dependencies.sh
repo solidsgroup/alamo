@@ -12,6 +12,6 @@ sudo apt-get install -y --no-install-recommends \
 pip3 install yt matplotlib numpy pandas
 
 # Requirements for building documentation
-pip3 install sphinx breathe m2r sphinx_rtd_theme linuxdoc sphinx_design sphinx-copybutton
+pip3 install sphinx breathe m2r sphinx_rtd_theme linuxdoc sphinx_design sphinx-copybutton sphinxcontrib-bibtex
 
 npm install -g eclint
