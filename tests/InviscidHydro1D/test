@@ -11,9 +11,12 @@ if "-x" in checkfile:
     start = [-3,0]
     end   = [4,0]
     vars = ["eta","etaDensity","Velocity001","Pressure"]
+    coord = 'x'
 elif "-y" in checkfile:
-    raise "Not implemented yet"
-
+    start = [0,-3]
+    end   = [0,4]
+    vars = ["eta","etaDensity","Velocity002","Pressure"]
+    coord = 'y'
 
 testlib.validate(path=datfile,
                  outdir=outdir,
@@ -22,7 +25,8 @@ testlib.validate(path=datfile,
                  vars=vars,
                  tolerance=1E-4,
                  generate_ref_data = False,
-                 reference=checkfile)
+                 reference=checkfile,
+                 coord=coord)
 exit(0)
 
 

@@ -4,7 +4,7 @@
 #@ nprocs = 1
 
 #@ [stationary-y]
-#@ check-file = reference/stationary-x.dat
+#@ check-file = reference/stationary-y.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = amr.n_cell = 20 160 0
