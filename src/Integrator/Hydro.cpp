@@ -282,7 +282,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma, eta(i, j, k));
             flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma, eta(i, j, k));
 
-	    //Viscous Terms
+	        //Viscous Terms
             Set::Scalar lap_ux  = Numeric::Laplacian(v, i, j, k, 0, DX);
             Set::Scalar lap_uy  = Numeric::Laplacian(v, i, j, k, 1, DX);
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
@@ -294,7 +294,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaE(i, j, k)
                 + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
                 + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
-	    //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
+	            //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
             etarho_new(i, j, k) =
                 etarho(i, j, k)
@@ -305,13 +305,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaM(i, j, k, 0)
                 + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0]
                 + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1]
-	        + mu * eta(i, j, k) * lap_ux * dt;
+	            + mu * eta(i, j, k) * lap_ux * dt;
 
             etaM_new(i, j, k, 1) =
                 etaM(i, j, k, 1)
-	        + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
-	      + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1]
-	      + mu * eta(i, j, k) * lap_uy * dt;
+	            + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
+	            + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1]
+	            + mu * eta(i, j, k) * lap_uy * dt;
 
             //Compute New Mixed Fields
             rho_mix(i, j, k) = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
