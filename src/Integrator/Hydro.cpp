@@ -158,7 +158,7 @@ void Hydro::Initialize(int lev)
             etaE_old(i, j, k) = etaE(i, j, k);
 
             M_mix(i, j, k, 0) = rho_mix(i, j, k) * v(i, j, k, 0);
-            M_mix(i, j, k, 1) = rho_mix(i, j, k) * v(i, j, k, 0);
+            M_mix(i, j, k, 1) = rho_mix(i, j, k) * v(i, j, k, 1);
             etaM(i, j, k, 0) = M_mix(i, j, k, 0) * eta(i, j, k);
             etaM(i, j, k, 1) = M_mix(i, j, k, 1) * eta(i, j, k);
             etaM_old(i, j, k, 0) = etaM(i, j, k, 0);
@@ -282,11 +282,19 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma, eta(i, j, k));
             flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma, eta(i, j, k));
 
+	    //Viscous Terms
+            Set::Scalar lap_ux  = Numeric::Laplacian(v, i, j, k, 0, DX);
+            Set::Scalar lap_uy  = Numeric::Laplacian(v, i, j, k, 1, DX);
+            Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
+            Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
+            //Set::Scalar div_u   = grad_ux(0) + grad_uy(1);
+
             //Godunov fluxes
             etaE_new(i, j, k) =
                 etaE(i, j, k)
                 + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
                 + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1];
+	    //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
             etarho_new(i, j, k) =
                 etarho(i, j, k)
@@ -296,27 +304,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             etaM_new(i, j, k, 0) =
                 etaM(i, j, k, 0)
                 + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0]
-                + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1];
+                + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1]
+	        + mu * eta(i, j, k) * lap_ux * dt;
 
             etaM_new(i, j, k, 1) =
                 etaM(i, j, k, 1)
-                + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
-                + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1];
+	        + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
+	      + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1]
+	      + mu * eta(i, j, k) * lap_uy * dt;
 
-            //Viscous Terms
-            Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
-            Set::Scalar lap_uy = Numeric::Laplacian(v, i, j, k, 1, DX);
-            Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
-            Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
-            //Set::Scalar div_u      = grad_ux(0) + grad_uy(1);
-            //Set::Scalar symgrad_u  = grad_ux(1) + grad_uy(0);
-            //Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
-
-            etaM_new(i, j, k, 0) += mu * dt * eta(i, j, k) * lap_ux;// + mu * hess_u(0)/3.);
-            etaM_new(i, j, k, 1) += mu * dt * eta(i, j, k) * lap_uy;// + mu * hess_u(1)/3.);
-            //etaE_new(i, j, k)    += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
-
-        //Compute New Mixed Fields
+            //Compute New Mixed Fields
             rho_mix(i, j, k) = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
             E_mix(i, j, k) = etaE_new(i, j, k) + (1.0 - eta_new(i, j, k)) * E_solid;
             M_mix(i, j, k, 0) = etaM_new(i, j, k, 0);
@@ -324,19 +321,19 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Diffuse Sources
             std::array<Set::Scalar, 4> source;
-            source[0] = rho_interface * (v_x_interface * grad_eta(0) + v_y_interface * grad_eta(1));
-            source[1] = (rho_interface * v_x_interface * v_x_interface) * grad_eta_mag;
-            source[2] = (rho_interface * v_y_interface * v_y_interface) * grad_eta_mag;
+            source[0] = rho_interface  * (v_x_interface * grad_eta(0) + v_y_interface * grad_eta(1));
+            source[1] = (rho_interface * v_x_interface * v_x_interface) * grad_eta_mag + mu * lap_ux * grad_eta_mag;
+            source[2] = (rho_interface * v_y_interface * v_y_interface) * grad_eta_mag + mu * lap_uy * grad_eta_mag;
             source[3] = 0.5 * rho_interface * (v_x_interface * v_x_interface * v_x_interface * grad_eta(0) + v_y_interface * v_y_interface * v_y_interface * grad_eta(1));
 
-            E_mix(i, j, k) += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
-            rho_mix(i, j, k) += source[0] * dt + rho_mix(i, j, k) * etadot(i, j, k) * dt;
+            E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
+            rho_mix(i, j, k)  += source[0] * dt + rho_mix(i, j, k) * etadot(i, j, k) * dt;
             M_mix(i, j, k, 0) += source[1] * dt + M_mix(i, j, k, 0) * etadot(i, j, k) * dt;
             M_mix(i, j, k, 1) += source[2] * dt + M_mix(i, j, k, 1) * etadot(i, j, k) * dt;
 
             //Compute fluid fields
-            etaE_new(i, j, k) = eta(i, j, k) * E_mix(i, j, k);
-            etarho_new(i, j, k) = eta(i, j, k) * rho_mix(i, j, k);
+            etaE_new(i, j, k)    = eta(i, j, k) * E_mix(i, j, k);
+            etarho_new(i, j, k)  = eta(i, j, k) * rho_mix(i, j, k);
             etaM_new(i, j, k, 0) = eta(i, j, k) * M_mix(i, j, k, 0);
             etaM_new(i, j, k, 1) = eta(i, j, k) * M_mix(i, j, k, 1);
 
