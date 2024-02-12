@@ -13,7 +13,7 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 160 20 0
+amr.n_cell = 100 60 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -21,37 +21,42 @@ amr.n_cell = 160 20 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -3.0 -0.5 0.0 # [ m ] 
-geometry.prob_hi =  5.0  0.5 0.0 # [ m ]
+geometry.prob_lo = 0.0 -1.0 0.0 # [ m ] 
+geometry.prob_hi = 5.0  2.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 20.0
+stop_time = 50.0
 
 ### ETA IC ###
 
-rho_interface     = 500
-v_x_interface     = 0.005
-v_y_interface     = 0.0 
-delta_p_interface = 0.0
+rhoInterface.ic.type = expression
+rhoInterface.ic.expression.region0 = "100.0"
+
+vInterface.ic.type = expression
+vInterface.ic.expression.region0 = "0.01"
+vInterface.ic.expression.region1 = "0.0"
+
+deltapInterface.ic.type = expression
+deltapInterface.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.05
-eta.ic.expression.constant.vel_x = 0.0 # must be consistent with v_x_interface
-eta.ic.expression.constant.vel_y = 0.0 # must be consistent with v_y_interface
-eta.ic.expression.region0        = "0.5 + 0.5*tanh((x - vel_x*t + 1.5)/eps)"
+eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.vel_x = 0.0 
+eta.ic.expression.constant.vel_y = 0.0 
+eta.ic.expression.region0        = "0.5 + 0.5*tanh((y - vel_y*t)/eps)"
 
 ### HYDRO PARAM ###
 
 gamma = 1.4
 cfl   = 0.4
-mu    = 0.0
+mu    = 3.0
 
-rho_solid = 500.0 #kg/m^3
-rho_fluid = 10.0 #kg/m^3
+rho_solid = 1000.0 #kg/m^3
+rho_fluid = 100.0 #kg/m^3
 E_solid   = 5.0
 
 Velocity.ic.type = expression

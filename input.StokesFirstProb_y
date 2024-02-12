@@ -1,10 +1,8 @@
-# Interface recedes to the left in the x direction and a rarefaction wave propogates into the gas
-
 alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output.ReflectedWave
+plot_file = ./output
 
 ### MESHING ###
 
@@ -15,57 +13,51 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-#amr.refinement_criterion = 0.001
-#amr.refinement_criterion_temp = 275.16
-#amr.refinement_restriction = 0.1
-amr.n_cell = 20 160 0
+amr.n_cell = 60 100 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
-#amr.n_cell = 32 128 0
+#amr.n_cell = 128 32 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -0.5 -3.0 0.0 # [ m ] 
-geometry.prob_hi =  0.5  5.0 0.0 # [ m ]
+geometry.prob_lo = -1.0 0.0 0.0 # [ m ] 
+geometry.prob_hi =  2.0 5.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 20.0
-#small    = 1.0e-5
-
+stop_time = 50.0
 
 ### ETA IC ###
 
-eps = 0.05
+rhoInterface.ic.type = expression
+rhoInterface.ic.expression.region0 = "100.0"
 
-rho_interface     = 100
-v_x_interface     = 0.0
-v_y_interface     = 0.001
-delta_p_interface = 0.0
+vInterface.ic.type = expression
+vInterface.ic.expression.region0 = "0.0"
+vInterface.ic.expression.region1 = "0.01"
 
-InterfaceVel_x = 0.0
-InterfaceVel_y = 0.0
+deltapInterface.ic.type = expression
+deltapInterface.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps = 0.05
-eta.ic.expression.constant.vel_x = 0.0 # must be consistent with InterfaceVel_x
-eta.ic.expression.constant.vel_y = 0.0 # must be consistent with InterfaceVel_y
-eta.ic.expression.region0 = "0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
+eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.vel_x = 0.0 
+eta.ic.expression.constant.vel_y = 0.0 
+eta.ic.expression.region0        = "0.5 + 0.5*tanh((x - vel_x*t)/eps)"
 
 ### HYDRO PARAM ###
 
 gamma = 1.4
-cfl = 0.4
-mu = 0.0
+cfl   = 0.4
+mu    = 3.0
 
-rho_solid = 100.0 #kg/m^3
-rho_fluid = 10.0 #kg/m^3
-
-E_solid = 5.0
+rho_solid = 1000.0 #kg/m^3
+rho_fluid = 100.0 #kg/m^3
+E_solid   = 5.0
 
 Velocity.ic.type = expression
 Velocity.ic.expression.region0 = "0.0"
@@ -126,9 +118,9 @@ v.bc.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-r_refinement_criterion = 0.1
-e_refinement_criterion = 0.1
-m_refinement_criterion = 0.1
+r_refinement_criterion   = 0.1
+e_refinement_criterion   = 0.1
+m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 
 #TODO

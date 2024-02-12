@@ -31,13 +31,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp.query("rho_solid", value.rho_solid);
         pp.query("rho_fluid", value.rho_fluid);
-
         pp.query("E_solid", value.E_solid);
-
-        pp.query("rho_interface", value.rho_interface);
-        pp.query("v_x_interface", value.v_x_interface);
-        pp.query("v_y_interface", value.v_y_interface);
-        pp.query("delta_p_interface", value.delta_p_interface);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -54,29 +48,27 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         int nghost = 2;
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, nghost, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
-
         value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", true);
 
         value.RegisterNewFab(value.etaDensity_mf, value.bc_rho, 1, nghost, "etaDensity", true);
         value.RegisterNewFab(value.etaDensity_old_mf, value.bc_rho, 1, nghost, "etarho_old", false);
-
         value.RegisterNewFab(value.DensityMix_mf, value.bc_rho, 1, nghost, "DensityMix", true);
 
         value.RegisterNewFab(value.etaEnergy_mf, value.bc_p, 1, nghost, "etaEnergy", true);
         value.RegisterNewFab(value.etaEnergy_old_mf, value.bc_p, 1, nghost, "etaE_old", false);
-
         value.RegisterNewFab(value.EnergyMix_mf, value.bc_p, 1, nghost, "EnergyMix", true);
 
         value.RegisterNewFab(value.etaMomentum_mf, value.bc_v, 2, nghost, "etaMomentum", true);
         value.RegisterNewFab(value.etaMomentum_old_mf, value.bc_v, 2, nghost, "etaM_old", false);
-
         value.RegisterNewFab(value.MomentumMix_mf, value.bc_v, 2, nghost, "MomentumMix", true);
 
         value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, nghost, "Velocity", true);
-
         value.RegisterNewFab(value.Vorticity_mf, value.bc_eta, 1, nghost, "Vorticity", true);
-
         value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, nghost, "Pressure", true);
+
+        value.RegisterNewFab(value.vInterface_mf, value.bc_v, 2, nghost, "vInterface", true);
+        value.RegisterNewFab(value.rhoInterface_mf, value.bc_rho, 1, nghost, "rhoInterface", true);
+        value.RegisterNewFab(value.deltapInterface_mf, value.bc_p, 1, nghost, "deltapInterface", true);
     }
     {
         std::string type = "constant";
@@ -84,14 +76,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
-        else Util::Abort(INFO, "Invalid eta.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        pp.query("etadot.ic.type", type);
-        if (type == "constant") value.ic_etadot = new IC::Constant(value.geom, pp, "etadot.ic.constant");
-        else if (type == "laminate") value.ic_etadot = new IC::Laminate(value.geom, pp, "etadot.ic.laminate");
-        else if (type == "expression") value.ic_etadot = new IC::Expression(value.geom, pp, "etadot.ic.expression");
         else Util::Abort(INFO, "Invalid eta.ic: ", type);
     }
     {
@@ -107,6 +91,27 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         if (type == "constant") value.ic_Pressure = new IC::Constant(value.geom, pp, "Pressure.ic.constant");
         else if (type == "expression") value.ic_Pressure = new IC::Expression(value.geom, pp, "Pressure.ic.expression");
         else Util::Abort(INFO, "Invalid Pressure.ic: ", type);
+    }
+    {
+        std::string type = "constant";
+        pp.query("rhoInterface.ic.type", type);
+        if (type == "constant") value.ic_rhoInterface = new IC::Constant(value.geom, pp, "rhoInterface.ic.constant");
+        else if (type == "expression") value.ic_rhoInterface = new IC::Expression(value.geom, pp, "rhoInterface.ic.expression");
+        else Util::Abort(INFO, "Invalid rhoInterface.ic: ", type);
+    }
+    {
+        std::string type = "constant";
+        pp.query("vInterface.ic.type", type);
+        if (type == "constant") value.ic_vInterface = new IC::Constant(value.geom, pp, "vInterface.ic.constant");
+        else if (type == "expression") value.ic_vInterface = new IC::Expression(value.geom, pp, "vInterface.ic.expression");
+        else Util::Abort(INFO, "Invalid vInterface.ic: ", type);
+    }
+    {
+        std::string type = "constant";
+        pp.query("deltapInterface.ic.type", type);
+        if (type == "constant") value.ic_deltapInterface = new IC::Constant(value.geom, pp, "deltapInterface.ic.constant");
+        else if (type == "expression") value.ic_deltapInterface = new IC::Expression(value.geom, pp, "deltapInterface.ic.expression");
+        else Util::Abort(INFO, "Invalid deltapInterface.ic: ", type);
     }
 }
 
@@ -249,10 +254,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
-
         amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
+
+        amrex::Array4<Set::Scalar> const& rhoInterface    = (*rhoInterface_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& deltapInterface = (*deltapInterface_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& vInterface      = (*vInterface_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -321,10 +329,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Diffuse Sources
             std::array<Set::Scalar, 4> source;
-            source[0] = rho_interface  * (v_x_interface * grad_eta(0) + v_y_interface * grad_eta(1));
-            source[1] = (rho_interface * v_x_interface * v_x_interface) * grad_eta_mag + mu * lap_ux * grad_eta_mag;
-            source[2] = (rho_interface * v_y_interface * v_y_interface) * grad_eta_mag + mu * lap_uy * grad_eta_mag;
-            source[3] = 0.5 * rho_interface * (v_x_interface * v_x_interface * v_x_interface * grad_eta(0) + v_y_interface * v_y_interface * v_y_interface * grad_eta(1));
+            source[0] = rhoInterface(i, j, k)  * (vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * grad_eta(1));
+            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_ux * grad_eta_mag;
+            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_uy * grad_eta_mag;
+            source[3] = 0.5 * rhoInterface(i, j, k) * (vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * grad_eta(1));
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
             rho_mix(i, j, k)  += source[0] * dt + rho_mix(i, j, k) * etadot(i, j, k) * dt;

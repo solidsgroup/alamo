@@ -54,7 +54,6 @@ private:
     Set::Field<Set::Scalar> MomentumMix_mf;
 
     Set::Field<Set::Scalar> Velocity_mf;
-
     Set::Field<Set::Scalar> Pressure_mf;
 
     Set::Field<Set::Scalar> eta_mf;
@@ -62,6 +61,10 @@ private:
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> Vorticity_mf;
+
+    Set::Field<Set::Scalar> rhoInterface_mf;
+    Set::Field<Set::Scalar> vInterface_mf;
+    Set::Field<Set::Scalar> deltapInterface_mf;
 
     BC::BC<Set::Scalar>* bc_rho;
     BC::BC<Set::Scalar>* bc_E;
@@ -71,9 +74,12 @@ private:
     BC::BC<Set::Scalar>* bc_omega;
     BC::BC<Set::Scalar>* bc_eta;
 
-    IC::IC* ic_etaDensity;
     IC::IC* ic_Velocity;
     IC::IC* ic_Pressure;
+
+    IC::IC* ic_rhoInterface;
+    IC::IC* ic_vInterface;
+    IC::IC* ic_deltapInterface;
 
     IC::IC* ic_eta;
     IC::IC* ic_etadot;
