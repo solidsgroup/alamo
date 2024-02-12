@@ -223,6 +223,65 @@ public:
         }                    
     }
 
+
+
+    virtual
+    std::array<Type,AMREX_SPACEDIM> getType (
+                const int &i, const int &j, [[maybe_unused]] const int &k,
+                const amrex::Box &domain)
+    {
+        (void)i, (void)j, (void)k;
+        amrex::IntVect m(AMREX_D_DECL(i,j,k));
+        const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+
+        // Corners
+        #if AMREX_SPACEDIM == 2
+        if (m[0] == lo.x && m[1] == lo.y)                  return m_bc_type[Face::XLO_YLO];
+        if (m[0] == lo.x && m[1] == hi.y)                  return m_bc_type[Face::XLO_YHI];
+        if (m[0] == hi.x && m[1] == lo.y)                  return m_bc_type[Face::XHI_YLO];
+        if (m[0] == hi.x && m[1] == hi.y)                  return m_bc_type[Face::XHI_YHI];
+        if (m[0] == lo.x)                                  return m_bc_type[Face::XLO];
+        if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
+        if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
+        if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
+        
+        #elif AMREX_SPACEDIM == 3
+        
+        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return m_bc_type[Face::XLO_YLO_ZLO];
+        if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XLO_YLO_ZHI];
+        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XLO_YHI_ZLO];
+        if (m[0] == lo.x &&  m[1] == hi.y && m[2] == hi.z) return m_bc_type[Face::XLO_YHI_ZHI];
+        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == lo.z) return m_bc_type[Face::XHI_YLO_ZLO];
+        if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return m_bc_type[Face::XHI_YLO_ZHI];
+        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return m_bc_type[Face::XHI_YHI_ZLO];
+        if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return m_bc_type[Face::XHI_YHI_ZHI];
+        
+        if (m[1] == lo.y && m[2] == lo.z)                  return m_bc_type[Face::YLO_ZLO];
+        if (m[1] == lo.y && m[2] == hi.z)                  return m_bc_type[Face::YLO_ZHI];
+        if (m[1] == hi.y && m[2] == lo.z)                  return m_bc_type[Face::YHI_ZLO];
+        if (m[1] == hi.y && m[2] == hi.z)                  return m_bc_type[Face::YHI_ZHI];
+        if (m[2] == lo.z && m[0] == lo.x)                  return m_bc_type[Face::ZLO_XLO];
+        if (m[2] == lo.z && m[0] == hi.x)                  return m_bc_type[Face::ZLO_XHI];
+        if (m[2] == hi.z && m[0] == lo.x)                  return m_bc_type[Face::ZHI_XLO];
+        if (m[2] == hi.z && m[0] == hi.x)                  return m_bc_type[Face::ZHI_XHI];
+        if (m[0] == lo.x && m[1] == lo.y)                  return m_bc_type[Face::XLO_YLO];
+        if (m[0] == lo.x && m[1] == hi.y)                  return m_bc_type[Face::XLO_YHI];
+        if (m[0] == hi.x && m[1] == lo.y)                  return m_bc_type[Face::XHI_YLO];
+        if (m[0] == hi.x && m[1] == hi.y)                  return m_bc_type[Face::XHI_YHI];
+        
+        if (m[0] == lo.x)                                  return m_bc_type[Face::XLO];
+        if (m[0] == hi.x)                                  return m_bc_type[Face::XHI];
+        if (m[1] == lo.y)                                  return m_bc_type[Face::YLO];
+        if (m[1] == hi.y)                                  return m_bc_type[Face::YHI];
+        if (m[2] == lo.z)                                  return m_bc_type[Face::ZLO];
+        if (m[2] == hi.z)                                  return m_bc_type[Face::ZHI];
+        
+        #endif        
+        
+        return {AMREX_D_DECL(Type::None,Type::None,Type::None)};
+    }
+    
+
     AMREX_FORCE_INLINE
     Set::Vector operator () (const Set::Vector &u,
                 const Set::Matrix &gradu,

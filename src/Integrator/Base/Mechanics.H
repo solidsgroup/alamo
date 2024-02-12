@@ -18,7 +18,7 @@ namespace Integrator
 namespace Base
 {
 template<class MODEL>
-class Mechanics: virtual public Integrator
+class Mechanics : virtual public Integrator
 {
 public:
 
@@ -63,6 +63,7 @@ public:
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
             pp.query("viscous.mu", value.mu);
+            pp.query("viscous.mu2", value.mu2);
         }
 
         std::string bc_type = "constant";
@@ -131,7 +132,6 @@ protected:
     {
         BL_PROFILE("Integrator::Base::Mechanics::TimeStepBegin");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
-        if (m_interval && a_step % m_interval) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
@@ -142,11 +142,12 @@ protected:
 
         UpdateModel(a_step);
 
-        if (m_type != Mechanics<MODEL>::Type::Static) return;
-        if (a_time < tstart) return;
-
         bc->SetTime(a_time);
         bc->Init(rhs_mf, geom);
+
+        if (m_type != Mechanics<MODEL>::Type::Static) return;
+        if (a_time < tstart) return;
+        if (m_interval && a_step % m_interval) return;
 
         amrex::LPInfo info;
         if (m_max_coarsening_level >= 0)
@@ -213,10 +214,10 @@ protected:
 
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
+        const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
         if (m_type == Type::Dynamic)
         {
-            domain.grow(-1);
 
             std::swap(*disp_mf[lev], *disp_old_mf[lev]);
             std::swap(*vel_mf[lev], *vel_old_mf[lev]);
@@ -239,19 +240,61 @@ protected:
                 amrex::Box bx = mfi.nodaltilebox().grow(1) & domain;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    //auto sten = Numeric::GetStencil(i,j,k,bx);
-                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX);
+                    auto sten = Numeric::GetStencil(i,j,k,bx);
+                    eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
                     sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
+
+                    Set::Matrix gradv = Numeric::Gradient(v, i, j, k, DX,sten);
+                    sig(i,j,k) += mu2 * (gradv + gradv.transpose());
+
                 });
 
                 bx = mfi.nodaltilebox().grow(0) & domain;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    //auto sten = Numeric::GetStencil(i,j,k,bx);
-                    Set::Vector udotdot = Numeric::Divergence(sig, i, j, k, DX) + b(i, j, k) - mu * v(i, j, k);
-                    udotdot /= rho;
-                    vnew(i, j, k) = v(i, j, k) + dt * udotdot;
-                    unew(i, j, k) = u(i, j, k) + dt * vnew(i, j, k);
+
+                    bool
+                        AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
+                        AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
+
+                    if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
+                    {
+                        Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"Only works in 2D right now!!");
+
+#if AMREX_SPACEDIM==2
+                        Set::Scalar fac = 0.5;
+                        if ((xmin||xmax) && (ymin||ymax) ) fac = 0.25;
+
+                        std::array<BC::Operator::Elastic::Elastic::Type, 2> type = bc->getType(i,j,k,domain);
+                        Set::Vector f = (*bc)(u(i,j,k),eps(i,j,k),sig(i,j,k),i,j,k,domain);
+
+                        for (int d = 0; d < 2; d++)
+                        {
+                            if (type[d] == BC::Operator::Elastic::Elastic::Type::Displacement)
+                            {
+                                unew(i,j,k)(d) = b(i,j,k)(d);
+                            }
+                            else if (type[d] == BC::Operator::Elastic::Elastic::Type::Traction)
+                            {
+                                Set::Scalar udotdot = fac*(-f(d) + b(i,j,k)(d) - mu*(v(i,j,k)(d))) / rho;
+                                vnew(i,j,k)(d) = v(i,j,k)(d) + dt*udotdot;
+                                unew(i,j,k)(d) = u(i,j,k)(d) + dt*vnew(i,j,k)(d);
+                            }
+                            else
+                            {
+                                Util::Abort(INFO,"Elastic dynamics not supported for other BCs yet");
+                            }
+                        }
+#endif
+                        // bc
+                    }
+                    else
+                    {
+                        Set::Vector udotdot = Numeric::Divergence(sig, i, j, k, DX) + b(i, j, k) - mu * v(i, j, k);
+                        udotdot /= rho;
+                        vnew(i, j, k) = v(i, j, k) + dt * udotdot;
+                        unew(i, j, k) = u(i, j, k) + dt * vnew(i, j, k);
+                    }
                 });
             }
         }
@@ -365,6 +408,7 @@ protected:
     //Set::Field<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> ddw_mf;
     Set::Scalar rho = 1.0;
     Set::Scalar mu = 0.0;
+    Set::Scalar mu2 = 0.0;
 
     //Set::Vector trac_lo[AMREX_SPACEDIM];
     Set::Vector trac_hi[AMREX_SPACEDIM];
