@@ -62,7 +62,7 @@ viscous.mu2 = 0.1
 bc.type = expression
 bc.expression.type.yhi = trac trac trac
 #bc.expression.val.yhi = "0.0" "-exp(-((x-t)*(x-t)+z*z)/0.4)" "0.0"
-bc.expression.val.yhi = "0.0" "- 0.5 * (t < 2) * (0.5*(1+tanh(1-abs(x))))"
+bc.expression.val.yhi = "0.0" "- 0.25 * (t < 2) * (0.5*(1+tanh(1-abs(x))))"
 
 # Elastic refinement criterion
 ref_threshold = 0.002
