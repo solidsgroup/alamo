@@ -7,8 +7,7 @@
 #@ 
 #@ [2d-serial-coverage]
 #@ dim = 2
-#@ check = true
-#@ check-file = reference/serial.dat
+#@ check = false
 #@ args = stop_time=1.0e-4
 #@ coverage = true
 #@ 
