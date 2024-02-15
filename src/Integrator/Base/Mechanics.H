@@ -237,7 +237,7 @@ protected:
                 amrex::Array4<MODEL> const& model = (*model_mf[lev]).array(mfi);
 
                 // Right now, we are forcing Dirichlet conditions on all boundaries
-                amrex::Box bx = mfi.nodaltilebox().grow(1) & domain;
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
@@ -249,7 +249,7 @@ protected:
 
                 });
 
-                bx = mfi.nodaltilebox().grow(0) & domain;
+                bx = mfi.nodaltilebox() & domain;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
@@ -301,7 +301,7 @@ protected:
 
         for (amrex::MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.validbox().grow(2) & domain;
+            amrex::Box bx = mfi.grownnodaltilebox() & domain;
             amrex::Array4<Set::Matrix>         const& eps = (*strain_mf[lev]).array(mfi);
             amrex::Array4<Set::Matrix>         const& sig = (*stress_mf[lev]).array(mfi);
             amrex::Array4<MODEL>               const& model = (*model_mf[lev]).array(mfi);
@@ -310,6 +310,7 @@ protected:
                 model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k));
             });
         }
+        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
 
     }
 

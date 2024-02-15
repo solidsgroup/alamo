@@ -21,7 +21,7 @@ class BMP : public IC
 {
 public:
     //enum Type {XYZ, XY, YZ, XZ};
-    enum Fit {Stretch,FitWidth,FitHeight};
+    enum Fit {Stretch,FitWidth,FitHeight,Coords};
     enum Channel {R=0, G=1, B=2};
 
     BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
@@ -99,11 +99,16 @@ public:
                 }
                 else if (fit == Fit::FitHeight)
                 {
-                    Set::Scalar aspect_ratio = img_height / img_width;
+                    Set::Scalar aspect_ratio = img_width / img_height;
                     ximg(0) = (x(0) - domlo(0)) / (domhi(0) - domlo(0)); 
                     ximg(1) = (x(1) - domlo(1)) / (domhi(1) - domlo(1)); 
                     ximg(0) -= 0.5 - 0.5 / aspect_ratio;
                     ximg(0) *= aspect_ratio;
+                }
+                else if (fit == Fit::Coords)
+                {
+                    ximg(0) = (x(0) - lo(0)) / (hi(0) - lo(0)); 
+                    ximg(1) = (x(1) - lo(1)) / (hi(1) - lo(1)); 
                 }
 
                 ximg(0) = std::min(ximg(0),1.0); ximg(1) = std::min(ximg(1),1.0);
@@ -162,6 +167,7 @@ private:
     Fit fit = Fit::Stretch;
     Channel channel = Channel::G;
     Set::Scalar min=0.0, max=255.0;
+    Set::Vector lo, hi;
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
@@ -175,6 +181,14 @@ public:
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
+        else if (fit=="coords")
+        {
+            value.fit = Fit::Coords;
+            if (!pp.contains("lo") || !pp.contains("hi"))
+                Util::Abort(INFO,"you must specfiy a lo and hi vector with coords option");
+            pp.queryarr("lo",value.lo); // real space coordinates of low left image point (with coords option)
+            pp.queryarr("hi",value.hi); // real space coordinates of upper right image point (with coords option)
+        }
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
 
         std::string channel = "g";
