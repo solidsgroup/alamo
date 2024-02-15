@@ -160,6 +160,7 @@ public:
     friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
+    friend Matrix4<2,Sym::MajorMinor> operator * (Set::Scalar b, Matrix4<2,Sym::MajorMinor> a);
     friend Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
     friend Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
 };
@@ -189,6 +190,11 @@ Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar
     Matrix4<2,Sym::MajorMinor> ret;
     for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] * b;
     return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator * (Set::Scalar b,Matrix4<2,Sym::MajorMinor> a)
+{
+    return a*b;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)

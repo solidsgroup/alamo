@@ -81,6 +81,7 @@ public:
     friend Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix3 &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator - (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
+    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator / (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
     friend bool operator == (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a,const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
@@ -127,6 +128,10 @@ Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const S
     #endif         
     return ret;
 }
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Matrix operator * (const Set::Matrix &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a)
+{return a*b;}
+
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix3 &b)

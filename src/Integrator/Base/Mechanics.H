@@ -21,7 +21,6 @@ template<class MODEL>
 class Mechanics : virtual public Integrator
 {
 public:
-
     enum Type { Static, Dynamic, Disable };
 
     Mechanics() : Integrator()
@@ -62,6 +61,7 @@ public:
             value.RegisterGeneralFab(value.vel_mf, 1, 2, "vel");
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
+            value.RegisterGeneralFab(value.ddw_mf, 1, 2);
             pp.query("viscous.mu", value.mu);
             pp.query("viscous.mu2", value.mu2);
         }
@@ -234,6 +234,8 @@ protected:
                 amrex::Array4<Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Vector> const& b = (*rhs_mf[lev]).array(mfi);
 
+                amrex::Array4<MATRIX4> const& ddw = (*ddw_mf[lev]).array(mfi);
+
                 amrex::Array4<MODEL> const& model = (*model_mf[lev]).array(mfi);
 
                 // Right now, we are forcing Dirichlet conditions on all boundaries
@@ -246,6 +248,8 @@ protected:
 
                     Set::Matrix gradv = Numeric::Gradient(v, i, j, k, DX,sten);
                     sig(i,j,k) += mu2 * (gradv + gradv.transpose());
+
+                    ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
 
                 });
 
@@ -290,8 +294,29 @@ protected:
                     }
                     else
                     {
-                        Set::Vector udotdot = Numeric::Divergence(sig, i, j, k, DX) + b(i, j, k) - mu * v(i, j, k);
-                        udotdot /= rho;
+                        Set::Matrix      gradu = Numeric::Gradient(u,i,j,k,DX);
+                        Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX);
+                        
+                        Set::Vector f = ddw(i,j,k)*gradgradu;
+
+                        MATRIX4 
+                            AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(ddw, i, j, k, 0, DX)),
+                                         Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(ddw, i, j, k, 0, DX)),
+                                         Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(ddw, i, j, k, 0, DX)));
+
+                        f += AMREX_D_TERM( ( Cgrad1*gradu).col(0),
+                                           +(Cgrad2*gradu).col(1),
+                                           +(Cgrad3*gradu).col(2));
+                        
+
+                        Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
+                        f += mu2 * lapv + b(i,j,k) + mu*v(i,j,k);
+                        
+                        //Set::Vector udotdot = Numeric::Divergence(sig, i, j, k, DX) + b(i, j, k) - mu * v(i, j, k);
+
+                        
+
+                        Set::Vector udotdot = f / rho;
                         vnew(i, j, k) = v(i, j, k) + dt * udotdot;
                         unew(i, j, k) = u(i, j, k) + dt * vnew(i, j, k);
                     }
@@ -389,7 +414,9 @@ protected:
     }
 
 protected:
+    typedef Set::Matrix4<AMREX_SPACEDIM,MODEL::sym> MATRIX4;
     Set::Field<MODEL> model_mf;
+    Set::Field<MATRIX4> ddw_mf;
     Set::Field<Set::Scalar> psi_mf;
     bool psi_on = false;
 
