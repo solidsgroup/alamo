@@ -37,11 +37,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
         value.bc_v = new BC::Constant(2, pp, "v.bc");
-
-        //value.bc_M = new BC::Constant(2, pp, "M.bc");
-            //value.bc_E = new BC::Constant(1, pp, "E.bc");
-
-        //value.bc_omega = new BC::Constant(2, pp, "omega.bc");
     }
     // Register FabFields:
     {
@@ -270,7 +265,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Compute New Primitive Variables
             v(i, j, k, 0) = M_mix(i, j, k, 0) / rho_mix(i, j, k);
             v(i, j, k, 1) = M_mix(i, j, k, 1) / rho_mix(i, j, k);
-            p(i, j, k) = (E_mix(i, j, k) - 0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1);
+            p(i, j, k)    = (E_mix(i, j, k) - 0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1);
 
             //Godunov flux
             Solver::Local::Riemann::Roe::State state_x(rho_mix(i, j, k), M_mix(i, j, k, 0), M_mix(i, j, k, 1), E_mix(i, j, k), eta(i, j, k));
@@ -322,8 +317,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 	            + mu * eta(i, j, k) * lap_uy * dt;
 
             //Compute New Mixed Fields
-            rho_mix(i, j, k) = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
-            E_mix(i, j, k) = etaE_new(i, j, k) + (1.0 - eta_new(i, j, k)) * E_solid;
+            rho_mix(i, j, k)  = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
+            E_mix(i, j, k)    = etaE_new(i, j, k) + (1.0 - eta_new(i, j, k)) * E_solid;
             M_mix(i, j, k, 0) = etaM_new(i, j, k, 0);
             M_mix(i, j, k, 1) = etaM_new(i, j, k, 1);
 
