@@ -1,0 +1,127 @@
+alamo.program = hydro
+
+### OUTPUT ###
+
+plot_file = ./output
+
+### MESHING ###
+
+#amr.plot_dt = 0.1
+amr.plot_int = 10000
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+#amr.regrid_int = 100
+amr.grid_eff = 0.8
+amr.n_cell = 500 500 0
+
+# Uncomment to test AMR
+#amr.max_level = 2
+#amr.n_cell = 128 32 0
+
+### DIMENSIONS ###
+
+geometry.prob_lo = -3.0 -3.0 0.0 # [ m ] 
+geometry.prob_hi =  3.0  3.0 0.0 # [ m ]
+
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 1.0e-2
+stop_time = 1000.0
+
+### ETA IC ###
+
+rhoInterface.ic.type = expression
+rhoInterface.ic.expression.region0 = "100.0"
+
+vInterface.ic.type = expression
+vInterface.ic.expression.region0 = "0.0"
+vInterface.ic.expression.region1 = "0.0"
+
+deltapInterface.ic.type = expression
+deltapInterface.ic.expression.region0 = "0.0"
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.025
+eta.ic.expression.constant.vel_x = 0.0 
+eta.ic.expression.constant.vel_y = 0.0 
+eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x+2.0)**2 + (y+2.0)**2) + 0.25)/eps) + 0.5*tanh((sqrt((x+2.0)**2 + (y+2.0)**2) - 0.25)/eps))"
+
+### HYDRO PARAM ###
+
+gamma = 1.4
+cfl   = 0.4
+mu    = 0.0001
+
+rho_solid = 1000.0 #kg/m^3
+rho_fluid = 10.0 #kg/m^3
+E_solid   = 5.0
+
+Velocity.ic.type = expression
+Velocity.ic.expression.constant.eps   = 0.025
+Velocity.ic.expression.region0 = "0.1"
+Velocity.ic.expression.region1 = "0.1"
+
+Pressure.ic.type = expression
+Pressure.ic.expression.constant.gamma = 1.4
+Pressure.ic.expression.constant.E_solid = 5.0
+Pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+
+### ETA BC  ###
+
+pf.eta.bc.type.xlo = neumann
+pf.eta.bc.type.xhi = neumann
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.zlo = neumann
+pf.eta.bc.type.zhi = neumann
+
+pf.eta.bc.val.xlo = 0.0
+pf.eta.bc.val.xhi = 0.0
+pf.eta.bc.val.ylo = 0.0
+pf.eta.bc.val.yhi = 0.0
+pf.eta.bc.val.zlo = 0.0
+pf.eta.bc.val.zhi = 0.0
+
+### HYDRO BC ###
+
+rho.bc.type.xhi = neumann
+rho.bc.type.xlo = neumann
+rho.bc.type.ylo = neumann
+rho.bc.type.yhi = neumann
+
+rho.bc.val.xhi = 0.0
+rho.bc.val.xlo = 0.0
+rho.bc.val.ylo = 0.0 
+rho.bc.val.yhi = 0.0
+
+p.bc.type.xhi = neumann
+p.bc.type.xlo = neumann
+p.bc.type.ylo = neumann
+p.bc.type.yhi = neumann
+
+p.bc.val.xhi = 0.0
+p.bc.val.xlo = 0.0
+p.bc.val.ylo = 0.0 
+p.bc.val.yhi = 0.0
+
+v.bc.type.xhi = neumann neumann
+v.bc.type.xlo = neumann neumann
+v.bc.type.ylo = neumann neumann
+v.bc.type.yhi = neumann neumann
+
+v.bc.val.xhi = 0.0 0.0
+v.bc.val.xlo = 0.0 0.0
+v.bc.val.ylo = 0.0 0.0
+v.bc.val.yhi = 0.0 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+r_refinement_criterion   = 0.1
+e_refinement_criterion   = 0.1
+m_refinement_criterion   = 0.1
+eta_refinement_criterion = 0.1
+
+#TODO
