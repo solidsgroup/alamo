@@ -37,6 +37,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
         value.bc_v = new BC::Constant(2, pp, "v.bc");
+        value.bc_M = new BC::Constant(2, pp, "M.bc");
     }
     // Register FabFields:
     {
@@ -53,9 +54,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.etaEnergy_old_mf, value.bc_p, 1, nghost, "etaE_old", false);
         value.RegisterNewFab(value.EnergyMix_mf, value.bc_p, 1, nghost, "EnergyMix", true);
 
-        value.RegisterNewFab(value.etaMomentum_mf, value.bc_v, 2, nghost, "etaMomentum", true);
-        value.RegisterNewFab(value.etaMomentum_old_mf, value.bc_v, 2, nghost, "etaM_old", false);
-        value.RegisterNewFab(value.MomentumMix_mf, value.bc_v, 2, nghost, "MomentumMix", true);
+        value.RegisterNewFab(value.etaMomentum_mf, value.bc_M, 2, nghost, "etaMomentum", true);
+        value.RegisterNewFab(value.etaMomentum_old_mf, value.bc_M, 2, nghost, "etaM_old", false);
+        value.RegisterNewFab(value.MomentumMix_mf, value.bc_M, 2, nghost, "MomentumMix", true);
 
         value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, nghost, "Velocity", true);
         value.RegisterNewFab(value.Vorticity_mf, value.bc_eta, 1, nghost, "Vorticity", true);
@@ -325,8 +326,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Diffuse Sources
             std::array<Set::Scalar, 4> source;
             source[0] = rhoInterface(i, j, k)  * (vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * grad_eta(1));
-            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_ux * grad_eta_mag;
-            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_uy * grad_eta_mag;
+            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_ux * grad_eta(0);//grad_eta_mag;
+            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_uy * grad_eta(1);//_mag;
             source[3] = 0.5 * rhoInterface(i, j, k) * (vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * grad_eta(1));
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;

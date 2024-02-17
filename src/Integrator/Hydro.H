@@ -11,6 +11,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
+#include "BC/Nothing.H"
 #include "IC/IC.H"
 
 #include "IC/Sphere.H"
@@ -83,6 +84,8 @@ private:
 
     IC::IC* ic_eta;
     IC::IC* ic_etadot;
+
+    BC::Nothing bc_nothing;
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
