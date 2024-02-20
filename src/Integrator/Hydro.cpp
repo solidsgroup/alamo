@@ -1,6 +1,7 @@
 #include "Hydro.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
+#include "BC/Nothing.H"
 #include "Numeric/Stencil.H"
 #include "IC/Laminate.H"
 #include "IC/PSRead.H"
@@ -37,34 +38,33 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
         value.bc_v = new BC::Constant(2, pp, "v.bc");
-        value.bc_M = new BC::Constant(2, pp, "M.bc");
     }
     // Register FabFields:
     {
         int nghost = 2;
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, nghost, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
-        value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", true);
+        value.RegisterNewFab(value.etadot_mf, &value.bc_nothing, 1, nghost, "etadot", true);
 
         value.RegisterNewFab(value.etaDensity_mf, value.bc_rho, 1, nghost, "etaDensity", true);
         value.RegisterNewFab(value.etaDensity_old_mf, value.bc_rho, 1, nghost, "etarho_old", false);
         value.RegisterNewFab(value.DensityMix_mf, value.bc_rho, 1, nghost, "DensityMix", true);
 
-        value.RegisterNewFab(value.etaEnergy_mf, value.bc_p, 1, nghost, "etaEnergy", true);
-        value.RegisterNewFab(value.etaEnergy_old_mf, value.bc_p, 1, nghost, "etaE_old", false);
-        value.RegisterNewFab(value.EnergyMix_mf, value.bc_p, 1, nghost, "EnergyMix", true);
+        value.RegisterNewFab(value.etaEnergy_mf, &value.bc_nothing, 1, nghost, "etaEnergy", true);
+        value.RegisterNewFab(value.etaEnergy_old_mf, &value.bc_nothing, 1, nghost, "etaE_old", false);
+        value.RegisterNewFab(value.EnergyMix_mf, &value.bc_nothing, 1, nghost, "EnergyMix", true);
 
-        value.RegisterNewFab(value.etaMomentum_mf, value.bc_M, 2, nghost, "etaMomentum", true);
-        value.RegisterNewFab(value.etaMomentum_old_mf, value.bc_M, 2, nghost, "etaM_old", false);
-        value.RegisterNewFab(value.MomentumMix_mf, value.bc_M, 2, nghost, "MomentumMix", true);
+        value.RegisterNewFab(value.etaMomentum_mf, &value.bc_nothing, 2, nghost, "etaMomentum", true);
+        value.RegisterNewFab(value.etaMomentum_old_mf, &value.bc_nothing, 2, nghost, "etaM_old", false);
+        value.RegisterNewFab(value.MomentumMix_mf, &value.bc_nothing, 2, nghost, "MomentumMix", true);
 
         value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, nghost, "Velocity", true);
-        value.RegisterNewFab(value.Vorticity_mf, value.bc_eta, 1, nghost, "Vorticity", true);
+        value.RegisterNewFab(value.Vorticity_mf, &value.bc_nothing, 1, nghost, "Vorticity", true);
         value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, nghost, "Pressure", true);
 
-        value.RegisterNewFab(value.vInterface_mf, value.bc_v, 2, nghost, "vInterface", true);
-        value.RegisterNewFab(value.rhoInterface_mf, value.bc_rho, 1, nghost, "rhoInterface", true);
-        value.RegisterNewFab(value.deltapInterface_mf, value.bc_p, 1, nghost, "deltapInterface", true);
+        value.RegisterNewFab(value.vInterface_mf, &value.bc_nothing, 2, nghost, "vInterface", true);
+        value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface", true);
+        value.RegisterNewFab(value.deltapInterface_mf, &value.bc_nothing, 1, nghost, "deltapInterface", true);
     }
     {
         std::string type = "constant";
@@ -269,12 +269,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             p(i, j, k)    = (E_mix(i, j, k) - 0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1);
 
             //Godunov flux
-            Solver::Local::Riemann::Roe::State state_x(rho_mix(i, j, k), M_mix(i, j, k, 0), M_mix(i, j, k, 1), E_mix(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::Roe::State state_y(rho_mix(i, j, k), M_mix(i, j, k, 1), M_mix(i, j, k, 0), E_mix(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::Roe::State lo_statex(rho_mix(i - 1, j, k), M_mix(i - 1, j, k, 0), M_mix(i - 1, j, k, 1), E_mix(i - 1, j, k), eta(i - 1, j, k));
-            Solver::Local::Riemann::Roe::State hi_statex(rho_mix(i + 1, j, k), M_mix(i + 1, j, k, 0), M_mix(i + 1, j, k, 1), E_mix(i + 1, j, k), eta(i + 1, j, k));
-            Solver::Local::Riemann::Roe::State lo_statey(rho_mix(i, j - 1, k), M_mix(i, j - 1, k, 1), M_mix(i, j - 1, k, 0), E_mix(i, j - 1, k), eta(i, j - 1, k));
-            Solver::Local::Riemann::Roe::State hi_statey(rho_mix(i, j + 1, k), M_mix(i, j + 1, k, 1), M_mix(i, j + 1, k, 0), E_mix(i, j + 1, k), eta(i, j + 1, k));
+            Solver::Local::Riemann::Roe::State state_x(rho_mix(i, j, k), v(i, j, k, 0), v(i, j, k, 1), p(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::Roe::State state_y(rho_mix(i, j, k), v(i, j, k, 1), v(i, j, k, 0), p(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::Roe::State lo_statex(rho_mix(i - 1, j, k), v(i - 1, j, k, 0), v(i - 1, j, k, 1), p(i - 1, j, k), eta(i - 1, j, k));
+            Solver::Local::Riemann::Roe::State hi_statex(rho_mix(i + 1, j, k), v(i + 1, j, k, 0), v(i + 1, j, k, 1), p(i + 1, j, k), eta(i + 1, j, k));
+            Solver::Local::Riemann::Roe::State lo_statey(rho_mix(i, j - 1, k), v(i, j - 1, k, 1), v(i, j - 1, k, 0), p(i, j - 1, k), eta(i, j - 1, k));
+            Solver::Local::Riemann::Roe::State hi_statey(rho_mix(i, j + 1, k), v(i, j + 1, k, 1), v(i, j + 1, k, 0), p(i, j + 1, k), eta(i, j + 1, k));
 
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
@@ -309,13 +309,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaM(i, j, k, 0)
                 + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0]
                 + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1]
-	            + mu * eta(i, j, k) * lap_ux * dt;
+	            + mu * etarho(i, j, k) * lap_ux * dt;
 
             etaM_new(i, j, k, 1) =
                 etaM(i, j, k, 1)
 	            + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
 	            + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1]
-	            + mu * eta(i, j, k) * lap_uy * dt;
+	            + mu * etarho(i, j, k) * lap_uy * dt;
 
             //Compute New Mixed Fields
             rho_mix(i, j, k)  = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
@@ -326,8 +326,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Diffuse Sources
             std::array<Set::Scalar, 4> source;
             source[0] = rhoInterface(i, j, k)  * (vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * grad_eta(1));
-            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_ux * grad_eta(0);//grad_eta_mag;
-            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_uy * grad_eta(1);//_mag;
+            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_ux * grad_eta(0);//grad_eta_mag;
+            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_uy * grad_eta(1);//_mag;
             source[3] = 0.5 * rhoInterface(i, j, k) * (vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * grad_eta(1));
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
