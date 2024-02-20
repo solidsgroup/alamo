@@ -87,6 +87,8 @@ private:
     IC::IC* ic_eta;
     int ghost_count = 2;
     int homogeneousSystem = 0;
+    bool plot_field = false;
+    
     struct {
         Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;

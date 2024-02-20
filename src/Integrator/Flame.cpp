@@ -28,6 +28,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
+        pp.query("fields_verbose", value.plot_field);
         pp.query("timestep", value.base_time);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
@@ -106,13 +107,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, value.ghost_count + 1, "temps", false);
             value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, value.ghost_count + 1, "temps_old", false);
 
-            value.RegisterNewFab(value.mdot_mf, value.bc_eta, 1, value.ghost_count + 1, "mdot", true);
-            value.RegisterNewFab(value.mob_mf, value.bc_eta, 1, value.ghost_count + 1, "mob", true);
-            value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, value.ghost_count + 1, "alpha", true);
-            value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, value.ghost_count + 1, "heatflux", true);
-            value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, value.ghost_count + 1, "laser", true);
-
-            //value.RegisterGeneralFab(value.rhs_mf, 1, value.ghost_count+1, "rhs", false);
+            value.RegisterNewFab(value.mdot_mf, value.bc_eta, 1, value.ghost_count + 1, "mdot", value.plot_field);
+            value.RegisterNewFab(value.mob_mf, value.bc_eta, 1, value.ghost_count + 1, "mob", value.plot_field);
+            value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, value.ghost_count + 1, "alpha", value.plot_field);
+            value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, value.ghost_count + 1, "heatflux", value.plot_field);
+            value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, value.ghost_count + 1, "laser", value.plot_field);
 
             std::string laser_ic_type = "constant";
             pp.query("laser.ic.type", laser_ic_type);
@@ -169,38 +168,38 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("phi.ic.type", phi_ic_type); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-            value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
+            //value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             pp.query("phi.ic.psread.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
         else if (phi_ic_type == "laminate") {
             value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
-            value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
+            //value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             pp.query("phi.ic.laminate.eps", value.zeta);
             pp.query("phi.zeta_0", value.zeta_0);
         }
         else if (phi_ic_type == "expression") {
             value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
-            value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
+            //value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
             pp.query("phi.zeta_0", value.zeta_0);
             pp.query("phi.zeta", value.zeta);
         }
         else if (phi_ic_type == "constant") {
             value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
-            value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
+            //value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
             pp.query("phi.zeta_0", value.zeta_0);
             pp.query("phi.zeta", value.zeta);
         }
         else if (phi_ic_type == "bmp") {
             value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
-            value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
+            //value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             pp.query("phi.zeta_0", value.zeta_0);
             pp.query("phi.zeta", value.zeta);
         }
         else Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
         value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
-        value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
+        //value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
     }
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
@@ -213,7 +212,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.queryclass("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
-        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", true);
+        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_field);
         value.psi_on = true;
     }
 }
@@ -227,7 +226,7 @@ void Flame::Initialize(int lev)
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
     ic_phi->Initialize(lev, phi_mf);
-    ic_phicell->Initialize(lev, phicell_mf);
+    //ic_phicell->Initialize(lev, phicell_mf);
 
     if (elastic.on) {
         psi_mf[lev]->setVal(1.0);
@@ -261,7 +260,7 @@ void Flame::UpdateModel(int /*a_step*/)
 
         //psi_mf[lev]->setVal(1.0);
         phi_mf[lev]->FillBoundary();
-        phicell_mf[lev]->FillBoundary();
+        //phicell_mf[lev]->FillBoundary();
         eta_mf[lev]->FillBoundary();
         temp_mf[lev]->FillBoundary();
 
@@ -358,7 +357,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const& phicell = (*phicell_mf[lev]).array(mfi);
+                //amrex::Array4<const Set::Scalar> const& phicell = (*phicell_mf[lev]).array(mfi);
                 // Heat transfer fields
                 amrex::Array4<Set::Scalar>       const& tempnew = (*temp_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& temp = (*temp_old_mf[lev]).array(mfi);
@@ -600,7 +599,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
     //if (lev < finest_level) return;
     //phi_mf[lev]->setVal(0.0);
     ic_phi->Initialize(lev, phi_mf, time);
-    ic_phicell->Initialize(lev, phi_mf, time);
+    //ic_phicell->Initialize(lev, phi_mf, time);
 }
 
 void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,

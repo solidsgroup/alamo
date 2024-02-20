@@ -129,6 +129,7 @@ public:
         // Refinement threshold for strain gradient
         pp.query("ref_threshold", value.m_elastic_ref_threshold);
 
+        pp.query("fields_verbose", value.plot_field);
 
         // Read in IC for eta
         if (nmodels>1 && pp.contains("ic.type"))
@@ -162,7 +163,7 @@ public:
             else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);
 
             value.bc_psi = new BC::Nothing();
-            value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
+            value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", value.plot_field);
             value.psi_on = true;
             
             value.psi_reset_on_regrid = true;
@@ -269,6 +270,7 @@ protected:
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     bool psi_reset_on_regrid = false;
     bool eta_reset_on_regrid = false;
+    bool plot_field = false;
 
     using Base::Mechanics<MODEL>::m_type;
     using Base::Mechanics<MODEL>::finest_level;

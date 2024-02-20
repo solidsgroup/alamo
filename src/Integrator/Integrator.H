@@ -233,6 +233,8 @@ protected:
     inline void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
     template<class T>
     inline void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true);
+    template<class T>
+    inline void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving = true);
 
     template<class T, int d>
     inline void AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string, bool writeout, bool evolving);
@@ -461,7 +463,12 @@ inline void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, in
     Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, a_name, true, evolving);
 }
-
+template<class T>
+inline void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving)
+{
+    Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
+    AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, a_name, writeout, evolving);
+}
 
 }
 #endif
