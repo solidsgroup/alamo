@@ -158,10 +158,10 @@ void Hydro::Initialize(int lev)
             etaE(i, j, k) = eta(i, j, k) * E_mix(i, j, k);
             etaE_old(i, j, k) = etaE(i, j, k);
 
-            M_mix(i, j, k, 0) = rho_mix(i, j, k) * v(i, j, k, 0);
-            M_mix(i, j, k, 1) = rho_mix(i, j, k) * v(i, j, k, 1);
-            etaM(i, j, k, 0) = M_mix(i, j, k, 0) * eta(i, j, k);
-            etaM(i, j, k, 1) = M_mix(i, j, k, 1) * eta(i, j, k);
+            M_mix(i, j, k, 0) = rho_mix(i, j, k) * v(i, j, k, 0) * eta(i, j, k);
+            M_mix(i, j, k, 1) = rho_mix(i, j, k) * v(i, j, k, 1) * eta(i, j, k);
+            etaM(i, j, k, 0) = M_mix(i, j, k, 0);
+            etaM(i, j, k, 1) = M_mix(i, j, k, 1);
             etaM_old(i, j, k, 0) = etaM(i, j, k, 0);
             etaM_old(i, j, k, 1) = etaM(i, j, k, 1);
         });
@@ -225,7 +225,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(etaDensity_old_mf[lev], etaDensity_mf[lev]);
 
     const Set::Scalar* DX = geom[lev].CellSize();
-
 
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
@@ -324,10 +323,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             M_mix(i, j, k, 1) = etaM_new(i, j, k, 1);
 
             //Diffuse Sources
+            omega(i, j, k) = eta(i,j,k) * (grad_uy(0) - grad_ux(1));
+
             std::array<Set::Scalar, 4> source;
             source[0] = rhoInterface(i, j, k)  * (vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * grad_eta(1));
-            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_ux * grad_eta(0);//grad_eta_mag;
-            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_uy * grad_eta(1);//_mag;
+            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_ux * grad_eta(0);
+            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_uy * grad_eta(1);
             source[3] = 0.5 * rhoInterface(i, j, k) * (vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * grad_eta(1));
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
@@ -340,8 +341,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             etarho_new(i, j, k)  = eta(i, j, k) * rho_mix(i, j, k);
             etaM_new(i, j, k, 0) = eta(i, j, k) * M_mix(i, j, k, 0);
             etaM_new(i, j, k, 1) = eta(i, j, k) * M_mix(i, j, k, 1);
-
-            omega(i, j, k) = (grad_uy(0) - grad_ux(1));
 
         });
     }
