@@ -14,10 +14,10 @@ amr.blocking_factor = 2
 amr.grid_eff = 0.8
 
 
-amr.max_level = 0
-timestep  = 5.0e-3
+amr.max_level = 3
+timestep  = 1.0e-1
 #amr.n_cell = 256 128
-amr.n_cell = 128 128
+amr.n_cell = 64 16
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -25,8 +25,8 @@ amr.n_cell = 128 128
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -3.0 -6.0 0.0 # [ m ] 
-geometry.prob_hi =  9.0  6.0 0.0 # [ m ]
+geometry.prob_lo = -15.0 -6.0 0.0 # [ m ] 
+geometry.prob_hi =  33.0  6.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -50,14 +50,14 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.1
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.constant.x0 = -1.0 
+eta.ic.expression.constant.x0 = -9.0 
 eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 0.5)/eps) + 0.5*tanh((sqrt((x-x0)**2 + (y)**2) - 0.5)/eps))"
 
 ### HYDRO PARAM ###
 
 gamma = 1.4
 cfl   = 0.4
-mu    = 0.05
+mu    = 0.005
 
 rho_solid = 1000.0 #kg/m^3
 rho_fluid = 10.0 #kg/m^3
@@ -127,5 +127,6 @@ r_refinement_criterion   = 0.1
 e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.1
 
 #TODO

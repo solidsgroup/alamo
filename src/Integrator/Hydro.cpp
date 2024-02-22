@@ -25,6 +25,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("e_refinement_criterion", value.e_refinement_criterion);
         pp.query("m_refinement_criterion", value.m_refinement_criterion);
         pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
+        pp.query("omega_refinement_criterion", value.omega_refinement_criterion);
 
         pp.query("gamma", value.gamma);
         pp.query("cfl", value.cfl);
@@ -308,13 +309,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaM(i, j, k, 0)
                 + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0]
                 + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1]
-	            + mu * etarho(i, j, k) * lap_ux * dt;
+	            + mu * eta(i, j, k) * lap_ux * dt;
 
             etaM_new(i, j, k, 1) =
                 etaM(i, j, k, 1)
 	            + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
 	            + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1]
-	            + mu * etarho(i, j, k) * lap_uy * dt;
+	            + mu * eta(i, j, k) * lap_uy * dt;
 
             //Compute New Mixed Fields
             rho_mix(i, j, k)  = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
@@ -328,7 +329,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             std::array<Set::Scalar, 4> source;
             source[0] = rhoInterface(i, j, k)  * (vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * grad_eta(1));
             source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_ux * grad_eta(0);
-            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_uy * grad_eta(1);
+            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_uy * grad_eta(1);
             source[3] = 0.5 * rhoInterface(i, j, k) * (vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * grad_eta(1));
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
@@ -374,7 +375,17 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         });
     }
 
+    // Vorticity criterion for refinement
+    for (amrex::MFIter mfi(*Vorticity_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
 
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            Set::Vector grad_omega = Numeric::Gradient(omega, i, j, k, 0, DX);
+            if (grad_omega.lpNorm<2>() * dr * 2 > omega_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
 
 }//end TagCells
 

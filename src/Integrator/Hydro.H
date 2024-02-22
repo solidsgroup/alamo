@@ -91,7 +91,7 @@ private:
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-    Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion;
+    Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion, omega_refinement_criterion;
     Set::Scalar gamma, cfl, mu;
     Set::Scalar rho_solid, rho_fluid, E_solid, E_fluid, Mx_init, My_init;
     Set::Scalar eps, rho_interface, v_x_interface, v_y_interface, delta_p_interface, InterfaceVel_x, InterfaceVel_y;
