@@ -47,6 +47,21 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
 }
 
 AMREX_FORCE_INLINE
+Vector Size(const amrex::Geometry &geom)
+{
+    Set::Vector size;
+    size(0) = geom.ProbHi()[0] - geom.ProbLo()[0];
+#if AMREX_SPACEDIM>1
+    size(1) = geom.ProbHi()[1] - geom.ProbLo()[1];
+#endif
+#if AMREX_SPACEDIM>2
+    size(2) = geom.ProbHi()[2] - geom.ProbLo()[2];
+#endif
+    return size;
+}
+
+
+AMREX_FORCE_INLINE
 Vector Volume(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
 {
     (void)k;

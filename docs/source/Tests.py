@@ -188,7 +188,9 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             cmd = ""
             if "nprocs" in config[c] and int(config[c]["nprocs"]) > 1:
                 cmd += "mpiexec -np {} ".format(config[c]["nprocs"])
-            cmd += "./bin/alamo-{}d-g++".format(config[c]["dim"])
+            exe = "alamo"
+            if "exe" in config[c]: exe = config[c]["exe"]
+            cmd += "./bin/{}-{}d-g++".format(exe,config[c]["dim"])
             cmd += " {}/input".format(testdirname.replace("../../",""))
             if "args" in config[c]:
                 cmd += " "

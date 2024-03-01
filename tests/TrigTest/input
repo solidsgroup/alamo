@@ -3,6 +3,13 @@
 #@  nprocs = 1
 #@  args = amr.max_level=0
 #@
+#@  [2D-1AMR-Levels-serial-coverage]
+#@  dim = 2
+#@  nprocs = 1
+#@  args = amr.max_level=0
+#@  coverage = true
+#@  check = false
+#@
 #@  [2D-2AMRLevels-serial]
 #@  dim = 2
 #@  nprocs = 1

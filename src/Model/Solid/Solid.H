@@ -107,7 +107,7 @@ public:
             Set::Scalar dx = 1E-8, tol = 1E-6;
 
             Set::Matrix F = Set::Matrix::Random();
-            while (fabs(F.determinant()) < 0.10) F = Set::Matrix::Random(); // Ensure that F in GL(3)
+            while (F.determinant() < 0.1) F = Set::Matrix::Random(); // Ensure that F in GL(3)
 
             Set::Matrix dw_exact = model.DW(F);
             Set::Matrix dw_numeric = Set::Matrix::Zero();
@@ -144,7 +144,7 @@ public:
 
             Set::Scalar dx = 1E-8, tol = 1E-4;
             Set::Matrix F = Set::Matrix::Random();
-            while (fabs(F.determinant()) < 1.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
+            while (F.determinant() < 0.1) F = Set::Matrix::Random(); // Ensure that F in GL(3)
 
             Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_exact = model.DDW(F);
             Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_numeric = Set::Matrix4<AMREX_SPACEDIM,T::sym>::Zero();
@@ -188,7 +188,7 @@ public:
 
             Set::Scalar tol = 1E-4;
             Set::Matrix F = Set::Matrix::Random();
-            while (fabs(F.determinant()) < 0.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
+            while (fabs(F.determinant()) < 0.1) F = Set::Matrix::Random(); // Ensure that F is reasonably well-behaved.
 
             Set::Scalar W_unrotated = model.W(F);
 

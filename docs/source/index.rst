@@ -84,6 +84,63 @@ Documentation for alamo
         :bdg-danger-line:`Required reading for all developers`
         
 
+
+References
+==========
+
+
+.. bibliography::
+   :list: bullet
+   :all:
+
+
+
+
+Sponsors
+========
+
+The development team gratefully acknowledges the funding sources that enable the development and extension of Alamo.
+
+.. grid:: 1 1 2 3 
+   
+    .. grid-item-card::
+        
+        **Office of Naval Research**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://www.nre.navy.mil/themes/custom/onr/logo.png
+             :alt: onr
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *Mesoscale and continuum modeling of solid-phase propellant coupled to gas-phase to determine continuum burn rates in AP/HTPB*
+
+    .. grid-item-card::
+        
+        **National Science Foundation**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://nsf.widen.net/content/txvhzmsofh/png/NSF_Official_logo_High_Res_1200ppi?u=rpch1x&position=c&quality=80
+             :alt: national science foundation
+             :width: 50%
+             :align: center
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *MRI: Acquisition of a high performance computing cluster for next-generation computational science in Southern Colorado*
+
+        *CAREER: A multichannel convolutional neural network framework for prediction of damage nucleation sites in microstructure*
+
+    .. grid-item-card::
+        
+        **Lawrence Berkeley National Laboratory**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://creative.lbl.gov/wp-content/uploads/sites/3/2020/07/14_BL_Alt_Stack_Rev.png
+             :alt: lawrence berkeley national lab
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *Extending the capability of the AMReX MLMG nodal solver*
+    
+
 .. dropdown:: Table of contents
 
 
@@ -97,8 +154,5 @@ Documentation for alamo
         Tests
         Inputs
         InputsSearch
-	Developers
-
-
-
-
+        Developers
+        

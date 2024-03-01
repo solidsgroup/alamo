@@ -22,16 +22,15 @@ def readHeader(path):
 
 
 def validate(path, 
-             outdir,
-             vars = [],
-             start = [0,0,0],
-             end = [1,1,1],
-             axis = 2,
-             intercept = 0,
-             generate_ref_data = False,
-             reference=None,
-             tolerance=1E-8,
-             coord = 'x'):
+            outdir,
+            vars = [],
+            start = [0,0,0],
+            end = [1,1,1],
+            axis = 2,
+            intercept = 0,
+            generate_ref_data = False,
+            reference=None,
+            tolerance=1E-8):
             
     info = readHeader(path)
             
@@ -68,13 +67,7 @@ def validate(path,
     elif len(tolerance) != len(vars):
         raise Exception("Wrong number of tolerance values")
     for var, tol in zip(vars,tolerance):
-        len_x = info["geom_hi"][0]-info["geom_lo"][0]
-        len_y = info["geom_hi"][1]-info["geom_lo"][1]
-        if (len_x >= len_y):
-            data2d = slice2d.to_frb(len_x,100)[var]
-        else:
-            data2d = slice2d.to_frb(len_y,100)[var]
-        
+        data2d = slice2d.to_frb(info["geom_hi"][0]-info["geom_lo"][0],[1000,1000])[var]
         pylab.clf()
         pylab.imshow(data2d,origin='lower',cmap='jet',
                      extent=[info["geom_lo"][0],info["geom_hi"][0],info["geom_lo"][1],info["geom_hi"][1]])
@@ -82,25 +75,18 @@ def validate(path,
         pylab.tight_layout()
         pylab.savefig("{}/2d_{}.png".format(outdir,var))
 
-        new_x,new_y,new_var = [numpy.array(_x) for _x in zip(*sorted(zip(new_df["x"],new_df["y"],new_df[var])))]
-        ref_x,ref_y,ref_var = [numpy.array(_x) for _x in zip(*sorted(zip(ref_df["x"],ref_df["y"],ref_df[var])))]
+        new_x,new_var = [numpy.array(_x) for _x in zip(*sorted(zip(new_df["x"],new_df[var])))]
+        ref_x,ref_var = [numpy.array(_x) for _x in zip(*sorted(zip(ref_df["x"],ref_df[var])))]
 
-
-        if coord == 'x':
-            new_coord = new_x
-            ref_coord = ref_x
-        elif coord == 'y':
-            new_coord = new_y
-            ref_coord = ref_y
 
         pylab.clf()
-        pylab.plot(ref_coord,ref_var,color='C0',label='ref')
-        pylab.plot(new_coord,new_var,color='C1',label='new',linestyle='--')
+        pylab.plot(ref_x,ref_var,color='C0',label='ref')
+        pylab.plot(new_x,new_var,color='C1',label='new',linestyle='--')
         pylab.legend()
         pylab.savefig(outdir+"/{}.png".format(var))
         
-        err = numpy.sqrt(integrate(ref_coord, (numpy.interp(ref_coord, new_coord, new_var) - ref_var)**2))
-        mag = numpy.sqrt(integrate(ref_coord, (numpy.interp(ref_coord, new_coord, new_var) + ref_var)**2))
+        err = numpy.sqrt(integrate(ref_x, (numpy.interp(ref_x, new_x, new_var) - ref_var)**2))
+        mag = numpy.sqrt(integrate(ref_x, (numpy.interp(ref_x, new_x, new_var) + ref_var)**2))
 
         relerr = err/mag
 

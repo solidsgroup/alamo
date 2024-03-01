@@ -12,11 +12,9 @@ class ThermoElastic :
     virtual public HeatConduction,
     virtual public Mechanics<Model::Solid::Affine::Isotropic>
 {
-    //using model_type = Model::Solid::Affine::Isotropic;
 public:
     ThermoElastic():
-        //Integrator(),
-        HeatConduction(),
+        HeatConduction(3),
         Mechanics<Model::Solid::Affine::Isotropic>()
     {
         Util::Message(INFO,"max level ", max_level);
