@@ -31,6 +31,7 @@ public:
 
 protected:
     void Initialize(int lev) override;
+    void Mix(int lev);
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepComplete(Set::Scalar time, int lev) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
@@ -39,7 +40,7 @@ protected:
     //void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &box) override;
     //virtual void UpdateModel(int a_step);
 
-    virtual void UpdateEta(Set::Scalar time);
+    virtual void UpdateEta(int lev, Set::Scalar time);
 private:
 
     Set::Field<Set::Scalar> etaDensity_mf;
@@ -57,8 +58,10 @@ private:
     Set::Field<Set::Scalar> Velocity_mf;
     Set::Field<Set::Scalar> Pressure_mf;
 
+protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
+private:
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> Vorticity_mf;
@@ -85,7 +88,7 @@ private:
     IC::IC* ic_eta;
     IC::IC* ic_etadot;
 
-    BC::Nothing bc_nothing;
+BC::Nothing bc_nothing;
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;

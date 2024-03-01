@@ -95,6 +95,7 @@ public:
                 }
 
                 phi(i, j, k, 0) = min_grain_id;
+                if (invert) phi(i,j,k,0) = 1.0 - min_grain_id;
                 if (ncomp > 1) phi(i, j, k, 1) = 1.0 - min_grain_id;
             });
         }
@@ -108,6 +109,7 @@ public:
         pp.query("filename", filename); // Location of .xyzr file
         pp.query("verbose", verbose); // Verbosity (used in parser only)
         pp.query("mult",value.mult); // Coordinate multiplier
+        pp.query("invert",value.invert); // Coordinate multiplier
         if (pp.contains("x0"))
             pp.queryarr("x0",value.x0); // Coordinate offset
         std::ifstream datafile(filename);
@@ -142,6 +144,7 @@ private:
     Set::Scalar eps;
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
+    bool invert = false;
 };
 }
 #endif

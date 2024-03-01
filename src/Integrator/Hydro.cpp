@@ -125,6 +125,11 @@ void Hydro::Initialize(int lev)
 
     ic_Pressure->Initialize(lev, Pressure_mf, 0.0);
 
+    Mix(lev);
+}
+
+void Hydro::Mix(int lev)
+{
     Util::Message(INFO, eta_mf[lev]->nComp());
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
@@ -173,18 +178,14 @@ void Hydro::Initialize(int lev)
     vy_max = 0.0;
 }
 
-void Hydro::UpdateEta(Set::Scalar)
+
+void Hydro::UpdateEta(int lev, Set::Scalar time)
 {
-    //for (int lev = 0; lev <= finest_level; ++lev)
-    //{
-    //    ic_eta->Initialize(lev, eta_mf, time);
-    //    ic_etadot->Initialize(lev, etadot_mf, time);
-    //}
+    ic_eta->Initialize(lev, eta_mf, time);
 }
 
-void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
+void Hydro::TimeStepBegin(Set::Scalar time, int /*iter*/)
 {
-    //UpdateEta(time);
 }
 
 
@@ -208,7 +209,7 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     std::swap(eta_old_mf, eta_mf);
-    ic_eta->Initialize(lev, eta_mf, time);
+    UpdateEta(lev,time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();

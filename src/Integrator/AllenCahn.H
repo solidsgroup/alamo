@@ -32,6 +32,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/PSRead.H"
 #include "Numeric/Stencil.H"
 
 namespace Integrator
@@ -76,6 +77,7 @@ public:
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
         else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
+        else if (type == "psread")     value.ic = new IC::PSRead(value.geom, pp, "alpha.ic.psread");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
         // Use a constant BC object for temperature
@@ -161,6 +163,7 @@ protected:
 protected:
     Set::Field<Set::Scalar> alpha_mf;         // Temperature field variable (current timestep)
     Set::Field<Set::Scalar> alpha_old_mf;     // Temperature field variable (previous timestep)
+    IC::IC* ic;                              // Object used to initialize temperature field
 
     struct {
         Set::Scalar L = 1.0;
@@ -175,7 +178,6 @@ private:
 
     Set::Scalar refinement_threshold = 0.01; // Criterion for cell refinement
 
-    IC::IC* ic;                              // Object used to initialize temperature field
     BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
 };
 } // namespace Integrator
