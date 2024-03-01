@@ -123,7 +123,12 @@ void Hydro::Initialize(int lev)
 
     ic_Velocity->Initialize(lev, Velocity_mf, 0.0);
 
+
     ic_Pressure->Initialize(lev, Pressure_mf, 0.0);
+
+    ic_rhoInterface->Initialize(lev,rhoInterface_mf,0.0);
+    ic_vInterface->Initialize(lev,vInterface_mf,0.0);
+    ic_deltapInterface->Initialize(lev,deltapInterface_mf,0.0);
 
     Mix(lev);
 }
@@ -329,7 +334,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             std::array<Set::Scalar, 4> source;
             source[0] = rhoInterface(i, j, k)  * (vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * grad_eta(1));
-            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * rhoInterface(i, j, k) * lap_ux * grad_eta(0);
+            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_ux * grad_eta(0);
             source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_uy * grad_eta(1);
             source[3] = 0.5 * rhoInterface(i, j, k) * (vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * grad_eta(1));
 

@@ -22,7 +22,6 @@ public:
     {
         pp.queryclass("allencahn",static_cast<AllenCahn*>(&value));
         pp.queryclass("hydro",static_cast<Hydro*>(&value));
-        pp.query("sfi.invert",invert);
     }
 
 
@@ -33,6 +32,7 @@ protected:
         Hydro::Initialize(lev);
         AllenCahn::ic->Initialize(lev,eta_mf,0.0);
         AllenCahn::ic->Initialize(lev,eta_old_mf,0.0);
+        
         Hydro::Mix(lev);
     }
 
