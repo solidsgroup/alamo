@@ -67,7 +67,7 @@ private:
     Set::Field<Set::Scalar> Vorticity_mf;
 
     Set::Field<Set::Scalar> rhoInterface_mf;
-    Set::Field<Set::Scalar> vInterface_mf;
+    Set::Field<Set::Scalar> vInjected_mf;
     Set::Field<Set::Scalar> deltapInterface_mf;
 
     BC::BC<Set::Scalar>* bc_rho;
@@ -82,7 +82,7 @@ private:
     IC::IC* ic_Pressure;
 
     IC::IC* ic_rhoInterface;
-    IC::IC* ic_vInterface;
+    IC::IC* ic_vInjected;
     IC::IC* ic_deltapInterface;
 
     IC::IC* ic_eta;

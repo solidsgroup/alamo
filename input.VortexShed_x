@@ -39,9 +39,9 @@ stop_time = 5000.0
 rhoInterface.ic.type = expression
 rhoInterface.ic.expression.region0 = "20.0"
 
-vInterface.ic.type = expression
-vInterface.ic.expression.region0 = "0.0"
-vInterface.ic.expression.region1 = "0.0"
+vInjected.ic.type = expression
+vInjected.ic.expression.region0 = "0.0"
+vInjected.ic.expression.region1 = "0.0"
 
 deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"

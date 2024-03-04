@@ -70,9 +70,9 @@ allencahn.ch.chempot = 0.01
 ### ETA IC ###
 hydro.rhoInterface.ic.type = expression
 hydro.rhoInterface.ic.expression.region0 = "20.0"
-hydro.vInterface.ic.type = expression
-hydro.vInterface.ic.expression.region0 = "0.0"
-hydro.vInterface.ic.expression.region1 = "0.0"
+hydro.vInjected.ic.type = expression
+hydro.vInjected.ic.expression.region0 = "0.0"
+hydro.vInjected.ic.expression.region1 = "0.0"
 hydro.deltapInterface.ic.type = expression
 hydro.deltapInterface.ic.expression.region0 = "0.0"
 ### HYDRO PARAM ###

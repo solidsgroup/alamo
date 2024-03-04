@@ -63,7 +63,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.Vorticity_mf, &value.bc_nothing, 1, nghost, "Vorticity", true);
         value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, nghost, "Pressure", true);
 
-        value.RegisterNewFab(value.vInterface_mf, &value.bc_nothing, 2, nghost, "vInterface", true);
+        value.RegisterNewFab(value.vInjected_mf, &value.bc_nothing, 2, nghost, "vInjected", true);
         value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface", true);
         value.RegisterNewFab(value.deltapInterface_mf, &value.bc_nothing, 1, nghost, "deltapInterface", true);
     }
@@ -98,10 +98,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     {
         std::string type = "constant";
-        pp.query("vInterface.ic.type", type);
-        if (type == "constant") value.ic_vInterface = new IC::Constant(value.geom, pp, "vInterface.ic.constant");
-        else if (type == "expression") value.ic_vInterface = new IC::Expression(value.geom, pp, "vInterface.ic.expression");
-        else Util::Abort(INFO, "Invalid vInterface.ic: ", type);
+        pp.query("vInjected.ic.type", type);
+        if (type == "constant") value.ic_vInjected = new IC::Constant(value.geom, pp, "vInjected.ic.constant");
+        else if (type == "expression") value.ic_vInjected = new IC::Expression(value.geom, pp, "vInjected.ic.expression");
+        else Util::Abort(INFO, "Invalid vInjected.ic: ", type);
     }
     {
         std::string type = "constant";
@@ -127,7 +127,7 @@ void Hydro::Initialize(int lev)
     ic_Pressure->Initialize(lev, Pressure_mf, 0.0);
 
     ic_rhoInterface->Initialize(lev,rhoInterface_mf,0.0);
-    ic_vInterface->Initialize(lev,vInterface_mf,0.0);
+    ic_vInjected->Initialize(lev,vInjected_mf,0.0);
     ic_deltapInterface->Initialize(lev,deltapInterface_mf,0.0);
 
     Mix(lev);
@@ -262,7 +262,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::Array4<Set::Scalar> const& rhoInterface    = (*rhoInterface_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& deltapInterface = (*deltapInterface_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& vInterface      = (*vInterface_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& vInjected       = (*vInjected_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -332,11 +332,14 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Diffuse Sources
             omega(i, j, k) = eta(i,j,k) * (grad_uy(0) - grad_ux(1));
 
+            Set::Scalar relative_interface_vel_dot_grad_eta = (vInjected(i, j, k, 0) * grad_eta(0) + vInjected(i, j, k, 1) * grad_eta(1)) - etadot(i, j, k) * grad_eta_mag;
+            Set::Scalar relative_interface_vel_mag_squared = (vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1)) + etadot(i, j, k) * etadot(i, j, k) + 2 * std::sqrt(vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1)) * etadot(i, j, k);
+
             std::array<Set::Scalar, 4> source;
-            source[0] = rhoInterface(i, j, k)  * (vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * grad_eta(1));
-            source[1] = (rhoInterface(i, j, k) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_ux * grad_eta(0);
-            source[2] = (rhoInterface(i, j, k) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) + deltapInterface(i, j, k)) * grad_eta_mag + mu * lap_uy * grad_eta(1);
-            source[3] = 0.5 * rhoInterface(i, j, k) * (vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * vInterface(i, j, k, 0) * grad_eta(0) + vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * vInterface(i, j, k, 1) * grad_eta(1));
+            source[0] = rhoInterface(i, j, k)  * relative_interface_vel_dot_grad_eta;
+            source[1] = (rhoInterface(i, j, k) * relative_interface_vel_mag_squared + deltapInterface(i, j, k)) * grad_eta(0) + mu * lap_ux * grad_eta(0);
+            source[2] = (rhoInterface(i, j, k) * relative_interface_vel_mag_squared + deltapInterface(i, j, k)) * grad_eta(1) + mu * lap_uy * grad_eta(1);
+            source[3] = 0.5 * rhoInterface(i, j, k) * relative_interface_vel_mag_squared * relative_interface_vel_dot_grad_eta;
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
             rho_mix(i, j, k)  += source[0] * dt + rho_mix(i, j, k) * etadot(i, j, k) * dt;
