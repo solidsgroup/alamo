@@ -6,7 +6,7 @@ plot_file = ./output
 
 ### MESHING ###
 
-amr.plot_dt = 1.0
+amr.plot_dt = 10.0
 #amr.plot_int = 10000
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
@@ -15,7 +15,7 @@ amr.grid_eff = 0.8
 
 
 amr.max_level = 3
-timestep  = 1.0e-2
+timestep  = 2.0e-2
 #amr.n_cell = 256 128
 amr.n_cell = 128 64
 
@@ -46,13 +46,13 @@ vInjected.ic.expression.region1 = "0.0"
 deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
-Ldot_0 = 10.0
+Ldot_0 = 500.0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.1
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.constant.x0 = -9.0 
+eta.ic.expression.constant.x0    = -9.0 
 eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 0.5)/eps) + 0.5*tanh((sqrt((x-x0)**2 + (y)**2) - 0.5)/eps))"
 
 ### HYDRO PARAM ###
@@ -60,7 +60,7 @@ eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 
 gamma = 1.4
 cfl   = 0.4
 #mu    = 0.005
-mu    = 0.25
+mu    = 0.001
 
 rho_solid = 1000.0 #kg/m^3
 rho_fluid = 20.0 #kg/m^3
@@ -69,7 +69,7 @@ E_solid   = 5.0
 Velocity.ic.type = expression
 Velocity.ic.expression.constant.eps   = 0.1
 Velocity.ic.expression.constant.x0    = -2.0
-Velocity.ic.expression.region0 = "0.2"
+Velocity.ic.expression.region0 = "0.1"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
@@ -120,7 +120,7 @@ v.bc.type.xlo = dirichlet neumann
 v.bc.type.ylo = neumann dirichlet
 v.bc.type.yhi = neumann dirichlet
 v.bc.val.xhi = 0.0 0.0
-v.bc.val.xlo = 0.2 0.0
+v.bc.val.xlo = 0.1 0.0
 v.bc.val.ylo = 0.0 0.0
 v.bc.val.yhi = 0.0 0.0
 

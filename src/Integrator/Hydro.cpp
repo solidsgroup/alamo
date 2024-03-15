@@ -333,7 +333,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Diffuse Sources
             omega(i, j, k) = eta(i,j,k) * (grad_uy(0) - grad_ux(1));
-            Set::Scalar relative_interface_vel_dot_grad_eta = vInjected(i, j, k, 0) * grad_eta(0) + vInjected(i, j, k, 1) * grad_eta(1) + etadot(i,j,k);
+            Set::Scalar relative_interface_vel_dot_grad_eta = vInjected(i, j, k, 0) * grad_eta(0) + vInjected(i, j, k, 1) * grad_eta(1) + etadot(i, j, k);
 
             std::array<Set::Scalar, 4> source;
             source[0] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta;

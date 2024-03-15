@@ -29,12 +29,12 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 10000.0
+stop_time = 2000.0
 
 ### ETA IC ###
 
 rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "100.0"
+rhoInterface.ic.expression.region0 = "0.0"
 
 vInterface.ic.type = expression
 vInterface.ic.expression.region0 = "0.0"
@@ -53,14 +53,16 @@ eta.ic.expression.region0        = "(0.5*tanh((y+0.5)/eps) - 0.5*tanh((y - 1.5)/
 
 gamma = 1.4
 cfl   = 0.4
-mu    = 1.0
+mu    = 0.4
+
+Ldot_0 = 0.0
 
 rho_solid = 1000.0 #kg/m^3
 rho_fluid = 1000.0 #kg/m^3
 E_solid   = 5.0
 
 Velocity.ic.type = expression
-Velocity.ic.expression.region0 = "0.0025"
+Velocity.ic.expression.region0 = "0.0"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
@@ -97,21 +99,21 @@ rho.bc.val.ylo = 0.0
 rho.bc.val.yhi = 0.0
 
 p.bc.type.xhi = dirichlet
-p.bc.type.xlo = dirichlet
+p.bc.type.xlo = neumann
 p.bc.type.ylo = neumann
 p.bc.type.yhi = neumann
 
-p.bc.val.xhi = 1.5
-p.bc.val.xlo = 2.0
+p.bc.val.xhi = 2.0
+p.bc.val.xlo = -0.05
 p.bc.val.ylo = 0.0 
 p.bc.val.yhi = 0.0
 
 v.bc.type.xhi = neumann neumann
-v.bc.type.xlo = neumann neumann
-v.bc.type.ylo = neumann neumann
-v.bc.type.yhi = neumann neumann
+v.bc.type.xlo = dirichlet neumann
+v.bc.type.ylo = neumann dirichlet
+v.bc.type.yhi = neumann dirichlet
 v.bc.val.xhi = 0.0 0.0
-v.bc.val.xlo = 0.0 0.0
+v.bc.val.xlo = 0.05 0.0
 v.bc.val.ylo = 0.0 0.0
 v.bc.val.yhi = 0.0 0.0
 
