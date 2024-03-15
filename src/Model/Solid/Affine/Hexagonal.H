@@ -1,3 +1,13 @@
+//
+// This model implements an affine hexagonal material:
+//
+// .. math::
+//
+//    W_{aff}(\nabla\mathbf{u}) = W_{lin}(\nabla\mathbf{u} - \mathbf{F}_0)
+//
+// where :math:`W_{aff}` is the present model, :math:`\mathbf{F}_0` is the eigenstrain,
+// and :math:`W_{lin}` is the cubic model defined in :ref:`Model::Solid::Linear::Hexagonal`.
+//
 #ifndef MODEL_SOLID_AFFINE_HEXAGONAL_H_
 #define MODEL_SOLID_AFFINE_HEXAGONAL_H_
 
@@ -73,7 +83,7 @@ public:
     static void Parse(Hexagonal & value, IO::ParmParse & pp)
     {
         Linear::Hexagonal::Parse(value,pp);
-        if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
+        pp.queryarr("F0",value.F0); // Eigenstrain matrix. Can be defined in 2D or 3D.
     }
 
     AMREX_FORCE_INLINE

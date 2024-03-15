@@ -1,6 +1,38 @@
 //
-// This class implements basic hexagonal elasticity.
+// This class implements elasticity for a linear material with hexagonal symmetry.
+// The elastic modulus tensor :math:`\mathbb{C}` has major and minor symmetry but not cubic symmetry,
+// so the symmetry class for this material is :ref:`Set::Sym::MajorMinor`.
+// The five elastic constants in the unrotated system are :math:`C_{11},C_{12},C_{13},C_{33},C_{44}`,
+// and the resulting elastic modulus tensor is
 //
+// .. math::
+//
+//    \mathbb{C} = 
+//    \begin{bmatrix}
+//       C_{0000} & C_{0011} & C_{0022} & C_{0012} & C_{0020} & C_{0001} \\
+//       C_{1100} & C_{1111} & C_{1122} & C_{1112} & C_{1120} & C_{1101} \\
+//       C_{2200} & C_{2211} & C_{2222} & C_{2212} & C_{2220} & C_{2201} \\
+//       C_{1200} & C_{1211} & C_{1222} & C_{1212} & C_{1220} & C_{1201} \\
+//       C_{2000} & C_{2011} & C_{2022} & C_{2012} & C_{2020} & C_{2001} \\
+//       C_{0100} & C_{0111} & C_{0122} & C_{0112} & C_{0120} & C_{0101} 
+//    \end{bmatrix}
+//    =
+//    \begin{bmatrix}  
+//       C_{11}  &   C_{12}  &   C_{12}  &          &                      &                     \\
+//       C_{12}  &   C_{11}  &   C_{13}  &          &                      &                     \\
+//       C_{12}  &   C_{13}  &   C_{33}  &          &                      &                     \\
+//               &           &           &  C_{44}  &                      &                     \\
+//               &           &           &          &   0.5(C_{11}-C_{12}) &                     \\
+//               &           &           &          &                      &  0.5(C_{11}-C_{12})  
+//    \end{bmatrix}
+//
+// Rotations can be specified using Bunge euler angles to generate a rotation matrix :math:`\mathbf{R}`.
+// The rotated modulus tensor :math:`\mathbb{C}^{rot}` is then
+//
+// .. math::
+//    
+//    \mathbb{C}^{rot}_{psqt} = \mathbb{C}_{ijkl}R_{pi}R_{qj}R_{sk}R_{tl}
+// 
 
 #ifndef MODEL_SOLID_LINEAR_HEXAGONAL_H_
 #define MODEL_SOLID_LINEAR_HEXAGONAL_H_
