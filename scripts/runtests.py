@@ -59,11 +59,20 @@ parser.add_argument('--cmd',default=False,action='store_true',help="Print out th
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code for all tests')
+parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
+parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
+parser.add_argument('--no-coverage',default=False,action='store_true',help='Prevent coverage version of the code from being used')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
 args=parser.parse_args()
+
+if args.coverage and args.no_coverage:
+    raise Exception("Cannot specify both --coverage and --no-coverage")
+if args.only_coverage and args.no_coverage:
+    raise Exception("Cannot specify both --only-coverage and --no-coverage")
 
 class DryRunException(Exception):
     pass
@@ -131,6 +140,22 @@ def test(testdir):
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
 
+        # Determine if we want to use the coverage version of the code.
+        coverage = args.coverage
+        if 'coverage' in config[desc].keys():
+            if config[desc]['coverage'] in {"no","No","false","False","0"}:
+                coverage = False
+            elif config[desc]['coverage'] in {"yes","Yes","true","True","1"}:
+                coverage = True
+            else:
+                raise(Exception("Invalid value for coverage: {}".format(config[desc]['coverage'])))
+        if args.only_coverage and not coverage:
+            continue
+        if args.only_non_coverage and coverage:
+            continue
+        if args.no_coverage:
+            coverage = False
+
         timeout = int(args.timeout)
         if 'timeout' in config[desc].keys():
             timeout = int(config[desc]['timeout'])
@@ -154,6 +179,8 @@ def test(testdir):
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
         else:
+            exe = 'alamo'
+            if 'exe' in config[desc].keys(): exe = config[desc]['exe']
             dim = 3 # Dimension of alamo to use
             if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
@@ -173,20 +200,34 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             
-            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
-            elif args.debug: exe = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
-            elif args.profile: exe = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
-            else: exe = "./bin/alamo-{}d-{}".format(dim,args.comp)
+            exestr = "./bin/{}-{}d".format(exe,dim)
+            if args.debug: exestr += "-debug"
+            if args.profile: exestr += "-profile"
+            if coverage: exestr += "-coverage"
+            exestr += "-"+args.comp
+            
+            #
+            # Sometimes we don't have a coverage version built; in that case,
+            # use the non-coverage version.
+            #
+            if not os.path.isfile(exestr):
+                exestr=exestr.replace("-coverage","")
+
+            #if args.debug and args.profile: exestr = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
+            #elif args.debug: exestr = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
+            #elif args.profile: exestr = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
+            #else: exestr = "./bin/alamo-{}d-{}".format(dim,args.comp)
+
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
-            # If the exe doesn't exist, exit noisily. The script will continue but will return a nonzero
+            # If the exestr doesn't exist, exit noisily. The script will continue but will return a nonzero
             # exit code.
-            if not os.path.isfile(exe):
-                print("  ├ {}{} (skipped - no executable){}".format(color.boldyellow,desc,color.reset))
+            if not os.path.isfile(exestr):
+                print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exestr,color.reset))
                 skips += 1
                 continue
-            command += exe + " "
+            command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
 
@@ -288,11 +329,14 @@ def test(testdir):
                 continue
     
     # Print a quick summary for this test family.
-    if fails: print("  └ {}{} tests failed{}".format(color.red,fails,color.reset),end="")
-    else: print("  └ {}{} tests failed{}".format(color.boldgreen,0,color.reset),end="")
-    if skips: print(", {}{} tests skipped{}".format(color.boldyellow,skips,color.reset),end="")
-    if timeouts: print(", {}{} tests timed out{}".format(color.red,timeouts,color.reset),end="")
-    print("")
+    summary = "  └ "
+    sums = []
+    if tests: sums.append("{}{} tests run{}".format(color.blue,tests,color.reset))
+    if checks: sums.append("{}{} checks passed{}".format(color.green,checks,color.reset))
+    if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
+    if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
+    if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
+    print(summary + ", ".join(sums))
     return fails, checks, tests, skips, fasters, slowers, timeouts
 
 # We may wish to pass in specific test directories. If we do, then test those only.
@@ -327,7 +371,7 @@ for testdir in tests:
 
 # Print a quick summary of all tests
 print("\nTest Summary")
-print("{}{} tests run{}".format(color.green,stats.tests,color.reset))
+print("{}{} tests run{}".format(color.blue,stats.tests,color.reset))
 print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.reset))
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))

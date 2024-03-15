@@ -4,10 +4,17 @@
 #@  check = false
 #@  args = stop_time=0.01
 #@  
+#@  [serial-coverage]
+#@  dim = 2
+#@  check = false
+#@  args = stop_time=0.0001
+#@  coverage = true
+#@
 #@  [parallel]
 #@  dim = 2
 #@  nprocs = 4
 #@  check = true
+#@  benchmark-waldorf = 83.9
 #@  
 
 alamo.program = flame
@@ -41,14 +48,14 @@ pf.w12 = 2.0
 pf.w0 = 0.0
 
 # AP / HTPB regression rate params 
-pf.r_ap = 1.222 # [ mm / s ]
-pf.n_ap = 1.042 # [ 1 ]
-pf.r_htpb = 0.1 # [ mm / s]
-pf.r_comb = 10.0 # [ mm / s]
-pf.n_htpb = 0.0 # [ 1 ]
-pf.n_comb = 0.0 # [ 1 ]
+pressure.r_ap = 1.222 # [ mm / s ]
+pressure.n_ap = 1.042 # [ 1 ]
+pressure.r_htpb = 0.1 # [ mm / s]
+pressure.r_comb = 10.0 # [ mm / s]
+pressure.n_htpb = 0.0 # [ 1 ]
+pressure.n_comb = 0.0 # [ 1 ]
 # Pressure used in regression rate calc
-pf.P = 0.2
+pressure.P = 0.2
 
 # Phase field IC
 eta.ic.type = constant
@@ -74,3 +81,6 @@ pf.eta.bc.val.xhi = 1.0
 pf.eta.bc.val.ylo = 0.0
 pf.eta.bc.val.yhi = 0.0
 
+thermal.on = 0 
+elastic.type = disable
+#amr.node.any = 0

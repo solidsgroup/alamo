@@ -11,6 +11,7 @@
 #@  args = model1.C12 = 1.221
 #@  args = model1.C44 = 0.757
 #@  ignore = model1.E model1.nu
+#@  coverage = true
 #@  
 #@  [affine-cubic]
 #@  dim = 3
@@ -21,6 +22,7 @@
 #@  args = model1.C44 = 0.757
 #@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
 #@  ignore = model1.E model1.nu
+#@  coverage = true
 #@
 #@
 #@  [affine-hexagonal]
@@ -34,6 +36,7 @@
 #@  args = model1.C44 = 0.164
 #@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
 #@  ignore = model1.E model1.nu
+#@  coverage = true
 #@
 #@  [j2]
 #@  dim = 3
@@ -55,6 +58,7 @@
 #@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
 #@  args = model1.E=210 
 #@  args = model1.nu=0.3
+#@  coverage=true
 #@
 #@  [neo-hookean]
 #@  dim=3
@@ -80,6 +84,7 @@
 #@  args = bc.tension_test.disp=(0,1:0,1)
 #@  args = solver.nriters=10
 #@  ignore = model1.E model1.nu
+#@  coverage = true
 #@
 #@  [pseudolinear-cubic]
 #@  dim = 3
@@ -89,6 +94,7 @@
 #@  args = model1.C12=1.221
 #@  args = model1.C44=0.757
 #@  ignore = model1.E model1.nu
+#@  coverage=true
 #@
 
 alamo.program = mechanics

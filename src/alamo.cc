@@ -11,10 +11,12 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Elastic/PseudoLinearCubic.H"
+#include "Model/Solid/Elastic/PseudoLinearCubicPredeformed.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/J2.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
+#include "Integrator/AllenCahn.H"
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
@@ -24,6 +26,7 @@
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/TopOp.H"
+#include "Integrator/Dendrite.H"
 
 int main (int argc, char* argv[])
 {
@@ -54,7 +57,9 @@ int main (int argc, char* argv[])
         else if (model == "affine.isotropic")   integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>(pp);
         else if (model == "linear.laplacian")   integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>(pp);
         else if (model == "elastic.neohookean") integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>(pp);
+        else if (model == "elastic.neohookeanpre") integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookeanPredeformed>(pp);
         else if (model == "elastic.pseudolinearcubic") integrator = new Integrator::Mechanics<Model::Solid::Elastic::PseudoLinearCubic>(pp);
+        else if (model == "elastic.pseudolinearcubicpredeformed") integrator = new Integrator::Mechanics<Model::Solid::Elastic::PseudoLinearCubicPredeformed>(pp);
         else if (model == "affine.j2")          integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>(pp);
         else Util::Abort(INFO,model," is not a valid model");
     }
@@ -64,6 +69,8 @@ int main (int argc, char* argv[])
     else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
     else if (program == "degradation")          integrator = new Integrator::PolymerDegradation();
     else if (program == "fracture")             integrator = new Integrator::Fracture();
+    else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
+    else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();

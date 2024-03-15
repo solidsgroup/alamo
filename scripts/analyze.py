@@ -71,8 +71,8 @@ for amrlev in range(0,namrlevs+1):
             dimz = int(res[0][5])-int(res[0][2])
             volume += dimx*dx[amrlev][0] * dimy*dx[amrlev][1] * dimz*dx[amrlev][2]
             nodes += dimx*dimy*dimz
-        patches +=1 
-        
+        patches +=1
+       
     print('{:>10}'.format(amrlev),end="")
     print('{:>15}'.format(nodes),end="")
     print('{:>15}'.format(patches),end="")
