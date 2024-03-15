@@ -205,7 +205,7 @@ protected:
         }
     }
 
-    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
         BL_PROFILE("Integrator::Base::Mechanics::Advance");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
@@ -264,7 +264,7 @@ protected:
             amrex::Array4<MODEL>               const& model = (*model_mf[lev]).array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k));
+                model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
         }
 

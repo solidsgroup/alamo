@@ -1,8 +1,9 @@
 alamo.program               = mechanics
-alamo.program.mechanics.model = elastic.pseudolinearcubic
+alamo.program.mechanics.model = elastic.crystalplastic
+#alamo.program.mechanics.model = elastic.pseudolinearcubic
 plot_file = output
 
-timestep		    = 0.05
+timestep		    = 0.005
 stop_time		    = 6.0
 
 # amr parameters
@@ -25,6 +26,7 @@ nmodels = 1
 model1.C11 = 1.68
 model1.C12 = 1.21
 model1.C44 = 0.75
+model1.tstart = 0.02
 #model1.random = 1
 
 # solver parameters
@@ -38,6 +40,10 @@ ref_threshold = 0.005
 
 # Expression-based boundary condition
 bc.type = expression
+bc.expression.type.xlo = disp trac trac
+bc.expression.type.xhi = disp trac trac
+bc.expression.type.xloyhi = disp trac trac
+bc.expression.type.xhiyhi = disp trac trac
 bc.expression.type.yhi = trac trac trac
-bc.expression.val.yhi = "0.0" "-0.2*exp(-((x)*(x)+z*z)/0.4)" "0.0"
+bc.expression.val.yhi = "0.0" "-0.1*exp(-((x)*(x)+z*z)/0.4)" "0.0"
 #bc.expression.val.yhi = "0.0" "-0.1" "0.0"

@@ -46,8 +46,10 @@ public:
         return ret;
     }
     
-    virtual void Advance(Set::Scalar dt, Set::Matrix F, Set::Matrix P) override
+    virtual void Advance(Set::Scalar dt, Set::Matrix F, Set::Matrix P, Set::Scalar time) override
     {
+        if (time  < tstart) return;
+
         q.normalize();
         Set::Matrix3d R = q.toRotationMatrix();
         std::array<std::pair<Set::Vector3d,Set::Vector3d>,12> ss = slipSystems(R);
@@ -86,14 +88,16 @@ public:
     //mutable Set::Quaternion q = Set::Quaternion(1.0, 0.0, 0.0, 0.0);
 
     // Plastic state variables
-    Set::Matrix3d Fp = Set::Matrix3d::Zero();
+    Set::Matrix3d Fp = Set::Matrix3d::Identity();
     Eigen::Matrix<Set::Scalar,12,1> gamma = Eigen::Matrix<Set::Scalar,12,1>::Zero();
 
     // Parameters
     Set::Scalar m_rate_inv = 0.5;
     Set::Scalar tau_crss = 1.0;
     Set::Scalar gammadot0 = 1.0;
-    
+
+    // Control variables
+    Set::Scalar tstart = 0.0;
 
 private:
     static std::array<std::pair<Set::Vector3d,Set::Vector3d>,12> slipSystems(Set::Matrix3d R)
@@ -171,17 +175,70 @@ public:
     {
         PseudoLinearCubic::Parse(value,pp);
         // TODO Add inputs for the CP values
+
+        pp.query("tstart",value.tstart);    // Time to activate plastic slip
+
     }
 
 #define OP_CLASS CrystalPlastic
-#define OP_VARS X(C11) X(C12) X(C44) X(q) X(Fp) X(gamma) X(m_rate_inv) X(tau_crss) X(gammadot0)
+#define OP_VARS X(C11) X(C12) X(C44) X(q) X(Fp) X(gamma) X(m_rate_inv) X(tau_crss) X(gammadot0) X(tstart)
 #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
 
 
+
+
+
 }
 }
 }
+
+
+template<>
+inline int Set::Field<Model::Solid::Elastic::CrystalPlastic>::NComp() const 
+{
+    return 12;
+}
+
+template<>
+inline std::string Set::Field<Model::Solid::Elastic::CrystalPlastic>::Name(int i) const 
+{
+    if (i==0) return name + "gamma1";
+    if (i==1) return name + "gamma2";
+    if (i==2) return name + "gamma3";
+    if (i==3) return name + "gamma4";
+    if (i==4) return name + "gamma5";
+    if (i==5) return name + "gamma6";
+    if (i==6) return name + "gamma7";
+    if (i==7) return name + "gamma8";
+    if (i==8) return name + "gamma9";
+    if (i==9) return name + "gamma10";
+    if (i==10) return name + "gamma11";
+    if (i==11) return name + "gamma12";
+    return name;
+}
+
+template<>
+inline void Set::Field<Model::Solid::Elastic::CrystalPlastic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Model::Solid::Elastic::CrystalPlastic> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
+            for (int n = 0; n < 12; n++)
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    dst(i,j,k,a_dstcomp + n) = src(i,j,k).gamma(n);
+                });
+            }
+        }
+    }    
+}
+
+
 
 #endif

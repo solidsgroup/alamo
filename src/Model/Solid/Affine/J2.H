@@ -49,7 +49,7 @@ public:
 
     J2() {};
 
-    void Advance(Set::Scalar /*dt*/, Set::Matrix eps, Set::Matrix /*sig*/) override
+    void Advance(Set::Scalar /*dt*/, Set::Matrix eps, Set::Matrix /*sig*/, Set::Scalar time) override
     {
         Set::Matrix sigma = DW(eps);
         Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / 3.0;
