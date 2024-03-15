@@ -6,18 +6,14 @@ plot_file = ./output
 
 ### MESHING ###
 
-amr.plot_dt = 1.0
-#amr.plot_int = 10000
+#amr.plot_dt = 0.1
+amr.plot_int = 1000
+amr.max_level = 0
 amr.max_grid_size = 500000
-amr.blocking_factor = 8
-amr.regrid_int = 100
+amr.blocking_factor = 2
+#amr.regrid_int = 100
 amr.grid_eff = 0.8
-
-
-amr.max_level = 3
-timestep  = 1.0e-2
-#amr.n_cell = 256 128
-amr.n_cell = 128 64
+amr.n_cell = 100 30 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -25,55 +21,52 @@ amr.n_cell = 128 64
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -30.0 -24.0 0.0 # [ m ] 
-geometry.prob_hi =  66.0  24.0 0.0 # [ m ]
+geometry.prob_lo = 0.0 -1.0 0.0 # [ m ] 
+geometry.prob_hi = 10.0  2.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-stop_time = 5000.0
+timestep  = 1.0e-2
+stop_time = 10000.0
 
 ### ETA IC ###
 
 rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "20.0"
+rhoInterface.ic.expression.region0 = "100.0"
 
-vInjected.ic.type = expression
-vInjected.ic.expression.region0 = "0.0"
-vInjected.ic.expression.region1 = "0.0"
+vInterface.ic.type = expression
+vInterface.ic.expression.region0 = "0.0"
+vInterface.ic.expression.region1 = "0.0"
 
 deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.constant.x0 = -9.0 
-eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 0.5)/eps) + 0.5*tanh((sqrt((x-x0)**2 + (y)**2) - 0.5)/eps))"
+eta.ic.expression.region0        = "(0.5*tanh((y+0.5)/eps) - 0.5*tanh((y - 1.5)/eps))"
 
 ### HYDRO PARAM ###
 
 gamma = 1.4
 cfl   = 0.4
-#mu    = 0.005
-mu    = 0.25
+mu    = 1.0
 
 rho_solid = 1000.0 #kg/m^3
-rho_fluid = 20.0 #kg/m^3
+rho_fluid = 1000.0 #kg/m^3
 E_solid   = 5.0
 
 Velocity.ic.type = expression
-Velocity.ic.expression.constant.eps   = 0.1
-Velocity.ic.expression.constant.x0    = -2.0
-Velocity.ic.expression.region0 = "0.2"
+Velocity.ic.expression.region0 = "0.0025"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
 Pressure.ic.expression.constant.gamma = 1.4
 Pressure.ic.expression.constant.E_solid = 5.0
-Pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+Pressure.ic.expression.region0 = "2.0 - 0.05*x"
 
 ### ETA BC  ###
 
@@ -103,22 +96,22 @@ rho.bc.val.xlo = 0.0
 rho.bc.val.ylo = 0.0 
 rho.bc.val.yhi = 0.0
 
-p.bc.type.xhi = neumann
-p.bc.type.xlo = neumann
+p.bc.type.xhi = dirichlet
+p.bc.type.xlo = dirichlet
 p.bc.type.ylo = neumann
 p.bc.type.yhi = neumann
 
-p.bc.val.xhi = 0.0
-p.bc.val.xlo = 0.0
+p.bc.val.xhi = 1.5
+p.bc.val.xlo = 2.0
 p.bc.val.ylo = 0.0 
 p.bc.val.yhi = 0.0
 
 v.bc.type.xhi = neumann neumann
-v.bc.type.xlo = dirichlet neumann
-v.bc.type.ylo = neumann dirichlet
-v.bc.type.yhi = neumann dirichlet
+v.bc.type.xlo = neumann neumann
+v.bc.type.ylo = neumann neumann
+v.bc.type.yhi = neumann neumann
 v.bc.val.xhi = 0.0 0.0
-v.bc.val.xlo = 0.2 0.0
+v.bc.val.xlo = 0.0 0.0
 v.bc.val.ylo = 0.0 0.0
 v.bc.val.yhi = 0.0 0.0
 
@@ -128,6 +121,6 @@ r_refinement_criterion   = 0.1
 e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
-omega_refinement_criterion = 0.05
+omega_refinement_criterion = 0.1
 
 #TODO
