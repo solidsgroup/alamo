@@ -337,8 +337,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             std::array<Set::Scalar, 4> source;
             source[0] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta;
-            source[1] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) - etadot(i,j,k) * grad_eta(0)) - Ldot_0 * grad_eta(1) + Ldot_0 * grad_eta(0);
-            source[2] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 1) - etadot(i,j,k) * grad_eta(1)) + Ldot_0 * grad_eta(0) + Ldot_0 * grad_eta(1);
+            source[1] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) + etadot(i,j,k) * grad_eta(0)) - Ldot_0 * grad_eta(1) + Ldot_0 * grad_eta(0);
+            source[2] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 1) + etadot(i,j,k) * grad_eta(1)) + Ldot_0 * grad_eta(0) + Ldot_0 * grad_eta(1);
             source[3] = 0.5 * rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1) + etadot(i,j,k) * etadot(i,j,k) + 2 * etadot(i,j,k) * std::sqrt(vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1)));
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;

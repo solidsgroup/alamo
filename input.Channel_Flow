@@ -57,12 +57,12 @@ mu    = 0.4
 
 Ldot_0 = 0.0
 
-rho_solid = 1000.0 #kg/m^3
+rho_solid = 1000.0 #kg/m^3 
 rho_fluid = 1000.0 #kg/m^3
 E_solid   = 5.0
 
 Velocity.ic.type = expression
-Velocity.ic.expression.region0 = "0.0"
+Velocity.ic.expression.region0 = "0.05"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
@@ -98,21 +98,21 @@ rho.bc.val.xlo = 0.0
 rho.bc.val.ylo = 0.0 
 rho.bc.val.yhi = 0.0
 
-p.bc.type.xhi = dirichlet
+p.bc.type.xhi = neumann
 p.bc.type.xlo = neumann
 p.bc.type.ylo = neumann
 p.bc.type.yhi = neumann
 
-p.bc.val.xhi = 2.0
+p.bc.val.xhi = -0.05
 p.bc.val.xlo = -0.05
 p.bc.val.ylo = 0.0 
 p.bc.val.yhi = 0.0
 
-v.bc.type.xhi = neumann neumann
+v.bc.type.xhi = dirichlet neumann
 v.bc.type.xlo = dirichlet neumann
 v.bc.type.ylo = neumann dirichlet
 v.bc.type.yhi = neumann dirichlet
-v.bc.val.xhi = 0.0 0.0
+v.bc.val.xhi = 0.05 0.0
 v.bc.val.xlo = 0.05 0.0
 v.bc.val.ylo = 0.0 0.0
 v.bc.val.yhi = 0.0 0.0

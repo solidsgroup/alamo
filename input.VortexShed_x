@@ -43,6 +43,8 @@ vInjected.ic.type = expression
 vInjected.ic.expression.region0 = "0.0"
 vInjected.ic.expression.region1 = "0.0"
 
+Ldot_0 = 0
+
 deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
