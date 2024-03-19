@@ -67,6 +67,7 @@ parser.add_argument('--benchmark',default=socket.gethostname(),help='Current pla
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
+parser.add_argument('--post', default=False, action='store_true', help='Use ./scripts/post.py script to post results')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -131,7 +132,7 @@ def test(testdir):
     for desc in sections:
 
         record = dict()
-        record['testdir'] = testdir
+        record['testdir'] = os.path.dirname(testdir).split('/')[-1]
         record['section'] = desc
 
         # In some cases we want to run the exe but can't check it.
@@ -401,8 +402,9 @@ if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowe
 if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
 print("")
 
-import post
-post.updateDatabase(stats.records)
+if args.post:
+    import post
+    post.updateDatabase(stats.records)
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
 exit(stats.fails + stats.skips)
