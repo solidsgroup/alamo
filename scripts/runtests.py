@@ -97,6 +97,7 @@ def test(testdir):
     fasters = 0
     slowers = 0
     timeouts = 0
+    records = []
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
@@ -121,13 +122,17 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,[]
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
 
     # Iterate through all test configurations
     for desc in sections:
+
+        record = dict()
+        record['testdir'] = testdir
+        record['section'] = desc
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -242,6 +247,7 @@ def test(testdir):
             timeStarted = time.time()
             p = subprocess.run(command.split(),capture_output=True,check=True,timeout=timeout)
             executionTime = time.time() - timeStarted
+            record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
             fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))
             fstdout.close()
@@ -249,6 +255,7 @@ def test(testdir):
             fstderr.write(ansi_escape.sub('',p.stderr.decode('ascii')))
             fstderr.close()
             print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            record['runStatus'] = 'PASS'
             if dobenchmark:
                 if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
                 elif abs(executionTime < benchmark):
@@ -263,6 +270,7 @@ def test(testdir):
         # we will continue with running other tests. (Script will return an error)
         except subprocess.CalledProcessError as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
             for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
@@ -272,6 +280,7 @@ def test(testdir):
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
             print("[{}TIMEOUT{}]".format(color.red,color.reset))
+            record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             try:
                 stdoutlines = e.stdout.decode('ascii').split('\n')
@@ -289,10 +298,12 @@ def test(testdir):
             continue
         except DryRunException as e:
             print("[----]")
+            record['runStatus'] = '----'
             
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
             fails += 1
             continue
@@ -313,21 +324,29 @@ def test(testdir):
                 p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
                 print("[{}PASS{}]".format(color.boldgreen,color.reset))
+                record['checkStatus'] = 'PASS'
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
+                record['checkStatus'] = 'FAIL'
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
                 for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                 for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
             except DryRunException as e:
-                  print("[----]")
+                print("[----]")
+                record['checkStatus'] = "----"
             except Exception as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
+                record['checkStatus'] = 'FAIL'
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
-    
+        else:
+            record['checkStatus'] = 'NONE'
+
+        records.append(record)
+            
     # Print a quick summary for this test family.
     summary = "  └ "
     sums = []
@@ -337,7 +356,7 @@ def test(testdir):
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
     print(summary + ", ".join(sums))
-    return fails, checks, tests, skips, fasters, slowers, timeouts
+    return fails, checks, tests, skips, fasters, slowers, timeouts, records
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
@@ -352,6 +371,7 @@ class stats:
     fasters = 0
     slowers = 0
     timeouts = 0
+    records = []
 
 # Iterate through all test directories, running the above "test" function
 # for each.
@@ -359,7 +379,7 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s, fa, sl, to = test(testdir)
+    f, c, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
@@ -367,7 +387,7 @@ for testdir in tests:
     stats.fasters += fa
     stats.slowers += sl
     stats.timeouts += to
-    
+    stats.records += re
 
 # Print a quick summary of all tests
 print("\nTest Summary")
@@ -380,6 +400,9 @@ if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
 if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
 print("")
+
+import post
+post.updateDatabase(stats.records)
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
 exit(stats.fails + stats.skips)
