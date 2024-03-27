@@ -4,6 +4,7 @@ sudo apt-get update
 
 sudo apt-get install -y --no-install-recommends \
   build-essential \
+  libpng-dev \   
   g++ gfortran \
   libmpich-dev libmpich12 mpich libeigen3-dev \
   python3-pip npm lcov
