@@ -21,7 +21,7 @@ class BMP : public IC
 {
 public:
     //enum Type {XYZ, XY, YZ, XZ};
-    enum Fit {Stretch,FitWidth,FitHeight};
+    enum Fit {Stretch,FitWidth,FitHeight,Coord};
     enum Channel {R=0, G=1, B=2};
 
     BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
@@ -55,7 +55,6 @@ public:
 
         Set::Vector domlo(AMREX_D_DECL(geom[lev].ProbLo()[0],geom[lev].ProbLo()[1],0.0));
         Set::Vector domhi(AMREX_D_DECL(geom[lev].ProbHi()[0],geom[lev].ProbHi()[1],0.0));
-
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -104,6 +103,11 @@ public:
                     ximg(1) = (x(1) - domlo(1)) / (domhi(1) - domlo(1)); 
                     ximg(0) -= 0.5 - 0.5 / aspect_ratio;
                     ximg(0) *= aspect_ratio;
+                }
+                else if (fit == Fit::Coord)
+                {
+                    ximg(0) = (x(0) - coord_lo(0)) / (coord_hi(0)-coord_lo(0));
+                    ximg(1) = (x(1) - coord_lo(1)) / (coord_hi(1)-coord_lo(1));
                 }
 
                 ximg(0) = std::min(ximg(0),1.0); ximg(1) = std::min(ximg(1),1.0);
@@ -162,6 +166,9 @@ private:
     Fit fit = Fit::Stretch;
     Channel channel = Channel::G;
     Set::Scalar min=0.0, max=255.0;
+    Set::Vector coord_lo = Set::Vector::Zero();
+    Set::Vector coord_hi = Set::Vector::Zero();
+
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
@@ -175,6 +182,12 @@ public:
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
+        else if (fit=="coord")
+        {
+            value.fit = Fit::Coord;
+            pp.queryarr("coord.lo",value.coord_lo);
+            pp.queryarr("coord.hi",value.coord_hi);
+        }
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
 
         std::string channel = "g";
