@@ -4,9 +4,8 @@ sudo apt-get update
 
 sudo apt-get install -y --no-install-recommends \
   build-essential \
-  libpng-dev \   
   g++ gfortran \
-  libmpich-dev libmpich12 mpich libeigen3-dev \
+  libmpich-dev libmpich12 mpich libeigen3-dev libpng12-dev \
   python3-pip npm lcov
 
 # Requirements for regression test scripts
