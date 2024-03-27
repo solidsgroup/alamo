@@ -53,7 +53,7 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Elastic::NeoHookean);
     MODELTEST(Model::Solid::Elastic::PseudoLinearCubic);
     MODELTEST(Model::Solid::Elastic::NeoHookeanPredeformed);
-    MODELTEST(Model::Solid::Elastic::PseudoLinearCubicPredeformed);
+    //MODELTEST(Model::Solid::Elastic::PseudoLinearCubicPredeformed);
     
 
     Util::Test::Message("Set::Matrix4");

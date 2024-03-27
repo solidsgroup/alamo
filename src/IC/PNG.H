@@ -1,13 +1,12 @@
 // 
-// Initialize a field using a bitmap image. (2D only)
-//
-// Note that in GIMP, you must select "do not write color space information"
-// and "24 bit R8 G8 B8" when exporting the BMP file.
+// Initialize a field using a PNG image. (2D only)
 //
 
-#ifndef IC_BMP_H
-#define IC_BMP_H
+#ifndef IC_PNG_H
+#define IC_PNG_H
 #include <cmath>
+
+#include "png.h"
 
 #include "IC/IC.H"
 #include "Util/Util.H"
@@ -17,23 +16,79 @@
 
 namespace IC
 {
-class BMP : public IC
+class PNG : public IC
 {
 public:
     //enum Type {XYZ, XY, YZ, XZ};
     enum Fit {Stretch,FitWidth,FitHeight,Coord};
     enum Channel {R=0, G=1, B=2};
 
-    BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
+    PNG (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
 
-    BMP (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : BMP(_geom)
+    PNG (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : PNG(_geom)
     {
         pp.queryclass(name,*this);
     }
 
-    void Define(std::string bmpfilename)
+    void Define(std::string filename)
     {
-        bmp.Define(bmpfilename);//"Interface_Blur2.bmp");
+        FILE *fp = std::fopen(filename.c_str(),"rb");
+
+        if (fp==NULL) Util::Abort(INFO,"Cannot find file",filename);
+
+        png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+        if(!png) Util::Abort(INFO);
+
+        png_infop info = png_create_info_struct(png);
+        if(!info) Util::Abort(INFO);
+
+        if (setjmp(png_jmpbuf(png))) Util::Abort(INFO);
+
+
+        png_init_io(png, fp);
+
+        png_read_info(png, info);
+
+        png_width = png_get_image_width(png, info);
+        png_height = png_get_image_height(png, info);
+        color_type = png_get_color_type(png, info);
+        bit_depth = png_get_bit_depth(png, info);
+
+        if (bit_depth == 16)
+            png_set_strip_16(png);
+
+        if (color_type == PNG_COLOR_TYPE_PALETTE)
+            png_set_palette_to_rgb(png);
+
+        if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
+            png_set_expand_gray_1_2_4_to_8(png);
+
+        if (png_get_valid(png, info, PNG_INFO_tRNS))
+            png_set_tRNS_to_alpha(png);
+
+        if (color_type == PNG_COLOR_TYPE_RGB ||
+            color_type == PNG_COLOR_TYPE_GRAY ||
+            color_type == PNG_COLOR_TYPE_PALETTE)
+            png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
+
+        if (color_type == PNG_COLOR_TYPE_GRAY ||
+            color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+            png_set_gray_to_rgb(png);
+
+        png_read_update_info(png, info);
+
+        if (row_pointers) Util::Abort(INFO);
+
+        row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * png_height);
+        for (int y = 0; y < png_height; y++) {
+            row_pointers[y] = (png_byte*)malloc(png_get_rowbytes(png, info));
+        }
+
+        png_read_image(png, row_pointers);
+
+        fclose(fp);
+
+        png_destroy_read_struct(&png, &info, NULL);
     }
   
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
@@ -42,11 +97,10 @@ public:
         Set::Vector DX(geom[lev].CellSize());
         amrex::Box domain = geom[lev].Domain();
 
-        //Set::Scalar width  = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
-        //Set::Scalar height = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];
+        if (!row_pointers) Util::Abort(INFO,"Running IC without initialization...");
 
-        Set::Scalar img_width = (Set::Scalar)(bmp.nx-1);
-        Set::Scalar img_height = (Set::Scalar)(bmp.ny-1);
+        Set::Scalar img_width = (Set::Scalar)(png_width-1);
+        Set::Scalar img_height = (Set::Scalar)(png_height-1);
         Set::Scalar img_dx = 1.0;
         Set::Scalar img_dy = 1.0;
 
@@ -122,31 +176,46 @@ public:
                 Set::Scalar x1 = I*img_dx, x2 = (I+1)*img_dx;
                 Set::Scalar y1 = J*img_dy, y2 = (J+1)*img_dy;
 
-                if (I < bmp.nx-1 && J < bmp.ny - 1)
+
+                if (I < png_width - 1 && J < png_height - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I,  J  )[channel]) - min) / (max - min);
-                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I,  J+1)[channel]) - min) / (max - min);
-                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[channel]) - min) / (max - min);
-                    Set::Scalar fQ22 = ((Set::Scalar)(bmp(I+1,J+1)[channel]) - min) / (max - min);
+                    png_bytep px_sw = &(row_pointers[J][I * 4]);
+                    png_bytep px_se = &(row_pointers[J][(I + 1) * 4]);
+                    png_bytep px_nw = &(row_pointers[J + 1][I * 4]);
+                    png_bytep px_ne = &(row_pointers[J + 1][(I + 1) * 4]);
+
+                    
+                    Set::Scalar fQ11 = ((Set::Scalar)(px_sw[channel]) - min) / (max - min);
+                    Set::Scalar fQ12 = ((Set::Scalar)(px_nw[channel]) - min) / (max - min);
+                    Set::Scalar fQ21 = ((Set::Scalar)(px_se[channel]) - min) / (max - min);
+                    Set::Scalar fQ22 = ((Set::Scalar)(px_ne[channel]) - min) / (max - min);
 
                     field(i,j,k) =
                         (fQ11*(x2-ximg(0))*(y2-ximg(1)) + fQ21*(ximg(0)-x1)*(y2-ximg(1)) + fQ12*(x2-ximg(0))*(ximg(1)-y1) + fQ22*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
                 }
-                else if (I == bmp.nx-1 && J <  bmp.ny - 1)
+                else if (I == png_width-1 && J <  png_height - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
-                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I  ,J+1)[channel]) - min) / (max - min);
+                    png_bytep px_sw = &(row_pointers[J][I * 4]);
+                    png_bytep px_nw = &(row_pointers[J + 1][I * 4]);
+
+                    Set::Scalar fQ11 = ((Set::Scalar)(px_sw[channel]) - min) / (max - min);
+                    Set::Scalar fQ12 = ((Set::Scalar)(px_nw[channel]) - min) / (max - min);
                     field(i,j,k) = fQ11 + (fQ12-fQ11) * (ximg(1) - y1);
                 }
-                else if (I <  bmp.nx-1 && J == bmp.ny - 1)
+                else if (I < png_width - 1 && J == png_height - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
-                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[channel]) - min) / (max - min);
+                    png_bytep px_sw = &(row_pointers[J][I * 4]);
+                    png_bytep px_se = &(row_pointers[J][(I + 1) * 4]);
+
+                    Set::Scalar fQ11 = ((Set::Scalar)(px_sw[channel]) - min) / (max - min);
+                    Set::Scalar fQ21 = ((Set::Scalar)(px_se[channel]) - min) / (max - min);
                     field(i,j,k) = fQ11 + (fQ21-fQ11) * (ximg(0) - x1);
                 }
-                else if (I ==  bmp.nx-1 && J == bmp.ny - 1)
+                else if (I ==  png_width-1 && J == png_height - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
+                    png_bytep px_sw = &(row_pointers[J][I * 4]);
+                    
+                    Set::Scalar fQ11 = ((Set::Scalar)(px_sw[channel]) - min) / (max - min);
                     field(i,j,k) = fQ11;
                 }
                 else
@@ -162,20 +231,25 @@ public:
     };
   
 private:
-    Util::BMP bmp;
-    Fit fit = Fit::Stretch;
-    Channel channel = Channel::G;
-    Set::Scalar min=0.0, max=255.0;
+    int png_width, png_height;
+    png_byte color_type;
+    png_byte bit_depth;
+    png_bytep *row_pointers = NULL;
     Set::Vector coord_lo = Set::Vector::Zero();
     Set::Vector coord_hi = Set::Vector::Zero();
 
+    //Util::BMP bmp;
+    Fit fit = Fit::Stretch;
+    Channel channel = Channel::G;
+    Set::Scalar min=0.0, max=255.0;
 
 public:
-    static void Parse(BMP & value, IO::ParmParse & pp)
+    static void Parse(PNG & value, IO::ParmParse & pp)
     {
         std::string filename;
         pp.query("filename",filename); // BMP filename.
-        value.bmp.Define(filename);
+        value.Define(filename);
+        //value.bmp.Define(filename);
 
         std::string fit = "stretch";
         pp.query("fit",fit); // How to fit. (options: stretch, fitheight, fitwidth)
@@ -188,7 +262,7 @@ public:
             pp.queryarr("coord.lo",value.coord_lo);
             pp.queryarr("coord.hi",value.coord_hi);
         }
-        else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
+        else Util::Abort(INFO,"Invalid value for png fit - should be stretch/fitheight/fitwidth/coord but received '",fit,"'");
 
         std::string channel = "g";
         pp.query("channel",channel); // Color channel to use (options: r, R, g, G, b, B)
@@ -197,8 +271,8 @@ public:
         else if (channel=="b" || channel=="B") value.channel = Channel::B;
         else Util::Abort(INFO,"Invalid value for bmp channel - should be r/g/b but received '",channel,"'");
 
-        value.min = (Set::Scalar) value.bmp.min()[value.channel];
-        value.max = (Set::Scalar) value.bmp.max()[value.channel];
+        value.min = 0.0; //(Set::Scalar) value.bmp.min()[value.channel];
+        value.max = 255.0; //(Set::Scalar) value.bmp.max()[value.channel];
         pp.query("min",value.min); // Scaling value - minimum (default: 0.0)
         pp.query("max",value.max); // Scaling value - maximum (default: 255.0)
 }    
