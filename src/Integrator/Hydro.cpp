@@ -6,6 +6,7 @@
 #include "IC/Laminate.H"
 #include "IC/PSRead.H"
 #include "IC/Expression.H"
+#include "IC/BMP.H"
 #include "Solver/Local/Riemann/Roe.H"
 
 namespace Integrator
@@ -75,6 +76,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
+        else if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
         else Util::Abort(INFO, "Invalid eta.ic: ", type);
     }
     {
