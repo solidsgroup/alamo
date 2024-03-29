@@ -177,10 +177,10 @@ void Hydro::Mix(int lev)
             etaE(i, j, k) = eta(i, j, k) * E_mix(i, j, k);
             etaE_old(i, j, k) = etaE(i, j, k);
 
-            M_mix(i, j, k, 0) = rho_mix(i, j, k) * v(i, j, k, 0) * eta(i, j, k);
-            M_mix(i, j, k, 1) = rho_mix(i, j, k) * v(i, j, k, 1) * eta(i, j, k);
-            etaM(i, j, k, 0) = M_mix(i, j, k, 0);
-            etaM(i, j, k, 1) = M_mix(i, j, k, 1);
+            M_mix(i, j, k, 0) = rho_mix(i, j, k) * v(i, j, k, 0);
+            M_mix(i, j, k, 1) = rho_mix(i, j, k) * v(i, j, k, 1);
+            etaM(i, j, k, 0) = M_mix(i, j, k, 0)  * eta(i, j, k);
+            etaM(i, j, k, 1) = M_mix(i, j, k, 1)  * eta(i, j, k);
             etaM_old(i, j, k, 0) = etaM(i, j, k, 0);
             etaM_old(i, j, k, 1) = etaM(i, j, k, 1);
         });
@@ -305,6 +305,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar lap_uy  = Numeric::Laplacian(v, i, j, k, 1, DX);
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
+            Set::Matrix gradu   = Numeric::Gradient(v,i,j,k,DX);
             //Set::Scalar div_u   = grad_ux(0) + grad_uy(1);
 
             //Godunov fluxes
@@ -342,10 +343,43 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar relative_interface_vel_dot_grad_eta = vInjected(i, j, k, 0) * grad_eta(0) + vInjected(i, j, k, 1) * grad_eta(1) + etadot(i, j, k);
 
             std::array<Set::Scalar, 4> source;
-            source[0] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta;
-            source[1] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) + etadot(i,j,k) * grad_eta(0)) - Ldot_0 * grad_eta(1) + Ldot_0 * grad_eta(0);
-            source[2] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 1) + etadot(i,j,k) * grad_eta(1)) + Ldot_0 * grad_eta(0) + Ldot_0 * grad_eta(1);
-            source[3] = 0.5 * rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1) + etadot(i,j,k) * etadot(i,j,k) + 2 * etadot(i,j,k) * std::sqrt(vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1)));
+            {
+                Set::Matrix I = Set::Matrix::Identity();
+
+                // Prescribed values
+                Set::Scalar rho0 = rhoInterface(i, j, k);
+                Set::Vector u0(vInjected(i,j,k,0),vInjected(i,j,k,1));
+
+                // Flow values
+                Set::Vector u(v(i,j,k,0),v(i,j,k,1));
+                Set::Scalar P = p(i,j,k);
+
+                // Calculated values
+                Set::Matrix T =  mu*(gradu + gradu.transpose()) - P*I;
+
+                Set::Scalar mdot0 =  (                             rho0 * u0                            ).dot(grad_eta);
+                Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose()) -  T                  )*grad_eta;
+                /*Set::Matrix Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())           );*/
+                Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   +    (P/gamma - 1.0)*u0   -   T*u0     ).dot(grad_eta); 
+                
+                source[0] = mdot0;
+                source[1] = Pdot0(0);
+                source[2] = Pdot0(1);
+                source[3] = qdot0;
+                
+            }
+
+
+            // source[0] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta;
+            // source[1] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) + etadot(i,j,k) * grad_eta(0)) - Ldot_0 * grad_eta(1) + Ldot_0 * grad_eta(0) + p(i,j,k)*grad_eta(0) - lap_ux * grad_eta(0);
+            // source[2] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 1) + etadot(i,j,k) * grad_eta(1)) + Ldot_0 * grad_eta(0) + Ldot_0 * grad_eta(1) + p(i,j,k)*grad_eta(1) - lap_uy * grad_eta(1);
+            // source[3] =
+            //     0.5 * rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1) + etadot(i,j,k) * etadot(i,j,k) + 2 * etadot(i,j,k) * std::sqrt(vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1)));
+
+
+
+
+
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
             rho_mix(i, j, k)  += source[0] * dt + rho_mix(i, j, k) * etadot(i, j, k) * dt;
