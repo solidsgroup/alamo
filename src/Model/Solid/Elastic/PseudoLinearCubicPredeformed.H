@@ -88,7 +88,7 @@ public:
     }
 
 #define OP_CLASS PseudoLinearCubicPredeformed
-#define OP_VARS X(CC) X(F0)
+#define OP_VARS X(C11) X(C12) X(C44) X(q) X(F0)
 #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"

@@ -154,6 +154,13 @@ public:
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         return Matrix4<2,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
     }
+    static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Quaternion q)
+    {
+        Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+        return Cubic(C11,C12,C44,R);
+    }
+
 
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
     friend bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
@@ -465,6 +472,12 @@ public:
             Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         return Matrix4<3,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
+    }
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Quaternion q)
+    {
+        Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+        return Cubic(C11,C12,C44,R);
     }
 
     friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
