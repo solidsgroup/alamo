@@ -173,6 +173,8 @@ void Hydro::Mix(int lev)
             etarho(i, j, k) = eta(i, j, k) * rho_fluid;
             etarho_old(i, j, k) = etarho(i, j, k);
 
+            //Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
+
             E_mix(i, j, k) = eta(i, j, k) * (0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + p(i, j, k) / (gamma - 1.0)) + (1.0 - eta(i, j, k)) * E_solid;
             etaE(i, j, k) = eta(i, j, k) * E_mix(i, j, k);
             etaE_old(i, j, k) = etaE(i, j, k);
@@ -334,13 +336,17 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Compute New Mixed Fields
             rho_mix(i, j, k)  = etarho_new(i, j, k) + (1.0 - eta_new(i, j, k)) * rho_solid;
+
+            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
+
             E_mix(i, j, k)    = etaE_new(i, j, k) + (1.0 - eta_new(i, j, k)) * E_solid;
             M_mix(i, j, k, 0) = etaM_new(i, j, k, 0);
             M_mix(i, j, k, 1) = etaM_new(i, j, k, 1);
 
+
+
             //Diffuse Sources
             omega(i, j, k) = eta(i,j,k) * (grad_uy(0) - grad_ux(1));
-            Set::Scalar relative_interface_vel_dot_grad_eta = vInjected(i, j, k, 0) * grad_eta(0) + vInjected(i, j, k, 1) * grad_eta(1) + etadot(i, j, k);
 
             std::array<Set::Scalar, 4> source;
             {
@@ -348,7 +354,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 // Prescribed values
                 Set::Scalar rho0 = rhoInterface(i, j, k);
-                Set::Vector u0(vInjected(i,j,k,0),vInjected(i,j,k,1));
+                Set::Vector u0 = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot(i,j,k);
 
                 // Flow values
                 Set::Vector u(v(i,j,k,0),v(i,j,k,1));
@@ -359,7 +365,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar mdot0 =  (                             rho0 * u0                            ).dot(grad_eta);
                 Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose()) -  T                  )*grad_eta;
-                /*Set::Matrix Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())           );*/
+                /*Set::Matrix Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())         );*/
                 Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   +    (P/gamma - 1.0)*u0   -   T*u0     ).dot(grad_eta); 
                 
                 source[0] = mdot0;
@@ -368,17 +374,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 source[3] = qdot0;
                 
             }
-
-
-            // source[0] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta;
-            // source[1] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) + etadot(i,j,k) * grad_eta(0)) - Ldot_0 * grad_eta(1) + Ldot_0 * grad_eta(0) + p(i,j,k)*grad_eta(0) - lap_ux * grad_eta(0);
-            // source[2] = rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 1) + etadot(i,j,k) * grad_eta(1)) + Ldot_0 * grad_eta(0) + Ldot_0 * grad_eta(1) + p(i,j,k)*grad_eta(1) - lap_uy * grad_eta(1);
-            // source[3] =
-            //     0.5 * rhoInterface(i, j, k) * relative_interface_vel_dot_grad_eta * (vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1) + etadot(i,j,k) * etadot(i,j,k) + 2 * etadot(i,j,k) * std::sqrt(vInjected(i, j, k, 0) * vInjected(i, j, k, 0) + vInjected(i, j, k, 1) * vInjected(i, j, k, 1)));
-
-
-
-
 
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
