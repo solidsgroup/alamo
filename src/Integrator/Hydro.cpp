@@ -37,6 +37,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp.query("Ldot_0", value.Ldot_0);
 
+        pp.query("compressibility_factor", value.compressibility_factor);
+
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
