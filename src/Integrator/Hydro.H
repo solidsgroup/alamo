@@ -69,6 +69,7 @@ private:
     Set::Field<Set::Scalar> rhoInterface_mf;
     Set::Field<Set::Scalar> vInjected_mf;
     Set::Field<Set::Scalar> deltapInterface_mf;
+    Set::Field<Set::Scalar> q_mf;
 
     BC::BC<Set::Scalar>* bc_rho;
     BC::BC<Set::Scalar>* bc_E;
@@ -84,6 +85,7 @@ private:
     IC::IC* ic_rhoInterface;
     IC::IC* ic_vInjected;
     IC::IC* ic_deltapInterface;
+    IC::IC* ic_q;
 
     IC::IC* ic_eta;
     IC::IC* ic_etadot;
@@ -96,9 +98,8 @@ BC::Nothing bc_nothing;
 
     Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion, omega_refinement_criterion;
     Set::Scalar gamma, cfl, mu;
-    Set::Scalar rho_solid, rho_fluid, E_solid, 
-        E_fluid, Mx_init, My_init;
-  Set::Scalar eps, rho_interface, v_x_interface, v_y_interface, delta_p_interface, InterfaceVel_x, InterfaceVel_y, Ldot_0, compressibility_factor;
+    Set::Scalar rho_solid, rho_fluid, E_fluid, Mx_init, My_init;
+    Set::Scalar epsilon, rho_interface, delta_p_interface, InterfaceVel_x, InterfaceVel_y, Ldot_active;
 };
 }
 

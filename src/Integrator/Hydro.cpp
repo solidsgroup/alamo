@@ -7,7 +7,7 @@
 #include "IC/PSRead.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
-#include "IC/PNG.H"
+//#include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
 
 namespace Integrator
@@ -35,11 +35,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp.query("rho_solid", value.rho_solid);
         pp.query("rho_fluid", value.rho_fluid);
-        pp.query("E_solid", value.E_solid);
 
-        pp.query("Ldot_0", value.Ldot_0);
+        pp.query("Ldot_active", value.Ldot_active, 0.0);
 
-        pp.query("compressibility_factor", value.compressibility_factor);
+        pp.query("epsilon", value.epsilon);
+
+        //pp.query("compressibility_factor", value.compressibility_factor);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -72,6 +73,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.vInjected_mf, &value.bc_nothing, 2, nghost, "vInjected", true);
         value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface", true);
         value.RegisterNewFab(value.deltapInterface_mf, &value.bc_nothing, 1, nghost, "deltapInterface", true);
+        value.RegisterNewFab(value.q_mf, &value.bc_nothing, 2, nghost, "q", true);
     }
     {
         std::string type = "constant";
@@ -80,7 +82,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         else if (type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
         else if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
-        else if (type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
+        //else if (type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
         else Util::Abort(INFO, "Invalid eta.ic: ", type);
     }
     {
@@ -118,6 +120,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         else if (type == "expression") value.ic_deltapInterface = new IC::Expression(value.geom, pp, "deltapInterface.ic.expression");
         else Util::Abort(INFO, "Invalid deltapInterface.ic: ", type);
     }
+    {
+        std::string type = "constant";
+        pp.query("q.ic.type", type);
+        if (type == "constant") value.ic_q = new IC::Constant(value.geom, pp, "q.ic.constant");
+        else if (type == "expression") value.ic_q = new IC::Expression(value.geom, pp, "q.ic.expression");
+        else Util::Abort(INFO, "Invalid q.ic: ", type);
+    }
 }
 
 
@@ -137,6 +146,7 @@ void Hydro::Initialize(int lev)
     ic_rhoInterface->Initialize(lev,rhoInterface_mf,0.0);
     ic_vInjected->Initialize(lev,vInjected_mf,0.0);
     ic_deltapInterface->Initialize(lev,deltapInterface_mf,0.0);
+    ic_q->Initialize(lev,q_mf,0.0);
 
     Mix(lev);
 }
@@ -173,7 +183,7 @@ void Hydro::Mix(int lev)
             etarho(i, j, k) = eta(i, j, k) * rho_fluid;
             etarho_old(i, j, k) = etarho(i, j, k);
 
-            //Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
+            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
 
             E_mix(i, j, k) = eta(i, j, k) * (0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + p(i, j, k) / (gamma - 1.0)) + (1.0 - eta(i, j, k)) * E_solid;
             etaE(i, j, k) = eta(i, j, k) * E_mix(i, j, k);
@@ -199,7 +209,7 @@ void Hydro::UpdateEta(int lev, Set::Scalar time)
     ic_eta->Initialize(lev, eta_mf, time);
 }
 
-void Hydro::TimeStepBegin(Set::Scalar time, int /*iter*/)
+void Hydro::TimeStepBegin(Set::Scalar , int /*iter*/)
 {
 }
 
@@ -271,13 +281,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& rhoInterface    = (*rhoInterface_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& deltapInterface = (*deltapInterface_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& q = (*q_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& vInjected       = (*vInjected_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
             //Compute New Primitive Variables
             v(i, j, k, 0) = M_mix(i, j, k, 0) / rho_mix(i, j, k);
@@ -355,26 +364,31 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // Prescribed values
                 Set::Scalar rho0 = rhoInterface(i, j, k);
                 Set::Vector u0 = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot(i,j,k);
+                Set::Vector q0 = Set::Vector(q(i,j,k,0),q(i,j,k,1));
 
                 // Flow values
                 Set::Vector u(v(i,j,k,0),v(i,j,k,1));
                 Set::Scalar P = p(i,j,k);
 
                 // Calculated values
-                Set::Matrix T =  mu*(gradu + gradu.transpose()) - P*I;
+                Set::Matrix T =  mu*(gradu + gradu.transpose()) - P*I; //Please note that eta is outside the divergence of T in the viscous implementation
+                Set::Matrix R;
+                R(0,0) = -1;
+                R(0,1) = 1;
+                R(1,0) = 1;
+                R(1,0) = 1;
 
-                Set::Scalar mdot0 =  (                             rho0 * u0                            ).dot(grad_eta);
-                Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose()) -  T                  )*grad_eta;
-                /*Set::Matrix Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())         );*/
-                Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   +    (P/gamma - 1.0)*u0   -   T*u0     ).dot(grad_eta); 
+                Set::Scalar mdot0 =  (                             rho0 * u0                             ).dot(grad_eta);
+                Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose())                        )*grad_eta;
+                Set::Vector Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
+                Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   +    P/(gamma - 1.0)*u0   -   T*u0 + q0 ).dot(grad_eta); 
                 
                 source[0] = mdot0;
-                source[1] = Pdot0(0);
-                source[2] = Pdot0(1);
-                source[3] = qdot0;
+                source[1] = (Pdot0(0) + Ldot0(0));
+                source[2] = (Pdot0(1) + Ldot0(1));
+                source[3] = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1));
                 
             }
-
 
             E_mix(i, j, k)    += source[3] * dt + E_mix(i, j, k) * etadot(i, j, k) * dt;
             rho_mix(i, j, k)  += source[0] * dt + rho_mix(i, j, k) * etadot(i, j, k) * dt;

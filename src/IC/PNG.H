@@ -6,7 +6,7 @@
 #define IC_PNG_H
 #include <cmath>
 
-#include "png.h"
+//#include "png.h"
 
 #include "IC/IC.H"
 #include "Util/Util.H"

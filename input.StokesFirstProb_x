@@ -7,13 +7,13 @@ plot_file = ./output
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 1
+amr.plot_int = 1000
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 100 60 0
+amr.n_cell = 384 128 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -22,42 +22,45 @@ amr.n_cell = 100 60 0
 ### DIMENSIONS ###
 
 geometry.prob_lo = 0.0 -1.0 0.0 # [ m ] 
-geometry.prob_hi = 5.0  2.0 0.0 # [ m ]
+geometry.prob_hi = 9.0  2.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 50.0
+stop_time = 500.0
 
 ### ETA IC ###
 
 rhoInterface.ic.type = expression
 rhoInterface.ic.expression.region0 = "100.0"
 
-vInterface.ic.type = expression
-vInterface.ic.expression.region0 = "0.01"
-vInterface.ic.expression.region1 = "0.0"
+vInjected.ic.type = expression
+vInjected.ic.expression.region0 = "0.0"
+vInjected.ic.expression.region1 = "0.0"
 
 deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
+epsilon = 0.05
+
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "0.5 + 0.5*tanh((y - vel_y*t)/eps)"
+eta.ic.expression.region0        = "0.5*tanh((y)/eps) + 0.5"
 
 ### HYDRO PARAM ###
 
-gamma = 1.4
+gamma = 2.5
 cfl   = 0.4
-mu    = 3.0
+mu    = 1.0
 
-rho_solid = 1000.0 #kg/m^3
+Ldot_active = 10.0
+
+rho_solid = 100.0 #kg/m^3 
 rho_fluid = 100.0 #kg/m^3
-E_solid   = 5.0
 
 Velocity.ic.type = expression
 Velocity.ic.expression.region0 = "0.0"
@@ -65,8 +68,7 @@ Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
 Pressure.ic.expression.constant.gamma = 1.4
-Pressure.ic.expression.constant.E_solid = 5.0
-Pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+Pressure.ic.expression.region0 = "10.0"
 
 ### ETA BC  ###
 
@@ -89,12 +91,12 @@ pf.eta.bc.val.zhi = 0.0
 rho.bc.type.xhi = neumann
 rho.bc.type.xlo = neumann
 rho.bc.type.ylo = neumann
-rho.bc.type.yhi = neumann
+rho.bc.type.yhi = dirichlet
 
 rho.bc.val.xhi = 0.0
 rho.bc.val.xlo = 0.0
 rho.bc.val.ylo = 0.0 
-rho.bc.val.yhi = 0.0
+rho.bc.val.yhi = 100.0
 
 p.bc.type.xhi = neumann
 p.bc.type.xlo = neumann
@@ -108,9 +110,8 @@ p.bc.val.yhi = 0.0
 
 v.bc.type.xhi = neumann neumann
 v.bc.type.xlo = neumann neumann
-v.bc.type.ylo = neumann neumann
-v.bc.type.yhi = neumann neumann
-
+v.bc.type.ylo = dirichlet dirichlet
+v.bc.type.yhi = dirichlet dirichlet
 v.bc.val.xhi = 0.0 0.0
 v.bc.val.xlo = 0.0 0.0
 v.bc.val.ylo = 0.0 0.0
@@ -122,5 +123,6 @@ r_refinement_criterion   = 0.1
 e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.1
 
 #TODO

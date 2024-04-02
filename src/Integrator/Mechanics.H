@@ -82,7 +82,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
-#include "IC/PNG.H"
+//#include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "IC/Constant.H"
 #include "BC/Constant.H"
@@ -140,7 +140,7 @@ public:
             else if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "ic.constant");
             else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
             else if (type == "bmp")        value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
-            else if (type == "png")      value.ic_eta = new IC::PNG(value.geom, pp, "ic.png");
+            //else if (type == "png")      value.ic_eta = new IC::PNG(value.geom, pp, "ic.png");
             else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
             else if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
             else Util::Abort(INFO,"Invalid value for ic.type: ",type);
