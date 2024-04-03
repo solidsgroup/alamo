@@ -289,7 +289,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Compute Mixed Fields
             rho_mix(i, j, k)  = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid;
 
-            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
+            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0) ;
 
             E_mix(i, j, k)    = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;
             M_mix(i, j, k, 0) = etaM(i, j, k, 0);
@@ -301,23 +301,23 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             {
                 //Set::Matrix I = Set::Matrix::Identity();
 
+                // Flow values
+                Set::Vector u(v(i,j,k,0),v(i,j,k,1));
+                Set::Scalar P = p(i,j,k);
+
                 // Prescribed values
                 Set::Scalar rho0 = rhoInterface(i, j, k);
                 Set::Vector u0 = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot(i,j,k);
                 Set::Vector q0 = Set::Vector(q(i,j,k,0),q(i,j,k,1));
 
-                // Flow values
-                Set::Vector u(v(i,j,k,0),v(i,j,k,1));
-                Set::Scalar P = p(i,j,k);
-
                 // Calculated values
                 //be careful when adding dependence on grad_u, as velocity is also updated in this loop
                 //Set::Matrix T = Set::Matrix::Zero(); //mu*(gradu + gradu.transpose()) - P*I; //Please note that eta is outside the divergence of T in the viscous implementation 
                 Set::Matrix R;
-                R(0,0) = -1;
-                R(0,1) = 1;
+                R(0,0) = 0;
+                R(0,1) = -1;
                 R(1,0) = 1;
-                R(1,0) = 1;
+                R(1,1) = 0;
 
                 Set::Scalar mdot0 =  (                             rho0 * u0                             ).dot(grad_eta);
                 Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose())                        )*grad_eta;

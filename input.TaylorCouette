@@ -6,8 +6,8 @@ plot_file = ./output
 
 ### MESHING ###
 
-#amr.plot_dt = 10.0
-amr.plot_int = 10
+amr.plot_dt = 5.0
+#amr.plot_int = 100
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
 amr.regrid_int = 100
@@ -50,7 +50,7 @@ q.ic.type = expression
 q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
-Ldot_active = 0.1
+Ldot_active = 0.0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.1

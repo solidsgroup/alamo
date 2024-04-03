@@ -6,7 +6,7 @@ plot_file = ./output
 
 ### MESHING ###
 
-amr.plot_dt = 10.0
+amr.plot_dt = 1.0
 #amr.plot_int = 10000
 amr.max_grid_size = 500000
 amr.blocking_factor = 8
@@ -14,10 +14,10 @@ amr.regrid_int = 100
 amr.grid_eff = 0.8
 
 
-amr.max_level = 2
-timestep  = 1.0e-1
+amr.max_level = 0
+timestep  = 1.0e-2
 #amr.n_cell = 256 128
-amr.n_cell = 32 16
+amr.n_cell = 264 128
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -43,10 +43,14 @@ vInjected.ic.type = expression
 vInjected.ic.expression.region0 = "0.0"
 vInjected.ic.expression.region1 = "0.0"
 
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
+
 deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
-Ldot_active = 10.0
+Ldot_active = 0.1
 
 epsilon = 0.1 #must match eta expression
 
@@ -55,7 +59,7 @@ eta.ic.expression.constant.eps   = 0.1
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.constant.x0    = 0.0 
-eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 0.5)/eps) + 0.5*tanh((sqrt((x-x0)**2 + (y)**2) - 0.5)/eps))"
+eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 1)/eps) + 0.5*tanh((sqrt((x-x0)**2 + (y)**2) - 1)/eps))"
 
 ### HYDRO PARAM ###
 
@@ -67,15 +71,14 @@ rho_solid = 100.0 #kg/m^3
 rho_fluid = 100.0 #kg/m^3
 
 Velocity.ic.type = expression
-Velocity.ic.expression.constant.eps   = 0.1
+Velocity.ic.expression.constant.eps   = 0.05
 Velocity.ic.expression.constant.x0    = -2.0
-Velocity.ic.expression.region0 = "0.0"
+Velocity.ic.expression.region0 = "0.001"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
 Pressure.ic.expression.constant.gamma = 1.4
-Pressure.ic.expression.constant.E_solid = 5.0
-Pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+Pressure.ic.expression.region0 = "2.0"
 
 ### ETA BC  ###
 
@@ -117,10 +120,10 @@ p.bc.val.yhi = 0.0
 
 v.bc.type.xhi = neumann neumann
 v.bc.type.xlo = dirichlet neumann
-v.bc.type.ylo = neumann dirichlet
-v.bc.type.yhi = neumann dirichlet
+v.bc.type.ylo = neumann neumann
+v.bc.type.yhi = neumann neumann
 v.bc.val.xhi = 0.0 0.0
-v.bc.val.xlo = 0.0 0.0
+v.bc.val.xlo = 0.001 0.0
 v.bc.val.ylo = 0.0 0.0
 v.bc.val.yhi = 0.0 0.0
 
