@@ -37,17 +37,17 @@ private:
 public:
     static void Parse(Sin & value, IO::ParmParse & pp)
     {
-        pp.query("Gc0",value.Gc0);
-        pp.query("Gc1",value.Gc1);
-        pp.query("theta0",value.theta0);
-        pp.query("zeta",value.zeta);
-        pp.query("mobility",value.mobility);
-        pp.query("threshold",value.threshold);
+        pp.query("Gc0",value.Gc0); // Min Gc (fracture energy) value
+        pp.query("Gc1",value.Gc1); // Max Gc (fracture energy)value
+        pp.query("theta0",value.theta0); // Angle offset
+        pp.query("zeta",value.zeta); // Regularization
+        pp.query("mobility",value.mobility); // Crack mobiilty
+        pp.query("threshold",value.threshold); // Threshold for kinetics
 
         std::string gtype = "";
         std::string wtype = "";
-        pp.query("gtype", gtype);
-        pp.query("wtype", wtype);
+        pp.query("gtype", gtype); // Type of g function to use {square, multiwell, 4c3, squarep, squarepexp, cubicm}
+        pp.query("wtype", wtype); // Type o w function to use {square, multiwell, multiwell2, 4c3}
 
         Set::Scalar ductile_exponent = 1.;
         if(gtype == "squarepexp"|| gtype == "cubicm") pp.query("exponent",ductile_exponent);

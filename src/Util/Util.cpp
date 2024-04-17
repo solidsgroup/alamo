@@ -36,7 +36,7 @@ std::string GetFileName()
         }
         else if (pp.contains("plot_file"))
         {
-            pp.query("plot_file", filename);
+            pp.query("plot_file", filename); // Name of directory containing all output data
         }
         IO::FileNameParse(filename);
         // else

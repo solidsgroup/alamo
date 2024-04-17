@@ -2,6 +2,8 @@
 // Create a simple notch in an otherwise uniformly filled region.
 // (This was created for, and mostly used for, Mode II fracture tests.)
 //
+// This is an old IC that should be replaced by IC::Expression
+//
 
 #ifndef IC_NOTCH_H_
 #define IC_NOTCH_H_
@@ -345,7 +347,7 @@ public:
         if(value.eps <= 0.) value.eps = 1.e-5;
 
         std::string mollifier;
-        pp.query("mollifier",mollifier);
+        pp.query("mollifier",mollifier); // What kind of smoother to use {dirac,gauss,erf,cos}
         if(mollifier == "Dirac" || mollifier == "dirac") 
             value.moll = Mollifier::Dirac;
         else if (mollifier == "gauss" || mollifier == "Gauss")

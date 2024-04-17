@@ -23,6 +23,13 @@ jobs:
         run: npm install -g eclint
       - name: EditorConfigCompliance
         run: eclint check src/
+  documentation-check:
+    name: Make sure all inputs are documented
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: checking documentation coverage
+        run: python3 scripts/checkdoc.py
   docs:
     name: Build Docs
     runs-on: ubuntu-latest
