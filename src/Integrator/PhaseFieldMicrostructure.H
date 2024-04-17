@@ -133,6 +133,7 @@ public:
         pp.query("anisotropy.regularization", regularization_type_input);    // Type of regularization to use  
         value.regularization = regularization_type[regularization_type_input];
 
+        // Type of GB to use {abssin,sin,read,sh}
         pp.query("anisotropy.gb_type", value.gb_type); 
         // [switch] Set the anisotropic GB model
         if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
@@ -143,14 +144,14 @@ public:
         // [end switch]
 
         std::string bc_type = "constant";
-        pp.query("bc.eta.type",bc_type);  
+        pp.query("bc.eta.type",bc_type);  // Type of boundary condition to use for eta
         // [switch] Boundary conditions type for eta
         if (bc_type == "constant")  value.mybc = new BC::Constant(value.number_of_grains,pp,"bc.eta");
         else if (bc_type == "step") value.mybc = new BC::Step(pp,"bc.eta");
         // [end switch]
 
         std::string ic_type = "constant";
-        pp.query("ic.type", ic_type); 
+        pp.query("ic.type", ic_type);  // Initial condition to use
         // [switch ic.type] Initial conditions for Etas
         if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
         else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");

@@ -91,8 +91,8 @@ private:
 public:
     static void Parse(TabulatedInterface & value, amrex::ParmParse & pp)
     {
-        pp.queryarr("xs",value.xs);
-        pp.queryarr("ys",value.ys);
+        pp.queryarr("xs",value.xs); // x location of points
+        pp.queryarr("ys",value.ys); // y location of points
         value.Define(value.xs,value.ys);
     }
 };

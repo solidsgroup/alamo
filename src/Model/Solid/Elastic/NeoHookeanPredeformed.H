@@ -60,14 +60,14 @@ public:
         else if (pp.contains("F0")) 
         {
             Set::Matrix F0;
-            pp.queryarr("F0", F0);
+            pp.queryarr("F0", F0); // Large-deformation eigendeformation (Identity = no deformation)
             value.F0 = F0;
         }
         else if (pp.contains("eps0"))
         {
             Set::Matrix eps0;
-            pp.queryarr("eps0",eps0);
-            value.F0 = eps0 + Set::Matrix::Identity();
+            pp.queryarr("eps0",eps0); // Small-deformation eigendeformation (Zero = no deformation)
+            value.F0 = eps0 + Set::Matrix::Identity(); 
         }
         else
         {

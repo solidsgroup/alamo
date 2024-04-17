@@ -26,7 +26,7 @@ public:
         pp.queryclass("hc",static_cast<HeatConduction*>(&value));
         pp.queryclass("el",static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
 
-        pp.queryarr("alpha",value.alpha);
+        pp.queryarr("alpha",value.alpha); // Diffusion coefficient
     }
 
 
