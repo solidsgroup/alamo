@@ -69,7 +69,9 @@ private:
 
     Set::Field<Set::Scalar> laser_mf;
     //Set::Field<Set::Scalar> rhs_mf;
-
+   
+  Set::Field<Set::Scalar> pressure_mf;
+  
     BC::BC<Set::Scalar>* bc_temp;
     BC::BC<Set::Scalar>* bc_eta;
     IC::IC* ic_phi;
@@ -88,7 +90,8 @@ private:
     int ghost_count = 2;
     int homogeneousSystem = 0;
     bool plot_field = false;
-    
+    int variable_pressure = 1;
+  
     struct {
         Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;
@@ -101,6 +104,9 @@ private:
 
     struct {
         Set::Scalar P = 1.0;
+        Set::Scalar gamma = 1.4;
+        Set::Scalar Energy = 1;
+
         struct {
             Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
             Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
