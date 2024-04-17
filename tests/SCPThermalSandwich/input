@@ -2,9 +2,15 @@
 #@ dim = 2
 #@ check = true
 #@ check-file = reference/serial.dat
-#@ args = stop_time = 0.001
-#@ args = amr.plot_dt = 0.001
-#@
+#@ args = stop_time=0.001
+#@ args = amr.plot_dt=0.001
+#@ 
+#@ [2d-serial-coverage]
+#@ dim = 2
+#@ check = false
+#@ args = stop_time=1.0e-4
+#@ coverage = true
+#@ 
 #@ [2d-parallel]
 #@ dim = 2
 #@ nprocs = 4 
