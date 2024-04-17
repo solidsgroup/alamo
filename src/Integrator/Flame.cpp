@@ -147,7 +147,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.n_htpb", value.pressure.power.n_htpb);
             pp.query("pressure.n_comb", value.pressure.power.n_comb);
         }
-	value.RegisterNewFab(value.pressure_mf, value.bc_temp, 1, value.ghost_count + 1, "Pressure", true);
+	//value.RegisterNewFab(value.pressure_mf, value.bc_temp, 1, value.ghost_count + 1, "Pressure", true); // [error]
 	pp.query("variable_pressure", value.variable_pressure);
     }
 
@@ -243,7 +243,7 @@ void Flame::Initialize(int lev)
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-	pressure_mf[lev]->setVal(1.0);
+	// pressure_mf[lev]->setVal(1.0); // [error]
         thermal.w1 = 0.2 * pressure.P + 0.9;
         thermal.T_fluid = thermal.bound;
         ic_laser->Initialize(lev, laser_mf);
@@ -276,7 +276,7 @@ void Flame::UpdateModel(int /*a_step*/)
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
-	    amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi);
+	    // amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi); // [error]
 
             if (elastic.on)
             {
@@ -287,13 +287,13 @@ void Flame::UpdateModel(int /*a_step*/)
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-		    if (variable_pressure){
-		      Set::Scalar pnode = Numeric::Interpolate::CellToNodeAverage(Pressure,i,j,k,0);
-		      rhs(i,j,k) =pnode * grad_eta;  //Pressure(i,j,k) * grad_eta;
-		    }
-		    else{
+		    //if (variable_pressure){ //[error]
+		    //  Set::Scalar pnode = Numeric::Interpolate::CellToNodeAverage(Pressure,i,j,k,0); //[error]
+		    //  rhs(i,j,k) =pnode * grad_eta;  //Pressure(i,j,k) * grad_eta; //[error]
+		    //} //[error]
+		    //else{ //[error]
                     rhs(i, j, k) = elastic.traction * grad_eta;
-		    }
+		    //} //[error]
 		    
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
@@ -379,16 +379,16 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const& Pressure = (*pressure_mf[lev]).array(mfi);
+		//amrex::Array4<Set::Scalar> const& Pressure = (*pressure_mf[lev]).array(mfi); //[error]
 
-		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-				       {
-					 pressure.Energy = 3.0 * exp(0.00001604 * mdot(i,j,k));
-					 if (eta(i,j,k) == 1 || eta(i,j,k) <= small) Pressure(i,j,k) = 1;
-					 else Pressure(i,j,k) = exp(2.2e-6 * mdot(i,j,k));
+		//amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)  //[error]
+		//		       {
+		//			 pressure.Energy = 3.0 * exp(0.00001604 * mdot(i,j,k));  //[error]
+		//			 if (eta(i,j,k) == 1 || eta(i,j,k) <= small) Pressure(i,j,k) = 1;  //[error]
+		//			 else Pressure(i,j,k) = exp(2.2e-6 * mdot(i,j,k));  //[error]
 
-					 if (Pressure(i,j,k)>6.0) Pressure(i,j,k) = 6.0;
-				       });
+		//			 if (Pressure(i,j,k)>6.0) Pressure(i,j,k) = 6.0;  //[error]
+		//		       });  //[error]
 
                 // Constants
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
@@ -400,7 +400,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P + pressure.arrhenius.b2 - zeta_1 / zeta;
                 Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
                 Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
-		
+
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -441,12 +441,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 		  
-		    if (variable_pressure){
-		      Set::Scalar k1 = pressure.arrhenius.a1 * Pressure(i,j,k) + pressure.arrhenius.b1 - zeta_1 / zeta;
-		      Set::Scalar k2 = pressure.arrhenius.a2 * Pressure(i,j,k) + pressure.arrhenius.b2 - zeta_1 / zeta;
-		      Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * Pressure(i,j,k) * Pressure(i,j,k) + pressure.arrhenius.a3 * Pressure(i,j,k) + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
-		      Set::Scalar k4 = pressure.arrhenius.h1 * Pressure(i,j,k) + pressure.arrhenius.h2;
-		    }
+		    //if (variable_pressure){ // [error]
+		    //  Set::Scalar k1 = pressure.arrhenius.a1 * Pressure(i,j,k) + pressure.arrhenius.b1 - zeta_1 / zeta; // [error]
+		    //  Set::Scalar k2 = pressure.arrhenius.a2 * Pressure(i,j,k) + pressure.arrhenius.b2 - zeta_1 / zeta; // [error]
+		    //  Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * Pressure(i,j,k) * Pressure(i,j,k) + pressure.arrhenius.a3 * Pressure(i,j,k) + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0); // [error]
+		    //  Set::Scalar k4 = pressure.arrhenius.h1 * Pressure(i,j,k) + pressure.arrhenius.h2; // [error]
+		    //} // [error]
 
 		  
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
@@ -458,7 +458,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
                     Set::Scalar mdota = fabs(mdot(i, j, k));
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
-
+		    
 		    
 		    
                     if (homogeneousSystem) {
