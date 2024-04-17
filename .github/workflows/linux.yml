@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: checking documentation coverage
-        run: bash scripts/checkdoc.py
+        run: python3 scripts/checkdoc.py
   docs:
     name: Build Docs
     runs-on: ubuntu-latest
