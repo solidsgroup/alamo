@@ -132,7 +132,7 @@ public:
 
 
         // Read in IC for eta
-        if (nmodels>1 && pp.contains("ic.type"))
+        if (nmodels > 1 && pp.contains("ic.type"))
         {
             std::string type;
             pp.query("ic.type", type); // Read IC type for the eta field
@@ -143,13 +143,13 @@ public:
             else if (type == "png")      value.ic_eta = new IC::PNG(value.geom, pp, "ic.png");
             else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
             else if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
-            else Util::Abort(INFO,"Invalid value for ic.type: ",type);
-            
+            else Util::Abort(INFO, "Invalid value for ic.type: ", type);
+
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.
             // Default is false unless eta ic is set, then default is.
             // true.
-            pp.query("eta.reset_on_regrid",value.eta_reset_on_regrid);
+            pp.query("eta.reset_on_regrid", value.eta_reset_on_regrid);
         }
 
         // Read in IC for psi
@@ -166,12 +166,12 @@ public:
             value.bc_psi = new BC::Nothing();
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", value.plot_psi);
             value.psi_on = true;
-            
+
             value.psi_reset_on_regrid = true;
             // Whether to re-initialize psi when re-gridding occurs.
             // Default is false unless a psi ic is set, then default is
             // true.
-            pp.query("psi.reset_on_regrid",value.psi_reset_on_regrid);
+            pp.query("psi.reset_on_regrid", value.psi_reset_on_regrid);
         }
     }
 
