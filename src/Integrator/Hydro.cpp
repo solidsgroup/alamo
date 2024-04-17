@@ -142,10 +142,10 @@ void Hydro::Initialize(int lev)
 
     ic_Pressure->Initialize(lev, Pressure_mf, 0.0);
 
-    ic_rhoInterface->Initialize(lev,rhoInterface_mf,0.0);
-    ic_vInjected->Initialize(lev,vInjected_mf,0.0);
-    ic_deltapInterface->Initialize(lev,deltapInterface_mf,0.0);
-    ic_q->Initialize(lev,q_mf,0.0);
+    ic_rhoInterface->Initialize(lev, rhoInterface_mf, 0.0);
+    ic_vInjected->Initialize(lev, vInjected_mf, 0.0);
+    ic_deltapInterface->Initialize(lev, deltapInterface_mf, 0.0);
+    ic_q->Initialize(lev, q_mf, 0.0);
 
     Mix(lev);
 }
@@ -182,7 +182,7 @@ void Hydro::Mix(int lev)
             etarho(i, j, k) = eta(i, j, k) * rho_fluid;
             etarho_old(i, j, k) = etarho(i, j, k);
 
-            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
+            Set::Scalar E_solid = p(i, j, k) / (gamma - 1.0);
 
             E_mix(i, j, k) = eta(i, j, k) * (0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + p(i, j, k) / (gamma - 1.0)) + (1.0 - eta(i, j, k)) * E_solid;
             etaE(i, j, k) = eta(i, j, k) * E_mix(i, j, k);
@@ -190,8 +190,8 @@ void Hydro::Mix(int lev)
 
             M_mix(i, j, k, 0) = rho_mix(i, j, k) * v(i, j, k, 0);
             M_mix(i, j, k, 1) = rho_mix(i, j, k) * v(i, j, k, 1);
-            etaM(i, j, k, 0) = M_mix(i, j, k, 0)  * eta(i, j, k);
-            etaM(i, j, k, 1) = M_mix(i, j, k, 1)  * eta(i, j, k);
+            etaM(i, j, k, 0) = M_mix(i, j, k, 0) * eta(i, j, k);
+            etaM(i, j, k, 1) = M_mix(i, j, k, 1) * eta(i, j, k);
             etaM_old(i, j, k, 0) = etaM(i, j, k, 0);
             etaM_old(i, j, k, 1) = etaM(i, j, k, 1);
         });
@@ -208,7 +208,7 @@ void Hydro::UpdateEta(int lev, Set::Scalar time)
     ic_eta->Initialize(lev, eta_mf, time);
 }
 
-void Hydro::TimeStepBegin(Set::Scalar , int /*iter*/)
+void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
 {
 }
 
@@ -233,7 +233,7 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     std::swap(eta_old_mf, eta_mf);
-    UpdateEta(lev,time);
+    UpdateEta(lev, time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
@@ -277,9 +277,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         //amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
 
-        amrex::Array4<const Set::Scalar> const& rhoInterface    = (*rhoInterface_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& rhoInterface = (*rhoInterface_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& q = (*q_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& vInjected       = (*vInjected_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& vInjected = (*vInjected_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -287,11 +287,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Matrix gradu   = Numeric::Gradient(v, i, j, k, DX);
 
             //Compute Mixed Fields
-            rho_mix(i, j, k)  = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid;
+            rho_mix(i, j, k) = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid;
 
-            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0) ;
+            Set::Scalar E_solid = p(i, j, k) / (gamma - 1.0);
 
-            E_mix(i, j, k)    = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;
+            E_mix(i, j, k) = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;
             M_mix(i, j, k, 0) = etaM(i, j, k, 0);
             M_mix(i, j, k, 1) = etaM(i, j, k, 1);
 
@@ -302,44 +302,44 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //Set::Matrix I = Set::Matrix::Identity();
 
                 // Flow values
-                Set::Vector u(v(i,j,k,0),v(i,j,k,1));
-                Set::Scalar P = p(i,j,k);
+                Set::Vector u(v(i, j, k, 0), v(i, j, k, 1));
+                Set::Scalar P = p(i, j, k);
 
                 // Prescribed values
                 Set::Scalar rho0 = rhoInterface(i, j, k);
-                Set::Vector u0 = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot(i,j,k);
-                Set::Vector q0 = Set::Vector(q(i,j,k,0),q(i,j,k,1));
+                Set::Vector u0 = Set::Vector(vInjected(i, j, k, 0), vInjected(i, j, k, 1)) + grad_eta * etadot(i, j, k);
+                Set::Vector q0 = Set::Vector(q(i, j, k, 0), q(i, j, k, 1));
 
                 // Calculated values
                 //be careful when adding dependence on grad_u, as velocity is also updated in this loop
                 //Set::Matrix T = Set::Matrix::Zero(); //mu*(gradu + gradu.transpose()) - P*I; //Please note that eta is outside the divergence of T in the viscous implementation 
                 Set::Matrix R;
-                R(0,0) = 0;
-                R(0,1) = -1;
-                R(1,0) = 1;
-                R(1,1) = 0;
+                R(0, 0) = 0;
+                R(0, 1) = -1;
+                R(1, 0) = 1;
+                R(1, 1) = 0;
 
-                Set::Scalar mdot0 =  (                             rho0 * u0                             ).dot(grad_eta);
-                Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose())                        )*grad_eta;
-                Set::Vector Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
-                Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   +    P/(gamma - 1.0)*u0    +         q0 ).dot(grad_eta); 
-                
+                Set::Scalar mdot0 = (rho0 * u0).dot(grad_eta);
+                Set::Vector Pdot0 = (rho0 * (u0 * u0.transpose())) * grad_eta;
+                Set::Vector Ldot0 = (-rho0 * (u0 * u0.transpose() - u * u.transpose())) * grad_eta + Ldot_active * R * grad_eta;
+                Set::Scalar qdot0 = (0.5 * rho0 * (u0.dot(u0)) * u0 + P / (gamma - 1.0) * u0 + q0).dot(grad_eta);
+
                 source[0] = mdot0;
                 source[1] = (Pdot0(0) + Ldot0(0));
                 source[2] = (Pdot0(1) + Ldot0(1));
-                source[3] = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1));
-                
+                source[3] = (qdot0 + Ldot0(0) * v(i, j, k, 0) + Ldot0(1) * v(i, j, k, 1));
+
             }
 
-            E_mix(i, j, k)    += source[3];
-            rho_mix(i, j, k)  += source[0];
+            E_mix(i, j, k) += source[3];
+            rho_mix(i, j, k) += source[0];
             M_mix(i, j, k, 0) += source[1];
             M_mix(i, j, k, 1) += source[2];
 
             //Compute New Primitive Variables
             v(i, j, k, 0) = M_mix(i, j, k, 0) / rho_mix(i, j, k);
             v(i, j, k, 1) = M_mix(i, j, k, 1) / rho_mix(i, j, k);
-            p(i, j, k)    = (E_mix(i, j, k) - 0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1);
+            p(i, j, k) = (E_mix(i, j, k) - 0.5 * rho_mix(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1);
 
         });
     }
@@ -375,10 +375,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
+        {
             //Viscous Terms
-            Set::Scalar lap_ux  = Numeric::Laplacian(v, i, j, k, 0, DX);
-            Set::Scalar lap_uy  = Numeric::Laplacian(v, i, j, k, 1, DX);
+            Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
+            Set::Scalar lap_uy = Numeric::Laplacian(v, i, j, k, 1, DX);
 
             //Godunov flux
             Solver::Local::Riemann::Roe::State state_x(rho_mix(i, j, k), v(i, j, k, 0), v(i, j, k, 1), p(i, j, k), eta(i, j, k));
@@ -404,7 +404,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]
                 + (flux_ylo.energy - flux_yhi.energy) * dt / DX[1]
                 + E_mix(i, j, k) * etadot(i, j, k) * dt;
-	            //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
+            //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
             etarho_new(i, j, k) =
                 etarho(i, j, k)
@@ -417,19 +417,19 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + (flux_xlo.momentum_normal - flux_xhi.momentum_normal) * dt / DX[0]
                 + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) * dt / DX[1]
                 + M_mix(i, j, k, 0) * etadot(i, j, k) * dt
-	            + mu * eta(i, j, k) * lap_ux * dt;
+                + mu * eta(i, j, k) * lap_ux * dt;
 
             etaM_new(i, j, k, 1) =
                 etaM(i, j, k, 1)
-	            + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
-	            + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1]
+                + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) * dt / DX[0]
+                + (flux_ylo.momentum_normal - flux_yhi.momentum_normal) * dt / DX[1]
                 + M_mix(i, j, k, 1) * etadot(i, j, k) * dt
-	            + mu * eta(i, j, k) * lap_uy * dt;
+                + mu * eta(i, j, k) * lap_uy * dt;
 
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
-            omega(i, j, k) = eta(i,j,k) * (grad_uy(0) - grad_ux(1));
+            omega(i, j, k) = eta(i, j, k) * (grad_uy(0) - grad_ux(1));
 
             // //Compute fluid fields
             // etaE_new(i, j, k)    = eta(i, j, k) * E_mix(i, j, k);
