@@ -18,7 +18,7 @@ namespace Integrator
 namespace Base
 {
 template<class MODEL>
-class Mechanics: virtual public Integrator
+class Mechanics : virtual public Integrator
 {
 public:
 
@@ -397,7 +397,7 @@ protected:
     bool plot_model = true;
     bool plot_psi = true;
     bool plot_rhs = true;
-    
+
 
     Set::Scalar tstart = -1;
 };

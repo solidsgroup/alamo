@@ -28,7 +28,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
-        //pp.query("fields_verbose", value.plot_field);
+        pp.query("fields_verbose", value.plot_field);
         pp.query("timestep", value.base_time);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
@@ -147,8 +147,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.n_htpb", value.pressure.power.n_htpb);
             pp.query("pressure.n_comb", value.pressure.power.n_comb);
         }
-	value.RegisterNewFab(value.pressure_mf, value.bc_temp, 1, value.ghost_count + 1, "Pressure", true);
-	pp.query("variable_pressure", value.variable_pressure);
+        value.RegisterNewFab(value.pressure_mf, value.bc_temp, 1, value.ghost_count + 1, "Pressure", true);
+        pp.query("variable_pressure", value.variable_pressure);
     }
 
     // Refinement criterion for eta field
@@ -243,7 +243,7 @@ void Flame::Initialize(int lev)
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-	pressure_mf[lev]->setVal(1.0);
+        pressure_mf[lev]->setVal(1.0);
         thermal.w1 = 0.2 * pressure.P + 0.9;
         thermal.T_fluid = thermal.bound;
         ic_laser->Initialize(lev, laser_mf);
@@ -276,7 +276,7 @@ void Flame::UpdateModel(int /*a_step*/)
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
-	    amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi);
 
             if (elastic.on)
             {
@@ -287,14 +287,14 @@ void Flame::UpdateModel(int /*a_step*/)
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-		    if (variable_pressure){
-		      Set::Scalar pnode = Numeric::Interpolate::CellToNodeAverage(Pressure,i,j,k,0);
-		      rhs(i,j,k) =pnode * grad_eta;  //Pressure(i,j,k) * grad_eta;
-		    }
-		    else{
-                    rhs(i, j, k) = elastic.traction * grad_eta;
-		    }
-		    
+                    if (variable_pressure) {
+                        Set::Scalar pnode = Numeric::Interpolate::CellToNodeAverage(Pressure, i, j, k, 0);
+                        rhs(i, j, k) = pnode * grad_eta;  //Pressure(i,j,k) * grad_eta;
+                    }
+                    else {
+                        rhs(i, j, k) = elastic.traction * grad_eta;
+                    }
+
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
                     model_ap.F0 *= (temp_avg - elastic.Tref);
@@ -379,16 +379,16 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const& Pressure = (*pressure_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const& Pressure = (*pressure_mf[lev]).array(mfi);
 
-		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-				       {
-					 pressure.Energy = 3.0 * exp(0.00001604 * mdot(i,j,k));
-					 if (eta(i,j,k) == 1 || eta(i,j,k) <= small) Pressure(i,j,k) = 1;
-					 else Pressure(i,j,k) = exp(2.2e-6 * mdot(i,j,k));
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    pressure.Energy = 3.0 * exp(0.00001604 * mdot(i, j, k));
+                    if (eta(i, j, k) == 1 || eta(i, j, k) <= small) Pressure(i, j, k) = 1;
+                    else Pressure(i, j, k) = exp(2.2e-6 * mdot(i, j, k));
 
-					 if (Pressure(i,j,k)>6.0) Pressure(i,j,k) = 6.0;
-				       });
+                    if (Pressure(i, j, k) > 6.0) Pressure(i, j, k) = 6.0;
+                });
 
                 // Constants
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
@@ -400,7 +400,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P + pressure.arrhenius.b2 - zeta_1 / zeta;
                 Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
                 Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
-		
+
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -440,15 +440,15 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-		  
-		    if (variable_pressure){
-		      Set::Scalar k1 = pressure.arrhenius.a1 * Pressure(i,j,k) + pressure.arrhenius.b1 - zeta_1 / zeta;
-		      Set::Scalar k2 = pressure.arrhenius.a2 * Pressure(i,j,k) + pressure.arrhenius.b2 - zeta_1 / zeta;
-		      Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * Pressure(i,j,k) * Pressure(i,j,k) + pressure.arrhenius.a3 * Pressure(i,j,k) + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
-		      Set::Scalar k4 = pressure.arrhenius.h1 * Pressure(i,j,k) + pressure.arrhenius.h2;
-		    }
 
-		  
+                    if (variable_pressure) {
+                        Set::Scalar k1 = pressure.arrhenius.a1 * Pressure(i, j, k) + pressure.arrhenius.b1 - zeta_1 / zeta;
+                        Set::Scalar k2 = pressure.arrhenius.a2 * Pressure(i, j, k) + pressure.arrhenius.b2 - zeta_1 / zeta;
+                        Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * Pressure(i, j, k) * Pressure(i, j, k) + pressure.arrhenius.a3 * Pressure(i, j, k) + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
+                        Set::Scalar k4 = pressure.arrhenius.h1 * Pressure(i, j, k) + pressure.arrhenius.h2;
+                    }
+
+
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
                     //phi_avg = phicell(i,j,k);
                     Set::Scalar K;
@@ -459,8 +459,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mdota = fabs(mdot(i, j, k));
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
 
-		    
-		    
+
+
                     if (homogeneousSystem) {
                         K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg);
                         heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * (k4 * phi_avg)) / K;
