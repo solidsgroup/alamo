@@ -47,12 +47,16 @@ public:
 
         pp.query("time_evolving", value.m_time_evolving);
 
-        pp.query("fields_verbose", value.plot_field);
+        pp.query("plot_disp", value.plot_disp); // Include displacement field in output [true]
+        pp.query("plot_rhs", value.plot_rhs); // Include right-hand side in output [true]
+        pp.query("plot_stress", value.plot_stress); // Include stress in output [true]
+        pp.query("plot_strain", value.plot_strain); // Include strain in output [true]
+        pp.query("plot_model", value.plot_model); // Include model data [true - if enabled for the model]
 
-        value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_field, "disp", value.m_time_evolving);
-        value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_field, "rhs", value.m_time_evolving);
-        value.RegisterGeneralFab(value.stress_mf, 1, 2, true, "stress", value.m_time_evolving);
-        value.RegisterGeneralFab(value.strain_mf, 1, 2, value.plot_field, "strain", value.m_time_evolving);
+        value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_disp, "disp", value.m_time_evolving);
+        value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_rhs, "rhs", value.m_time_evolving);
+        value.RegisterGeneralFab(value.stress_mf, 1, 2, value.plot_stress, "stress", value.m_time_evolving);
+        value.RegisterGeneralFab(value.strain_mf, 1, 2, value.plot_strain, "strain", value.m_time_evolving);
 
         if (value.m_type == Type::Static)
         {
@@ -77,7 +81,7 @@ public:
         else Util::Abort(INFO, "Invalid bc.type ", bc_type);
 
         pp.query("print_model", value.m_print_model);
-        if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, value.plot_field, "model", value.m_time_evolving);
+        if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, value.plot_model, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
 
         // Read in IC for RHS
@@ -387,7 +391,13 @@ protected:
 
     bool m_zero_out_displacement = false;
 
-    bool plot_field = true;
+    bool plot_disp = true;
+    bool plot_stress = true;
+    bool plot_strain = true;
+    bool plot_model = true;
+    bool plot_psi = true;
+    bool plot_rhs = true;
+    
 
     Set::Scalar tstart = -1;
 };

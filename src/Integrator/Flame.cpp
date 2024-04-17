@@ -28,7 +28,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
-        pp.query("fields_verbose", value.plot_field);
+        //pp.query("fields_verbose", value.plot_field);
         pp.query("timestep", value.base_time);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
@@ -214,7 +214,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.queryclass("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
-        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_field);
+        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
         value.psi_on = true;
     }
 }
