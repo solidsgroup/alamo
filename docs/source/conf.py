@@ -61,7 +61,8 @@ extensions = [
     'linuxdoc.rstFlatTable',
 #    'm2r'
     'sphinx_design',
-    'sphinx_copybutton'
+    'sphinx_copybutton',
+    'sphinxcontrib.bibtex'
 ]
 
 #breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
@@ -95,6 +96,8 @@ exclude_patterns = []
 #pygments_style = 'sphinx'
 pygments_style = 'default'
 
+# BiBTeX bibliography
+bibtex_bibfiles = ['refs.bib']
 
 # -- Options for HTML output -------------------------------------------------
 

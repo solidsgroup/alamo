@@ -387,7 +387,7 @@ protected:
 
     bool m_zero_out_displacement = false;
 
-    bool plot_field = false;
+    bool plot_field = true;
 
     Set::Scalar tstart = -1;
 };

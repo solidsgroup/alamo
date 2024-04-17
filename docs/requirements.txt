@@ -4,3 +4,4 @@ sphinx_rtd_theme>=1.2.2
 linuxdoc
 sphinx_design
 sphinx_copybutton
+sphinxcontrib-bibtex
