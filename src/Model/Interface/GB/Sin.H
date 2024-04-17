@@ -56,11 +56,11 @@ private:
 public:    
     static void Parse(Sin & value, amrex::ParmParse & pp)
     {
-        pp.query("theta0",value.theta0);
+        pp.query("theta0",value.theta0); // Theta offset (degrees)
         value.theta0 *= 0.01745329251; // convert degrees into radians
-        pp.query("sigma0",value.sigma0);
-        pp.query("sigma1",value.sigma1);
-        pp.query("n",value.n);
+        pp.query("sigma0",value.sigma0); // Minimum energy
+        pp.query("sigma1",value.sigma1); // Energy multiplier
+        pp.query("n",value.n); // Frequency number (integer)
     }
     
 };

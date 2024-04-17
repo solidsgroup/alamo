@@ -646,8 +646,7 @@ public:
         pp.query("nriters", value.m_nriters);
 
         // Tolerance to use for newton-raphson convergence
-
-        pp.query("nrtolerance", value.m_nrtolerance);
+        pp.query("nrtolerance", value.m_nrtolerance); 
     }
 
 };

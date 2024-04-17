@@ -257,15 +257,15 @@ public:
         //value.bmp.Define(filename);
 
         std::string fit = "stretch";
-        pp.query("fit", fit); // How to fit. (options: stretch, fitheight, fitwidth)
+        pp.query("fit", fit); // How to fit. {options: stretch, fitheight, fitwidth}
         if (fit == "stretch")        value.fit = Fit::Stretch;
         else if (fit == "fitheight") value.fit = Fit::FitHeight;
         else if (fit == "fitwidth")  value.fit = Fit::FitWidth;
         else if (fit == "coord")
         {
             value.fit = Fit::Coord;
-            pp.queryarr("coord.lo", value.coord_lo);
-            pp.queryarr("coord.hi", value.coord_hi);
+            pp.queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
+            pp.queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
         }
         else Util::Abort(INFO, "Invalid value for png fit - should be stretch/fitheight/fitwidth/coord but received '", fit, "'");
 
