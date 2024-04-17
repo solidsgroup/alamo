@@ -90,7 +90,7 @@ private:
     int ghost_count = 2;
     int homogeneousSystem = 0;
     bool plot_field = false;
-    int variable_pressure = 1;
+    int variable_pressure = 0;
   
     struct {
         Set::Scalar gamma = 1.0;
