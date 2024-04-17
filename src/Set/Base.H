@@ -22,6 +22,83 @@ using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
+//using Quaternion = Eigen::Quaterniond;
+
+class Quaternion : public Eigen::Quaterniond
+{
+public:
+    Quaternion()
+        : Eigen::Quaterniond() {}
+    Quaternion(Set::Scalar w, Set::Scalar x, Set::Scalar y, Set::Scalar z)
+        : Eigen::Quaterniond(w,x,y,z) {}
+    Quaternion(const Eigen::Matrix3d &R)
+        : Eigen::Quaterniond(R) {}
+    Quaternion(Eigen::Quaterniond &q)
+        : Eigen::Quaterniond(q.w(),q.x(),q.y(),q.z()) {}
+
+    AMREX_FORCE_INLINE
+    void operator = (const Eigen::Quaterniond &rhs)
+    {
+        w() = rhs.w(); x() = rhs.x(); y() = rhs.y(); z() = rhs.z();
+    }
+
+    AMREX_FORCE_INLINE
+    void operator += (const Quaternion &rhs)
+    {
+        w() += rhs.w(); x() += rhs.x(); y() += rhs.y(); z() += rhs.z();
+    }
+    // AMREX_FORCE_INLINE
+    // void operator * (const Set::Scalar alpha)
+    // {
+    //     w += alpha; x *= alpha; y *= alpha; z *= alpha;
+    // }
+    friend Quaternion operator * (const Set::Scalar alpha, const Quaternion b);
+    friend Quaternion operator * (const Quaternion b,const Set::Scalar alpha);
+    friend Quaternion operator + (const Quaternion a, const Quaternion b);
+    friend Quaternion operator - (const Quaternion a, const Quaternion b);
+    friend bool operator == (const Quaternion a, const Quaternion b);
+};
+AMREX_FORCE_INLINE
+Quaternion operator * (const Set::Scalar alpha, const Quaternion b)
+{
+    Quaternion ret;
+    ret.w() = b.w()*alpha; ret.x() = b.x()*alpha; ret.y() = b.y()*alpha; ret.z() = b.z()*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Quaternion operator * (const Quaternion b, const Set::Scalar alpha)
+{
+    Quaternion ret;
+    ret.w() = b.w()*alpha; ret.x() = b.x()*alpha; ret.y() = b.y()*alpha; ret.z() = b.z()*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Quaternion operator + (const Quaternion a, const Quaternion b)
+{
+    Quaternion ret;
+    ret.w() = a.w()+b.w(); ret.x() = a.x()+b.x(); ret.y() = a.y()+b.y(); ret.z() = a.z()+b.z();
+    return ret;
+}    
+
+AMREX_FORCE_INLINE
+Quaternion operator - (const Quaternion a, const Quaternion b)
+{
+    Quaternion ret;
+    ret.w() = a.w()-b.w(); ret.x() = a.x()-b.x(); ret.y() = a.y()-b.y(); ret.z() = a.z()-b.z();
+    return ret;
+}    
+
+AMREX_FORCE_INLINE
+bool operator == (const Quaternion a, const Quaternion b)
+{
+    if (fabs((a.w() - b.w())/(a.w()+a.w())) > 1E-8) return false;
+    if (fabs((a.x() - b.x())/(a.x()+a.x())) > 1E-8) return false;
+    if (fabs((a.y() - b.y())/(a.y()+a.y())) > 1E-8) return false;
+    if (fabs((a.z() - b.z())/(a.z()+a.z())) > 1E-8) return false;
+    return true;
+}
+
+
 static Scalar Garbage = NAN;
 
 AMREX_FORCE_INLINE

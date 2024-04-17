@@ -358,7 +358,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const& phicell = (*phicell_mf[lev]).array(mfi);
+                //amrex::Array4<const Set::Scalar> const& phicell = (*phicell_mf[lev]).array(mfi);
                 // Heat transfer fields
                 amrex::Array4<Set::Scalar>       const& tempnew = (*temp_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& temp = (*temp_old_mf[lev]).array(mfi);
