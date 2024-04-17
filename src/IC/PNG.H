@@ -21,7 +21,7 @@ class PNG : public IC
 public:
     //enum Type {XYZ, XY, YZ, XZ};
     enum Fit {Stretch,FitWidth,FitHeight,Coord};
-    enum Channel {R=0, G=1, B=2};
+    enum Channel {R=0, G=1, B=2, A=3};
 
     PNG (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
 
@@ -177,7 +177,8 @@ public:
                 Set::Scalar y1 = J*img_dy, y2 = (J+1)*img_dy;
 
 
-                if (I < png_width - 1 && J < png_height - 1)
+                if (I>0 && I < png_width  - 1 &&
+                    J>0 && J < png_height - 1)
                 {
                     png_bytep px_sw = &(row_pointers[J][I * 4]);
                     png_bytep px_se = &(row_pointers[J][(I + 1) * 4]);
@@ -191,9 +192,13 @@ public:
                     Set::Scalar fQ22 = ((Set::Scalar)(px_ne[channel]) - min) / (max - min);
 
                     field(i,j,k) =
-                        (fQ11*(x2-ximg(0))*(y2-ximg(1)) + fQ21*(ximg(0)-x1)*(y2-ximg(1)) + fQ12*(x2-ximg(0))*(ximg(1)-y1) + fQ22*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
+                        (fQ11*(x2-ximg(0))*(y2-ximg(1)) +
+                         fQ21*(ximg(0)-x1)*(y2-ximg(1)) +
+                         fQ12*(x2-ximg(0))*(ximg(1)-y1) +
+                         fQ22*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
+
                 }
-                else if (I == png_width-1 && J <  png_height - 1)
+                else if ((I==0 || I == png_width-1) && J <  png_height - 1)
                 {
                     png_bytep px_sw = &(row_pointers[J][I * 4]);
                     png_bytep px_nw = &(row_pointers[J + 1][I * 4]);
@@ -202,7 +207,7 @@ public:
                     Set::Scalar fQ12 = ((Set::Scalar)(px_nw[channel]) - min) / (max - min);
                     field(i,j,k) = fQ11 + (fQ12-fQ11) * (ximg(1) - y1);
                 }
-                else if (I < png_width - 1 && J == png_height - 1)
+                else if (I < png_width - 1 && (J==0 || J == png_height - 1))
                 {
                     png_bytep px_sw = &(row_pointers[J][I * 4]);
                     png_bytep px_se = &(row_pointers[J][(I + 1) * 4]);
@@ -265,11 +270,12 @@ public:
         else Util::Abort(INFO,"Invalid value for png fit - should be stretch/fitheight/fitwidth/coord but received '",fit,"'");
 
         std::string channel = "g";
-        pp.query("channel",channel); // Color channel to use (options: r, R, g, G, b, B)
+        pp.query("channel",channel); // Color channel to use (options: r, R, g, G, b, B, a, A)
         if      (channel=="r" || channel=="R") value.channel = Channel::R;
         else if (channel=="g" || channel=="G") value.channel = Channel::G;
         else if (channel=="b" || channel=="B") value.channel = Channel::B;
-        else Util::Abort(INFO,"Invalid value for bmp channel - should be r/g/b but received '",channel,"'");
+        else if (channel=="a" || channel=="A") value.channel = Channel::A;
+        else Util::Abort(INFO,"Invalid value for bmp channel - should be r/g/b/a but received '",channel,"'");
 
         value.min = 0.0; //(Set::Scalar) value.bmp.min()[value.channel];
         value.max = 255.0; //(Set::Scalar) value.bmp.max()[value.channel];
