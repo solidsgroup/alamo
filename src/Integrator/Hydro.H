@@ -70,6 +70,7 @@ private:
     Set::Field<Set::Scalar> vInjected_mf;
     Set::Field<Set::Scalar> deltapInterface_mf;
     Set::Field<Set::Scalar> q_mf;
+    Set::Field<Set::Scalar> Source_mf;
 
     BC::BC<Set::Scalar>* bc_rho;
     BC::BC<Set::Scalar>* bc_E;
