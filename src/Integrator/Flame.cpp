@@ -41,6 +41,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("pf.w0", value.pf.w0);    // Burned rest energy
         pp.query("pf.min_eta", value.pf.min_eta);
         pp.query("amr.ghost_cells", value.ghost_count); // number of ghost cells in all fields
+        pp.query("geometry.x_len", value.x_len);
+        pp.query("geometry.y_len", value.y_len);
 
         value.bc_eta = new BC::Constant(1);
         pp.queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
@@ -68,6 +70,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
         pp.query("elastic.traction", value.elastic.traction);
         pp.query("elastic.phirefinement", value.elastic.phirefinement);
+
+
 
         if (value.thermal.on) {
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
@@ -113,6 +117,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, value.ghost_count + 1, "heatflux", value.plot_field);
             value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, value.ghost_count + 1, "laser", value.plot_field);
 
+            value.RegisterIntegratedVariable(&value.area, "area");
+            value.RegisterIntegratedVariable(&value.chamber_area, "chamber_area");
+            value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
+
             std::string laser_ic_type = "constant";
             pp.query("laser.ic.type", laser_ic_type);
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
@@ -147,8 +155,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.n_htpb", value.pressure.power.n_htpb);
             pp.query("pressure.n_comb", value.pressure.power.n_comb);
         }
-	//value.RegisterNewFab(value.pressure_mf, value.bc_temp, 1, value.ghost_count + 1, "Pressure", true); // [error]
-	pp.query("variable_pressure", value.variable_pressure);
+        pp.query("variable_pressure", value.variable_pressure);
     }
 
     // Refinement criterion for eta field
@@ -243,7 +250,7 @@ void Flame::Initialize(int lev)
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-	// pressure_mf[lev]->setVal(1.0); // [error]
+        // pressure_mf[lev]->setVal(1.0); // [error]
         thermal.w1 = 0.2 * pressure.P + 0.9;
         thermal.T_fluid = thermal.bound;
         ic_laser->Initialize(lev, laser_mf);
@@ -253,6 +260,11 @@ void Flame::Initialize(int lev)
 
 void Flame::UpdateModel(int /*a_step*/)
 {
+
+    pressure.P = exp(2.2e-6 * massflux);
+    if (pressure.P > 6.0) pressure.P = 6.0;
+    elastic.traction = pressure.P;
+
     if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
 
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -276,7 +288,7 @@ void Flame::UpdateModel(int /*a_step*/)
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
-	    // amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi); // [error]
+            // amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi); // [error]
 
             if (elastic.on)
             {
@@ -287,14 +299,14 @@ void Flame::UpdateModel(int /*a_step*/)
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-		    //if (variable_pressure){ //[error]
-		    //  Set::Scalar pnode = Numeric::Interpolate::CellToNodeAverage(Pressure,i,j,k,0); //[error]
-		    //  rhs(i,j,k) =pnode * grad_eta;  //Pressure(i,j,k) * grad_eta; //[error]
-		    //} //[error]
-		    //else{ //[error]
+                    //if (variable_pressure){ //[error]
+                    //  Set::Scalar pnode = Numeric::Interpolate::CellToNodeAverage(Pressure,i,j,k,0); //[error]
+                    //  rhs(i,j,k) =pnode * grad_eta;  //Pressure(i,j,k) * grad_eta; //[error]
+                    //} //[error]
+                    //else{ //[error]
                     rhs(i, j, k) = elastic.traction * grad_eta;
-		    //} //[error]
-		    
+                    //} //[error]
+
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
                     model_ap.F0 *= (temp_avg - elastic.Tref);
@@ -379,18 +391,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
-		//amrex::Array4<Set::Scalar> const& Pressure = (*pressure_mf[lev]).array(mfi); //[error]
 
-		//amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)  //[error]
-		//		       {
-		//			 pressure.Energy = 3.0 * exp(0.00001604 * mdot(i,j,k));  //[error]
-		//			 if (eta(i,j,k) == 1 || eta(i,j,k) <= small) Pressure(i,j,k) = 1;  //[error]
-		//			 else Pressure(i,j,k) = exp(2.2e-6 * mdot(i,j,k));  //[error]
-
-		//			 if (Pressure(i,j,k)>6.0) Pressure(i,j,k) = 6.0;  //[error]
-		//		       });  //[error]
-
-                // Constants
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
                 Set::Scalar zeta_1;
                 if (pressure.arrhenius.dependency == 1) zeta_1 = zeta_2;
@@ -400,15 +401,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P + pressure.arrhenius.b2 - zeta_1 / zeta;
                 Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
                 Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
-		
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phicell(i,j,k);
-
-
-
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
                     Set::Scalar K; // Calculate effective thermal conductivity
                     Set::Scalar rho; // No special interface mixure rule is needed here.
@@ -440,15 +436,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-		  
-		    //if (variable_pressure){ // [error]
-		    //  Set::Scalar k1 = pressure.arrhenius.a1 * Pressure(i,j,k) + pressure.arrhenius.b1 - zeta_1 / zeta; // [error]
-		    //  Set::Scalar k2 = pressure.arrhenius.a2 * Pressure(i,j,k) + pressure.arrhenius.b2 - zeta_1 / zeta; // [error]
-		    //  Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * Pressure(i,j,k) * Pressure(i,j,k) + pressure.arrhenius.a3 * Pressure(i,j,k) + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0); // [error]
-		    //  Set::Scalar k4 = pressure.arrhenius.h1 * Pressure(i,j,k) + pressure.arrhenius.h2; // [error]
-		    //} // [error]
-
-		  
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
                     //phi_avg = phicell(i,j,k);
                     Set::Scalar K;
@@ -459,8 +446,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mdota = fabs(mdot(i, j, k));
                     Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
 
-		    
-		    
                     if (homogeneousSystem) {
                         K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg);
                         heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * (k4 * phi_avg)) / K;
@@ -641,7 +626,9 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     BL_PROFILE("Flame::Integrate");
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+    Set::Scalar domain_area = x_len * y_len;
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
+    amrex::Array4<amrex::Real> const& mdot = (*mdot_mf[amrlev]).array(mfi);
     amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
     {
         volume += eta(i, j, k, 0) * dv;
@@ -649,6 +636,13 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
         Set::Scalar normgrad = grad.lpNorm<2>();
         Set::Scalar da = normgrad * dv;
         area += da;
+        chamber_area = domain_area - area;
+
+        grad = Numeric::Gradient(mdot, i, j, k, 0, DX);
+        normgrad = grad.lpNorm<2>();
+        Set::Scalar dm = normgrad * dv;
+        massflux += dm;
+
     });
 }
 } // namespace Integrator
