@@ -29,7 +29,6 @@ public:
         pp.queryarr("alpha",value.alpha); // Diffusion coefficient
     }
 
-
 protected:
     void Initialize(int lev) override
     {
