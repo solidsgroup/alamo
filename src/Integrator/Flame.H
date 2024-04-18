@@ -93,7 +93,6 @@ private:
         Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
-        Set::Scalar min_eta = 0.001;
         int evolve = 1;
     } pf;
 
@@ -121,7 +120,7 @@ private:
         Set::Scalar cp_ap, cp_htpb;
         Set::Scalar q0 = 0.0;
         Set::Scalar bound = 0.0;
-        Set::Scalar m_ap, m_htpb, m_comb;
+        Set::Scalar m_ap, m_htpb;
         Set::Scalar E_ap, E_htpb;
         Set::Scalar hc = 1.0, w1 = 1.0;
         Set::Scalar modeling_ap = 1.0, modeling_htpb = 1.0;
