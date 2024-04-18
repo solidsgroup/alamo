@@ -48,8 +48,9 @@ public:
         pp.query("eps", value.eps); // Diffuse boundary width
         pp.query("tau", value.tau); // Diffusive timescale
 
-        // Refinement criteria
+        // Refinement criteria for temperature
         pp.query("heat.refinement_threshold", value.refinement_threshold_temp);
+        // Refinement criteria for phi
         pp.query("phi.refinement_threshold", value.refinement_threshold_phi);
 
         // Expressions for ICs

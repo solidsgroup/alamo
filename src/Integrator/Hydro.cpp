@@ -7,7 +7,7 @@
 #include "IC/PSRead.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
-//#include "IC/PNG.H"
+#include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
 
 namespace Integrator
@@ -84,7 +84,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         else if (type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
         else if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
-        //else if (type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
+        else if (type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
         else Util::Abort(INFO, "Invalid eta.ic: ", type);
     }
     {
@@ -278,13 +278,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             //Compute Mixed Fields
-            rho_mix(i, j, k)  = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid;// - Source(i, j, k, 0) * dt;
+            rho_mix(i, j, k)  = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid;
 
-            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
+            Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0) ;
 
-            E_mix(i, j, k)    = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;// - Source(i, j, k, 1) * dt;
-            M_mix(i, j, k, 0) = etaM(i, j, k, 0);// - Source(i, j, k, 1) * dt;
-            M_mix(i, j, k, 1) = etaM(i, j, k, 1);// - Source(i, j, k, 2) * dt;
+            E_mix(i, j, k)    = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;
+            M_mix(i, j, k, 0) = etaM(i, j, k, 0);
+            M_mix(i, j, k, 1) = etaM(i, j, k, 1);
 
             //Compute New Primitive Variables
             v(i, j, k, 0) = M_mix(i, j, k, 0) / rho_mix(i, j, k);
@@ -386,7 +386,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 3) = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1));
             
         
-        //Godunov fluxes
+            //Godunov fluxes
             etaE_new(i, j, k) =
                 etaE(i, j, k)
                 + (flux_xlo.energy - flux_xhi.energy) * dt / DX[0]

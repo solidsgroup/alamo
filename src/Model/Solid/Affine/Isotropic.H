@@ -94,36 +94,36 @@ public:
         else if (pp.contains("E") && pp.contains("shear"))
         {
             Set::Scalar E;
-            pp.query("E", E);
-            pp.query("shear", mu);
+            pp.query("E", E); // Young's modulus
+            pp.query("shear", mu); // Shear modulus
             lambda = mu * (E - 2.0 * mu) / (3.0 * mu - E);
         }
         else if (pp.contains("E") && pp.contains("lame"))
         {
             Set::Scalar E;
-            pp.query("E", E);
-            pp.query("lame", lambda);
+            pp.query("E", E); // Young's modulus
+            pp.query("lame", lambda); // Lame parameter
             mu = (E - 3.0 * lambda + sqrt(E * E + 9.0 * lambda * lambda + 2.0 * E * lambda)) / 4.0;
         }
         else if (pp.contains("nu") && pp.contains("shear"))
         {
             Set::Scalar nu;
-            pp.query("nu", nu);
-            pp.query("shear", mu);
+            pp.query("nu", nu); // Poisson's ratio
+            pp.query("shear", mu); // Shear modulus
             lambda = 2.0 * mu * nu / (1.0 - 2.0 * nu);
         }
         else if (pp.contains("lambda") && pp.contains("nu"))
         {
             Set::Scalar nu;
-            pp.query("lambda", lambda);
-            pp.query("nu", nu);
+            pp.query("lambda", lambda); // Lame parameter
+            pp.query("nu", nu); // Poisson's ratio
             mu = lambda * (1.0 - 2.0 * nu) / 2.0 / nu;
         }
         else if (pp.contains("bulk") && pp.contains("shear"))
         {
             Set::Scalar K;
-            pp.query("bulk", K);
-            pp.query("shear", mu);
+            pp.query("bulk", K); // Bulk modulus
+            pp.query("shear", mu); // Shear modulus
             lambda = K - (2.0 * mu / 3.0);
         }
         else

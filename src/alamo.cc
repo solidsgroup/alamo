@@ -21,7 +21,6 @@
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
 #include "Integrator/Flame.H"
-#include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
@@ -69,7 +68,6 @@ int main (int argc, char* argv[])
     else if (program == "topop")                integrator = new Integrator::TopOp<Model::Solid::Linear::Isotropic>(pp);
     else if (program == "heat")                 integrator = new Integrator::HeatConduction(pp);
     else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
-    else if (program == "degradation")          integrator = new Integrator::PolymerDegradation();
     else if (program == "fracture")             integrator = new Integrator::Fracture();
     else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
     else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);

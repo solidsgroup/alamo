@@ -32,15 +32,15 @@ private:
 public:
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
-        pp.query("G_c",value._Gc);
-        pp.query("zeta",value.zeta);
-        pp.query("mobility",value.mobility);
-        pp.query("threshold", value.threshold);
+        pp.query("G_c",value._Gc); // Fracture energy 
+        pp.query("zeta",value.zeta); // Lengthscale regularization
+        pp.query("mobility",value.mobility); // Mobility (speed)
+        pp.query("threshold", value.threshold); // Threshold
         
         std::string gtype = "";
         std::string wtype = "";
-        pp.query("gtype", gtype);
-        pp.query("wtype", wtype);
+        pp.query("gtype", gtype); // Type of g function to use {square, multiwell, 4c3, squarep, squarepexp, cubicm}
+        pp.query("wtype", wtype); // Type o w function to use {square, multiwell, multiwell2, 4c3}
 
         Set::Scalar ductile_exponent = 1.;
         if(gtype == "squarepexp"|| gtype == "cubicm") pp.query("exponent",ductile_exponent);

@@ -59,7 +59,7 @@ public:
 
         // IC for crack field
         IO::ParmParse pp("crack.ic");
-        pp.query("type", crack.ic_type);
+        pp.query("type", crack.ic_type); // Crack type to use {notch}
         if (crack.ic_type == "notch")
         {
             IC::Notch *tmpic = new IC::Notch(geom);
