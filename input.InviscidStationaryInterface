@@ -71,7 +71,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-3
 stop_time = 100.0
 
 ### ETA IC ###
@@ -82,7 +82,7 @@ rhoInterface.ic.type = expression
 rhoInterface.ic.expression.region0 = "1.0"
 
 vInjected.ic.type = expression
-vInjected.ic.expression.region0 = "0.1"
+vInjected.ic.expression.region0 = "0.01"
 vInjected.ic.expression.region1 = "0.0"
 
 q.ic.type = expression

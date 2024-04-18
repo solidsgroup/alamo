@@ -278,13 +278,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             //Compute Mixed Fields
-            rho_mix(i, j, k)  = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid - Source(i, j, k, 0) * dt;
+            rho_mix(i, j, k)  = etarho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid;// - Source(i, j, k, 0) * dt;
 
             Set::Scalar E_solid = p(i,j,k) / (gamma - 1.0);
 
-            E_mix(i, j, k)    = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid - Source(i, j, k, 1) * dt;
-            M_mix(i, j, k, 0) = etaM(i, j, k, 0) - Source(i, j, k, 1) * dt;
-            M_mix(i, j, k, 1) = etaM(i, j, k, 1) - Source(i, j, k, 2) * dt;
+            E_mix(i, j, k)    = etaE(i, j, k) + (1.0 - eta(i, j, k)) * E_solid;// - Source(i, j, k, 1) * dt;
+            M_mix(i, j, k, 0) = etaM(i, j, k, 0);// - Source(i, j, k, 1) * dt;
+            M_mix(i, j, k, 1) = etaM(i, j, k, 1);// - Source(i, j, k, 2) * dt;
 
             //Compute New Primitive Variables
             v(i, j, k, 0) = M_mix(i, j, k, 0) / rho_mix(i, j, k);
