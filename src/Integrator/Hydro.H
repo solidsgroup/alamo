@@ -45,15 +45,15 @@ private:
 
     Set::Field<Set::Scalar> etaDensity_mf;
     Set::Field<Set::Scalar> etaDensity_old_mf;
-    Set::Field<Set::Scalar> DensityMix_mf;
+    //Set::Field<Set::Scalar> DensityMix_mf;
 
     Set::Field<Set::Scalar> etaEnergy_mf;
     Set::Field<Set::Scalar> etaEnergy_old_mf;
-    Set::Field<Set::Scalar> EnergyMix_mf;
+    //Set::Field<Set::Scalar> EnergyMix_mf;
 
     Set::Field<Set::Scalar> etaMomentum_mf;
     Set::Field<Set::Scalar> etaMomentum_old_mf;
-    Set::Field<Set::Scalar> MomentumMix_mf;
+    //Set::Field<Set::Scalar> MomentumMix_mf;
 
     Set::Field<Set::Scalar> Velocity_mf;
     Set::Field<Set::Scalar> Pressure_mf;
