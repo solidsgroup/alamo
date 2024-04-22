@@ -39,10 +39,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("pf.w1", value.pf.w1); // Unburned rest energy
         pp.query("pf.w12", value.pf.w12);  // Barrier energy
         pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-        pp.query("pf.min_eta", value.pf.min_eta);
         pp.query("amr.ghost_cells", value.ghost_count); // number of ghost cells in all fields
-        pp.query("geometry.x_len", value.x_len);
-        pp.query("geometry.y_len", value.y_len);
+        pp.query("geometry.x_len", value.x_len); // Domain x length
+        pp.query("geometry.y_len", value.y_len); // Domain y length
 
         value.bc_eta = new BC::Constant(1);
         pp.queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
@@ -50,12 +49,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
         std::string eta_bc_str = "constant";
-        pp.query("pf.eta.ic.type", eta_bc_str);
+        pp.query("pf.eta.ic.type", eta_bc_str); // Eta boundary condition [constant, expression]
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
         std::string eta_ic_type = "constant";
-        pp.query("eta.ic.type", eta_ic_type);
+        pp.query("eta.ic.type", eta_ic_type); // Eta initial condition [constant, laminate, expression, bmp]
         if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
@@ -66,10 +65,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     {
         //IO::ParmParse pp("thermal");
         pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
-        pp.query("elastic.on", value.elastic.on);
+        pp.query("elastic.on", value.elastic.on); // Whether to use Neo-hookean Elastic model
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
-        pp.query("elastic.traction", value.elastic.traction);
-        pp.query("elastic.phirefinement", value.elastic.phirefinement);
+        pp.query("elastic.traction", value.elastic.traction); // Body force
+        pp.query("elastic.phirefinement", value.elastic.phirefinement); // Phi refinement criteria 
 
 
 
@@ -116,13 +115,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, value.ghost_count + 1, "heatflux", value.plot_field);
             value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, value.ghost_count + 1, "laser", value.plot_field);
 
+            value.RegisterIntegratedVariable(&value.volume, "volume");
             value.RegisterIntegratedVariable(&value.area, "area");
             value.RegisterIntegratedVariable(&value.chamber_area, "chamber_area");
             value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
-            value.RegisterIntegratedVariable(&value.pressure.P, "Pressure");
+            value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure");
 
             std::string laser_ic_type = "constant";
-            pp.query("laser.ic.type", laser_ic_type);
+            pp.query("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
             else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
             else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
@@ -130,7 +130,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     }
 
     {
-        pp.query("pressure.P", value.pressure.P);
+        pp.query("pressure.P", value.pressure.P); // Constant pressure value
         if (value.thermal.on)
         {
             pp.query("pressure.a1", value.pressure.arrhenius.a1); // Surgate heat flux model paramater - AP
@@ -347,7 +347,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
 
-    
+
 
     if (true) //lev == finest_level) //(true)
     {
@@ -634,7 +634,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     Set::Scalar domain_area = x_len * y_len;
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
     amrex::Array4<amrex::Real> const& mdot = (*mdot_mf[amrlev]).array(mfi);
-    pressure.P; 
+    
     amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
     {
         volume += eta(i, j, k, 0) * dv;
@@ -644,12 +644,15 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
         area += da;
         chamber_area = domain_area - area;
 
-        grad = Numeric::Gradient(mdot, i, j, k, 0, DX);
-        normgrad = grad.lpNorm<2>();
-        Set::Scalar dm = normgrad * dv;
+        Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
+        Set::Scalar mnormgrad = mgrad.lpNorm<2>();
+        Set::Scalar dm = mnormgrad * dv;
         massflux += dm;
 
+        chamber_pressure = pressure.P;
+
     });
+    // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
 
