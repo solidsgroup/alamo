@@ -119,7 +119,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.area, "area");
             value.RegisterIntegratedVariable(&value.chamber_area, "chamber_area");
             value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
-            value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure");
+            value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure",true);
 
             std::string laser_ic_type = "constant";
             pp.query("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
