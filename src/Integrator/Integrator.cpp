@@ -318,11 +318,12 @@ Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int ng
 
 
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name)
+Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name, bool extensive)
 {
     BL_PROFILE("Integrator::RegisterIntegratedVariable");
     thermo.vars.push_back(integrated_variable);
     thermo.names.push_back(name);
+    thermo.extensives.push_back(extensive);
     thermo.number++;
 }
 
@@ -1014,7 +1015,10 @@ Integrator::IntegrateVariables(amrex::Real time, int step)
         ((thermo.dt > 0.0) && (std::fabs(std::remainder(time, plot_dt)) < 0.5 * dt[0])))
     {
         // Zero out all variables
-        for (int i = 0; i < thermo.number; i++) *thermo.vars[i] = 0;
+        for (int i = 0; i < thermo.number; i++)
+        {
+            if (thermo.extensives[i]) *thermo.vars[i] = 0;
+        }
 
         // All levels except the finest
         for (int ilev = 0; ilev < max_level; ilev++)
@@ -1051,7 +1055,8 @@ Integrator::IntegrateVariables(amrex::Real time, int step)
         // Sum up across all processors
         for (int i = 0; i < thermo.number; i++)
         {
-            amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
+            if (thermo.extensives[i])
+                amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
         }
     }
     if (amrex::ParallelDescriptor::IOProcessor() &&

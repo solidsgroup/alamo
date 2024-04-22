@@ -166,7 +166,8 @@ public:
 };
 
 template<class T>
-inline Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
+AMREX_FORCE_INLINE
+Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
 {
     Linear<T> ret;
     for (unsigned int i = 0; i < b.data_points.size(); i++) 

@@ -89,13 +89,15 @@ public:
 
 
 template<>
-inline int Set::Field<Model::Solid::Affine::J2>::NComp() const 
+AMREX_ATTRIBUTE_WEAK
+int Set::Field<Model::Solid::Affine::J2>::NComp() const 
 {
     return AMREX_SPACEDIM*AMREX_SPACEDIM;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const 
+AMREX_ATTRIBUTE_WEAK
+std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const 
 {
     if (i==0) return name + ".epsp_xx";
     if (i==1) return name + ".epsp_xy";
@@ -110,7 +112,8 @@ inline std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const
 }
 
 template<>
-inline void Set::Field<Model::Solid::Affine::J2>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Set::Field<Model::Solid::Affine::J2>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
