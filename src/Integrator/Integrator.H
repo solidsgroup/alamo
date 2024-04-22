@@ -249,7 +249,7 @@ protected:
             m_basefields[i]->SetFinestLevel(finest_level);
     }
 
-    void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name);
+    void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive=true);
 
     void SetTimestep(Set::Scalar _timestep);
     void SetPlotInt(int plot_int);
@@ -350,6 +350,7 @@ protected:
         int number = 0;
         std::vector<Set::Scalar*> vars;
         std::vector<std::string> names;
+        std::vector<bool> extensives;
     } thermo;
 
     // REGRIDDING
