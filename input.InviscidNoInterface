@@ -46,7 +46,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./tests/InviscidHydro1D/output
+plot_file = ./output
 
 ### MESHING ###
 
@@ -54,24 +54,20 @@ plot_file = ./tests/InviscidHydro1D/output
 amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
+amr.blocking_factor = 1
 amr.grid_eff = 0.8
-amr.n_cell = 320 40 #160 20 0
-
-# Uncomment to test AMR
-#amr.max_level = 2
-#amr.n_cell = 128 32 0
+amr.n_cell = 32 4 
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -3.0 -0.5 0.0 # [ m ] 
-geometry.prob_hi =  5.0  0.5 0.0 # [ m ]
+geometry.prob_lo = 0.0 -0.5 0.0 # [ m ] 
+geometry.prob_hi = 8.0  0.5 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 1.0e-2
 stop_time = 100.0
 
 ### ETA IC ###
@@ -79,7 +75,7 @@ stop_time = 100.0
 Ldot_0 = 0.0
 
 rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "1.0"
+rhoInterface.ic.expression.region0 = "0.0"
 
 vInjected.ic.type = expression
 vInjected.ic.expression.region0 = "0.0"
@@ -96,12 +92,12 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.2
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "0.5 + 0.5*tanh((x - vel_x*t - 4.0)/eps)"
+eta.ic.expression.region0        = "1.0"
 
 ### HYDRO PARAM ###
 
 gamma = 1.4
-cfl   = 0.4
+cfl   = 0.6
 mu    = 0.0
 
 rho_solid = 1.0 #kg/m^3
@@ -113,7 +109,7 @@ Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
 Pressure.ic.expression.constant.gamma = 1.4
-Pressure.ic.expression.region0 = "1.0"
+Pressure.ic.expression.region0 = "(0.5*tanh((x-4.0)/0.5)+0.5)*0.1 + 1.0"
 
 ### ETA BC  ###
 
