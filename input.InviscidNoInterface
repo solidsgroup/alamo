@@ -56,7 +56,7 @@ amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 1
 amr.grid_eff = 0.8
-amr.n_cell = 32 4 
+amr.n_cell = 64 8 
 
 ### DIMENSIONS ###
 
@@ -107,9 +107,9 @@ Velocity.ic.type = expression
 Velocity.ic.expression.region0 = "0.0"
 Velocity.ic.expression.region1 = "0.0"
 
-Pressure.ic.type = expression
-Pressure.ic.expression.constant.gamma = 1.4
-Pressure.ic.expression.region0 = "(0.5*tanh((x-4.0)/0.5)+0.5)*0.1 + 1.0"
+etaPressure.ic.type = expression
+etaPressure.ic.expression.constant.gamma = 1.4
+etaPressure.ic.expression.region0 = "(0.5*tanh((x-4.0)/0.5)+0.5)*0.1 + 1.0"
 
 ### ETA BC  ###
 

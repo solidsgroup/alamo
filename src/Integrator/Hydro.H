@@ -56,7 +56,7 @@ private:
     //Set::Field<Set::Scalar> MomentumMix_mf;
 
     Set::Field<Set::Scalar> Velocity_mf;
-    Set::Field<Set::Scalar> Pressure_mf;
+    Set::Field<Set::Scalar> etaPressure_mf;
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
@@ -81,7 +81,7 @@ private:
     BC::BC<Set::Scalar>* bc_eta;
 
     IC::IC* ic_Velocity;
-    IC::IC* ic_Pressure;
+    IC::IC* ic_etaPressure;
 
     IC::IC* ic_rhoInterface;
     IC::IC* ic_vInjected;

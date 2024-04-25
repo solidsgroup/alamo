@@ -68,7 +68,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, nghost, "Velocity", true);
         value.RegisterNewFab(value.Vorticity_mf, &value.bc_nothing, 1, nghost, "Vorticity", true);
-        value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, nghost, "Pressure", true);
+        value.RegisterNewFab(value.etaPressure_mf, value.bc_p, 1, nghost, "etaPressure", true);
 
         value.RegisterNewFab(value.vInjected_mf, &value.bc_nothing, 2, nghost, "vInjected", true);
         value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface", true);
@@ -96,10 +96,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     {
         std::string type = "constant";
-        pp.query("Pressure.ic.type", type);
-        if (type == "constant") value.ic_Pressure = new IC::Constant(value.geom, pp, "Pressure.ic.constant");
-        else if (type == "expression") value.ic_Pressure = new IC::Expression(value.geom, pp, "Pressure.ic.expression");
-        else Util::Abort(INFO, "Invalid Pressure.ic: ", type);
+        pp.query("etaPressure.ic.type", type);
+        if (type == "constant") value.ic_etaPressure = new IC::Constant(value.geom, pp, "etaPressure.ic.constant");
+        else if (type == "expression") value.ic_etaPressure = new IC::Expression(value.geom, pp, "etaPressure.ic.expression");
+        else Util::Abort(INFO, "Invalid etaPressure.ic: ", type);
     }
     {
         std::string type = "constant";
@@ -142,7 +142,7 @@ void Hydro::Initialize(int lev)
 
     ic_Velocity->Initialize(lev, Velocity_mf, 0.0);
 
-    ic_Pressure->Initialize(lev, Pressure_mf, 0.0);
+    ic_etaPressure->Initialize(lev, etaPressure_mf, 0.0);
 
     ic_rhoInterface->Initialize(lev,rhoInterface_mf,0.0);
     ic_vInjected->Initialize(lev,vInjected_mf,0.0);
@@ -176,7 +176,7 @@ void Hydro::Mix(int lev)
         amrex::Array4<Set::Scalar> const& etaM = (*etaMomentum_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etap = (*etaPressure_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 
@@ -185,7 +185,7 @@ void Hydro::Mix(int lev)
             etarho(i, j, k) = eta(i, j, k) * rho_fluid;
             etarho_old(i, j, k) = etarho(i, j, k);
 
-            etaE(i, j, k) = 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + p(i, j, k) / (gamma - 1.0);
+            etaE(i, j, k) = 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + etap(i, j, k) / (gamma - 1.0);
             etaE_old(i, j, k) = etaE(i, j, k);
 
             etaM(i, j, k, 0) = etarho(i, j, k) * v(i, j, k, 0);
@@ -259,6 +259,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
+    Set::Scalar small = 1.0e-6;
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
@@ -270,21 +271,39 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etap = (*etaPressure_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             //Compute Primitive Variables
-            v(i, j, k, 0) = etaM(i, j, k, 0) / (etarho(i, j, k) + 1.0e-8);
-            //Util::Message(INFO, v(i, j, k, 0));
-            v(i, j, k, 1) = etaM(i, j, k, 1) / (etarho(i, j, k) + 1.0e-8);
-            //Util::Message(INFO, v(i, j, k, 1));
-            p(i, j, k)    = (etaE(i, j, k) - 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1.0)/(eta(i, j, k) + 1.0e-8);
+            v(i, j, k, 0) = etaM(i, j, k, 0) / (etarho(i, j, k) + small);
+            //Util::Message(INFO, " vel0", v(i, j, k, 0));
+            v(i, j, k, 1) = etaM(i, j, k, 1) / (etarho(i, j, k) + small);
+            //Util::Message(INFO, " vel1", v(i, j, k, 1));
+
+            v(i, j, k, 0) *= eta(i, j, k);
+            v(i, j, k, 0) /= eta(i, j, k) + small;
+            //Util::Message(INFO, " vel0", v(i, j, k, 0));
+
+            v(i, j, k, 1) *= eta(i, j, k);
+            v(i, j, k, 1) /= eta(i, j, k) + small;
+            //Util::Message(INFO, " vel1", v(i, j, k, 1));
+
+            etap(i, j, k)    = (etaE(i, j, k) - 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1.0);
             //Util::Message(INFO, p(i, j, k), " pressure, i=", i, "j=", j);
+
+            //p(i, j, k) *= eta(i, j, k);
+            //p(i, j, k) /= eta(i, j, k) + small;
+            //Util::Message(INFO, p(i, j, k), " pressure, i=", i, "j=", j);
+
+            //Util::Message(INFO, etaE(i, j, k), " etaE, i=", i, "j=", j);
+            //Util::Message(INFO, etarho(i, j, k), " etarho, i=", i, "j=", j);
+            //Util::Message(INFO, eta(i, j, k), " eta, i=", i, "j=", j);
+            if (etap(i,j,k) > 1.0e6) {Util::Abort(INFO, "Pressure Blow Up");};
         });
     }
 
-    Pressure_mf[lev]->FillBoundary();
+    etaPressure_mf[lev]->FillBoundary();
     Velocity_mf[lev]->FillBoundary();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
@@ -304,7 +323,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etap = (*etaPressure_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& rhoInterface    = (*rhoInterface_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& q = (*q_mf[lev]).array(mfi);
@@ -321,12 +340,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar lap_uy  = Numeric::Laplacian(v, i, j, k, 1, DX);
 
             //Godunov flux
-            Solver::Local::Riemann::Roe::State state_x(etarho(i, j, k), v(i, j, k, 0), v(i, j, k, 1), p(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::Roe::State state_y(etarho(i, j, k), v(i, j, k, 1), v(i, j, k, 0), p(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::Roe::State lo_statex(etarho(i - 1, j, k), v(i - 1, j, k, 0), v(i - 1, j, k, 1), p(i - 1, j, k), eta(i - 1, j, k));
-            Solver::Local::Riemann::Roe::State hi_statex(etarho(i + 1, j, k), v(i + 1, j, k, 0), v(i + 1, j, k, 1), p(i + 1, j, k), eta(i + 1, j, k));
-            Solver::Local::Riemann::Roe::State lo_statey(etarho(i, j - 1, k), v(i, j - 1, k, 1), v(i, j - 1, k, 0), p(i, j - 1, k), eta(i, j - 1, k));
-            Solver::Local::Riemann::Roe::State hi_statey(etarho(i, j + 1, k), v(i, j + 1, k, 1), v(i, j + 1, k, 0), p(i, j + 1, k), eta(i, j + 1, k));
+            Solver::Local::Riemann::Roe::State state_x(etarho(i, j, k), v(i, j, k, 0), v(i, j, k, 1), etap(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::Roe::State state_y(etarho(i, j, k), v(i, j, k, 1), v(i, j, k, 0), etap(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::Roe::State lo_statex(etarho(i - 1, j, k), v(i - 1, j, k, 0), v(i - 1, j, k, 1), etap(i - 1, j, k), eta(i - 1, j, k));
+            Solver::Local::Riemann::Roe::State hi_statex(etarho(i + 1, j, k), v(i + 1, j, k, 0), v(i + 1, j, k, 1), etap(i + 1, j, k), eta(i + 1, j, k));
+            Solver::Local::Riemann::Roe::State lo_statey(etarho(i, j - 1, k), v(i, j - 1, k, 1), v(i, j - 1, k, 0), etap(i, j - 1, k), eta(i, j - 1, k));
+            Solver::Local::Riemann::Roe::State hi_statey(etarho(i, j + 1, k), v(i, j + 1, k, 1), v(i, j + 1, k, 0), etap(i, j + 1, k), eta(i, j + 1, k));
 
             //Util::Message(INFO, etarho(i, j, k), v(i, j, k, 0), v(i, j, k, 1), p(i, j, k), eta(i, j, k));
             //Util::Message(INFO, etarho(i, j, k), v(i, j, k, 1), v(i, j, k, 0), p(i, j, k), eta(i, j, k));
@@ -338,22 +357,27 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
             //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, gamma, 1.0e-8);
-            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, gamma, 1.0e-8);
+            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, gamma, small);
+            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, gamma, small);
 
             //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma, 1.0e-8);
-            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma, 1.0e-8);
+            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma, small);
+            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma, small);
+
+            //Util::Message(INFO, "xhi mass ", flux_xhi.etaMass, " i =", i, " j =", j);
+            //Util::Message(INFO, "xhi energy ", flux_xhi.etaEnergy, " i =", i, " j =", j);
+            Util::Message(INFO, "x mom norm ", flux_xhi.etaMomentum_normal - flux_xlo.etaMomentum_normal, " i =", i, " j =", j);
+            //Util::Message(INFO, "y mom norm ", flux_yhi.etaMomentum_normal - flux_ylo.etaMomentum_normal, " i =", i, " j =", j);
 
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Matrix gradu   = Numeric::Gradient(v, i, j, k, DX);
+            Set::Matrix gradu    = Numeric::Gradient(v, i, j, k, DX);
 
             //Diffuse Sources
         
             Set::Matrix I = Set::Matrix::Identity();
             // Flow values
             Set::Vector u(v(i,j,k,0),v(i,j,k,1));
-            Set::Scalar P = p(i,j,k);
+            Set::Scalar P = etap(i,j,k) / (eta(i, j, k) + small);
             // Prescribed values
             Set::Scalar rho0 = rhoInterface(i, j, k);
             Set::Vector u0 = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot(i,j,k);
@@ -379,7 +403,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaE(i, j, k)
                 + (flux_xlo.etaEnergy - flux_xhi.etaEnergy) * dt / DX[0]
                 + (flux_ylo.etaEnergy - flux_yhi.etaEnergy) * dt / DX[1];
-                + Source(i, j, k, 3) * dt;
+                //+ Source(i, j, k, 3) * dt;
                 //+ etaE(i, j, k)/(eta(i,j,k) + 1.0e-8) * etadot(i, j, k) * dt;
 	            //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
@@ -387,14 +411,14 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etarho(i, j, k)
                 + (flux_xlo.etaMass - flux_xhi.etaMass) * dt / DX[0]
                 + (flux_ylo.etaMass - flux_yhi.etaMass) * dt / DX[1];
-                + Source(i, j, k, 0) * dt;
+                //+ Source(i, j, k, 0) * dt;
                 //+ etarho(i, j, k)/(eta(i,j,k) + 1.0e-8) * etadot(i, j, k) * dt;
 
             etaM_new(i, j, k, 0) =
                 etaM(i, j, k, 0)
                 + (flux_xlo.etaMomentum_normal - flux_xhi.etaMomentum_normal) * dt / DX[0]
                 + (flux_ylo.etaMomentum_tangent - flux_yhi.etaMomentum_tangent) * dt / DX[1];
-                + Source(i, j, k, 1) * dt;
+                //+ Source(i, j, k, 1) * dt;
                 //+ etaM(i, j, k, 0)/(eta(i,j,k) + 1.0e-8) * etadot(i, j, k) * dt
 	            //+ mu * eta(i, j, k) * lap_ux * dt;
 
@@ -402,7 +426,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaM(i, j, k, 1)
 	            + (flux_xlo.etaMomentum_tangent - flux_xhi.etaMomentum_tangent) * dt / DX[0]
 	            + (flux_ylo.etaMomentum_normal - flux_yhi.etaMomentum_normal) * dt / DX[1];
-                + Source(i, j, k, 2) * dt;
+                //+ Source(i, j, k, 2) * dt;
                 //+ etaM(i, j, k, 1)/(eta(i,j,k) + 1.0e-8) * etadot(i, j, k) * dt
 	            //+ mu * eta(i, j, k) * lap_uy * dt;
 
@@ -418,6 +442,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Util::Message(INFO, Source(i, j, k, 1), " src, i=", i, "j=", j);
             //Util::Message(INFO, Source(i, j, k, 2), " src, i=", i, "j=", j);
             //Util::Message(INFO, Source(i, j, k, 3), " src, i=", i, "j=", j);
+
+            if (etaE(i,j,k) > 1.0e6) {Util::Abort(INFO, "Energy Blow Up");};
 
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
