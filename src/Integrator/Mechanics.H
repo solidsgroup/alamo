@@ -160,7 +160,8 @@ public:
             if (type == "ellipse")         value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant")   value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else if (type == "expression") value.ic_psi = new IC::Expression(value.geom, pp, "psi.ic.expression");
-            else if (type == "psread")     value.ic_eta = new IC::PSRead(value.geom, pp, "psi.ic.psread");
+            else if (type == "psread")     value.ic_psi = new IC::PSRead(value.geom, pp, "psi.ic.psread");
+            else if (type == "png")        value.ic_psi = new IC::PNG(value.geom, pp, "psi.ic.png");
             else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);
 
             value.bc_psi = new BC::Nothing();
@@ -173,6 +174,21 @@ public:
             // true.
             pp.query("psi.reset_on_regrid",value.psi_reset_on_regrid);
         }
+
+        // Read in IC for psi
+        {
+            std::string type;
+            pp.query("trac_normal.ic.type", type); // Read IC type for the eta field
+            if (type == "ellipse")         value.ic_trac_normal = new IC::Ellipse(value.geom, pp, "trac_normal.ic.ellipse");
+            else if (type == "constant")   value.ic_trac_normal = new IC::Constant(value.geom, pp, "trac_normal.ic.constant");
+            else if (type == "expression") value.ic_trac_normal = new IC::Expression(value.geom, pp, "trac_normal.ic.expression");
+            else if (type == "psread")     value.ic_trac_normal = new IC::PSRead(value.geom, pp, "trac_normal.ic.psread");
+            else Util::Abort(INFO, "Invalid value for trac_normal.ic.type: ", type);
+
+            value.bc_trac_normal = new BC::Nothing();
+            value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
+        }
+        
     }
 
     void Initialize(int lev) override
@@ -183,19 +199,25 @@ public:
         else eta_mf[lev]->setVal(1.0);
 
         if (psi_on) ic_psi->Initialize(lev, psi_mf);
+        if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf);
     }
 
     virtual void UpdateModel(int a_step) override
     {
         if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
 
-        if (a_step > 0) return;
+        //if (a_step > 0) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             //rhs_mf[lev]->setVal(0.0);
 
             eta_mf[lev]->FillBoundary();
+            psi_mf[lev]->FillBoundary();
+
+            amrex::Box domain = this->geom[lev].Domain();
+            domain.convert(amrex::IntVect::TheNodeVector());
+
 
             //disp_mf[lev]->setVal(Set::Vector::Zero());
 
@@ -204,18 +226,29 @@ public:
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
+                bx = bx & domain;
 
                 amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
 
+                amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const& psi = psi_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const& trac_normal = trac_normal_mf[lev]->array(mfi);
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    auto sten = Numeric::GetStencil(i, j, k, bx);
                     model(i, j, k) = MODEL::Zero();
                     for (unsigned int n = 0; n < models.size(); n++)
                         model(i, j, k) += eta(i, j, k, n) * models[n];
+
+                    Set::Vector grad = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
+                    //Set::Vector grad = Numeric::Gradient(psi, i, j, k, 0, DX.data(), sten);
+                    rhs(i,j,k) = trac_normal(i,j,k) * grad;
                 });
             }
 
             Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            Util::RealFillBoundary(*rhs_mf[lev], geom[lev]);
         }
     }
 
@@ -268,9 +301,13 @@ protected:
     std::vector<MODEL> models;
     IC::IC* ic_eta = nullptr;
     IC::IC* ic_psi = nullptr;
+    IC::IC* ic_trac_normal = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
+    BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
     bool psi_reset_on_regrid = false;
     bool eta_reset_on_regrid = false;
+
+    Set::Field<Set::Scalar> trac_normal_mf;
 
     using Base::Mechanics<MODEL>::m_type;
     using Base::Mechanics<MODEL>::finest_level;
@@ -278,6 +315,7 @@ protected:
     using Base::Mechanics<MODEL>::model_mf;
     using Base::Mechanics<MODEL>::psi_mf;
     using Base::Mechanics<MODEL>::psi_on;
+    using Base::Mechanics<MODEL>::rhs_mf;
 };
 
 

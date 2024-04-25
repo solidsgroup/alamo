@@ -12,6 +12,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Operator/Operator.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {
@@ -89,6 +90,7 @@ public:
         std::string rhstype;
         pp.query("rhs.type", rhstype); // Initializer for RHS
         if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
+        else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
 
         // Timestep interval for elastic solves (default - solve every time)
         pp.query("interval", value.m_interval);
