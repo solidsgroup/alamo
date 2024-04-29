@@ -39,7 +39,7 @@ public:
 
         Set::Scalar eta_RL = (std::sqrt(hi.etarho) * hi.eta + std::sqrt(lo.etarho) * lo.eta) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
 
-        if (eta_RL < small) {Flux Zero; return Zero;};
+        //if (eta_RL < small) {Flux Zero; return Zero;};
 
         Set::Scalar etake_lo = 0.5 * lo.etarho * lo.velocity_normal * lo.velocity_normal;
         Set::Scalar etaue_lo = lo.etapressure / (gamma - 1.0);
@@ -67,10 +67,8 @@ public:
         fl.etaMomentum_tangent = 0.5 * (lo.etarho * lo.velocity_tangent * lo.velocity_normal + hi.etarho * hi.velocity_tangent * hi.velocity_normal);
         fl.etaEnergy           = 0.5 * (lo.velocity_normal * etake_lo + hi.velocity_normal * etake_hi)                                              ;// + 0.5 * (lo.velocity_normal * (etaue_lo + lo.etapressure)  + hi.velocity_normal * (etaue_hi + hi.etapressure));
 
-        if (eta_RL > small) {
-        fl.etaMomentum_normal += 0.5 * (lo.etapressure + hi.etapressure)/(eta_RL + small);
-        fl.etaMomentum_normal += 0.5 * (lo.velocity_normal * (etaue_lo + lo.etapressure)  + hi.velocity_normal * (etaue_hi + hi.etapressure));
-        };        
+        //fl.etaMomentum_normal += 0.5 * (lo.etapressure/(lo.eta + small) + hi.etapressure/(hi.eta + small));
+        //fl.etaEnergy          += 0.5 * (lo.velocity_normal * (etaue_lo + lo.etapressure)/(lo.eta + small) + hi.velocity_normal * (etaue_hi + hi.etapressure)/(hi.eta + small));
 
         //compute eigenvalues
         std::array <double, 3> ev;
@@ -79,10 +77,10 @@ public:
         ev[2] = std::abs(u_RL - a_RL);
 
         Set::Scalar detarho, detap, detavel;
-        detavel = hi.velocity_normal * hi.eta - lo.velocity_normal * lo.eta;
-        detap   = hi.etapressure              - lo.etapressure             ;
-        if (eta_RL < small) { detap = 0.0; };
-        detarho = hi.etarho                   - lo.etarho                  ;
+        detavel = (hi.velocity_normal * hi.eta     - lo.velocity_normal * lo.eta    );
+        detap   = (hi.etapressure/(hi.eta + small) - lo.etapressure/(lo.eta + small)) * eta_RL;
+        if (eta_RL < 0.5) {detap = 0.0;};
+        detarho = (hi.etarho                       - lo.etarho                      );
 
         //compute wave strengths
         std::array <double, 3> detav;

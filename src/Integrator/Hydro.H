@@ -72,7 +72,6 @@ private:
     BC::BC<Set::Scalar>* bc_v;
     BC::BC<Set::Scalar>* bc_p;
     BC::BC<Set::Scalar>* bc_omega;
-    BC::BC<Set::Scalar>* bc_eta;
 
     IC::IC* ic_Velocity;
     IC::IC* ic_etaPressure;
