@@ -202,15 +202,17 @@ public:
         if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf);
     }
 
-    virtual void UpdateModel(int a_step) override
+    virtual void UpdateModel(int /*a_step*/, Set::Scalar time) override
     {
         if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
 
         //if (a_step > 0) return;
+        
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             //rhs_mf[lev]->setVal(0.0);
+            if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf, time);
 
             eta_mf[lev]->FillBoundary();
             psi_mf[lev]->FillBoundary();

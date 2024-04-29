@@ -134,7 +134,7 @@ protected:
         else rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
 
-    virtual void UpdateModel(int a_step) = 0;
+    virtual void UpdateModel(int a_step, Set::Scalar a_time) = 0;
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
@@ -149,7 +149,7 @@ protected:
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
 
-        UpdateModel(a_step);
+        UpdateModel(a_step,a_time);
 
         if (m_type != Mechanics<MODEL>::Type::Static) return;
         if (a_time < tstart) return;
