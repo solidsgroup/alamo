@@ -37,7 +37,7 @@ public:
     // todo: convert to static functor by replacing with static () when c++23 is released
     static Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar small=1.0e-8) {
 
-        if (lo.eta < small  && hi.eta < small) {Flux Zero; return Zero;};
+        if (lo.eta < small && hi.eta < small) {Flux Zero; return Zero;};
 
         Set::Scalar etake_lo = 0.5 * lo.etarho * lo.velocity_normal * lo.velocity_normal;
         Set::Scalar etaue_lo = lo.etapressure / (gamma - 1.0);
@@ -54,7 +54,7 @@ public:
         Set::Scalar u_RL      = (std::sqrt(hi.etarho) * hi.velocity_normal + std::sqrt(lo.etarho) * lo.velocity_normal) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
         Set::Scalar etah_RL   = (std::sqrt(hi.etarho) * etah_hi            + std::sqrt(lo.etarho) * etah_lo           ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
         Set::Scalar eta_RL    = (std::sqrt(hi.etarho) * hi.eta             + std::sqrt(lo.etarho) * lo.eta            ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
-        Set::Scalar etap_RL   = (std::sqrt(hi.etarho) * hi.etapressure  + std::sqrt(lo.etarho) * lo.etapressure    ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
+        Set::Scalar etap_RL   = (std::sqrt(hi.etarho) * hi.etapressure     + std::sqrt(lo.etarho) * lo.etapressure    ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
         Set::Scalar a_RL2     = gamma * etap_RL / (etarho_RL + small);
 
         if (std::isnan(a_RL2)) Util::Abort(INFO, hi.etapressure, " ", lo.etapressure, " ", hi.etarho, " ", lo.etarho);
@@ -65,9 +65,16 @@ public:
         // flux
         Flux fl;
         fl.etaMass             = 0.5 * (lo.etarho * lo.velocity_normal + hi.etarho * hi.velocity_normal);
-        fl.etaMomentum_normal  = 0.5 * (lo.etarho * lo.velocity_normal  * lo.velocity_normal + hi.etarho * hi.velocity_normal  * hi.velocity_normal) + 0.5 * (lo.etapressure + hi.etapressure); 
+        fl.etaMomentum_normal  = 0.5 * (lo.etarho * lo.velocity_normal  * lo.velocity_normal + hi.etarho * hi.velocity_normal  * hi.velocity_normal);// + 0.5 * (lo.etapressure + hi.etapressure); 
         fl.etaMomentum_tangent = 0.5 * (lo.etarho * lo.velocity_tangent * lo.velocity_normal + hi.etarho * hi.velocity_tangent * hi.velocity_normal);
-        fl.etaEnergy           = 0.5 * (lo.velocity_normal * etake_lo + hi.velocity_normal * etake_hi) + 0.5 * (lo.velocity_normal * (etaue_lo + lo.etapressure)  + hi.velocity_normal * (etaue_hi + hi.etapressure));
+        fl.etaEnergy           = 0.5 * (lo.velocity_normal * etake_lo + hi.velocity_normal * etake_hi)                                              ;// + 0.5 * (lo.velocity_normal * (etaue_lo + lo.etapressure)  + hi.velocity_normal * (etaue_hi + hi.etapressure));
+
+        if (eta_RL > small) {
+        fl.etaMomentum_normal += 0.5 * (lo.etapressure + hi.etapressure)/(eta_RL + small);
+        fl.etaMomentum_normal += 0.5 * (lo.velocity_normal * (etaue_lo + lo.etapressure)  + hi.velocity_normal * (etaue_hi + hi.etapressure));
+        };
+
+        
 
         //compute eigenvalues
         std::array <double, 3> ev;
@@ -77,7 +84,8 @@ public:
 
         Set::Scalar detarho, detap, detavel;
         detavel = hi.velocity_normal * hi.eta - lo.velocity_normal * lo.eta;
-        detap   = hi.etapressure              - lo.etapressure             ; 
+        detap   = hi.etapressure              - lo.etapressure             ;
+        if (eta_RL < small) { detap = 0.0; };
         detarho = hi.etarho                   - lo.etarho                  ;
 
         //compute wave strengths
@@ -85,10 +93,6 @@ public:
         detav[0] = detarho - detap / (a_RL2 + small);
         detav[1] = detavel + detap * eta_RL / (etarho_RL * a_RL + small);
         detav[2] = detavel - detap * eta_RL / (etarho_RL * a_RL + small);
-
-        //Util::Message(INFO, detav[0]);
-        //Util::Message(INFO, detav[1]);
-        //Util::Message(INFO, detav[2]);
 
         //construct right characteristic eigenvectors
         std::array <double, 3> rev_0;
@@ -107,10 +111,10 @@ public:
         rev_2[2] = rev_2[0] * (etah_RL/(eta_RL + small) - a_RL * u_RL);
 
         //upwinding term 
-        fl.etaMass += -0.5 * (rev_0[0] * ev[0] * detav[0] + rev_1[0] * ev[1] * detav[1] + rev_2[0] * ev[2] * detav[2]);
-        fl.etaMomentum_normal += -0.5 * (rev_0[1] * ev[0] * detav[0] + rev_1[1] * ev[1] * detav[1] + rev_2[1] * ev[2] * detav[2]);
-        fl.etaMomentum_tangent += 0.0;
-        fl.etaEnergy += -0.5 * (rev_0[2] * ev[0] * detav[0] + rev_1[2] * ev[1] * detav[1] + rev_2[2] * ev[2] * detav[2]);
+        fl.etaMass             -= 0.5 * (rev_0[0] * ev[0] * detav[0] + rev_1[0] * ev[1] * detav[1] + rev_2[0] * ev[2] * detav[2]);
+        fl.etaMomentum_normal  -= 0.5 * (rev_0[1] * ev[0] * detav[0] + rev_1[1] * ev[1] * detav[1] + rev_2[1] * ev[2] * detav[2]);
+        fl.etaMomentum_tangent -= 0.0;
+        fl.etaEnergy           -= 0.5 * (rev_0[2] * ev[0] * detav[0] + rev_1[2] * ev[1] * detav[1] + rev_2[2] * ev[2] * detav[2]);
 
         return fl;
     }

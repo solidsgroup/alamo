@@ -71,7 +71,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-3
 stop_time = 100.0
 
 ### ETA IC ###
@@ -96,7 +96,7 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.2
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "0.5 + 0.5*tanh((x - vel_x*t)/eps)"
+eta.ic.expression.region0        = "(0.5 + 0.5*tanh(x/eps))"
 
 ### HYDRO PARAM ###
 
@@ -112,8 +112,8 @@ Velocity.ic.expression.region0 = "0.0"
 Velocity.ic.expression.region1 = "0.0"
 
 etaPressure.ic.type = expression
-etaPressure.ic.expression.constant.gamma = 1.4
-etaPressure.ic.expression.region0 = "1.0"
+etaPressure.ic.expression.constant.eps = 0.2
+etaPressure.ic.expression.region0 = "(0.5 + 0.5*tanh(x/eps))"
 
 ### ETA BC  ###
 
