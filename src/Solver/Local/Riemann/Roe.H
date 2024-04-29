@@ -37,7 +37,9 @@ public:
     // todo: convert to static functor by replacing with static () when c++23 is released
     static Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar small=1.0e-8) {
 
-        if (lo.eta < small && hi.eta < small) {Flux Zero; return Zero;};
+        Set::Scalar eta_RL = (std::sqrt(hi.etarho) * hi.eta + std::sqrt(lo.etarho) * lo.eta) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
+
+        if (eta_RL < small) {Flux Zero; return Zero;};
 
         Set::Scalar etake_lo = 0.5 * lo.etarho * lo.velocity_normal * lo.velocity_normal;
         Set::Scalar etaue_lo = lo.etapressure / (gamma - 1.0);
@@ -47,13 +49,10 @@ public:
         Set::Scalar etaue_hi = hi.etapressure / (gamma - 1.0);
         Set::Scalar etah_hi = (etake_hi + etaue_hi + hi.etapressure) / (hi.etarho + small);
 
-        //Util::Message(INFO, "hi.rho ", hi.rho);
-
         // roe averages
         Set::Scalar etarho_RL =  std::sqrt(lo.etarho) * std::sqrt(hi.etarho);
         Set::Scalar u_RL      = (std::sqrt(hi.etarho) * hi.velocity_normal + std::sqrt(lo.etarho) * lo.velocity_normal) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
         Set::Scalar etah_RL   = (std::sqrt(hi.etarho) * etah_hi            + std::sqrt(lo.etarho) * etah_lo           ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
-        Set::Scalar eta_RL    = (std::sqrt(hi.etarho) * hi.eta             + std::sqrt(lo.etarho) * lo.eta            ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
         Set::Scalar etap_RL   = (std::sqrt(hi.etarho) * hi.etapressure     + std::sqrt(lo.etarho) * lo.etapressure    ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
         Set::Scalar a_RL2     = gamma * etap_RL / (etarho_RL + small);
 
@@ -62,7 +61,6 @@ public:
 
         Set::Scalar a_RL      = std::sqrt(a_RL2);
 
-        // flux
         Flux fl;
         fl.etaMass             = 0.5 * (lo.etarho * lo.velocity_normal + hi.etarho * hi.velocity_normal);
         fl.etaMomentum_normal  = 0.5 * (lo.etarho * lo.velocity_normal  * lo.velocity_normal + hi.etarho * hi.velocity_normal  * hi.velocity_normal);// + 0.5 * (lo.etapressure + hi.etapressure); 
@@ -72,9 +70,7 @@ public:
         if (eta_RL > small) {
         fl.etaMomentum_normal += 0.5 * (lo.etapressure + hi.etapressure)/(eta_RL + small);
         fl.etaMomentum_normal += 0.5 * (lo.velocity_normal * (etaue_lo + lo.etapressure)  + hi.velocity_normal * (etaue_hi + hi.etapressure));
-        };
-
-        
+        };        
 
         //compute eigenvalues
         std::array <double, 3> ev;

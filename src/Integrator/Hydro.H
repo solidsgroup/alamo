@@ -37,23 +37,18 @@ protected:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
-    //void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &box) override;
-    //virtual void UpdateModel(int a_step);
 
     virtual void UpdateEta(int lev, Set::Scalar time);
 private:
 
     Set::Field<Set::Scalar> etaDensity_mf;
     Set::Field<Set::Scalar> etaDensity_old_mf;
-    //Set::Field<Set::Scalar> DensityMix_mf;
 
     Set::Field<Set::Scalar> etaEnergy_mf;
     Set::Field<Set::Scalar> etaEnergy_old_mf;
-    //Set::Field<Set::Scalar> EnergyMix_mf;
 
     Set::Field<Set::Scalar> etaMomentum_mf;
     Set::Field<Set::Scalar> etaMomentum_old_mf;
-    //Set::Field<Set::Scalar> MomentumMix_mf;
 
     Set::Field<Set::Scalar> Velocity_mf;
     Set::Field<Set::Scalar> etaPressure_mf;
@@ -68,7 +63,6 @@ private:
 
     Set::Field<Set::Scalar> rhoInterface_mf;
     Set::Field<Set::Scalar> vInjected_mf;
-    Set::Field<Set::Scalar> deltapInterface_mf;
     Set::Field<Set::Scalar> q_mf;
     Set::Field<Set::Scalar> Source_mf;
 
@@ -85,7 +79,6 @@ private:
 
     IC::IC* ic_rhoInterface;
     IC::IC* ic_vInjected;
-    IC::IC* ic_deltapInterface;
     IC::IC* ic_q;
 
     IC::IC* ic_eta;
@@ -99,8 +92,8 @@ BC::Nothing bc_nothing;
 
     Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion, omega_refinement_criterion;
     Set::Scalar gamma, cfl, mu;
-    Set::Scalar rho_solid, rho_fluid, E_fluid, Mx_init, My_init;
-    Set::Scalar epsilon, rho_interface, delta_p_interface, InterfaceVel_x, InterfaceVel_y, Ldot_active;
+    Set::Scalar rho_fluid;
+    Set::Scalar epsilon, Ldot_active;
 };
 }
 

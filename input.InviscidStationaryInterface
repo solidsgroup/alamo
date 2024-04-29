@@ -89,9 +89,6 @@ q.ic.type = expression
 q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
-deltapInterface.ic.type = expression
-deltapInterface.ic.expression.region0 = "0.0"
-
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.2
 eta.ic.expression.constant.vel_x = 0.0 
@@ -104,7 +101,6 @@ gamma = 1.4
 cfl   = 0.4
 mu    = 0.0
 
-rho_solid = 1.0 #kg/m^3
 rho_fluid = 1.0 #kg/m^3
 
 Velocity.ic.type = expression
@@ -113,7 +109,7 @@ Velocity.ic.expression.region1 = "0.0"
 
 etaPressure.ic.type = expression
 etaPressure.ic.expression.constant.eps = 0.2
-etaPressure.ic.expression.region0 = "(0.5 + 0.5*tanh(x/eps))"
+etaPressure.ic.expression.region0 = "1.0" #eta multiplication is done in Hydro.cpp, do not include here
 
 ### ETA BC  ###
 
