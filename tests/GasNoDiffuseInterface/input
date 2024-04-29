@@ -1,62 +1,24 @@
-#@ [stationary-x]
+#@ [central-pressure-wave]
 #@ exe = hydro
-#@ check-file = reference/stationary-x.dat
+#@ check-file = reference/central-pressure-wave.dat
 #@ dim    = 2
 #@ nprocs = 1
-
-#@ [stationary-y]
-#@ exe = hydro
-#@ check-file = reference/stationary-y.dat
-#@ dim    = 2
-#@ nprocs = 1
-#@ args   = amr.n_cell = 20 160 0
-#@ args   = geometry.prob_lo = -0.5 -3.0 0.0
-#@ args   = geometry.prob_hi =  0.5  5.0 0.0
-#@ args   = vInjected.ic.expression.region0="0.0"
-#@ args   = vInjected.ic.expression.region1="0.005"
-#@ args   = eta.ic.expression.region0="0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
-
-#@ [receding-x]
-#@ exe = hydro
-#@ check-file = reference/receding-x.dat
-#@ dim    = 2
-#@ nprocs = 1
-#@ args   = vInjected.ic.expression.region0="-0.001"
-#@ args   = eta.ic.expression.constant.vel_x=-0.001
-#@ args   = rhoInterface.ic.expression.region0="100.0"
-#@ args   = rho_solid=100.0
-
-#@ [receding-y]
-#@ exe = hydro
-#@ check-file = reference/receding-y.dat
-#@ dim    = 2
-#@ nprocs = 1
-#@ args   = amr.n_cell = 20 160 0
-#@ args   = geometry.prob_lo = -0.5 -3.0 0.0
-#@ args   = geometry.prob_hi =  0.5  5.0 0.0
-#@ args   = vInjected.ic.expression.region0="0.0"
-#@ args   = vInjected.ic.expression.region1="-0.001"
-#@ args   = eta.ic.expression.constant.vel_x=0.0
-#@ args   = eta.ic.expression.constant.vel_y=-0.001
-#@ args   = eta.ic.expression.region0="0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
-#@ args   = rhoInterface.ic.expression.region0="100.0"
-#@ args   = rho_solid=100.0
 
 alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = tests/GasNoDiffuseInterface/output
 
 ### MESHING ###
 
-#amr.plot_dt = 0.1
-amr.plot_int = 1
+amr.plot_dt = 0.1
+#mr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 1
 amr.grid_eff = 0.8
-amr.n_cell = 64 8 
+amr.n_cell = 64 8
 
 ### DIMENSIONS ###
 
@@ -68,7 +30,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 100.0
+stop_time = 2.5
 
 ### ETA IC ###
 
