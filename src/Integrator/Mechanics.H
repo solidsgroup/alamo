@@ -183,10 +183,12 @@ public:
             else if (type == "constant")   value.ic_trac_normal = new IC::Constant(value.geom, pp, "trac_normal.ic.constant");
             else if (type == "expression") value.ic_trac_normal = new IC::Expression(value.geom, pp, "trac_normal.ic.expression");
             else if (type == "psread")     value.ic_trac_normal = new IC::PSRead(value.geom, pp, "trac_normal.ic.psread");
-            else Util::Abort(INFO, "Invalid value for trac_normal.ic.type: ", type);
 
-            value.bc_trac_normal = new BC::Nothing();
-            value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
+            if (value.ic_trac_normal)
+            {
+                value.bc_trac_normal = new BC::Nothing();
+                value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
+            }
         }
         
     }
@@ -202,26 +204,46 @@ public:
         if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf);
     }
 
-    virtual void UpdateModel(int /*a_step*/, Set::Scalar time) override
+    virtual void UpdateModel(int a_step, Set::Scalar time) override
     {
         if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
 
-        //if (a_step > 0) return;
-        
+        if (ic_trac_normal)
+        {
+            for (int lev = 0; lev <= finest_level; ++lev)
+            {
+                ic_trac_normal->Initialize(lev, trac_normal_mf, time);
+                psi_mf[lev]->FillBoundary();
+                amrex::Box domain = this->geom[lev].Domain();
+                domain.convert(amrex::IntVect::TheNodeVector());
+                Set::Vector DX(geom[lev].CellSize());
+
+                for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+                {
+                    amrex::Box bx = mfi.grownnodaltilebox();
+                    bx = bx & domain;
+
+                    amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Scalar> const& psi = psi_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Scalar> const& trac_normal = trac_normal_mf[lev]->array(mfi);
+
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        Set::Vector grad = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
+                        rhs(i,j,k) = trac_normal(i,j,k) * grad;
+                    });
+                }
+                Util::RealFillBoundary(*rhs_mf[lev], geom[lev]);
+            }
+        }
+
+        if (a_step > 0) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            //rhs_mf[lev]->setVal(0.0);
-            if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf, time);
-
             eta_mf[lev]->FillBoundary();
-            psi_mf[lev]->FillBoundary();
 
             amrex::Box domain = this->geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
-
-
-            //disp_mf[lev]->setVal(Set::Vector::Zero());
 
             Set::Vector DX(geom[lev].CellSize());
 
@@ -233,22 +255,13 @@ public:
                 amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
 
-                amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const& psi = psi_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const& trac_normal = trac_normal_mf[lev]->array(mfi);
-
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     model(i, j, k) = MODEL::Zero();
                     for (unsigned int n = 0; n < models.size(); n++)
                         model(i, j, k) += eta(i, j, k, n) * models[n];
-
-                    Set::Vector grad = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
-                    rhs(i,j,k) = trac_normal(i,j,k) * grad;
                 });
             }
-
             Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-            Util::RealFillBoundary(*rhs_mf[lev], geom[lev]);
         }
     }
 
