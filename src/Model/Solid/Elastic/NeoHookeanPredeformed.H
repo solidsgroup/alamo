@@ -89,13 +89,15 @@ public:
 
 
 template<>
-inline int Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::NComp() const
+AMREX_ATTRIBUTE_WEAK
+int Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::NComp() const
 {
     return 2 + AMREX_SPACEDIM * AMREX_SPACEDIM;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Name(int i) const
+AMREX_ATTRIBUTE_WEAK
+std::string Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Name(int i) const
 {
     if (i == 0) return name + "_mu";
     if (i == 1) return name + "_kappa";
@@ -115,7 +117,8 @@ inline std::string Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Nam
 }
 
 template<>
-inline void Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {

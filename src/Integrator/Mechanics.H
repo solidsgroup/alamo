@@ -238,13 +238,11 @@ public:
                 amrex::Array4<const Set::Scalar> const& trac_normal = trac_normal_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    auto sten = Numeric::GetStencil(i, j, k, bx);
                     model(i, j, k) = MODEL::Zero();
                     for (unsigned int n = 0; n < models.size(); n++)
                         model(i, j, k) += eta(i, j, k, n) * models[n];
 
                     Set::Vector grad = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX.data());
-                    //Set::Vector grad = Numeric::Gradient(psi, i, j, k, 0, DX.data(), sten);
                     rhs(i,j,k) = trac_normal(i,j,k) * grad;
                 });
             }
