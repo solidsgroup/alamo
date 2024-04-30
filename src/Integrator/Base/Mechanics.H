@@ -12,6 +12,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Operator/Operator.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {
@@ -89,6 +90,7 @@ public:
         std::string rhstype;
         pp.query("rhs.type", rhstype); // Initializer for RHS
         if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
+        else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
 
         // Timestep interval for elastic solves (default - solve every time)
         pp.query("interval", value.m_interval);
@@ -132,7 +134,7 @@ protected:
         else rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
 
-    virtual void UpdateModel(int a_step) = 0;
+    virtual void UpdateModel(int a_step, Set::Scalar a_time) = 0;
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
@@ -147,7 +149,7 @@ protected:
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
 
-        UpdateModel(a_step);
+        UpdateModel(a_step,a_time);
 
         if (m_type != Mechanics<MODEL>::Type::Static) return;
         if (a_time < tstart) return;

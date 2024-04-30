@@ -48,7 +48,7 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
-    void UpdateModel(int a_step) override;
+    void UpdateModel(int a_step, Set::Scalar a_time) override;
 private:
 
     Set::Field<Set::Scalar> temp_mf;

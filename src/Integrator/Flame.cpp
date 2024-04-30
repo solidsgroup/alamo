@@ -242,7 +242,7 @@ void Flame::Initialize(int lev)
     }
 }
 
-void Flame::UpdateModel(int /*a_step*/)
+void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 {
     if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
 

@@ -191,7 +191,7 @@ protected:
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 
-    virtual void UpdateModel(int /*a_step*/) override;
+    virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
 private:
 
