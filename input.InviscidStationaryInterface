@@ -110,6 +110,22 @@ Velocity.ic.expression.region1 = "0.0"
 etaPressure.ic.type = expression
 etaPressure.ic.expression.region0 = "1.0" #eta multiplication is done in Hydro.cpp, do not include here
 
+### ETA BC  ###
+
+pf.eta.bc.type.xlo = neumann
+pf.eta.bc.type.xhi = neumann
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.zlo = neumann
+pf.eta.bc.type.zhi = neumann
+
+pf.eta.bc.val.xlo = 0.0
+pf.eta.bc.val.xhi = 0.0
+pf.eta.bc.val.ylo = 0.0
+pf.eta.bc.val.yhi = 0.0
+pf.eta.bc.val.zlo = 0.0
+pf.eta.bc.val.zhi = 0.0
+
 ### HYDRO BC ###
 
 rho.bc.type.xhi = neumann

@@ -43,14 +43,15 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
         value.bc_p   = new BC::Constant(1, pp, "p.bc");
         value.bc_v   = new BC::Constant(2, pp, "v.bc");
+        value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
     }
     // Register FabFields:
     {
         int nghost = 2;
-        //NOTE: order parameter is a nodal fab
-        value.RegisterNodalFab(value.eta_mf,     1, nghost, "eta",     true );
-        value.RegisterNodalFab(value.eta_old_mf, 1, nghost, "eta_old", false);
-        value.RegisterNodalFab(value.etadot_mf,  1, nghost, "etadot",  true );
+
+        value.RegisterNewFab(value.eta_mf,     value.bc_eta,     1, nghost, "eta",     true );
+        value.RegisterNewFab(value.eta_old_mf, value.bc_eta,     1, nghost, "eta_old", false);
+        value.RegisterNewFab(value.etadot_mf, &value.bc_nothing, 1, nghost, "etadot",  true );
 
         value.RegisterNewFab(value.etaDensity_mf,     value.bc_rho, 1, nghost, "etaDensity", true );
         value.RegisterNewFab(value.etaDensity_old_mf, value.bc_rho, 1, nghost, "etarho_old", false);
@@ -65,9 +66,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.Vorticity_mf,  &value.bc_nothing, 1, nghost, "Vorticity",   true);
         value.RegisterNewFab(value.etaPressure_mf, value.bc_p,       1, nghost, "etaPressure", true);
 
-        value.RegisterNewFab(value.vInjected_mf,       &value.bc_nothing, 2, nghost, "vInjected",       true);
-        value.RegisterNewFab(value.rhoInterface_mf,    &value.bc_nothing, 1, nghost, "rhoInterface",    true);
-        value.RegisterNewFab(value.q_mf,               &value.bc_nothing, 2, nghost, "q",               true);
+        value.RegisterNewFab(value.vInjected_mf,    &value.bc_nothing, 2, nghost, "vInjected",       true);
+        value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface",    true);
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, nghost, "q",               true);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, nghost, "Source", true);
     }
@@ -123,12 +124,12 @@ void Hydro::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Hydro::Initialize");
 
-    ic_eta        ->Initialize(lev, eta_mf, 0.0);
-    ic_eta        ->Initialize(lev, eta_old_mf, 0.0);
-    etadot_mf[lev]->setVal(0.0);
+    ic_eta            ->Initialize(lev, eta_mf, 0.0);
+    ic_eta            ->Initialize(lev, eta_old_mf, 0.0);
+    etadot_mf[lev]    ->setVal(0.0);
 
-    ic_Velocity   ->Initialize(lev, Velocity_mf, 0.0);
-    ic_etaPressure->Initialize(lev, etaPressure_mf, 0.0);
+    ic_Velocity       ->Initialize(lev, Velocity_mf, 0.0);
+    ic_etaPressure    ->Initialize(lev, etaPressure_mf, 0.0);
 
     ic_rhoInterface   ->Initialize(lev,rhoInterface_mf,0.0);
     ic_vInjected      ->Initialize(lev,vInjected_mf,0.0);
@@ -163,12 +164,12 @@ void Hydro::Mix(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            Set::Scalar eta_cell = Numeric::Interpolate::NodeToCellAverage(eta, i, j, k, 0);
+            Set::Scalar eta_cell = eta(i,j,k);
 
             etarho(i, j, k)     = eta_cell * rho_fluid;
             etarho_old(i, j, k) = etarho(i, j, k);
 
-            etaE(i, j, k)     = 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + etap(i, j, k) * eta_cell / (gamma - 1.0); //initial condition is pressure initial condition and needs eta multiple
+            etaE(i, j, k)     = 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + etap(i, j, k) * eta_cell / (gamma - 1.0); //initial condition is pressure and needs eta multiple
             etaE_old(i, j, k) = etaE(i, j, k);
 
             etaM(i, j, k, 0)     = etarho(i, j, k) * v(i, j, k, 0);
@@ -222,16 +223,18 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     UpdateEta(lev,time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx_node = mfi.grownnodaltilebox();
+        const amrex::Box& bx = mfi.growntilebox();
         amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
-        amrex::ParallelFor(bx_node, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
         });
     }
     etadot_mf[lev]->FillBoundary();
+    eta_mf[lev]->FillBoundary();
+    eta_old_mf[lev]->FillBoundary();
 
     std::swap(etaMomentum_old_mf[lev], etaMomentum_mf[lev]);
     std::swap(etaEnergy_old_mf[lev], etaEnergy_mf[lev]);
@@ -295,11 +298,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            Set::Scalar eta_cell = Numeric::Interpolate::NodeToCellAverage(eta, i, j, k, 0);
-            Set::Scalar eta_xlo  = Numeric::Interpolate::NodeToCellAverage(eta, i-1, j, k, 0);
-            Set::Scalar eta_xhi  = Numeric::Interpolate::NodeToCellAverage(eta, i+1, j, k, 0);
-            Set::Scalar eta_ylo  = Numeric::Interpolate::NodeToCellAverage(eta, i, j-1, k, 0);
-            Set::Scalar eta_yhi  = Numeric::Interpolate::NodeToCellAverage(eta, i, j+1, k, 0);
+            Set::Scalar eta_cell = eta(i  , j  , k);
+            Set::Scalar eta_xlo  = eta(i-1, j  , k);
+            Set::Scalar eta_xhi  = eta(i+1, j  , k);
+            Set::Scalar eta_ylo  = eta(i  , j-1, k);
+            Set::Scalar eta_yhi  = eta(i  , j+1, k);
 
             //Viscous Terms
             Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
@@ -323,8 +326,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma, small);
             flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma, small);
 
-            Set::Vector grad_eta    = Numeric::NodeGradientOnCell(eta, i, j, k, 0, DX);
-            Set::Scalar etadot_cell = Numeric::Interpolate::NodeToCellAverage(etadot, i, j, k, 0);
+            Set::Vector grad_eta    = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar etadot_cell = etadot(i, j, k);
             Set::Matrix gradu       = Numeric::Gradient(v, i, j, k, DX);
 
             //Diffuse Sources
