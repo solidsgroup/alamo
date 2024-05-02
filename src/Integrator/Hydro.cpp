@@ -246,9 +246,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     Set::Scalar small = 1.0e-8;
 
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box& bx = mfi.growntilebox();
 
         amrex::Array4<const Set::Scalar> const& etarho = (*etaDensity_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& etaE   = (*etaEnergy_old_mf[lev]).array(mfi);
@@ -267,8 +267,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
     }
 
-    //etaPressure_mf[lev]->FillBoundary();
-    //Velocity_mf[lev]   ->FillBoundary();
+    etaPressure_mf[lev]->FillBoundary();
+    Velocity_mf[lev]   ->FillBoundary();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
