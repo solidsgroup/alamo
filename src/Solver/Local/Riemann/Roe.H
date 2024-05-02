@@ -110,6 +110,11 @@ public:
         fl.etaMomentum_tangent -= 0.0;
         fl.etaEnergy           -= 0.5 * (rev_0[2] * ev[0] * detav[0] + rev_1[2] * ev[1] * detav[1] + rev_2[2] * ev[2] * detav[2]);
 
+        if (fabs(fl.etaMass) < small) fl.etaMass = 0.0;
+        if (fabs(fl.etaMomentum_normal) < small) fl.etaMomentum_normal = 0.0;
+        if (fabs(fl.etaMomentum_tangent) < small) fl.etaMomentum_tangent = 0.0;
+        if (fabs(fl.etaEnergy) < small) fl.etaEnergy = 0.0;
+
         return fl;
     }
 
