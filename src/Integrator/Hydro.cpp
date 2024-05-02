@@ -51,7 +51,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.eta_mf,     value.bc_eta,     1, nghost, "eta",     true );
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta,     1, nghost, "eta_old", false);
-        value.RegisterNewFab(value.etadot_mf, &value.bc_nothing, 1, nghost, "etadot",  true );
+        value.RegisterNewFab(value.etadot_mf,  value.bc_eta, 1, nghost, "etadot",  true );
 
         value.RegisterNewFab(value.etaDensity_mf,     value.bc_rho, 1, nghost, "etaDensity", true );
         value.RegisterNewFab(value.etaDensity_old_mf, value.bc_rho, 1, nghost, "etarho_old", false);
@@ -146,7 +146,7 @@ void Hydro::Mix(int lev)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box& bx = mfi.growntilebox();
 
         amrex::Array4<Set::Scalar> const& etaE_old = (*etaEnergy_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& etaE = (*etaEnergy_mf[lev]).array(mfi);
@@ -179,12 +179,12 @@ void Hydro::Mix(int lev)
         });
     }
 
-    etaDensity_old_mf[lev] ->FillBoundary();
-    etaDensity_mf[lev]     ->FillBoundary();
-    etaMomentum_old_mf[lev]->FillBoundary();
-    etaMomentum_mf[lev]    ->FillBoundary();
-    etaEnergy_old_mf[lev]  ->FillBoundary();
-    etaEnergy_mf[lev]      ->FillBoundary();
+    //etaDensity_old_mf[lev] ->FillBoundary();
+    //etaDensity_mf[lev]     ->FillBoundary();
+    //etaMomentum_old_mf[lev]->FillBoundary();
+    //etaMomentum_mf[lev]    ->FillBoundary();
+    //etaEnergy_old_mf[lev]  ->FillBoundary();
+    //etaEnergy_mf[lev]      ->FillBoundary();
 
     c_max = 0.0;
     vx_max = 0.0;
@@ -219,6 +219,8 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
+    //return;
+
     std::swap(eta_old_mf, eta_mf);
     UpdateEta(lev,time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
@@ -232,9 +234,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
         });
     }
-    etadot_mf[lev]->FillBoundary();
-    eta_mf[lev]->FillBoundary();
-    eta_old_mf[lev]->FillBoundary();
+    //etadot_mf[lev]->FillBoundary();
+    //eta_mf[lev]->FillBoundary();
+    //eta_old_mf[lev]->FillBoundary();
 
     std::swap(etaMomentum_old_mf[lev], etaMomentum_mf[lev]);
     std::swap(etaEnergy_old_mf[lev], etaEnergy_mf[lev]);
@@ -265,8 +267,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
     }
 
-    etaPressure_mf[lev]->FillBoundary();
-    Velocity_mf[lev]   ->FillBoundary();
+    //etaPressure_mf[lev]->FillBoundary();
+    //Velocity_mf[lev]   ->FillBoundary();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
@@ -298,6 +300,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
+            
             Set::Scalar eta_cell = eta(i  , j  , k);
             Set::Scalar eta_xlo  = eta(i-1, j  , k);
             Set::Scalar eta_xhi  = eta(i+1, j  , k);
@@ -372,23 +375,25 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + Source(i, j, k, 0) * dt
                 + etarho(i, j, k)/(eta_cell + small) * etadot_cell * dt;
 
+            if (i == 0) Util::Message(INFO, "pressure i-1 ", etap(i-1, j, k), " pressure i ", etap(i, j, k), "pressure i+1 ", etap(i + 1, j, k));
+
             etaM_new(i, j, k, 0) =
                 etaM(i, j, k, 0)
-                + (flux_xlo.etaMomentum_normal  - flux_xhi.etaMomentum_normal ) * dt / DX[0]
-                + (flux_ylo.etaMomentum_tangent - flux_yhi.etaMomentum_tangent) * dt / DX[1]
-                + 0.5 * ((etap(i+1,j,k) - etap(i-1,j,k)) - etap(i,j,k)/(eta_cell+small) * (eta_xhi - eta_xlo))/DX[0] * dt
-                + Source(i, j, k, 1) * dt
-                + etaM(i, j, k, 0)/(eta_cell + small) * etadot_cell * dt
-	            + mu * eta_cell * lap_ux * dt;
+                //+ (flux_xlo.etaMomentum_normal  - flux_xhi.etaMomentum_normal ) * dt / DX[0]
+                //+ (flux_ylo.etaMomentum_tangent - flux_yhi.etaMomentum_tangent) * dt / DX[1];
+                + 0.5 * ((etap(i+1,j,k) - etap(i-1,j,k)) - etap(i,j,k)/(eta_cell+small) * (eta_xhi - eta_xlo))/DX[0] * dt;
+                //+ Source(i, j, k, 1) * dt
+                //+ etaM(i, j, k, 0)/(eta_cell + small) * etadot_cell * dt
+	            //+ mu * eta_cell * lap_ux * dt;
 
             etaM_new(i, j, k, 1) =
                 etaM(i, j, k, 1)
-	            + (flux_xlo.etaMomentum_tangent - flux_xhi.etaMomentum_tangent) * dt / DX[0]
-	            + (flux_ylo.etaMomentum_normal  - flux_yhi.etaMomentum_normal ) * dt / DX[1]
-                + 0.5 * ((etap(i,j+1,k) - etap(i,j-1,k)) - etap(i,j,k)/(eta_cell+small) * (eta_yhi - eta_ylo))/DX[1] * dt
-                + Source(i, j, k, 2) * dt
-                + etaM(i, j, k, 1)/(eta_cell + small) * etadot_cell * dt
-	            + mu * eta_cell * lap_uy * dt;
+	            //+ (flux_xlo.etaMomentum_tangent - flux_xhi.etaMomentum_tangent) * dt / DX[0]
+	            //+ (flux_ylo.etaMomentum_normal  - flux_yhi.etaMomentum_normal ) * dt / DX[1]
+                + 0.5 * ((etap(i,j+1,k) - etap(i,j-1,k)) - etap(i,j,k)/(eta_cell+small) * (eta_yhi - eta_ylo))/DX[1] * dt;
+                //+ Source(i, j, k, 2) * dt
+                //+ etaM(i, j, k, 1)/(eta_cell + small) * etadot_cell * dt
+	            //+ mu * eta_cell * lap_uy * dt;
 
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
