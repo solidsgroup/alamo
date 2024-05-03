@@ -62,7 +62,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.etaMomentum_mf,     &value.bc_nothing, 2, nghost, "etaMomentum", true );
         value.RegisterNewFab(value.etaMomentum_old_mf, &value.bc_nothing, 2, nghost, "etaM_old",    false);
 
-        value.RegisterNewFab(value.Velocity_mf,    value.bc_v,       2, nghost, "Velocity",    true);
+        value.RegisterNodalFab(value.Velocity_mf, 2, nghost+1, "Velocity", true);
+
         value.RegisterNewFab(value.Vorticity_mf,  &value.bc_nothing, 1, nghost, "Vorticity",   true);
         value.RegisterNewFab(value.etaPressure_mf, value.bc_p,       1, nghost, "etaPressure", true);
 
@@ -165,15 +166,17 @@ void Hydro::Mix(int lev)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             Set::Scalar eta_cell = eta(i,j,k);
+            Set::Scalar vx_avg = Numeric::Interpolate::NodeToCellAverage(v, i, j, k, 0);
+            Set::Scalar vy_avg = Numeric::Interpolate::NodeToCellAverage(v, i, j, k, 1);
 
             etarho(i, j, k)     = eta_cell * rho_fluid;
             etarho_old(i, j, k) = etarho(i, j, k);
 
-            etaE(i, j, k)     = 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + etap(i, j, k) * eta_cell / (gamma - 1.0); //initial condition is pressure and needs eta multiple
+            etaE(i, j, k)     = 0.5 * etarho(i, j, k) * (vx_avg * vx_avg + vy_avg * vy_avg) + etap(i, j, k) * eta_cell / (gamma - 1.0); //initial condition is pressure and needs eta multiple
             etaE_old(i, j, k) = etaE(i, j, k);
 
-            etaM(i, j, k, 0)     = etarho(i, j, k) * v(i, j, k, 0);
-            etaM(i, j, k, 1)     = etarho(i, j, k) * v(i, j, k, 1);
+            etaM(i, j, k, 0)     = etarho(i, j, k) * vx_avg;
+            etaM(i, j, k, 1)     = etarho(i, j, k) * vy_avg;
             etaM_old(i, j, k, 0) = etaM(i, j, k, 0);
             etaM_old(i, j, k, 1) = etaM(i, j, k, 1);
         });
@@ -235,9 +238,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     Set::Scalar small = 1.0e-8;
 
+    amrex::Box domain(this->geom[lev].Domain());
+
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
+
+        amrex::Box bx_node = mfi.grownnodaltilebox();
+        amrex::Box bx      = mfi.growntilebox();
 
         amrex::Array4<const Set::Scalar> const& etarho = (*etaDensity_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& etaE   = (*etaEnergy_old_mf[lev]).array(mfi);
@@ -248,11 +255,17 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& v      = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& etap   = (*etaPressure_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx_node, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             //Compute Primitive Variables
+
+
             v(i, j, k, 0) = etaM(i, j, k, 0) / (etarho(i, j, k) + small);
             v(i, j, k, 1) = etaM(i, j, k, 1) / (etarho(i, j, k) + small);
+        });
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
 
             etap(i, j, k) = (etaE(i, j, k) - 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1.0);
             
@@ -344,10 +357,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector Ldot0 =  0.0 * grad_eta;//(          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
             Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   +    /*P/(gamma - 1.0)*u0    +*/     q0 ).dot(grad_eta); 
             
-            Source(i,j, k, 0) = mdot0;
-            Source(i,j, k, 1) = (Pdot0(0) + Ldot0(0));
-            Source(i,j, k, 2) = (Pdot0(1) + Ldot0(1));
-            Source(i,j, k, 3) = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1));
+            Source(i,j, k, 0) = mdot0                                                  ;//* eta_cell;
+            Source(i,j, k, 1) = (Pdot0(0) + Ldot0(0))                                  ;//* eta_cell;
+            Source(i,j, k, 2) = (Pdot0(1) + Ldot0(1))                                  ;//* eta_cell;
+            Source(i,j, k, 3) = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1)) ;//* eta_cell;
 
             //Godunov fluxes
             etaE_new(i, j, k) =

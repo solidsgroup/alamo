@@ -57,7 +57,7 @@ public:
         if (std::isnan(a_RL2)) Util::Abort(INFO, hi.etapressure, " ", lo.etapressure, " ", hi.etarho, " ", lo.etarho);
         if (a_RL2 < 0.0) Util::Abort(INFO, hi.etapressure, " ", lo.etapressure, " ", hi.etarho, " ", lo.etarho);
 
-        Set::Scalar a_RL      = std::sqrt(a_RL2);
+        Set::Scalar a_RL = std::sqrt(a_RL2);
 
         Flux fl;
         fl.etaMass             = 0.5 * (lo.etarho * lo.velocity_normal + hi.etarho * hi.velocity_normal);
