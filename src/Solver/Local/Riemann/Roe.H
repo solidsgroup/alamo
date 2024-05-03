@@ -39,8 +39,6 @@ public:
 
         Set::Scalar eta_RL = (std::sqrt(hi.etarho) * hi.eta + std::sqrt(lo.etarho) * lo.eta) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
 
-        //if (eta_RL < small) {Flux Zero; return Zero;};
-
         Set::Scalar etake_lo = 0.5 * lo.etarho * lo.velocity_normal * lo.velocity_normal;
         Set::Scalar etaue_lo = lo.etapressure / (gamma - 1.0);
         Set::Scalar etah_lo = (etake_lo + etaue_lo + lo.etapressure) / (lo.etarho + small);
@@ -109,11 +107,6 @@ public:
         fl.etaMomentum_normal  -= 0.5 * (rev_0[1] * ev[0] * detav[0] + rev_1[1] * ev[1] * detav[1] + rev_2[1] * ev[2] * detav[2]);
         fl.etaMomentum_tangent -= 0.0;
         fl.etaEnergy           -= 0.5 * (rev_0[2] * ev[0] * detav[0] + rev_1[2] * ev[1] * detav[1] + rev_2[2] * ev[2] * detav[2]);
-
-        if (fabs(fl.etaMass) < small) fl.etaMass = 0.0;
-        if (fabs(fl.etaMomentum_normal) < small) fl.etaMomentum_normal = 0.0;
-        if (fabs(fl.etaMomentum_tangent) < small) fl.etaMomentum_tangent = 0.0;
-        if (fabs(fl.etaEnergy) < small) fl.etaEnergy = 0.0;
 
         return fl;
     }

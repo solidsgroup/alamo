@@ -149,18 +149,18 @@ void Hydro::Mix(int lev)
         const amrex::Box& bx = mfi.growntilebox();
 
         amrex::Array4<Set::Scalar> const& etaE_old = (*etaEnergy_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& etaE = (*etaEnergy_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etaE     = (*etaEnergy_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& etarho_old = (*etaDensity_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& etarho = (*etaDensity_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etarho     = (*etaDensity_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& etaM_old = (*etaMomentum_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& etaM = (*etaMomentum_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etaM     = (*etaMomentum_mf[lev]).array(mfi);
 
-        amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& v    = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& etap = (*etaPressure_mf[lev]).array(mfi);
 
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta  = (*eta_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -255,6 +255,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             v(i, j, k, 1) = etaM(i, j, k, 1) / (etarho(i, j, k) + small);
 
             etap(i, j, k) = (etaE(i, j, k) - 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1.0);
+            
         });
     }
 
@@ -353,11 +354,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaE(i, j, k)
                 + (flux_xlo.etaEnergy - flux_xhi.etaEnergy) * dt / DX[0]
                 + (flux_ylo.etaEnergy - flux_yhi.etaEnergy) * dt / DX[1]
-                //+ 0.5 * (v(i+1,j,k,0) * gamma * etap(i+1,j,k) - v(i-1,j,k,0) * gamma * etap(i+1,j,k)) * dt / DX[0] + v(i,j,k,0) * gamma * etap(i,j,k)/(eta_cell+small) * grad_eta(0) * dt
-                //+ 0.5 * (v(i,j+1,k,0) * gamma * etap(i,j+1,k) - v(i,j-1,k,0) * gamma * etap(i,j-1,k)) * dt / DX[1] + v(i,j,k,1) * gamma * etap(i,j,k)/(eta_cell+small) * grad_eta(1) * dt
                 + Source(i, j, k, 3) * dt
                 + etaE(i, j, k)/(eta_cell + small) * etadot_cell * dt;
 	            //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
+
+                if (fabs(0.5 * gamma * ((v(i+1,j,k,0) * etap(i+1,j,k) - v(i-1,j,k,0) * etap(i-1,j,k)) - etap(i,j,k) * v(i,j,k,0)/(eta_cell+small) * (eta_xhi - eta_xlo))/DX[0] * dt) > small) {etaE_new(i, j, k) += 0.5 * gamma * ((v(i+1,j,k,0) * etap(i+1,j,k) - v(i-1,j,k,0) * etap(i-1,j,k)) - etap(i,j,k) * v(i,j,k,0)/(eta_cell+small) * (eta_xhi - eta_xlo))/DX[0] * dt;};
+                if (fabs(0.5 * gamma * ((v(i,j+1,k,1) * etap(i,j+1,k) - v(i,j-1,k,1) * etap(i,j-1,k)) - etap(i,j,k) * v(i,j,k,1)/(eta_cell+small) * (eta_yhi - eta_ylo))/DX[1] * dt) > small) {etaE_new(i, j, k) += 0.5 * gamma * ((v(i,j+1,k,1) * etap(i,j+1,k) - v(i,j-1,k,1) * etap(i,j-1,k)) - etap(i,j,k) * v(i,j,k,1)/(eta_cell+small) * (eta_yhi - eta_ylo))/DX[1] * dt;};
+
 
             etarho_new(i, j, k) =
                 etarho(i, j, k)
@@ -370,7 +373,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaM(i, j, k, 0)
                 + (flux_xlo.etaMomentum_normal  - flux_xhi.etaMomentum_normal ) * dt / DX[0]
                 + (flux_ylo.etaMomentum_tangent - flux_yhi.etaMomentum_tangent) * dt / DX[1]
-                + 0.5 * ((etap(i+1,j,k) - etap(i-1,j,k)) - etap(i,j,k)/(eta_cell+small) * (eta_xhi - eta_xlo))/DX[0] * dt
                 + Source(i, j, k, 1) * dt
                 + etaM(i, j, k, 0)/(eta_cell + small) * etadot_cell * dt
 	            + mu * eta_cell * lap_ux * dt;
@@ -379,7 +381,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 etaM(i, j, k, 1)
 	            + (flux_xlo.etaMomentum_tangent - flux_xhi.etaMomentum_tangent) * dt / DX[0]
 	            + (flux_ylo.etaMomentum_normal  - flux_yhi.etaMomentum_normal ) * dt / DX[1]
-                + 0.5 * ((etap(i,j+1,k) - etap(i,j-1,k)) - etap(i,j,k)/(eta_cell+small) * (eta_yhi - eta_ylo))/DX[1] * dt
                 + Source(i, j, k, 2) * dt
                 + etaM(i, j, k, 1)/(eta_cell + small) * etadot_cell * dt
 	            + mu * eta_cell * lap_uy * dt;
@@ -388,11 +389,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
             omega(i, j, k) = eta_cell * (grad_uy(0) - grad_ux(1));
-
-            if (etarho_new(i, j, k)  < small) etarho_new(i, j, k) = 0.0;
-            if (etaM_new(i, j, k, 0) < small) etaM_new(i, j, k, 0) = 0.0;
-            if (etaM_new(i, j, k, 1) < small) etaM_new(i, j, k, 1) = 0.0;
-            if (etaE_new(i, j, k)    < small) etaE_new(i, j, k) = 0.0;
         
         });
     }

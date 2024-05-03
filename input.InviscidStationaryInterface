@@ -79,7 +79,7 @@ stop_time = 100.0
 Ldot_0 = 0.0
 
 rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "0.0"
+rhoInterface.ic.expression.region0 = "1.0"
 
 vInjected.ic.type = expression
 vInjected.ic.expression.region0 = "0.0"
