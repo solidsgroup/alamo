@@ -88,7 +88,7 @@ public:
         else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp, "bc.expression");
         else Util::Abort(INFO, "Invalid bc.type ", bc_type);
 
-        pp.query("print_model", value.m_print_model);
+        pp.query("print_model", value.m_print_model); // Controls the fields that will be printed out in the output file.
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, value.plot_model, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
 
