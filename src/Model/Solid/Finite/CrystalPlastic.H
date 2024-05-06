@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_CRYSTALPLASTIC_H_
-#define MODEL_SOLID_ELASTIC_CRYSTALPLASTIC_H_
+#ifndef MODEL_SOLID_FINITE_CRYSTALPLASTIC_H_
+#define MODEL_SOLID_FINITE_CRYSTALPLASTIC_H_
 
 
 #include "IO/ParmParse.H"
@@ -10,7 +10,7 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Finite
 {
 class CrystalPlastic : public PseudoLinearCubic
 {
@@ -196,13 +196,13 @@ public:
 
 
 template<>
-inline int Set::Field<Model::Solid::Elastic::CrystalPlastic>::NComp() const 
+inline int Set::Field<Model::Solid::Finite::CrystalPlastic>::NComp() const 
 {
     return 12;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Elastic::CrystalPlastic>::Name(int i) const 
+inline std::string Set::Field<Model::Solid::Finite::CrystalPlastic>::Name(int i) const 
 {
     if (i==0) return name + "gamma1";
     if (i==1) return name + "gamma2";
@@ -220,14 +220,14 @@ inline std::string Set::Field<Model::Solid::Elastic::CrystalPlastic>::Name(int i
 }
 
 template<>
-inline void Set::Field<Model::Solid::Elastic::CrystalPlastic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+inline void Set::Field<Model::Solid::Finite::CrystalPlastic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
         if (bx.ok())
         {
-            amrex::Array4<const Model::Solid::Elastic::CrystalPlastic> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<const Model::Solid::Finite::CrystalPlastic> const & src = ((*this)[a_lev])->array(mfi);
             amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
             for (int n = 0; n < 12; n++)
             {
