@@ -26,9 +26,8 @@ public:
         pp.queryclass("hc",static_cast<HeatConduction*>(&value));
         pp.queryclass("el",static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
 
-        pp.queryarr("alpha",value.alpha);
+        pp.queryarr("alpha",value.alpha); // Diffusion coefficient
     }
-
 
 protected:
     void Initialize(int lev) override
@@ -37,9 +36,9 @@ protected:
         Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev);
     }
 
-    void UpdateModel(int a_step) override
+    void UpdateModel(int a_step, Set::Scalar a_time) override
     {
-        Mechanics<Model::Solid::Affine::Isotropic>::UpdateModel(a_step);
+        Mechanics<Model::Solid::Affine::Isotropic>::UpdateModel(a_step, a_time);
 
         //Set::Scalar alpha[2];
         //alpha[0] = 0.001; alpha[1] = 0.002;

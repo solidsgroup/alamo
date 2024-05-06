@@ -1,9 +1,11 @@
 #@  [2D-serial]
+#@  exe    = mechanics
 #@  dim    = 2 
 #@  nprocs = 1
 #@  check  = true
 #@ 
 #@  [2D-serial-coverage]
+#@  exe    = mechanics
 #@  dim    = 2 
 #@  nprocs = 1
 #@  check  = false
@@ -11,6 +13,7 @@
 #@  args=solver.fixed_iter = 1
 #@
 #@  [3D-parallel]
+#@  exe    = mechanics
 #@  dim    = 3
 #@  nprocs = 4
 #@  check  = false
@@ -19,6 +22,7 @@
 #@  benchmark-waldorf = 7.05
 #@
 #@  [3D-serial]
+#@  exe    = mechanics
 #@  dim    = 3
 #@  nprocs = 1
 #@  check  = false

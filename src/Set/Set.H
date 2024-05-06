@@ -75,7 +75,8 @@ public:
 };
 
 template<>
-inline void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -94,7 +95,8 @@ inline void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_ds
     }    
 }
 template<>
-inline void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_src, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -113,7 +115,8 @@ inline void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int 
     }    
 }
 template<>
-inline void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -132,7 +135,8 @@ inline void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dst
     }    
 }
 template<>
-inline void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_src, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -151,8 +155,8 @@ inline void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a
     }    
 }
 
-template<> inline int         Field<Set::Vector>::NComp() const {return AMREX_SPACEDIM;} 
-template<> inline std::string Field<Set::Vector>::Name(int i) const
+template<> AMREX_ATTRIBUTE_WEAK int         Field<Set::Vector>::NComp() const {return AMREX_SPACEDIM;} 
+template<> AMREX_ATTRIBUTE_WEAK std::string Field<Set::Vector>::Name(int i) const
 {
     #if AMREX_SPACEDIM>0
     if (i==0) return name + "_x";
@@ -168,7 +172,8 @@ template<> inline std::string Field<Set::Vector>::Name(int i) const
 }
 
 template<>
-inline void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -187,8 +192,8 @@ inline void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_ds
     }    
 }
 template<>
-inline int Field<Set::Matrix>::NComp() const {return AMREX_SPACEDIM*AMREX_SPACEDIM;} 
-template<> inline std::string Field<Set::Matrix>::Name(int i) const
+AMREX_ATTRIBUTE_WEAK int Field<Set::Matrix>::NComp() const {return AMREX_SPACEDIM*AMREX_SPACEDIM;} 
+template<> AMREX_ATTRIBUTE_WEAK std::string Field<Set::Matrix>::Name(int i) const
 {
     #if AMREX_SPACEDIM==1
     if (i==0) return name + "_xx";

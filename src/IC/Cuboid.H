@@ -81,8 +81,8 @@ public:
     static void Parse(Cuboid& value, IO::ParmParse& pp)
     {
         pp.queryarr("center", value.center); // Coordinates (X Y Z) of the center of the square/cube. 
-        pp.queryarr("length", value.length);
-        pp.query("eps", value.eps);
+        pp.queryarr("length", value.length); // Side legnth of cuboid
+        pp.query("eps", value.eps); // Regularization value
     }
 
 private:

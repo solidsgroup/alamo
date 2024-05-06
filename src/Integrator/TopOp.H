@@ -67,25 +67,25 @@ public:
             value.RegisterNewFab(value.psi_old_mf, value.bc_psi, 1, 2, "psiold", false);
             value.psi_on = true;
         }
-        pp.query("eta_ref_threshold", value.m_eta_ref_threshold);
-        pp.query("alpha", value.alpha);
-        pp.query("beta", value.beta);
-        pp.query("gamma", value.gamma);
-        pp.queryclass("L", value.L);
+        pp.query("eta_ref_threshold", value.m_eta_ref_threshold); // Refinement threshold based on eta
+        pp.query("alpha", value.alpha); // :math:`\alpha` parameter
+        pp.query("beta", value.beta); // :math:`\beta` parameter
+        pp.query("gamma", value.gamma); // :math:`\gamma` parameter
+        pp.queryclass("L", value.L); // Mobility
         if (pp.contains("volume0frac"))
         {
             if (pp.contains("volume0")) Util::Abort(INFO, "Cannot specify volume0frac and volume0");
             Set::Scalar volumefrac;
-            pp.query("volume0frac", volumefrac);
+            pp.query("volume0frac", volumefrac); // Prescribed volume fraction
             value.volume0 = volumefrac *
                 AMREX_D_TERM((value.geom[0].ProbHi()[0] - value.geom[0].ProbLo()[0]),
                     *(value.geom[0].ProbHi()[1] - value.geom[0].ProbLo()[1]),
                     *(value.geom[0].ProbHi()[2] - value.geom[0].ProbLo()[2]));
         }
         else
-            pp.query("volume0", value.volume0);
+            pp.query("volume0", value.volume0); // Prescribed total vlume
 
-        pp.queryclass("lambda", value.lambda);
+        pp.queryclass("lambda", value.lambda); // Lagrange multiplier (can be interplated)
 
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
@@ -101,7 +101,7 @@ public:
         if (psi_on) ic_psi->Initialize(lev, psi_old_mf);
     }
 
-    virtual void UpdateModel(int a_step) override
+    virtual void UpdateModel(int a_step, Set::Scalar /*a_time*/) override
     {
         if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
 

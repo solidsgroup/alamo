@@ -202,7 +202,7 @@ void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar /*time*/
 }
 
 template<class model_type>
-void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step)
+void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /*a_time*/)
 {
     BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
     if (a_step % this->m_interval) return;

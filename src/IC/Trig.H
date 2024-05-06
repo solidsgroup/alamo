@@ -1,3 +1,9 @@
+//
+// This is an old-fashioned IC. 
+// You use IC::Expression instead.
+//
+
+
 #ifndef IC_TRIG_H_
 #define IC_TRIG_H_
 
@@ -158,9 +164,9 @@ public:
     static void Parse(Trig & value, IO::ParmParse & pp)
     {
         std::vector<int> n_real(AMREX_SPACEDIM,0.0);
-        pp.queryarr("nr",n_real);
+        pp.queryarr("nr",n_real); // Number of real (cosin) waves
         std::vector<int> n_imag(AMREX_SPACEDIM,0.0);
-        pp.queryarr("ni",n_imag);
+        pp.queryarr("ni",n_imag); // Number of imaginary (sin) waves
 
         AMREX_D_TERM(
             value.n1 = std::complex<int>(n_real[0],n_imag[0]);,
@@ -172,8 +178,8 @@ public:
             value.phi2 = std::atan2(value.n2.imag(),value.n2.real()),
             value.phi3 = std::atan2(value.n3.imag(),value.n3.real()));
 
-        pp.query("dim",value.dim);
-        pp.query("alpha",value.alpha);
+        pp.query("dim",value.dim); // Spatial dimension
+        pp.query("alpha",value.alpha); // Multiplier
 
     }
 

@@ -1,4 +1,5 @@
 #@  [2D-serial]
+#@  exe = mechanics
 #@  dim    = 2
 #@  nprocs = 1
 
