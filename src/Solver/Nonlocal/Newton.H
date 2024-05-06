@@ -5,7 +5,6 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "IO/ParmParse.H"
-#include "Model/Solid/Elastic/NeoHookean.H"
 #include "Numeric/Stencil.H"
 
 namespace Solver

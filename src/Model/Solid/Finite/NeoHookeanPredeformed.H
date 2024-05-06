@@ -1,14 +1,14 @@
-#ifndef MODEL_SOLID_ELASTIC_NEOHOOKEANPREDEFORMED_H_
-#define MODEL_SOLID_ELASTIC_NEOHOOKEANPREDEFORMED_H_
+#ifndef MODEL_SOLID_FINITE_NEOHOOKEANPREDEFORMED_H_
+#define MODEL_SOLID_FINITE_NEOHOOKEANPREDEFORMED_H_
 
 #include "IO/ParmParse.H"
-#include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Finite/NeoHookean.H"
 
 namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Finite
 {
 class NeoHookeanPredeformed : public NeoHookean
 {
@@ -90,14 +90,14 @@ public:
 
 template<>
 AMREX_ATTRIBUTE_WEAK
-int Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::NComp() const
+int Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::NComp() const
 {
     return 2 + AMREX_SPACEDIM * AMREX_SPACEDIM;
 }
 
 template<>
 AMREX_ATTRIBUTE_WEAK
-std::string Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Name(int i) const
+std::string Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::Name(int i) const
 {
     if (i == 0) return name + "_mu";
     if (i == 1) return name + "_kappa";
@@ -118,14 +118,14 @@ std::string Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Name(int i
 
 template<>
 AMREX_ATTRIBUTE_WEAK
-void Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
+void Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
         if (bx.ok())
         {
-            amrex::Array4<const Model::Solid::Elastic::NeoHookeanPredeformed> const& src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<const Model::Solid::Finite::NeoHookeanPredeformed> const& src = ((*this)[a_lev])->array(mfi);
             amrex::Array4<Set::Scalar> const& dst = a_dst.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {

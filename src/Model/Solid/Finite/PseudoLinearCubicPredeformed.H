@@ -1,14 +1,14 @@
-#ifndef MODEL_SOLID_ELASTIC_PSEUDOLINEARPREDEFORMED_H_
-#define MODEL_SOLID_ELASTIC_PSEUDOLINEARPREDEFORMED_H_
+#ifndef MODEL_SOLID_FINITE_PSEUDOLINEARPREDEFORMED_H_
+#define MODEL_SOLID_FINITE_PSEUDOLINEARPREDEFORMED_H_
 
 #include "IO/ParmParse.H"
-#include "Model/Solid/Elastic/PseudoLinearCubic.H"
+#include "Model/Solid/Finite/PseudoLinearCubic.H"
 
 namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Finite
 {
 class PseudoLinearCubicPredeformed : public PseudoLinearCubic
 {
@@ -100,14 +100,14 @@ public:
 
 template<>
 AMREX_ATTRIBUTE_WEAK
-int Set::Field<Model::Solid::Elastic::PseudoLinearCubicPredeformed>::NComp() const
+int Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::NComp() const
 {
     return 4;
 }
 
 template<>
 AMREX_ATTRIBUTE_WEAK
-std::string Set::Field<Model::Solid::Elastic::PseudoLinearCubicPredeformed>::Name(int i) const
+std::string Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Name(int i) const
 {
     if (i == 0) return name + "_F0xx";
     if (i == 1) return name + "_F0xy";
@@ -118,14 +118,14 @@ std::string Set::Field<Model::Solid::Elastic::PseudoLinearCubicPredeformed>::Nam
 
 template<>
 AMREX_ATTRIBUTE_WEAK
-void Set::Field<Model::Solid::Elastic::PseudoLinearCubicPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
+void Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
         if (bx.ok())
         {
-            amrex::Array4<const Model::Solid::Elastic::PseudoLinearCubicPredeformed> const& src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<const Model::Solid::Finite::PseudoLinearCubicPredeformed> const& src = ((*this)[a_lev])->array(mfi);
             amrex::Array4<Set::Scalar> const& dst = a_dst.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
