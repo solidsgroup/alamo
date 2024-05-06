@@ -17,7 +17,7 @@
 #include "IC/PSRead.H" 
 #include "Set/Set.H"
 #include "Model/Solid/Affine/Isotropic.H"
-#include "Model/Solid/Elastic/NeoHookeanPredeformed.H"
+#include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "Solver/Nonlocal/Newton.H"
@@ -28,10 +28,10 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator,
-    virtual public Base::Mechanics<Model::Solid::Elastic::NeoHookeanPredeformed>
+    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
 {
 
-    using model_type = Model::Solid::Elastic::NeoHookeanPredeformed;
+    using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
 
 public:
     Flame();
@@ -49,7 +49,7 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
-    void UpdateModel(int a_step) override;
+    void UpdateModel(int a_step, Set::Scalar a_time) override;
 private:
 
     Set::Field<Set::Scalar> temp_mf;

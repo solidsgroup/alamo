@@ -101,7 +101,7 @@ public:
         if (psi_on) ic_psi->Initialize(lev, psi_old_mf);
     }
 
-    virtual void UpdateModel(int a_step) override
+    virtual void UpdateModel(int a_step, Set::Scalar /*a_time*/) override
     {
         if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
 

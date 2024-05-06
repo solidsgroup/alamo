@@ -254,7 +254,7 @@ void Flame::Initialize(int lev)
     if (variable_pressure) pressure.P = 1.0;
 }
 
-void Flame::UpdateModel(int /*a_step*/)
+void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 {
     if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
 

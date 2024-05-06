@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
-#define MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
+#ifndef MODEL_SOLID_FINITE_NEOHOOKEAN_H_
+#define MODEL_SOLID_FINITE_NEOHOOKEAN_H_
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
@@ -8,7 +8,7 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Finite
 {
 class NeoHookean : public Solid<Set::Sym::Major>
 {

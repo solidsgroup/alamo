@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_PSEUDOLINEARCUBIC_H_
-#define MODEL_SOLID_ELASTIC_PSEUDOLINEARCUBIC_H_
+#ifndef MODEL_SOLID_FINITE_PSEUDOLINEARCUBIC_H_
+#define MODEL_SOLID_FINITE_PSEUDOLINEARCUBIC_H_
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
@@ -8,7 +8,7 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Finite
 {
 class PseudoLinearCubic : public Solid<Set::Sym::Major>
 {

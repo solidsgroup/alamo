@@ -1,5 +1,6 @@
 #@
 #@  [2D-serial-5levels]
+#@  exe    = mechanics
 #@  dim    = 2
 #@  nprocs = 1
 #@  args   = stop_time=0.1
@@ -7,6 +8,7 @@
 #@  benchmark-beaker = 53.27
 #@
 #@  [2D-serial-5levels-coverage]
+#@  exe    = mechanics
 #@  dim    = 2
 #@  nprocs = 1
 #@  args   = stop_time=0.001
