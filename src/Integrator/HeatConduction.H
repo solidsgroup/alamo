@@ -109,8 +109,10 @@ protected:
             const amrex::Box& bx = mfi.tilebox();
 
             // Get an array-accessible handle to the data on this patch.
-            amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar>       const& temp = (*temp_mf[lev]).array(mfi);
+            // amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
+            // amrex::Array4<Set::Scalar>       const& temp = temp_mf.Patch(lev,mfi);//(*temp_mf[lev]).array(mfi);
+            Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
 
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)

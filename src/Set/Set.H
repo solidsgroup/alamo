@@ -71,8 +71,18 @@ public:
     void AddFrom(int /*a_lev*/, amrex::MultiFab &/*a_src*/, int /*a_srccomp*/, int /*a_nghost*/) const {}
     int NComp() const {return 0;}
     std::string Name(int) const {return name;}
-    std::string name;    
+    std::string name;
+
+    amrex::Array4<T> Patch (int lev, amrex::MFIter &mfi) const &
+    {
+        return (*(*this)[lev]).array(mfi);
+    }
 };
+
+
+template <typename T>
+using Patch = amrex::Array4<T> const&;
+
 
 template<>
 AMREX_ATTRIBUTE_WEAK
@@ -245,7 +255,13 @@ public:
     {Util::Abort(INFO,"This should never get called");}
     int NComp() const
     {Util::Abort(INFO,"This should never be called");return -1;}
+
+    amrex::Array4<Set::Scalar> Patch (int lev, amrex::MFIter &mfi) const &
+    {
+        return (*(*this)[lev]).array(mfi);
+    }
 };
+
 
 }
 
