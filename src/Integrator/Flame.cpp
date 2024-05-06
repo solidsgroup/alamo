@@ -115,11 +115,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, value.ghost_count + 1, "heatflux", value.plot_field);
             value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, value.ghost_count + 1, "laser", value.plot_field);
 
-            value.RegisterIntegratedVariable(&value.volume, "volume");
-            value.RegisterIntegratedVariable(&value.area, "area");
-            value.RegisterIntegratedVariable(&value.chamber_area, "chamber_area");
+            value.RegisterIntegratedVariable(&value.volume, "total_area");
+            value.RegisterIntegratedVariable(&value.area, "Interface_area");
+            value.RegisterIntegratedVariable(&value.chamber_area, "chamber_area", false);
             value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
-            value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure",true);
+            value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
             std::string laser_ic_type = "constant";
             pp.query("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
@@ -333,21 +333,23 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
     }
-    Util::Message(INFO, "Mass = ", massflux);
-    Util::Message(INFO, "Pressure = ", pressure.P);
-
-
-
 }
 
+void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
+{
+    BL_PROFILE("Integrator::Flame::TimeStepComplete");
+    Set::Scalar domain_area = x_len * y_len;
+    chamber_pressure = pressure.P;
+    chamber_area = domain_area - volume;
+    Util::Message(INFO, "Mass = ", massflux);
+    Util::Message(INFO, "Pressure = ", pressure.P);
+}
 
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
-
-
 
     if (true) //lev == finest_level) //(true)
     {
@@ -385,9 +387,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
 
                 if (variable_pressure) {
-                    pressure.P = exp(0.0015 * massflux);
-                    if (pressure.P > 6.0) {
-                        pressure.P = 6.0;
+                    pressure.P = exp(0.00075 * massflux);
+                    if (pressure.P > 10.0) {
+                        pressure.P = 10.0;
                     }
                     else if (pressure.P <= 0.99) {
                         pressure.P = 0.99;
@@ -631,10 +633,8 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     BL_PROFILE("Flame::Integrate");
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-    Set::Scalar domain_area = x_len * y_len;
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
     amrex::Array4<amrex::Real> const& mdot = (*mdot_mf[amrlev]).array(mfi);
-    
     amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
     {
         volume += eta(i, j, k, 0) * dv;
@@ -642,14 +642,11 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
         Set::Scalar normgrad = grad.lpNorm<2>();
         Set::Scalar da = normgrad * dv;
         area += da;
-        chamber_area = domain_area - area;
 
         Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
         Set::Scalar mnormgrad = mgrad.lpNorm<2>();
         Set::Scalar dm = mnormgrad * dv;
         massflux += dm;
-
-        chamber_pressure = pressure.P;
 
     });
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
