@@ -185,8 +185,8 @@ public:
         else if (fit=="coord")
         {
             value.fit = Fit::Coord;
-            pp.queryarr("coord.lo",value.coord_lo);
-            pp.queryarr("coord.hi",value.coord_hi);
+            pp.queryarr("coord.lo",value.coord_lo); // Location of lower-left corner in the domain
+            pp.queryarr("coord.hi",value.coord_hi); // Locatino of upper-right corner in the domain
         }
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
 

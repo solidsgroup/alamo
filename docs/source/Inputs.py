@@ -152,17 +152,17 @@ def extract(basefilename):
     return rets
 
 
+inputsheader = r"""
+.. _inputs: 
+	
+=============================
+:fas:`cube;fa-fw` Inputs
+=============================
+	
+"""
 
 
-srcfiles = set()
-for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
-    for f in filelist:
-        if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f.replace(".cpp",""))
-        if f.endswith(".H"): srcfiles.add(dirname+"/"+f.replace(".H",""))
-srcfiles = list(srcfiles)
-
-docfilesearch    = open("InputsSearch.rst","w")
-docfilesearch.write(r"""
+inputsearchheader = r"""
 .. _inputs: 
 
 ===========================================
@@ -242,129 +242,150 @@ the prefixes out.
     * - Parameter
       - Namespace / Class
       - Description
-""")
+"""
 
 
-docfile    = open("Inputs.rst","w")
-docfile.write(r"""
-.. _inputs: 
 
-=============================
-:fas:`cube;fa-fw` Inputs
-=============================
 
-""")
+def scrapeInputs(root="../../src/", writeFiles=True):
 
-headerchar = ["=","*","-","~","."]
-written_headers = []
-
-global num_tot, num_doc
-num_tot = 0
-num_doc = 0
-
-for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
-    hdrname = dirname.replace("../../src/","").replace("/","::")
-    depth = len(hdrname.split("::")) 
-
-    srcfileset = set()
-    for f in filelist:
-        if f.endswith(".cpp"): srcfileset.add(f.replace(".cpp",""))
-        if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
-    srcfilelist = list(srcfileset)
+    srcfiles = set()
+    for dirname, subdirlist, filelist in sorted(os.walk(root)):
+        for f in filelist:
+            if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f.replace(".cpp",""))
+            if f.endswith(".H"): srcfiles.add(dirname+"/"+f.replace(".H",""))
+    srcfiles = list(srcfiles)
     
-    #
-    # This function makes sure pure abstract classes get
-    # listed first.
-    #
-    def alphabetize_with_abstract_first(key):
-        if key == hdrname.split("::")[-1]:
-            return "0"
-        return(key[0])
-    for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
+    if writeFiles: docfilesearch    = open("InputsSearch.rst","w")
+    if writeFiles: docfilesearch.write(inputsearchheader)
+    
+    
+    if writeFiles: docfile    = open("Inputs.rst","w")
+    if writeFiles: docfile.write(inputsheader)
+    
+    headerchar = ["=","*","-","~","."]
+    written_headers = []
+    
+    global num_tot, num_doc
+    num_tot = 0
+    num_doc = 0
+    
+    for dirname, subdirlist, filelist in sorted(os.walk(root)):
+        hdrname = dirname.replace(root,"").replace("/","::")
+        depth = len(hdrname.split("::")) 
+    
+        srcfileset = set()
+        for f in filelist:
+            if f.endswith(".cpp"): srcfileset.add(f.replace(".cpp",""))
+            if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
+        srcfilelist = list(srcfileset)
         
-        try:
-            inputs = extract(dirname+"/"+f)
-        except Exception as e:
-            print("ERROR: problem reading",dirname)
-            raise
-        documentation = getdocumentation(dirname+"/"+f)
-        if not len(inputs) and not documentation:
-            continue
-
-        classname = dirname.replace("../../src/","").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
-
-        subhdr = ""
-        for i in range(len(classname.split('::'))):
-            subhdr = '::'.join(classname.split('::')[:i])
-            if subhdr not in written_headers:
-                if '::' not in subhdr and subhdr != "":
-                    docfile.write("--------------------\n\n\n")
-                    docfile.write(".. _{}:\n\n".format(subhdr))
-                    docfile.write(geticon(subhdr) + subhdr+"\n")
-                    docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
-                else:
-                    docfile.write("\n" + subhdr+"\n")
-                    docfile.write("".ljust(len(subhdr),headerchar[i-1]))
-                docfile.write("\n\n\n")
-                written_headers.append(subhdr)
-
-        if classname.split("::")[-1] != classname.split("::")[-2]:
-            docfile.write(classname + "\n")
-            lev = len(classname.split('::'))-1
-            docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
-            subhdr = classname
+        #
+        # This function makes sure pure abstract classes get
+        # listed first.
+        #
+        def alphabetize_with_abstract_first(key):
+            if key == hdrname.split("::")[-1]:
+                return "0"
+            return(key[0])
+        for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
             
-        if documentation:
-            docfile.write(documentation)
+            try:
+                inputs = extract(dirname+"/"+f)
+            except Exception as e:
+                print("ERROR: problem reading",dirname)
+                raise
+            documentation = getdocumentation(dirname+"/"+f)
+            if not len(inputs) and not documentation:
+                continue
+    
+            classname = dirname.replace(root,"").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
+    
+            subhdr = ""
+            for i in range(len(classname.split('::'))):
+                subhdr = '::'.join(classname.split('::')[:i])
+                if subhdr not in written_headers:
+                    if writeFiles:
+                        if '::' not in subhdr and subhdr != "":
+                            docfile.write("--------------------\n\n\n")
+                            docfile.write(".. _{}:\n\n".format(subhdr))
+                            docfile.write(geticon(subhdr) + subhdr+"\n")
+                            docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
+                        else:
+    	                    docfile.write("\n" + subhdr+"\n")
+    	                    docfile.write("".ljust(len(subhdr),headerchar[i-1]))
+                        docfile.write("\n\n\n")
+                    written_headers.append(subhdr)
+    
+            if classname.split("::")[-1] != classname.split("::")[-2]:
+                if writeFiles: docfile.write(classname + "\n")
+                lev = len(classname.split('::'))-1
+                if writeFiles: docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
+                subhdr = classname
+                
+            if documentation and writeFiles:
+                docfile.write(documentation)
+                
+            if not len(inputs): continue
+            if len(inputs) == 1 and not list(inputs)[0]: continue
+    
+    
+            if writeFiles:
+                docfile.write("\n\n")
+                docfile.write(".. rst-class:: api-inputs-table\n\n")
+                docfile.write(".. flat-table:: \n")
+                docfile.write("    :widths: 20 10 70\n")
+                docfile.write("    :header-rows: 1\n\n")
+                docfile.write("    * - Parameter\n")
+                docfile.write("      - Type\n")
+                docfile.write("      - Description\n")
+    
+            def writeInput(input,lev,prefix):
+                prefix = list(filter(lambda x: x != "", prefix))
+                if (input["type"]=="group"):
+                    if writeFiles: docfile.write("    * - {}  \n".format(input['doc'].replace("\n", "\n        ")))
+                    for subinput in input["inputs"]:
+                        writeInput(subinput,lev+1,prefix + [input["prefix"]])
+                if (input["type"] in ["query","queryarr"]):
+                    global num_tot, num_doc
+                    if input["parsefn"]: prefix = ["[prefix]"] + prefix
+                    num_tot += 1
+                    if writeFiles:
+                        docfile.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
+                        docfilesearch.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
+                        docfile.write("      - {}\n".format(input["type"]))
+                        docfilesearch.write("      - :ref:`{}`\n".format(subhdr))
+                    if input["doc"] != "":
+                        num_doc += 1
+                        if writeFiles:
+                            docfile.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
+                            docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
+                    else:
+                        print(input['file'],':',input['line'],' ',input['string'],' missing documentation')
+                        if writeFiles:
+                            docfile.write("      - \n")
+                            docfilesearch.write("      - \n")
+    
+                if writeFiles:
+                    docfile.write("\n")
+                    docfilesearch.write("\n")
+    
+    
+            for input in inputs:
+                writeInput(input,0,[])
             
-        if not len(inputs): continue
-        if len(inputs) == 1 and not list(inputs)[0]: continue
+            if writeFiles:
+                docfile.write("\n")
+                docfilesearch.write("\n")
+    
+    
+    print("\n{} of {} inputs documented\n".format(num_doc,num_tot))
+    
+    
+    if writeFiles:
+        docfile.close()
+        docfilesearch.close()
 
+    return num_doc, num_tot
 
-        docfile.write("\n\n")
-        docfile.write(".. rst-class:: api-inputs-table\n\n")
-        docfile.write(".. flat-table:: \n")
-        docfile.write("    :widths: 20 10 70\n")
-        docfile.write("    :header-rows: 1\n\n")
-        docfile.write("    * - Parameter\n")
-        docfile.write("      - Type\n")
-        docfile.write("      - Description\n")
-
-        def writeInput(input,lev,prefix):
-            prefix = list(filter(lambda x: x != "", prefix))
-            if (input["type"]=="group"):
-                docfile.write("    * - {}  \n".format(input['doc'].replace("\n", "\n        ")))
-                for subinput in input["inputs"]:
-                    writeInput(subinput,lev+1,prefix + [input["prefix"]])
-            if (input["type"] in ["query","queryarr"]):
-                global num_tot, num_doc
-                if input["parsefn"]: prefix = ["[prefix]"] + prefix
-                num_tot += 1
-                docfile.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
-                docfilesearch.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
-                docfile.write("      - {}\n".format(input["type"]))
-                docfilesearch.write("      - :ref:`{}`\n".format(subhdr))
-                if input["doc"] != "":
-                    num_doc += 1
-                    docfile.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
-                    docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
-                else:
-                    docfile.write("      - \n")
-                    docfilesearch.write("      - \n")
-            docfile.write("\n")
-            docfilesearch.write("\n")
-
-
-        for input in inputs:
-            writeInput(input,0,[])
-        
-        docfile.write("\n")
-        docfilesearch.write("\n")
-
-
-print("\n{} of {} inputs documented\n".format(num_doc,num_tot))
-
-
-docfile.close()
-docfilesearch.close()
 

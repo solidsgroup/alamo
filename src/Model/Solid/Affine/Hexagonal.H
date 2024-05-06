@@ -103,20 +103,23 @@ public:
 }
 
 template<>
-inline int Set::Field<Model::Solid::Affine::Hexagonal>::NComp() const 
+AMREX_ATTRIBUTE_WEAK
+int Set::Field<Model::Solid::Affine::Hexagonal>::NComp() const 
 {
     return 1;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Affine::Hexagonal>::Name(int i) const 
+AMREX_ATTRIBUTE_WEAK
+std::string Set::Field<Model::Solid::Affine::Hexagonal>::Name(int i) const 
 {
     if (i==0) return name + ".Cxxxx";
     return name;
 }
 
 template<>
-inline void Set::Field<Model::Solid::Affine::Hexagonal>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Set::Field<Model::Solid::Affine::Hexagonal>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {

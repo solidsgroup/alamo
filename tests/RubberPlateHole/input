@@ -1,9 +1,11 @@
 #@
 #@ [serial-2d]
+#@ exe    = mechanics
 #@ dim=2
 #@ check=false
 #@
 #@ [serial-2d-coverage]
+#@ exe    = mechanics
 #@ dim=2
 #@ check=false
 #@ coverage=true
@@ -12,7 +14,7 @@
 #@
 
 alamo.program = mechanics
-alamo.program.mechanics.model = elastic.neohookean
+alamo.program.mechanics.model = finite.neohookean
 plot_file = output
 type = static
 timestep = 0.1

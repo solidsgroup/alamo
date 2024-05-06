@@ -103,22 +103,22 @@ public:
         Set::Scalar mu, lambda;
         if (pp.contains("lambda") && pp.contains("mu"))
         {
-            pp.query("lambda",lambda);
-            pp.query("mu",mu);
+            pp.query("lambda",lambda); // Lame constant
+            pp.query("mu",mu); // Shear modulus
         }
         else if (pp.contains("E") && pp.contains("nu"))
         {
             Set::Scalar E, nu;
-            pp.query("E",E);
-            pp.query("nu",nu);
+            pp.query("E",E); // Young's modulus
+            pp.query("nu",nu); // Poisson's ratio
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
         Set::Scalar yield = 1.0, hardening = 1.0, theta_tmp = 1.0;
 
-        pp.query("yield", yield);
-        pp.query("hardening", hardening);
-        pp.query("theta", theta_tmp);
+        pp.query("yield", yield); // Yield strength
+        pp.query("hardening", hardening); // Hardening constant
+        pp.query("theta", theta_tmp); // Hardening theta
 
         value.Define(mu, lambda, yield, hardening, theta_tmp);
     }

@@ -12,6 +12,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Operator/Operator.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {
@@ -37,7 +38,11 @@ public:
         if (pp.contains("type"))
         {
             std::string type_str = "disable";
-            pp.query("type", type_str);
+            // Type of mecahnics to use {static,dynamic,disable}
+            // Static: do full implicit solve.
+            // Dynamic: evolve dynamic equations with explicit dynamics
+            // Disable: do nothing.
+            pp.query("type", type_str); 
             if (type_str == "static")        value.m_type = Type::Static;
             else if (type_str == "dynamic")  value.m_type = Type::Dynamic;
             else if (type_str == "disable")  value.m_type = Type::Disable;
@@ -45,6 +50,9 @@ public:
         }
         if (value.m_type == Type::Disable) return;
 
+        // Treat mechanics fields as changing in time. [false]
+        // You should use this if you care about other physics driven by
+        // the output of this integrator.
         pp.query("time_evolving", value.m_time_evolving);
 
         value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp", value.m_time_evolving);
@@ -62,7 +70,7 @@ public:
             value.RegisterGeneralFab(value.vel_mf, 1, 2, "vel");
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
-            pp.query("viscous.mu", value.mu);
+            pp.query("viscous.mu", value.mu); // Viscous (rate) damping parameter
         }
 
         std::string bc_type = "constant";
@@ -74,7 +82,7 @@ public:
         else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp, "bc.expression");
         else Util::Abort(INFO, "Invalid bc.type ", bc_type);
 
-        pp.query("print_model", value.m_print_model);
+        pp.query("print_model", value.m_print_model); // Print out model variables (if enabled by model)
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
 
@@ -82,6 +90,7 @@ public:
         std::string rhstype;
         pp.query("rhs.type", rhstype); // Initializer for RHS
         if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
+        else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
 
         // Timestep interval for elastic solves (default - solve every time)
         pp.query("interval", value.m_interval);
@@ -98,7 +107,7 @@ public:
         // Maximum multigrid coarsening level (default - none, maximum coarsening)
         pp.query("max_coarsening_level", value.m_max_coarsening_level);
 
-        pp.query("print_residual", value.m_print_residual);
+        pp.query("print_residual", value.m_print_residual); // Whether to include residual output field
         if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf, 1, 2, "res", false);
 
         pp.query("elastic_ref_threshold", value.m_elastic_ref_threshold); // Whether to refine based on elastic solution
@@ -125,7 +134,7 @@ protected:
         else rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
 
-    virtual void UpdateModel(int a_step) = 0;
+    virtual void UpdateModel(int a_step, Set::Scalar a_time) = 0;
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
@@ -140,7 +149,7 @@ protected:
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
 
-        UpdateModel(a_step);
+        UpdateModel(a_step,a_time);
 
         if (m_type != Mechanics<MODEL>::Type::Static) return;
         if (a_time < tstart) return;
