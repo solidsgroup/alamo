@@ -134,6 +134,7 @@ def test(testdir):
         record = dict()
         record['testdir'] = os.path.dirname(testdir).split('/')[-1]
         record['section'] = desc
+        record['testid']  = testid
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -266,6 +267,25 @@ def test(testdir):
                     print(",{} {:.2f}% slower{})".format(color.magenta,100*(executionTime-benchmark)/executionTime,color.reset))
                     slowers += 1
             else: print(")")
+
+            # Scan metadata file for insteresting things to include in the record
+            if args.post:
+                metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
+                metadata = dict()
+                for line in metadatafile.readlines():
+                    if line.startswith('#'): continue;
+                    if '::' in line:
+                        line = re.sub(r'\([^)]*\)', '',line)
+                        line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+                    if len(line.split(' = ')) != 2: continue;
+                    col = line.split(' = ')[0]#.replace('.','_')
+                    val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
+                    metadata[col] = val
+                metadatafile.close()
+                record['git_commit_hash'] = metadata['Git_commit_hash']
+                p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
+                record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
+            
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
