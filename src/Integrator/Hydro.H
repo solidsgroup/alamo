@@ -41,17 +41,17 @@ protected:
     virtual void UpdateEta(int lev, Set::Scalar time);
 private:
 
-    Set::Field<Set::Scalar> etaDensity_mf;
-    Set::Field<Set::Scalar> etaDensity_old_mf;
+    Set::Field<Set::Scalar> Density_mf;
+    Set::Field<Set::Scalar> Density_old_mf;
 
-    Set::Field<Set::Scalar> etaEnergy_mf;
-    Set::Field<Set::Scalar> etaEnergy_old_mf;
+    Set::Field<Set::Scalar> Energy_mf;
+    Set::Field<Set::Scalar> Energy_old_mf;
 
-    Set::Field<Set::Scalar> etaMomentum_mf;
-    Set::Field<Set::Scalar> etaMomentum_old_mf;
+    Set::Field<Set::Scalar> Momentum_mf;
+    Set::Field<Set::Scalar> Momentum_old_mf;
 
     Set::Field<Set::Scalar> Velocity_mf;
-    Set::Field<Set::Scalar> etaPressure_mf;
+    Set::Field<Set::Scalar> Pressure_mf;
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
@@ -74,7 +74,7 @@ private:
     BC::BC<Set::Scalar>* bc_eta;
 
     IC::IC* ic_Velocity;
-    IC::IC* ic_etaPressure;
+    IC::IC* ic_Pressure;
 
     IC::IC* ic_rhoInterface;
     IC::IC* ic_vInjected;
@@ -83,7 +83,7 @@ private:
     IC::IC* ic_eta;
     IC::IC* ic_etadot;
 
-BC::Nothing bc_nothing;
+    BC::Nothing bc_nothing;
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
@@ -91,8 +91,8 @@ BC::Nothing bc_nothing;
 
     Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion, omega_refinement_criterion;
     Set::Scalar gamma, cfl, mu;
-    Set::Scalar rho_fluid;
-    Set::Scalar epsilon, Ldot_active;
+    Set::Scalar rho_fluid, rho_solid, v_solid;
+    Set::Scalar epsilon, Ldot_active, peak_grad_eta;
 };
 }
 
