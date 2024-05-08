@@ -68,6 +68,8 @@ parser.add_argument('--dryrun',default=False,action='store_true',help='Do not ac
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
 parser.add_argument('--post', default=False, action='store_true', help='Use ./scripts/post.py script to post results')
+parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
+parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -268,23 +270,35 @@ def test(testdir):
                     slowers += 1
             else: print(")")
 
+            #
             # Scan metadata file for insteresting things to include in the record
+            #
             if args.post:
-                metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
-                metadata = dict()
-                for line in metadatafile.readlines():
-                    if line.startswith('#'): continue;
-                    if '::' in line:
-                        line = re.sub(r'\([^)]*\)', '',line)
-                        line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
-                    if len(line.split(' = ')) != 2: continue;
-                    col = line.split(' = ')[0]#.replace('.','_')
-                    val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
-                    metadata[col] = val
-                metadatafile.close()
-                record['git_commit_hash'] = metadata['Git_commit_hash']
-                p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
-                record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
+                try:
+                    metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
+                    metadata = dict()
+                    for line in metadatafile.readlines():
+                        if line.startswith('#'): continue;
+                        if '::' in line:
+                            line = re.sub(r'\([^)]*\)', '',line)
+                            line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+                        if len(line.split(' = ')) != 2: continue;
+                        col = line.split(' = ')[0]#.replace('.','_')
+                        val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
+                        metadata[col] = val
+                    metadatafile.close()
+                    record['git_commit_hash'] = metadata['Git_commit_hash']
+                    p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
+                    record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
+                except Exception as e:
+                    print(e)
+
+            #
+            # Clean up all of the node and cell file 
+            #
+            if args.clean:
+                print("todo!")
+
             
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
