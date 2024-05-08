@@ -7,6 +7,7 @@ from datetime import datetime
 import socket
 import time
 import re
+import pathlib
 
 from sympy import capture
 
@@ -77,6 +78,12 @@ if args.coverage and args.no_coverage:
 if args.only_coverage and args.no_coverage:
     raise Exception("Cannot specify both --only-coverage and --no-coverage")
 
+if args.post:
+    import post
+    postdata = post.init()
+
+
+
 class DryRunException(Exception):
     pass
 
@@ -134,9 +141,10 @@ def test(testdir):
     for desc in sections:
 
         record = dict()
-        record['testdir'] = os.path.dirname(testdir).split('/')[-1]
+        record['testdir'] = testdir
         record['section'] = desc
         record['testid']  = testid
+        record['path'] = "{}/{}_{}".format(testdir,testid,desc)
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -270,36 +278,6 @@ def test(testdir):
                     slowers += 1
             else: print(")")
 
-            #
-            # Scan metadata file for insteresting things to include in the record
-            #
-            if args.post:
-                try:
-                    metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
-                    metadata = dict()
-                    for line in metadatafile.readlines():
-                        if line.startswith('#'): continue;
-                        if '::' in line:
-                            line = re.sub(r'\([^)]*\)', '',line)
-                            line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
-                        if len(line.split(' = ')) != 2: continue;
-                        col = line.split(' = ')[0]#.replace('.','_')
-                        val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
-                        metadata[col] = val
-                    metadatafile.close()
-                    record['git_commit_hash'] = metadata['Git_commit_hash']
-                    p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
-                    record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
-                except Exception as e:
-                    print(e)
-
-            #
-            # Clean up all of the node and cell file 
-            #
-            if args.clean:
-                print("todo!")
-
-            
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
@@ -380,7 +358,58 @@ def test(testdir):
         else:
             record['checkStatus'] = 'NONE'
 
+
+        #
+        # Scan metadata file for insteresting things to include in the record
+        #
+        if args.post:
+            try:
+                metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
+                metadata = dict()
+                for line in metadatafile.readlines():
+                    if line.startswith('#'): continue;
+                    if '::' in line:
+                        line = re.sub(r'\([^)]*\)', '',line)
+                        line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+                    if len(line.split(' = ')) != 2: continue;
+                    col = line.split(' = ')[0]#.replace('.','_')
+                    val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
+                    metadata[col] = val
+                metadatafile.close()
+                record['git_commit_hash'] = metadata['Git_commit_hash']
+                record['platform'] = metadata['Platform']
+                record['test-section'] = record['testdir'] + '/' + record['section']
+                p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
+                record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
+            except Exception as e:
+                True # permissive
+
+            try:
+                post.updateDatabase(postdata,[record])
+            except Exception as e:
+                print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
         records.append(record)
+
+
+        #
+        # Clean up all of the node and cell file 
+        #
+        ok_to_clean = False
+        if args.clean and record['runStatus'] == 'PASS':
+            if not 'checkStatus' in record.keys():
+                ok_to_clean = True # successful run and no testing done
+            elif record['checkStatus'] == 'PASS':
+                ok_to_clean = True # successful run and testing completed
+            else:
+                ok_to_clean = False # successful run but testing failed
+        else:
+            ok_to_clean = False
+
+        if ok_to_clean:
+            path = "{}/{}_{}".format(testdir,testid,desc)
+            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+            
+        
             
     # Print a quick summary for this test family.
     summary = "  └ "
@@ -397,6 +426,8 @@ def test(testdir):
 # Otherwise look at everything in ./tests/
 if args.tests: tests = sorted(args.tests)
 else: tests = sorted(glob.glob("./tests/*"))
+
+tests = [str(pathlib.Path(f)) for f in tests]
 
 class stats:
     fails = 0   # Number of failed runs - script errors if this is nonzero
@@ -435,10 +466,6 @@ if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
 if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
 print("")
-
-if args.post:
-    import post
-    post.updateDatabase(stats.records)
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
 exit(stats.fails + stats.skips)
