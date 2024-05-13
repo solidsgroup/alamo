@@ -70,9 +70,9 @@ public:
         //compute wave strengths
 
         Set::Scalar drho, dp, dvel;
-        dvel = hi.velocity_normal * lo.eta   - lo.velocity_normal * hi.eta  ;
-        dp   = hi.pressure        * cell_eta - lo.pressure        * cell_eta;
-        drho = hi.rho             * lo.eta   - lo.rho             * hi.eta  ;
+        dvel = (hi.velocity_normal * lo.eta   - lo.velocity_normal * hi.eta  ) * cell_eta;
+        dp   = (hi.pressure        * cell_eta - lo.pressure        * cell_eta) * cell_eta;
+        drho = (hi.rho             * lo.eta   - lo.rho             * hi.eta  ) * cell_eta;
 
         std::array <double, 3> dv;
         dv[0] = drho - dp / a_RL2;

@@ -205,7 +205,7 @@ void Hydro::Mix(int lev)
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
-    peak_grad_eta = 0.0;
+    peak_grad_eta = 1.0;
 }
 
 void Hydro::UpdateEta(int lev, Set::Scalar time)
@@ -379,16 +379,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Godunov fluxes
             E_new(i, j, k) =
                 /*Update fluid energy*/
-                eta(i, j, k) * E(i, j, k)
+                eta(i, j, k) * (0.5 * (M(i, j, k, 0) * M(i, j, k, 0) + M(i, j, k, 1) * M(i, j, k, 1))/rho(i, j, k)) + (E(i, j, k) - 0.5 * (M(i, j, k, 0) * M(i, j, k, 0) + M(i, j, k, 1) * M(i, j, k, 1))/rho(i, j, k))
                 + ((flux_xlo.etaEnergy - flux_xhi.etaEnergy) / DX[0]
                 //+  (flux_ylo.etaEnergy - flux_yhi.etaEnergy) / DX[1]
-                +  0.5 * gamma/(gamma - 1.0) * (v(i+1,j,k,0) * p(i+1,j,k) * eta(i+1,j,k) - v(i-1,j,k,0) * p(i-1,j,k) * eta(i-1,j,k)) / DX[0]
+                -  0.5 * gamma/(gamma - 1.0) * (v(i+1,j,k,0) * p(i+1,j,k) * eta(i+1, j, k) - v(i-1,j,k,0) * p(i-1,j,k) * eta(i-1, j, k)) / DX[0] * eta(i, j, k)
                 //+  0.5 * gamma/(gamma - 1.0) * (v(i,j+1,k,1) * p(i,j+1,k) * eta(i,j+1,k) - v(i,j-1,k,1) * p(i,j-1,k) * eta(i,j-1,k)) / DX[1] 
                 //+  2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u; 
                 +  Source(i, j, k, 3)) * dt
                 //+ E(i, j, k) * etadot(i, j, k)) * dt
                 /*Update solid energy*/
-                + (1.0 - eta(i, j, k)) * (0.5 * rho_solid * v_solid * v_solid + p(i, j, k)/(gamma - 1.0));
+                + (1.0 - eta(i, j, k)) * (0.5 * rho_solid * v_solid * v_solid);
                 
             rho_new(i, j, k) =
                 /*Update fluid density*/
@@ -405,7 +405,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 eta(i, j, k) * M(i, j, k, 0)
                 + ((flux_xlo.etaMomentum_normal  - flux_xhi.etaMomentum_normal) / DX[0]
                 //+  (flux_ylo.etaMomentum_tangent - flux_yhi.etaMomentum_tangent) / DX[1]
-                +  0.5 * (p(i+1,j,k) - p(i-1,j,k)) /DX[0]
+                - 0.5 * (p(i+1,j,k) - p(i-1,j,k)) / DX[0] * eta(i, j, k) * eta(i, j, k) * eta(i, j, k)
                 +  Source(i, j, k, 1)) * dt
                 //+  M(i, j, k, 0) * etadot(i, j, k)
                 //+  mu * eta_cell * lap_ux) * dt
