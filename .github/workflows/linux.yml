@@ -157,4 +157,4 @@ jobs:
     - name: unit tests
       run: ./bin/test-2d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200
+      run: scripts/runtests.py --no-coverage --dim=2 --benchmark=beaker
