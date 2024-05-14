@@ -9,7 +9,7 @@ datfile = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
 start = [0,0]
 end   = [7,0]
-vars = ["Velocity001","etaPressure"]
+vars = ["Velocity001","Pressure"]
 coord = 'x'
 
 testlib.validate(path=datfile,
