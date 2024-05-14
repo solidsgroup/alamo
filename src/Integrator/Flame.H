@@ -39,6 +39,14 @@ public:
 
     static void Parse(Flame& value, IO::ParmParse& pp);
 
+    ~Flame()
+    {
+        delete bc_eta;
+        delete ic_eta;
+        delete ic_phi;
+        delete ic_phicell;
+            
+    }
 
 protected:
     void Initialize(int lev) override;
