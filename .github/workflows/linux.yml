@@ -146,12 +146,10 @@ jobs:
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200
 
   test-2d-performance:
-    name: 2D Build & Test (22.04)
+    name: beaker performance test
     runs-on: beaker
     steps:
     - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
     - name: configure (2d)
       run: ./configure --dim=2 
     - name: make
