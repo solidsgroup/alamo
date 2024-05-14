@@ -1,0 +1,34 @@
+name: memorycheck
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  test-coverage:
+    name: Generate documentation and test coverage report
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: install valgrind
+      run: sudo apt install valgrind
+    - name: configure (2d)
+      continue-on-error: true
+      run: ./configure --dim=2 --debug
+    - name: make (2d)
+      continue-on-error: true
+      run: make
+    - name: unit tests (2d)
+      continue-on-error: true
+      run: --valgrind --error-exitcode=1 --leak-check=full ./bin/test-2d-debug-g++
+    - name: flame (2d)
+      continue-on-error: true
+      run: --valgrind --error-exitcode=1 --leak-check=full ./bin/alamo-2d-debug-g++ tests/SCPSandwich/input stop_time=0.0002
+    - name: microstructure (2d)
+      continue-on-error: true
+      run: --valgrind --error-exitcode=1 --leak-check=full ./bin/alamo-2d-debug-g++ tests/PerturbedInterface/input stop_time=0.03

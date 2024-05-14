@@ -59,7 +59,12 @@ public:
     PhaseFieldMicrostructure() : Integrator() {};
     PhaseFieldMicrostructure(IO::ParmParse &pp) : Integrator() 
     {pp.queryclass(*this);}
-
+    ~PhaseFieldMicrostructure()
+    {
+        delete boundary;
+        delete ic;
+        delete mybc;
+    }
     static void Parse(PhaseFieldMicrostructure &value, IO::ParmParse &pp)
     {
         BL_PROFILE("PhaseFieldMicrostructure::Parse");
