@@ -24,15 +24,15 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Hydro::Hydro()");
     {
-        pp.query("r_refinement_criterion",     value.r_refinement_criterion    );
-        pp.query("e_refinement_criterion",     value.e_refinement_criterion    );
-        pp.query("m_refinement_criterion",     value.m_refinement_criterion    );
-        pp.query("eta_refinement_criterion",   value.eta_refinement_criterion  );
+        pp.query("r_refinement_criterion", value.r_refinement_criterion);
+        pp.query("e_refinement_criterion", value.e_refinement_criterion);
+        pp.query("m_refinement_criterion", value.m_refinement_criterion);
+        pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
         pp.query("omega_refinement_criterion", value.omega_refinement_criterion);
 
         pp.query("gamma", value.gamma);
-        pp.query("cfl",   value.cfl);
-        pp.query("mu",    value.mu);
+        pp.query("cfl", value.cfl);
+        pp.query("mu", value.mu);
 
         pp.query("rho_fluid", value.rho_fluid);
         pp.query("rho_solid", value.rho_solid);
@@ -43,14 +43,15 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("epsilon", value.epsilon);
 
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
-        value.bc_p   = new BC::Constant(1, pp, "p.bc");
-        value.bc_v   = new BC::Constant(2, pp, "v.bc");
+        value.bc_p = new BC::Constant(1, pp, "p.bc");
+        value.bc_v = new BC::Constant(2, pp, "v.bc");
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
     }
     // Register FabFields:
     {
         int nghost = 2;
 
+<<<<<<< HEAD
         value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, nghost, "eta",     true );
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
         value.RegisterNewFab(value.etadot_mf,  value.bc_eta, 1, nghost, "etadot",  true );
@@ -67,10 +68,28 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.Velocity_mf,    value.bc_v,       2, nghost, "Velocity",    true);
         value.RegisterNewFab(value.Vorticity_mf,  &value.bc_nothing, 1, nghost, "Vorticity",   true);
         value.RegisterNewFab(value.Pressure_mf,    value.bc_p,       1, nghost, "Pressure", true);
+=======
+        value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, nghost, "eta", true);
+        value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
+        value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", true);
 
-        value.RegisterNewFab(value.vInjected_mf,    &value.bc_nothing, 2, nghost, "vInjected",       true);
-        value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface",    true);
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, nghost, "q",               true);
+        value.RegisterNewFab(value.etaDensity_mf, value.bc_rho, 1, nghost, "etaDensity", true);
+        value.RegisterNewFab(value.etaDensity_old_mf, value.bc_rho, 1, nghost, "etarho_old", false);
+
+        value.RegisterNewFab(value.etaEnergy_mf, &value.bc_nothing, 1, nghost, "etaEnergy", true);
+        value.RegisterNewFab(value.etaEnergy_old_mf, &value.bc_nothing, 1, nghost, "etaE_old", false);
+
+        value.RegisterNewFab(value.etaMomentum_mf, &value.bc_nothing, 2, nghost, "etaMomentum", true);
+        value.RegisterNewFab(value.etaMomentum_old_mf, &value.bc_nothing, 2, nghost, "etaM_old", false);
+
+        value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, nghost, "Velocity", true);
+        value.RegisterNewFab(value.Vorticity_mf, &value.bc_nothing, 1, nghost, "Vorticity", true);
+        value.RegisterNewFab(value.etaPressure_mf, value.bc_p, 1, nghost, "etaPressure", true);
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
+
+        value.RegisterNewFab(value.vInjected_mf, &value.bc_nothing, 2, nghost, "vInjected", true);
+        value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface", true);
+        value.RegisterNewFab(value.q_mf, &value.bc_nothing, 2, nghost, "q", true);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, nghost, "Source", true);
     }
@@ -126,6 +145,7 @@ void Hydro::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Hydro::Initialize");
 
+<<<<<<< HEAD
     ic_eta          ->Initialize(lev, eta_mf, 0.0);
     ic_eta          ->Initialize(lev, eta_old_mf, 0.0);
     etadot_mf[lev]  ->setVal(0.0);
@@ -138,6 +158,20 @@ void Hydro::Initialize(int lev)
     ic_q            ->Initialize(lev,q_mf,0.0);
 
     Source_mf[lev]  ->setVal(0.0);
+=======
+    ic_eta->Initialize(lev, eta_mf, 0.0);
+    ic_eta->Initialize(lev, eta_old_mf, 0.0);
+    etadot_mf[lev]->setVal(0.0);
+
+    ic_Velocity->Initialize(lev, Velocity_mf, 0.0);
+    ic_etaPressure->Initialize(lev, etaPressure_mf, 0.0);
+
+    ic_rhoInterface->Initialize(lev, rhoInterface_mf, 0.0);
+    ic_vInjected->Initialize(lev, vInjected_mf, 0.0);
+    ic_q->Initialize(lev, q_mf, 0.0);
+
+    Source_mf[lev]->setVal(0.0);
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
 
     Mix(lev);
 }
@@ -153,6 +187,7 @@ void Hydro::Mix(int lev)
         const amrex::Box& bx       = mfi.validbox();
         const amrex::Box& bx_small = mfi.validbox();
 
+<<<<<<< HEAD
         amrex::Array4<Set::Scalar> const& E_old = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
 
@@ -183,6 +218,36 @@ void Hydro::Mix(int lev)
             M(i, j, k, 1) = rho_fluid * v(i, j, k, 1) * eta(i, j, k) + rho_solid * v_solid * (1.0 - eta(i, j, k));
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
+=======
+        amrex::Array4<Set::Scalar> const& etaE_old = (*etaEnergy_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etaE = (*etaEnergy_mf[lev]).array(mfi);
+
+        amrex::Array4<Set::Scalar> const& etarho_old = (*etaDensity_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etarho = (*etaDensity_mf[lev]).array(mfi);
+
+        amrex::Array4<Set::Scalar> const& etaM_old = (*etaMomentum_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etaM = (*etaMomentum_mf[lev]).array(mfi);
+
+        amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etap = (*etaPressure_mf[lev]).array(mfi);
+
+        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar eta_cell = eta(i, j, k);
+
+            etarho(i, j, k) = eta_cell * rho_fluid;
+            etarho_old(i, j, k) = etarho(i, j, k);
+
+            etaE(i, j, k) = 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) + etap(i, j, k) * eta_cell / (gamma - 1.0); //initial condition is pressure and needs eta multiple
+            etaE_old(i, j, k) = etaE(i, j, k);
+
+            etaM(i, j, k, 0) = etarho(i, j, k) * v(i, j, k, 0);
+            etaM(i, j, k, 1) = etarho(i, j, k) * v(i, j, k, 1);
+            etaM_old(i, j, k, 0) = etaM(i, j, k, 0);
+            etaM_old(i, j, k, 1) = etaM(i, j, k, 1);
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
         });
     }
 
@@ -197,7 +262,7 @@ void Hydro::UpdateEta(int lev, Set::Scalar time)
     ic_eta->Initialize(lev, eta_mf, time);
 }
 
-void Hydro::TimeStepBegin(Set::Scalar , int /*iter*/)
+void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
 {
 }
 
@@ -224,7 +289,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
     std::swap(eta_old_mf, eta_mf);
-    UpdateEta(lev,time);
+    UpdateEta(lev, time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
@@ -254,6 +319,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
+<<<<<<< HEAD
         amrex::Array4<const Set::Scalar> const& rhoInterface = (*rhoInterface_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& q            = (*q_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& vInjected    = (*vInjected_mf[lev]).array(mfi);
@@ -262,6 +328,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
+=======
+        amrex::Array4<const Set::Scalar> const& etarho = (*etaDensity_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etaE = (*etaEnergy_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etaM = (*etaMomentum_old_mf[lev]).array(mfi);
+
+        amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+
+        amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etap = (*etaPressure_mf[lev]).array(mfi);
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -292,6 +368,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 2) = (Pdot0(1) + Ldot0(1));
             Source(i,j, k, 3) = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1));
 
+<<<<<<< HEAD
             //Source Term Update
             E(i, j, k)    += Source(i, j, k, 3) * eta(i, j, k) * dt;
             rho(i, j, k)  += Source(i, j, k, 0) * eta(i, j, k) * dt;
@@ -310,42 +387,70 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
     }
 
+=======
+            v(i, j, k, 0) *= eta(i, j, k);
+            v(i, j, k, 1) *= eta(i, j, k);
+
+            etap(i, j, k) = (etaE(i, j, k) - 0.5 * etarho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))) * (gamma - 1.0);
+
+        });
+    }
+
+    etaPressure_mf[lev]->FillBoundary();
+    Velocity_mf[lev]->FillBoundary();
+
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
 
+<<<<<<< HEAD
         amrex::Array4<const Set::Scalar> const& E   = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& M   = (*Momentum_old_mf[lev]).array(mfi);
+=======
+        amrex::Array4<const Set::Scalar> const& etaE = (*etaEnergy_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etarho = (*etaDensity_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etaM = (*etaMomentum_old_mf[lev]).array(mfi);
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
 
-        amrex::Array4<const Set::Scalar> const& eta    = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
+<<<<<<< HEAD
         amrex::Array4<Set::Scalar> const& E_new   = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& rho_new = (*Density_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& M_new   = (*Momentum_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
+=======
+        amrex::Array4<Set::Scalar> const& etaE_new = (*etaEnergy_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etarho_new = (*etaDensity_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& etaM_new = (*etaMomentum_mf[lev]).array(mfi);
+
+        amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etap = (*etaPressure_mf[lev]).array(mfi);
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
 
         amrex::Array4<const Set::Scalar> const& rhoInterface = (*rhoInterface_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& q            = (*q_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& vInjected    = (*vInjected_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& q = (*q_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& vInjected = (*vInjected_mf[lev]).array(mfi);
 
-        amrex::Array4<Set::Scalar> const& omega  = (*Vorticity_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
         Util::Warning(INFO, "Neumann pressure condition at interface");
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
-            
-            Set::Scalar eta_cell = eta(i  , j  , k);
-            Set::Scalar eta_xlo  = eta(i-1, j  , k);
-            Set::Scalar eta_xhi  = eta(i+1, j  , k);
-            Set::Scalar eta_ylo  = eta(i  , j-1, k);
-            Set::Scalar eta_yhi  = eta(i  , j+1, k);
+        {
+
+            Set::Scalar eta_cell = eta(i, j, k);
+            Set::Scalar eta_xlo = eta(i - 1, j, k);
+            Set::Scalar eta_xhi = eta(i + 1, j, k);
+            Set::Scalar eta_ylo = eta(i, j - 1, k);
+            Set::Scalar eta_yhi = eta(i, j + 1, k);
 
             //Viscous Terms
             Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
@@ -371,10 +476,15 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma, eta_cell);
             flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma, eta_cell);
 
+<<<<<<< HEAD
             Set::Vector grad_eta    = Numeric::Gradient(eta, i, j, k, 0, DX)/peak_grad_eta;
+=======
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
             Set::Scalar etadot_cell = etadot(i, j, k);
-            Set::Matrix gradu       = Numeric::Gradient(v, i, j, k, DX);
+            Set::Matrix gradu = Numeric::Gradient(v, i, j, k, DX);
 
+<<<<<<< HEAD
             //Godunov fluxes
             E_new(i, j, k) =
                 /*Update fluid energy*/
@@ -418,11 +528,74 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //+  mu * eta_cell * lap_uy) * dt
                 /*Update solid momentum*/   
                 + (1.0 - eta(i, j, k)) * (rho_solid * v_solid);
+=======
+            //Diffuse Sources
+
+            // Flow values
+            Set::Vector u(v(i, j, k, 0), v(i, j, k, 1));
+            // Prescribed values
+            Set::Scalar rho0 = rhoInterface(i, j, k);
+            Set::Vector u0 = Set::Vector(vInjected(i, j, k, 0), vInjected(i, j, k, 1)) + grad_eta * etadot_cell;
+            Set::Vector q0 = Set::Vector(q(i, j, k, 0), q(i, j, k, 1));
+            Set::Matrix T = mu * (gradu + gradu.transpose());
+            Set::Matrix R;
+            R(0, 0) = 0;
+            R(0, 1) = -1;
+            R(1, 0) = 1;
+            R(1, 1) = 0;
+            Set::Scalar mdot0 = (rho0 * u0).dot(grad_eta);
+            Set::Vector Pdot0 = (rho0 * (u0 * u0.transpose()) - T) * grad_eta;
+            Set::Vector Ldot0 = 0.0 * grad_eta;//(          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
+            Set::Scalar qdot0 = (0.5 * rho0 * (u0.dot(u0)) * u0 +    /*P/(gamma - 1.0)*u0    +*/     q0).dot(grad_eta);
+
+            Source(i, j, k, 0) = mdot0;
+            Source(i, j, k, 1) = (Pdot0(0) + Ldot0(0));
+            Source(i, j, k, 2) = (Pdot0(1) + Ldot0(1));
+            Source(i, j, k, 3) = (qdot0 + Ldot0(0) * v(i, j, k, 0) + Ldot0(1) * v(i, j, k, 1));
+
+            //Godunov fluxes
+
+            etaE_new(i, j, k) =
+                etaE(i, j, k)
+                + (flux_xlo.etaEnergy - flux_xhi.etaEnergy) * dt / DX[0]
+                + (flux_ylo.etaEnergy - flux_yhi.etaEnergy) * dt / DX[1]
+                + 0.5 * gamma * ((v(i + 1, j, k, 0) * etap(i + 1, j, k) - v(i - 1, j, k, 0) * etap(i - 1, j, k)) - etap(i, j, k) * v(i, j, k, 0) / (eta_cell + small) * (eta_xhi - eta_xlo)) / DX[0] * dt
+                + 0.5 * gamma * ((v(i, j + 1, k, 1) * etap(i, j + 1, k) - v(i, j - 1, k, 1) * etap(i, j - 1, k)) - etap(i, j, k) * v(i, j, k, 1) / (eta_cell + small) * (eta_yhi - eta_ylo)) / DX[1] * dt
+                + Source(i, j, k, 3) * dt
+                + etaE(i, j, k) / (eta_cell + small) * etadot_cell * dt;
+            etarho_new(i, j, k) =
+                etarho(i, j, k)
+                + (flux_xlo.etaMass - flux_xhi.etaMass) * dt / DX[0]
+                + (flux_ylo.etaMass - flux_yhi.etaMass) * dt / DX[1]
+                + Source(i, j, k, 0) * dt
+                + etarho(i, j, k) / (eta_cell + small) * etadot_cell * dt;
+            etaM_new(i, j, k, 0) =
+                etaM(i, j, k, 0)
+                + (flux_xlo.etaMomentum_normal - flux_xhi.etaMomentum_normal) * dt / DX[0]
+                + (flux_ylo.etaMomentum_tangent - flux_yhi.etaMomentum_tangent) * dt / DX[1]
+                + 0.5 * ((etap(i + 1, j, k) - etap(i - 1, j, k)) - etap(i, j, k) / (eta_cell + small) * (eta_xhi - eta_xlo)) / DX[0] * dt
+                + Source(i, j, k, 1) * dt
+                + etaM(i, j, k, 0) / (eta_cell + small) * etadot_cell * dt
+                + mu * eta_cell * lap_ux * dt;
+            etaM_new(i, j, k, 1) =
+                etaM(i, j, k, 1)
+                + (flux_xlo.etaMomentum_tangent - flux_xhi.etaMomentum_tangent) * dt / DX[0]
+                + (flux_ylo.etaMomentum_normal - flux_yhi.etaMomentum_normal) * dt / DX[1]
+                + 0.5 * ((etap(i, j + 1, k) - etap(i, j - 1, k)) - etap(i, j, k) / (eta_cell + small) * (eta_yhi - eta_ylo)) / DX[1] * dt
+                + Source(i, j, k, 2) * dt
+                + etaM(i, j, k, 1) / (eta_cell + small) * etadot_cell * dt
+                + mu * eta_cell * lap_uy * dt;
+
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
 
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
             omega(i, j, k) = eta_cell * (grad_uy(0) - grad_ux(1));
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
         });
     }
 }//end Advance

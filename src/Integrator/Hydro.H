@@ -91,8 +91,13 @@ private:
 
     Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion, omega_refinement_criterion;
     Set::Scalar gamma, cfl, mu;
+<<<<<<< HEAD
     Set::Scalar rho_fluid, rho_solid, v_solid;
     Set::Scalar epsilon, Ldot_active, peak_grad_eta;
+=======
+    Set::Scalar rho_fluid, rho_solid = 1.0;
+    Set::Scalar epsilon, Ldot_active;
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
 };
 }
 

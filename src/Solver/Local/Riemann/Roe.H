@@ -46,6 +46,7 @@ public:
         //Util::Message(INFO, "hi.rho ", hi.rho);
 
         // roe averages
+<<<<<<< HEAD
         Set::Scalar rho_RL = std::sqrt(lo.rho) * std::sqrt(hi.rho);
         Set::Scalar u_RL = (std::sqrt(hi.rho) * hi.velocity_normal + std::sqrt(lo.rho) * lo.velocity_normal) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar h_RL = (std::sqrt(hi.rho) * h_hi + std::sqrt(lo.rho) * h_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
@@ -55,6 +56,19 @@ public:
         Set::Scalar a_RL = std::sqrt(a_RL2);
 
         // flux
+=======
+        Set::Scalar etarho_RL =  std::sqrt(lo.etarho) * std::sqrt(hi.etarho);
+        Set::Scalar u_RL      = (std::sqrt(hi.etarho) * hi.velocity_normal + std::sqrt(lo.etarho) * lo.velocity_normal) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
+        Set::Scalar etah_RL   = (std::sqrt(hi.etarho) * etah_hi            + std::sqrt(lo.etarho) * etah_lo           ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
+        Set::Scalar etap_RL   = (std::sqrt(hi.etarho) * hi.etapressure     + std::sqrt(lo.etarho) * lo.etapressure    ) / (std::sqrt(hi.etarho) + std::sqrt(lo.etarho) + small);
+        Set::Scalar a_RL2     = gamma * etap_RL / (etarho_RL + small);
+
+        if (std::isnan(a_RL2)) Util::Abort(INFO, hi.etapressure, " ", lo.etapressure, " ", hi.etarho, " ", lo.etarho);
+        if (a_RL2 < 0.0) Util::Abort(INFO, hi.etapressure, " ", lo.etapressure, " ", hi.etarho, " ", lo.etarho);
+
+        Set::Scalar a_RL = std::sqrt(a_RL2);
+
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
         Flux fl;
         fl.etaMass             = 0.5 * (lo.rho * lo.velocity_normal * lo.eta + hi.rho * hi.velocity_normal * hi.eta);
         fl.etaMomentum_normal  = 0.5 * (lo.rho * lo.velocity_normal  * lo.velocity_normal * lo.eta + hi.rho * hi.velocity_normal  * hi.velocity_normal * hi.eta);

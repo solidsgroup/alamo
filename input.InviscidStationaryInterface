@@ -51,7 +51,7 @@ plot_file = ./output
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 1
+amr.plot_int = 100
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
@@ -72,7 +72,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-2
-stop_time = 100.0
+stop_time = 1000.0
 
 ### ETA IC ###
 
@@ -82,7 +82,11 @@ rhoInterface.ic.type = expression
 rhoInterface.ic.expression.region0 = "1.0"
 
 vInjected.ic.type = expression
+<<<<<<< HEAD
 vInjected.ic.expression.region0 = "0.1"
+=======
+vInjected.ic.expression.region0 = "0.01"
+>>>>>>> 6c1f6c815d610407b90dc9d631ab8906f33e70d3
 vInjected.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
@@ -90,7 +94,7 @@ q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.2
+eta.ic.expression.constant.eps   = 0.4
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.region0        = "(0.5 + 0.5*tanh(x/eps))"
