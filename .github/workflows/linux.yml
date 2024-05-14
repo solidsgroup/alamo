@@ -144,3 +144,19 @@ jobs:
       run: ./bin/test-2d-clang++
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200
+
+  test-2d-performance:
+    name: 2D Build & Test (22.04)
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure (2d)
+      run: ./configure --dim=2 
+    - name: make
+      run: make
+    - name: unit tests
+      run: ./bin/test-2d-g++
+    - name: regression tests
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200
