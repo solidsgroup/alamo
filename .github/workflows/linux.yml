@@ -147,7 +147,7 @@ jobs:
 
   test-2d-performance:
     name: 2D Build & Test (22.04)
-    runs-on: self-hosted
+    runs-on: beaker
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
