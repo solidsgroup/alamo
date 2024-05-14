@@ -1,4 +1,4 @@
-name: memorycheck
+name: Memory Leak Check
 
 on: [push, pull_request]
 
@@ -9,8 +9,8 @@ permissions:
 
 jobs:
   test-coverage:
-    name: Generate documentation and test coverage report
-    runs-on: ubuntu-20.04
+    name: Compile in debug and run valgrind
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
