@@ -110,7 +110,7 @@ Velocity.ic.expression.region0 = "0.0"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
-Pressure.ic.expression.region0 = "1.0" 
+Pressure.ic.expression.region0 = "1.0 + 0.1*(0.5 + 0.5*tanh((x - 3.0)/0.05))" 
 
 ### ETA BC  ###
 
@@ -130,12 +130,12 @@ pf.eta.bc.val.zhi = 0.0
 
 ### HYDRO BC ###
 
-rho.bc.type.xhi = dirichlet
+rho.bc.type.xhi = neumann
 rho.bc.type.xlo = neumann
 rho.bc.type.ylo = neumann
 rho.bc.type.yhi = neumann
 
-rho.bc.val.xhi = 1.0
+rho.bc.val.xhi = 0.0
 rho.bc.val.xlo = 0.0
 rho.bc.val.ylo = 0.0 
 rho.bc.val.yhi = 0.0
@@ -150,12 +150,12 @@ p.bc.val.xlo = 0.0
 p.bc.val.ylo = 0.0 
 p.bc.val.yhi = 0.0
 
-v.bc.type.xhi = dirichlet neumann
+v.bc.type.xhi = neumann neumann
 v.bc.type.xlo = neumann neumann
 v.bc.type.ylo = neumann neumann
 v.bc.type.yhi = neumann neumann
 
-v.bc.val.xhi = -0.1 0.0
+v.bc.val.xhi = 0.0 0.0
 v.bc.val.xlo = 0.0 0.0
 v.bc.val.ylo = 0.0 0.0
 v.bc.val.yhi = 0.0 0.0
