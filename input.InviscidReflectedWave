@@ -1,81 +1,32 @@
-#@ [stationary-x]
+#@ [reflection-x]
 #@ exe = hydro
-#@ check-file = reference/stationary-x.dat
+#@ check-file = reference/reflection-x.dat
 #@ dim    = 2
 #@ nprocs = 1
-
-#@ [stationary-y]
-#@ exe = hydro
-#@ check-file = reference/stationary-y.dat
-#@ dim    = 2
-#@ nprocs = 1
-#@ args   = amr.n_cell = 20 160 0
-#@ args   = geometry.prob_lo = -0.5 -3.0 0.0
-#@ args   = geometry.prob_hi =  0.5  5.0 0.0
-#@ args   = vInjected.ic.expression.region0="0.0"
-#@ args   = vInjected.ic.expression.region1="0.005"
-#@ args   = eta.ic.expression.region0="0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
-
-#@ [receding-x]
-#@ exe = hydro
-#@ check-file = reference/receding-x.dat
-#@ dim    = 2
-#@ nprocs = 1
-#@ args   = vInjected.ic.expression.region0="-0.001"
-#@ args   = eta.ic.expression.constant.vel_x=-0.001
-#@ args   = rhoInterface.ic.expression.region0="100.0"
-#@ args   = rho_solid=100.0
-
-#@ [receding-y]
-#@ exe = hydro
-#@ check-file = reference/receding-y.dat
-#@ dim    = 2
-#@ nprocs = 1
-#@ args   = amr.n_cell = 20 160 0
-#@ args   = geometry.prob_lo = -0.5 -3.0 0.0
-#@ args   = geometry.prob_hi =  0.5  5.0 0.0
-#@ args   = vInjected.ic.expression.region0="0.0"
-#@ args   = vInjected.ic.expression.region1="-0.001"
-#@ args   = eta.ic.expression.constant.vel_x=0.0
-#@ args   = eta.ic.expression.constant.vel_y=-0.001
-#@ args   = eta.ic.expression.region0="0.5 + 0.5*tanh((y - vel_y*t + 1.5)/eps)"
-#@ args   = rhoInterface.ic.expression.region0="100.0"
-#@ args   = rho_solid=100.0
 
 alamo.program = hydro
 
 ### OUTPUT ###
-
 plot_file = ./output
 
 ### MESHING ###
-
-#amr.plot_dt = 0.1
-amr.plot_int = 1
-amr.max_level = 0
+amr.plot_int = 10
+amr.max_level = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.grid_eff = 0.8
-amr.n_cell = 128 16 #160 20 0
-
-# Uncomment to test AMR
-#amr.max_level = 2
-#amr.n_cell = 128 32 0
+amr.n_cell = 256 32 #160 20 0
 
 ### DIMENSIONS ###
-
 geometry.prob_lo = -4.0 -0.5 0.0 # [ m ] 
 geometry.prob_hi =  4.0  0.5 0.0 # [ m ]
-
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
-
 timestep  = 1.0e-2
-stop_time = 100.0
+stop_time = 10.0
 
 ### ETA IC ###
-
 Ldot_0 = 0.0
 
 rhoInterface.ic.type = expression
@@ -90,7 +41,7 @@ q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.2
+eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.region0        = "(0.5 + 0.5*tanh(x/eps))"
@@ -110,7 +61,7 @@ Velocity.ic.expression.region0 = "0.0"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
-Pressure.ic.expression.region0 = "1.0 + 0.1*(0.5 + 0.5*tanh((x - 3.0)/0.05))" 
+Pressure.ic.expression.region0 = "1.0 + 0.5*(0.5 + 0.5*tanh((x - 3.0)/0.05))" 
 
 ### ETA BC  ###
 
@@ -166,5 +117,3 @@ r_refinement_criterion   = 0.1
 e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
-
-#TODO
