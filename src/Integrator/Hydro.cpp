@@ -148,7 +148,7 @@ void Hydro::Mix(int lev)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx       = mfi.tilebox();
+        const amrex::Box& bx = mfi.growntilebox();
 
         amrex::Array4<Set::Scalar> const& E_old = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
@@ -178,7 +178,7 @@ void Hydro::Mix(int lev)
             M_old(i, j, k, 1) = M(i, j, k, 1);
         });
     }
-        
+
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
@@ -267,7 +267,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector u(v(i,j,k,0),v(i,j,k,1));
             // Prescribed values
             Set::Scalar rho0 = rhoInterface(i, j, k);
-            Set::Vector u0   = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot_cell;
+            Set::Vector u0   = -Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot_cell;
             Set::Vector q0   = Set::Vector(q(i,j,k,0),q(i,j,k,1));
             Set::Matrix T    = mu*(gradu + gradu.transpose());
             Set::Matrix R;
@@ -367,7 +367,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 -  0.5 * gamma/(gamma - 1.0) * (v(i+1,j,k,0) * p(i+1,j,k) * eta(i+1, j, k) - v(i-1,j,k,0) * p(i-1,j,k) * eta(i-1, j, k)) / DX[0]
                 -  0.5 * gamma/(gamma - 1.0) * (v(i,j+1,k,1) * p(i,j+1,k) * eta(i, j+1, k) - v(i,j-1,k,1) * p(i,j-1,k) * eta(i, j-1, k)) / DX[1] ) * dt
                 //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u; 
-                + E(i, j, k) * etadot(i, j, k) * dt
+                - E(i, j, k) * etadot(i, j, k) * dt
                 /*Update solid energy*/
                 + (1.0 - eta(i, j, k)) * (0.5 * rho_solid * v_solid * v_solid + p(i, j, k)/(gamma - 1.0));
                 
@@ -376,7 +376,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 eta(i, j, k) * rho(i, j, k)
                 + ((flux_xlo.etaMass - flux_xhi.etaMass) / DX[0]
                 +  (flux_ylo.etaMass - flux_yhi.etaMass) / DX[1]) * dt
-                + rho(i, j, k) * etadot(i, j, k) * dt
+                - rho(i, j, k) * etadot(i, j, k) * dt
                 /*Update solid density*/
                 + (1.0 - eta(i, j, k)) * rho_solid;         
                 
@@ -386,7 +386,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + ((flux_xlo.etaMomentum_normal  - flux_xhi.etaMomentum_normal) / DX[0]
                 +  (flux_ylo.etaMomentum_tangent - flux_yhi.etaMomentum_tangent) / DX[1]
                 - 0.5 * (p(i+1,j,k) - p(i-1,j,k)) / DX[0]) * eta(i, j, k) * dt
-                +  M(i, j, k, 0) * etadot(i, j, k) * dt
+                -  M(i, j, k, 0) * etadot(i, j, k) * dt
                 +  (mu * eta_cell * lap_ux) * dt
                 /*Update solid momentum*/   
                 + (1.0 - eta(i, j, k)) * (rho_solid * v_solid);
@@ -397,7 +397,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + ((flux_xlo.etaMomentum_tangent - flux_xhi.etaMomentum_tangent) / DX[0]
                 +  (flux_ylo.etaMomentum_normal  - flux_yhi.etaMomentum_normal ) / DX[1]
                 -  0.5 * (p(i,j+1,k) - p(i,j-1,k)) /DX[1]) * eta(i, j, k) * dt
-                + M(i, j, k, 1) * etadot(i, j, k) * dt
+                - M(i, j, k, 1) * etadot(i, j, k) * dt
                 + (mu * eta_cell * lap_uy) * dt
                 /*Update solid momentum*/   
                 + (1.0 - eta(i, j, k)) * (rho_solid * v_solid);
