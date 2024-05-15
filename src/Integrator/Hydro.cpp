@@ -34,9 +34,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("cfl", value.cfl);
         pp.query("mu", value.mu);
 
-        pp.query("rho_fluid", value.rho_fluid);
-        pp.query("rho_solid", value.rho_solid);
-        pp.query("v_solid", value.v_solid);
+        pp.query_required("rho_fluid", value.rho_fluid);
+        pp.query_required("rho_solid", value.rho_solid);
+        pp.query_required("v_solid", value.v_solid);
 
         pp.query("Ldot_active", value.Ldot_active, 0.0);
 
@@ -148,7 +148,7 @@ void Hydro::Mix(int lev)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx       = mfi.validbox();
+        const amrex::Box& bx       = mfi.tilebox();
 
         amrex::Array4<Set::Scalar> const& E_old = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
@@ -178,7 +178,7 @@ void Hydro::Mix(int lev)
             M_old(i, j, k, 1) = M(i, j, k, 1);
         });
     }
-
+        
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;

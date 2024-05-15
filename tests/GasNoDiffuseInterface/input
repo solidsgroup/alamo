@@ -129,3 +129,4 @@ m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 
 #TODO
+v_solid = 0.0

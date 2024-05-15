@@ -59,7 +59,7 @@ def extract(basefilename):
         for i, line in enumerate(lines):
             
             # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall('^\s*pp.(query[arr]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall('^\s*pp.(query[arr]*[_required]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -346,7 +346,7 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                     if writeFiles: docfile.write("    * - {}  \n".format(input['doc'].replace("\n", "\n        ")))
                     for subinput in input["inputs"]:
                         writeInput(subinput,lev+1,prefix + [input["prefix"]])
-                if (input["type"] in ["query","queryarr"]):
+                if (input["type"] in ["query","queryarr","query_required","queryarr_required"]):
                     global num_tot, num_doc
                     if input["parsefn"]: prefix = ["[prefix]"] + prefix
                     num_tot += 1

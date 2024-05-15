@@ -27,6 +27,12 @@ public:
     {
         (void)amrex::ParmParse::contains(name.c_str());
     }
+    int query_required(std::string name, Set::Scalar & value)
+    {
+        if (!contains(name.c_str())) Util::Abort(INFO,name," must be specified");
+        query(name.c_str(),value);
+        return 0;
+    }
     int queryarr(std::string name, Set::Vector & value)
     {
         std::vector<Set::Scalar> vals;

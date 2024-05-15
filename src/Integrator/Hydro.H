@@ -28,6 +28,25 @@ public:
     Hydro() {};
     Hydro(IO::ParmParse& pp);
     static void Parse(Hydro& value, IO::ParmParse& pp);
+    virtual ~Hydro()
+    {
+        delete bc_rho;
+        delete bc_E;
+        delete bc_M;
+        delete bc_v;
+        delete bc_p;
+        delete bc_eta;
+
+        delete ic_Velocity;
+        delete ic_Pressure;
+
+        delete ic_rhoInterface;
+        delete ic_vInjected;
+        delete ic_q;
+
+        delete ic_eta;
+        delete ic_etadot;
+    }
 
 protected:
     void Initialize(int lev) override;
@@ -66,22 +85,22 @@ private:
     Set::Field<Set::Scalar> q_mf;
     Set::Field<Set::Scalar> Source_mf;
 
-    BC::BC<Set::Scalar>* bc_rho;
-    BC::BC<Set::Scalar>* bc_E;
-    BC::BC<Set::Scalar>* bc_M;
-    BC::BC<Set::Scalar>* bc_v;
-    BC::BC<Set::Scalar>* bc_p;
-    BC::BC<Set::Scalar>* bc_eta;
+    BC::BC<Set::Scalar>* bc_rho = nullptr;
+    BC::BC<Set::Scalar>* bc_E = nullptr;
+    BC::BC<Set::Scalar>* bc_M = nullptr;
+    BC::BC<Set::Scalar>* bc_v = nullptr;
+    BC::BC<Set::Scalar>* bc_p = nullptr;
+    BC::BC<Set::Scalar>* bc_eta = nullptr;
 
-    IC::IC* ic_Velocity;
-    IC::IC* ic_Pressure;
+    IC::IC* ic_Velocity = nullptr;
+    IC::IC* ic_Pressure = nullptr;
 
-    IC::IC* ic_rhoInterface;
-    IC::IC* ic_vInjected;
-    IC::IC* ic_q;
+    IC::IC* ic_rhoInterface = nullptr;
+    IC::IC* ic_vInjected = nullptr;
+    IC::IC* ic_q = nullptr;
 
-    IC::IC* ic_eta;
-    IC::IC* ic_etadot;
+    IC::IC* ic_eta = nullptr;
+    IC::IC* ic_etadot = nullptr;
 
     BC::Nothing bc_nothing;
 
