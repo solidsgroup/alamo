@@ -93,7 +93,7 @@ public:
     /// ```
     Integrator();
 
-    ~Integrator();
+    virtual ~Integrator();
 
     /// \fn    FrontData
     /// \brief Front-end method to initialize simulation

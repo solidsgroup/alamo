@@ -59,7 +59,7 @@ public:
     PhaseFieldMicrostructure() : Integrator() {};
     PhaseFieldMicrostructure(IO::ParmParse &pp) : Integrator() 
     {pp.queryclass(*this);}
-    ~PhaseFieldMicrostructure()
+    virtual ~PhaseFieldMicrostructure()
     {
         delete boundary;
         delete ic;
@@ -208,7 +208,7 @@ private:
     Set::Field<Set::Scalar> eta_new_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
     Set::Field<Set::Scalar> eta_old_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 
-    BC::BC<Set::Scalar> *mybc;
+    BC::BC<Set::Scalar> *mybc = nullptr;
 
     //amrex::Real M, mu, gamma, sigma0, l_gb, beta;
     RegularizationType regularization = RegularizationType::K12;
@@ -246,9 +246,9 @@ private:
 
     std::string gb_type, filename;
 
-    Model::Interface::GB::GB *boundary;
+    Model::Interface::GB::GB *boundary = nullptr;
 
-    IC::IC *ic;
+    IC::IC *ic = nullptr;
 
     Set::Scalar volume = 5;
     Set::Scalar area = 0.0;

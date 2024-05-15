@@ -162,38 +162,32 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("phi.ic.type", phi_ic_type); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-            value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             pp.query("phi.ic.psread.eps", value.zeta); // AP/HTPB interface length
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
         }
         else if (phi_ic_type == "laminate") {
             value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
-            value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             pp.query("phi.ic.laminate.eps", value.zeta); // AP/HTPB interface length
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
         }
         else if (phi_ic_type == "expression") {
             value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
-            value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
             pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
         else if (phi_ic_type == "constant") {
             value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
-            value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
             pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
         else if (phi_ic_type == "bmp") {
             value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
-            value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
             pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
         else Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
         value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
-        value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
     }
 
     pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
@@ -220,7 +214,6 @@ void Flame::Initialize(int lev)
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
     ic_phi->Initialize(lev, phi_mf);
-    ic_phicell->Initialize(lev, phicell_mf);
 
     if (elastic.on) {
         psi_mf[lev]->setVal(1.0);
@@ -254,7 +247,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
         //psi_mf[lev]->setVal(1.0);
         phi_mf[lev]->FillBoundary();
-        phicell_mf[lev]->FillBoundary();
         eta_mf[lev]->FillBoundary();
         temp_mf[lev]->FillBoundary();
 
@@ -351,7 +343,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
-                //amrex::Array4<const Set::Scalar> const& phicell = (*phicell_mf[lev]).array(mfi);
                 // Heat transfer fields
                 amrex::Array4<Set::Scalar>       const& tempnew = (*temp_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& temp = (*temp_old_mf[lev]).array(mfi);
@@ -377,9 +368,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phicell(i,j,k);
-
-
 
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
                     Set::Scalar K; // Calculate effective thermal conductivity
@@ -413,7 +401,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phicell(i,j,k);
                     Set::Scalar K;
                     Set::Scalar qflux = k1 * phi_avg +
                         k2 * (1.0 - phi_avg) +
@@ -465,7 +452,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phicell(i,j,k);
 
                     Set::Scalar L;
                     if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
@@ -592,7 +578,6 @@ void Flame::Regrid(int lev, Set::Scalar time)
     //if (lev < finest_level) return;
     //phi_mf[lev]->setVal(0.0);
     ic_phi->Initialize(lev, phi_mf, time);
-    ic_phicell->Initialize(lev, phi_mf, time);
 }
 
 void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
