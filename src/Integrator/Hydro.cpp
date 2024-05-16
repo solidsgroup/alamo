@@ -148,7 +148,7 @@ void Hydro::Mix(int lev)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
+        const amrex::Box& bx = mfi.validbox();
 
         amrex::Array4<Set::Scalar> const& E_old = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
@@ -278,7 +278,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             R(1,1) = 0;
             Set::Scalar mdot0 =  (                             rho0 * u0                             ).dot(grad_eta);
             Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose()) - T                    )*grad_eta;
-            Set::Vector Ldot0 =  0.0 * grad_eta;//(          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
+            Set::Vector Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta;// + Ldot_active*R*grad_eta;
             Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   /*-     p(i, j, k)/(gamma - 1.0)*u0 */   +     q0 ).dot(grad_eta); 
             
             Source(i,j, k, 0) = (mdot0);
