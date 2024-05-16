@@ -59,6 +59,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
         else if (eta_ic_type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
+        else if (eta_ic_type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
         else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
     }
 
