@@ -201,6 +201,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
             pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
+        else if (phi_ic_type == "png"){
+            value.ic_phi = new IC::PNG(value.geom, pp, "phi.ic.bmp");
+            pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
+            pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
+        }
         else Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
         value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
