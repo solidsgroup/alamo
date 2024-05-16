@@ -292,7 +292,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             rho(i, j, k)  += Source(i, j, k, 0) * dt;
             M(i, j, k, 0) += Source(i, j, k, 1) * dt;
             M(i, j, k, 1) += Source(i, j, k, 2) * dt;
-
+            
             //Compute Primitive Variables
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
@@ -302,7 +302,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             if (grad_eta_mag > peak_grad_eta) peak_grad_eta = grad_eta_mag;
         });
     }
-    
+
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
@@ -364,8 +364,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 eta(i, j, k) * E(i, j, k)
                 + ((flux_xlo.etaEnergy - flux_xhi.etaEnergy) / DX[0]
                 +  (flux_ylo.etaEnergy - flux_yhi.etaEnergy) / DX[1]
-                   -  0.5 * gamma/(gamma - 1.0) * (v(i+1,j,k,0) * p(i+1,j,k) * eta(i+1, j, k) - v(i-1,j,k,0) * p(i-1,j,k) * eta(i-1, j, k)) / DX[0]
-                   -  0.5 * gamma/(gamma - 1.0) * (v(i,j+1,k,1) * p(i,j+1,k) * eta(i, j+1, k) - v(i,j-1,k,1) * p(i,j-1,k) * eta(i, j-1, k)) / DX[1] ) * dt
+                -  0.5 * gamma/(gamma - 1.0) * (v(i+1,j,k,0) * p(i+1,j,k) * eta(i+1, j, k) - v(i-1,j,k,0) * p(i-1,j,k) * eta(i-1, j, k)) / DX[0]
+                -  0.5 * gamma/(gamma - 1.0) * (v(i,j+1,k,1) * p(i,j+1,k) * eta(i, j+1, k) - v(i,j-1,k,1) * p(i,j-1,k) * eta(i, j-1, k)) / DX[1] ) * dt
                 //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u; 
                 - E(i, j, k) * etadot(i, j, k) * dt
                 /*Update solid energy*/

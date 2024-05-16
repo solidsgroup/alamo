@@ -50,8 +50,8 @@ public:
         Set::Scalar u_RL = (std::sqrt(hi.rho) * hi.velocity_normal + std::sqrt(lo.rho) * lo.velocity_normal) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar h_RL = (std::sqrt(hi.rho) * h_hi + std::sqrt(lo.rho) * h_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar a_RL2 = (gamma - 1) * (h_RL - 0.5 * u_RL * u_RL);
-        if (std::isnan(a_RL2)) Util::Abort(INFO, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
-        if (a_RL2 < 0.0) Util::Abort(INFO, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
+        if (std::isnan(a_RL2)) Util::Abort(INFO, cell_eta, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
+        if (a_RL2 < 0.0) Util::Abort(INFO, cell_eta, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
         Set::Scalar a_RL = std::sqrt(a_RL2);
 
         // flux
