@@ -38,7 +38,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("rho_solid", value.rho_solid);
         pp.query("v_solid", value.v_solid);
 
-        pp.query("Ldot_active", value.Ldot_active, 0.0);
+        value.Ldot_active = 0.0; // default value
+        pp.query("Ldot_active", value.Ldot_active);
 
         pp.query("epsilon", value.epsilon);
 
@@ -238,7 +239,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box& bx = mfi.tilebox();
 
         amrex::Array4< Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4< Set::Scalar> const& E   = (*Energy_old_mf[lev]).array(mfi);
@@ -278,7 +279,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             R(1,1) = 0;
             Set::Scalar mdot0 =  (                             rho0 * u0                             ).dot(grad_eta);
             Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose()) - T                    )*grad_eta;
-            Set::Vector Ldot0 =  0.0 * grad_eta;//(          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
+            Set::Vector Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
             Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   /*-     p(i, j, k)/(gamma - 1.0)*u0 */   +     q0 ).dot(grad_eta); 
             
             Source(i,j, k, 0) = (mdot0);
@@ -291,7 +292,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             rho(i, j, k)  += Source(i, j, k, 0) * dt;
             M(i, j, k, 0) += Source(i, j, k, 1) * dt;
             M(i, j, k, 1) += Source(i, j, k, 2) * dt;
-            
+
             //Compute Primitive Variables
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
@@ -301,7 +302,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             if (grad_eta_mag > peak_grad_eta) peak_grad_eta = grad_eta_mag;
         });
     }
-
+    
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
@@ -363,8 +364,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 eta(i, j, k) * E(i, j, k)
                 + ((flux_xlo.etaEnergy - flux_xhi.etaEnergy) / DX[0]
                 +  (flux_ylo.etaEnergy - flux_yhi.etaEnergy) / DX[1]
-                -  0.5 * gamma/(gamma - 1.0) * (v(i+1,j,k,0) * p(i+1,j,k) * eta(i+1, j, k) - v(i-1,j,k,0) * p(i-1,j,k) * eta(i-1, j, k)) / DX[0]
-                -  0.5 * gamma/(gamma - 1.0) * (v(i,j+1,k,1) * p(i,j+1,k) * eta(i, j+1, k) - v(i,j-1,k,1) * p(i,j-1,k) * eta(i, j-1, k)) / DX[1] ) * dt
+                   -  0.5 * gamma/(gamma - 1.0) * (v(i+1,j,k,0) * p(i+1,j,k) * eta(i+1, j, k) - v(i-1,j,k,0) * p(i-1,j,k) * eta(i-1, j, k)) / DX[0]
+                   -  0.5 * gamma/(gamma - 1.0) * (v(i,j+1,k,1) * p(i,j+1,k) * eta(i, j+1, k) - v(i,j-1,k,1) * p(i,j-1,k) * eta(i, j-1, k)) / DX[1] ) * dt
                 //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u; 
                 - E(i, j, k) * etadot(i, j, k) * dt
                 /*Update solid energy*/
