@@ -34,9 +34,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("cfl", value.cfl);
         pp.query("mu", value.mu);
 
-        pp.query_required("rho_fluid", value.rho_fluid);
-        pp.query_required("rho_solid", value.rho_solid);
-        pp.query_required("v_solid", value.v_solid);
+        pp.query("rho_fluid", value.rho_fluid);
+        pp.query("rho_solid", value.rho_solid);
+        pp.query("v_solid", value.v_solid);
 
         pp.query("Ldot_active", value.Ldot_active, 0.0);
 
@@ -260,6 +260,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {   
             //Diffuse Sources
             Set::Vector grad_eta    = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
             Set::Scalar etadot_cell = etadot(i, j, k);
             Set::Matrix gradu       = Numeric::Gradient(v, i, j, k, DX);
         
@@ -267,7 +268,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector u(v(i,j,k,0),v(i,j,k,1));
             // Prescribed values
             Set::Scalar rho0 = rhoInterface(i, j, k);
-            Set::Vector u0   = -Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) + grad_eta * etadot_cell;
+            Set::Vector u0   = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) - grad_eta * etadot_cell/(grad_eta_mag * grad_eta_mag + 1.0e-12);
             Set::Vector q0   = Set::Vector(q(i,j,k,0),q(i,j,k,1));
             Set::Matrix T    = mu*(gradu + gradu.transpose());
             Set::Matrix R;
@@ -278,7 +279,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar mdot0 =  (                             rho0 * u0                             ).dot(grad_eta);
             Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose()) - T                    )*grad_eta;
             Set::Vector Ldot0 =  0.0 * grad_eta;//(          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
-            Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   +    /*P/(gamma - 1.0)*u0    +*/     q0 ).dot(grad_eta); 
+            Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   /*-     p(i, j, k)/(gamma - 1.0)*u0 */   +     q0 ).dot(grad_eta); 
             
             Source(i,j, k, 0) = (mdot0);
             Source(i,j, k, 1) = (Pdot0(0) + Ldot0(0));
@@ -286,10 +287,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 3) = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1));
 
             //Source Term Update
-            E(i, j, k)    += Source(i, j, k, 3) * eta(i, j, k) * dt;
-            rho(i, j, k)  += Source(i, j, k, 0) * eta(i, j, k) * dt;
-            M(i, j, k, 0) += Source(i, j, k, 1) * eta(i, j, k) * dt;
-            M(i, j, k, 1) += Source(i, j, k, 2) * eta(i, j, k) * dt;
+            E(i, j, k)    += Source(i, j, k, 3) * dt;
+            rho(i, j, k)  += Source(i, j, k, 0) * dt;
+            M(i, j, k, 0) += Source(i, j, k, 1) * dt;
+            M(i, j, k, 1) += Source(i, j, k, 2) * dt;
             
             //Compute Primitive Variables
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
@@ -297,9 +298,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             p(i, j, k) = (E(i, j, k) - 0.5 * (M(i, j, k, 0) * M(i, j, k, 0) + M(i, j, k, 1) * M(i, j, k, 1))/rho(i, j, k)) * (gamma - 1.0);
 
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-            if (grad_eta_mag > peak_grad_eta) 
-            peak_grad_eta = grad_eta_mag;
+            if (grad_eta_mag > peak_grad_eta) peak_grad_eta = grad_eta_mag;
         });
     }
 
@@ -311,7 +310,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& M   = (*Momentum_old_mf[lev]).array(mfi);
 
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta    = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& E_new   = (*Energy_mf[lev]).array(mfi);
@@ -329,10 +328,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {
 
             Set::Scalar eta_cell = eta(i, j, k);
-            Set::Scalar eta_xlo = eta(i - 1, j, k);
-            Set::Scalar eta_xhi = eta(i + 1, j, k);
-            Set::Scalar eta_ylo = eta(i, j - 1, k);
-            Set::Scalar eta_yhi = eta(i, j + 1, k);
+            Set::Scalar eta_xlo  = eta(i - 1, j, k);
+            Set::Scalar eta_xhi  = eta(i + 1, j, k);
+            Set::Scalar eta_ylo  = eta(i, j - 1, k);
+            Set::Scalar eta_yhi  = eta(i, j + 1, k);
 
             //Viscous Terms
             Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
