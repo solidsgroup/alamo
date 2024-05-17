@@ -97,6 +97,28 @@ def extract(basefilename):
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
                 insert(query)
+                continue
+
+            # Catch standard pp.query_default and pp.queryarr_default inputs
+            match = re.findall('^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            if match:
+                #print(match)
+                query = dict()
+                query["type"] = match[0][0]
+                query["string"] = match[0][1]
+                query["possibles"] = match[0][2]
+                query["doc"] = match[0][3]
+                query["file"] = filename
+                query["line"] = i+1
+                query["default"] = True
+                
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if match: query["doc"] = match[0] + " " + query["doc"]
+                    else: break
+                insert(query)
                 print(query)
                 continue
 
@@ -356,12 +378,12 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 docfile.write("\n\n")
                 docfile.write(".. rst-class:: api-inputs-table\n\n")
                 docfile.write(".. flat-table:: \n")
-                docfile.write("    :widths: 20 10 60 10\n")
+                docfile.write("    :widths: 40 10 40 10\n")
                 docfile.write("    :header-rows: 1\n\n")
                 docfile.write("    * - Parameter\n")
                 docfile.write("      - Type\n")
                 docfile.write("      - Description\n")
-                docfile.write("      - \n")
+                docfile.write("      - Values\n")
     
             def writeInput(input,lev,prefix):
                 prefix = list(filter(lambda x: x != "", prefix))
@@ -369,7 +391,7 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                     if writeFiles: docfile.write("    * - {}  \n".format(input['doc'].replace("\n", "\n        ")))
                     for subinput in input["inputs"]:
                         writeInput(subinput,lev+1,prefix + [input["prefix"]])
-                if (input["type"] in ["query","queryarr",
+                if (input["type"] in ["query","queryarr","query_validate",
                                       "query_default","queryarr_default",
                                       "query_required","queryarr_required"]):
                     global num_tot, num_doc
@@ -385,12 +407,18 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                         if writeFiles:
                             docfile.write(      "      - {}\n".format(input['doc'].replace('\n','\n        ')))
                             docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
-                            if "default" in input.keys():
-                                docfile.write(      "      - :bdg-primary-line:`default: {}`".format(input['default']))
-                                docfilesearch.write("      - :bdg-primary-line:`default: {}`".format(input['default']))
+                            if "_default" in input["type"]:
+                                docfile.write(      "      - :bdg-success:`{}`".format(input['default'].strip()))
+                                docfilesearch.write("      - :bdg-success:`{}`".format(input['default'].strip()))
                             if "_required" in input["type"]:
                                 docfile.write(      "      - :bdg-danger-line:`required`")
                                 docfilesearch.write("      - :bdg-danger-line:`required`")
+                            if "_validate" in input["type"]:
+                                things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
+                                string = ":bdg-success:`{}` ".format(things[0])
+                                string += " ".join([":bdg-primary:`{}`".format(t) for t in things[1:]]) 
+                                docfile.write      (      "      - {}".format(string))
+                                docfilesearch.write(      "      - {}".format(string))
                                 
                     else:
                         print(input['file'],':',input['line'],' ',input['string'],' missing documentation')

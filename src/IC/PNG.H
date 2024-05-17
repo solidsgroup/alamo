@@ -246,7 +246,7 @@ private:
     //Util::BMP bmp;
     Fit fit = Fit::Stretch;
     Channel channel = Channel::G;
-    Set::Scalar min = 0.0, max = 255.0;
+    Set::Scalar min = NAN, max = NAN;
 
 public:
     static void Parse(PNG& value, IO::ParmParse& pp)
@@ -270,7 +270,9 @@ public:
         else Util::Abort(INFO, "Invalid value for png fit - should be stretch/fitheight/fitwidth/coord but received '", fit, "'");
 
         std::string channel = "g";
-        pp.query("channel", channel); // Color channel to use (options: r, R, g, G, b, B, a, A)
+        //pp.query("channel", channel); // Color channel to use (options: r, R, g, G, b, B, a, A)
+        
+        pp.query_validate("channel", channel, {"r","g","b","a","R","G","B","A"}); // Color channel to use (options: r, R, g, G, b, B, a, A)
         if (channel == "r" || channel == "R") value.channel = Channel::R;
         else if (channel == "g" || channel == "G") value.channel = Channel::G;
         else if (channel == "b" || channel == "B") value.channel = Channel::B;
@@ -279,8 +281,8 @@ public:
 
         value.min = 0.0; //(Set::Scalar) value.bmp.min()[value.channel];
         value.max = 255.0; //(Set::Scalar) value.bmp.max()[value.channel];
-        pp.query("min", value.min); // Scaling value - minimum (default: 0.0)
-        pp.query("max", value.max); // Scaling value - maximum (default: 255.0)
+        pp.query_default("min", value.min, 0.0  ); // Scaling value - minimum
+        pp.query_default("max", value.max, 255.0); // Scaling value - maximum
     }
 };
 }

@@ -136,11 +136,11 @@ public:
     static void Parse(Hexagonal & value, IO::ParmParse & pp)
     {
         Set::Scalar C11 = NAN, C12 = NAN, C13 = NAN, C33 = NAN, C44 = NAN;
-        pp.query("C11",C11); // Elastic constant
-        pp.query("C12",C12); // Elastic constant
-        pp.query("C13",C13); // Elastic constant
-        pp.query("C33",C33); // Elastic constant
-        pp.query("C44",C44); // Elastic constant
+        pp.query_required("C11",C11); // Elastic constant
+        pp.query_required("C12",C12); // Elastic constant
+        pp.query_required("C13",C13); // Elastic constant
+        pp.query_required("C33",C33); // Elastic constant
+        pp.query_required("C44",C44); // Elastic constant
 
         if (pp.contains("random"))
         {
@@ -148,10 +148,10 @@ public:
             return;
         }
 
-        Set::Scalar phi1 = 0.0, Phi = 0.0, phi2 = 0.0;
-        pp.query("phi1",phi1);  // Bunge Euler angle :math:`\phi_1`
-        pp.query("Phi",Phi);    // Bunge Euler angle :math:`\Phi`
-        pp.query("phi2",phi2);  // Bunge Euler angle :math:`\phi_2`
+        Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
+        pp.query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
+        pp.query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:`\Phi`
+        pp.query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:`\phi_2`
         value.Define(C11,C12,C13,C33,C44,phi1,Phi,phi2);
     }
 
