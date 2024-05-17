@@ -195,8 +195,9 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             if "args" in config[c]:
                 cmd += " "
                 cmdargs = [s.replace("= ","=").replace(" =","=") for s in config[c]["args"].split("\n")]
-                cmd += " ".join(['{}="{}"'.format(s.split('=')[0], s.split('=')[1]) for s in cmdargs])
-                print(cmd)
+                for s in cmdargs:
+                    if len(s.split('=')) == 2:
+                        cmd += ' {}="{}"'.format(s.split('=')[0], s.split('=')[1])
             if "ignore" in config[c]:
                 cmd += ' ignore="{}"'.format(config[c]["ignore"])
 

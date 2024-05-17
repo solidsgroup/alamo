@@ -59,7 +59,7 @@ def extract(basefilename):
         for i, line in enumerate(lines):
             
             # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall('^\s*pp.(query[arr]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall('^\s*pp.(query[arr]*[_required]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -76,6 +76,28 @@ def extract(basefilename):
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
                 insert(query)
+                continue
+
+            # Catch standard pp.query_default and pp.queryarr_default inputs
+            match = re.findall('^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"]+)"*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            if match:
+                #print(match)
+                query = dict()
+                query["type"] = match[0][0]
+                query["string"] = match[0][1]
+                query["default"] = match[0][2]
+                query["doc"] = match[0][3]
+                query["file"] = filename
+                query["line"] = i+1
+                
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if match: query["doc"] = match[0] + " " + query["doc"]
+                    else: break
+                insert(query)
+                print(query)
                 continue
 
             # Catch pp.queryclass inputs
@@ -334,11 +356,12 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 docfile.write("\n\n")
                 docfile.write(".. rst-class:: api-inputs-table\n\n")
                 docfile.write(".. flat-table:: \n")
-                docfile.write("    :widths: 20 10 70\n")
+                docfile.write("    :widths: 20 10 60 10\n")
                 docfile.write("    :header-rows: 1\n\n")
                 docfile.write("    * - Parameter\n")
                 docfile.write("      - Type\n")
                 docfile.write("      - Description\n")
+                docfile.write("      - \n")
     
             def writeInput(input,lev,prefix):
                 prefix = list(filter(lambda x: x != "", prefix))
@@ -346,7 +369,9 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                     if writeFiles: docfile.write("    * - {}  \n".format(input['doc'].replace("\n", "\n        ")))
                     for subinput in input["inputs"]:
                         writeInput(subinput,lev+1,prefix + [input["prefix"]])
-                if (input["type"] in ["query","queryarr"]):
+                if (input["type"] in ["query","queryarr",
+                                      "query_default","queryarr_default",
+                                      "query_required","queryarr_required"]):
                     global num_tot, num_doc
                     if input["parsefn"]: prefix = ["[prefix]"] + prefix
                     num_tot += 1
@@ -358,8 +383,15 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                     if input["doc"] != "":
                         num_doc += 1
                         if writeFiles:
-                            docfile.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
+                            docfile.write(      "      - {}\n".format(input['doc'].replace('\n','\n        ')))
                             docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
+                            if "default" in input.keys():
+                                docfile.write(      "      - :bdg-primary-line:`default: {}`".format(input['default']))
+                                docfilesearch.write("      - :bdg-primary-line:`default: {}`".format(input['default']))
+                            if "_required" in input["type"]:
+                                docfile.write(      "      - :bdg-danger-line:`required`")
+                                docfilesearch.write("      - :bdg-danger-line:`required`")
+                                
                     else:
                         print(input['file'],':',input['line'],' ',input['string'],' missing documentation')
                         if writeFiles:

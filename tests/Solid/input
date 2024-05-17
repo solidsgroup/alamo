@@ -130,8 +130,8 @@ geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 1 1 1
 
 nmodels = 1
-model1.E=210 
-model1.nu=0.3
+#model1.E=210 
+#model1.nu=0.3
 
 solver.verbose = 3
 solver.nriters = 1

@@ -174,11 +174,11 @@ public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
         std::string filename;
-        pp.query("filename",filename); // BMP filename.
+        pp.query_required("filename",filename); // BMP filename.
         value.bmp.Define(filename);
 
-        std::string fit = "stretch";
-        pp.query("fit",fit); // How to fit. (options: stretch, fitheight, fitwidth)
+        std::string fit;
+        pp.query_default("fit",fit,"stretch"); // How to fit. (options: stretch, fitheight, fitwidth)
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
@@ -186,12 +186,12 @@ public:
         {
             value.fit = Fit::Coord;
             pp.queryarr("coord.lo",value.coord_lo); // Location of lower-left corner in the domain
-            pp.queryarr("coord.hi",value.coord_hi); // Locatino of upper-right corner in the domain
+            pp.queryarr("coord.hi",value.coord_hi); // Location of upper-right corner in the domain
         }
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
 
-        std::string channel = "g";
-        pp.query("channel",channel); // Color channel to use (options: r, R, g, G, b, B)
+        std::string channel;
+        pp.query_default("channel",channel,"g"); // Color channel to use (options: r, R, g, G, b, B)
         if      (channel=="r" || channel=="R") value.channel = Channel::R;
         else if (channel=="g" || channel=="G") value.channel = Channel::G;
         else if (channel=="b" || channel=="B") value.channel = Channel::B;
@@ -199,8 +199,8 @@ public:
 
         value.min = (Set::Scalar) value.bmp.min()[value.channel];
         value.max = (Set::Scalar) value.bmp.max()[value.channel];
-        pp.query("min",value.min); // Scaling value - minimum (default: 0.0)
-        pp.query("max",value.max); // Scaling value - maximum (default: 255.0)
+        pp.query_default("min",value.min,0); // Scaling value - minimum
+        pp.query_default("max",value.max,255.0); // Scaling value - maximum
 }    
 };
 }
