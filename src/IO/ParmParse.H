@@ -42,7 +42,7 @@ public:
         }
         return query(name.c_str(),value);
     } 
-    int query_validate(std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault = false)
+    int query_validate(std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault = true)
     {
         
         // if not using default values, then the input must be specified
