@@ -20,10 +20,10 @@ Integrator::Integrator() : amrex::AmrCore()
     {
         // These are basic parameters that are, in 
         // general, common to all Alamo simulations.
-        amrex::ParmParse pp;
+        IO::ParmParse pp;
         pp.query("max_step", max_step);               // Number of iterations before ending
-        pp.query("stop_time", stop_time);             // Simulation time before ending
-        pp.query("timestep", timestep);                // Nominal timestep on amrlev = 0
+        pp.query_required("stop_time", stop_time);    // Simulation time before ending
+        pp.query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
         pp.query("restart", restart_file_cell);       // Name of restart file to READ from
         pp.query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
         pp.query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
@@ -48,7 +48,7 @@ Integrator::Integrator() : amrex::AmrCore()
     {
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
-        amrex::ParmParse pp("amr");
+        IO::ParmParse pp("amr");
         pp.query("regrid_int", regrid_int);           // Regridding interval in step numbers
         pp.query("base_regrid_int", base_regrid_int); // Regridding interval based on coarse level only
         pp.query("plot_int", plot_int);               // Interval (in timesteps) between plotfiles
@@ -90,7 +90,7 @@ Integrator::Integrator() : amrex::AmrCore()
     {
         // Information on how to generate thermodynamic
         // data (to show up in thermo.dat)
-        amrex::ParmParse pp("amr.thermo");
+        IO::ParmParse pp("amr.thermo");
         thermo.interval = 1;                           // Default: integrate every time.
         pp.query("int", thermo.interval);              // Integration interval (1)
         pp.query("plot_int", thermo.plot_int);         // Interval (in timesteps) between writing

@@ -296,7 +296,7 @@ protected:
 
     // TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
-    amrex::Real timestep;   ///< Timestep for the base level of refinement
+    amrex::Real timestep = NAN;   ///< Timestep for the base level of refinement
 private:
     amrex::Vector<amrex::Real> dt;  ///< Timesteps for each level of refinement
     amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
@@ -305,7 +305,7 @@ private:
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
     int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
     amrex::Real tstart = 0; ///< Default start time (default: 0)
-    amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
+    amrex::Real stop_time = NAN; ///< Default stop time 
 
 protected:
     bool integrate_variables_before_advance = true;

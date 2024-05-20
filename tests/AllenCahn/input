@@ -46,6 +46,7 @@ alpha.bc.val.yhi = 0.0
 alpha.ic.type = bmp
 alpha.ic.bmp.filename = tests/AllenCahn/bordernoise.bmp
 alpha.ic.bmp.fit = fitwidth
+alpha.ic.bmp.channel = g
 
 ch.L = 1.0
 ch.eps = 0.01
