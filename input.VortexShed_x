@@ -9,7 +9,7 @@ plot_file = ./output
 amr.plot_dt = 1.0
 #amr.plot_int = 1000
 amr.max_grid_size = 500000
-amr.blocking_factor = 8
+amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.8
 
@@ -43,16 +43,17 @@ vInjected.ic.type = expression
 vInjected.ic.expression.region0 = "0.0"
 vInjected.ic.expression.region1 = "0.0"
 
-Ldot_active = 0.0
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
 
-deltapInterface.ic.type = expression
-deltapInterface.ic.expression.region0 = "0.0"
+Ldot_active = 0.0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.1
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.constant.x0 = -9.0 
+eta.ic.expression.constant.x0    = -9.0 
 eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 0.5)/eps) + 0.5*tanh((sqrt((x-x0)**2 + (y)**2) - 0.5)/eps))"
 
 ### HYDRO PARAM ###
@@ -63,13 +64,13 @@ mu    = 0.05
 
 rho_solid = 100.0 #kg/m^3
 rho_fluid = 100.0 #kg/m^3
+v_solid   = 0.0 #m/s
 
 Velocity.ic.type = expression
 Velocity.ic.expression.region0 = "0.2"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
-Pressure.ic.expression.constant.gamma = 1.4
 Pressure.ic.expression.region0 = "2.0"
 
 ### ETA BC  ###
@@ -96,17 +97,17 @@ rho.bc.type.ylo = neumann
 rho.bc.type.yhi = neumann
 
 rho.bc.val.xhi = 0.0
-rho.bc.val.xlo = 20.0
+rho.bc.val.xlo = 100.0
 rho.bc.val.ylo = 0.0 
 rho.bc.val.yhi = 0.0
 
 p.bc.type.xhi = neumann
-p.bc.type.xlo = dirichlet
+p.bc.type.xlo = neumann
 p.bc.type.ylo = neumann
 p.bc.type.yhi = neumann
 
 p.bc.val.xhi = 0.0
-p.bc.val.xlo = 2.0
+p.bc.val.xlo = 0.0
 p.bc.val.ylo = 0.0 
 p.bc.val.yhi = 0.0
 

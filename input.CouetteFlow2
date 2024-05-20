@@ -51,12 +51,12 @@ plot_file = ./output
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 1
+amr.plot_int = 10
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.grid_eff = 0.8
-amr.n_cell = 128 128 #160 20 0
+amr.n_cell = 64 64 #160 20 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -64,15 +64,15 @@ amr.n_cell = 128 128 #160 20 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -4.0 -4.0 0.0 # [ m ] 
-geometry.prob_hi =  4.0  4.0 0.0 # [ m ]
+geometry.prob_lo = -1.0 -1.0 0.0 # [ m ] 
+geometry.prob_hi =  1.0  1.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
 timestep  = 1.0e-4
-stop_time = 1000.0
+stop_time = 1.0
 
 ### ETA IC ###
 
@@ -82,7 +82,7 @@ rhoInterface.ic.type = expression
 rhoInterface.ic.expression.region0 = "1.0"
 
 vInjected.ic.type = expression
-vInjected.ic.expression.region0 = "0.01"
+vInjected.ic.expression.region0 = "0.1"
 vInjected.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
@@ -90,27 +90,27 @@ q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.2
+eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "(0.5 + 0.5*tanh((y+2.0)/eps))"
+eta.ic.expression.region0        = "(0.5 + 0.5*tanh((y)/eps))"
 
 ### HYDRO PARAM ###
 
 gamma = 1.4
 cfl   = 0.4
-mu    = 10.0
+mu    = 1.0
 
 rho_fluid = 1.0 #kg/m^3
 rho_solid = 1.0 #kg/m^3
-v_solid = 0.0 #m/s
+v_solid   = 0.1 #m/s
 
 Velocity.ic.type = expression
 Velocity.ic.expression.region0 = "0.0"
 Velocity.ic.expression.region1 = "0.0"
 
 Pressure.ic.type = expression
-Pressure.ic.expression.region0 = "10.0" 
+Pressure.ic.expression.region0 = "1.0" 
 
 ### ETA BC  ###
 
@@ -166,5 +166,6 @@ r_refinement_criterion   = 0.1
 e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.1
 
 #TODO

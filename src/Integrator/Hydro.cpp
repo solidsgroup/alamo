@@ -24,24 +24,22 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Hydro::Hydro()");
     {
-        pp.query("r_refinement_criterion", value.r_refinement_criterion);
-        pp.query("e_refinement_criterion", value.e_refinement_criterion);
-        pp.query("m_refinement_criterion", value.m_refinement_criterion);
-        pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
-        pp.query("omega_refinement_criterion", value.omega_refinement_criterion);
+        pp.query_required("r_refinement_criterion",     value.r_refinement_criterion    );
+        pp.query_required("e_refinement_criterion",     value.e_refinement_criterion    );
+        pp.query_required("m_refinement_criterion",     value.m_refinement_criterion    );
+        pp.query_required("eta_refinement_criterion",   value.eta_refinement_criterion  );
+        pp.query_required("omega_refinement_criterion", value.omega_refinement_criterion);
 
-        pp.query("gamma", value.gamma);
-        pp.query("cfl", value.cfl);
-        pp.query("mu", value.mu);
+        pp.query_required("gamma", value.gamma);
+        pp.query_required("cfl", value.cfl);
+        pp.query_required("mu", value.mu);
 
-        pp.query("rho_fluid", value.rho_fluid);
-        pp.query("rho_solid", value.rho_solid);
-        pp.query("v_solid", value.v_solid);
+        pp.query_required("rho_fluid", value.rho_fluid);
+        pp.query_required("rho_solid", value.rho_solid);
+        pp.query_required("v_solid", value.v_solid);
 
         value.Ldot_active = 0.0; // default value
-        pp.query("Ldot_active", value.Ldot_active);
-
-        pp.query("epsilon", value.epsilon);
+        pp.query_required("Ldot_active", value.Ldot_active);
 
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
@@ -65,13 +63,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.Momentum_mf,     &value.bc_nothing, 2, nghost, "Momentum", true );
         value.RegisterNewFab(value.Momentum_old_mf, &value.bc_nothing, 2, nghost, "M_old",    false);
 
-        value.RegisterNewFab(value.Velocity_mf,    value.bc_v,       2, nghost, "Velocity",    true);
-        value.RegisterNewFab(value.Vorticity_mf,  &value.bc_nothing, 1, nghost, "Vorticity",   true);
-        value.RegisterNewFab(value.Pressure_mf,    value.bc_p,       1, nghost, "Pressure", true);
+        value.RegisterNewFab(value.Velocity_mf,    value.bc_v,       2, nghost, "Velocity",  true);
+        value.RegisterNewFab(value.Vorticity_mf,  &value.bc_nothing, 1, nghost, "Vorticity", true);
+        value.RegisterNewFab(value.Pressure_mf,    value.bc_p,       1, nghost, "Pressure",  true);
 
-        value.RegisterNewFab(value.vInjected_mf, &value.bc_nothing, 2, nghost, "vInjected", true);
+        value.RegisterNewFab(value.vInjected_mf,    &value.bc_nothing, 2, nghost, "vInjected",    true);
         value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface", true);
-        value.RegisterNewFab(value.q_mf, &value.bc_nothing, 2, nghost, "q", true);
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, nghost, "q",            true);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, nghost, "Source", true);
     }
@@ -127,16 +125,16 @@ void Hydro::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Hydro::Initialize");
 
-    ic_eta          ->Initialize(lev, eta_mf, 0.0);
+    ic_eta          ->Initialize(lev, eta_mf,     0.0);
     ic_eta          ->Initialize(lev, eta_old_mf, 0.0);
     etadot_mf[lev]  ->setVal(0.0);
 
     ic_Velocity     ->Initialize(lev, Velocity_mf, 0.0);
     ic_Pressure     ->Initialize(lev, Pressure_mf, 0.0);
 
-    ic_rhoInterface ->Initialize(lev,rhoInterface_mf,0.0);
-    ic_vInjected    ->Initialize(lev,vInjected_mf,0.0);
-    ic_q            ->Initialize(lev,q_mf,0.0);
+    ic_rhoInterface ->Initialize(lev, rhoInterface_mf, 0.0);
+    ic_vInjected    ->Initialize(lev, vInjected_mf,    0.0);
+    ic_q            ->Initialize(lev, q_mf,            0.0);
 
     Source_mf[lev]  ->setVal(0.0);
 
@@ -147,9 +145,9 @@ void Hydro::Mix(int lev)
 {
     Util::Message(INFO, eta_mf[lev]->nComp());
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
+        const amrex::Box& bx = mfi.validbox();
 
         amrex::Array4<Set::Scalar> const& E_old = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
@@ -183,7 +181,6 @@ void Hydro::Mix(int lev)
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
-    peak_grad_eta = 1.0;
 }
 
 void Hydro::UpdateEta(int lev, Set::Scalar time)
@@ -207,8 +204,6 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
     Set::Scalar new_timestep = cfl / ((c_max + vx_max) / DX[0] + (c_max + vy_max) / DX[1]);
 
-    amrex::ParallelDescriptor::ReduceRealMax(peak_grad_eta);
-
     Util::Assert(INFO, TEST(AMREX_SPACEDIM == 2));
 
     SetTimestep(new_timestep);
@@ -219,7 +214,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     std::swap(eta_old_mf, eta_mf);
     UpdateEta(lev, time);
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
@@ -237,9 +232,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.tilebox();
+        const amrex::Box& bx = mfi.validbox();
 
         amrex::Array4< Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4< Set::Scalar> const& E   = (*Energy_old_mf[lev]).array(mfi);
@@ -280,11 +275,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar mdot0 =  (                             rho0 * u0                             ).dot(grad_eta);
             Set::Vector Pdot0 =  (                 rho0 * (u0*u0.transpose()) - T                    )*grad_eta;
             Set::Vector Ldot0 =  (          -rho0 * (u0*u0.transpose() - u*u.transpose())            )*grad_eta + Ldot_active*R*grad_eta;
-            Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0   /*-     p(i, j, k)/(gamma - 1.0)*u0 */   +     q0 ).dot(grad_eta); 
+            Set::Scalar qdot0 =  (0.5*rho0*(u0.dot(u0))*u0          - T*u0                  +     q0 ).dot(grad_eta); 
             
             Source(i,j, k, 0) = (mdot0);
-            Source(i,j, k, 1) = (Pdot0(0) + Ldot0(0));
-            Source(i,j, k, 2) = (Pdot0(1) + Ldot0(1));
+            Source(i,j, k, 1) = (Pdot0(0) + Ldot0(0)) + mu * u0(0) * grad_eta(1);
+            Source(i,j, k, 2) = (Pdot0(1) + Ldot0(1)) - mu * u0(1) * grad_eta(0);
             Source(i,j, k, 3) = (qdot0    + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1));
 
             //Source Term Update
@@ -299,7 +294,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             p(i, j, k) = (E(i, j, k) - 0.5 * (M(i, j, k, 0) * M(i, j, k, 0) + M(i, j, k, 1) * M(i, j, k, 1))/rho(i, j, k)) * (gamma - 1.0);
 
-            if (grad_eta_mag > peak_grad_eta) peak_grad_eta = grad_eta_mag;
         });
     }
 
@@ -321,7 +315,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
-        amrex::Array4<Set::Scalar> const& omega = (*Vorticity_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& omega   = (*Vorticity_mf[lev]).array(mfi);
 
         Util::Warning(INFO, "Neumann pressure condition at interface");
 
@@ -400,7 +394,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 - M(i, j, k, 1) * etadot(i, j, k) * dt
                 + (mu * eta_cell * lap_uy) * dt
                 /*Update solid momentum*/   
-                + (1.0 - eta(i, j, k)) * (rho_solid * v_solid);
+                + (1.0 - eta(i, j, k)) * 0.0;//(rho_solid * v_solid);
 
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);

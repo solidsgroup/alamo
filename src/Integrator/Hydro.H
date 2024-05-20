@@ -108,10 +108,10 @@ private:
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-    Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion, omega_refinement_criterion;
-    Set::Scalar gamma, cfl, mu;
-    Set::Scalar rho_fluid, rho_solid, v_solid;
-    Set::Scalar epsilon, Ldot_active, peak_grad_eta;
+    Set::Scalar r_refinement_criterion=NAN, e_refinement_criterion=NAN, m_refinement_criterion=NAN, eta_refinement_criterion=NAN, omega_refinement_criterion=NAN;
+    Set::Scalar gamma=NAN, cfl=NAN, mu=NAN;
+    Set::Scalar rho_fluid=NAN, rho_solid=NAN, v_solid=NAN;
+    Set::Scalar Ldot_active=NAN;
 };
 }
 
