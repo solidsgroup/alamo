@@ -119,7 +119,6 @@ def extract(basefilename):
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
                 insert(query)
-                print(query)
                 continue
 
             # Catch pp.queryclass inputs
