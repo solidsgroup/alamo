@@ -201,8 +201,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
             pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
-        else if (phi_ic_type == "png"){
-            value.ic_phi = new IC::PNG(value.geom, pp, "phi.ic.bmp");
+        else if (phi_ic_type == "png") {
+            value.ic_phi = new IC::PNG(value.geom, pp, "phi.ic.png");
             pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
             pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
@@ -344,11 +344,13 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
+    if (variable_pressure){ 
     Set::Scalar domain_area = x_len * y_len;
     chamber_pressure = pressure.P;
     chamber_area = domain_area - volume;
     Util::Message(INFO, "Mass = ", massflux);
     Util::Message(INFO, "Pressure = ", pressure.P);
+    }
 }
 
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
@@ -641,20 +643,32 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
     amrex::Array4<amrex::Real> const& mdot = (*mdot_mf[amrlev]).array(mfi);
-    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-    {
-        volume += eta(i, j, k, 0) * dv;
-        Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-        Set::Scalar normgrad = grad.lpNorm<2>();
-        Set::Scalar da = normgrad * dv;
-        area += da;
+    if (variable_pressure) {
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            volume += eta(i, j, k, 0) * dv;
+            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar normgrad = grad.lpNorm<2>();
+            Set::Scalar da = normgrad * dv;
+            area += da;
 
-        Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
-        Set::Scalar mnormgrad = mgrad.lpNorm<2>();
-        Set::Scalar dm = mnormgrad * dv;
-        massflux += dm;
+            Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
+            Set::Scalar mnormgrad = mgrad.lpNorm<2>();
+            Set::Scalar dm = mnormgrad * dv;
+            massflux += dm;
 
-    });
+        });
+    }
+    else {
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            volume += eta(i, j, k, 0) * dv;
+            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar normgrad = grad.lpNorm<2>();
+            Set::Scalar da = normgrad * dv;
+            area += da;
+        });
+    }
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
