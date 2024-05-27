@@ -8,15 +8,15 @@
 :fas:`forward;fa-fw` Getting Started
 ====================================
 
-Installation Recipes
+
+
+.. include:: ../../Readme.rst
+ 
+
+Installing on Mac OS
 ====================
 
 .. literalinclude:: ../../.github/workflows/install-macos.sh
    :caption: Mac OS Installation
    :language: bash
    :lines: 2-
-
-
-.. include:: ../../Readme.rst
- 
-
