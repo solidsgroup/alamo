@@ -42,6 +42,68 @@ public:
     {
         (void)amrex::ParmParse::contains(name.c_str());
     }
+    template<typename T>
+    int query_required(std::string name, T & value)
+    {
+        if (!contains(name.c_str())) Util::Abort(INFO,name," must be specified");
+        return query(name.c_str(),value);
+    }
+    template<typename T>
+    int query_default(std::string name, T & value, T defaultvalue)
+    {
+        if (!contains(name.c_str()))
+        {
+            add(name.c_str(),defaultvalue);
+        }
+        return query(name.c_str(),value);
+    } 
+    int query_validate(std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault = true)
+    {
+        
+        // if not using default values, then the input must be specified
+        if (!firstbydefault)
+        {
+            if (!contains(name.c_str())) Util::Abort(INFO,name," must be specified");
+        }
+
+        // set default value
+        value = std::string(possiblecharvals[0]);
+
+        // get the read value (if it exists)
+        int retval = query(name.c_str(),value);
+
+        // check to make sure the read value matches one of the inpus
+        bool ok = false;
+        for (unsigned int i = 0; i < possiblecharvals.size(); i++)
+        {
+            if (value == std::string(possiblecharvals[i])) ok = true;
+        }
+        
+        if (ok) return retval;
+
+        std::stringstream ss;
+        ss << possiblecharvals[0];
+        for (unsigned int i = 1; i < possiblecharvals.size(); i++)
+            ss << "," << possiblecharvals[i];
+
+        Util::Abort(INFO,"Reading '",name,"' expected [", ss.str(), "] but got ", value);
+
+        return -1;
+    }
+    
+    // special case for strings
+    int query_default(std::string name, std::string & value, const char *defaultvalue)
+    {
+        return query_default(name, value, std::string(defaultvalue));
+    }
+    // special case for bools
+    int query_default(std::string name, int & value, bool defaultvalue)
+    {
+        int defaultint = 0;
+        if (defaultvalue) defaultint = 1;
+        return query_default(name, value, defaultint);
+    }
+
     int queryarr(std::string name, Set::Vector & value)
     {
         std::vector<Set::Scalar> vals;

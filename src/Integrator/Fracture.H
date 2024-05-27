@@ -27,7 +27,7 @@
 
 #include "Model/Solid/Solid.H"
 #include "Model/Solid/Linear/Isotropic.H"
-#include "Model/Solid/Linear/IsotropicDegradable.H"
+//#include "Model/Solid/Linear/IsotropicDegradable.H"
 //#include "Model/Solid/Affine/J2PlasticDegradable.H"
 //#include "Model/Solid/Affine/CrystalPlasticDegradable.H"
 
@@ -40,8 +40,8 @@
 
 namespace Integrator
 {
-//using brittle_fracture_model_type_test = Model::Solid::Linear::Isotropic;
-using brittle_fracture_model_type_test = Model::Solid::Linear::IsotropicDegradable;
+using brittle_fracture_model_type_test = Model::Solid::Linear::Isotropic;
+//using brittle_fracture_model_type_test = Model::Solid::Linear::IsotropicDegradable;
 
 class Fracture : public Integrator
 {
@@ -65,7 +65,7 @@ public:
 
         // IC for crack field
         IO::ParmParse pp("crack.ic");
-        pp.queryarr("type", crack.ic_type);
+        pp.queryarr("type", crack.ic_type); // Type of crack {notch,ellipsoid}
         
         if (crack.ic_type.size() == 0) crack.is_ic = false;
         else
@@ -230,8 +230,9 @@ protected:
         // if(iter%elastic.interval != 0) return;
         
         Util::Message(INFO);
-        for (int p = 0; p < number_of_materials; p++)
-            material.brittlemodeltype[p].DegradeModulus(0.0);
+        Util::Abort(INFO,"DegradeModulus is no longer implemented");
+        // for (int p = 0; p < number_of_materials; p++)
+        //     material.brittlemodeltype[p].DegradeModulus(0.0);
         
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
@@ -270,7 +271,8 @@ protected:
             {
                 amrex::Box box = mfi.grownnodaltilebox();
                 amrex::Array4<const Set::Scalar> const& c = (*crack.c_mf[ilev]).array(mfi);
-                amrex::Array4<brittle_fracture_model_type_test> model = (material.model_mf)[ilev]->array(mfi);
+                Util::Abort(INFO,"This is depricated and needs to be upgraded!");
+                //amrex::Array4<brittle_fracture_model_type_test> model = (material.model_mf)[ilev]->array(mfi);
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                                             Set::Scalar _temp = 0.0;
@@ -283,7 +285,9 @@ protected:
                     
                                             // _temp = std::max(crack.scaleModulusMax, _temp);
                                             // _temp = std::max(crack.scaleModulusMax, crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax));
-                                            model(i,j,k).DegradeModulus(1-_temp);
+
+                                            Util::Abort(INFO,"DegradeModulus is no longer available");
+                                            //model(i,j,k).DegradeModulus(1-_temp);
                                         });
             }
             Util::RealFillBoundary(*material.model_mf[ilev],geom[ilev]);

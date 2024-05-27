@@ -7,6 +7,7 @@ from datetime import datetime
 import socket
 import time
 import re
+import pathlib
 
 from sympy import capture
 
@@ -67,12 +68,21 @@ parser.add_argument('--benchmark',default=socket.gethostname(),help='Current pla
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
+parser.add_argument('--post', default=False, action='store_true', help='Use ./scripts/post.py script to post results')
+parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
+parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
     raise Exception("Cannot specify both --coverage and --no-coverage")
 if args.only_coverage and args.no_coverage:
     raise Exception("Cannot specify both --only-coverage and --no-coverage")
+
+if args.post:
+    import post
+    postdata = post.init()
+
+
 
 class DryRunException(Exception):
     pass
@@ -97,6 +107,7 @@ def test(testdir):
     fasters = 0
     slowers = 0
     timeouts = 0
+    records = []
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
@@ -121,13 +132,19 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,[]
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
 
     # Iterate through all test configurations
     for desc in sections:
+
+        record = dict()
+        record['testdir'] = testdir
+        record['section'] = desc
+        record['testid']  = testid
+        record['path'] = "{}/{}_{}".format(testdir,testid,desc)
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -242,6 +259,7 @@ def test(testdir):
             timeStarted = time.time()
             p = subprocess.run(command.split(),capture_output=True,check=True,timeout=timeout)
             executionTime = time.time() - timeStarted
+            record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
             fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))
             fstdout.close()
@@ -249,6 +267,7 @@ def test(testdir):
             fstderr.write(ansi_escape.sub('',p.stderr.decode('ascii')))
             fstderr.close()
             print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            record['runStatus'] = 'PASS'
             if dobenchmark:
                 if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
                 elif abs(executionTime < benchmark):
@@ -258,11 +277,13 @@ def test(testdir):
                     print(",{} {:.2f}% slower{})".format(color.magenta,100*(executionTime-benchmark)/executionTime,color.reset))
                     slowers += 1
             else: print(")")
+
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.CalledProcessError as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
             for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
@@ -272,6 +293,7 @@ def test(testdir):
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
             print("[{}TIMEOUT{}]".format(color.red,color.reset))
+            record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             try:
                 stdoutlines = e.stdout.decode('ascii').split('\n')
@@ -289,10 +311,12 @@ def test(testdir):
             continue
         except DryRunException as e:
             print("[----]")
+            record['runStatus'] = '----'
             
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
             fails += 1
             continue
@@ -313,21 +337,80 @@ def test(testdir):
                 p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
                 print("[{}PASS{}]".format(color.boldgreen,color.reset))
+                record['checkStatus'] = 'PASS'
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
+                record['checkStatus'] = 'FAIL'
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
                 for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                 for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
             except DryRunException as e:
-                  print("[----]")
+                print("[----]")
+                record['checkStatus'] = "----"
             except Exception as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
+                record['checkStatus'] = 'FAIL'
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
-    
+        else:
+            record['checkStatus'] = 'NONE'
+
+
+        #
+        # Scan metadata file for insteresting things to include in the record
+        #
+        if args.post:
+            try:
+                metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
+                metadata = dict()
+                for line in metadatafile.readlines():
+                    if line.startswith('#'): continue;
+                    if '::' in line:
+                        line = re.sub(r'\([^)]*\)', '',line)
+                        line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+                    if len(line.split(' = ')) != 2: continue;
+                    col = line.split(' = ')[0]#.replace('.','_')
+                    val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
+                    metadata[col] = val
+                metadatafile.close()
+                record['git_commit_hash'] = metadata['Git_commit_hash']
+                record['platform'] = metadata['Platform']
+                record['test-section'] = record['testdir'] + '/' + record['section']
+                p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
+                record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
+            except Exception as e:
+                True # permissive
+
+            try:
+                post.updateDatabase(postdata,[record])
+            except Exception as e:
+                print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
+        records.append(record)
+
+
+        #
+        # Clean up all of the node and cell file 
+        #
+        ok_to_clean = False
+        if args.clean and record['runStatus'] == 'PASS':
+            if not 'checkStatus' in record.keys():
+                ok_to_clean = True # successful run and no testing done
+            elif record['checkStatus'] == 'PASS':
+                ok_to_clean = True # successful run and testing completed
+            else:
+                ok_to_clean = False # successful run but testing failed
+        else:
+            ok_to_clean = False
+
+        if ok_to_clean:
+            path = "{}/{}_{}".format(testdir,testid,desc)
+            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+            
+        
+            
     # Print a quick summary for this test family.
     summary = "  └ "
     sums = []
@@ -337,12 +420,14 @@ def test(testdir):
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
     print(summary + ", ".join(sums))
-    return fails, checks, tests, skips, fasters, slowers, timeouts
+    return fails, checks, tests, skips, fasters, slowers, timeouts, records
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
 if args.tests: tests = sorted(args.tests)
 else: tests = sorted(glob.glob("./tests/*"))
+
+tests = [str(pathlib.Path(f)) for f in tests]
 
 class stats:
     fails = 0   # Number of failed runs - script errors if this is nonzero
@@ -352,6 +437,7 @@ class stats:
     fasters = 0
     slowers = 0
     timeouts = 0
+    records = []
 
 # Iterate through all test directories, running the above "test" function
 # for each.
@@ -359,7 +445,7 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s, fa, sl, to = test(testdir)
+    f, c, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
@@ -367,7 +453,7 @@ for testdir in tests:
     stats.fasters += fa
     stats.slowers += sl
     stats.timeouts += to
-    
+    stats.records += re
 
 # Print a quick summary of all tests
 print("\nTest Summary")

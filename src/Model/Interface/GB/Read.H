@@ -92,7 +92,7 @@ public:
     static void Parse(Read & value, amrex::ParmParse & pp)
     {
         std::string filename;
-        pp.query("filename",filename);
+        pp.query("filename",filename); // Filename containing GB data
         value.Define(filename);
     }
       

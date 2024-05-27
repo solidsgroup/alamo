@@ -1,0 +1,69 @@
+#@
+#@ [2d-serial]
+#@ exe=mechanics
+#@ dim=2
+#@ 
+#@ [2d-parallel]
+#@ exe=mechanics
+#@ dim=2
+#@ nprocs=2
+#@ 
+#@ [2d-serial-coverage]
+#@ exe=mechanics
+#@ dim=2
+#@ coverage=true
+#@ args = solver.nriters=1
+#@ args = solver.fixed_iter=1
+#@
+
+alamo.program = mechanics
+alamo.program.mechanics.model = finite.neohookean
+plot_file = output
+type = static
+timestep = 0.1
+stop_time = 2.0
+
+amr.plot_int = 1
+amr.max_level = 5
+amr.n_cell = 16 16 16
+amr.blocking_factor = 2
+amr.thermo.int = 1
+amr.thermo.plot_int = 1
+amr.node.all = 1
+amr.cell.all = 1
+
+geometry.prob_lo = -8 -8 -8
+geometry.prob_hi =  8  8  8
+
+nmodels = 1
+model1.mu = 1
+model1.kappa = 1
+
+psi.ic.type=expression
+psi.ic.expression.constant.eps = 0.2
+psi.ic.expression.constant.R   = 1.0
+psi.ic.expression.region0 = "0.5 + 0.5*tanh((sqrt(x^2 + y^2) - R)/eps)"
+
+trac_normal.ic.type=expression
+trac_normal.ic.expression.region0 = "-0.05*t"
+
+solver.verbose = 2
+solver.max_iter = 150
+solver.nriters = 1000
+solver.nrtolerance = 1E-5
+
+ref_threshold = 100
+
+bc.type = constant
+bc.constant.type.xhi = trac trac trac
+bc.constant.type.yhi = trac trac trac
+bc.constant.type.xhiyhi = trac trac trac
+
+bc.constant.type.xlo = disp trac trac
+bc.constant.type.xloyhi = disp trac trac
+bc.constant.type.ylo = trac disp trac
+bc.constant.type.xhiylo = trac disp trac
+
+solver.dump_on_fail = 1
+amrex.signal_handling = 0
+amrex.throw_exception = 1
