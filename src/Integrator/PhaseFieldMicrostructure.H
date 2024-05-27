@@ -100,7 +100,8 @@ public:
         for (int i=0; i < value.number_of_grains; i++)
         {
             // By default, read in the model specified by "mechanics.model"
-            pp.queryclass("mechanics.model", value.mechanics.model[i]);
+            if (pp.contains("mechanics.model"))
+                pp.queryclass("mechanics.model", value.mechanics.model[i]);
 
             // If individual models are specified, read those in and overwrite
             std::string name = "mechanics.model" + std::to_string(i+1);
