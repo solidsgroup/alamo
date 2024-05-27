@@ -9,5 +9,5 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash install-macos.sh
+      run: bash .github/workflows/install-macos.sh
 

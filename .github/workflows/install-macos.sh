@@ -8,3 +8,4 @@ export CPLUS_INCLUDE_PATH=/opt/homebrew/include
 
 ./configure --no-png
 
+make
