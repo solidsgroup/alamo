@@ -75,8 +75,12 @@ public:
 
     amrex::Array4<T> Patch (int lev, amrex::MFIter &mfi) const &
     {
-        return (*(*this)[lev]).array(mfi);
+        if (this->size()) Util::Message(INFO,name," returning a valid patch. size = ",this->size());
+        else return empty;
     }
+
+
+    amrex::Array4<T> empty;
 };
 
 
@@ -258,8 +262,11 @@ public:
 
     amrex::Array4<Set::Scalar> Patch (int lev, amrex::MFIter &mfi) const &
     {
-        return (*(*this)[lev]).array(mfi);
+        if (this->size()) return (*(*this)[lev]).array(mfi);
+        else return empty;
     }
+
+    amrex::Array4<Set::Scalar> empty;
 };
 
 

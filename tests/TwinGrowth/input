@@ -38,6 +38,11 @@ pf.sigma0 = 1.2
 pf.threshold.type = chop
 pf.threshold.value = 0.15
 pf.threshold.chempot = 0
+pf.threshold.boundary = 1
+pf.threshold.corner = 1
+pf.threshold.lagrange = 1
+pf.threshold.mechanics = 1
+
 anisotropy.on = 1
 anisotropy.timestep = 0.00005
 anisotropy.tstart = 0.1
