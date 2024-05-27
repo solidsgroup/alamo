@@ -1,5 +1,8 @@
 set -eu -o pipefail 
 
+#
+# Use Mac OS HomeBrew system to 
+#
 brew install mpich
 
 brew install eigen

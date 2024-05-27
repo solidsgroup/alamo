@@ -8,6 +8,6 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
-    - name: installing preliminaries
+    - name: running the macos install script
       run: bash .github/workflows/install-macos.sh
 

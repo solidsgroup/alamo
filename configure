@@ -313,6 +313,8 @@ elif (args.eigen != ""):
 #
 if args.nopng:
     f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
+else:
+    f.write("LIB += -lpng \n")
     
 #
 # Compiler and MPI library
