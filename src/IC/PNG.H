@@ -6,7 +6,9 @@
 #define IC_PNG_H
 #include <cmath>
 
+#ifndef ALAMO_NOPNG
 #include "png.h"
+#endif
 
 #include "IC/IC.H"
 #include "Util/Util.H"
@@ -32,6 +34,8 @@ public:
 
     void Define(std::string filename)
     {
+#ifndef ALAMO_NOPNG
+
         FILE* fp = std::fopen(filename.c_str(), "rb");
 
         if (fp == NULL) Util::Abort(INFO, "Cannot find file", filename);
@@ -89,11 +93,15 @@ public:
         fclose(fp);
 
         png_destroy_read_struct(&png, &info, NULL);
+#else
+        Util::Abort(INFO,"PNG is disabled");
+#endif
     }
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
 
+#ifndef ALAMO_NOPNG
         Set::Vector DX(geom[lev].CellSize());
         amrex::Box domain = geom[lev].Domain();
 
@@ -233,9 +241,14 @@ public:
             });
         }
         a_field[lev]->FillBoundary();
+#else
+        Util::Abort(INFO,"PNG is disabled");
+#endif
+        
     };
 
 private:
+#ifndef ALAMO_NOPNG
     int png_width, png_height;
     png_byte color_type;
     png_byte bit_depth;
@@ -247,10 +260,12 @@ private:
     Fit fit = Fit::Stretch;
     Channel channel = Channel::G;
     Set::Scalar min = NAN, max = NAN;
+#endif
 
 public:
     static void Parse(PNG& value, IO::ParmParse& pp)
     {
+#ifndef ALAMO_NOPNG
         std::string filename;
         pp.query("filename", filename); // BMP filename.
         value.Define(filename);
@@ -283,6 +298,9 @@ public:
         value.max = 255.0; //(Set::Scalar) value.bmp.max()[value.channel];
         pp.query_default("min", value.min, 0.0  ); // Scaling value - minimum
         pp.query_default("max", value.max, 255.0); // Scaling value - maximum
+#else
+        Util::Abort(INFO,"PNG is disabled");
+#endif
     }
 };
 }

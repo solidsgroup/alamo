@@ -3,9 +3,11 @@ name: macos-testing
 on: [push]
 
 jobs:
-  build:
+  test-coverage:
+    name: Test installation on macos
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash install-macos.sh
+
