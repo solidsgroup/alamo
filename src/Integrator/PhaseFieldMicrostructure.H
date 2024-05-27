@@ -100,7 +100,7 @@ public:
         for (int i=0; i < value.number_of_grains; i++)
         {
             // By default, read in the model specified by "mechanics.model"
-            if (pp.contains("mechanics.model"))
+            if (pp.getEntries("mechanics.model").size())
                 pp.queryclass("mechanics.model", value.mechanics.model[i]);
 
             // If individual models are specified, read those in and overwrite
