@@ -89,14 +89,14 @@ public:
 
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::NComp() const
 {
     return 2 + AMREX_SPACEDIM * AMREX_SPACEDIM;
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 std::string Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::Name(int i) const
 {
     if (i == 0) return name + "_mu";
@@ -117,7 +117,7 @@ std::string Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::Name(int i)
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Set::Field<Model::Solid::Finite::NeoHookeanPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

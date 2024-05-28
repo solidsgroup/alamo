@@ -372,7 +372,7 @@ protected:
 
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<Set::Scalar>& new_field,
     BC::BC<Set::Scalar>* new_bc,
     int ncomp,
@@ -394,7 +394,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<Set::Sca
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Scalar>& new_field,
     BC::BC<Set::Scalar>* new_bc,
     int ncomp,
@@ -417,7 +417,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Sca
 }
 
 template<class T, int d>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving)
 {
     if (d == Set::Hypercube::Node)
@@ -454,14 +454,14 @@ void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp
 
 
 template<class T>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving) 
 {
     Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, "", true, evolving);
 }
 template<class T>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving)
 {
     Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");

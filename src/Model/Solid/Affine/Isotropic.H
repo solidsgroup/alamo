@@ -146,13 +146,13 @@ public:
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Affine::Isotropic>::NComp() const
 {
     return AMREX_SPACEDIM * AMREX_SPACEDIM + 2;
 }
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 std::string Set::Field<Model::Solid::Affine::Isotropic>::Name(int i) const
 {
     if (i == 0) return name + "_lambda";
@@ -176,7 +176,7 @@ std::string Set::Field<Model::Solid::Affine::Isotropic>::Name(int i) const
     return name;
 }
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Set::Field<Model::Solid::Affine::Isotropic>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

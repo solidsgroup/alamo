@@ -103,14 +103,14 @@ public:
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Affine::Hexagonal>::NComp() const 
 {
     return 1;
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 std::string Set::Field<Model::Solid::Affine::Hexagonal>::Name(int i) const 
 {
     if (i==0) return name + ".Cxxxx";
@@ -118,7 +118,7 @@ std::string Set::Field<Model::Solid::Affine::Hexagonal>::Name(int i) const
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Set::Field<Model::Solid::Affine::Hexagonal>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

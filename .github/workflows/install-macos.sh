@@ -16,7 +16,7 @@ export CPLUS_INCLUDE_PATH=$(brew --prefix)/include
 # In the alamo directory, run this command with any additiona/
 # arguments. On MacOS, PNG is not supported.
 #
-./configure --no-png
+./configure --macos --link=$(brew --prefix)/lib/gcc/current/ 
 
 #
 # Compile the code by running make
