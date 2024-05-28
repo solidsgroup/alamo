@@ -2,8 +2,8 @@
 -------------------------
 
 .. |macos-badge| image:: https://github.com/solidsgroup/alamo/actions/workflows/macos.yml/badge.svg
-.. |macos-badge-devel| image:: https://github.com/solidsgroup/alamo/actions/workflows/macos.yml/badge.svg?branch=master
-.. |macos-badge-master| image:: https://github.com/solidsgroup/alamo/actions/workflows/macos.yml/badge.svg?branch=development
+.. |macos-badge-devel| image:: https://github.com/solidsgroup/alamo/actions/workflows/macos.yml/badge.svg?branch=development
+.. |macos-badge-master| image:: https://github.com/solidsgroup/alamo/actions/workflows/macos.yml/badge.svg?branch=master
 
 +---------------+----------------------+
 | recent        | |macos-badge|        |
