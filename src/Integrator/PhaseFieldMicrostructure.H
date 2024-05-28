@@ -98,7 +98,7 @@ public:
             else if (type == "chop") value.pf.threshold.type = ThresholdType::Chop;
         }
         
-       value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
+        value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
     
         pp.query("amr.max_level", value.max_level);            // Maximum AMR level
         pp.query("amr.ref_threshold", value.ref_threshold);    // Phase field refinement threshold
@@ -197,11 +197,14 @@ public:
         pp.query("anisotropic_kinetics.on",value.anisotropic_kinetics.on);
         if (value.anisotropic_kinetics.on)
         {
+            // simulation time when anisotropic kinetics is activated
             pp.query("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart);
             std::string mobility_filename, threshold_filename;
-            pp.query("anisotropic_kinetics.mobility",mobility_filename);
+            // file containing anisotropic mobility data
+            pp.query("anisotropic_kinetics.mobility",mobility_filename); 
             value.anisotropic_kinetics.mobility = Numeric::Interpolator::Linear<Set::Scalar>::Read(mobility_filename);
-            pp.query("anisotropic_kinetics.threshold",threshold_filename);
+            // file containing anisotropic mobility data
+            pp.query("anisotropic_kinetics.threshold",threshold_filename); 
             value.anisotropic_kinetics.threshold = Numeric::Interpolator::Linear<Set::Scalar>::Read(threshold_filename);
             value.RegisterNewFab(value.anisotropic_kinetics.L_mf, value.mybc, value.number_of_grains, 0, "mobility",true);
             value.RegisterNewFab(value.anisotropic_kinetics.threshold_mf, value.mybc, value.number_of_grains, 0, "theshold",true);
