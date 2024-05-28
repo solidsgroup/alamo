@@ -99,14 +99,14 @@ public:
 
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::NComp() const
 {
     return 4;
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 std::string Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Name(int i) const
 {
     if (i == 0) return name + "_F0xx";
@@ -117,7 +117,7 @@ std::string Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Name
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
