@@ -27,3 +27,9 @@ make
 # Executables should now be available under ./bin
 #
 ls ./bin/
+
+#
+# Run the unite test suite
+#
+./bin/test-3d-g++
+

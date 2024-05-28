@@ -13,10 +13,15 @@
 .. include:: ../../Readme.rst
  
 
-Installing on Mac OS
-====================
+System Install Scripts
+======================
 
-.. literalinclude:: ../../.github/workflows/install-macos.sh
-   :caption: Mac OS Installation
-   :language: bash
-   :lines: 2-
+.. dropdown:: Table of contents
+
+    .. toctree::
+        :maxdepth: 4
+        :caption: Contents:
+
+        Install/MacOS
+
+           
