@@ -19,9 +19,24 @@ namespace IO
 {
 class ParmParse : public amrex::ParmParse
 {
+private:
+    void Define() 
+    {
+        if (checked_for_input_files) return;
+        int k = 0;
+        std::string inputfile = "";
+        while (this->querykth("input",k,inputfile)) 
+        {
+            Util::Message(INFO,"Including inputs from "+inputfile);
+            this->addfile(inputfile);
+            k++;
+        }
+        checked_for_input_files = true;
+    }
+    static bool checked_for_input_files;
 public:
-    ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {} ;
-    ParmParse() : amrex::ParmParse::ParmParse() {} ;
+    ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {Define();} ;
+    ParmParse() : amrex::ParmParse::ParmParse() {Define();} ;
     std::string getPrefix() const {return amrex::ParmParse::getPrefix();};
     void ignore(std::string name)
     {
@@ -95,7 +110,7 @@ public:
         amrex::ParmParse::queryarr(name.c_str(), vals);
         if (vals.size() < AMREX_SPACEDIM) 
         {
-            Util::Abort(INFO,name," requires at least ", AMREX_SPACEDIM, " arguments, got ",vals.size());
+            Util::Abort(INFO,getPrefix(),".",name," requires at least ", AMREX_SPACEDIM, " arguments, got ",vals.size());
         }
         for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
         return 0;
@@ -107,7 +122,7 @@ public:
         if (vals.size() == 9)
         {
             #if AMREX_SPACEDIM==2
-            Util::Warning(INFO,"Reading a 3D matrix (",name,")into a 2D code - some values will be ignored.");
+            Util::Warning(INFO,"Reading a 3D matrix (",getPrefix(),".",name,")into a 2D code - some values will be ignored.");
             value(0,0) = vals[0];  value(0,1)= vals[1];
             value(1,0) = vals[3];  value(1,1)= vals[4];
             #endif
@@ -124,7 +139,7 @@ public:
             value(1,0) = vals[2];  value(1,1)= vals[3];
             #endif
             #if AMREX_SPACEDIM==3
-            Util::Warning(INFO,"Reading a 2D matrix (",name,")into a 3D code - remaining values will be set to zero.");
+            Util::Warning(INFO,"Reading a 2D matrix (",getPrefix(),".",name,")into a 3D code - remaining values will be set to zero.");
             value(0,0) = vals[0];  value(0,1)= vals[1];  value(0,2)= 0.0;
             value(1,0) = vals[2];  value(1,1)= vals[3];  value(1,2)= 0.0;
             value(2,0) = 0.0;      value(2,1)= 0.0;      value(2,2)= 0.0;
@@ -132,7 +147,7 @@ public:
         }
         else
         {
-            Util::Abort(INFO,name," needs either 4 or 9 components, but got ",vals.size());
+            Util::Abort(INFO,getPrefix(),".",name," needs either 4 or 9 components, but got ",vals.size());
         }    
         return 0;
     }
