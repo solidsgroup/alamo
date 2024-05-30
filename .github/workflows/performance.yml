@@ -10,13 +10,11 @@ permissions:
   id-token: write
 
 jobs:
-  performance:
+  scooter:
     name: Performance run
     runs-on: scooter
     steps:
     - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
     - name: configure 2d
       continue-on-error: true
       run: ./configure --dim=2
