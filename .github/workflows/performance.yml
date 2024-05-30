@@ -2,7 +2,7 @@ name: Performance
 
 on:
   push:
-    branches: ["development"]
+    branches: ["development", "master"]
 
 permissions:
   contents: read
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   scooter:
-    name: Performance run
+    name: scooter
     runs-on: scooter
     steps:
     - uses: actions/checkout@v4
@@ -33,6 +33,5 @@ jobs:
     - name: unit tests 3d
       continue-on-error: true
       run: ./bin/test-3d-g++
-    - name: regression tests with coverage (2d + 3d)
-      continue-on-error: true
-      run: scripts/runtests.py --benchmark=scooter
+    - name: regression tests (2d + 3d)
+      run: scripts/runtests.py --benchmark=scooter --post
