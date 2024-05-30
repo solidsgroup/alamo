@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import argparse
 import os, glob, subprocess
 import configparser, io
@@ -68,7 +69,7 @@ parser.add_argument('--benchmark',default=socket.gethostname(),help='Current pla
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
-parser.add_argument('--post', default=False, action='store_true', help='Use ./scripts/post.py script to post results')
+parser.add_argument('--post', default=None, help='Use a post script to post results')
 parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 args=parser.parse_args()
@@ -79,6 +80,9 @@ if args.only_coverage and args.no_coverage:
     raise Exception("Cannot specify both --only-coverage and --no-coverage")
 
 if args.post:
+    if not os.path.isfile(args.post):
+        raise Exception(args.post,"is not a file")
+    sys.path.append(str(pathlib.Path(args.post).parent))
     import post
     postdata = post.init()
 

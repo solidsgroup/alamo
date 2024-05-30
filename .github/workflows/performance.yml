@@ -34,4 +34,4 @@ jobs:
       continue-on-error: true
       run: ./bin/test-3d-g++
     - name: regression tests (2d + 3d)
-      run: scripts/runtests.py --benchmark=scooter --post
+      run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py
