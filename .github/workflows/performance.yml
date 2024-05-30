@@ -1,0 +1,40 @@
+name: Performance
+
+on:
+  push:
+    branches: ["development"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  performance:
+    name: Performance run
+    runs-on: scooter
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure 2d
+      continue-on-error: true
+      run: ./configure --dim=2
+    - name: make 2d
+      continue-on-error: true
+      run: make
+    - name: unit tests 2d
+      continue-on-error: true
+      run: ./bin/test-2d-g++
+    - name: configure 3d
+      continue-on-error: true
+      run: ./configure --dim=3
+    - name: make 3d
+      continue-on-error: true
+      run: make
+    - name: unit tests 3d
+      continue-on-error: true
+      run: ./bin/test-3d-g++
+    - name: regression tests with coverage (2d + 3d)
+      continue-on-error: true
+      run: scripts/runtests.py --benchmark=scooter
