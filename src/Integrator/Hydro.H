@@ -111,7 +111,6 @@ private:
     Set::Scalar r_refinement_criterion=NAN, e_refinement_criterion=NAN, m_refinement_criterion=NAN, eta_refinement_criterion=NAN, omega_refinement_criterion=NAN;
     Set::Scalar gamma=NAN, cfl=NAN, mu=NAN;
     Set::Scalar rho_fluid=NAN, rho_solid=NAN, v_solid=NAN;
-    Set::Scalar Ldot_active=NAN;
 };
 }
 

@@ -19,22 +19,21 @@ public:
         Set::Scalar velocity_normal;
         Set::Scalar velocity_tangent;
         Set::Scalar pressure;
-        Set::Scalar eta;
         // Construtor for convenience
-        State() { rho = 0.0; velocity_normal = 0.0, velocity_tangent = 0.0; pressure = 0.0; eta = 0.0; }
-        State(Set::Scalar a_rho, Set::Scalar a_velocity_normal, Set::Scalar a_velocity_tangent, Set::Scalar a_pressure, Set::Scalar a_eta)
-            : rho(a_rho), velocity_normal(a_velocity_normal), velocity_tangent(a_velocity_tangent), pressure(a_pressure), eta(a_eta) {}
+        State() { rho = 0.0; velocity_normal = 0.0, velocity_tangent = 0.0; pressure = 0.0; }
+        State(Set::Scalar a_rho, Set::Scalar a_velocity_normal, Set::Scalar a_velocity_tangent, Set::Scalar a_pressure)
+            : rho(a_rho), velocity_normal(a_velocity_normal), velocity_tangent(a_velocity_tangent), pressure(a_pressure) {}
     };
 
     struct Flux {
-        Set::Scalar etaMass;
-        Set::Scalar etaEnergy;
-        Set::Scalar etaMomentum_normal;
-        Set::Scalar etaMomentum_tangent;
+        Set::Scalar Mass;
+        Set::Scalar Energy;
+        Set::Scalar Momentum_normal;
+        Set::Scalar Momentum_tangent;
     };
 
     // todo: convert to static functor by replacing with static () when c++23 is released
-    static Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar cell_eta) {
+    static Flux Solve(State lo, State hi, Set::Scalar gamma) {
         Set::Scalar ke_lo = 0.5 * lo.rho * lo.velocity_normal * lo.velocity_normal;
         Set::Scalar ue_lo = lo.pressure / (gamma - 1);
         Set::Scalar h_lo = (ke_lo + ue_lo + lo.pressure) / lo.rho;
@@ -43,23 +42,21 @@ public:
         Set::Scalar ue_hi = hi.pressure / (gamma - 1);
         Set::Scalar h_hi = (ke_hi + ue_hi + hi.pressure) / hi.rho;
 
-        //Util::Message(INFO, "hi.rho ", hi.rho);
-
         // roe averages
         Set::Scalar rho_RL = std::sqrt(lo.rho) * std::sqrt(hi.rho);
         Set::Scalar u_RL = (std::sqrt(hi.rho) * hi.velocity_normal + std::sqrt(lo.rho) * lo.velocity_normal) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar h_RL = (std::sqrt(hi.rho) * h_hi + std::sqrt(lo.rho) * h_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
         Set::Scalar a_RL2 = (gamma - 1) * (h_RL - 0.5 * u_RL * u_RL);
-        if (std::isnan(a_RL2)) Util::Abort(INFO, cell_eta, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
-        if (a_RL2 < 0.0) Util::Abort(INFO, cell_eta, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
+        if (std::isnan(a_RL2)) Util::Abort(INFO, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
+        if (a_RL2 < 0.0) Util::Abort(INFO, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
         Set::Scalar a_RL = std::sqrt(a_RL2);
 
         // flux
         Flux fl;
-        fl.etaMass             = 0.5 * (lo.rho * lo.velocity_normal * lo.eta + hi.rho * hi.velocity_normal * hi.eta);
-        fl.etaMomentum_normal  = 0.5 * (lo.rho * lo.velocity_normal  * lo.velocity_normal * lo.eta + hi.rho * hi.velocity_normal  * hi.velocity_normal * hi.eta);
-        fl.etaMomentum_tangent = 0.5 * (lo.rho * lo.velocity_tangent * lo.velocity_normal * lo.eta + hi.rho * hi.velocity_tangent * hi.velocity_normal * hi.eta);
-        fl.etaEnergy           = 0.5 * (lo.velocity_normal * ke_lo * lo.eta + hi.velocity_normal * ke_hi * hi.eta);
+        fl.Mass             = 0.5 * (lo.rho * lo.velocity_normal                                     + hi.rho * hi.velocity_normal);
+        fl.Momentum_normal  = 0.5 * (lo.rho * lo.velocity_normal  * lo.velocity_normal + lo.pressure + hi.rho * hi.velocity_normal  * hi.velocity_normal + hi.pressure);
+        fl.Momentum_tangent = 0.5 * (lo.rho * lo.velocity_tangent * lo.velocity_normal               + hi.rho * hi.velocity_tangent * hi.velocity_normal);
+        fl.Energy           = 0.5 * (lo.velocity_normal * (ke_lo + ue_lo + lo.pressure)              + hi.velocity_normal * (ke_hi + ue_hi + hi.pressure));
 
         //compute eigenvalues
         std::array <double, 3> ev;
@@ -70,9 +67,9 @@ public:
         //compute wave strengths
 
         Set::Scalar drho, dp, dvel;
-        dvel = (hi.velocity_normal * lo.eta   - lo.velocity_normal * hi.eta  );
-        dp   = (hi.pressure        * cell_eta - lo.pressure        * cell_eta);
-        drho = (hi.rho             * lo.eta   - lo.rho             * hi.eta  );
+        dvel = (hi.velocity_normal - lo.velocity_normal);
+        dp   = (hi.pressure        - lo.pressure       );
+        drho = (hi.rho             - lo.rho            );
 
         std::array <double, 3> dv;
         dv[0] = drho - dp / a_RL2;
@@ -96,10 +93,10 @@ public:
         rev_2[2] = -(rho_RL / 2.0 / a_RL) * (h_RL - a_RL * u_RL);
 
         //upwinding term 
-        fl.etaMass             += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
-        fl.etaMomentum_normal  += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
-        fl.etaMomentum_tangent +=  0.0;
-        fl.etaEnergy           += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
+        fl.Mass             += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
+        fl.Momentum_normal  += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
+        fl.Momentum_tangent +=  0.0;
+        fl.Energy           += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
 
         return fl;
     }
@@ -115,43 +112,36 @@ public:
             hi.velocity_normal = Util::Random();
             hi.velocity_tangent = Util::Random();
             hi.pressure = Util::Random();
-            hi.eta = Util::Random();
 
             lo.rho = Util::Random();
             lo.velocity_normal = Util::Random();
             lo.velocity_tangent = Util::Random();
             lo.pressure = Util::Random();
-            lo.eta = Util::Random();
 
             fixed.rho = Util::Random();
             fixed.velocity_normal = Util::Random();
             fixed.velocity_tangent = Util::Random();
             fixed.pressure = Util::Random();
-            fixed.eta = Util::Random();
 
             pos_vel1.rho = Util::Random();
             pos_vel1.velocity_normal = Util::Random();
             pos_vel1.velocity_tangent = Util::Random();
             pos_vel1.pressure = Util::Random();
-            pos_vel1.eta = Util::Random();
 
             neg_vel1.rho = pos_vel1.rho;
             neg_vel1.velocity_normal = -pos_vel1.velocity_normal;
             neg_vel1.velocity_tangent = -pos_vel1.velocity_tangent;
             neg_vel1.pressure = pos_vel1.pressure;
-            neg_vel1.eta = pos_vel1.eta;
 
             pos_vel2.rho = Util::Random();
             pos_vel2.velocity_normal = Util::Random();
             pos_vel2.velocity_tangent = Util::Random();
             pos_vel2.pressure = Util::Random();
-            pos_vel2.eta = Util::Random();
 
             neg_vel2.rho = pos_vel2.rho;
             neg_vel2.velocity_normal = -pos_vel2.velocity_normal;
             neg_vel2.velocity_tangent = -pos_vel2.velocity_tangent;
             neg_vel2.pressure = pos_vel2.pressure;
-            neg_vel2.eta = pos_vel2.eta;
 
             // 
             // Zero flux test: if the state is the same on both sides,
