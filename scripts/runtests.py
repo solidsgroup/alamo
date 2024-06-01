@@ -72,6 +72,7 @@ parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (
 parser.add_argument('--post', default=None, help='Use a post script to post results')
 parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
+parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -147,8 +148,14 @@ def test(testdir):
         record = dict()
         record['testdir'] = testdir
         record['section'] = desc
+        record['test-section'] = record['testdir']+'/'+record['section']
+        record['section'] = desc
         record['testid']  = testid
         record['path'] = "{}/{}_{}".format(testdir,testid,desc)
+
+
+        p = subprocess.check_output('git rev-parse --abbrev-ref HEAD'.split(),stderr=subprocess.PIPE)
+        record['branch'] = p.decode('ascii').replace('\n','')
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -373,8 +380,10 @@ def test(testdir):
                 for line in metadatafile.readlines():
                     if line.startswith('#'): continue;
                     if '::' in line:
-                        line = re.sub(r'\([^)]*\)', '',line)
-                        line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+                        ### skip these for now ...
+                        continue
+                        #line = re.sub(r'\([^)]*\)', '',line)
+                        #line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
                     if len(line.split(' = ')) != 2: continue;
                     col = line.split(' = ')[0]#.replace('.','_')
                     val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
@@ -386,6 +395,10 @@ def test(testdir):
                 p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
                 record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
             except Exception as e:
+                if not args.permissive:
+                    print("Problem getting metadata, here it is:")
+                    print(record)
+                    raise Exception()
                 True # permissive
 
             try:

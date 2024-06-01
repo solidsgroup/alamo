@@ -13,7 +13,7 @@
 #@ 
 #@ [2d-parallel]
 #@ dim = 2
-#@ nprocs = 4 
+#@ nprocs = 4
 #@ check = true
 #@ check-file = reference/reference.dat
 
