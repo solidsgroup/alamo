@@ -39,6 +39,10 @@ public:
 
     void Define(std::string filename)
     {
+        m_w   = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,0,true);
+        m_dw  = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,1,false);
+        m_ddw = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,2,false);
+        return;
         std::ifstream input;
         input.open(filename);
         std::string line;
@@ -88,7 +92,7 @@ public:
     static void Parse(Read & value, amrex::ParmParse & pp)
     {
         std::string filename;
-        pp.query("filename",filename);
+        pp.query("filename",filename); // Filename containing GB data
         value.Define(filename);
     }
       

@@ -26,6 +26,7 @@
 #include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 #include "IC/Expression.H"
+#include "IC/Ellipse.H"
 
 #include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
@@ -59,20 +60,44 @@ public:
     PhaseFieldMicrostructure() : Integrator() {};
     PhaseFieldMicrostructure(IO::ParmParse &pp) : Integrator() 
     {pp.queryclass(*this);}
-
+    virtual ~PhaseFieldMicrostructure()
+    {
+        delete boundary;
+        delete ic;
+        delete mybc;
+    }
     static void Parse(PhaseFieldMicrostructure &value, IO::ParmParse &pp)
     {
         BL_PROFILE("PhaseFieldMicrostructure::Parse");
         
-        pp.query("pf.number_of_grains", value.number_of_grains);     // Number of grain fields (may be more if using different IC)
-        pp.query("pf.M", value.pf.M);                                // Mobility
-        if (pp.contains("pf.mu")) pp.query("pf.mu", value.pf.mu);       // Phase field :math:`\mu`
-        pp.query("pf.gamma", value.pf.gamma);                        // Phase field :math:`\gamma`
-        pp.query("pf.sigma0", value.pf.sigma0);                      // Initial GB energy if not using GB anisotropy
-        pp.query("pf.l_gb", value.pf.l_gb);                          // Mobility
-        pp.query("pf.elastic_df",value.pf.elastic_df);               // Determine whether to use elastic driving force
-        pp.query("pf.elastic_mult",value.pf.elastic_mult);           // Multiplier of elastic energy
-        pp.query("pf.elastic_threshold",value.pf.elastic_threshold); // Elastic threshold (:math:`\phi_0`)
+        // Number of grain fields (may be more if using different IC)
+        pp.query_default("pf.number_of_grains", value.number_of_grains,2);     
+        pp.query_required("pf.M", value.pf.M);                         // Mobility
+        pp.query_required("pf.mu", value.pf.mu);                       // Phase field :math:`\mu`
+        pp.query_required("pf.gamma", value.pf.gamma);                 // Phase field :math:`\gamma`
+        pp.query_required("pf.sigma0", value.pf.sigma0);               // Initial GB energy if not using  anisotropy
+        pp.query_required("pf.l_gb", value.pf.l_gb);                   // Mobility
+        pp.query_default("pf.elastic_df",value.pf.elastic_df,false);   // Determine whether to use elastic driving force
+        pp.query_default("pf.elastic_mult",value.pf.elastic_mult,1.0); // Multiplier of elastic energy
+
+        pp.query_default("pf.threshold.value",value.pf.threshold.value,0.0);          // Value used for thresholding kinetic relation
+        pp.query_default("pf.threshold.chempot",value.pf.threshold.chempot,false);    // Whether to include chemical potential in threshold
+        pp.query_default("pf.threshold.boundary",value.pf.threshold.boundary,false);  // Whether to include boundary energy in threshold
+        pp.query_default("pf.threshold.corner",value.pf.threshold.corner,false);      // Whether to include corner regularization in threshold
+        pp.query_default("pf.threshold.lagrange",value.pf.threshold.lagrange,false);  // Whether to include lagrange multiplier in threshold
+        pp.query_default("pf.threshold.mechanics",value.pf.threshold.mechanics,false);// Whether to include mechanical driving force in threshold
+        {
+            value.pf.threshold.on =
+                value.pf.threshold.chempot || value.pf.threshold.boundary ||
+                value.pf.threshold.corner || value.pf.threshold.lagrange ||
+                value.pf.threshold.mechanics;
+
+            std::string type = "continuous";
+            pp.query_validate("pf.threshold.type",type,{"continuous","chop"}); // Type of thresholding to use
+            if (type == "continuous") value.pf.threshold.type = ThresholdType::Continuous;
+            else if (type == "chop") value.pf.threshold.type = ThresholdType::Chop;
+        }
+        
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
     
         pp.query("amr.max_level", value.max_level);            // Maximum AMR level
@@ -85,6 +110,7 @@ public:
         for (int i=0; i < value.number_of_grains; i++)
         {
             // By default, read in the model specified by "mechanics.model"
+            if (pp.getEntries("mechanics.model").size())
             pp.queryclass("mechanics.model", value.mechanics.model[i]);
 
             // If individual models are specified, read those in and overwrite
@@ -100,21 +126,24 @@ public:
 
 
         // Lagrange multiplier method for enforcing volumes
-        pp.query("lagrange.on", value.lagrange.on);               // Turn on
+        pp.query_default("lagrange.on", value.lagrange.on,false);
         if (value.lagrange.on)
         {
-            pp.query("lagrange.lambda", value.lagrange.lambda);   // Lagrange multiplier value
-            pp.query("lagrange.vol0", value.lagrange.vol0);       // Prescribed volume
-            pp.query("lagrange.tstart", value.lagrange.tstart);   // Time to start enforcing Lagrange multipler
+            pp.query_required("lagrange.lambda", value.lagrange.lambda);      // Lagrange multiplier value
+            pp.query_required("lagrange.vol0", value.lagrange.vol0);          // Prescribed volume
+            pp.query_default("lagrange.tstart", value.lagrange.tstart,0.0);   // Lagrange multipler start time
             value.SetThermoInt(1);
         }
 
         // Anisotropic grain boundary energy parameters
-        pp.query("anisotropy.on", value.anisotropy.on);                            // Turn on
-        pp.query("anisotropy.beta", value.anisotropy.beta);                        // Regularization param 
-        pp.query("anisotropy.tstart", value.anisotropy.tstart);                    // Time to turn on anisotropy
+
+        pp.query_default("anisotropy.on", value.anisotropy.on,false);              // Turn on
+        if (value.anisotropy.on)
+        {
+            pp.query_required("anisotropy.beta", value.anisotropy.beta);               // Regularization param 
+            pp.query_required("anisotropy.tstart", value.anisotropy.tstart);           // Time to turn on anisotropy
         value.anisotropy.timestep = value.timestep;
-        pp.query("anisotropy.timestep", value.anisotropy.timestep);                // Modify timestep when turned on
+        pp.query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
         value.anisotropy.plot_int = value.plot_int;
         pp.query("anisotropy.plot_int", value.anisotropy.plot_int);                // Modify plot_int when turned on
         value.anisotropy.plot_dt = value.plot_dt;
@@ -129,38 +158,65 @@ public:
         std::map<std::string, RegularizationType> regularization_type;
         regularization_type["wilmore"] = RegularizationType::Wilmore;
         regularization_type["k12"] = RegularizationType::K12;
-        std::string regularization_type_input = "k12";
-        pp.query("anisotropy.regularization", regularization_type_input);    // Type of regularization to use  
+
+            std::string regularization_type_input;
+            // Type of regularization to use  
+            pp.query_validate("anisotropy.regularization", regularization_type_input,{"k12","wilmore"});    
         value.regularization = regularization_type[regularization_type_input];
 
-        // Set the anisotropic GB model
-        pp.query("anisotropy.gb_type", value.gb_type); // Type of GB energy to use
+            // Type of GB to use
+            pp.query_validate("anisotropy.gb_type", value.gb_type,{"abssin","sin","read","sh"}); 
         if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
         else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
         else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
         else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
-        else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
+            else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
+        }
 
-        // Boundary conditions for Etas
-        std::string bc_type = "constant";
-        pp.query("bc.eta.type",bc_type);  // Type (constnat)
+        std::string bc_type;
+        // Type of boundary condition to use for eta
+        pp.query_validate("bc.eta.type",bc_type,{"constant","step"});  
         if (bc_type == "constant")  value.mybc = new BC::Constant(value.number_of_grains,pp,"bc.eta");
         else if (bc_type == "step") value.mybc = new BC::Step(pp,"bc.eta");
 
-        // Initial conditions for Etas
-        std::string ic_type = "constant";
-        pp.query("ic.type", ic_type); // IC Type
+        std::string ic_type;
+        // Initial condition to use for eta
+        pp.query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse"});  
+        // [switch ic.type] Initial conditions for Etas
         if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
         else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");
         else if (ic_type == "tabulated_interface") value.ic = new IC::TabulatedInterface(value.geom,pp,"ic");
         else if (ic_type == "voronoi")             value.ic = new IC::Voronoi(value.geom, pp, "ic.voronoi");
         else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
         else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
+        else if (ic_type == "ellipse")             value.ic = new IC::Ellipse(value.geom,pp,"ic.ellipse");
         else Util::Abort(INFO, "No valid initial condition specified");
+        // [end switch]
+
+        // Anisotropic mobility
+        pp.query("anisotropic_kinetics.on",value.anisotropic_kinetics.on);
+        if (value.anisotropic_kinetics.on)
+        {
+            // simulation time when anisotropic kinetics is activated
+            pp.query("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart);
+            std::string mobility_filename, threshold_filename;
+            // file containing anisotropic mobility data
+            pp.query("anisotropic_kinetics.mobility",mobility_filename); 
+            value.anisotropic_kinetics.mobility = Numeric::Interpolator::Linear<Set::Scalar>::Read(mobility_filename);
+            // file containing anisotropic mobility data
+            pp.query("anisotropic_kinetics.threshold",threshold_filename); 
+            value.anisotropic_kinetics.threshold = Numeric::Interpolator::Linear<Set::Scalar>::Read(threshold_filename);
+            value.RegisterNewFab(value.anisotropic_kinetics.L_mf, value.mybc, value.number_of_grains, 0, "mobility",true);
+            value.RegisterNewFab(value.anisotropic_kinetics.threshold_mf, value.mybc, value.number_of_grains, 0, "theshold",true);
+        }
 
 
-        value.RegisterNewFab(value.eta_new_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
-        value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta old",false);
+
+
+        value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
+        value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
+        if (value.pf.threshold.on)
+            value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
         value.RegisterIntegratedVariable(&value.area, "area");
@@ -187,33 +243,55 @@ protected:
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 
-    virtual void UpdateModel(int /*a_step*/) override;
+    virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
 private:
 
-    int number_of_grains = 2;
+    int number_of_grains = -1;
     int number_of_ghost_cells = 1;
     Set::Scalar ref_threshold = 0.1;
 
     // Cell fab
-    Set::Field<Set::Scalar> eta_new_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-    Set::Field<Set::Scalar> eta_old_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+    Set::Field<Set::Scalar> eta_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+    Set::Field<Set::Scalar> driving_force_mf;
+    Set::Field<Set::Scalar> driving_force_threshold_mf;
 
-    BC::BC<Set::Scalar> *mybc;
+    BC::BC<Set::Scalar> *mybc = nullptr;
 
     //amrex::Real M, mu, gamma, sigma0, l_gb, beta;
     RegularizationType regularization = RegularizationType::K12;
+    enum ThresholdType {
+        Continuous = 0, Chop = 1
+    };
     struct {
-        Set::Scalar M;
-        Set::Scalar L;
-        Set::Scalar mu;
-        Set::Scalar gamma;
-        Set::Scalar sigma0;
-        Set::Scalar l_gb;
+        Set::Scalar M = NAN;
+        Set::Scalar L = NAN;
+        Set::Scalar mu = NAN;
+        Set::Scalar gamma = NAN;
+        Set::Scalar sigma0 = NAN;
+        Set::Scalar l_gb = NAN;
         bool elastic_df = false;
         Set::Scalar elastic_mult = 1.0;
-        Set::Scalar elastic_threshold = 0.0;
+        struct {
+            bool on = false;
+            bool chempot = false;
+            bool boundary = false;
+            bool corner = false;
+            bool lagrange = false;
+            bool mechanics = false;
+            Set::Scalar value = NAN;
+            ThresholdType type = ThresholdType::Continuous;
+        } threshold;
     } pf;
+
+    struct {
+        int on = 0;
+        Set::Scalar tstart = 0.0;
+        Numeric::Interpolator::Linear<Set::Scalar> mobility;
+        Numeric::Interpolator::Linear<Set::Scalar> threshold;
+        Set::Field<Set::Scalar> L_mf;
+        Set::Field<Set::Scalar> threshold_mf;
+    } anisotropic_kinetics;
 
     struct {
         int on = 0;
@@ -229,17 +307,17 @@ private:
     } anisotropy;
     
     struct { 
-        int on = 0;
-        Set::Scalar tstart = 0.0;
-        Set::Scalar vol0 = 0.0;
-        Set::Scalar lambda = 0.0;
+        bool on = 0;
+        Set::Scalar tstart = NAN;
+        Set::Scalar vol0 = NAN;
+        Set::Scalar lambda = NAN;
     } lagrange;
 
     std::string gb_type, filename;
 
-    Model::Interface::GB::GB *boundary;
+    Model::Interface::GB::GB *boundary = nullptr;
 
-    IC::IC *ic;
+    IC::IC *ic = nullptr;
 
     Set::Scalar volume = 5;
     Set::Scalar area = 0.0;

@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
-#define MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
+#ifndef MODEL_SOLID_FINITE_NEOHOOKEAN_H_
+#define MODEL_SOLID_FINITE_NEOHOOKEAN_H_
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
@@ -8,7 +8,7 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Finite
 {
 class NeoHookean : public Solid<Set::Sym::Major>
 {
@@ -142,8 +142,28 @@ public:
     }
     static void Parse(NeoHookean& value, IO::ParmParse& pp)
     {
-        pp.query("mu", value.mu);
-        pp.query("kappa", value.kappa);
+        //Set::Scalar mu = NAN, kappa = NAN;
+        if (pp.contains("shear") && pp.contains("kappa")) {
+            pp.query("shear", value.mu); // Shear modulus
+            pp.query("kappa", value.kappa); // Bulk modulus
+        }
+        else if (pp.contains("mu") && pp.contains("kappa")) {
+            pp.query("mu", value.mu); // Alternative input for shear modulus
+            pp.query("kappa", value.kappa); // Bulk modulus
+        }
+        else if (pp.contains("lame") && pp.contains("shear")) {
+            Set::Scalar lame;
+            pp.query("shear", value.mu); // Shear modulus
+            pp.query("lame", lame); // Lame parameter
+            value.kappa = lame + (2.0 * value.mu) / 3.0;
+        }
+        else if (pp.contains("E") && pp.contains("nu")) {
+            Set::Scalar E, nu;
+            pp.query("E", E); // Young's modulus
+            pp.query("nu", nu); // Poisson's ratio
+            value.kappa = E / (3.0 - 6.0 * nu);
+            value.mu = E / (2.0 + 2.0 * nu);
+        }
     }
 
 #define OP_CLASS NeoHookean

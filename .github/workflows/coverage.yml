@@ -1,0 +1,53 @@
+name: Coverage
+
+on:
+  push:
+    branches: ["development"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  test-coverage:
+    name: Generate documentation and test coverage report
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure (2d)
+      continue-on-error: true
+      run: ./configure --dim=2 --coverage 
+    - name: make (2d)
+      continue-on-error: true
+      run: make
+    - name: unit tests (2d)
+      continue-on-error: true
+      run: ./bin/test-2d-coverage-g++
+    - name: configure (3d)
+      continue-on-error: true
+      run: ./configure --dim=3 --coverage
+    - name: make (3d)
+      continue-on-error: true
+      run: make
+    - name: unit tests (3d)
+      continue-on-error: true
+      run: ./bin/test-3d-coverage-g++
+    - name: regression tests with coverage (2d + 3d)
+      continue-on-error: true
+      run: scripts/runtests.py --serial --only-coverage --timeout=100
+    - name: generate coverage report
+      run: make cov-report
+    - name: generate documentation
+      run: make docs
+    - name: combine githubpages
+      run: make githubpages
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: './githubpages/'
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v3

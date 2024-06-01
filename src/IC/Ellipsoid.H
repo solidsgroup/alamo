@@ -132,8 +132,8 @@ public:
         }
         //if(value.eps <= 0.) value.eps = 1.e-5;
 
-        pp.query("in_value", value.in_value); // Value of field inside ellipse (default: 0)
-        pp.query("out_value", value.out_value); // Value of field outside ellipse (default: 1)
+        pp.query_default("in_value",  value.in_value,  0.0); // Value of field inside ellipse
+        pp.query_default("out_value", value.out_value, 1.0); // Value of field outside ellipse
 
         std::string mollifier;
         pp.query("mollifier",mollifier); // Type of mollifier to use (options: dirac, [gaussian])

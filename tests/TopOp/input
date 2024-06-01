@@ -1,10 +1,19 @@
 #@ 
 #@ [serial]
+#@ exe = topop
 #@ dim = 2
 #@ args=stop_time=1.0
 #@ check=false
+#@ benchmark-waldorf = 11.30
 #@ 
-
+#@ [coverage]
+#@ exe = topop
+#@ dim = 2
+#@ args=stop_time=0.2
+#@ args=solver.fixed_iter=10
+#@ check=false
+#@ coverage=true
+#@
 alamo.program               = topop
 plot_file		    = tests/TopOp/output
 

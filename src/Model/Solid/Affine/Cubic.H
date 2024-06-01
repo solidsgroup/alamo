@@ -105,20 +105,23 @@ public:
 }
 
 template<>
-inline int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
+ALAMO_SINGLE_DEFINITION
+int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
 {
     return 1;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
+ALAMO_SINGLE_DEFINITION
+std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
 {
     if (i==0) return name + ".Cxxxx";
     return name;
 }
 
 template<>
-inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {

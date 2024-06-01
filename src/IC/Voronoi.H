@@ -111,17 +111,17 @@ public:
 
     static void Parse(Voronoi &value, IO::ParmParse &pp)
     {
-        pp.query("number_of_grains",value.number_of_grains);
+        pp.query("number_of_grains",value.number_of_grains); // Number of grains
         if (pp.contains("alpha"))
         {
-            pp.queryarr("alpha",value.alpha);
+            pp.queryarr("alpha",value.alpha); // Value to take in the region [1.0]
             value.Define(value.number_of_grains,value.alpha);    
         }
         else
         {
             value.Define(value.number_of_grains,1.0);
         }
-        pp.query("seed",value.seed);
+        pp.query("seed",value.seed); // Random seed to use
     }
     
 private:

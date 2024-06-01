@@ -94,29 +94,33 @@ for testdirname in sorted(glob.glob("../../tests/*")):
 
     if len(config) <= 1:
         docfile.write("    * - :icon-gray:`warning`\n\n")
-        docfile.write("      - {}\n\n".format(testname))
+        if os.path.isfile(testdirname+"/Readme.rst"):
+            docfile.write("      - :ref:`{}`\n".format(testname))
+        else: 
+            docfile.write("      - {}\n\n".format(testname))
+    else:
+        docfile.write("    * - :icon-green:`check_circle`\n\n")
+        docfile.write("      - :ref:`{}`\n".format(testname))
+        docfile.write("      - {}\n".format(str(len(config)-1)))
+    
+        has2D = False
+        has3D = False
+        for c in config:
+            if "dim" in config[c]:
+                if config[c]["dim"] == "2": has2D = True
+                if config[c]["dim"] == "3": has3D = True
+        
+        dimstr = ""
+        if has2D: dimstr += ":icon:`2d` "
+        if has3D: dimstr += ":icon:`3d_rotation` "
+        docfile.write("      - {}\n".format(dimstr))
+        
+        if os.path.isfile(testdirname+"/test"):
+            docfile.write("      - :icon-green:`verified`\n")
+        docfile.write("\n")
+
+    if len(config) <= 1 and not os.path.isfile(testdirname+"/Readme.rst"):
         continue
-
-    docfile.write("    * - :icon-green:`check_circle`\n\n")
-    docfile.write("      - :ref:`{}`\n".format(testname))
-    docfile.write("      - {}\n".format(str(len(config)-1)))
-
-    has2D = False
-    has3D = False
-    for c in config:
-        if "dim" in config[c]:
-            if config[c]["dim"] == "2": has2D = True
-            if config[c]["dim"] == "3": has3D = True
-    
-    dimstr = ""
-    if has2D: dimstr += ":icon:`2d` "
-    if has3D: dimstr += ":icon:`3d_rotation` "
-    docfile.write("      - {}\n".format(dimstr))
-    
-    if os.path.isfile(testdirname+"/test"):
-        docfile.write("      - :icon-green:`verified`\n")
-    docfile.write("\n")
-
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)
 
@@ -184,13 +188,16 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             cmd = ""
             if "nprocs" in config[c] and int(config[c]["nprocs"]) > 1:
                 cmd += "mpiexec -np {} ".format(config[c]["nprocs"])
-            cmd += "./bin/alamo-{}d-g++".format(config[c]["dim"])
+            exe = "alamo"
+            if "exe" in config[c]: exe = config[c]["exe"]
+            cmd += "./bin/{}-{}d-g++".format(exe,config[c]["dim"])
             cmd += " {}/input".format(testdirname.replace("../../",""))
             if "args" in config[c]:
                 cmd += " "
                 cmdargs = [s.replace("= ","=").replace(" =","=") for s in config[c]["args"].split("\n")]
-                cmd += " ".join(['{}="{}"'.format(s.split('=')[0], s.split('=')[1]) for s in cmdargs])
-                print(cmd)
+                for s in cmdargs:
+                    if len(s.split('=')) == 2:
+                        cmd += ' {}="{}"'.format(s.split('=')[0], s.split('=')[1])
             if "ignore" in config[c]:
                 cmd += ' ignore="{}"'.format(config[c]["ignore"])
 

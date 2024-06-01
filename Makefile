@@ -189,6 +189,39 @@ test: .FORCE
 	@make docs
 	@./scripts/runtests.py
 
+GCDA = $(shell find obj/ -name "*.gcda" )
+GCNO = $(shell find obj/ -name "*.gcno" )
+
+GCDA_DIRS  = $(shell find obj/ -maxdepth 1 -name "*coverage*" )
+GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
+GCDA_INFOS = $(subst obj-,cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+GCDA_LCOVS = $(subst obj-,--add-tracefile cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+
+cov-report: cov/index.html
+	@echo $(GCDA_LCOVS)
+	@echo "Done - output in cov/index.html"
+
+cov-clean: .FORCE
+	rm -rf $(GCDA)
+	rm -rf ./cov
+
+cov/index.html: cov/coverage_merged.info
+	genhtml cov/coverage_merged.info --output-directory cov
+
+cov/coverage_merged.info: $(GCDA_INFOS)
+	mkdir -p ./cov/
+	lcov --ignore-errors=gcov,source,graph $(GCDA_LCOVS) -o cov/coverage_merged.info  
+
+cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
+	mkdir -p ./cov/
+	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
+
+githubpages: docs cov-report
+	mkdir -p ./githubpages/
+	echo "<head><meta http-equiv=\"refresh\" content=\"0; url='docs/index.html\" /></head>" > githubpages/index.html
+	cp -rf docs/build/html ./githubpages/docs/
+	cp -rf cov/ ./githubpages/cov/
+
 ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),realclean)

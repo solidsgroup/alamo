@@ -568,6 +568,25 @@ Divergence(const amrex::Array4<const Set::Matrix>& dw,
 
 
 AMREX_FORCE_INLINE
+Set::Scalar
+Divergence(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k, const int& m,
+    const Set::Scalar dx[AMREX_SPACEDIM],
+    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Scalar ret;
+    ret = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i, j, k, m, dx, stencil));
+#if AMREX_SPACEDIM > 1
+    ret += (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j, k, m, dx, stencil));
+#endif
+#if AMREX_SPACEDIM > 2
+    ret += (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(f, i, j, k, m, dx, stencil));
+#endif
+    return ret;
+}
+
+
+AMREX_FORCE_INLINE
 Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,

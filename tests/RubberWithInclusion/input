@@ -1,10 +1,19 @@
 #@
 #@ [serial-2d]
+#@ exe=mechanics
 #@ dim=2
 #@ benchmark-beaker=13.8
 #@ check-file=reference/thermo.dat
 #@
+#@ [serial-2d-coverage]
+#@ exe=mechanics
+#@ dim=2
+#@ check=false
+#@ args=stop_time=0.1
+#@ coverage=true
+#@
 #@ [parallel-2d]
+#@ exe=mechanics
 #@ dim=2
 #@ nprocs=4
 #@ benchmark-beaker=6.6
@@ -12,7 +21,7 @@
 #@
 
 alamo.program = mechanics
-alamo.program.mechanics.model = elastic.neohookean
+alamo.program.mechanics.model = finite.neohookean
 plot_file = tests/RubberWithInclusion/output
 type = static
 timestep = 0.1

@@ -22,6 +22,7 @@ import os, subprocess
 import sys
 sys.path.append(os.path.abspath('.'))
 import Inputs
+Inputs.scrapeInputs()
 import Tests
 
 # -- Project information ----------------------------------------------------
@@ -61,7 +62,8 @@ extensions = [
     'linuxdoc.rstFlatTable',
 #    'm2r'
     'sphinx_design',
-    'sphinx_copybutton'
+    'sphinx_copybutton',
+    'sphinxcontrib.bibtex'
 ]
 
 #breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
@@ -95,6 +97,8 @@ exclude_patterns = []
 #pygments_style = 'sphinx'
 pygments_style = 'default'
 
+# BiBTeX bibliography
+bibtex_bibfiles = ['refs.bib']
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -111,7 +115,7 @@ html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
 #    'canonical_url': '',
 #    'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
-    'logo_only': False,
+    'logo_only': True,
 #    'display_version': True,
 #    'prev_next_buttons_location': 'bottom',
 #    'style_external_links': False,
@@ -206,7 +210,7 @@ texinfo_documents = [
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-html_logo = "alamo2.png"
+html_logo = "alamo3.png"
 
 html_css_files = [
     'custom.css',

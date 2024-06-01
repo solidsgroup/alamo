@@ -41,13 +41,21 @@ class HeatConduction : virtual public Integrator
 {
 public:
     // Empty constructor
-    HeatConduction() : Integrator()
+    HeatConduction(int a_nghost = 2) : 
+        Integrator(),
+        number_of_ghost_cells(a_nghost)
     {}
 
     // Constructor that triggers parse
     HeatConduction(IO::ParmParse& pp) : HeatConduction()
     {
         Parse(*this, pp);
+    }
+
+    virtual ~HeatConduction()
+    {
+        delete ic;
+        delete bc;
     }
 
     // The Parse function initializes the HeatConduction object using
@@ -58,14 +66,25 @@ public:
     // prefixed by "value."
     static void Parse(HeatConduction& value, IO::ParmParse& pp)
     {
-        // Diffusion coefficient [1.0]
-        pp.query("heat.alpha", value.alpha);
-        // Criterion for mesh refinement [0.01]
-        pp.query("heat.refinement_threshold", value.refinement_threshold);
+        // Diffusion coefficient :math:`\alpha`.
+        //   *This is an example of a required input variable -
+        //    - program will terminate unless it is provided.*
+        pp.query_required("heat.alpha", value.alpha);
 
-        std::string type = "sphere";
-        // Initial condition type ([sphere], constant, expression)
-        pp.query("ic.type", type);
+        // Criterion for mesh refinement.
+        //   *This is an example of a default input variable.
+        //    The default value is provided here, not in the 
+        //    definition of the variable.*
+        pp.query_default("heat.refinement_threshold", value.refinement_threshold, 0.01);
+
+        std::string type;
+
+        // Initial condition type.
+        //   *This is an example of type validation:
+        //    the input variable must be one of the three provided values, 
+        //    and will error if not. The default selection is the first
+        //    argument.*
+        pp.query_validate("ic.type", type, {"constant", "sphere","expression"});
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "ic.expression");
@@ -107,8 +126,10 @@ protected:
             const amrex::Box& bx = mfi.tilebox();
 
             // Get an array-accessible handle to the data on this patch.
-            amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar>       const& temp = (*temp_mf[lev]).array(mfi);
+            // amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
+            // amrex::Array4<Set::Scalar>       const& temp = temp_mf.Patch(lev,mfi);//(*temp_mf[lev]).array(mfi);
+            Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
 
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -156,15 +177,33 @@ protected:
     Set::Field<Set::Scalar> temp_old_mf;     // Temperature field variable (previous timestep)
 
 private:
-    int number_of_components = 1;            // Number of components
-    int number_of_ghost_cells = 2;           // Number of ghost cells
 
+    //
+    // Definition of parameters set only at instantiation by
+    // constructors. 
+    //
+    const int number_of_components = 1;      // Number of components
+    const int number_of_ghost_cells = 2;     // Number of ghost cells
 
-    Set::Scalar alpha = 1.0;                 // Thermal diffusivity
-    Set::Scalar refinement_threshold = 0.01; // Criterion for cell refinement
+    //
+    // Definition of user-determined variables.
+    //
+    // Instantiate all variables to NAN if possible.
+    // Default values may be set in Parse using query_default.
+    //
 
-    IC::IC* ic;                              // Object used to initialize temperature field
-    BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
+    Set::Scalar alpha = NAN;                 // Thermal diffusivity
+    Set::Scalar refinement_threshold = NAN ; // Criterion for cell refinement
+
+    //
+    // Definition of user-determined pointer variables.
+    //
+    // These should be set to nullptr. Make sure that they are deleted
+    // in the ~HeatConduction destructor.
+    //
+
+    IC::IC* ic = nullptr;                    // Object used to initialize temperature field
+    BC::BC<Set::Scalar>* bc = nullptr;       // Object used to update temp field boundary ghost cells
 };
 } // namespace Integrator
 #endif
