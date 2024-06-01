@@ -15,7 +15,7 @@
 #@ dim = 2
 #@ nprocs = 4
 #@ check = true
-#@ check-file = reference/reference.dat
+#@ check-file = reference/reference.csv
 
 alamo.program = flame
 
