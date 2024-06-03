@@ -33,6 +33,11 @@ To switch to :code:`development`, in the alamo directory,
     git checkout development
 
 
+
+.. literalinclude:: .git/workflows/dependencies.sh
+   :caption: Dependencies
+   :language: bash
+    
 Installing dependencies
 =======================
 

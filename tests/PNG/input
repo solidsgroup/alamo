@@ -33,7 +33,7 @@ ic.png.filename = tests/PNG/interface-blur.png
 ic.png.fit      = coord
 ic.png.coord.lo = -6 -4
 ic.png.coord.hi = 6 4
-ic.png.channel  = g
+ic.png.channel  = G
 
 #Aluminum Oxide
 nmodels = 2

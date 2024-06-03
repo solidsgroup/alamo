@@ -188,7 +188,11 @@ public:
 
             Set::Scalar tol = 1E-4;
             Set::Matrix F = Set::Matrix::Random();
-            while (fabs(F.determinant()) < 0.1) F = Set::Matrix::Random(); // Ensure that F is reasonably well-behaved.
+            while (
+                F.determinant() < 0.1 || // skip if determinant negative or too small
+                F.determinant() > 10 // also skip if determinant too large
+                )
+                F = Set::Matrix::Random(); // Ensure that F is reasonably well-behaved.
 
             Set::Scalar W_unrotated = model.W(F);
 

@@ -39,6 +39,10 @@ public:
 
     void Define(std::string filename)
     {
+        m_w   = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,0,true);
+        m_dw  = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,1,false);
+        m_ddw = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,2,false);
+        return;
         std::ifstream input;
         input.open(filename);
         std::string line;

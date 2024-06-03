@@ -39,6 +39,12 @@ public:
 
     static void Parse(Flame& value, IO::ParmParse& pp);
 
+    virtual ~Flame()
+    {
+        delete bc_eta;
+        delete ic_eta;
+        delete ic_phi;
+    }
 
 protected:
     void Initialize(int lev) override;
@@ -63,18 +69,16 @@ private:
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
-    Set::Field<Set::Scalar> phicell_mf;
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
     Set::Field<Set::Scalar> heatflux_mf;
 
     Set::Field<Set::Scalar> laser_mf;
 
-    BC::BC<Set::Scalar>* bc_temp;
-    BC::BC<Set::Scalar>* bc_eta;
-    IC::IC* ic_phi;
-    IC::IC* ic_phicell;
-    IC::IC* ic_laser;
+    BC::BC<Set::Scalar>* bc_temp = nullptr;
+    BC::BC<Set::Scalar>* bc_eta = nullptr;
+    IC::IC* ic_phi = nullptr;
+    IC::IC* ic_laser = nullptr;
 
     Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
     Set::Scalar m_refinement_criterion = 0.001;
@@ -84,7 +88,7 @@ private:
     Set::Scalar zeta_0 = 1.0e-5;
     Set::Scalar small = 1.0e-8;
     Set::Scalar base_time = 1.0e-4;
-    IC::IC* ic_eta;
+    IC::IC* ic_eta = nullptr;
     int ghost_count = 2;
     int homogeneousSystem = 0;
     bool plot_field = true;
@@ -156,11 +160,15 @@ private:
     Set::Scalar chamber_pressure = 1.0; 
     Set::Scalar massflux = 0.00000001;
 
+<<<<<<< HEAD
     Set::Scalar x_len = 0.001;
     Set::Scalar y_len = 0.001; 
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
 
+=======
+    BC::BC<Set::Scalar>* bc_psi = nullptr;
+>>>>>>> development
 };
 }
 

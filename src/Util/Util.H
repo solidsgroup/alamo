@@ -20,6 +20,12 @@
 #define INFO __FILE__, __func__, __LINE__
 #define TEST(x) #x, x
 
+
+#ifndef ALAMO_SINGLE_DEFINITION
+#define ALAMO_SINGLE_DEFINITION AMREX_ATTRIBUTE_WEAK
+#endif
+
+
 /// \brief A collection of utility routines
 namespace Util
 {
