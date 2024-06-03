@@ -15,7 +15,7 @@ amr.grid_eff = 0.8
 
 
 amr.max_level = 2
-timestep  = 1.0e-4
+timestep  = 1.0e-2
 #amr.n_cell = 256 128
 amr.n_cell = 64 16
 
@@ -60,7 +60,7 @@ eta.ic.expression.region0        = "(1.0 - 0.5*tanh((sqrt((x-x0)**2 + (y)**2) + 
 
 gamma = 1.4
 cfl   = 0.4
-mu    = 0.05
+mu    = 0.01
 
 rho_solid = 100.0 #kg/m^3
 rho_fluid = 100.0 #kg/m^3
@@ -116,7 +116,7 @@ v.bc.type.xlo = dirichlet neumann
 v.bc.type.ylo = neumann dirichlet
 v.bc.type.yhi = neumann dirichlet
 v.bc.val.xhi = 0.0 0.0
-v.bc.val.xlo = 0.2 0.0
+v.bc.val.xlo = 0.1 0.0
 v.bc.val.ylo = 0.0 0.0
 v.bc.val.yhi = 0.0 0.0
 
