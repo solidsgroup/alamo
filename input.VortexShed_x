@@ -62,9 +62,15 @@ gamma = 1.4
 cfl   = 0.4
 mu    = 0.01
 
-rho_solid = 100.0 #kg/m^3
-rho_fluid = 100.0 #kg/m^3
-v_solid   = 0.0 #m/s
+Density.ic.type = expression
+Density.ic.expression.region0 = "100.0" 
+
+SolidDensity.ic.type = expression
+SolidDensity.ic.expression.region0 = "100.0" 
+
+SolidVelocity.ic.type = expression
+SolidVelocity.ic.expression.region0 = "0.0" 
+SolidVelocity.ic.expression.region1 = "0.0" 
 
 Velocity.ic.type = expression
 Velocity.ic.expression.region0 = "0.2"

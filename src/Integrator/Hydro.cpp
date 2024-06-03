@@ -404,38 +404,42 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             rho_new(i, j, k) =
                 /*Update fluid density*/
                 eta(i, j, k) * 
-                (rho(i, j, k)
+                (
+                rho(i, j, k)
                 + (flux_xlo.Mass - flux_xhi.Mass) / DX[0] * dt
                 + (flux_ylo.Mass - flux_yhi.Mass) / DX[1] * dt
                 )
                 - (rho(i, j, k) - rho_solid(i, j, k)) * etadot(i, j, k) * dt
                 /*Update solid density*/
-                + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);         
+                + (1.0 - eta(i, j, k)) * rho_solid(i, j, k)
+                ;         
                 
             M_new(i, j, k, 0) =
                 /*Update fluid momentum*/
                 eta(i, j, k) * 
-                (M(i, j, k, 0)
+                (
+                M(i, j, k, 0)
                 + (flux_xlo.Momentum_normal  - flux_xhi.Momentum_normal) / DX[0] * dt
                 + (flux_ylo.Momentum_tangent - flux_yhi.Momentum_tangent) / DX[1] * dt 
                 + (mu * lap_ux)
                 ) 
                 -  (M(i, j, k, 0) - rho_solid(i, j, k) * v_solid(i, j, k, 0)) * etadot(i, j, k) * dt
                 /*Update solid momentum*/   
-                + (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * v_solid(i, j, k, 0));
+                + (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * v_solid(i, j, k, 0))
+                ;
                 
             M_new(i, j, k, 1) =
                 /*Update fluid momentum*/
-                //eta(i, j, k) * 
+                eta(i, j, k) * 
                 (
                 M(i, j, k, 1)
-                //+ (flux_xlo.Momentum_tangent - flux_xhi.Momentum_tangent) / DX[0] * dt
-                //+ (flux_ylo.Momentum_normal  - flux_yhi.Momentum_normal ) / DX[1] * dt
-                //+ (mu * lap_uy)
+                + (flux_xlo.Momentum_tangent - flux_xhi.Momentum_tangent) / DX[0] * dt
+                + (flux_ylo.Momentum_normal  - flux_yhi.Momentum_normal ) / DX[1] * dt
+                + (mu * lap_uy)
                 ) 
-                //- (M(i, j, k, 1) - rho_solid(i, j, k) * v_solid(i, j, k, 1)) * etadot(i, j, k) * dt
-                ////*Update solid momentum*/   
-                //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * v_solid(i, j, k, 1))
+                - (M(i, j, k, 1) - rho_solid(i, j, k) * v_solid(i, j, k, 1)) * etadot(i, j, k) * dt
+                //*Update solid momentum*/   
+                + (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * v_solid(i, j, k, 1))
                 ;
 
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
