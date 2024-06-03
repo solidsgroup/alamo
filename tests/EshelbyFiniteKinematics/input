@@ -4,7 +4,7 @@
 #@  nprocs = 1
 
 alamo.program = mechanics
-alamo.program.mechanics.model = elastic.neohookeanpre
+alamo.program.mechanics.model = finite.neohookeanpre
 
 plot_file		    = tests/EshelbyFiniteKinematics/output
 

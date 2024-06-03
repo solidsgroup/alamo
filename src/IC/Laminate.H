@@ -67,7 +67,7 @@ public:
     };
 
 private:
-    int number_of_inclusions = 1;
+    int number_of_inclusions = -1;
     amrex::Vector<Set::Vector> center;
     amrex::Vector<Set::Vector> orientation;
     amrex::Vector<Set::Vector> normal;
@@ -80,8 +80,8 @@ private:
 public:
     static void Parse(Laminate& value, IO::ParmParse& pp)
     {
-        // How many laminates (MUST be greater than or equal to 1). Default = 1
-        pp.query("number_of_inclusions", value.number_of_inclusions);
+        // How many laminates (MUST be greater than or equal to 1).
+        pp.query_default("number_of_inclusions", value.number_of_inclusions, 1);
 
         if (value.number_of_inclusions < 1)
             Util::Abort(INFO, "Number of inclusions must be at least 1. Aborting.");

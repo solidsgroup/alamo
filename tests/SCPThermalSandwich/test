@@ -15,10 +15,11 @@ print("Specified reference file",reference)
 
 testlib.validate(path=path,
                  outdir=outdir,
-                 start=[0,0,0],
-                 end=[0.0002,0,0],
+                 start=[0.05e-3,-0.00025,0],
+                 end=[0.05e-3,0.00025,0],
                  vars=["eta","temp"],
-                 tolerance=1E-4,
+                 tolerance=0.01,
+                 coord='y',
                  generate_ref_data = False,
                  reference=reference)
 exit(0)

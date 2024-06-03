@@ -37,7 +37,7 @@ jobs:
       run: ./bin/test-3d-coverage-g++
     - name: regression tests with coverage (2d + 3d)
       continue-on-error: true
-      run: scripts/runtests.py --serial --only-coverage
+      run: scripts/runtests.py --serial --only-coverage --timeout=100
     - name: generate coverage report
       run: make cov-report
     - name: generate documentation
