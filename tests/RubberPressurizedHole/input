@@ -12,6 +12,9 @@
 #@ exe=mechanics
 #@ dim=2
 #@ coverage=true
+#@ check=false
+#@ args = solver.nriters=1
+#@ args = solver.fixed_iter=1
 #@
 
 alamo.program = mechanics
