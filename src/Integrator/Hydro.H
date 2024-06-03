@@ -72,6 +72,9 @@ private:
     Set::Field<Set::Scalar> Velocity_mf;
     Set::Field<Set::Scalar> Pressure_mf;
 
+    Set::Field<Set::Scalar> SolidDensity_mf;
+    Set::Field<Set::Scalar> SolidVelocity_mf;
+
 protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
@@ -94,6 +97,10 @@ private:
 
     IC::IC* ic_Velocity = nullptr;
     IC::IC* ic_Pressure = nullptr;
+    IC::IC* ic_Density  = nullptr;
+
+    IC::IC* ic_SolidDensity  = nullptr;
+    IC::IC* ic_SolidVelocity = nullptr;
 
     IC::IC* ic_rhoInterface = nullptr;
     IC::IC* ic_vInjected = nullptr;
@@ -110,7 +117,6 @@ private:
 
     Set::Scalar r_refinement_criterion=NAN, e_refinement_criterion=NAN, m_refinement_criterion=NAN, eta_refinement_criterion=NAN, omega_refinement_criterion=NAN;
     Set::Scalar gamma=NAN, cfl=NAN, mu=NAN;
-    Set::Scalar rho_fluid=NAN, rho_solid=NAN, v_solid=NAN;
 };
 }
 

@@ -34,10 +34,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_required("cfl", value.cfl);
         pp.query_required("mu", value.mu);
 
-        pp.query_required("rho_fluid", value.rho_fluid);
-        pp.query_required("rho_solid", value.rho_solid);
-        pp.query_required("v_solid", value.v_solid);
-
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
         value.bc_v = new BC::Constant(2, pp, "v.bc");
@@ -68,6 +64,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.rhoInterface_mf, &value.bc_nothing, 1, nghost, "rhoInterface", true);
         value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, nghost, "q",            true);
 
+        value.RegisterNewFab(value.SolidVelocity_mf, &value.bc_nothing, 2, nghost, "SolidVelocity",  true);
+        value.RegisterNewFab(value.SolidDensity_mf,  &value.bc_nothing, 1, nghost, "SolidDensity",  true);
+
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, nghost, "Source", true);
     }
     {
@@ -96,6 +95,27 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     {
         std::string type = "constant";
+        pp.query("SolidVelocity.ic.type", type);
+        if (type == "constant") value.ic_SolidVelocity = new IC::Constant(value.geom, pp, "SolidVelocity.ic.constant");
+        else if (type == "expression") value.ic_SolidVelocity = new IC::Expression(value.geom, pp, "SolidVelocity.ic.expression");
+        else Util::Abort(INFO, "Invalid SolidVelocity.ic: ", type);
+    }
+    {
+        std::string type = "constant";
+        pp.query("SolidDensity.ic.type", type);
+        if (type == "constant") value.ic_SolidDensity = new IC::Constant(value.geom, pp, "SolidDensity.ic.constant");
+        else if (type == "expression") value.ic_SolidDensity = new IC::Expression(value.geom, pp, "SolidDensity.ic.expression");
+        else Util::Abort(INFO, "Invalid SolidDensity.ic: ", type);
+    }
+    {
+        std::string type = "constant";
+        pp.query("Density.ic.type", type);
+        if (type == "constant") value.ic_Density = new IC::Constant(value.geom, pp, "Density.ic.constant");
+        else if (type == "expression") value.ic_Density = new IC::Expression(value.geom, pp, "Density.ic.expression");
+        else Util::Abort(INFO, "Invalid Density.ic: ", type);
+    }
+    {
+        std::string type = "constant";
         pp.query("rhoInterface.ic.type", type);
         if (type == "constant") value.ic_rhoInterface = new IC::Constant(value.geom, pp, "rhoInterface.ic.constant");
         else if (type == "expression") value.ic_rhoInterface = new IC::Expression(value.geom, pp, "rhoInterface.ic.expression");
@@ -121,19 +141,23 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 void Hydro::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Hydro::Initialize");
+ 
+    ic_eta           ->Initialize(lev, eta_mf,     0.0);
+    ic_eta           ->Initialize(lev, eta_old_mf, 0.0);
+    etadot_mf[lev]   ->setVal(0.0);
 
-    ic_eta          ->Initialize(lev, eta_mf,     0.0);
-    ic_eta          ->Initialize(lev, eta_old_mf, 0.0);
-    etadot_mf[lev]  ->setVal(0.0);
+    ic_Velocity      ->Initialize(lev, Velocity_mf, 0.0);
+    ic_Pressure      ->Initialize(lev, Pressure_mf, 0.0);
+    ic_Density       ->Initialize(lev, Density_mf, 0.0);
 
-    ic_Velocity     ->Initialize(lev, Velocity_mf, 0.0);
-    ic_Pressure     ->Initialize(lev, Pressure_mf, 0.0);
+    ic_SolidVelocity ->Initialize(lev, SolidVelocity_mf, 0.0);
+    ic_SolidDensity  ->Initialize(lev, SolidDensity_mf, 0.0);
 
-    ic_rhoInterface ->Initialize(lev, rhoInterface_mf, 0.0);
-    ic_vInjected    ->Initialize(lev, vInjected_mf,    0.0);
-    ic_q            ->Initialize(lev, q_mf,            0.0);
+    ic_rhoInterface  ->Initialize(lev, rhoInterface_mf, 0.0);
+    ic_vInjected     ->Initialize(lev, vInjected_mf,    0.0);
+    ic_q             ->Initialize(lev, q_mf,            0.0);
 
-    Source_mf[lev]  ->setVal(0.0);
+    Source_mf[lev]   ->setVal(0.0);
 
     Mix(lev);
 }
@@ -158,18 +182,24 @@ void Hydro::Mix(int lev)
         amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
+        amrex::Array4<const Set::Scalar> const& rho_solid = (*SolidDensity_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& v_solid   = (*SolidVelocity_mf[lev]).array(mfi);
+
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
-            rho(i, j, k) = eta(i, j, k) * rho_fluid + (1.0 - eta(i, j, k)) * rho_solid;
+            rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
 
-            E(i, j, k) = (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho_fluid + p(i, j, k) / (gamma - 1.0)) * eta(i, j, k) + (0.5 * (v_solid * v_solid) * rho_solid + p(i, j, k) / (gamma - 1.0)) * (1.0 - eta(i, j, k));
+            E(i, j, k) = (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k)) * eta(i, j, k) 
+                         + 
+                         (0.5 * (v_solid(i, j, k, 0) * v_solid(i, j, k, 0) + v_solid(i, j, k, 1) * v_solid(i, j, k, 1)) * rho_solid(i, j, k)) * (1.0 - eta(i, j, k))
+                         + p(i, j, k) / (gamma - 1.0);
             E_old(i, j, k) = E(i, j, k);
 
-            M(i, j, k, 0) = rho_fluid * v(i, j, k, 0) * eta(i, j, k) + rho_solid * v_solid * (1.0 - eta(i, j, k));
-            M(i, j, k, 1) = rho_fluid * v(i, j, k, 1) * eta(i, j, k) + rho_solid * v_solid * (1.0 - eta(i, j, k));
+            M(i, j, k, 0) = rho(i, j, k) * v(i, j, k, 0) * eta(i, j, k) + rho_solid(i, j, k) * v_solid(i, j, k, 0) * (1.0 - eta(i, j, k));
+            M(i, j, k, 1) = rho(i, j, k) * v(i, j, k, 1) * eta(i, j, k) + rho_solid(i, j, k) * v_solid(i, j, k, 1) * (1.0 - eta(i, j, k));
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
         });
@@ -254,7 +284,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-            Set::Matrix hess_eta = Numeric::Hessian(eta, i, j, k, 0, DX);
+            Set::Matrix hess_eta     = Numeric::Hessian(eta, i, j, k, 0, DX);
             Set::Scalar etadot_cell  = etadot(i, j, k);
             Set::Matrix gradu        = Numeric::Gradient(v, i, j, k, DX);
             Set::Scalar divu         = 0.0;//Numeric::Divergence(v, i, j, k, 2, DX);
@@ -264,12 +294,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector u(v(i,j,k,0),v(i,j,k,1));
             // Prescribed values
             Set::Scalar rho0  = rhoInterface(i, j, k);
-            Set::Vector u0    = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) - grad_eta * etadot_cell/(grad_eta_mag * grad_eta_mag + 1.0e-12);
+            Set::Vector u0    = Set::Vector(vInjected(i,j,k,0),vInjected(i,j,k,1)) - grad_eta * etadot(i, j, k)/(grad_eta_mag * grad_eta_mag + 1.0e-12);
             Set::Vector q0    = Set::Vector(q(i,j,k,0),q(i,j,k,1));
             Set::Matrix T     = 0.5 * mu * (gradu + gradu.transpose());
+
             Set::Scalar mdot0 = (rho0 * u0).dot(grad_eta);
-            Set::Vector Pdot0 = (rho0 * (u0*u0.transpose()) - T + 0.5 * (gradu.transpose() + divu * I))*grad_eta;
-            Set::Scalar qdot0 = (0.5*rho0*(u0.dot(u0))*u0 - T*u0 + q0).dot(grad_eta); 
+            Set::Vector Pdot0 = Set::Vector::Zero();//(rho0 * (u0*u0.transpose()) - T + 0.5 * (gradu.transpose() + divu * I))*grad_eta;
+            Set::Scalar qdot0 = (/*0.5*rho0*(u0.dot(u0))*u0 - T*u0 +*/ q0).dot(grad_eta); 
             Set::Vector Ldot0 = Set::Vector::Zero();
 
             for (int p = 0; p<2; p++)
@@ -321,6 +352,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
+        amrex::Array4<const Set::Scalar> const& rho_solid = (*SolidDensity_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& v_solid   = (*SolidVelocity_mf[lev]).array(mfi);
+
         amrex::Array4<Set::Scalar> const& omega   = (*Vorticity_mf[lev]).array(mfi);
 
 
@@ -350,20 +384,22 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, gamma);
             flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, gamma);
 
-            Set::Scalar E_solid = (0.5 * rho_solid * v_solid * v_solid + p(i, j, k)/(gamma - 1.0));
+            Set::Scalar E_solid = (0.5 * (v_solid(i, j, k, 0) * v_solid(i, j, k, 0) + v_solid(i, j, k, 1) * v_solid(i, j, k, 1)) * rho_solid(i, j, k) + p(i, j, k) / (gamma - 1.0));
 
             //Godunov fluxes
             E_new(i, j, k) =
                 /*Update fluid energy*/
                 eta(i, j, k) * 
-                (E(i, j, k) 
+                (
+                E(i, j, k)
                 + (flux_xlo.Energy - flux_xhi.Energy) / DX[0] * dt
                 + (flux_ylo.Energy - flux_yhi.Energy) / DX[1] * dt
-                //+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
+                ///////////+ 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
                 ) 
                 - (E(i, j, k) - E_solid) * etadot(i, j, k) * dt //Should be jump value
                 /*Update solid energy*/
-                + (1.0 - eta(i, j, k)) * E_solid;
+                + (1.0 - eta(i, j, k)) * E_solid
+                ;
                 
             rho_new(i, j, k) =
                 /*Update fluid density*/
@@ -372,9 +408,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + (flux_xlo.Mass - flux_xhi.Mass) / DX[0] * dt
                 + (flux_ylo.Mass - flux_yhi.Mass) / DX[1] * dt
                 )
-                - (rho(i, j, k) - rho_solid) * etadot(i, j, k) * dt
+                - (rho(i, j, k) - rho_solid(i, j, k)) * etadot(i, j, k) * dt
                 /*Update solid density*/
-                + (1.0 - eta(i, j, k)) * rho_solid;         
+                + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);         
                 
             M_new(i, j, k, 0) =
                 /*Update fluid momentum*/
@@ -384,21 +420,23 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 + (flux_ylo.Momentum_tangent - flux_yhi.Momentum_tangent) / DX[1] * dt 
                 + (mu * lap_ux)
                 ) 
-                -  (M(i, j, k, 0) - rho_solid * v_solid) * etadot(i, j, k) * dt
+                -  (M(i, j, k, 0) - rho_solid(i, j, k) * v_solid(i, j, k, 0)) * etadot(i, j, k) * dt
                 /*Update solid momentum*/   
-                + (1.0 - eta(i, j, k)) * (rho_solid * v_solid);
+                + (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * v_solid(i, j, k, 0));
                 
             M_new(i, j, k, 1) =
                 /*Update fluid momentum*/
-                eta(i, j, k) * 
-                (M(i, j, k, 1)
-                + (flux_xlo.Momentum_tangent - flux_xhi.Momentum_tangent) / DX[0] * dt
-                + (flux_ylo.Momentum_normal  - flux_yhi.Momentum_normal ) / DX[1] * dt
-                + (mu * lap_uy)
+                //eta(i, j, k) * 
+                (
+                M(i, j, k, 1)
+                //+ (flux_xlo.Momentum_tangent - flux_xhi.Momentum_tangent) / DX[0] * dt
+                //+ (flux_ylo.Momentum_normal  - flux_yhi.Momentum_normal ) / DX[1] * dt
+                //+ (mu * lap_uy)
                 ) 
-                - (M(i, j, k, 1) - rho_solid * v_solid) * etadot(i, j, k) * dt
-                /*Update solid momentum*/   
-                + (1.0 - eta(i, j, k)) * (rho_solid * v_solid);
+                //- (M(i, j, k, 1) - rho_solid(i, j, k) * v_solid(i, j, k, 1)) * etadot(i, j, k) * dt
+                ////*Update solid momentum*/   
+                //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * v_solid(i, j, k, 1))
+                ;
 
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
