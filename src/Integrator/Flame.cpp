@@ -145,7 +145,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.dependency", value.pressure.arrhenius.dependency); // Whether to use pressure to determined the reference Zeta 
             pp.query("pressure.h1", value.pressure.arrhenius.h1); // Surgate heat flux model paramater - Homogenized
             pp.query("pressure.h2", value.pressure.arrhenius.h2); // Surgate heat flux model paramater - Homogenized
-            pp.query("homogeneousSystem", value.homogeneousSystem); // Whether to initialize Phi with homogenized properties
+            
         }
         else
         {
@@ -157,6 +157,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.n_comb", value.pressure.power.n_comb); // AP/HTPB power pressure law parameter (r*P^n)
         }
         pp.query("variable_pressure", value.variable_pressure); // Whether to compute the pressure evolution
+        pp.query("homogeneousSystem", value.homogeneousSystem); // Whether to initialize Phi with homogenized properties
     }
 
     pp.query("amr.refinement_criterion", value.m_refinement_criterion);// Refinement criterion for eta field   
@@ -344,12 +345,12 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
-    if (variable_pressure){ 
-    Set::Scalar domain_area = x_len * y_len;
-    chamber_pressure = pressure.P;
-    chamber_area = domain_area - volume;
-    Util::Message(INFO, "Mass = ", massflux);
-    Util::Message(INFO, "Pressure = ", pressure.P);
+    if (variable_pressure) {
+        Set::Scalar domain_area = x_len * y_len;
+        chamber_pressure = pressure.P;
+        chamber_area = domain_area - volume;
+        Util::Message(INFO, "Mass = ", massflux);
+        Util::Message(INFO, "Pressure = ", pressure.P);
     }
 }
 
@@ -544,15 +545,30 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar fmod_htpb = pressure.power.r_htpb * pow(pressure.P, pressure.power.n_htpb);
                 Set::Scalar fmod_comb = pressure.power.r_comb * pow(pressure.P, pressure.power.n_comb);
 
+                pressure.power.a_fit = -1.16582 * sin(pressure.P) - 0.681788 * cos(pressure.P) + 3.3563;
+                pressure.power.b_fit = -0.708225 * sin(pressure.P) + 0.548067 * cos(pressure.P) + 1.55985;
+                pressure.power.c_fit = -0.0130849 * sin(pressure.P) - 0.03597 * cos(pressure.P) + 0.00725694;
+
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     //Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-
-                    Set::Scalar fs_actual;
-                    fs_actual = fmod_ap * phi(i, j, k)
-                        + fmod_htpb * (1.0 - phi(i, j, k))
-                        + 4.0 * fmod_comb * phi(i, j, k) * (1.0 - phi(i, j, k));
-                    Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
+                    Set::Scalar L;
+                    if (homogeneousSystem == 1) {
+                        Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                        Set::Scalar angle = acos(grad_eta[0] / grad_eta.lpNorm<2>()) * 180 / 3.1415;
+                        if (angle > 90) angle = angle - 90;
+                        if (angle > 180) angle = angle - 180;
+                        if (angle > 270) angle = angle - 270; 
+                        L = pressure.power.a_fit + pressure.power.b_fit * exp(-pressure.power.c_fit * angle);
+                    }
+                    else {
+                        Set::Scalar fs_actual;
+                        fs_actual = fmod_ap * phi(i, j, k)
+                            + fmod_htpb * (1.0 - phi(i, j, k))
+                            + 4.0 * fmod_comb * phi(i, j, k) * (1.0 - phi(i, j, k));
+                        L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
+                    }
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
