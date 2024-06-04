@@ -75,7 +75,7 @@ public:
 
     amrex::Array4<T> Patch (int lev, amrex::MFIter &mfi) const &
     {
-        if (this->size()) Util::Message(INFO,name," returning a valid patch. size = ",this->size());
+        if (this->size()) return (*(*this)[lev]).array(mfi);
         else return empty;
     }
 

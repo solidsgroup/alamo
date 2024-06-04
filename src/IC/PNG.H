@@ -7,7 +7,10 @@
 #include <cmath>
 
 #ifndef ALAMO_NOPNG
-#include "png.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <png.h>
 #endif
 
 #include "IC/IC.H"
