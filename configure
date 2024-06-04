@@ -105,9 +105,7 @@ parser.add_argument('--profile',dest='profile',action='store_true',default=False
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
-parser.add_argument('--link',default=None, nargs='*', help='Specific sub-tests to run')
-#parser.add_argument('--jit',dest='jit',action='store_true',default=False)
-#parser.add_argument('--libmesh',dest='libmesh',default=None,help="Specify location of LIBMESH library (for use with JIT expression parsing)")
+parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 if not (args.buildamrexbranch or args.buildamrextag):
@@ -314,10 +312,10 @@ elif (args.eigen != ""):
 # MAC OS SUPPORT
 #
 if args.macos:
-    f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
+    #f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
     f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
-else:
-    f.write("LIB += -lpng \n")
+#else:
+f.write("LIB += -lpng \n")
 
 #
 # ADD ADDITIONAL LINK LIBRARIES
