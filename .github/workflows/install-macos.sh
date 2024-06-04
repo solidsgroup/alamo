@@ -14,7 +14,7 @@ brew install libpng
 #
 # [ you need to do this in every new shell OR add to your shell config file (like .bashrc) ]
 #
-export CPLUS_INCLUDE_PATH=${CPLUS_INCLUDE_PATH}:$(brew --prefix)/include:$(brew --prefix libpng)/include
+export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/include
 
 #
 # In the alamo directory, run this command with any additional arguments. 
