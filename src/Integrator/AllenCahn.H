@@ -32,6 +32,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/Random.H"
 #include "Numeric/Stencil.H"
 
 namespace Integrator
@@ -69,13 +70,14 @@ public:
         // Value for :math:`\lambda` (Chemical potential coefficient)
         pp.query("ch.chempot",value.ch.chempot);
 
-        std::string type = "sphere";
-        // Initial condition type ([sphere], constant, expression, bmp)
-        pp.query("alpha.ic.type", type);
+        std::string type;
+        // Initial condition type
+        pp.query_validate("alpha.ic.type", type, {"sphere","constant","expression","bmp","random"});
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
         else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
+        else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
         // Use a constant BC object for temperature
