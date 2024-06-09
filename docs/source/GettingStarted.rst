@@ -22,8 +22,8 @@ System Install Scripts
         :maxdepth: 4
         :caption: Contents:
 
-        Install/MacOS
         Install/Ubuntu
+        Install/MacOS
         Install/Windows
 
            

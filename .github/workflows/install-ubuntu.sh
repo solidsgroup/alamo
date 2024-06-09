@@ -21,8 +21,6 @@ sudo apt install libpng-dev
 #
 # In the alamo directory, run this command with any additional arguments. 
 #
-# [ you need to include these arguments every time you configure ]
-#
 ./configure 
 
 #
@@ -48,9 +46,6 @@ ls ./bin/
 # These are not required tu run alamo, but are needed to use alamo scripts such as
 # the regression test script.
 # The following commands work on the Github VM, but your configuration may vary.
-#
-# (If you already have another way of installing python packages, use it - the
-# "break-system-packages" is kind of dangerous and is only needed for this CI script)
 #
 
 #
