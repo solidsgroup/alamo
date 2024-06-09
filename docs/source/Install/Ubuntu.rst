@@ -7,13 +7,13 @@
 .. |ubuntu-badge-devel| image:: https://github.com/solidsgroup/alamo/actions/workflows/install.yml/badge.svg?branch=development
 .. |ubuntu-badge-master| image:: https://github.com/solidsgroup/alamo/actions/workflows/install.yml/badge.svg?branch=master
 
-+---------------+----------------------+
++---------------+-----------------------+
 | recent        | |ubuntu-badge|        |
-+---------------+----------------------+
++---------------+-----------------------+
 | development   | |ubuntu-badge-devel|  |
-+---------------+----------------------+
++---------------+-----------------------+
 | master        | |ubuntu-badge-master| |
-+---------------+----------------------+
++---------------+-----------------------+
 
 .. literalinclude:: ../../../.github/workflows/install-ubuntu.sh
    :caption: Ubuntu Installation
