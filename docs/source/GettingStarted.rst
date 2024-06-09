@@ -23,5 +23,7 @@ System Install Scripts
         :caption: Contents:
 
         Install/MacOS
+        Install/Ubuntu
+        Install/Windows
 
            

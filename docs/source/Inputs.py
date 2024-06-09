@@ -206,7 +206,7 @@ inputsheader = r"""
 
 
 inputsearchheader = r"""
-.. _inputs: 
+.. _inputssearch: 
 
 ===========================================
 :fas:`magnifying-glass;fa-fw` Inputs Search
