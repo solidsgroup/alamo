@@ -145,7 +145,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.dependency", value.pressure.arrhenius.dependency); // Whether to use pressure to determined the reference Zeta 
             pp.query("pressure.h1", value.pressure.arrhenius.h1); // Surgate heat flux model paramater - Homogenized
             pp.query("pressure.h2", value.pressure.arrhenius.h2); // Surgate heat flux model paramater - Homogenized
-            
+
         }
         else
         {
@@ -454,18 +454,27 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
                     //phi_avg = phicell(i,j,k);
                     Set::Scalar K;
-                    Set::Scalar qflux = k1 * phi_avg +
-                        k2 * (1.0 - phi_avg) +
-                        (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
-                    Set::Scalar mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
-                    Set::Scalar mdota = fabs(mdot(i, j, k));
-                    Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
+                    Set::Scalar qflux;
+                    Set::Scalar mlocal;
+                    Set::Scalar mdota;
+                    Set::Scalar mbase;
 
                     if (homogeneousSystem) {
+                        qflux = k4 * phi_avg;
+                        mlocal = (thermal.mlocal_ap) * thermal.massfraction + (thermal.mlocal_htpb) * (1.0 - thermal.massfraction);
+                        mdota = fabs(mdot(i, j, k));
+                        mbase = tanh(4.0 * mdota / (mlocal));
                         K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg);
-                        heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * (k4 * phi_avg)) / K;
+                        heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * qflux) / K;
                     }
                     else {
+                        qflux = k1 * phi_avg +
+                            k2 * (1.0 - phi_avg) +
+                            (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
+                        mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
+                        mdota = fabs(mdot(i, j, k));
+                        mbase = tanh(4.0 * mdota / (mlocal));
+
                         K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
                         heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
                     }
@@ -559,7 +568,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                         Set::Scalar angle = acos(grad_eta[0] / grad_eta.lpNorm<2>()) * 180 / 3.1415;
                         if (angle > 90) angle = angle - 90.0;
                         if (angle > 180) angle = angle - 180.0;
-                        if (angle > 270) angle = angle - 270.0; 
+                        if (angle > 270) angle = angle - 270.0;
                         L = pressure.power.a_fit + pressure.power.b_fit * exp(-pressure.power.c_fit * angle);
                     }
                     else {
