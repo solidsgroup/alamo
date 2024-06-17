@@ -22,14 +22,14 @@ def readHeader(path):
 
 
 def validate(path, 
-             outdir,
-             vars = [],
-             start = [0,0,0],
-             end = [1,1,1],
-             axis = 2,
-             intercept = 0,
-             generate_ref_data = False,
-             reference=None,
+            outdir,
+            vars = [],
+            start = [0,0,0],
+            end = [1,1,1],
+            axis = 2,
+            intercept = 0,
+            generate_ref_data = False,
+            reference=None,
              tolerance=1E-8,
              coord = 'x'):
             
@@ -70,11 +70,7 @@ def validate(path,
     for var, tol in zip(vars,tolerance):
         len_x = info["geom_hi"][0]-info["geom_lo"][0]
         len_y = info["geom_hi"][1]-info["geom_lo"][1]
-        if (len_x >= len_y):
-            data2d = slice2d.to_frb(len_x,100)[var]
-        else:
-            data2d = slice2d.to_frb(len_y,100)[var]
-        
+        data2d = slice2d.to_frb(width=len_x,height=len_y,resolution=(1000,1000*len_y/len_x))[var]
         pylab.clf()
         pylab.imshow(data2d,origin='lower',cmap='jet',
                      extent=[info["geom_lo"][0],info["geom_hi"][0],info["geom_lo"][1],info["geom_hi"][1]])
