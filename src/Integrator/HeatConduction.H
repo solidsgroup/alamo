@@ -29,6 +29,7 @@
 #include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
 #include "BC/Constant.H"
+#include "BC/Expression.H"
 #include "IC/IC.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
@@ -90,10 +91,11 @@ public:
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "ic.expression");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
-        // Use a constant BC object for temperature
-        value.bc = new BC::Constant(1);
-        // :ref:`BC::Constant` parameters with prefix bc.temp
-        pp.queryclass("bc.temp", *static_cast<BC::Constant*>(value.bc));
+        std::string bc_type;
+        // Select BC object for temperature
+        pp.query_validate("bc.temp.type",bc_type,{"constant","expression"});
+        if (bc_type == "expression")      value.bc = new BC::Expression(1, pp, "bc.temp.expression");
+        else if (bc_type == "constant")   value.bc = new BC::Constant(1, pp, "bc.temp");
 
         // Register the temperature and old temperature fields.
         // temp_mf and temp_old_mf are defined near the bottom of this Header file.
