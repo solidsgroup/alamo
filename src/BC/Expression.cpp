@@ -37,8 +37,8 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
         amrex::IntVect glevel;
         AMREX_D_TERM(glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,
-                     glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
-                     glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
+                    glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
+                    glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
         
         if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
         {
