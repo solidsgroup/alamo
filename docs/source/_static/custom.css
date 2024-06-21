@@ -76,7 +76,11 @@ li[class="toctree-l1"] a:hover
 
 h1 {font-size:xx-large!important;}
 h2 {font-size:x-large!important;}
-h3 {font-size:large!important;}
+h3 {font-size:large!important;text-decoration: underline;}
+h4 {font-size:medium!important;text-decoration: underline;}
+h5 {font-size:small!important;text-decoration: underline;}
+h6 {font-size:x-small!important;text-decoration: underline;}
+h7 {font-size:xx-small!important;text-decoration: underline;}
 
 
 .wy-nav-content {

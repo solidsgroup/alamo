@@ -59,7 +59,7 @@ def extract(basefilename):
         for i, line in enumerate(lines):
             
             # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall('^\s*pp.(query[arr]*[_required]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall('^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -392,14 +392,15 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                         writeInput(subinput,lev+1,prefix + [input["prefix"]])
                 if (input["type"] in ["query","queryarr","query_validate",
                                       "query_default","queryarr_default",
-                                      "query_required","queryarr_required"]):
+                                      "query_required","queryarr_required",
+                                      "query_file"]):
                     global num_tot, num_doc
                     if input["parsefn"]: prefix = ["[prefix]"] + prefix
                     num_tot += 1
                     if writeFiles:
                         docfile.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
                         docfilesearch.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
-                        docfile.write("      - {}\n".format(input["type"]))
+                        docfile.write("      - :ref:`{}<query-directives>`\n".format(input["type"]))
                         docfilesearch.write("      - :ref:`{}`\n".format(subhdr))
                     if input["doc"] != "":
                         num_doc += 1
@@ -412,6 +413,9 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                             if "_required" in input["type"]:
                                 docfile.write(      "      - :bdg-danger-line:`required`")
                                 docfilesearch.write("      - :bdg-danger-line:`required`")
+                            if "_file" in input["type"]:
+                                docfile.write(      "      - :bdg-secondary-line:`file path`")
+                                docfilesearch.write("      - :bdg-secondary-line:`file path`")
                             if "_validate" in input["type"]:
                                 things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
                                 string = ":bdg-success:`{}` ".format(things[0])
