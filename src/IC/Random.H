@@ -3,6 +3,7 @@
 
 #include "AMReX_Vector.H"
 
+#include "IO/ParmParse.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
@@ -16,7 +17,10 @@ public:
     Random (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult = 1.0) :
         IC(_geom), mult(a_mult)
     {}
-  
+    Random(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
+    {
+        pp.queryclass(name, *this);
+    }  
     void Add(const int &lev, Set::Field<Set::Scalar> &field, Set::Scalar)
     {
         for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
@@ -34,6 +38,10 @@ public:
         }
 
     };
+    static void Parse(Random& value, IO::ParmParse& pp)
+    {
+    }
+
     using IC::Add;
 private:
     Set::Scalar mult;
