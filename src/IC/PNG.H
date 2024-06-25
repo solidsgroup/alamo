@@ -7,7 +7,10 @@
 #include <cmath>
 
 #ifndef ALAMO_NOPNG
-#include "png.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <png.h>
 #endif
 
 #include "IC/IC.H"
@@ -267,7 +270,7 @@ public:
     {
 #ifndef ALAMO_NOPNG
         std::string filename;
-        pp.query("filename", filename); // BMP filename.
+        pp.query_file("filename", filename); // BMP filename.
         value.Define(filename);
         //value.bmp.Define(filename);
 

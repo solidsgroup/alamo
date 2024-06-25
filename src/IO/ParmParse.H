@@ -9,9 +9,69 @@
 // 
 // :bdg-warning-line:`This is standard infrastructure code; make sure you know what you ard doing before you change it.`
 //
+// .. _query-directives:
+//
+// **Query directives**
+//
+// Alamo uses different query directives to standardize reading inputs and automatic documentation.
+// The type of query that is used (query vs query_required, etc) triggers different handlers and different
+// automatic documentation procedures.
+// For instance, the use of a :code:`query_default` causes a default value to be set and added to the metadata
+// file, and it also serves as a flag for the autodoc system to document that a default value is available.
+// The following table is a reference for the different kinds of query directives.
+//
+//
+// .. table::
+//    :widths: 1 99
+//
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | BC Type                         | Description                                                     |
+//    +=================================+=================================================================+
+//    | :bdg-warning:`query`            | Standard IO for bool, string, Set::Scalarthat does not enforce  |
+//    |                                 | defaults or required values. Not recommended for general use.   |
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_required`   | Similar to query, but will abort if no value is specified.      |
+//    |                                 | Required values are indicated by :bdg-danger-line:`required`.   |
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_default`    | Similar to query, but will fill with default value if no value  |
+//    |                                 | is provided. Will also add default value to metadata.           |
+//    |                                 | Default values are indicated by green badge values, e.g.        |
+//    |                                 | :bdg-success:`0.0`.                                             |
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_validate`   | For strings, read in a value and enforce that the value is one  |
+//    |                                 | of a supplied number of values. Optionally make required, or    |
+//    |                                 | set the default value to the first supplied value.              | 
+//    |                                 | Acceptable options are indicated by blue badge values, e.g.     | 
+//    |                                 | :bdg-primary:`1.0`, :bdg-primary:`2.0`. If a default value is   | 
+//    |                                 | available, it is indicated by a green badge, e.g.               | 
+//    |                                 | :bdg-success:`1.0`.                                             | 
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-success:`query_file`       | Read in a string that defines a file name.                      |
+//    |                                 | Check to make sure that the file exists and is a regular file,  |
+//    |                                 | and print an informative error message if not (this can be      |
+//    |                                 | disabled).                                                      |
+//    |                                 | Also, copy the file to the output directory, with the full path |
+//    |                                 | preserved by replacing / with _.                                |
+//    |                                 | (This can also be disabled, but doing so is discouraged.)       |
+//    |                                 | Default values are not allowed.                                 |
+//    |                                 | File paths are indicated by :bdg-secondary-line:`file path`.    |
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-primary:`queryarr`         | Read in an array of numbers into either a standard vector or    |
+//    |                                 | into a :code:`Set::Vector` or :code:`Set::Scalar`.              |
+//    |                                 | No defaults or existence checking is performed.                 |
+//    +---------------------------------+-----------------------------------------------------------------+
+//    | :bdg-primary:`queryclass`       | Read a class object with a specified prefix.                    |
+//    |                                 | How that class is read in is determined by its :code:`Parse`    |
+//    |                                 | function.                                                       |
+//    +---------------------------------+-----------------------------------------------------------------+
+// 
+//
 
 #ifndef IO_PARMPARSE
 #define IO_PARMPARSE
+
+#include <filesystem>
+
 #include "Set/Set.H"
 #include "AMReX_ParmParse.H"
 
@@ -103,6 +163,33 @@ public:
         if (defaultvalue) defaultint = 1;
         return query_default(name, value, defaultint);
     }
+
+
+    // validate filenames
+    int query_file(std::string name, std::string & value, bool copyfile=true, bool checkfile=true)
+    {
+        if (!contains(name.c_str())) Util::Abort(INFO,name," must be specified");
+
+        int retval = query(name.c_str(),value);
+
+        if ( checkfile && ! std::filesystem::exists(value))
+        {
+            Util::Abort(INFO,"File ", value, " does not exist");
+        }
+
+        if ( checkfile && !std::filesystem::is_regular_file(value))
+        {
+            Util::Abort(INFO,"File ", value, " is not a regular file");
+        }
+
+        if ( copyfile )
+        {
+            Util::CopyFileToOutputDir(value, true);
+        }
+
+        return retval;
+    }
+
 
     int queryarr(std::string name, Set::Vector & value)
     {

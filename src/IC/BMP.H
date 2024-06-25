@@ -174,7 +174,7 @@ public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
         std::string filename;
-        pp.query_required("filename",filename); // BMP filename.
+        pp.query_file("filename",filename); // BMP filename.
         value.bmp.Define(filename);
 
         std::string fit;

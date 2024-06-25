@@ -59,6 +59,7 @@ parser.add_argument('--serial',action='store_true',default=False,help='Run in se
 parser.add_argument('--dim',default=None,type=int,help='Specify dimensions to run in')
 parser.add_argument('--cmd',default=False,action='store_true',help="Print out the exact command used to run each test")
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
+parser.add_argument('--exe',default=None, nargs='*', help='Run only certain executables')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
 parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code for all tests')
@@ -249,6 +250,11 @@ def test(testdir):
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
+
+            if args.exe:
+                if not exe in args.exe:
+                    continue
+
             # If the exestr doesn't exist, exit noisily. The script will continue but will return a nonzero
             # exit code.
             if not os.path.isfile(exestr):

@@ -111,7 +111,7 @@ public:
             value.center.push_back(Set::Vector(AMREX_D_DECL(x0[0],x0[1],x0[2])));
 
             Set::Scalar _eps;
-            pp.query("eps",_eps); // Diffuse boundary thickness
+            pp.query_default("eps",_eps,0.0); // Diffuse boundary thickness
             value.eps.push_back(_eps);
 
             Set::Matrix _A = Set::Matrix::Zero();

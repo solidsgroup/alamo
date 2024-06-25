@@ -39,9 +39,9 @@ public:
 
     void Define(std::string filename)
     {
-        m_w   = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,0,true);
-        m_dw  = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,1,false);
-        m_ddw = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,2,false);
+        m_w   = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,0);
+        m_dw  = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,1);
+        m_ddw = Numeric::Interpolator::Linear<Set::Scalar>::Read(filename,2);
         return;
         std::ifstream input;
         input.open(filename);
@@ -70,7 +70,6 @@ public:
                 std::isinf(w) || std::isinf(dw) || std::isinf(ddw)) 
                 Util::Abort(INFO,"Error in GB Read: t=",t," w=",w," dw=",dw," ddw=",ddw);
         }
-        Util::CopyFileToOutputDir(filename);
     };
     Set::Scalar W(const Set::Scalar theta) const
     {
@@ -89,10 +88,10 @@ private:
     Numeric::Interpolator::Linear<Set::Scalar> m_w, m_dw, m_ddw;
       
 public:
-    static void Parse(Read & value, amrex::ParmParse & pp)
+    static void Parse(Read & value, IO::ParmParse & pp)
     {
         std::string filename;
-        pp.query("filename",filename); // Filename containing GB data
+        pp.query_file("filename",filename); // Filename containing GB data
         value.Define(filename);
     }
       
