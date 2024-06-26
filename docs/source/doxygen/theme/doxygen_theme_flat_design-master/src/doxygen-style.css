@@ -660,20 +660,16 @@ hr.footer {
     display:none;
 }
 
-div.line:has(a:target) {
+div.line:has(a:target){
     background-color: var(--bgfont-hover);
-    animation: FadeIn 0.75s ease-in-out forwards;
 }
 
-a:target::before {
-    content: '';
-    display: block;
-    height: 50vh; /* Adjust this value to match half the viewport height */
-    margin-top: -50vh; /* Negative margin to move the element up */
+a:target::before{
+    scroll-margin-top: 200px;
 }
 
-div.header{
+/*div.header{
     position:sticky;
     top: 0;
-}
+}*/ 
 
