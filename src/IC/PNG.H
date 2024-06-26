@@ -270,7 +270,7 @@ public:
     {
 #ifndef ALAMO_NOPNG
         std::string filename;
-        pp.query("filename", filename); // BMP filename.
+        pp.query_file("filename", filename); // BMP filename.
         value.Define(filename);
         //value.bmp.Define(filename);
 

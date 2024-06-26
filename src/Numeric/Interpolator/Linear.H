@@ -157,7 +157,7 @@ public:
     }
 
 
-    static Linear<T> Read(std::string filename, int derivative = 0, bool copyInputFile = true);
+    static Linear<T> Read(std::string filename, int derivative = 0);
 
 protected:
     std::vector<T> data_points;
@@ -181,7 +181,7 @@ Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
 }
 
 template<>
-inline Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative, bool copyInputFile)
+inline Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative)
 {
     std::ifstream input;
     input.open(filename);
@@ -193,9 +193,6 @@ inline Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int d
         theta.push_back(std::stof(dat[0]));
         w.push_back(std::stof(dat[1]));
     }
-
-    if (copyInputFile)  Util::CopyFileToOutputDir(filename);
-
     if (derivative == 0)
     {
         return Linear<Set::Scalar>(w,theta);

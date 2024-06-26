@@ -201,10 +201,10 @@ public:
             pp.query("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart);
             std::string mobility_filename, threshold_filename;
             // file containing anisotropic mobility data
-            pp.query("anisotropic_kinetics.mobility",mobility_filename); 
+            pp.query_file("anisotropic_kinetics.mobility",mobility_filename); 
             value.anisotropic_kinetics.mobility = Numeric::Interpolator::Linear<Set::Scalar>::Read(mobility_filename);
             // file containing anisotropic mobility data
-            pp.query("anisotropic_kinetics.threshold",threshold_filename); 
+            pp.query_file("anisotropic_kinetics.threshold",threshold_filename); 
             value.anisotropic_kinetics.threshold = Numeric::Interpolator::Linear<Set::Scalar>::Read(threshold_filename);
             value.RegisterNewFab(value.anisotropic_kinetics.L_mf, value.mybc, value.number_of_grains, 0, "mobility",true);
             value.RegisterNewFab(value.anisotropic_kinetics.threshold_mf, value.mybc, value.number_of_grains, 0, "theshold",true);

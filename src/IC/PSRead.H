@@ -105,7 +105,7 @@ public:
         std::string filename;
         int verbose = 0;
         pp.query("eps", value.eps); // Diffuseness of the sphere boundary
-        pp.query("filename", filename); // Location of .xyzr file
+        pp.query_file("filename", filename); // Location of .xyzr file
         pp.query("verbose", verbose); // Verbosity (used in parser only)
         pp.query("mult",value.mult); // Coordinate multiplier
         if (pp.contains("x0"))

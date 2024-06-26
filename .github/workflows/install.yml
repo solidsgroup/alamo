@@ -1,0 +1,22 @@
+name: Install
+
+on:
+  push:
+    branches: ["development", "master"]
+
+jobs:
+  install-ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: running the install script
+      run: bash .github/workflows/install-ubuntu.sh
+  install-macos:
+    name: Mac
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: running the install script
+      run: bash .github/workflows/install-macos.sh
+
