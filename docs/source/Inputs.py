@@ -427,13 +427,22 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                     if input["parsefn"]: prefix = ["[prefix]"] + prefix
                     num_tot += 1
 
-                    filename = src2url[input["file"].replace("../../","")]
-                    linenumber = "l"+str(input["line"]).zfill(5)
-                    codetarget = filename+"#"+linenumber
 
                     if writeFiles:
-                        docfile.write("    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
-                        docfilesearch.write("    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
+                        codetarget = None
+                        try:
+                            filename = src2url[input["file"].replace("../../","")]
+                            linenumber = "l"+str(input["line"]).zfill(5)
+                            codetarget = filename+"#"+linenumber
+                        except Exception as e:
+                            print(e)
+
+                        if codetarget:
+                            docfile.write(      "    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
+                            docfilesearch.write("    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
+                        else:
+                            docfile.write(      "    * - :bdg-danger:`{}`".format('.'.join(prefix+[input['string']])) + "\n")
+                            docfilesearch.write("    * - :bdg-danger:`{}`".format('.'.join(prefix+[input['string']])) + "\n")
                     if input["doc"] != "":
                         num_doc += 1
                         if writeFiles:
@@ -483,5 +492,3 @@ def scrapeInputs(root="../../src/", writeFiles=True):
 
     return num_doc, num_tot
 
-
-scrapeInputs()
