@@ -59,20 +59,20 @@ public:
     static void Parse(AllenCahn& value, IO::ParmParse& pp)
     {
         // Criterion for mesh refinement [0.01]
-        query_default("refinement_threshold", value.refinement_threshold, 0.01);
+        void query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        query_default("ch.L", value.ch.L, 1.0);
+        void query_default("ch.L", value.ch.L, 1.0);
         // Value for :math:`\epsilon` (diffuse boundary width)
-        query_default("ch.eps", value.ch.eps, 0.1);
+        void query_default("ch.eps", value.ch.eps, 0.1);
         // Value for :math:`\kappa` (Interface energy parameter)
-        query_default("ch.grad", value.ch.grad, 1.0);
+        void query_default("ch.grad", value.ch.grad, 1.0);
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        query_default("ch.chempot", value.ch.chempot, 1.0);
+        void query_default("ch.chempot", value.ch.chempot, 1.0);
 
         std::string type = "sphere";
         // Initial condition type ([sphere], constant, expression, bmp)
-        query_required("alpha.ic.type", type);
+        void query_required("alpha.ic.type", type);
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
