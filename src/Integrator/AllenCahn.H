@@ -62,13 +62,13 @@ public:
         pp.query("refinement_threshold", value.refinement_threshold);
 
         // Value for :math:`L` (mobility)
-        pp.query("ch.L",value.ch.L);
+        pp.query("ch.L", value.ch.L);
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp.query("ch.eps",value.ch.eps);
+        pp.query("ch.eps", value.ch.eps);
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp.query("ch.grad",value.ch.grad);
+        pp.query("ch.grad", value.ch.grad);
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp.query("ch.chempot",value.ch.chempot);
+        pp.query("ch.chempot", value.ch.chempot);
 
         std::string type = "sphere";
         // Initial condition type ([sphere], constant, expression, bmp)
@@ -77,7 +77,7 @@ public:
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
         else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
-	else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
+        else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
         // Use a constant BC object for temperature
@@ -105,7 +105,7 @@ protected:
     {
         std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
 
-        const Set::Scalar *DX = this->geom[lev].CellSize();
+        const Set::Scalar* DX = this->geom[lev].CellSize();
         // Evolve alpha
         for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
         {
