@@ -41,17 +41,17 @@ public:
 
     static void Parse(Dendrite& value, IO::ParmParse& pp)
     {
-        query_required("alpha", value.alpha); // Pre-multiplier of "m" barrier height
-        query_required("delta", value.delta); // Anisotropy factor
-        query_required("gamma", value.gamma); // Anisotropic temperature coupling factor
+        pp.query_required("alpha", value.alpha); // Pre-multiplier of "m" barrier height
+        pp.query_required("delta", value.delta); // Anisotropy factor
+        pp.query_required("gamma", value.gamma); // Anisotropic temperature coupling factor
 
-        query_required("eps", value.eps); // Diffuse boundary width
-        query_required("tau", value.tau); // Diffusive timescale
+        pp.query_required("eps", value.eps); // Diffuse boundary width
+        pp.query_required("tau", value.tau); // Diffusive timescale
 
         // Refinement criteria for temperature
-        query_default("heat.refinement_threshold", value.refinement_threshold_temp, 0.1);
+        pp.query_default("heat.refinement_threshold", value.refinement_threshold_temp, 0.1);
         // Refinement criteria for phi
-        query_default("phi.refinement_threshold", value.refinement_threshold_phi, 0.1);
+        pp.query_default("phi.refinement_threshold", value.refinement_threshold_phi, 0.1);
 
         // Expressions for ICs
         value.ic_temp = new IC::Expression(value.geom, pp, "ic.temp");
