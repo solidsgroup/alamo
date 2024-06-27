@@ -49,6 +49,7 @@ public:
 protected:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
+    void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
@@ -73,7 +74,6 @@ private:
     Set::Field<Set::Scalar> heatflux_mf;
 
     Set::Field<Set::Scalar> laser_mf;
-    //Set::Field<Set::Scalar> rhs_mf;
 
     BC::BC<Set::Scalar>* bc_temp = nullptr;
     BC::BC<Set::Scalar>* bc_eta = nullptr;
@@ -91,17 +91,24 @@ private:
     IC::IC* ic_eta = nullptr;
     int ghost_count = 2;
     int homogeneousSystem = 0;
+    bool plot_field = true;
+    int variable_pressure = 0;
+
     struct {
         Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;
         Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
+        Set::Scalar min_eta = 0.001;
         int evolve = 1;
     } pf;
 
     struct {
         Set::Scalar P = 1.0;
+        Set::Scalar gamma = 1.4;
+        Set::Scalar Energy = 1;
+
         struct {
             Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
             Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
@@ -114,6 +121,7 @@ private:
         struct {
             Set::Scalar r_ap = 0.0, r_htpb = 0.0, r_comb = 0.0;
             Set::Scalar n_ap = 0.0, n_htpb = 0.0, n_comb = 0.0;
+            Set::Scalar a_fit = 0.0, b_fit = 0.0, c_fit = 0.0;
         } power;
     } pressure;
 
@@ -124,7 +132,7 @@ private:
         Set::Scalar cp_ap, cp_htpb;
         Set::Scalar q0 = 0.0;
         Set::Scalar bound = 0.0;
-        Set::Scalar m_ap, m_htpb;
+        Set::Scalar m_ap, m_htpb, m_comb;
         Set::Scalar E_ap, E_htpb;
         Set::Scalar hc = 1.0, w1 = 1.0;
         Set::Scalar modeling_ap = 1.0, modeling_htpb = 1.0;
@@ -134,6 +142,7 @@ private:
         Set::Scalar disperssion1 = 0.93;
         Set::Scalar disperssion2 = 920.;
         Set::Scalar disperssion3 = 2418.29;
+        IC::IC* ic_temp = nullptr;
     } thermal;
 
     struct {
@@ -147,6 +156,13 @@ private:
     // Integrated variables
     Set::Scalar volume = 0.0;
     Set::Scalar area = 0.0;
+    Set::Scalar chamber_area = 0.0;
+    Set::Scalar chamber_volume = 0.0;
+    Set::Scalar chamber_pressure = 1.0;
+    Set::Scalar massflux = 0.00000001;
+
+    Set::Scalar x_len = 0.001;
+    Set::Scalar y_len = 0.001;
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
 };

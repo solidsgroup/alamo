@@ -55,10 +55,16 @@ public:
         // the output of this integrator.
         pp.query_default("time_evolving", value.m_time_evolving,false);
 
-        value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp", value.m_time_evolving);
-        value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs", value.m_time_evolving);
-        value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress", value.m_time_evolving);
-        value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain", value.m_time_evolving);
+        pp.query_default("plot_disp", value.plot_disp, true); // Include displacement field in output
+        pp.query_default("plot_rhs", value.plot_rhs, true); // Include right-hand side in output
+        pp.query_default("plot_psi", value.plot_psi, true); // Include :math:`\psi` field in output
+        pp.query_default("plot_stress", value.plot_stress, true); // Include stress in output
+        pp.query_default("plot_strain", value.plot_strain, true); // Include strain in output
+
+        value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_disp, "disp", value.m_time_evolving);
+        value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_rhs, "rhs", value.m_time_evolving);
+        value.RegisterGeneralFab(value.stress_mf, 1, 2, value.plot_stress, "stress", value.m_time_evolving);
+        value.RegisterGeneralFab(value.strain_mf, 1, 2, value.plot_strain, "strain", value.m_time_evolving);
 
         if (value.m_type == Type::Static)
         {
@@ -106,7 +112,7 @@ public:
 
         // Maximum multigrid coarsening level (default - none, maximum coarsening)
         pp.query_default("max_coarsening_level", value.m_max_coarsening_level,-1);
-        
+
         // Whether to include residual output field
         pp.query_default("print_residual", value.m_print_residual,false); 
         if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf, 1, 2, "res", false);
@@ -375,7 +381,7 @@ protected:
     Set::Field<Set::Vector> vel_old_mf;
     //Set::Field<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> ddw_mf;
     Set::Scalar rho = 1.0;
-    Set::Scalar mu = NAN;
+    Set::Scalar mu = 0.0;
 
     //Set::Vector trac_lo[AMREX_SPACEDIM];
     Set::Vector trac_hi[AMREX_SPACEDIM];
@@ -388,13 +394,20 @@ protected:
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
     BC::Operator::Elastic::Elastic* bc;
 
-    Set::Scalar m_elastic_ref_threshold = NAN;
+    Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;
     bool m_print_residual = false;
     bool m_time_evolving = false;
     int m_max_coarsening_level = -1;
 
     bool m_zero_out_displacement = false;
+
+    bool plot_disp = true;
+    bool plot_stress = true;
+    bool plot_strain = true;
+    bool plot_psi = true;
+    bool plot_rhs = true;
+
 
     Set::Scalar tstart = -1;
 };

@@ -83,6 +83,19 @@ public:
                 #endif
             }
         }
+        else if (type == "uniaxial_kolsky")
+        {
+            // Add a X displacement in the X direction
+            value.m_bc_val[Face::XLO][0]         = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            value.m_bc_val[Face::XLO_YLO][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            value.m_bc_val[Face::XLO_YHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            // Set the Y faces, Z faces, and YZ edges to be traction-free
+            for (int i = 0 ; i < AMREX_SPACEDIM ; i++)
+            {
+                value.m_bc_type[Face::YLO][i]     = Type::Traction;                
+                value.m_bc_type[Face::YHI][i]     = Type::Traction;                
+            }
+        }
         else if (type == "uniaxial_stress")
         {
             // Go ahead and set everything to traction first.
@@ -99,7 +112,7 @@ public:
             value.m_bc_type[Face::ZLO_XLO][0]     = Type::Displacement;
             value.m_bc_type[Face::ZHI_XLO][0]     = Type::Displacement;
             value.m_bc_type[Face::XLO_YLO_ZLO][0] = Type::Displacement;
-            value.m_bc_type[Face::XLO_YLO_ZHI][0] = Type::Displacement;
+            value.m_bc_type[Face::XLO_YLO_ZHI][0] = Type::Displacement;https://solidsgroup.github.io/alamo/docs/Inputs.html#ic-constant
             value.m_bc_type[Face::XLO_YHI_ZLO][0] = Type::Displacement;
             value.m_bc_type[Face::XLO_YHI_ZHI][0] = Type::Displacement;
             #endif
