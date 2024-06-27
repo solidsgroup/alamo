@@ -127,6 +127,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
             else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
             else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
+
+            std::string temp_ic_type;
+            pp.query_validate("temp.ic.type", temp_ic_type,{"default","constant","expression","bmp","png"}); // Temperature initial condition
+            if (temp_ic_type == "constant") value.thermal.ic_temp = new IC::Constant(value.geom, pp, "temp.ic.constant");
+            else if (temp_ic_type == "expression") value.thermal.ic_temp = new IC::Expression(value.geom, pp, "temp.ic.expression");
+            else if (temp_ic_type == "bmp") value.thermal.ic_temp = new IC::BMP(value.geom, pp, "temp.ic.bmp");
+            else if (temp_ic_type == "png") value.thermal.ic_temp = new IC::PNG(value.geom, pp, "temp.ic.png");
+            else if (temp_ic_type == "default") value.thermal.ic_temp = nullptr;
         }
     }
 
@@ -244,10 +252,20 @@ void Flame::Initialize(int lev)
         rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
     if (thermal.on) {
-        temp_mf[lev]->setVal(thermal.bound);
-        temp_old_mf[lev]->setVal(thermal.bound);
-        temps_mf[lev]->setVal(thermal.bound);
-        temps_old_mf[lev]->setVal(thermal.bound);
+        if (thermal.ic_temp)
+        {
+            thermal.ic_temp->Initialize(lev,temp_mf);
+            thermal.ic_temp->Initialize(lev,temp_old_mf);
+            thermal.ic_temp->Initialize(lev,temps_mf);
+            thermal.ic_temp->Initialize(lev,temps_old_mf);
+        }
+        else
+        {
+            temp_mf[lev]->setVal(thermal.bound);
+            temp_old_mf[lev]->setVal(thermal.bound);
+            temps_mf[lev]->setVal(thermal.bound);
+            temps_old_mf[lev]->setVal(thermal.bound);
+        }
         alpha_mf[lev]->setVal(0.0);
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
