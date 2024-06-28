@@ -103,10 +103,10 @@ public:
         (void)amrex::ParmParse::contains(name.c_str());
     }
 
-    #define pp_query_required(...) pp.query_required(__VA_ARGS__,INFO)
+#define pp_query_required(...) pp.query_required(__VA_ARGS__,INFO)
     template<typename T> 
-    int query_required(std::string name, T & value,
-                       std::string file = __FILE__, std::string func = "query_required", int line = __LINE__)
+    int query_required( std::string name, T & value,
+                        std::string file = __FILE__, std::string func = "query_required", int line = __LINE__)
     {
         if (!contains(name.c_str()))
         {
@@ -116,10 +116,10 @@ public:
         return query(name.c_str(),value);
     }
 
-    #define pp_query_default(...) pp.query_default(__VA_ARGS__,INFO)
+#define pp_query_default(...) pp.query_default(__VA_ARGS__,INFO)
     template<typename T>
-    int query_default(std::string name, T & value, T defaultvalue,
-                      std::string /*file*/ = __FILE__, std::string /*func*/ = "query_default", int /*line*/ = __LINE__)
+    int query_default(  std::string name, T & value, T defaultvalue,
+                        std::string /*file*/ = __FILE__, std::string /*func*/ = "query_default", int /*line*/ = __LINE__)
     {
         if (!contains(name.c_str()))
         {
@@ -128,9 +128,9 @@ public:
         return query(name.c_str(),value);
     } 
 
-    #define pp_query_validate(...) pp.query_validate(__VA_ARGS__,INFO)
-    int query_validate(std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault,
-                       std::string file = __FILE__, std::string func = "query_validate", int line = __LINE__)
+#define pp_query_validate(...) pp.query_validate(__VA_ARGS__,INFO)
+    int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault,
+                        std::string file = __FILE__, std::string func = "query_validate", int line = __LINE__)
     {        
         // if not using default values, then the input must be specified
         if (!firstbydefault)
@@ -164,22 +164,22 @@ public:
         return -1;
     }
 
-    int query_validate(std::string name, std::string & value, std::vector<const char *> possiblecharvals,
-                       std::string file = __FILE__, std::string func = "query_default", int line = __LINE__)
+    int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals,
+                        std::string file = __FILE__, std::string func = "query_default", int line = __LINE__)
     {
         return query_validate(name,value,possiblecharvals,true,file,func,line);
     }
 
     
     // special case for strings
-    int query_default(std::string name, std::string & value, const char *defaultvalue,
-                      std::string file = __FILE__, std::string func = "query_default", int line = __LINE__)
+    int query_default(  std::string name, std::string & value, const char *defaultvalue,
+                        std::string file = __FILE__, std::string func = "query_default", int line = __LINE__)
     {
         return query_default(name, value, std::string(defaultvalue), file, func, line);
     }
     // special case for bools
-    int query_default(std::string name, int & value, bool defaultvalue,
-                      std::string file = __FILE__, std::string func = "query_default", int line = __LINE__)
+    int query_default(  std::string name, int & value, bool defaultvalue,
+                        std::string file = __FILE__, std::string func = "query_default", int line = __LINE__)
     {
         int defaultint = 0;
         if (defaultvalue) defaultint = 1;
@@ -189,9 +189,9 @@ public:
 
 
     // validate filenames
-    #define pp_query_file(...) pp.query_file(__VA_ARGS__,INFO)
-    int query_file(std::string name, std::string & value, bool copyfile, bool checkfile,
-                   std::string file = __FILE__, std::string func = "query_file", int line = __LINE__)
+#define pp_query_file(...) pp.query_file(__VA_ARGS__,INFO)
+    int query_file( std::string name, std::string & value, bool copyfile, bool checkfile,
+                    std::string file = __FILE__, std::string func = "query_file", int line = __LINE__)
     {
         if (!contains(name.c_str())) Util::Abort(file,func,line,name," must be specified");
 
@@ -214,26 +214,26 @@ public:
 
         return retval;
     }
-    int query_file(std::string name, std::string & value, bool copyfile, 
-                   std::string file = __FILE__, std::string func = "query_file", int line = __LINE__)
+    int query_file( std::string name, std::string & value, bool copyfile, 
+                    std::string file = __FILE__, std::string func = "query_file", int line = __LINE__)
     {
         return query_file(name,value,copyfile,true,file,func,line);
     }
-    int query_file(std::string name, std::string & value, 
-                   std::string file = __FILE__, std::string func = "query_file", int line = __LINE__)
+    int query_file( std::string name, std::string & value, 
+                    std::string file = __FILE__, std::string func = "query_file", int line = __LINE__)
     {
         return query_file(name,value,true,true,file,func,line);
     }
 
 
     template<typename T>
-    int queryarr(std::string name, std::vector<T> & value,
-                 std::string /*file*/, std::string /*func*/, int /*line*/)
+    int queryarr(   std::string name, std::vector<T> & value,
+                    std::string /*file*/, std::string /*func*/, int /*line*/)
     {
         return amrex::ParmParse::queryarr(name.c_str(),value);
     }
-    int queryarr(std::string name, Set::Vector & value,
-                 std::string file = __FILE__, std::string func = "queryarr", int line = __LINE__)
+    int queryarr(   std::string name, Set::Vector & value,
+                    std::string file = __FILE__, std::string func = "queryarr", int line = __LINE__)
     {
         std::vector<Set::Scalar> vals;
         amrex::ParmParse::queryarr(name.c_str(), vals);
@@ -244,36 +244,36 @@ public:
         for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
         return 0;
     }
-    int queryarr(std::string name, Set::Matrix & value,
-                 std::string file = __FILE__, std::string func = "queryarr", int line = __LINE__)
+    int queryarr(   std::string name, Set::Matrix & value,
+                    std::string file = __FILE__, std::string func = "queryarr", int line = __LINE__)
     {
         std::vector<Set::Scalar> vals;
         amrex::ParmParse::queryarr(name.c_str(), vals);
         if (vals.size() == 9)
         {
-            #if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM==2
             Util::Warning(file,func,line,"Reading a 3D matrix (",full(name),")into a 2D code - some values will be ignored.");
             value(0,0) = vals[0];  value(0,1)= vals[1];
             value(1,0) = vals[3];  value(1,1)= vals[4];
-            #endif
-            #if AMREX_SPACEDIM==3
+#endif
+#if AMREX_SPACEDIM==3
             value(0,0) = vals[0];  value(0,1)= vals[1];  value(0,2)= vals[2];
             value(1,0) = vals[3];  value(1,1)= vals[4];  value(1,2)= vals[5];
             value(2,0) = vals[6];  value(2,1)= vals[7];  value(2,2)= vals[8];
-            #endif
+#endif
         }
         else if (vals.size() == 4)
         {
-            #if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM==2
             value(0,0) = vals[0];  value(0,1)= vals[1];
             value(1,0) = vals[2];  value(1,1)= vals[3];
-            #endif
-            #if AMREX_SPACEDIM==3
+#endif
+#if AMREX_SPACEDIM==3
             Util::Warning(file,func,line,"Reading a 2D matrix (",full(name),")into a 3D code - remaining values will be set to zero.");
             value(0,0) = vals[0];  value(0,1)= vals[1];  value(0,2)= 0.0;
             value(1,0) = vals[2];  value(1,1)= vals[3];  value(1,2)= 0.0;
             value(2,0) = 0.0;      value(2,1)= 0.0;      value(2,2)= 0.0;
-            #endif
+#endif
         }
         else
         {
@@ -282,16 +282,14 @@ public:
         return 0;
     }
 
-    #define pp_queryarr(...) pp.queryarr(__VA_ARGS__,INFO)
+#define pp_queryarr(...) pp.queryarr(__VA_ARGS__,INFO)
 
-    #define pp_query(...) pp.query(__VA_ARGS__)
+#define pp_query(...) pp.query(__VA_ARGS__)
 
     int AnyUnusedInputs()
     {
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table.begin(), 
-            End = m_table.end(); 
-            li != End; ++li)
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table.begin(), End = m_table.end(); li != End; ++li)
         {
             if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
             {
@@ -306,9 +304,7 @@ public:
     {
         ParmParse pp;
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table.begin(), 
-            End = pp.m_table.end(); 
-            li != End; ++li)
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table.begin(), End = pp.m_table.end(); li != End; ++li)
         {
             if (!li->m_queried)
             {
@@ -327,7 +323,7 @@ public:
         return getPrefix() + "." + name;
     }
 
-    #define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
+#define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
 
     using amrex::ParmParse::queryarr;
     template<class T>
