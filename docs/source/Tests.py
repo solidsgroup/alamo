@@ -72,7 +72,8 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     testname = os.path.basename(testdirname)
 
     if not os.path.isfile(testdirname+"/input"):
-        docfile.write("    * - :icon-red:`error`\n\n")
+        #docfile.write("    * - :icon-red:`error`\n\n")
+        docfile.write("    * - :fas:`circle-xmark;sd-text-danger fa-fw fa-lg`\n\n")
         docfile.write("      - {}\n\n".format(testname))
         continue
 
@@ -93,13 +94,15 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     config.read_file(cfgfile)
 
     if len(config) <= 1:
-        docfile.write("    * - :icon-gray:`warning`\n\n")
+        #docfile.write("    * - :icon-gray:`warning`\n\n")
+        docfile.write("    * - :fas:`triangle-exclamation;sd-text-secondary fa-fw fa-lg`\n\n")
         if os.path.isfile(testdirname+"/Readme.rst"):
             docfile.write("      - :ref:`{}`\n".format(testname))
         else: 
             docfile.write("      - {}\n\n".format(testname))
     else:
-        docfile.write("    * - :icon-green:`check_circle`\n\n")
+        #docfile.write("    * - :icon-green:`check_circle`\n\n")
+        docfile.write("    * - :fas:`circle-check;sd-text-success fa-fw fa-lg`\n\n")
         docfile.write("      - :ref:`{}`\n".format(testname))
         docfile.write("      - {}\n".format(str(len(config)-1)))
     
@@ -111,12 +114,15 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                 if config[c]["dim"] == "3": has3D = True
         
         dimstr = ""
-        if has2D: dimstr += ":icon:`2d` "
-        if has3D: dimstr += ":icon:`3d_rotation` "
+        #if has2D: dimstr += ":icon:`2d` "
+        if has2D: dimstr += ":fas:`maximize;fa-fw fa-lg sd-text-secondary` "
+        #if has3D: dimstr += ":icon:`3d_rotation` "
+        if has3D: dimstr += ":fab:`unity;fa-fw fa-lg sd-text-secondary` "
         docfile.write("      - {}\n".format(dimstr))
         
         if os.path.isfile(testdirname+"/test"):
-            docfile.write("      - :icon-green:`verified`\n")
+            #docfile.write("      - :icon-green:`verified`\n")
+            docfile.write("      - :fas:`medal;fa-fw fa-lg sd-text-secondary`\n")
         docfile.write("\n")
 
     if len(config) <= 1 and not os.path.isfile(testdirname+"/Readme.rst"):
@@ -132,7 +138,8 @@ for testdirname in sorted(glob.glob("../../tests/*")):
 
         for c in config:
             if c == "DEFAULT": continue
-            testsectionname = "[{}] {}".format(testname,c)
+            #testsectionname = "[{}] {}".format(testname,c)
+            testsectionname = c
             testdocfile.write(testsectionname+"\n")
             testdocfile.write("-"*len(testsectionname)+"\n")
 
@@ -144,38 +151,45 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             # DIMENSION
             #
             if config[c]["dim"] == "2":
-                testdocfile.write("    * - :icon:`2d`\n")
+                #testdocfile.write("    * - :icon:`2d`\n")
+                testdocfile.write("    * - :fas:`maximize;fa-fw fa-lg`\n")
                 testdocfile.write("      - Two-dimensional\n")
             else:
                 config[c]["dim"] = "3"
-                testdocfile.write("    * - :icon:`3d_rotation`\n")
+                #testdocfile.write("    * - :icon:`3d_rotation`\n")
+                testdocfile.write("    * - :fab:`unity;fa-fw fa-lg`\n")
                 testdocfile.write("      - Three-dimensional\n")
 
             #
             # PARALLELISM
             #
             if "nprocs" in config[c] and int(config[c]["nprocs"]) > 1:
-                testdocfile.write("    * - :icon:`grid_view`\n")
+                #testdocfile.write("    * - :icon:`grid_view`\n")
+                testdocfile.write("    * - :fas:`cubes;fa-fw fa-lg`\n")
                 testdocfile.write("      - Parallel ({} procs)\n".format(config[c]["nprocs"]))
             else:
-                testdocfile.write("    * - :icon:`square`\n")
+                #testdocfile.write("    * - :icon:`square`\n")
+                testdocfile.write("    * - :fas:`cube;fa-fw fa-lg`\n")
                 testdocfile.write("      - Serial\n")
             
             #
             # TESTING OR NOT TESTING
             #
             if not os.path.isfile("{}/test".format(testdirname)) or ("checK" in config[c] and config[c]["check"] in {"no","No","false","False","0"}):
-                testdocfile.write("    * - :icon:`report_off`\n")
-                testdocfile.write("      - No testing script\n")
+                #testdocfile.write("    * - :icon:`report_off`\n")
+                testdocfile.write("    * - :fas:`question;fa-fw fa-lg`\n")
+                testdocfile.write("      - Not validated\n")
             else:
-                testdocfile.write("    * - :icon:`verified`\n")
-                testdocfile.write("      - Testing script present\n")
+                #testdocfile.write("    * - :icon:`verified`\n")
+                testdocfile.write("    * - :fas:`medal;fa-fw fa-lg`\n")
+                testdocfile.write("      - Validated using check script\n")
 
             #
             # BENCHMARK TIME
             #
             if any(["benchmark-" in key for key in config[c]]):
-                testdocfile.write("    * - :icon:`timer`\n")
+                #testdocfile.write("    * - :icon:`timer`\n")
+                testdocfile.write("    * - :fas:`stopwatch;fa-fw fa-lg`\n")
                 testdocfile.write("      - ")
                 for key in config[c]:
                     if "benchmark-" in key:
@@ -184,7 +198,8 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                         testdocfile.write(config[c][key] + "s ({}) ".format(key.replace("benchmark-","")))
                 testdocfile.write("\n")
 
-            testdocfile.write("    * - :icon:`play_circle`\n")
+            #testdocfile.write("    * - :icon:`play_circle`\n")
+            testdocfile.write("    * - :fas:`circle-play;fa-fw fa-lg`\n")
             cmd = ""
             if "nprocs" in config[c] and int(config[c]["nprocs"]) > 1:
                 cmd += "mpiexec -np {} ".format(config[c]["nprocs"])
