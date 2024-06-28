@@ -7,6 +7,7 @@
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
 
+#include "IO/ParmParse.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
 #include "Color.H"
@@ -22,8 +23,8 @@ std::string GetFileName()
 {
     if (filename == "")
     {
-        amrex::ParmParse pp;
-        amrex::ParmParse pp_amr("amr");
+        IO::ParmParse pp;
+        IO::ParmParse pp_amr("amr");
 
         if (pp_amr.contains("plot_file") && pp.contains("plot_file"))
             Util::Abort("plot_file specified in too many locations");
@@ -36,7 +37,7 @@ std::string GetFileName()
         }
         else if (pp.contains("plot_file"))
         {
-            pp.query("plot_file", filename); // Name of directory containing all output data
+            pp_query("plot_file", filename); // Name of directory containing all output data
         }
         IO::FileNameParse(filename);
         // else
@@ -83,7 +84,7 @@ void SignalHandler(int s)
     }
 
 #ifdef MEME
-    amrex::ParmParse pp;
+    IO::ParmParse pp;
     if (!pp.contains("nomeme"))
     {
         time_t timer; time(&timer);
@@ -110,7 +111,7 @@ void Initialize (int argc, char* argv[])
 
     amrex::Initialize(argc, argv);
 
-    amrex::ParmParse pp_amrex("amrex");
+    IO::ParmParse pp_amrex("amrex");
     pp_amrex.add("throw_exception",1);
     //amrex.throw_exception=1
 

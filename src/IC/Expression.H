@@ -52,7 +52,7 @@ public:
     Expression(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
     Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     }
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar a_time = 0.0)
     {
@@ -100,7 +100,7 @@ public:
             std::string coordstr = "cartesian";
             // coordinate system to use: "cartesian" (for x,y,z,t) and 
             // "polar" (for r, theta, z, t)
-            pp.query("coord", coordstr); 
+            pp_query("coord", coordstr); 
             if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
             else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
             else Util::Abort(INFO, "unsupported coordinates ", coordstr);
@@ -109,7 +109,7 @@ public:
             std::string name = "region" + std::to_string(i);
 
             if (!pp.contains(name.data())) break;
-            pp.query(name.data(), func);
+            pp_query(name.data(), func);
 
             value.parser.push_back(amrex::Parser(func));
 
@@ -124,7 +124,7 @@ public:
                 IO::ParmParse pp;
                 std::string fullname = *entry;
                 Set::Scalar val  = NAN;
-                pp.query(fullname.data(),val);
+                pp_query(fullname.data(),val);
                 std::string name = Util::String::Split(fullname,'.').back();
                 value.parser.back().setConstant(name,val);
             }

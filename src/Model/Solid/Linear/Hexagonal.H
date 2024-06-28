@@ -7,7 +7,7 @@
 //
 // .. math::
 //
-//    \mathbb{C} = 
+//    \mathbb{C} &= 
 //    \begin{bmatrix}
 //       C_{0000} & C_{0011} & C_{0022} & C_{0012} & C_{0020} & C_{0001} \\
 //       C_{1100} & C_{1111} & C_{1122} & C_{1112} & C_{1120} & C_{1101} \\
@@ -15,8 +15,8 @@
 //       C_{1200} & C_{1211} & C_{1222} & C_{1212} & C_{1220} & C_{1201} \\
 //       C_{2000} & C_{2011} & C_{2022} & C_{2012} & C_{2020} & C_{2001} \\
 //       C_{0100} & C_{0111} & C_{0122} & C_{0112} & C_{0120} & C_{0101} 
-//    \end{bmatrix}
-//    =
+//    \end{bmatrix} \\
+//    &=
 //    \begin{bmatrix}  
 //       C_{11}  &   C_{12}  &   C_{12}  &          &                      &                     \\
 //       C_{12}  &   C_{11}  &   C_{13}  &          &                      &                     \\
@@ -168,11 +168,11 @@ public:
     static void Parse(Hexagonal & value, IO::ParmParse & pp)
     {
         Set::Scalar C11 = NAN, C12 = NAN, C13 = NAN, C33 = NAN, C44 = NAN;
-        pp.query_required("C11",C11); // Elastic constant
-        pp.query_required("C12",C12); // Elastic constant
-        pp.query_required("C13",C13); // Elastic constant
-        pp.query_required("C33",C33); // Elastic constant
-        pp.query_required("C44",C44); // Elastic constant
+        pp_query_required("C11",C11); // Elastic constant
+        pp_query_required("C12",C12); // Elastic constant
+        pp_query_required("C13",C13); // Elastic constant
+        pp_query_required("C33",C33); // Elastic constant
+        pp_query_required("C44",C44); // Elastic constant
 
         if (pp.contains("random"))
         {
@@ -181,9 +181,9 @@ public:
         }
 
         Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
-        pp.query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
-        pp.query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:`\Phi`
-        pp.query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:`\phi_2`
+        pp_query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
+        pp_query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:`\Phi`
+        pp_query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:`\phi_2`
         value.Define(C11,C12,C13,C33,C44,phi1,Phi,phi2);
     }
 

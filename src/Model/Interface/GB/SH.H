@@ -36,8 +36,8 @@ class SH : public GB
 {
 public:
     SH(){};
-    SH(IO::ParmParse &pp){pp.queryclass(*this);};
-    SH(IO::ParmParse &pp,std::string name){pp.queryclass(name,*this);};
+    SH(IO::ParmParse &pp){pp_queryclass(*this);};
+    SH(IO::ParmParse &pp,std::string name){pp_queryclass(name,*this);};
     SH(const amrex::Real a_theta0, const amrex::Real a_phi0, const amrex::Real a_sigma0, const amrex::Real a_sigma1)
     {
         Define(a_theta0,a_phi0,a_sigma0,a_sigma1);
@@ -94,15 +94,15 @@ private:
 public:
     static void Parse(SH & value, amrex::ParmParse & pp)
     {
-        pp.query("theta0",value.theta0); // Theta offset (degrees)
+        pp_query("theta0",value.theta0); // Theta offset (degrees)
         value.theta0 *= 0.01745329251; // convert degrees into radians
-        pp.query("phi0",value.phi0); // Phi offset (radians)
+        pp_query("phi0",value.phi0); // Phi offset (radians)
         value.phi0 *= 0.01745329251;   // convert degrees into radians
-        pp.query("sigma0",value.sigma0); // Minimum energy value
-        pp.query("sigma1",value.sigma1); // Energy multiplier
+        pp_query("sigma0",value.sigma0); // Minimum energy value
+        pp_query("sigma1",value.sigma1); // Energy multiplier
 
         std::string reg_str = "wilhelm";
-        pp.query("regularization",reg_str); // Type of regularization to use: {wilhelm,k23}
+        pp_query("regularization",reg_str); // Type of regularization to use: {wilhelm,k23}
         if (reg_str == "wilhelm") value.regularization = Regularization::Wilhelm;
         else if (reg_str == "k23") value.regularization = Regularization::K23;
         else Util::Abort(INFO,"Invalid regularization string ",reg_str);

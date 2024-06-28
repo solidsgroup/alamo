@@ -24,7 +24,7 @@ public:
 
     Cuboid(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     }
 
     void Define() {
@@ -80,9 +80,9 @@ public:
 
     static void Parse(Cuboid& value, IO::ParmParse& pp)
     {
-        pp.queryarr("center", value.center); // Coordinates (X Y Z) of the center of the square/cube. 
-        pp.queryarr("length", value.length); // Side legnth of cuboid
-        pp.query("eps", value.eps); // Regularization value
+        pp_queryarr("center", value.center); // Coordinates (X Y Z) of the center of the square/cube. 
+        pp_queryarr("length", value.length); // Side legnth of cuboid
+        pp_query("eps", value.eps); // Regularization value
     }
 
 private:
