@@ -112,7 +112,7 @@ public:
             value.m_bc_type[Face::ZLO_XLO][0]     = Type::Displacement;
             value.m_bc_type[Face::ZHI_XLO][0]     = Type::Displacement;
             value.m_bc_type[Face::XLO_YLO_ZLO][0] = Type::Displacement;
-            value.m_bc_type[Face::XLO_YLO_ZHI][0] = Type::Displacement;https://solidsgroup.github.io/alamo/docs/Inputs.html#ic-constant
+            value.m_bc_type[Face::XLO_YLO_ZHI][0] = Type::Displacement;
             value.m_bc_type[Face::XLO_YHI_ZLO][0] = Type::Displacement;
             value.m_bc_type[Face::XLO_YHI_ZHI][0] = Type::Displacement;
             #endif
