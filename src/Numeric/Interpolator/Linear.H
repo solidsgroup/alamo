@@ -152,7 +152,7 @@ public:
     static void Parse(Linear<T> & value, IO::ParmParse & pp)
     {
         std::string in;
-        pp.query("str",in); // Interpolator string used when Parsed from queryclass.
+        pp_query("str",in); // Interpolator string used when Parsed from queryclass.
         value.define(in);
     }
 

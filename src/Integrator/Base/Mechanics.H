@@ -26,9 +26,7 @@ public:
     enum Type { Static, Dynamic, Disable };
 
     Mechanics() : Integrator()
-    {
-        Util::Message(INFO);
-    }
+    {}
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
@@ -82,7 +80,6 @@ public:
         std::string bc_type;
         // Determine the boundary condition type
         pp_query_validate("bc.type", bc_type,{"constant","tension_test","expression"});
-        Util::Message(INFO, bc_type);
         if (bc_type == "constant")          value.bc = new BC::Operator::Elastic::Constant(pp, "bc.constant");
         else if (bc_type == "tension_test") value.bc = new BC::Operator::Elastic::TensionTest(pp, "bc.tension_test");
         else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp, "bc.expression");
