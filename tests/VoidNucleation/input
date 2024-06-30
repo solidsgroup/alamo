@@ -1,10 +1,8 @@
 alamo.program               = voidpf
-##alamo.program.mechanics.model = affine.isotropic
 plot_file		    = tests/VoidNucleation/output
 
-# this is not a time integration, so do
-# exactly one timestep and then quit
-timestep		    = 0.1
+
+timestep		    = 0.01
 stop_time		    = 10.0
 
 # amr parameters
@@ -26,26 +24,30 @@ ic.bmp.filename = tests/VoidNucleation/ebsd_blur.bmp
 ic.bmp.fit      = fitwidth
 ic.bmp.channel  = g
 
-spall.ic.read = tests/VoidNucleation/nucleation_sites.txt
+spall.ic.type = psread
+spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.txt
 
 ## ellipse configuration
 #ic.type         = ellipse
 #ic.ellipse.x0   = 1000 1000
 
 #Aluminum Oxide
-elastic.model.E = 370 #GPa
-elastic.model.nu = 0.22
-elastic.model.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
+model.E = 370 #GPa
+model.nu = 0.22
+#elastic.model.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
 #Nickel
 #elastic.model2.E = 207 #GPa
 #elastic.model2.nu = 0.31
 #elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 
-elastic.solver.verbose = 2
-elastic.solver.nriters = 1
-elastic.solver.fixed_iter=2000
-elastic.set_dot_mask = 0
-elastic.set_singular = 1
+solver.verbose = 5
+solver.nriters = 10
+solver.fixed_iter=2000
+solver.tol_abs = 1E-16
+solver.bottom_solver =  smoother
+
+
+
 
 #bc
 bc.type = constant
@@ -60,9 +62,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.val.yhi    = 0.0 0.1
 bc.constant.val.xloyhi = 0.0 0.1
 bc.constant.val.xhiyhi = 0.0 0.1
-elastic.interval = 10
+#elastic.interval = 10
 
-
+eta_ref_threshold = 0.05
 spall.M = 1.0
 spall.kappa = -0.0005
 spall.po = 1.

@@ -40,6 +40,7 @@ geometry.is_periodic	    = 0 0 0
 #
 model.E = 3.70 
 model.nu = 0.22
+#model.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
 
 #
 # Topology optimization parameters

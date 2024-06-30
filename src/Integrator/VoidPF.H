@@ -16,6 +16,7 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 #include "IC/PSRead.H"
+#include "IC/PS.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "BC/Operator/Elastic/TensionTest.H"
 #include "BC/Operator/Elastic/Expression.H"
@@ -58,8 +59,12 @@ public:
         value.RegisterNodalFab(value.d_mf, 1, 2, "d",true);
         value.RegisterNodalFab(value.d_old_mf, 1, 2,"dold",false);
         value.RegisterNodalFab(value.p_mf, 1, 2, "p",true);
-        value.spall.ic = new IC::PSRead(value.geom, pp, "spall.ic.psread");
-	
+        //value.spall.ic = new IC::PSRead(value.geom, pp, "spall.ic.psread");
+        
+        // Initialize PSRead with parameters from the input file
+        std::string filename;
+        //pp.query_file("spall.ic.psread", filename);
+	value.spall.ic = new IC::PSRead(value.geom, pp,"spall.ic.psread");
 	pp.query_required("spall.M",value.spall.M);
 	pp.query_required("spall.kappa",value.spall.kappa);
 	pp.query_required("spall.cp",value.spall.cp);
@@ -79,6 +84,17 @@ public:
         //value.RegisterIntegratedVariable(&value.w_chem_potential, "chem_potential");
         //value.RegisterIntegratedVariable(&value.w_bndry, "bndry");
         //value.RegisterIntegratedVariable(&value.w_elastic, "elastic");
+        
+        if (pp.contains("ic.type")) {
+            std::string type;
+            pp.query("ic.type", type); // Read IC type 
+            if (type == "bmp") {
+                std::string bmp_filename;
+                //pp.query_file("ic.bmp.filename", bmp_filename); // Query BMP filename
+                value.ic = new IC::Constant(value.geom, pp, "ic.bmp.filename");
+            } else {
+                Util::Abort(INFO, "Invalid value for ic.type: ", type);
+            }}
     }
 
     void Initialize(int lev) override
@@ -136,8 +152,8 @@ public:
                 df += spall.cp * 2.0 * dold(i,j,k)*(1 - 2.0*dold(i,j,k))*(1.0 - dold(i,j,k));
                 df += spall.kappa * Numeric::Laplacian(dold,i,j,k,0,DX);
 
-                Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig, i, j, k, 0);
-                Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps, i, j, k, 0);
+                Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig, i, j, k,0);
+                Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps, i, j, k,0);
   
                 p(i,j,k) = 0.5 * sig_avg.trace();
       
@@ -209,6 +225,8 @@ protected:
     //Set::Scalar w_chem_potential = 0.0;
     //Set::Scalar w_bndry = 0.0;
     //Set::Scalar w_elastic = 0.0;
+    
+    std::string filename; 
     
     struct {
         IC::IC *ic;
