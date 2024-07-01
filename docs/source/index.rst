@@ -89,7 +89,7 @@ References
 ==========
 
 
-.. bibliography::
+.. bibliography:: 
    :list: bullet
    :all:
 
@@ -101,14 +101,15 @@ Sponsors
 
 The development team gratefully acknowledges the funding sources that enable the development and extension of Alamo.
 
-.. grid:: 1 1 2 3 
-   
+.. grid:: 1 2 1 2
+    :gutter: 3
+           
     .. grid-item-card::
         
         **Office of Naval Research**
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        .. image:: https://www.nre.navy.mil/themes/custom/onr/logo.png
+        .. image:: https://www.solids.group/wp-content/uploads/2021/12/onr.png
              :alt: onr
 
         ++++++++++++++++++++++++++++++++++++++++++++++
@@ -119,23 +120,36 @@ The development team gratefully acknowledges the funding sources that enable the
         **National Science Foundation**
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        .. image:: https://nsf.widen.net/content/txvhzmsofh/png/NSF_Official_logo_High_Res_1200ppi?u=rpch1x&position=c&quality=80
+        .. image:: https://www.solids.group/wp-content/uploads/2022/01/nsfcareer.png
              :alt: national science foundation
-             :width: 50%
+             :width: 100%
+             :align: center
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *CAREER: A multichannel convolutional neural network framework for prediction of damage nucleation sites in microstructure*
+
+    .. grid-item-card::
+        
+        **National Science Foundation**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://www.solids.group/wp-content/uploads/2021/12/nsf.png
+             :alt: national science foundation
+             :width: 100%
              :align: center
 
         ++++++++++++++++++++++++++++++++++++++++++++++
         *MRI: Acquisition of a high performance computing cluster for next-generation computational science in Southern Colorado*
 
-        *CAREER: A multichannel convolutional neural network framework for prediction of damage nucleation sites in microstructure*
-
     .. grid-item-card::
         
-        **Lawrence Berkeley National Laboratory**
+        **Berkeley Lab**
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        .. image:: https://creative.lbl.gov/wp-content/uploads/sites/3/2020/07/14_BL_Alt_Stack_Rev.png
+        .. image:: https://www.solids.group/wp-content/uploads/2021/12/lbl.png
              :alt: lawrence berkeley national lab
+             :width: 100%
+             :align: center
 
         ++++++++++++++++++++++++++++++++++++++++++++++
         *Extending the capability of the AMReX MLMG nodal solver*
