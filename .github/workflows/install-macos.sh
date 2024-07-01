@@ -11,9 +11,11 @@ set -eu -o pipefail
 #
 brew update
 brew install gfortran || true
-brew install open-mpi || true
+brew install mpich || true
 brew install eigen || true
 brew install libpng || true
+
+ln -s /usr/local/bin/gfortran-10 /usr/local/bin/gfortran
 
 #
 # CONFIGURATION
