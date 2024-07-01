@@ -315,7 +315,7 @@ public:
     int AnyUnusedInputs()
     {
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table.begin(), End = m_table.end(); li != End; ++li)
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table->begin(), End = m_table->end(); li != End; ++li)
         {
             if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
             {
@@ -330,7 +330,7 @@ public:
     {
         ParmParse pp;
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table.begin(), End = pp.m_table.end(); li != End; ++li)
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table->begin(), End = pp.m_table->end(); li != End; ++li)
         {
             if (!li->m_queried)
             {
