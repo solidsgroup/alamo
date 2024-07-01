@@ -9,9 +9,19 @@ set -eu -o pipefail
 # Use Mac OS HomeBrew system to install mpich and eigen
 # [ you should only need to do this once ]
 #
-brew install mpich
-brew install eigen
-brew install libpng
+brew update
+brew install gfortran || true
+brew install mpich || true
+brew install eigen || true
+brew install libpng || true
+
+
+#
+# If your system is unable to find gfortran (for instance, if you are
+# a github action), you can try creating an alias using the following
+# command:
+#
+# ln -s /opt/homebrew/bin/gfortran-14 /opt/homebrew/bin/gfortran
 
 #
 # CONFIGURATION
