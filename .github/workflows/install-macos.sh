@@ -10,10 +10,10 @@ set -eu -o pipefail
 # [ you should only need to do this once ]
 #
 brew update
-brew install gfortran
-brew install mpich
-brew install eigen
-brew install libpng
+brew install gfortran || true
+brew install open-mpi || true
+brew install eigen || true
+brew install libpng || true
 
 #
 # CONFIGURATION
