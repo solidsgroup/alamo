@@ -6,21 +6,21 @@ on:
 
 jobs:
   install-ubuntu-20-04:
-    name: Ubuntu
+    name: Ubuntu 20.04
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
     - name: running the install script
       run: bash .github/workflows/install-ubuntu-22.04.sh
   install-ubuntu-22-04:
-    name: Ubuntu
+    name: Ubuntu 22.04
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: running the install script
       run: bash .github/workflows/install-ubuntu-22.04.sh
   install-macos:
-    name: Mac
+    name: Mac OS 
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4

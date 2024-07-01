@@ -33,7 +33,7 @@ export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/inclu
 #
 # [ you need to include these arguments every time you configure ]
 #
-./configure --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
+./configure --comp=clang++ --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
 
 #
 # Compile the code by running make
