@@ -5,14 +5,14 @@ on:
     branches: ["development", "master","candidate"]
 
 jobs:
-  install-ubuntu-20.04:
+  install-ubuntu-20-04:
     name: Ubuntu
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
     - name: running the install script
       run: bash .github/workflows/install-22.04.sh
-  install-ubuntu-22.04:
+  install-ubuntu-22-04:
     name: Ubuntu
     runs-on: ubuntu-22.04
     steps:
