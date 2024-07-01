@@ -75,7 +75,7 @@ public:
     {
         Isotropic::Parse(value,pp);
         // J2 Yield criterion
-        pp.query("sigma0",value.sigma0);
+        pp_query("sigma0",value.sigma0);
     }
 
     #define OP_CLASS J2
