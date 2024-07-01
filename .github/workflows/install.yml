@@ -25,5 +25,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: running the install script
+      run: ln -s /opt/homebrew/bin/gfortran-14 /opt/homebrew/bin/gfortran
       run: bash .github/workflows/install-macos.sh
 

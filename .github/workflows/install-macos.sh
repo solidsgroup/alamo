@@ -15,7 +15,13 @@ brew install mpich || true
 brew install eigen || true
 brew install libpng || true
 
-ln -s /usr/local/bin/gfortran-10 /usr/local/bin/gfortran
+
+#
+# If your system is unable to find gfortran (for instance, if you are
+# a github action), you can try creating an alias using the following
+# command:
+#
+# ln -s /opt/homebrew/bin/gfortran-14 /opt/homebrew/bin/gfortran
 
 #
 # CONFIGURATION
@@ -35,7 +41,7 @@ export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/inclu
 #
 # [ you need to include these arguments every time you configure ]
 #
-./configure --alternate-mpi --comp=clang++ --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
+./configure --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
 
 #
 # Compile the code by running make

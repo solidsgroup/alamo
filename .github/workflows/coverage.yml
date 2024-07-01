@@ -3,7 +3,6 @@ name: Coverage
 on:
   push:
     branches: ["development","candidate-coverage"]
-    branches-ignore: ["candidate-install"]
 
 permissions:
   contents: read
