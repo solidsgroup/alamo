@@ -81,7 +81,7 @@ if sys.version_info.minor < 5:
 #
 # This is the current Alamo-supported version of AMReX. 
 #
-amrex_current_version = "24.06"
+amrex_current_version = "24.07"
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
