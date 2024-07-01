@@ -11,14 +11,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: running the install script
-      run: bash .github/workflows/install-22.04.sh
+      run: bash .github/workflows/install-ubuntu-22.04.sh
   install-ubuntu-22-04:
     name: Ubuntu
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: running the install script
-      run: bash .github/workflows/install-22.04.sh
+      run: bash .github/workflows/install-ubuntu-22.04.sh
   install-macos:
     name: Mac
     runs-on: macos-latest
