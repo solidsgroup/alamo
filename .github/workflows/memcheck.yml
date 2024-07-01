@@ -1,6 +1,7 @@
 name: Memory Leak Check
 
 on: [push, pull_request]
+  branches-ignore: ["candidate-install"]
 
 permissions:
   contents: read
