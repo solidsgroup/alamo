@@ -2,7 +2,7 @@ name: Install
 
 on:
   push:
-    branches: ["development", "master","candidate"]
+    branches: ["development", "master","candidate","candidate-install"]
 
 jobs:
   install-ubuntu-20-04:

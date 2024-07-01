@@ -9,6 +9,8 @@ set -eu -o pipefail
 # Use Mac OS HomeBrew system to install mpich and eigen
 # [ you should only need to do this once ]
 #
+brew update
+brew install gfortran
 brew install mpich
 brew install eigen
 brew install libpng
