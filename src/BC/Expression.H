@@ -49,7 +49,7 @@ public:
     Expression(int a_ncomp) : m_ncomp(a_ncomp) {};
     Expression(int a_ncomp, IO::ParmParse& pp, std::string name) : m_ncomp(a_ncomp)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     };
 
     virtual ~Expression() {};
@@ -128,34 +128,34 @@ public:
         // TYPES
 
         std::vector<std::string> str;
-        pp.queryarr("type.xlo", str);  // BC type on the lower x edge (2d) face (3d)
+        pp_queryarr("type.xlo", str);  // BC type on the lower x edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.xhi", str);  // BC type on the upper x edge (2d) face (3d)
+        pp_queryarr("type.xhi", str);  // BC type on the upper x edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.ylo", str);  // BC type on the lower y edge (2d) face (3d)
+        pp_queryarr("type.ylo", str);  // BC type on the lower y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.yhi", str);  // BC type on the upper y edge (2d) face (3d)
+        pp_queryarr("type.yhi", str);  // BC type on the upper y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.zlo", str);  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
+        pp_queryarr("type.zlo", str);  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 #endif
-        pp.queryarr("type.zhi", str);  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
+        pp_queryarr("type.zhi", str);  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI].push_back(bcmap[str[i]]);
@@ -168,7 +168,7 @@ public:
         for (int face = 0; face != Face::INT; face++)
         {
             std::string querystr = std::string("val.") + std::string(facestr[face]);
-            if (pp.contains(querystr.c_str())) pp.queryarr(querystr.c_str(),val);
+            if (pp.contains(querystr.c_str())) pp_queryarr(querystr.c_str(),val);
             else val.resize(value.m_ncomp,"0.0");
             if (val.size() != value.m_ncomp) Util::Abort(INFO,"Incorrect number of expressions specified for ",querystr,": expected 1 or ",value.m_ncomp," but received ",val.size());
 

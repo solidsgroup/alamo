@@ -26,7 +26,7 @@ public:
     Step() {}
     Step(IO::ParmParse& pp, std::string name)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     }
 
     void FillBoundary(amrex::BaseFab<Set::Scalar>& a_in,
@@ -116,8 +116,8 @@ private:
 public:
     static void Parse(Step& value, amrex::ParmParse& pp)
     {
-        pp.query("h1", value.m_h1); // Location of the step on the xlo edge/face
-        pp.query("h2", value.m_h2); // Location of the step on the xhi edge/face
+        pp_query("h1", value.m_h1); // Location of the step on the xlo edge/face
+        pp_query("h2", value.m_h2); // Location of the step on the xhi edge/face
     }
 
 };

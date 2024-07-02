@@ -16,7 +16,7 @@ int main (int argc, char* argv[])
 
     std::string program = "microstructure";
     IO::ParmParse pp;
-    pp.query("alamo.program",program);
+    pp_query("alamo.program",program);
     srand(2);
 
     Integrator::ThermoElastic integrator(pp);

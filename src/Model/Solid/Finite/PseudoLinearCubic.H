@@ -113,9 +113,9 @@ public:
     static void Parse(PseudoLinearCubic & value, IO::ParmParse & pp)
     {
         //Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
-        pp.query("C11",value.C11); // Elastic constant (default: 1.68)
-        pp.query("C12",value.C12); // Elastic constant (default: 1.21)
-        pp.query("C44",value.C44); // Elastic constant (default: 0.75)
+        pp_query("C11",value.C11); // Elastic constant (default: 1.68)
+        pp_query("C12",value.C12); // Elastic constant (default: 1.21)
+        pp_query("C44",value.C44); // Elastic constant (default: 0.75)
 
         if (pp.contains("random"))
         {
@@ -124,9 +124,9 @@ public:
         }
 
         Set::Scalar phi1 = 0.0, Phi = 0.0, phi2 = 0.0;
-        pp.query("phi1",phi1);  // Bunge Euler angle :math:`\phi_1`
-        pp.query("Phi",Phi);    // Bunge Euler angle :math:`\Phi`
-        pp.query("phi2",phi2);  // Bunge Euler angle :math:`\phi_2`
+        pp_query("phi1",phi1);  // Bunge Euler angle :math:`\phi_1`
+        pp_query("Phi",Phi);    // Bunge Euler angle :math:`\Phi`
+        pp_query("phi2",phi2);  // Bunge Euler angle :math:`\phi_2`
         Eigen::Matrix3d R;
         R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
