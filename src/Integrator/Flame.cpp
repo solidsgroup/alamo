@@ -29,19 +29,19 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     BL_PROFILE("Integrator::Flame::Flame()");
     {
         //pp_query("fields_verbose", value.plot_field);
-        pp_query("timestep", value.base_time);
+        pp_query_default("timestep", value.base_time);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
-        pp_query("pf.eps", value.pf.eps); // Burn width thickness
-        pp_query("pf.kappa", value.pf.kappa); // Interface energy param
-        pp_query("pf.gamma", value.pf.gamma); // Scaling factor for mobility
-        pp_query("pf.lambda", value.pf.lambda); // Chemical potential multiplier
-        pp_query("pf.w1", value.pf.w1); // Unburned rest energy
-        pp_query("pf.w12", value.pf.w12);  // Barrier energy
-        pp_query("pf.w0", value.pf.w0);    // Burned rest energy
-        pp_query("amr.ghost_cells", value.ghost_count); // number of ghost cells in all fields
-        pp_query("geometry.x_len", value.x_len); // Domain x length
-        pp_query("geometry.y_len", value.y_len); // Domain y length
+        pp_query_default("pf.eps", value.pf.eps); // Burn width thickness
+        pp_query_default("pf.kappa", value.pf.kappa); // Interface energy param
+        pp_query_default("pf.gamma", value.pf.gamma); // Scaling factor for mobility
+        pp_query_default("pf.lambda", value.pf.lambda); // Chemical potential multiplier
+        pp_query_default("pf.w1", value.pf.w1); // Unburned rest energy
+        pp_query_default("pf.w12", value.pf.w12);  // Barrier energy
+        pp_query_default("pf.w0", value.pf.w0);    // Burned rest energy
+        pp_query_default("amr.ghost_cells", value.ghost_count); // number of ghost cells in all fields
+        pp_query_default("geometry.x_len", value.x_len); // Domain x length
+        pp_query_default("geometry.y_len", value.y_len); // Domain y length
 
         value.bc_eta = new BC::Constant(1);
         pp_queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
@@ -49,12 +49,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
         std::string eta_bc_str = "constant";
-        pp_query("pf.eta.ic.type", eta_bc_str); // Eta boundary condition [constant, expression]
+        pp_query_validate("pf.eta.ic.type", eta_bc_str); // Eta boundary condition [constant, expression]
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
         std::string eta_ic_type = "constant";
-        pp_query("eta.ic.type", eta_ic_type); // Eta initial condition [constant, laminate, expression, bmp]
+        pp_query_validate("eta.ic.type", eta_ic_type); // Eta initial condition [constant, laminate, expression, bmp]
         if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
@@ -96,12 +96,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             pp_query("thermal.T_fluid", value.thermal.T_fluid); // Temperature of the Standin Fluid 
 
-            pp_query("thermal.disperssion1", value.thermal.disperssion1); // K; dispersion variables are use to set the outter field properties for the void grain case.
-            pp_query("thermal.disperssion1", value.thermal.disperssion2); // rho; dispersion variables are use to set the outter field properties for the void grain case.
-            pp_query("thermal.disperssion1", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query_default("thermal.disperssion1", value.thermal.disperssion1, 0.93); // K; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query_default("thermal.disperssion1", value.thermal.disperssion2, 920); // rho; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query_default("thermal.disperssion1", value.thermal.disperssion3, 2418.29); // cp; dispersion variables are use to set the outter field properties for the void grain case.
 
-            pp_query("thermal.modeling_ap", value.thermal.modeling_ap); // Scaling factor for AP thermal conductivity (default = 1.0)
-            pp_query("thermal.modeling_htpb", value.thermal.modeling_htpb); // Scaling factor for HTPB thermal conductivity (default = 1.0)
+            pp_query_default("thermal.modeling_ap", value.thermal.modeling_ap, 1.0); // Scaling factor for AP thermal conductivity (default = 1.0)
+            pp_query_default("thermal.modeling_htpb", value.thermal.modeling_htpb, 1.0); // Scaling factor for HTPB thermal conductivity (default = 1.0)
 
             value.bc_temp = new BC::Constant(1);
             pp_queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
@@ -123,7 +123,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
             std::string laser_ic_type = "constant";
-            pp_query("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
+            pp_query_validate("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
             else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
             else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
@@ -179,7 +179,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // specified using these parameters. 
         //IO::ParmParse pp("phi.ic");
         std::string phi_ic_type = "packedspheres";
-        pp_query("phi.ic.type", phi_ic_type); // IC type (psread, laminate, constant)
+        pp_query_validate("phi.ic.type", phi_ic_type); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             //value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
@@ -226,7 +226,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.m_type != Type::Disable)
     {
         value.elastic.Tref = value.thermal.bound;
-        pp_query("Tref", value.elastic.Tref); // Initial temperature for thermal expansion computation
+        pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
         pp_queryclass("model_ap", value.elastic.model_ap);
         pp_queryclass("model_htpb", value.elastic.model_htpb);
 
