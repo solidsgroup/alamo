@@ -56,9 +56,12 @@ public:
         pp.queryclass("model", value.model);
 
 
-        value.RegisterNodalFab(value.d_mf, 1, 2, "d",true);
-        value.RegisterNodalFab(value.d_old_mf, 1, 2,"dold",false);
-        value.RegisterNodalFab(value.p_mf, 1, 2, "p",true);
+        value.bc_d = new BC::Constant(1,pp,"d.bc.constant");
+        value.bc_p = new BC::Nothing();
+
+        value.RegisterNewFab(value.d_mf, value.bc_d, 1, 3, "d",true);
+        value.RegisterNewFab(value.d_old_mf, value.bc_d,  1, 3,"dold",false);
+        value.RegisterNewFab(value.p_mf, value.bc_d, 1, 3, "p",true);
         //value.spall.ic = new IC::PSRead(value.geom, pp, "spall.ic.psread");
         
         // Initialize PSRead with parameters from the input file
@@ -118,22 +121,24 @@ public:
     {
         for (int lev = 0; lev <= this->finest_level; ++lev)
             {
+                amrex::Box domain = this->geom[lev].Domain();
+                domain.convert(amrex::IntVect::TheNodeVector());
+
                 //this->rhs_mf[lev]->setVal(0.0);
+                d_mf[lev]->FillBoundary();
                 this->model_mf[lev]->setVal(this->model);
                 Set::Vector DX(this->geom[lev].CellSize());
 
                 for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
                     {
-                        amrex::Box bx = mfi.grownnodaltilebox();
+                        amrex::Box bx = mfi.grownnodaltilebox() & domain;
                         Set::Patch<MODEL> model_sum = model_mf.Patch(lev,mfi);
                         Set::Patch<const Set::Scalar> d = d_mf.Patch(lev,mfi);
                 
                         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
-                            model_sum(i, j, k).ddw = model.ddw;
-                            //model_sum(i, j, k).DW += model.DW;
-                            Set::Scalar dmult = 1.0 - d(i,j,k);
-                            model_sum(i, j, k).ddw *= (dmult);
+                            Set::Scalar d_avg = Numeric::Interpolate::CellToNodeAverage(d,i,j,k,0);
+                            model_sum(i, j, k).ddw = model.ddw * (1 - d_avg + 1E-4);
                         });
                     }
                 Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
@@ -216,7 +221,7 @@ public:
 protected:
     MODEL model;
     IC::IC* ic;
-    BC::BC<Set::Scalar>*mybc;
+    BC::BC<Set::Scalar>*bc_d, *bc_p;
     Set::Scalar m_eta_ref_threshold = 1E-2;
     Set::Field<Set::Scalar> d_old_mf;
     Set::Field<Set::Scalar> d_mf;
