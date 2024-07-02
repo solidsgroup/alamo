@@ -62,17 +62,17 @@ public:
         pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp_query_default("ch.L",value.ch.L, 1.0);
+        pp_query_default("ch.L", value.ch.L, 1.0);
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp_query_default("ch.eps",value.ch.eps, 0.1);
+        pp_query_default("ch.eps", value.ch.eps, 0.1);
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp_query_default("ch.grad",value.ch.grad, 1.0);
+        pp_query_default("ch.grad", value.ch.grad, 1.0);
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp_query_default("ch.chempot",value.ch.chempot, 1.0);
+        pp_query_default("ch.chempot", value.ch.chempot, 1.0);
 
         std::string type = "sphere";
         // Initial condition type ([sphere], constant, expression, bmp, random)
-        pp_query_validate("alpha.ic.type", type, {"sphere","constant","expression","bmp","random"});
+        pp_query_validate("alpha.ic.type", type, { "sphere","constant","expression","bmp","random" });
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
