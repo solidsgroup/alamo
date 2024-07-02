@@ -92,9 +92,9 @@ public:
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         Set::Scalar C11 = NAN, C12 = NAN, C44 = NAN;
-        pp.query_default("C11",C11,1.68); // Elastic constant
-        pp.query_default("C12",C12,1.21); // Elastic constant
-        pp.query_default("C44",C44,0.75); // Elastic constant
+        pp_query_default("C11",C11,1.68); // Elastic constant
+        pp_query_default("C12",C12,1.21); // Elastic constant
+        pp_query_default("C44",C44,0.75); // Elastic constant
 
         if (pp.contains("random"))
         {
@@ -103,9 +103,9 @@ public:
         }
 
         Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
-        pp.query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
-        pp.query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:`\Phi`
-        pp.query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:`\phi_2`
+        pp_query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
+        pp_query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:`\Phi`
+        pp_query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:`\phi_2`
         value.Define(C11,C12,C44,phi1,Phi,phi2);
     }
 

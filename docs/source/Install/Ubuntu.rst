@@ -15,7 +15,9 @@
 | master        | |ubuntu-badge-master| |
 +---------------+-----------------------+
 
-.. literalinclude:: ../../../.github/workflows/install-ubuntu.sh
-   :caption: Ubuntu Installation
+20.04 and 22.04
+---------------
+
+.. literalinclude:: ../../../.github/workflows/install-ubuntu-22.04.sh
    :language: bash
    :lines: 2-

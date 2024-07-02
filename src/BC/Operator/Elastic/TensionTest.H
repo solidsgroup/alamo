@@ -18,7 +18,7 @@ public:
     {};
 
     TensionTest(IO::ParmParse &pp, std::string name) : TensionTest()
-    { pp.queryclass(name,*this); }
+    { pp_queryclass(name,*this); }
 
 
     ~TensionTest() {};
@@ -36,18 +36,18 @@ public:
         std::string disp = "0.0", trac = "0.0";
         LoadingMode mode;
 
-        pp.query("type",type); // Tension test type. (Only option right now is :code:`uniaxial_stress_clamp`)
+        pp_query("type",type); // Tension test type. (Only option right now is :code:`uniaxial_stress_clamp`)
         
         if (pp.contains("trac") && pp.contains("disp")) 
             Util::Abort(INFO,"Cannot specify both trac and disp");
         else if (pp.contains("disp"))
         {
-            pp.query("disp",disp); // Applied displacement (can be interpolator)
+            pp_query("disp",disp); // Applied displacement (can be interpolator)
             mode = LoadingMode::DISP;
         }
         else if (pp.contains("trac"))
         {
-            pp.query("trac",trac); // Applied traction (can be interpolator)
+            pp_query("trac",trac); // Applied traction (can be interpolator)
             mode = LoadingMode::TRAC;
         }
         else
@@ -81,6 +81,19 @@ public:
                 value.m_bc_type[Face::YLO_ZHI][i] = Type::Traction;                
                 value.m_bc_type[Face::YHI_ZHI][i] = Type::Traction;                
                 #endif
+            }
+        }
+        else if (type == "uniaxial_kolsky")
+        {
+            // Add a X displacement in the X direction
+            value.m_bc_val[Face::XLO][0]         = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            value.m_bc_val[Face::XLO_YLO][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            value.m_bc_val[Face::XLO_YHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            // Set the Y faces, Z faces, and YZ edges to be traction-free
+            for (int i = 0 ; i < AMREX_SPACEDIM ; i++)
+            {
+                value.m_bc_type[Face::YLO][i]     = Type::Traction;                
+                value.m_bc_type[Face::YHI][i]     = Type::Traction;                
             }
         }
         else if (type == "uniaxial_stress")

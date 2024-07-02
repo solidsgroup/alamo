@@ -19,8 +19,8 @@ class AbsSin : public GB
 {
 public:
 AbsSin() {};
-AbsSin(IO::ParmParse &pp) {pp.queryclass(*this);};
-AbsSin(IO::ParmParse &pp, std::string name) {pp.queryclass(name,*this);};
+AbsSin(IO::ParmParse &pp) {pp_queryclass(*this);};
+AbsSin(IO::ParmParse &pp, std::string name) {pp_queryclass(name,*this);};
 
 AbsSin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
 {       
@@ -64,10 +64,10 @@ private:
 public:    
     static void Parse(AbsSin & value, amrex::ParmParse & pp)
     {
-        pp.query("theta0",value.theta0); // Angle offset (degrees)
+        pp_query("theta0",value.theta0); // Angle offset (degrees)
         value.theta0 *= 0.01745329251; // convert degrees into radians
-        pp.query("sigma0",value.sigma0); // Minimum energy
-        pp.query("sigma1",value.sigma1); // Energy multiplier
+        pp_query("sigma0",value.sigma0); // Minimum energy
+        pp_query("sigma1",value.sigma1); // Energy multiplier
     }
 
 };

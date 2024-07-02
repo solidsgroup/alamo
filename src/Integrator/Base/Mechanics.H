@@ -26,9 +26,7 @@ public:
     enum Type { Static, Dynamic, Disable };
 
     Mechanics() : Integrator()
-    {
-        Util::Message(INFO);
-    }
+    {}
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
@@ -42,7 +40,7 @@ public:
             // Static: do full implicit solve.
             // Dynamic: evolve dynamic equations with explicit dynamics
             // Disable: do nothing.
-            pp.query_validate("type", type_str, {"disable","static","dynamic"}); 
+            pp_query_validate("type", type_str, {"disable","static","dynamic"}); 
             if (type_str == "static")        value.m_type = Type::Static;
             else if (type_str == "dynamic")  value.m_type = Type::Dynamic;
             else if (type_str == "disable")  value.m_type = Type::Disable;
@@ -53,47 +51,52 @@ public:
         // Treat mechanics fields as changing in time. [false]
         // You should use this if you care about other physics driven by
         // the output of this integrator.
-        pp.query_default("time_evolving", value.m_time_evolving,false);
+        pp_query_default("time_evolving", value.m_time_evolving,false);
 
-        value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp", value.m_time_evolving);
-        value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs", value.m_time_evolving);
-        value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress", value.m_time_evolving);
-        value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain", value.m_time_evolving);
+        pp_query_default("plot_disp", value.plot_disp, true); // Include displacement field in output
+        pp_query_default("plot_rhs", value.plot_rhs, true); // Include right-hand side in output
+        pp_query_default("plot_psi", value.plot_psi, true); // Include :math:`\psi` field in output
+        pp_query_default("plot_stress", value.plot_stress, true); // Include stress in output
+        pp_query_default("plot_strain", value.plot_strain, true); // Include strain in output
+
+        value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_disp, "disp", value.m_time_evolving);
+        value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_rhs, "rhs", value.m_time_evolving);
+        value.RegisterGeneralFab(value.stress_mf, 1, 2, value.plot_stress, "stress", value.m_time_evolving);
+        value.RegisterGeneralFab(value.strain_mf, 1, 2, value.plot_strain, "strain", value.m_time_evolving);
 
         if (value.m_type == Type::Static)
         {
             // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
-            pp.queryclass("solver", value.solver);
+            pp_queryclass("solver", value.solver);
         }
         if (value.m_type == Type::Dynamic)
         {
             value.RegisterGeneralFab(value.vel_mf, 1, 2, "vel");
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
-            pp.query_default("viscous.mu", value.mu,0.0); // Viscous (rate) damping parameter
+            pp_query_default("viscous.mu", value.mu,0.0); // Viscous (rate) damping parameter
         }
 
         std::string bc_type;
         // Determine the boundary condition type
-        pp.query_validate("bc.type", bc_type,{"constant","tension_test","expression"});
-        Util::Message(INFO, bc_type);
+        pp_query_validate("bc.type", bc_type,{"constant","tension_test","expression"});
         if (bc_type == "constant")          value.bc = new BC::Operator::Elastic::Constant(pp, "bc.constant");
         else if (bc_type == "tension_test") value.bc = new BC::Operator::Elastic::TensionTest(pp, "bc.tension_test");
         else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp, "bc.expression");
         else Util::Abort(INFO, "Invalid bc.type ", bc_type);
 
-        pp.query_default("print_model", value.m_print_model, false); // Print out model variables (if enabled by model)
+        pp_query_default("print_model", value.m_print_model, false); // Print out model variables (if enabled by model)
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
 
         // Read in IC for RHS
         std::string rhstype;
-        pp.query_validate("rhs.type", rhstype,{"none","trig","constant"}); // Initializer for RHS
+        pp_query_validate("rhs.type", rhstype,{"none","trig","constant"}); // Initializer for RHS
         if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
         else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
 
         // Timestep interval for elastic solves (default - solve every time)
-        pp.query_default("interval", value.m_interval, 0);
+        pp_query_default("interval", value.m_interval, 0);
 
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]), "disp_xhi_x");
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[1]), "disp_xhi_y");
@@ -105,22 +108,22 @@ public:
         value.RegisterIntegratedVariable(&(value.trac_hi[1].data()[1]), "trac_yhi_y");
 
         // Maximum multigrid coarsening level (default - none, maximum coarsening)
-        pp.query_default("max_coarsening_level", value.m_max_coarsening_level,-1);
-        
+        pp_query_default("max_coarsening_level", value.m_max_coarsening_level,-1);
+
         // Whether to include residual output field
-        pp.query_default("print_residual", value.m_print_residual,false); 
+        pp_query_default("print_residual", value.m_print_residual,false); 
         if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf, 1, 2, "res", false);
 
         // Whether to refine based on elastic solution
-        pp.query_default("elastic_ref_threshold", value.m_elastic_ref_threshold,0.01); 
+        pp_query_default("elastic_ref_threshold", value.m_elastic_ref_threshold,0.01); 
 
 
         // Set this to true to zero out the displacement before each solve.
         // (This is a temporary fix - we need to figure out why this is needed.)
-        pp.query_default("zero_out_displacement", value.m_zero_out_displacement,false);
+        pp_query_default("zero_out_displacement", value.m_zero_out_displacement,false);
 
         // Time to start doing the elastic solve (by default, start immediately)
-        pp.query_default("tstart", value.tstart,-1.0);
+        pp_query_default("tstart", value.tstart,-1.0);
     }
 
 protected:
@@ -167,7 +170,7 @@ protected:
         elastic_op.SetHomogeneous(false);
         elastic_op.SetBC(bc);
         IO::ParmParse pp("elasticop");
-        pp.queryclass(elastic_op);
+        pp_queryclass(elastic_op);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
@@ -375,7 +378,7 @@ protected:
     Set::Field<Set::Vector> vel_old_mf;
     //Set::Field<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> ddw_mf;
     Set::Scalar rho = 1.0;
-    Set::Scalar mu = NAN;
+    Set::Scalar mu = 0.0;
 
     //Set::Vector trac_lo[AMREX_SPACEDIM];
     Set::Vector trac_hi[AMREX_SPACEDIM];
@@ -388,13 +391,20 @@ protected:
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
     BC::Operator::Elastic::Elastic* bc;
 
-    Set::Scalar m_elastic_ref_threshold = NAN;
+    Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;
     bool m_print_residual = false;
     bool m_time_evolving = false;
     int m_max_coarsening_level = -1;
 
     bool m_zero_out_displacement = false;
+
+    bool plot_disp = true;
+    bool plot_stress = true;
+    bool plot_strain = true;
+    bool plot_psi = true;
+    bool plot_rhs = true;
+
 
     Set::Scalar tstart = -1;
 };

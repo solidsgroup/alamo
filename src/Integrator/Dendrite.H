@@ -41,17 +41,17 @@ public:
 
     static void Parse(Dendrite& value, IO::ParmParse& pp)
     {
-        pp.query_required("alpha", value.alpha); // Pre-multiplier of "m" barrier height
-        pp.query_required("delta", value.delta); // Anisotropy factor
-        pp.query_required("gamma", value.gamma); // Anisotropic temperature coupling factor
+        pp.query("alpha", value.alpha); // Pre-multiplier of "m" barrier height
+        pp.query("delta", value.delta); // Anisotropy factor
+        pp.query("gamma", value.gamma); // Anisotropic temperature coupling factor
 
-        pp.query_required("eps", value.eps); // Diffuse boundary width
-        pp.query_required("tau", value.tau); // Diffusive timescale
+        pp.query("eps", value.eps); // Diffuse boundary width
+        pp.query("tau", value.tau); // Diffusive timescale
 
         // Refinement criteria for temperature
-        pp.query_default("heat.refinement_threshold", value.refinement_threshold_temp, 0.1);
+        pp.query("heat.refinement_threshold", value.refinement_threshold_temp);
         // Refinement criteria for phi
-        pp.query_default("phi.refinement_threshold", value.refinement_threshold_phi, 0.1);
+        pp.query("phi.refinement_threshold", value.refinement_threshold_phi);
 
         // Expressions for ICs
         value.ic_temp = new IC::Expression(value.geom, pp, "ic.temp");
@@ -60,8 +60,8 @@ public:
         // Use a constant BC object for temperature
         value.bc_temp = new BC::Constant(1);
         value.bc_phi = new BC::Constant(1);
-        pp.queryclass("bc.temp", *static_cast<BC::Constant*>(value.bc_temp));
-        pp.queryclass("bc.phi", *static_cast<BC::Constant*>(value.bc_phi));
+        pp_queryclass("bc.temp", *static_cast<BC::Constant*>(value.bc_temp));
+        pp_queryclass("bc.phi", *static_cast<BC::Constant*>(value.bc_phi));
 
         value.RegisterNewFab(value.temp_mf, value.bc_temp, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
