@@ -71,8 +71,8 @@ public:
         pp_query_default("ch.chempot",value.ch.chempot, 1.0);
 
         std::string type = "sphere";
-        // Initial condition type ([sphere], constant, expression, bmp)
-        pp_query_required("alpha.ic.type", type);
+        // Initial condition type ([sphere], constant, expression, bmp, random)
+        pp_query_validate("alpha.ic.type", type, {"sphere","constant","expression","bmp","random"});
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
