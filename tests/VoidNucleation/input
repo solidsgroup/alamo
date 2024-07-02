@@ -40,7 +40,7 @@ model.nu = 0.22
 #elastic.model2.nu = 0.31
 #elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 
-solver.verbose = 2
+solver.verbose = 5
 solver.nriters = 10
 solver.fixed_iter=2000
 solver.tol_abs = 1E-16
@@ -64,7 +64,7 @@ bc.constant.val.xloyhi = 0.0 0.1
 bc.constant.val.xhiyhi = 0.0 0.1
 #elastic.interval = 10
 
-eta_ref_threshold = 0.05
+eta_ref_threshold = 0.005
 spall.M = 1.0
 spall.kappa = -0.0005
 spall.po = 1.
