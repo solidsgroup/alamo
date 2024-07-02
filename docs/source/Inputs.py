@@ -3,6 +3,24 @@ import os
 import re
 from os import listdir
 from os.path import isfile, join
+from glob import glob
+
+
+src2url = {}
+try:
+	doxsourcefiles = sorted(glob("../build/html/doxygen/*source.html"))
+	for doxsourcefile in doxsourcefiles:
+	    with open(doxsourcefile) as f:
+	        for line in f.readlines():
+	            if r"<title>" in line:
+	                line = line.replace(r"<title>Alamo: ","")
+	                line = line.replace(r" Source File</title>","")
+	                line = line.replace("\n","")
+	                src2url[line] = doxsourcefile.replace("../build/html/","")
+	                continue
+except Exception as e:
+    print(e)
+#print(src2url)
 
 
 def geticon(classname):
@@ -59,7 +77,7 @@ def extract(basefilename):
         for i, line in enumerate(lines):
             
             # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall('^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall('^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -79,7 +97,7 @@ def extract(basefilename):
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall('^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"]+)"*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall('^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -100,7 +118,7 @@ def extract(basefilename):
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall('^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall('^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -122,7 +140,7 @@ def extract(basefilename):
                 continue
 
             # Catch pp.queryclass inputs
-            match = re.findall('^\s*pp.queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*\);\s*(?:\/\/\s*(.*)$)?',line)
+            match = re.findall('^\s*pp.queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*,*\s*[INFO]*\s*\);\s*(?:\/\/\s*(.*)$)?',line)
             if match:
                 queryclass = dict()
                 queryclass["type"] = "queryclass"
@@ -312,7 +330,7 @@ def scrapeInputs(root="../../src/", writeFiles=True):
     global num_tot, num_doc
     num_tot = 0
     num_doc = 0
-    
+
     for dirname, subdirlist, filelist in sorted(os.walk(root)):
         hdrname = dirname.replace(root,"").replace("/","::")
         depth = len(hdrname.split("::")) 
@@ -332,7 +350,7 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 return "0"
             return(key[0])
         for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
-            
+
             try:
                 inputs = extract(dirname+"/"+f)
             except Exception as e:
@@ -366,6 +384,19 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 if writeFiles: docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
                 subhdr = classname
                 
+            if writeFiles:
+                srcfile = dirname.replace("../../","")+"/"+f+".cpp"
+                hdrfile = dirname.replace("../../","")+"/"+f+".H"
+                if srcfile in src2url.keys() or hdrfile in src2url.keys():
+                    docfile.write("\n\n")
+                    
+                    if srcfile in src2url.keys():
+                        docfile.write(r":bdg-link-primary-line:`{} <{}>`".format(srcfile,src2url[srcfile])+"\n")
+                    if hdrfile in src2url.keys():
+                        docfile.write(r":bdg-link-secondary-line:`{} <{}>`".format(hdrfile,src2url[hdrfile])+"\n")
+                    docfile.write("\n\n")
+
+
             if documentation and writeFiles:
                 docfile.write(documentation)
                 
@@ -377,11 +408,9 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 docfile.write("\n\n")
                 docfile.write(".. rst-class:: api-inputs-table\n\n")
                 docfile.write(".. flat-table:: \n")
-                docfile.write("    :widths: 40 10 40 10\n")
                 docfile.write("    :header-rows: 1\n\n")
                 docfile.write("    * - Parameter\n")
                 docfile.write("      - Type\n")
-                docfile.write("      - Description\n")
                 docfile.write("      - Values\n")
     
             def writeInput(input,lev,prefix):
@@ -397,19 +426,31 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                     global num_tot, num_doc
                     if input["parsefn"]: prefix = ["[prefix]"] + prefix
                     num_tot += 1
+
+
                     if writeFiles:
-                        docfile.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
-                        docfilesearch.write("    * - :code:`{}`\n".format('.'.join(prefix+[input['string']])))
-                        docfile.write("      - :ref:`{}<query-directives>`\n".format(input["type"]))
-                        docfilesearch.write("      - :ref:`{}`\n".format(subhdr))
+                        codetarget = None
+                        try:
+                            filename = src2url[input["file"].replace("../../","")]
+                            linenumber = "l"+str(input["line"]).zfill(5)
+                            codetarget = filename+"#"+linenumber
+                        except Exception as e:
+                            print(e)
+
+                        if codetarget:
+                            docfile.write(      "    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
+                            docfilesearch.write("    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
+                        else:
+                            docfile.write(      "    * - :bdg-danger:`{}`".format('.'.join(prefix+[input['string']])) + "\n")
+                            docfilesearch.write("    * - :bdg-danger:`{}`".format('.'.join(prefix+[input['string']])) + "\n")
                     if input["doc"] != "":
                         num_doc += 1
                         if writeFiles:
                             docfile.write(      "      - {}\n".format(input['doc'].replace('\n','\n        ')))
                             docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
                             if "_default" in input["type"]:
-                                docfile.write(      "      - :bdg-success:`{}`".format(input['default'].strip()))
-                                docfilesearch.write("      - :bdg-success:`{}`".format(input['default'].strip()))
+                                docfile.write(      "      - :bdg-success-line:`{}`".format(input['default'].strip()))
+                                docfilesearch.write("      - :bdg-success-line:`{}`".format(input['default'].strip()))
                             if "_required" in input["type"]:
                                 docfile.write(      "      - :bdg-danger-line:`required`")
                                 docfilesearch.write("      - :bdg-danger-line:`required`")
@@ -418,8 +459,8 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                                 docfilesearch.write("      - :bdg-secondary-line:`file path`")
                             if "_validate" in input["type"]:
                                 things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
-                                string = ":bdg-success:`{}` ".format(things[0])
-                                string += " ".join([":bdg-primary:`{}`".format(t) for t in things[1:]]) 
+                                string = ":bdg-success-line:`{}` ".format(things[0])
+                                string += " ".join([":bdg-primary-line:`{}`".format(t) for t in things[1:]]) 
                                 docfile.write      (      "      - {}".format(string))
                                 docfilesearch.write(      "      - {}".format(string))
                                 
@@ -450,5 +491,4 @@ def scrapeInputs(root="../../src/", writeFiles=True):
         docfilesearch.close()
 
     return num_doc, num_tot
-
 

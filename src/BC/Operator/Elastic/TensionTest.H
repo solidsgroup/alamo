@@ -83,6 +83,19 @@ public:
                 #endif
             }
         }
+        else if (type == "uniaxial_kolsky")
+        {
+            // Add a X displacement in the X direction
+            value.m_bc_val[Face::XLO][0]         = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            value.m_bc_val[Face::XLO_YLO][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            value.m_bc_val[Face::XLO_YHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            // Set the Y faces, Z faces, and YZ edges to be traction-free
+            for (int i = 0 ; i < AMREX_SPACEDIM ; i++)
+            {
+                value.m_bc_type[Face::YLO][i]     = Type::Traction;                
+                value.m_bc_type[Face::YHI][i]     = Type::Traction;                
+            }
+        }
         else if (type == "uniaxial_stress")
         {
             // Go ahead and set everything to traction first.

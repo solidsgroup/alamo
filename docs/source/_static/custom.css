@@ -84,5 +84,5 @@ h7 {font-size:xx-small!important;text-decoration: underline;}
 
 
 .wy-nav-content {
-    max-width: none;
+   //max-width: none; // uncomment to make full-width (but this doesn't look as good)
 }
