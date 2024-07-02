@@ -64,12 +64,12 @@ public:
         // Initialize PSRead with parameters from the input file
         std::string filename;
         //pp.query_file("spall.ic.psread", filename);
-	value.spall.ic = new IC::PSRead(value.geom, pp,"spall.ic.psread");
-	pp.query_required("spall.M",value.spall.M);
-	pp.query_required("spall.kappa",value.spall.kappa);
-	pp.query_required("spall.cp",value.spall.cp);
-	pp.query_required("spall.po",value.spall.po);
-	pp.query_required("spall.elastic_mult",value.spall.elastic_mult);
+	    value.spall.ic = new IC::PSRead(value.geom, pp,"spall.ic.psread");
+	    pp.query_required("spall.M",value.spall.M);
+	    pp.query_required("spall.kappa",value.spall.kappa);
+	    pp.query_required("spall.cp",value.spall.cp);
+	    pp.query_required("spall.po",value.spall.po);
+	    pp.query_required("spall.elastic_mult",value.spall.elastic_mult);
 
         pp.query_required("eta_ref_threshold", value.m_eta_ref_threshold); // Refinement threshold based on eta
         //pp.query("alpha", value.alpha); // :math:`\alpha` parameter
@@ -105,22 +105,41 @@ public:
         p_mf[lev]->setVal(0.0);
     }
 
-    virtual void UpdateModel(int a_step, Set::Scalar /*a_time*/) override
-    {
-        if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
 
-        if (a_step > 0) return;
 
-        for (int lev = 0; lev <= finest_level; ++lev)
-        {
-            model_mf[lev]->setVal(model);
-            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-            Util::RealFillBoundary(*d_mf[lev], geom[lev]);
-            Util::RealFillBoundary(*d_old_mf[lev], geom[lev]);
-        }
+
+    void TimeStepBegin(Set::Scalar a_time, int a_step) override
+    { 
+        Base::Mechanics<MODEL>::TimeStepBegin(a_time, a_step);
 
     }
 
+    virtual void UpdateModel(int a_step, Set::Scalar a_time) override
+    {
+        for (int lev = 0; lev <= this->finest_level; ++lev)
+            {
+                //this->rhs_mf[lev]->setVal(0.0);
+                this->model_mf[lev]->setVal(this->model);
+                Set::Vector DX(this->geom[lev].CellSize());
+
+                for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
+                    {
+                        amrex::Box bx = mfi.grownnodaltilebox();
+                        Set::Patch<MODEL> model_sum = model_mf.Patch(lev,mfi);
+                        Set::Patch<const Set::Scalar> d = d_mf.Patch(lev,mfi);
+                
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            model_sum(i, j, k).ddw = model.ddw;
+                            //model_sum(i, j, k).DW += model.DW;
+                            Set::Scalar dmult = 1.0 - d(i,j,k);
+                            model_sum(i, j, k).ddw *= (dmult);
+                        });
+                    }
+                Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
+            }
+
+    }
 
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
@@ -142,8 +161,8 @@ public:
             Set::Patch<const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
             Set::Patch<const Set::Matrix> eps  = strain_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> dold = d_old_mf.Patch(lev,mfi);
-	    Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
-	    Set::Patch<Set::Scalar>       p    = p_mf.Patch(lev,mfi);
+	        Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
+	        Set::Patch<Set::Scalar>       p    = p_mf.Patch(lev,mfi);
 	    
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
