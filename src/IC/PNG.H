@@ -7,7 +7,10 @@
 #include <cmath>
 
 #ifndef ALAMO_NOPNG
-#include "png.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <png.h>
 #endif
 
 #include "IC/IC.H"
@@ -29,7 +32,7 @@ public:
 
     PNG(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : PNG(_geom)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     }
 
     void Define(std::string filename)
@@ -267,27 +270,27 @@ public:
     {
 #ifndef ALAMO_NOPNG
         std::string filename;
-        pp.query("filename", filename); // BMP filename.
+        pp_query_file("filename", filename); // BMP filename.
         value.Define(filename);
         //value.bmp.Define(filename);
 
         std::string fit = "stretch";
-        pp.query("fit", fit); // How to fit. {options: stretch, fitheight, fitwidth}
+        pp_query("fit", fit); // How to fit. {options: stretch, fitheight, fitwidth}
         if (fit == "stretch")        value.fit = Fit::Stretch;
         else if (fit == "fitheight") value.fit = Fit::FitHeight;
         else if (fit == "fitwidth")  value.fit = Fit::FitWidth;
         else if (fit == "coord")
         {
             value.fit = Fit::Coord;
-            pp.queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
-            pp.queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
+            pp_queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
+            pp_queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
         }
         else Util::Abort(INFO, "Invalid value for png fit - should be stretch/fitheight/fitwidth/coord but received '", fit, "'");
 
         std::string channel = "g";
-        //pp.query("channel", channel); // Color channel to use (options: r, R, g, G, b, B, a, A)
+        //pp_query("channel", channel); // Color channel to use (options: r, R, g, G, b, B, a, A)
         
-        pp.query_validate("channel", channel, {"r","g","b","a","R","G","B","A"}); // Color channel to use (options: r, R, g, G, b, B, a, A)
+        pp_query_validate("channel", channel, {"r","g","b","a","R","G","B","A"}); // Color channel to use (options: r, R, g, G, b, B, a, A)
         if (channel == "r" || channel == "R") value.channel = Channel::R;
         else if (channel == "g" || channel == "G") value.channel = Channel::G;
         else if (channel == "b" || channel == "B") value.channel = Channel::B;
@@ -296,8 +299,8 @@ public:
 
         value.min = 0.0; //(Set::Scalar) value.bmp.min()[value.channel];
         value.max = 255.0; //(Set::Scalar) value.bmp.max()[value.channel];
-        pp.query_default("min", value.min, 0.0  ); // Scaling value - minimum
-        pp.query_default("max", value.max, 255.0); // Scaling value - maximum
+        pp_query_default("min", value.min, 0.0  ); // Scaling value - minimum
+        pp_query_default("max", value.max, 255.0); // Scaling value - maximum
 #else
         Util::Abort(INFO,"PNG is disabled");
 #endif

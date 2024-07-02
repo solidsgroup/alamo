@@ -83,7 +83,7 @@ public:
     static void Parse(Hexagonal & value, IO::ParmParse & pp)
     {
         Linear::Hexagonal::Parse(value,pp);
-        pp.queryarr("F0",value.F0); // Eigenstrain matrix. Can be defined in 2D or 3D.
+        pp_queryarr("F0",value.F0); // Eigenstrain matrix. Can be defined in 2D or 3D.
     }
 
     AMREX_FORCE_INLINE

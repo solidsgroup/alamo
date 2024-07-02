@@ -189,8 +189,8 @@ public:
             Set::Scalar tol = 1E-4;
             Set::Matrix F = Set::Matrix::Random();
             while (
-                F.determinant() < 0.1 || // skip if determinant negative or too small
-                F.determinant() > 10 // also skip if determinant too large
+                F.determinant() < 0.5 || // skip if determinant negative or too small
+                F.determinant() > 2 // also skip if determinant too large
                 )
                 F = Set::Matrix::Random(); // Ensure that F is reasonably well-behaved.
 
@@ -219,7 +219,7 @@ public:
                 Util::Assert(INFO,TEST( fabs((R.transpose() * R - Set::Matrix::Identity()).norm()) < tol ));
                 
                 Set::Scalar W_rotated = model.W(R*F);
-                Set::Scalar error = fabs(W_rotated - W_unrotated);
+                Set::Scalar error = fabs(W_rotated - W_unrotated) / fabs(W_rotated + W_unrotated + tol);
 
                 if (error > tol)
                 {

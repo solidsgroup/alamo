@@ -67,10 +67,10 @@ private:
 public:
     static void Parse(DoubleNotch & value, IO::ParmParse & pp)
     {
-        pp.query("thickness",value.thickness); // Thickness of the notches
-        pp.query("width",value.width); // Width of the notches
-        pp.queryarr("x0",value.x0); // Center of the notches
-        pp.query("L",value.L); // Length of the notches
+        pp_query("thickness",value.thickness); // Thickness of the notches
+        pp_query("width",value.width); // Width of the notches
+        pp_queryarr("x0",value.x0); // Center of the notches
+        pp_query("L",value.L); // Length of the notches
     }
 };
 }

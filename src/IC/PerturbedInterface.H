@@ -32,9 +32,9 @@ public:
         IC(_geom)
     { }
     PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom)
-    {pp.queryclass(name,*this);}
+    {pp_queryclass(name,*this);}
     PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp) : IC(_geom)
-    {pp.queryclass(*this);}
+    {pp_queryclass(*this);}
   
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
@@ -142,30 +142,30 @@ public:
     static void Parse(PerturbedInterface & value, IO::ParmParse & pp)
     {
         std::vector<std::string> wave_numbers_str;
-        pp.queryarr("wave_numbers",wave_numbers_str); // Wave numbers
+        pp_queryarr("wave_numbers",wave_numbers_str); // Wave numbers
         for (unsigned int i = 0; i<wave_numbers_str.size(); ++i)
         {
             value.wave_numbers.push_back(Util::String::Parse<std::complex<int> >(wave_numbers_str[i]));
             value.phis.push_back(std::atan2(value.wave_numbers[i].imag(),value.wave_numbers[i].real()));
         }
-        pp.queryarr("wave_amplitudes",value.wave_amplitudes); // Wave amplitudes
+        pp_queryarr("wave_amplitudes",value.wave_amplitudes); // Wave amplitudes
 
         std::string normal_str;
-        pp.query("normal",normal_str); // Which axis is normal to the interface (x,y,z)
+        pp_query("normal",normal_str); // Which axis is normal to the interface (x,y,z)
         if (normal_str == "x") value.normal = Direction::X;
         if (normal_str == "y") value.normal = Direction::Y;
         if (normal_str == "z") value.normal = Direction::Z;
         std::string offset_str;
-        pp.query("offset",value.offset); // Interface offset from origin
+        pp_query("offset",value.offset); // Interface offset from origin
         
-        pp.query("reverse",value.reverse); // If true, flip the interface (default:false)
+        pp_query("reverse",value.reverse); // If true, flip the interface (default:false)
         Util::Assert(INFO,TEST(value.reverse==0 || value.reverse==1));
 
         if (value.wave_numbers.size() != value.wave_amplitudes.size())
             Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 
         std::string mollifier = "dirac";
-        pp.query("mollifier", mollifier); // Mollifier (options: dirac, [gaussian])
+        pp_query("mollifier", mollifier); // Mollifier (options: dirac, [gaussian])
 
         if(mollifier == "dirac")
         {
@@ -175,7 +175,7 @@ public:
         else
         {
             value.mol = Mollifier::Gaussian;
-            pp.query("eps",value.eps); // Magnitude of mollifier
+            pp_query("eps",value.eps); // Magnitude of mollifier
             Util::Message(INFO, "eps = ", value.eps);
         }
     }

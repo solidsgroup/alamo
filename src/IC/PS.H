@@ -106,9 +106,9 @@ public:
     {
         int tmp_nspheres;
         Set::Scalar tmp_matrix = 0.0, tmp_inclusion = 1.0;
-        pp.query("nspheres",tmp_nspheres); // Total number of spheres
-        pp.query("matrix",tmp_matrix); // Value for the matrix [0.0]
-        pp.query("inclusion",tmp_inclusion); // Value for the inclusion [1.0]
+        pp_query("nspheres",tmp_nspheres); // Total number of spheres
+        pp_query("matrix",tmp_matrix); // Value for the matrix [0.0]
+        pp_query("inclusion",tmp_inclusion); // Value for the inclusion [1.0]
         value.Define(tmp_nspheres,tmp_matrix,tmp_inclusion);
     }
 };
