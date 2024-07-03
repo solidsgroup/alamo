@@ -206,38 +206,38 @@ public:
 
         std::vector<std::string> str;
         pp_queryarr("type.xlo", str);  // BC type on the lower x edge (2d) face (3d)
-        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
+        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp, bcmap[str[0]]);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         pp_queryarr("type.xhi", str);  // BC type on the upper x edge (2d) face (3d)
-        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
+        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp, bcmap[str[0]]);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         pp_queryarr("type.ylo", str);  // BC type on the lower y edge (2d) face (3d)
-        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
+        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YLO].resize(value.m_ncomp, bcmap[str[0]]);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         pp_queryarr("type.yhi", str);  // BC type on the upper y edge (2d) face (3d)
-        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
+        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp, bcmap[str[0]]);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         pp_queryarr("type.zlo", str);  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
-        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
+        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp, bcmap[str[0]]);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 #endif
         pp_queryarr("type.zhi", str);  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
-        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
+        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::ZHI].resize(value.m_ncomp, bcmap[str[0]]);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 #endif
 
         // VALS
@@ -247,32 +247,32 @@ public:
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
         else if (val.size() == 1) value.m_bc_val[Face::XLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::XLO].resize(value.m_ncomp, 0.0);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::XHI].clear();
         pp_queryarr("val.xhi", val); // BC value on the upper x edge (2d) face (3d)
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
         else if (val.size() == 1) value.m_bc_val[Face::XHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::XHI].resize(value.m_ncomp, 0.0);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::YLO].clear();
         pp_queryarr("val.ylo", val);  // BC value on the lower y edge (2d) face (3d)
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
         else if (val.size() == 1) value.m_bc_val[Face::YLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::YLO].resize(value.m_ncomp, 0.0);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::YHI].clear();
         pp_queryarr("val.yhi", val); // BC value on the upper y edge (2d) face (3d)
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
         else if (val.size() == 1) value.m_bc_val[Face::YHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::YHI].resize(value.m_ncomp, 0.0);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         pp_queryarr("val.zlo", val);  // BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         value.m_bc_val[Face::ZLO].clear();
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
         else if (val.size() == 1) value.m_bc_val[Face::ZLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::ZLO].resize(value.m_ncomp, 0.0);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
 #endif
         pp_queryarr("val.zhi", val); // BC value on the upper z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
@@ -280,7 +280,7 @@ public:
         if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
         else if (val.size() == 1) value.m_bc_val[Face::ZHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::ZHI].resize(value.m_ncomp, 0.0);
-        else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
+        else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
 #endif
     }
 
