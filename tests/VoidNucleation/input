@@ -6,12 +6,13 @@ timestep		    = 0.01
 stop_time		    = 10.0
 
 # amr parameters
-amr.plot_int		    = 5
-amr.max_level		    = 2
+amr.plot_int		    = 1
+amr.max_level		    = 1
 amr.n_cell		    = 128 128 128
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0
+amr.node.all = 1
 
 # geometry
 geometry.prob_lo	    = -8 -8 -8 
@@ -19,13 +20,14 @@ geometry.prob_hi	    = 8 8 8
 geometry.is_periodic	    = 0 0 0
 
 
-ic.type         = bmp
-ic.bmp.filename = tests/VoidNucleation/ebsd_blur.bmp
-ic.bmp.fit      = fitwidth
-ic.bmp.channel  = g
+#ic.type         = bmp
+#ic.bmp.filename = tests/VoidNucleation/ebsd_blur.bmp
+#ic.bmp.fit      = fitwidth
+#ic.bmp.channel  = g
 
-spall.ic.type = psread
-spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.txt
+#spall.ic.type = psread
+#spall.ic.type = psread
+spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.xyzr
 
 ## ellipse configuration
 #ic.type         = ellipse
@@ -40,11 +42,14 @@ model.nu = 0.22
 #elastic.model2.nu = 0.31
 #elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 
-solver.verbose = 2
-solver.nriters = 10
-solver.fixed_iter=2000
-solver.tol_abs = 1E-16
-solver.bottom_solver =  smoother
+mechanics.interval = 1
+mechanics.tstart = 0.0
+
+mechanics.solver.verbose = 3
+mechanics.solver.nriters = 1
+mechanics.solver.fixed_iter=2000
+mechanics.solver.tol_abs = 1E-16
+mechanics.solver.bottom_solver =  smoother
 
 
 d.bc.constant.type.xlo = neumann
@@ -52,26 +57,32 @@ d.bc.constant.type.xhi = neumann
 d.bc.constant.type.ylo = neumann
 d.bc.constant.type.yhi = neumann
 
+d.bc.constant.val.xlo = 0.0
+d.bc.constant.val.xhi = 0.0
+d.bc.constant.val.ylo = 0.0
+d.bc.constant.val.yhi = 0.0
+
 
 
 #bc
-bc.type = constant
-bc.constant.type.ylo    = disp disp
-bc.constant.type.xloylo = disp disp
-bc.constant.type.xhiylo = disp disp
-bc.constant.type.xlo    = disp trac
-bc.constant.type.xhi    = disp trac
-bc.constant.type.xloyhi = disp disp
-bc.constant.type.xhiyhi = disp disp
-bc.constant.type.yhi    = disp disp
-bc.constant.val.yhi    = 0.0 0.1
-bc.constant.val.xloyhi = 0.0 0.1
-bc.constant.val.xhiyhi = 0.0 0.1
+mechanics.bc.type = constant
+mechanics.bc.constant.type.ylo    = disp disp
+mechanics.bc.constant.type.xloylo = disp disp
+mechanics.bc.constant.type.xhiylo = disp disp
+mechanics.bc.constant.type.xlo    = disp trac
+mechanics.bc.constant.type.xhi    = disp trac
+mechanics.bc.constant.type.xloyhi = disp disp
+mechanics.bc.constant.type.xhiyhi = disp disp
+mechanics.bc.constant.type.yhi    = disp disp
+mechanics.bc.constant.val.yhi    = 0.0 0.1
+mechanics.bc.constant.val.xloyhi = 0.0 0.1
+mechanics.bc.constant.val.xhiyhi = 0.0 0.1
 #elastic.interval = 10
 
 eta_ref_threshold = 0.005
 spall.M = 1.0
 spall.kappa = -0.0005
-spall.po = 1.
+spall.po = 1.0
 spall.cp = 1.0
 spall.elastic_mult = -2.0
+spall.small = 0.1

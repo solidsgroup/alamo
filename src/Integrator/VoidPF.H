@@ -51,9 +51,9 @@ public:
     // solve using the MLMG solver. 
     static void Parse(VoidPF& value, IO::ParmParse& pp)
     {
-        Base::Mechanics<MODEL>::Parse(value, pp);
+        pp_queryclass("mechanics",static_cast<Base::Mechanics<MODEL>&>(value));
 
-        pp.queryclass("model", value.model);
+        pp_queryclass("model", value.model);
 
 
         value.bc_d = new BC::Constant(1,pp,"d.bc.constant");
@@ -65,16 +65,20 @@ public:
         //value.spall.ic = new IC::PSRead(value.geom, pp, "spall.ic.psread");
         
         // Initialize PSRead with parameters from the input file
-        std::string filename;
+        //std::string filename;
         //pp.query_file("spall.ic.psread", filename);
-	    value.spall.ic = new IC::PSRead(value.geom, pp,"spall.ic.psread");
-	    pp.query_required("spall.M",value.spall.M);
-	    pp.query_required("spall.kappa",value.spall.kappa);
-	    pp.query_required("spall.cp",value.spall.cp);
-	    pp.query_required("spall.po",value.spall.po);
-	    pp.query_required("spall.elastic_mult",value.spall.elastic_mult);
+        std::string ictype;
+        pp_query_validate("spall.ic.type",ictype,{"psread"});
+        if (ictype == "psread") value.spall.ic = new IC::PSRead(value.geom, pp,"spall.ic.psread");
 
-        pp.query_required("eta_ref_threshold", value.m_eta_ref_threshold); // Refinement threshold based on eta
+        pp_query_required("spall.M",value.spall.M);
+        pp_query_required("spall.kappa",value.spall.kappa);
+        pp_query_required("spall.cp",value.spall.cp);
+        pp_query_required("spall.po",value.spall.po);
+        pp_query_required("spall.elastic_mult",value.spall.elastic_mult);
+        pp_query_required("spall.small",value.spall.small); // regularization to set minimum modulus multiplier
+
+        pp_query_required("eta_ref_threshold", value.m_eta_ref_threshold); // Refinement threshold based on eta
         //pp.query("alpha", value.alpha); // :math:`\alpha` parameter
         //pp.query("beta", value.beta); // :math:`\beta` parameter
         //pp.query("gamma", value.gamma); // :math:`\gamma` parameter
@@ -88,16 +92,10 @@ public:
         //value.RegisterIntegratedVariable(&value.w_bndry, "bndry");
         //value.RegisterIntegratedVariable(&value.w_elastic, "elastic");
         
-        if (pp.contains("ic.type")) {
-            std::string type;
-            pp.query("ic.type", type); // Read IC type 
-            if (type == "bmp") {
-                std::string bmp_filename;
-                //pp.query_file("ic.bmp.filename", bmp_filename); // Query BMP filename
-                value.ic = new IC::Constant(value.geom, pp, "ic.bmp.filename");
-            } else {
-                Util::Abort(INFO, "Invalid value for ic.type: ", type);
-            }}
+        // std::string ictype;
+        // pp_query_validate("ic.type",{"constant","bmp"});
+        // if      (ictype == "constant") value.ic = new IC::Constant(value.geom, pp, "ic.constant");
+        // else if (ictype == "bmp")      value.ic = new IC::BMP(value.geom, pp, "ic.bmp");
     }
 
     void Initialize(int lev) override
@@ -137,8 +135,11 @@ public:
                 
                         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
-                            Set::Scalar d_avg = Numeric::Interpolate::CellToNodeAverage(d,i,j,k,0);
-                            model_sum(i, j, k).ddw = model.ddw * (1 - d_avg + 1E-4);
+                            Set::Scalar d_inv_avg = 1.0 - Numeric::Interpolate::CellToNodeAverage(d,i,j,k,0);
+                            if (d_inv_avg > 1.0)   d_inv_avg = 1.0;
+                            if (d_inv_avg < spall.small) d_inv_avg = spall.small;
+
+                            model_sum(i, j, k).ddw = model.ddw * d_inv_avg;
                         });
                     }
                 Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
@@ -154,7 +155,7 @@ public:
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::Box domain = geom[lev].Domain();
 
-	// Set::Scalar Lnow = L(time);
+        // Set::Scalar Lnow = L(time);
         //Set::Scalar lambdaT = lambda(time);
 
         for (amrex::MFIter mfi(*d_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -166,9 +167,9 @@ public:
             Set::Patch<const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
             Set::Patch<const Set::Matrix> eps  = strain_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> dold = d_old_mf.Patch(lev,mfi);
-	        Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
-	        Set::Patch<Set::Scalar>       p    = p_mf.Patch(lev,mfi);
-	    
+            Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       p    = p_mf.Patch(lev,mfi);
+
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Scalar df = 0.0;
@@ -208,10 +209,10 @@ public:
             {
                 auto sten = Numeric::GetStencil(i, j, k, bx);
                 {
-                     Set::Vector gradpsi = Numeric::Gradient(d, i, j, k, 0, DX.data(), sten);
-                     if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
-                         tags(i, j, k) = amrex::TagBox::SET;
-                 }
+                    Set::Vector gradpsi = Numeric::Gradient(d, i, j, k, 0, DX.data(), sten);
+                    if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
+                        tags(i, j, k) = amrex::TagBox::SET;
+                }
             });
             
         }
@@ -259,6 +260,7 @@ protected:
         Set::Scalar po = NAN;
         Set::Scalar cp = NAN;
         Set::Scalar elastic_mult = NAN;
+        Set::Scalar small = 0.0;
     } spall;
 };
 
