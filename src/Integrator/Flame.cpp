@@ -227,8 +227,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     {
         value.elastic.Tref = value.thermal.bound;
         pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
-        pp_query_required("model_ap", value.elastic.model_ap);
-        pp_query_required("model_htpb", value.elastic.model_htpb);
+        pp_queryclass("model_ap", value.elastic.model_ap);
+        pp_queryclass("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
