@@ -32,13 +32,20 @@ public:
         a_field[a_lev]->setVal(0.0);
         Add(a_lev,a_field,a_time);
     };
+    
     void Initialize(const int &a_lev,
                     Set::Field<Set::Vector> &a_field,
+                    Set::Field<Set::Vector> &b_field,
+                    Set::Field<Set::Vector> &c_field,
                     Set::Scalar a_time = 0.0)
     {
         Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
+        Util::Assert(INFO,TEST(a_lev < b_field.size())," b_lev=",a_lev," size=",b_field.size());
+        Util::Assert(INFO,TEST(a_lev < c_field.size())," c_lev=",a_lev," size=",c_field.size());
         a_field[a_lev]->setVal(Set::Vector::Zero());
-        Add(a_lev,a_field,a_time);
+        b_field[a_lev]->setVal(Set::Vector::Zero());
+        c_field[a_lev]->setVal(Set::Vector::Zero());
+        Add(a_lev,a_field, b_field, c_field, a_time);
     };
 
     virtual void SetComp(int a_comp) final {comp = a_comp;}
