@@ -10,7 +10,7 @@
 #include "AMReX_ParmParse.H"
 
 #include "IO/ParmParse.H"
-#include "Integrator/Base/Mechanics.H"
+#include "Integrator/Mechanics.H"
 
 
 #include "IC/IC.H"
@@ -25,6 +25,7 @@
 #include "IC/Voronoi.H"
 #include "IC/Constant.H"
 #include "IC/BMP.H"
+#include "IC/EulerAngles.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 #include "Model/Solid/Solid.H"
@@ -37,7 +38,7 @@
 namespace Integrator
 {
 template<class MODEL>
-class VoidPF: virtual public Base::Mechanics<MODEL>
+class VoidPF: virtual public Mechanics<MODEL>
 {
 public:
 
@@ -54,7 +55,16 @@ public:
         pp_queryclass("mechanics",static_cast<Base::Mechanics<MODEL>&>(value));
 
         pp_queryclass("model", value.model);
+            
+        if (pp.contains("euler.ic.type"))
+        {
+            std::string type;
+            pp_query("euler.ic.type", type); // Read IC type for the eta field
+            if (type == "eulerangles") value.ic_euler = new IC::EulerAngles(value.geom, pp, "euler.ic.eulerangles");
+            else Util::Abort(INFO, "Invalid value for euler.ic.type: ", type);
 
+            
+        }
 
         value.bc_d = new BC::Constant(1,pp,"d.bc.constant");
         value.bc_p = new BC::Nothing();
@@ -222,6 +232,7 @@ public:
 protected:
     MODEL model;
     IC::IC* ic;
+    IC::IC* ic_euler = nullptr;
     BC::BC<Set::Scalar>*bc_d, *bc_p;
     Set::Scalar m_eta_ref_threshold = 1E-2;
     Set::Field<Set::Scalar> d_old_mf;

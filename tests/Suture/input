@@ -22,15 +22,19 @@ amr.grid_eff		    = 1.0
 amr.cell.all = 1
 
 # geometry
-geometry.prob_lo	    = -8 -8 -8 
-geometry.prob_hi	    = 8 8 8
+geometry.prob_lo	    = -8.2 -8.2 -8.2 
+geometry.prob_hi	    = 8.2 8.2 8.2
 geometry.is_periodic	    = 0 0 0
 
 
-ic.type         = bmp
-ic.bmp.filename = tests/Suture/interface-blur.bmp
-ic.bmp.fit      = fitwidth
-ic.bmp.channel  = g
+#ic.type         = bmp
+#ic.bmp.filename = tests/Suture/interface-blur.bmp
+#ic.bmp.fit      = fitwidth
+#ic.bmp.channel  = g
+
+euler.ic.type         = eulerangles
+euler.ic.eulerangles.filename = tests/Suture/1_001_00006_AnglesRepair.bmp
+euler.ic.eulerangles.fit      = fitwidth
 
 #Aluminum Oxide
 nmodels = 2

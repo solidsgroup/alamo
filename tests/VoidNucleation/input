@@ -25,9 +25,13 @@ geometry.is_periodic	    = 0 0 0
 #ic.bmp.fit      = fitwidth
 #ic.bmp.channel  = g
 
+euler.ic.type         = eulerangles
+euler.ic.eulerangles.filename = tests/VoidNucleation/1_001_00004_angle.bmp
+euler.ic.eulerangles.fit      = fitwidth
+
 #spall.ic.type = psread
 #spall.ic.type = psread
-spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.xyzr
+spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.txt
 
 ## ellipse configuration
 #ic.type         = ellipse
@@ -45,7 +49,7 @@ model.nu = 0.22
 mechanics.interval = 1
 mechanics.tstart = 0.0
 
-mechanics.solver.verbose = 3
+mechanics.solver.verbose = 5
 mechanics.solver.nriters = 1
 mechanics.solver.fixed_iter=2000
 mechanics.solver.tol_abs = 1E-16

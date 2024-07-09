@@ -82,6 +82,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/EulerAngles.H"          //newline
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "IC/Constant.H"
@@ -91,6 +92,9 @@
 #include "Model/Solid/Solid.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
+
+#include "Solver/Nonlocal/Linear.H"
+#include "Model/Solid/Linear/Cubic.H"
 
 #include "Operator/Operator.H"
 
@@ -123,6 +127,7 @@ public:
         }
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
+        value.RegisterNodalFab(value.euler_mf, 3, 2, "euler", true);   //newline for euler
         // Refinement threshold for eta field
         pp_query("eta_ref_threshold", value.m_eta_ref_threshold);
         // Refinement threshold for strain gradient
@@ -138,6 +143,7 @@ public:
             else if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "ic.constant");
             else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
             else if (type == "bmp")        value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
+            else if (type == "eulerangles")  value.ic_eta =  new IC::EulerAngles(value.geom, pp, "ic.eulerangles");   //newline
             else if (type == "png")      value.ic_eta = new IC::PNG(value.geom, pp, "ic.png");
             else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
             else if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
@@ -148,6 +154,21 @@ public:
             // Default is false unless eta ic is set, then default is.
             // true.
             pp_query("eta.reset_on_regrid", value.eta_reset_on_regrid);
+        }
+
+        // Read in IC for euler angles
+        if (pp.contains("euler.ic.type"))
+        {
+            std::string type;
+            pp_query("euler.ic.type", type); // Read IC type for the euler angles field
+            if (type == "eulerangles")       value.ic_euler = new IC::EulerAngles(value.geom, pp, "euler.ic.eulerangles");                             //newly added line
+            else Util::Abort(INFO,"Invalid value for ic.type: ",type);
+            
+            value.euler_reset_on_regrid = true;
+            // Whether to re-initialize eta when re-gridding occurs.
+            // Default is false unless eta ic is set, then default is.
+            // true.
+            pp_query("euler.reset_on_regrid",value.euler_reset_on_regrid);
         }
 
         // Read in IC for psi
@@ -195,8 +216,10 @@ public:
     {
         Base::Mechanics<MODEL>::Initialize(lev);
         eta_mf[lev]->setVal(0.0);
+        euler_mf[lev]->setVal(0.0);   //newline for euler angles
         if (models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
         else eta_mf[lev]->setVal(1.0);
+        ic_euler->Initialize(lev, euler_mf);        //newline for euler angles
 
         if (psi_on) ic_psi->Initialize(lev, psi_mf);
         if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf);
@@ -239,6 +262,7 @@ public:
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             eta_mf[lev]->FillBoundary();
+            euler_mf[lev]->FillBoundary();    //euler angles
 
             amrex::Box domain = this->geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
@@ -298,25 +322,51 @@ public:
                 });
             }
         }
+
+        {
+            for (amrex::MFIter mfi(*euler_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.nodaltilebox();
+                amrex::Array4<char> const& tags = a_tags.array(mfi);
+                amrex::Array4<Set::Scalar> const& euler = euler_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    auto sten = Numeric::GetStencil(i, j, k, bx);
+                    {
+                        Set::Vector grad = Numeric::Gradient(euler, i, j, k, 0, DX.data(), sten);
+                        if (grad.lpNorm<2>() * DXnorm > m_euler_ref_threshold)
+                            tags(i, j, k) = amrex::TagBox::SET;
+                    }
+                });
+            }
+        }        
     }
 
     void Regrid(int lev, Set::Scalar time) override
     {
         if (eta_reset_on_regrid && models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf, time);
         if (psi_reset_on_regrid) ic_psi->Initialize(lev, psi_mf, time);
+        ic_euler->Initialize(lev, euler_mf, time);                 //newline added for euler angles
     }
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> euler_mf;          //new line added
+    
     Set::Scalar m_eta_ref_threshold = 0.01;
+    Set::Scalar m_euler_ref_threshold = 0.01;   //new line added
+    
     std::vector<MODEL> models;
     IC::IC* ic_eta = nullptr;
+    IC::IC* ic_euler = nullptr;     //newline added
     IC::IC* ic_psi = nullptr;
     IC::IC* ic_trac_normal = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
     bool psi_reset_on_regrid = false;
     bool eta_reset_on_regrid = false;
+    bool euler_reset_on_regrid = false;
 
     Set::Field<Set::Scalar> trac_normal_mf;
 
