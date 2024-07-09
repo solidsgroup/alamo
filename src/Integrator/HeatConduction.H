@@ -42,7 +42,7 @@ class HeatConduction : virtual public Integrator
 {
 public:
     // Empty constructor
-    HeatConduction(int a_nghost = 2) : 
+    HeatConduction(int a_nghost = 2) :
         Integrator(),
         number_of_ghost_cells(a_nghost)
     {}
@@ -85,7 +85,7 @@ public:
         //    the input variable must be one of the three provided values, 
         //    and will error if not. The default selection is the first
         //    argument.*
-        pp_query_validate("ic.type", type, {"constant", "sphere","expression"});
+        pp_query_validate("ic.type", type, { "constant", "sphere","expression" });
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "ic.expression");
@@ -93,7 +93,7 @@ public:
 
         std::string bc_type;
         // Select BC object for temperature
-        pp_query_validate("bc.temp.type",bc_type,{"constant","expression"});
+        pp_query_validate("bc.temp.type", bc_type, { "constant","expression" });
         if (bc_type == "expression")      value.bc = new BC::Expression(1, pp, "bc.temp.expression");
         else if (bc_type == "constant")   value.bc = new BC::Constant(1, pp, "bc.temp");
 
@@ -130,8 +130,8 @@ protected:
             // Get an array-accessible handle to the data on this patch.
             // amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
             // amrex::Array4<Set::Scalar>       const& temp = temp_mf.Patch(lev,mfi);//(*temp_mf[lev]).array(mfi);
-            Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev, mfi);
+            Set::Patch<Set::Scalar>        temp = temp_mf.Patch(lev, mfi);
 
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -195,7 +195,7 @@ private:
     //
 
     Set::Scalar alpha = NAN;                 // Thermal diffusivity
-    Set::Scalar refinement_threshold = NAN ; // Criterion for cell refinement
+    Set::Scalar refinement_threshold = NAN; // Criterion for cell refinement
 
     //
     // Definition of user-determined pointer variables.

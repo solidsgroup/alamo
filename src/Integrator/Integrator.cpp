@@ -318,7 +318,7 @@ Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int ng
 
 
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name, bool extensive)
+Integrator::RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive)
 {
     BL_PROFILE("Integrator::RegisterIntegratedVariable");
     thermo.vars.push_back(integrated_variable);

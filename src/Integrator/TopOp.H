@@ -36,12 +36,12 @@
 namespace Integrator
 {
 template<class MODEL>
-class TopOp: virtual public Base::Mechanics<MODEL>
+class TopOp : virtual public Base::Mechanics<MODEL>
 {
 public:
 
-    TopOp(): Base::Mechanics<MODEL>() {}
-    TopOp(IO::ParmParse& pp): Base::Mechanics<MODEL>()
+    TopOp() : Base::Mechanics<MODEL>() {}
+    TopOp(IO::ParmParse& pp) : Base::Mechanics<MODEL>()
     {
         Parse(*this, pp);
     }
@@ -57,7 +57,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             std::string type;
-            pp_query_validate("psi.ic.type", type, {"elipse", "constant"}); // Read IC type for the eta field
+            pp_query_validate("psi.ic.type", type, { "elipse", "constant" }); // Read IC type for the eta field
             if (type == "ellipse") value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant") value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);

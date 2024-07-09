@@ -45,9 +45,9 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         //if (m_type == MechanicsBase<model_type>::Type::Static)
         //bx.grow(number_of_ghost_cells-1);
         //bx = bx & domain;
-        Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> driving_force = driving_force_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);// = (*driving_force_mf[lev]).array(mfi);
+        Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> driving_force = driving_force_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev, mfi);// = (*driving_force_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -166,7 +166,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         // Update eta
         // (if NOT using anisotropic kinetics)
         //
-        
+
         if (!anisotropic_kinetics.on || time < anisotropic_kinetics.tstart)
         {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -201,7 +201,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
     // Update eta
     // (if we ARE using anisotropic kinetics)
     //
-    
+
     if (anisotropic_kinetics.on && time >= anisotropic_kinetics.tstart)
     {
         for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -222,15 +222,15 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 });
             }
         }
-        
+
         for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
-            Set::Patch<Set::Scalar>       eta = eta_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> driving_force = driving_force_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> L = anisotropic_kinetics.L_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> threshold = anisotropic_kinetics.threshold_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       eta = eta_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> driving_force = driving_force_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> L = anisotropic_kinetics.L_mf.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> threshold = anisotropic_kinetics.threshold_mf.Patch(lev, mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -238,26 +238,26 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 {
                     if (pf.threshold.on)
                     {
-                        if (driving_force_threshold(i, j, k, m) > threshold(i,j,k,m))
+                        if (driving_force_threshold(i, j, k, m) > threshold(i, j, k, m))
                         {
                             if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m) - threshold(i,j,k,m));
+                                eta(i, j, k, m) -= L(i, j, k, m) * dt * (driving_force_threshold(i, j, k, m) - threshold(i, j, k, m));
                             else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m));
+                                eta(i, j, k, m) -= L(i, j, k, m) * dt * (driving_force_threshold(i, j, k, m));
                         }
                         else if (driving_force_threshold(i, j, k, m) < -pf.threshold.value)
                         {
                             if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m) + threshold(i,j,k,m));
+                                eta(i, j, k, m) -= L(i, j, k, m) * dt * (driving_force_threshold(i, j, k, m) + threshold(i, j, k, m));
                             else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m));
+                                eta(i, j, k, m) -= L(i, j, k, m) * dt * (driving_force_threshold(i, j, k, m));
                         }
                     }
 
-                    eta(i, j, k, m) -= L(i,j,k,m) * dt * driving_force(i, j, k, m);
+                    eta(i, j, k, m) -= L(i, j, k, m) * dt * driving_force(i, j, k, m);
                 }
             });
-        }        
+        }
     }
 }
 

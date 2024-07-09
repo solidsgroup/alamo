@@ -251,7 +251,7 @@ protected:
             m_basefields[i]->SetFinestLevel(finest_level);
     }
 
-    void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive=true);
+    void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive = true);
 
     void SetTimestep(Set::Scalar _timestep);
     void SetPlotInt(int plot_int);
@@ -457,7 +457,7 @@ void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp
 
 template<class T>
 ALAMO_SINGLE_DEFINITION
-void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving) 
+void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving)
 {
     //Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, "", true, evolving);

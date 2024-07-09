@@ -8,23 +8,25 @@
 
 namespace Integrator
 {
-class ThermoElastic : 
+class ThermoElastic :
     virtual public HeatConduction,
     virtual public Mechanics<Model::Solid::Affine::Isotropic>
 {
 public:
-    ThermoElastic():
+    ThermoElastic() :
         HeatConduction(3),
         Mechanics<Model::Solid::Affine::Isotropic>()
     { }
-    ThermoElastic(IO::ParmParse &pp) : ThermoElastic()
-    {Parse(*this,pp);}
-    static void Parse(ThermoElastic &value, IO::ParmParse &pp)
+    ThermoElastic(IO::ParmParse& pp) : ThermoElastic()
     {
-        pp_queryclass("hc",static_cast<HeatConduction*>(&value));
-        pp_queryclass("el",static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
+        Parse(*this, pp);
+    }
+    static void Parse(ThermoElastic& value, IO::ParmParse& pp)
+    {
+        pp_queryclass("hc", static_cast<HeatConduction*>(&value));
+        pp_queryclass("el", static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
 
-        pp_queryarr("alpha",value.alpha); // Diffusion coefficient
+        pp_queryarr("alpha", value.alpha); // Diffusion coefficient
     }
 
 protected:
@@ -40,21 +42,21 @@ protected:
 
         //Set::Scalar alpha[2];
         //alpha[0] = 0.001; alpha[1] = 0.002;
-        
+
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
-                amrex::Array4<Model::Solid::Affine::Isotropic> const &model = model_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &temp = temp_old_mf[lev]->array(mfi);
+                amrex::Array4<Model::Solid::Affine::Isotropic> const& model = model_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const& temp = temp_old_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix F0 = Set::Matrix::Zero();
-                    Set::Scalar tempavg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
+                    Set::Scalar tempavg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     for (int n = 0; n < eta.nComp(); n++)
                     {
-                        F0 += (eta(i,j,k,n) * alpha[n]) * tempavg * Set::Matrix::Identity();
+                        F0 += (eta(i, j, k, n) * alpha[n]) * tempavg * Set::Matrix::Identity();
                     }
                     model(i, j, k).F0 = F0;
                 });
