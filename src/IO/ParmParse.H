@@ -220,29 +220,37 @@ public:
     int query_file( std::string name, std::string & value, bool copyfile, bool checkfile,
                     std::string file = "", std::string func = "query_file", int line = -1)
     {
-        if (!contains(name.c_str()))
+        try
         {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," must be specified");
+            if (!contains(name.c_str()))
+            {
+                Util::ParmParseException(INFO,file,func,line,full(name),full(name)," must be specified");
+            }
+
+            int retval = query(name.c_str(),value);
+
+            if (amrex::ParallelDescriptor::IOProcessor())
+            {
+                if ( checkfile && ! std::filesystem::exists(value))
+                {
+                    Util::ParmParseException(INFO,file,func,line,full(name),full(name)," does not exist");
+                }
+                if ( checkfile && !std::filesystem::is_regular_file(value))
+                {
+                    Util::ParmParseException(INFO,file,func,line,full(name),full(name)," is not a regular file");
+                }
+                if ( copyfile )
+                {
+                    Util::CopyFileToOutputDir(value, true, full(name));
+                }
+            }
+            return retval;
         }
-
-        int retval = query(name.c_str(),value);
-
-        if ( checkfile && ! std::filesystem::exists(value))
+        catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," does not exist");
+            Util::ParmParseException(INFO,file,func,line,full(name));
         }
-
-        if ( checkfile && !std::filesystem::is_regular_file(value))
-        {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," is not a regular file");
-        }
-
-        if ( copyfile )
-        {
-            Util::CopyFileToOutputDir(value, true);
-        }
-
-        return retval;
+        return -1;
     }
     int query_file( std::string name, std::string & value, bool copyfile, 
                     std::string file = "", std::string func = "query_file", int line = -1)
@@ -432,7 +440,7 @@ public:
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line);
+            Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
     }
     template<class T>
@@ -453,7 +461,7 @@ public:
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line);
+            Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
     }
 };
