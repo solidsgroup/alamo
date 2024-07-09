@@ -170,7 +170,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);// Refinement criterion for eta field   
     pp_query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, 0.001);// Refinement criterion for temperature field    
-    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0, 1);// Eta value to restrict the refinament for the temperature field 
+    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0.1);// Eta value to restrict the refinament for the temperature field 
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e99);// Refinement criterion for phi field [infinity]
     pp_query_default("small", value.small, 1.0e-8); // Lowest value of Eta.
 

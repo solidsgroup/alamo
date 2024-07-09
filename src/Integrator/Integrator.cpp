@@ -78,7 +78,7 @@ Integrator::Integrator() : amrex::AmrCore()
             else if (cnt == 1)
             {
                 int nsubsteps_all;
-                pp_queryarr("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
+                pp_query("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
                 for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
             }
             else

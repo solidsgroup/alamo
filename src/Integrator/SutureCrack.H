@@ -47,88 +47,100 @@ class SutureCrack : public Integrator
 public:
     SutureCrack()
     {
-        IO::ParmParse pp_crack("crack");
-        pp_crack.query_default("modulus_scaling_max", crack.scaleModulusMax, 0.02);
-        pp_crack.query_default("refinement_threshold", crack.refinement_threshold, 0.001);
-        pp_crack.query_default("df_tol_rel", crack.driving_force_tolerance_rel, 1E-4);
-        pp_crack.query_default("df_tol_abs", crack.driving_force_tolerance_abs, 0.0);
+        {
+            IO::ParmParse pp("crack");
+            pp_query_default("modulus_scaling_max", crack.scaleModulusMax, 0.02);
+            pp_query_default("refinement_threshold", crack.refinement_threshold, 0.001);
+            pp_query_default("df_tol_rel", crack.driving_force_tolerance_rel, 1E-4);
+            pp_query_default("df_tol_abs", crack.driving_force_tolerance_abs, 0.0);
 
-        Model::Interface::Crack::Constant* tmpbdy = new Model::Interface::Crack::Constant();
-        pp_crack.queryclass("constant", *tmpbdy);
-        crack.cracktype = tmpbdy;
+            Model::Interface::Crack::Constant* tmpbdy = new Model::Interface::Crack::Constant();
+            pp_queryclass("constant", *tmpbdy);
+            crack.cracktype = tmpbdy;
+        }
 
         // IC for crack field
-        IO::ParmParse pp("crack.ic");
-        pp_query_validate("type", crack.ic_type, { "notch" }); // Crack type to use {notch}
-        if (crack.ic_type == "notch")
         {
-            IC::Notch* tmpic = new IC::Notch(geom);
-            pp_queryclass("notch", *tmpic);
-            crack.ic = tmpic;
-            crack.is_ic = true;
+            IO::ParmParse pp("crack.ic");
+            pp_query_validate("type", crack.ic_type, { "notch" }); // Crack type to use {notch}
+            if (crack.ic_type == "notch")
+            {
+                IC::Notch* tmpic = new IC::Notch(geom);
+                pp_queryclass("notch", *tmpic);
+                crack.ic = tmpic;
+                crack.is_ic = true;
+            }
+            else
+                crack.is_ic = false;
         }
-        else
-            crack.is_ic = false;
 
         RegisterNodalFab(crack.field, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.field_old, 1, number_of_ghost_nodes, "crack_old", true);
         RegisterNodalFab(crack.driving_force, 4, number_of_ghost_nodes, "driving_force", true);
         RegisterIntegratedVariable(&(crack.driving_force_norm), "driving_force_norm");
 
-        IO::ParmParse pp_material("material");
-        pp_material.queryclass("isotropic", material.brittlemodeltype);
-        pp_material.query_default("refinement_threshold", material.refinement_threshold, 0.1);
-
-        IO::ParmParse pp_material_ic("material.ic");
-        pp_material_ic.query_validate("type", material.ic_type, { "laminate" });
-        if (material.ic_type == "laminate")
         {
-            IC::Laminate* tmpic = new IC::Laminate(geom);
-            pp_material_ic.queryclass("laminate", *tmpic);
-
-            IO::ParmParse _temp("material.ic.laminate");
-            _temp.query_default("number_of_inclusions", number_of_materials, 1);
-            number_of_materials++;
-
-            material.ic = tmpic;
-            material.is_ic = true;
+            IO::ParmParse pp("material");
+            pp_queryclass("isotropic", material.brittlemodeltype);
+            pp_query_default("refinement_threshold", material.refinement_threshold, 0.1);
         }
-        else
-            material.is_ic = false;
 
-        IO::ParmParse pp_load("loading");
-        if (pp_load.countval("body_force")) pp_load.queryarr("body_force", loading.body_force);
-        pp_load.query_default("val", loading.val, 0.0);
+        {
+            IO::ParmParse pp("material.ic");
+            pp_query_validate("type", material.ic_type, { "laminate" });
+            if (material.ic_type == "laminate")
+            {
+                IC::Laminate* tmpic = new IC::Laminate(geom);
+                pp_queryclass("laminate", *tmpic);
 
-        IO::ParmParse pp_elastic("elastic");
-        pp_elastic.query_default("df_mult", elastic.df_mult, 1.0);
-        pp_elastic.queryclass("bc", elastic.brittlebc);
+                IO::ParmParse _temp("material.ic.laminate");
+                _temp.query_default("number_of_inclusions", number_of_materials, 1);
+                number_of_materials++;
 
-        IO::ParmParse pp_solver("solver");
-        pp_solver.query_default("int", sol.interval, 100);
-        pp_solver.query_default("type", sol.type, "single");
-        pp_solver.query_default("max_iter", sol.max_iter, 1.0E-6);
-        pp_solver.query_default("max_fmg_iter", sol.max_fmg_iter, 0);
-        pp_solver.query_default("verbose", sol.verbose, 3);
-        pp_solver.query_default("cgverbose", sol.cgverbose, 3);
-        pp_solver.query_default("tol_rel", sol.tol_rel, 1.0E-6);
-        pp_solver.query_default("tol_abs", sol.tol_abs, 1.0E-6);
-        pp_solver.query_default("cg_tol_rel", sol.cg_tol_rel, 1.0E-6);
-        pp_solver.query_default("cg_tol_abs", sol.cg_tol_abs, 1.0E-6);
-        pp_solver.query_default("use_fsmooth", sol.use_fsmooth, false);
-        pp_solver.query_default("agglomeration", sol.agglomeration, true);
-        pp_solver.query_default("consolidation", sol.consolidation, false);
-        pp_solver.query_default("bottom_solver", sol.bottom_solver, "bicgstab");
-        pp_solver.query_default("linop_maxorder", sol.linop_maxorder, 2);
-        pp_solver.query_default("max_coarsening_level", sol.max_coarsening_level, 0);
-        pp_solver.query_default("verbose", sol.verbose, 3);
-        pp_solver.query_default("cg_verbose", sol.cgverbose, 3);
-        pp_solver.query_default("bottom_max_iter", sol.bottom_max_iter, 200);
-        pp_solver.query_default("max_fixed_iter", sol.max_fixed_iter, 500);
-        pp_solver.query_default("bottom_tol", sol.bottom_tol, 1.0E-6);
-        pp_solver.query_default("pre_smooth", sol.pre_smooth, 2);
-        pp_solver.query_default("post_smooth", sol.post_smooth, 2);
+                material.ic = tmpic;
+                material.is_ic = true;
+            }
+            else
+                material.is_ic = false;
+        }
+        {
+            IO::ParmParse pp("loading");
+            if (pp.countval("body_force")) pp.queryarr("body_force", loading.body_force);
+            pp_query_default("val", loading.val, 0.0);
+        }
 
+        {
+            IO::ParmParse pp("elastic");
+            pp_query_default("df_mult", elastic.df_mult, 1.0);
+            pp_queryclass("bc", elastic.brittlebc);
+        }
+
+        {
+            IO::ParmParse pp("solver");
+            pp_query_default("int", sol.interval, 100);
+            pp_query_default("type", sol.type, "single");
+            pp_query_default("max_iter", sol.max_iter, 1.0E-6);
+            pp_query_default("max_fmg_iter", sol.max_fmg_iter, 0);
+            pp_query_default("verbose", sol.verbose, 3);
+            pp_query_default("cgverbose", sol.cgverbose, 3);
+            pp_query_default("tol_rel", sol.tol_rel, 1.0E-6);
+            pp_query_default("tol_abs", sol.tol_abs, 1.0E-6);
+            pp_query_default("cg_tol_rel", sol.cg_tol_rel, 1.0E-6);
+            pp_query_default("cg_tol_abs", sol.cg_tol_abs, 1.0E-6);
+            pp_query_default("use_fsmooth", sol.use_fsmooth, false);
+            pp_query_default("agglomeration", sol.agglomeration, true);
+            pp_query_default("consolidation", sol.consolidation, false);
+            pp_query_default("bottom_solver", sol.bottom_solver, "bicgstab");
+            pp_query_default("linop_maxorder", sol.linop_maxorder, 2);
+            pp_query_default("max_coarsening_level", sol.max_coarsening_level, 0);
+            pp_query_default("verbose", sol.verbose, 3);
+            pp_query_default("cg_verbose", sol.cgverbose, 3);
+            pp_query_default("bottom_max_iter", sol.bottom_max_iter, 200);
+            pp_query_default("max_fixed_iter", sol.max_fixed_iter, 500);
+            pp_query_default("bottom_tol", sol.bottom_tol, 1.0E-6);
+            pp_query_default("pre_smooth", sol.pre_smooth, 2);
+            pp_query_default("post_smooth", sol.post_smooth, 2);
+        }
 
         nlevels = maxLevel() + 1;
         RegisterNodalFab(elastic.disp, AMREX_SPACEDIM, number_of_ghost_nodes, "disp", true);
