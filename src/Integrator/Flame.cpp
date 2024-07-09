@@ -49,12 +49,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
         std::string eta_bc_str = "constant";
-        pp_query_validate("pf.eta.ic.type", eta_bc_str, {"constant","expression"}); // Eta boundary condition [constant, expression]
+        pp_query_validate("pf.eta.ic.type", eta_bc_str, { "constant","expression" }); // Eta boundary condition [constant, expression]
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
         std::string eta_ic_type = "constant";
-        pp_query_validate("eta.ic.type", eta_ic_type, {"laminate","constant","expression","bmp","png"}); // Eta initial condition [constant, laminate, expression, bmp]
+        pp_query_validate("eta.ic.type", eta_ic_type, { "laminate","constant","expression","bmp","png" }); // Eta initial condition [constant, laminate, expression, bmp]
         if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
@@ -123,13 +123,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
             std::string laser_ic_type = "constant";
-            pp_query_validate("laser.ic.type", laser_ic_type, {"constant","expression"}); // heat laser initial condition type [constant, expression]
+            pp_query_validate("laser.ic.type", laser_ic_type, { "constant","expression" }); // heat laser initial condition type [constant, expression]
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
             else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
             else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
 
             std::string temp_ic_type;
-            pp_query_validate("temp.ic.type", temp_ic_type,{"constant","expression","bmp","png","default"}); // Temperature initial condition
+            pp_query_validate("temp.ic.type", temp_ic_type, { "constant","expression","bmp","png","default" }); // Temperature initial condition
             if (temp_ic_type == "constant") value.thermal.ic_temp = new IC::Constant(value.geom, pp, "temp.ic.constant");
             else if (temp_ic_type == "expression") value.thermal.ic_temp = new IC::Expression(value.geom, pp, "temp.ic.expression");
             else if (temp_ic_type == "bmp") value.thermal.ic_temp = new IC::BMP(value.geom, pp, "temp.ic.bmp");
@@ -151,7 +151,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp_query_default("pressure.c1", value.pressure.arrhenius.c1, 0.0); // Surgate heat flux model paramater - Total
             pp_query_default("pressure.mob_ap", value.pressure.arrhenius.mob_ap, 0); // Whether to include pressure to the arrhenius law
             pp_query_default("pressure.dependency", value.pressure.arrhenius.dependency, 1); // Whether to use pressure to determined the reference Zeta 
-            pp_query_default("pressure.h1", value.pressure.arrhenius.h1 ,1.81); // Surgate heat flux model paramater - Homogenized
+            pp_query_default("pressure.h1", value.pressure.arrhenius.h1, 1.81); // Surgate heat flux model paramater - Homogenized
             pp_query_default("pressure.h2", value.pressure.arrhenius.h2, 1.34); // Surgate heat flux model paramater - Homogenized
 
         }
@@ -170,7 +170,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);// Refinement criterion for eta field   
     pp_query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, 0.001);// Refinement criterion for temperature field    
-    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0,1);// Eta value to restrict the refinament for the temperature field 
+    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0, 1);// Eta value to restrict the refinament for the temperature field 
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e99);// Refinement criterion for phi field [infinity]
     pp_query_default("small", value.small, 1.0e-8); // Lowest value of Eta.
 
@@ -179,7 +179,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // specified using these parameters. 
         //IO::ParmParse pp("phi.ic");
         std::string phi_ic_type = "packedspheres";
-        pp_query_validate("phi.ic.type", phi_ic_type, {"psread","laminate","expression","constant","bmp","png"}); // IC type (psread, laminate, constant)
+        pp_query_validate("phi.ic.type", phi_ic_type, { "psread","laminate","expression","constant","bmp","png" }); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             //value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
@@ -221,7 +221,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
     }
 
-    pp_queryclass("elastic",static_cast<Base::Mechanics<model_type>&>(value));
+    pp_queryclass("elastic", static_cast<Base::Mechanics<model_type>&>(value));
 
     if (value.m_type != Type::Disable)
     {
@@ -254,10 +254,10 @@ void Flame::Initialize(int lev)
     if (thermal.on) {
         if (thermal.ic_temp)
         {
-            thermal.ic_temp->Initialize(lev,temp_mf);
-            thermal.ic_temp->Initialize(lev,temp_old_mf);
-            thermal.ic_temp->Initialize(lev,temps_mf);
-            thermal.ic_temp->Initialize(lev,temps_old_mf);
+            thermal.ic_temp->Initialize(lev, temp_mf);
+            thermal.ic_temp->Initialize(lev, temp_old_mf);
+            thermal.ic_temp->Initialize(lev, temps_mf);
+            thermal.ic_temp->Initialize(lev, temps_old_mf);
         }
         else
         {
