@@ -1,4 +1,5 @@
 #include "BC.H"
+#include "AMReX_BC_TYPES.H"
 
 namespace BC
 {
@@ -7,20 +8,13 @@ namespace BCUtil
 int ReadString(std::string bcstring)
 {
     // From <AMReX_BC_TYPES.H>
-    if (bcstring == "BOGUS_BC")         return BOGUS_BC;
-    if (bcstring == "INT_DIR")          return INT_DIR;
-    if (bcstring == "REFLECT_ODD")      return REFLECT_ODD;
-    if (bcstring == "INT_DIR")          return INT_DIR;
-    if (bcstring == "REFLECT_EVEN")     return REFLECT_EVEN;
-    if (bcstring == "FOEXTRAP")         return FOEXTRAP;
-    if (bcstring == "EXT_DIR")          return EXT_DIR;
-    if (bcstring == "HOEXTRAP")         return HOEXTRAP;
-    if (bcstring == "Interior")         return Interior;
-    if (bcstring == "Inflow")           return Inflow;
-    if (bcstring == "Outflow")          return Outflow;
-    if (bcstring == "Symmetry")         return Symmetry;
-    if (bcstring == "SlipWall")         return SlipWall;
-    if (bcstring == "NoSlipWall")       return NoSlipWall;
+    if (bcstring == "BOGUS_BC")         return amrex::BCType::mathematicalBndryTypes::bogus;
+    if (bcstring == "INT_DIR")          return amrex::BCType::mathematicalBndryTypes::int_dir;
+    if (bcstring == "REFLECT_ODD")      return amrex::BCType::mathematicalBndryTypes::reflect_odd;
+    if (bcstring == "REFLECT_EVEN")     return amrex::BCType::mathematicalBndryTypes::reflect_even;
+    if (bcstring == "FOEXTRAP")         return amrex::BCType::mathematicalBndryTypes::foextrap;
+    if (bcstring == "EXT_DIR")          return amrex::BCType::mathematicalBndryTypes::ext_dir;
+    if (bcstring == "HOEXTRAP")         return amrex::BCType::mathematicalBndryTypes::hoextrap;
 
     // From <AMReX_LO_BCTYPES.H>
     if (bcstring == "interior" )        return (int)amrex::LinOpBCType::interior;
@@ -39,8 +33,7 @@ int ReadString(std::string bcstring)
 bool IsPeriodic(int bctype)
 {
     ///\todo We need to clean up these operators
-    if (bctype == INT_DIR) return true;
-    if (bctype == Interior) return true;
+    if (bctype == (int)amrex::BCType::mathematicalBndryTypes::int_dir) return true;
     if (bctype == (int)amrex::LinOpBCType::interior) return true;
     if (bctype == (int)amrex::LinOpBCType::Periodic) return true;
     else return false;
@@ -54,18 +47,18 @@ bool IsNeumann(int bctype)
 }
 bool IsDirichlet(int bctype)
 {
-    if (bctype == EXT_DIR) return true;
+    if (bctype == (int)amrex::BCType::mathematicalBndryTypes::ext_dir) return true;
     if (bctype == (int)amrex::LinOpBCType::Dirichlet) return true;
     else return false;
 }
 bool IsReflectEven(int bctype)
 {
-    if (bctype == REFLECT_EVEN) return true;
+    if (bctype ==  (int)amrex::BCType::mathematicalBndryTypes::reflect_even) return true;
     else return false;
 }
 bool IsReflectOdd(int bctype)
 {
-    if (bctype == REFLECT_ODD) return true;
+    if (bctype == (int)amrex::BCType::mathematicalBndryTypes::reflect_odd) return true;
     else return false;
 }
 }

@@ -1,3 +1,13 @@
+//
+// This model implements an affine hexagonal material:
+//
+// .. math::
+//
+//    W_{aff}(\nabla\mathbf{u}) = W_{lin}(\nabla\mathbf{u} - \mathbf{F}_0)
+//
+// where :math:`W_{aff}` is the present model, :math:`\mathbf{F}_0` is the eigenstrain,
+// and :math:`W_{lin}` is the cubic model defined in :ref:`Model::Solid::Linear::Hexagonal`.
+//
 #ifndef MODEL_SOLID_AFFINE_HEXAGONAL_H_
 #define MODEL_SOLID_AFFINE_HEXAGONAL_H_
 
@@ -73,7 +83,7 @@ public:
     static void Parse(Hexagonal & value, IO::ParmParse & pp)
     {
         Linear::Hexagonal::Parse(value,pp);
-        if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
+        pp_queryarr("F0",value.F0); // Eigenstrain matrix. Can be defined in 2D or 3D.
     }
 
     AMREX_FORCE_INLINE
@@ -103,20 +113,23 @@ public:
 }
 
 template<>
-inline int Set::Field<Model::Solid::Affine::Hexagonal>::NComp() const 
+ALAMO_SINGLE_DEFINITION
+int Set::Field<Model::Solid::Affine::Hexagonal>::NComp() const 
 {
     return 1;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Affine::Hexagonal>::Name(int i) const 
+ALAMO_SINGLE_DEFINITION
+std::string Set::Field<Model::Solid::Affine::Hexagonal>::Name(int i) const 
 {
     if (i==0) return name + ".Cxxxx";
     return name;
 }
 
 template<>
-inline void Set::Field<Model::Solid::Affine::Hexagonal>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Set::Field<Model::Solid::Affine::Hexagonal>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {

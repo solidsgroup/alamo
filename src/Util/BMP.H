@@ -49,7 +49,7 @@ public:
         }
     }
 
-    inline
+    AMREX_FORCE_INLINE
     std::array<int,3> & operator () (int i,int j)
     {
         Util::Assert(INFO,TEST(i < nx)," i = ",i," nx = ", nx);

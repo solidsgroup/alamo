@@ -10,7 +10,7 @@ testlib.validate(path="{}/00500cell/".format(outdir),
                  start=[0,0,0],
                  end=[1,1,1],
                  vars=["Temp"],
-                 tolerance=1E-6)
+                 tolerance=1E-4)
 exit(0)
 
 

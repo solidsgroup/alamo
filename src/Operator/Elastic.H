@@ -185,7 +185,10 @@ private:
 public:
     static void Parse(Elastic<SYM> & value, IO::ParmParse & pp)
     {
-        pp.query("small",value.m_psi_small);
+        // Regularization offset value used in near-singular elastic solves.
+        // It should be small - if it is too large, you will get better convergence
+        // but less correct values!
+        pp_query("small",value.m_psi_small); 
     }
 
 };

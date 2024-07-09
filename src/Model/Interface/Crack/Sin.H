@@ -37,20 +37,20 @@ private:
 public:
     static void Parse(Sin & value, IO::ParmParse & pp)
     {
-        pp.query("Gc0",value.Gc0);
-        pp.query("Gc1",value.Gc1);
-        pp.query("theta0",value.theta0);
-        pp.query("zeta",value.zeta);
-        pp.query("mobility",value.mobility);
-        pp.query("threshold",value.threshold);
+        pp_query("Gc0",value.Gc0); // Min Gc (fracture energy) value
+        pp_query("Gc1",value.Gc1); // Max Gc (fracture energy)value
+        pp_query("theta0",value.theta0); // Angle offset
+        pp_query("zeta",value.zeta); // Regularization
+        pp_query("mobility",value.mobility); // Crack mobiilty
+        pp_query("threshold",value.threshold); // Threshold for kinetics
 
         std::string gtype = "";
         std::string wtype = "";
-        pp.query("gtype", gtype);
-        pp.query("wtype", wtype);
+        pp_query("gtype", gtype); // Type of g function to use {square, multiwell, 4c3, squarep, squarepexp, cubicm}
+        pp_query("wtype", wtype); // Type o w function to use {square, multiwell, multiwell2, 4c3}
 
         Set::Scalar ductile_exponent = 1.;
-        if(gtype == "squarepexp"|| gtype == "cubicm") pp.query("exponent",ductile_exponent);
+        if(gtype == "squarepexp"|| gtype == "cubicm") pp_query("exponent",ductile_exponent);
 
         std::map<std::string,Model::Interface::Crack::Crack::GType>  g_map;
         g_map["square"] = Model::Interface::Crack::Crack::GType::GSQUARE;

@@ -53,42 +53,35 @@ public:
     {
         Set::Matrix sigma = DW(eps);
         Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / (double)AMREX_SPACEDIM;
-        Set::Matrix eps_dev = eps - eps.trace() * Set::Matrix::Identity() / (double)AMREX_SPACEDIM;
-        Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
-        
-        Set::Scalar m_mu = ddw.Mu();
-        
-        Set::Matrix zeta_trial = sig_dev + 2.0*m_mu*eps_dev;
-        
-        Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(sigma0 + hardening*alpha);
-        //Set::Sclar yield = SQ2O3*(sigma0 + hardening*alpha);
-        //if (J2 < sigma0) return; // No plasticity happens.
-        if (f_trial <= 0.0)
+        if ((hardening<0.0) || (ratecoeff<0.0)) // rate independent
         {
-            return;
+            Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
+            if (J2 < sigma0) return; // No plasticity happens.
+            Set::Matrix dsigp = (1. - sigma0/J2) * sig_dev;
+            F0 += ddw.Inverse() * dsigp; 
         }
-        
-        Set::Matrix n_new = zeta_trial / zeta_trial.norm();
-        Set::Scalar dGamma = f_trial / (2.0*m_mu*(1 + hardening/(3.0*m_mu)));
-        dGamma *= ratecoeff * dt;
-
-        alpha = alpha + SQ2O3*dGamma;
-
-        //Set::Matrix dsigp = (1. - sigma0/J2) * sig_dev;
-
-
-        //F0 += ddw.Inverse() * dsigp;
-        F0 += dGamma * n_new;
+        else // rate-dependent
+        {
+            Set::Matrix eps_dev = eps - eps.trace() * Set::Matrix::Identity() / (double)AMREX_SPACEDIM;
+            Set::Scalar m_mu = ddw.Mu();
+            Set::Matrix zeta_trial = sig_dev + 2.0*m_mu*eps_dev;
+            Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(sigma0 + hardening*alpha);
+            if (f_trial <= 0.0) return;
+            Set::Matrix n_new = zeta_trial / zeta_trial.norm();
+            Set::Scalar dGamma = f_trial / (2.0*m_mu*(1 + hardening/(3.0*m_mu)));
+            dGamma *= ratecoeff * dt;
+            alpha = alpha + SQ2O3*dGamma;
+            F0 += dGamma * n_new;
+        }
     }
-
 
     // Parameters
     Set::Scalar sigma0 = 1.0;
-    Set::Scalar hardening = 1.0;
-    Set::Scalar ratecoeff = 1.0;
+    Set::Scalar hardening = NAN;
+    Set::Scalar ratecoeff = NAN;
 
     // Internal variables to track state
-    Set::Scalar alpha;
+    Set::Scalar alpha = 0.0;
     static constexpr Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));
 
     static J2 Zero()
@@ -97,6 +90,8 @@ public:
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>::Zero();
         ret.F0 = Set::Matrix::Zero();
         ret.sigma0 = 0.0;
+        ret.hardening = 0.0;
+        ret.ratecoeff = 0.0;
         return ret;
     }
 
@@ -105,13 +100,13 @@ public:
     {
         Isotropic::Parse(value,pp);
         // J2 Yield criterion
-        pp.query("sigma0",value.sigma0);
-        pp.query("hardening",value.hardening);
-        pp.query("ratecoeff",value.ratecoeff);
+        pp_query_default("sigma0",value.sigma0,1.0);
+        pp_query_default("hardening",value.hardening,-1.0);
+        pp_query_default("ratecoeff",value.ratecoeff,-1.0);
     }
 
     #define OP_CLASS J2
-    #define OP_VARS  X(ddw) X(F0) X(sigma0)
+    #define OP_VARS  X(ddw) X(F0) X(sigma0) X(hardening) X(ratecoeff)
     #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
@@ -121,13 +116,15 @@ public:
 
 
 template<>
-inline int Set::Field<Model::Solid::Affine::J2>::NComp() const 
+AMREX_ATTRIBUTE_WEAK
+int Set::Field<Model::Solid::Affine::J2>::NComp() const 
 {
     return AMREX_SPACEDIM*AMREX_SPACEDIM;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const 
+AMREX_ATTRIBUTE_WEAK
+std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const 
 {
     if (i==0) return name + ".epsp_xx";
     if (i==1) return name + ".epsp_xy";
@@ -142,7 +139,8 @@ inline std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const
 }
 
 template<>
-inline void Set::Field<Model::Solid::Affine::J2>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+AMREX_ATTRIBUTE_WEAK
+void Set::Field<Model::Solid::Affine::J2>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {

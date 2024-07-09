@@ -81,7 +81,7 @@ if sys.version_info.minor < 5:
 #
 # This is the current Alamo-supported version of AMReX. 
 #
-amrex_current_version = "24.02"
+amrex_current_version = "24.07"
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
@@ -100,12 +100,12 @@ parser.add_argument('--alternate-mpi', dest='alternate_mpi', action='store_true'
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
+parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
-#parser.add_argument('--jit',dest='jit',action='store_true',default=False)
-#parser.add_argument('--libmesh',dest='libmesh',default=None,help="Specify location of LIBMESH library (for use with JIT expression parsing)")
+parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 if not (args.buildamrexbranch or args.buildamrextag):
@@ -293,7 +293,8 @@ if (args.geteigen):
     if not os.path.isdir("ext"): subprocess.run(['mkdir','-p','ext'])
     if not os.path.isdir("ext/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
-        p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
+        #p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
+        p = subprocess.Popen(("git clone https://gitlab.com/libeigen/eigen.git eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
@@ -306,6 +307,23 @@ elif (args.eigen != ""):
     message("Eigen-Directory",args.eigen)
     f.write("EIGEN = " + args.eigen + "\n")
 
+
+#
+# MAC OS SUPPORT
+#
+if args.macos:
+    #f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
+    f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
+#else:
+f.write("LIB += -lpng \n")
+
+#
+# ADD ADDITIONAL LINK LIBRARIES
+#
+if args.link:
+    for l in args.link:
+        f.write("LIB += -L" + l + "\n")
+    
 #
 # Compiler and MPI library
 #

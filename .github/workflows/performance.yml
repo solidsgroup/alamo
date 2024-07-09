@@ -1,0 +1,37 @@
+name: Performance
+
+on:
+  push:
+    branches: ["development", "master","candidate","candidate-performance"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  scooter:
+    name: scooter
+    runs-on: scooter
+    steps:
+    - uses: actions/checkout@v4
+    - name: configure 2d
+      continue-on-error: true
+      run: ./configure --dim=2
+    - name: make 2d
+      continue-on-error: true
+      run: make
+    - name: unit tests 2d
+      continue-on-error: true
+      run: ./bin/test-2d-g++
+    - name: configure 3d
+      continue-on-error: true
+      run: ./configure --dim=3
+    - name: make 3d
+      continue-on-error: true
+      run: make
+    - name: unit tests 3d
+      continue-on-error: true
+      run: ./bin/test-3d-g++
+    - name: regression tests (2d + 3d)
+      run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py --permissive

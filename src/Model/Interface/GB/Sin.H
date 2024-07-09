@@ -19,8 +19,8 @@ class Sin : public GB
 {
 public:
     Sin() {};
-    Sin(IO::ParmParse &pp) {pp.queryclass(*this);};
-    Sin(IO::ParmParse &pp,std::string name) {pp.queryclass(name,*this);};
+    Sin(IO::ParmParse &pp) {pp_queryclass(*this);};
+    Sin(IO::ParmParse &pp,std::string name) {pp_queryclass(name,*this);};
     Sin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
     {
         Define(_theta0,_sigma0,_sigma1);
@@ -56,11 +56,11 @@ private:
 public:    
     static void Parse(Sin & value, amrex::ParmParse & pp)
     {
-        pp.query("theta0",value.theta0);
+        pp_query("theta0",value.theta0); // Theta offset (degrees)
         value.theta0 *= 0.01745329251; // convert degrees into radians
-        pp.query("sigma0",value.sigma0);
-        pp.query("sigma1",value.sigma1);
-        pp.query("n",value.n);
+        pp_query("sigma0",value.sigma0); // Minimum energy
+        pp_query("sigma1",value.sigma1); // Energy multiplier
+        pp_query("n",value.n); // Frequency number (integer)
     }
     
 };

@@ -1,5 +1,5 @@
 
-inline void operator+= (amrex::Vector<amrex::Real> a)
+AMREX_FORCE_INLINE void operator+= (amrex::Vector<amrex::Real> a)
 {
     eigen_assert(a.size() == AMREX_SPACEDIM);
     AMREX_D_TERM(this->operator()(0) += a[0];,
