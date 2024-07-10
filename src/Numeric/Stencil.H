@@ -52,12 +52,33 @@ struct Stencil<T, 1, 0, 0>
     {
         if (stencil[0] == StencilType::Lo)
             return (f(i, j, k, m) - f(i - 1, j, k, m)) / dx[0]; // 1st order stencil
-        //return (f(i,j,k,m)*(1.5) + f(i-1,j,k,m)*(-2.0) + f(i-2,j,k,m)*(0.5)) / dx[0]; // 2nd order stencil
         else if (stencil[0] == StencilType::Hi)
             return (f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0]; // 1st order stencil
-        //return (f(i,j,k,m)*(-1.5) + f(i+1,j,k,m)*(2.0) + f(i+2,j,k,m)*(-0.5)) / dx[0]; // 2nd order stencil
         else
             return (f(i + 1, j, k, m) - f(i - 1, j, k, m)) * 0.5 / dx[0];
+    };
+    AMREX_FORCE_INLINE
+    static std::pair<Set::Scalar,T>
+    Dsplit(const amrex::Array4<const T>& f,
+           const int& i, const int& j, const int& k, const int& m,
+           const Set::Scalar dx[AMREX_SPACEDIM],
+           std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    {
+        if (stencil[0] == StencilType::Lo)
+            return std::make_pair(
+                1.0 / dx[0],
+                -f(i - 1, j, k, m) / dx[0]
+                ); // 1st order
+        else if (stencil[0] == StencilType::Hi)
+            return std::make_pair(
+                -1.0 / dx[0],
+                f(i + 1, j, k, m) / dx[0]
+                ); // 1st order
+        else
+            return std::make_pair(
+                0.0,
+                (f(i + 1, j, k, m) - f(i - 1, j, k, m)) * 0.5 / dx[0]
+                );
     };
 };
 
@@ -72,12 +93,33 @@ struct Stencil<T, 0, 1, 0>
     {
         if (stencil[1] == StencilType::Lo)
             return (f(i, j, k, m) - f(i, j - 1, k, m)) / dx[1];
-        //return (f(i,j,k,m)*( 1.5) + f(i,j-1,k,m)*(-2.0) + f(i,j-2,k,m)*(0.5)) / dx[1]; // 2nd order stencil
         else if (stencil[1] == StencilType::Hi)
             return (f(i, j + 1, k, m) - f(i, j, k, m)) / dx[1];
-        //return (f(i,j,k,m)*(-1.5) + f(i,j+1,k,m)*(2.0) + f(i,j+2,k,m)*(-0.5)) / dx[1]; // 2nd order stencil
         else
             return (f(i, j + 1, k, m) - f(i, j - 1, k, m)) * 0.5 / dx[1];
+    };
+    AMREX_FORCE_INLINE
+    static std::pair<Set::Scalar,T>
+    Dsplit(const amrex::Array4<const T>& f,
+            const int& i, const int& j, const int& k, const int& m,
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    {
+        if (stencil[1] == StencilType::Lo)
+            return std::make_pair(
+                1.0 / dx[1],
+                - f(i, j - 1, k, m) / dx[1]
+                );
+        else if (stencil[1] == StencilType::Hi)
+            return std::make_pair(
+                - 1.0 / dx[1],
+                f(i, j + 1, k, m) / dx[1]
+                );
+        else
+            return std::make_pair(
+                0.0,
+                (f(i, j + 1, k, m) - f(i, j - 1, k, m)) * 0.5 / dx[1]
+                );
     };
 };
 
@@ -92,12 +134,33 @@ struct Stencil<T, 0, 0, 1>
     {
         if (stencil[2] == StencilType::Lo)
             return (f(i, j, k, m) - f(i, j, k - 1, m)) / dx[2];
-        //return (f(i,j,k,m)*( 1.5) + f(i,j,k-1,m)*(-2.0) + f(i,j,k-2,m)*(0.5)) / dx[2]; // 2nd order stencil
         else if (stencil[2] == StencilType::Hi)
             return (f(i, j, k + 1, m) - f(i, j, k, m)) / dx[2];
-        //return (f(i,j,k,m)*(-1.5) + f(i,j,k+1,m)*( 2.0) + f(i,j,k+2,m)*(-0.5)) / dx[2]; // 2nd order stencil
         else
             return (f(i, j, k + 1, m) - f(i, j, k - 1, m)) * 0.5 / dx[2];
+    };
+    AMREX_FORCE_INLINE
+    static std::pair<Set::Scalar, T>
+    Dsplit(const amrex::Array4<const T>& f,
+            const int& i, const int& j, const int& k, const int& m,
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    {
+        if (stencil[2] == StencilType::Lo)
+            return std::make_pair(
+                1.0 / dx[2],
+                -f(i, j, k - 1, m) / dx[2]
+                );
+        else if (stencil[2] == StencilType::Hi)
+            return std::make_pair(
+                -1.0 / dx[2],
+                f(i, j, k + 1, m) / dx[2]
+                );
+        else
+            return std::make_pair(
+                0.0,
+                (f(i, j, k + 1, m) - f(i, j, k - 1, m)) * 0.5 / dx[2]
+                );
     };
 };
 
@@ -696,6 +759,35 @@ Gradient(const amrex::Array4<const Set::Vector>& f,
 }
 
 AMREX_FORCE_INLINE
+std::pair<Set::Vector,Set::Matrix>
+GradientSplit(  const amrex::Array4<const Set::Vector>& f,
+                const int& i, const int& j, const int& k,
+                const Set::Scalar dx[AMREX_SPACEDIM],
+                std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Vector diag;
+    Set::Matrix offdiag;
+
+    std::pair<Set::Scalar,Set::Vector> ret;
+#if AMREX_SPACEDIM > 0
+    ret = Numeric::Stencil<Set::Vector, 1, 0, 0>::Dsplit(f, i, j, k, 0, dx, stencil);
+    diag(0)        += ret.first;
+    offdiag.col(0) += ret.second;
+#endif
+#if AMREX_SPACEDIM > 1
+    ret = Numeric::Stencil<Set::Vector, 0, 1, 0>::Dsplit(f, i, j, k, 0, dx, stencil);
+    diag(1)        += ret.first;
+    offdiag.col(1) += ret.second;
+#endif
+#if AMREX_SPACEDIM > 2
+    //ret.col(2) = Numeric::Stencil<Set::Vector, 0, 0, 1>::D(f, i, j, k, 0, dx, stencil);
+#endif
+
+    return std::make_pair(diag,offdiag);
+}
+
+
+AMREX_FORCE_INLINE
 Set::Matrix
 NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -869,36 +961,37 @@ AMREX_FORCE_INLINE
 Set::Matrix3
 Hessian(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
-    const Set::Scalar dx[AMREX_SPACEDIM])
+    const Set::Scalar dx[AMREX_SPACEDIM],
+    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Matrix3 ret;
 
 #if AMREX_SPACEDIM>0    
-    Set::Vector f_11 = Numeric::Stencil<Set::Vector, 2, 0, 0>::D(f, i, j, k, 0, dx);
+    Set::Vector f_11 = Numeric::Stencil<Set::Vector, 2, 0, 0>::D(f, i, j, k, 0, dx, stencil);
     ret[0](0, 0) = f_11(0);
 #endif
 #if AMREX_SPACEDIM>1
     ret[1](0, 0) = f_11(1);
-    Set::Vector f_12 = Numeric::Stencil<Set::Vector, 1, 1, 0>::D(f, i, j, k, 0, dx);
+    Set::Vector f_12 = Numeric::Stencil<Set::Vector, 1, 1, 0>::D(f, i, j, k, 0, dx, stencil);
     ret[0](1, 0) = ret[0](0, 1) = f_12(0);
     ret[1](1, 0) = ret[1](0, 1) = f_12(1);
-    Set::Vector f_22 = Numeric::Stencil<Set::Vector, 0, 2, 0>::D(f, i, j, k, 0, dx);
+    Set::Vector f_22 = Numeric::Stencil<Set::Vector, 0, 2, 0>::D(f, i, j, k, 0, dx, stencil);
     ret[0](1, 1) = f_22(0);
     ret[1](1, 1) = f_22(1);
 #endif
 #if AMREX_SPACEDIM>2
     ret[2](0, 0) = f_11(2);
     ret[2](1, 0) = ret[2](0, 1) = f_12(2);
-    Set::Vector f_13 = Numeric::Stencil<Set::Vector, 1, 0, 1>::D(f, i, j, k, 0, dx);
+    Set::Vector f_13 = Numeric::Stencil<Set::Vector, 1, 0, 1>::D(f, i, j, k, 0, dx, stencil);
     ret[0](2, 0) = ret[0](0, 2) = f_13(0);
     ret[1](2, 0) = ret[1](0, 2) = f_13(1);
     ret[2](2, 0) = ret[2](0, 2) = f_13(2);
     ret[2](1, 1) = f_22(2);
-    Set::Vector f_23 = Numeric::Stencil<Set::Vector, 0, 1, 1>::D(f, i, j, k, 0, dx);
+    Set::Vector f_23 = Numeric::Stencil<Set::Vector, 0, 1, 1>::D(f, i, j, k, 0, dx, stencil);
     ret[0](1, 2) = ret[0](2, 1) = f_23(0);
     ret[1](1, 2) = ret[1](2, 1) = f_23(1);
     ret[2](1, 2) = ret[2](2, 1) = f_23(2);
-    Set::Vector f_33 = Numeric::Stencil<Set::Vector, 0, 0, 2>::D(f, i, j, k, 0, dx);
+    Set::Vector f_33 = Numeric::Stencil<Set::Vector, 0, 0, 2>::D(f, i, j, k, 0, dx, stencil);
     ret[0](2, 2) = f_33(0);
     ret[1](2, 2) = f_33(1);
     ret[2](2, 2) = f_33(2);

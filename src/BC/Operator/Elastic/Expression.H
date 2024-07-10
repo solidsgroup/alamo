@@ -436,14 +436,13 @@ public:
         #endif
 
         // VALS
-        std::vector<std::string> val;
 
         for (int face = 0; face != Face::INT; face++)
         {
+            std::vector<std::string> val(AMREX_SPACEDIM,"0.0");
+            val.resize(AMREX_SPACEDIM,"0.0");
             std::string querystr = std::string("val.") + std::string(facestr[face]);
-            if (pp.contains(querystr.c_str())) pp_queryarr(querystr.c_str(),val);
-            else val.resize(AMREX_SPACEDIM,"0.0");
-            
+            pp_queryarr(querystr.c_str(),val);
             for (int i = 0 ; i < AMREX_SPACEDIM; i++)
             {
                 value.m_bc_func_parser[face][i] = amrex::Parser(val[i].c_str());

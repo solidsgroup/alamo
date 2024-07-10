@@ -52,7 +52,7 @@ public:
     void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/) override
     {
         Set::Matrix sigma = DW(eps);
-        Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / (double)AMREX_SPACEDIM;
+        Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / 3.0;
         if ((hardening<0.0) || (ratecoeff<0.0)) // rate independent
         {
             Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
@@ -73,7 +73,7 @@ public:
             alpha = alpha + SQ2O3*dGamma;
             F0 += dGamma * n_new;
         }
-    }
+        }
 
     // Parameters
     Set::Scalar sigma0 = 1.0;

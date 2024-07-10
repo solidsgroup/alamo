@@ -93,6 +93,46 @@ public:
         }
         a_field[lev]->FillBoundary();
     };
+
+    void Add(const int& lev, Set::Field<Set::Vector>& a_field, Set::Scalar a_time = 0.0)
+    {
+        Util::Assert(INFO, TEST(a_field[lev]->nComp() == 1));
+        for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx;
+            amrex::IndexType type = a_field[lev]->ixType();
+            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+            else Util::Abort(INFO, "Unkonwn index type");
+
+            Set::Patch<Set::Vector> field = a_field.Patch(lev,mfi);
+            for (unsigned int n = 0; n < AMREX_SPACEDIM; n++)
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                    if (coord == Expression::CoordSys::Cartesian)
+                    {
+#if AMREX_SPACEDIM == 1
+                        field(i, j, k)(n) = f[n](x(0), 0.0, 0.0, a_time);
+#elif AMREX_SPACEDIM == 2
+                        field(i, j, k)(n) = f[n](x(0), x(1), 0.0, a_time);
+#elif AMREX_SPACEDIM == 3
+                        field(i, j, k)(n) = f[n](x(0), x(1), x(2), a_time);
+#endif
+                    }
+#if AMREX_SPACEDIM>1
+                    else if (coord == Expression::CoordSys::Polar)
+                    {
+                        field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time);
+                    }
+#endif
+                });
+            }
+        }
+        a_field[lev]->FillBoundary();
+    };
+
     static void Parse(Expression& value, IO::ParmParse& pp)
     {
         for (int i = 0; true; i++)

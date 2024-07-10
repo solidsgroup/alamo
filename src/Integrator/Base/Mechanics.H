@@ -13,6 +13,7 @@
 #include "Solver/Nonlocal/Newton.H"
 #include "Operator/Operator.H"
 #include "IC/Constant.H"
+#include "IC/Expression.H"
 
 namespace Integrator
 {
@@ -59,6 +60,8 @@ public:
         pp_query_default("plot_stress", value.plot_stress, true); // Include stress in output
         pp_query_default("plot_strain", value.plot_strain, true); // Include strain in output
 
+        pp_query_required("tmp_fac",value.tmp_fac);
+        
         value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_disp, "disp", value.m_time_evolving);
         value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_rhs, "rhs", value.m_time_evolving);
         value.RegisterGeneralFab(value.stress_mf, 1, 2, value.plot_stress, "stress", value.m_time_evolving);
@@ -71,12 +74,16 @@ public:
         }
         if (value.m_type == Type::Dynamic)
         {
-            value.RegisterGeneralFab(value.vel_mf, 1, 2, "vel");
+            value.RegisterGeneralFab(value.vel_mf, 1, 2, "vel",true);
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
             value.RegisterGeneralFab(value.ddw_mf, 1, 2);
             pp_query_default("viscous.mu", value.mu,0.0); // Viscous (rate) damping parameter
             pp.query("viscous.mu2", value.mu2);
+
+            std::string velocity_ic_str;
+            pp_query_validate("velocity.ic.type",velocity_ic_str,{"none","expression"}); // Initializer for RHS
+            if (velocity_ic_str == "expression") value.velocity_ic = new IC::Expression(value.geom, pp,"velocity.ic.expression");
         }
 
         std::string bc_type;
@@ -136,6 +143,14 @@ protected:
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
 
         disp_mf[lev]->setVal(Set::Vector::Zero());
+
+
+        if (m_type == Type::Dynamic)
+            if (velocity_ic)
+            {
+                velocity_ic->Initialize(lev,vel_mf);
+                velocity_ic->Initialize(lev,vel_old_mf);
+            }
 
         if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         else rhs_mf[lev]->setVal(Set::Vector::Zero());
@@ -240,20 +255,17 @@ protected:
 
             for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-                amrex::Array4<Set::Vector> const& unew = (*disp_mf[lev]).array(mfi);
-                amrex::Array4<Set::Vector> const& vnew = (*vel_mf[lev]).array(mfi);
+                Set::Patch<const Set::Vector> u     = disp_old_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Vector> v     = vel_old_mf.Patch(lev,mfi);
+                Set::Patch<const Set::Vector> b     = rhs_mf.Patch(lev,mfi);
 
-                amrex::Array4<const Set::Vector> const& u = (*disp_old_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Vector> const& v = (*vel_old_mf[lev]).array(mfi);
-                amrex::Array4<Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
-                amrex::Array4<Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Vector> const& b = (*rhs_mf[lev]).array(mfi);
+                Set::Patch<Set::Vector>       unew  = disp_mf.Patch(lev,mfi);
+                Set::Patch<Set::Vector>       vnew  = vel_mf.Patch(lev,mfi);
+                Set::Patch<Set::Matrix>       eps   = strain_mf.Patch(lev,mfi);
+                Set::Patch<Set::Matrix>       sig   = stress_mf.Patch(lev,mfi);
+                Set::Patch<MATRIX4>           ddw   = ddw_mf.Patch(lev,mfi);
+                Set::Patch<MODEL>             model = model_mf.Patch(lev,mfi);
 
-                amrex::Array4<MATRIX4> const& ddw = (*ddw_mf[lev]).array(mfi);
-
-                amrex::Array4<MODEL> const& model = (*model_mf[lev]).array(mfi);
-
-                // Right now, we are forcing Dirichlet conditions on all boundaries
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -261,8 +273,8 @@ protected:
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
                     sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
 
-                    Set::Matrix gradv = Numeric::Gradient(v, i, j, k, DX,sten);
-                    sig(i,j,k) += mu2 * (gradv + gradv.transpose());
+                    //Set::Matrix gradv = Numeric::Gradient(v, i, j, k, DX,sten);
+                    //sig(i,j,k) += mu2 * (gradv + gradv.transpose());
 
                     ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
 
@@ -273,16 +285,29 @@ protected:
                 {
 
                     bool
-                        AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
-                        AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
+                        xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z),
+                        xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z);
 
                     if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                     {
-                        Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"Only works in 2D right now!!");
+                        auto sten = Numeric::GetStencil(i,j,k,domain);                        
+                        Set::Matrix      gradu = Numeric::Gradient(u,i,j,k,DX,sten);
+                        Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX,sten);
 
-#if AMREX_SPACEDIM==2
+                        Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
+                        
+                        //Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"Only works in 2D right now!!");
+
+                        //#if AMREX_SPACEDIM==2
                         Set::Scalar fac = 0.5;
+                        //if      ((xmin||xmax) && (ymin||ymax) && (zmin||zmax)) fac = 0.125;
                         if ((xmin||xmax) && (ymin||ymax) ) fac = 0.25;
+                        //else if ((ymin||ymax) && (zmin||zmax) ) fac = 0.25;
+                        //else if ((zmin||zmax) && (xmin||xmax) ) fac = 0.25;
+                        //else fac = 0.5;
+
+
+                        Set::Vector divsig = ddw(i,j,k)*gradgradu;
 
                         std::array<BC::Operator::Elastic::Elastic::Type, 2> type = bc->getType(i,j,k,domain);
                         Set::Vector f = (*bc)(u(i,j,k),eps(i,j,k),sig(i,j,k),i,j,k,domain);
@@ -295,17 +320,34 @@ protected:
                             }
                             else if (type[d] == BC::Operator::Elastic::Elastic::Type::Traction)
                             {
-                                Set::Scalar udotdot = fac*(-f(d) + b(i,j,k)(d) - mu*(v(i,j,k)(d))) / rho;
-                                vnew(i,j,k)(d) = v(i,j,k)(d) + dt*udotdot;
-                                unew(i,j,k)(d) = u(i,j,k)(d) + dt*vnew(i,j,k)(d);
+                                
+                                Set::Vector N = Set::Normal(AMREX_D_DECL(xmin,ymin,zmin),
+                                                            AMREX_D_DECL(xmax,ymax,zmax));
+                                
+                                auto [phi, offdiag] = Numeric::GradientSplit(u,i,j,k,DX,sten);
+                                
+                                Set::Matrix A = Set::Matrix::Zero();
+                                Set::Vector rhs = b(i,j,k);
+
+                                for (int p = 0; p < AMREX_SPACEDIM; p++)
+                                    for (int q = 0; q < AMREX_SPACEDIM; q++)
+                                        for (int r = 0; r < AMREX_SPACEDIM; r++)
+                                            for (int s = 0; s < AMREX_SPACEDIM; s++)
+                                            {
+                                                A(p,r) += ddw(i,j,k)(p,q,r,s) * phi(s) * N(q);
+
+                                                rhs(p) -= ddw(i,j,k)(p,q,r,s) * eps(i,j,k)(r,s) * N(q);
+                                            }
+                                Set::Vector delta_u = (A.inverse() * rhs);
+
+                                unew(i,j,k)(d) = u(i,j,k)(d) + delta_u(d);
+                                vnew(i,j,k)(d) = (unew(i,j,k)(d) - u(i,j,k)(d))/dt;
                             }
                             else
                             {
                                 Util::Abort(INFO,"Elastic dynamics not supported for other BCs yet");
                             }
                         }
-#endif
-                        // bc
                     }
                     else
                     {
@@ -325,15 +367,14 @@ protected:
                         
 
                         Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
-                        f += mu2 * lapv + b(i,j,k) + mu*v(i,j,k);
+                        f += mu2 * lapv + b(i,j,k) - mu*v(i,j,k);
                         
                         //Set::Vector udotdot = Numeric::Divergence(sig, i, j, k, DX) + b(i, j, k) - mu * v(i, j, k);
-
                         
 
                         Set::Vector udotdot = f / rho;
-                    vnew(i, j, k) = v(i, j, k) + dt * udotdot;
-                    unew(i, j, k) = u(i, j, k) + dt * vnew(i, j, k);
+                        vnew(i, j, k) = v(i, j, k) + dt * udotdot;
+                        unew(i, j, k) = u(i, j, k) + dt * v(i, j, k);
                     }
                 });
             }
@@ -461,6 +502,8 @@ protected:
     IC::IC* ic_rhs = nullptr;
     BC::BC<Set::Scalar>* mybc;
 
+    IC::IC* velocity_ic = nullptr;
+
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
     BC::Operator::Elastic::Elastic* bc;
 
@@ -480,6 +523,8 @@ protected:
 
 
     Set::Scalar tstart = -1;
+
+    Set::Scalar tmp_fac = NAN;
 };
 }
 }
