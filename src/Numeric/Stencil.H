@@ -771,18 +771,19 @@ GradientSplit(  const amrex::Array4<const Set::Vector>& f,
     std::pair<Set::Scalar,Set::Vector> ret;
 #if AMREX_SPACEDIM > 0
     ret = Numeric::Stencil<Set::Vector, 1, 0, 0>::Dsplit(f, i, j, k, 0, dx, stencil);
-    diag(0)        += ret.first;
-    offdiag.col(0) += ret.second;
+    diag(0)        = ret.first;
+    offdiag.col(0) = ret.second;
 #endif
 #if AMREX_SPACEDIM > 1
     ret = Numeric::Stencil<Set::Vector, 0, 1, 0>::Dsplit(f, i, j, k, 0, dx, stencil);
-    diag(1)        += ret.first;
-    offdiag.col(1) += ret.second;
+    diag(1)        = ret.first;
+    offdiag.col(1) = ret.second;
 #endif
 #if AMREX_SPACEDIM > 2
-    //ret.col(2) = Numeric::Stencil<Set::Vector, 0, 0, 1>::D(f, i, j, k, 0, dx, stencil);
+    ret = Numeric::Stencil<Set::Vector, 0, 0, 1>::Dsplit(f, i, j, k, 0, dx, stencil);
+    diag(2)        = ret.first;
+    offdiag.col(2) = ret.second;
 #endif
-
     return std::make_pair(diag,offdiag);
 }
 

@@ -141,13 +141,17 @@ protected:
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
 
         disp_mf[lev]->setVal(Set::Vector::Zero());
-
+        //disp_old_mf[lev]->setVal(Set::Vector::Zero());
 
         if (m_type == Type::Dynamic)
             if (velocity_ic)
             {
                 velocity_ic->Initialize(lev,vel_mf);
-                velocity_ic->Initialize(lev,vel_old_mf);
+                //velocity_ic->Initialize(lev,vel_old_mf);
+                //ddw_mf[lev]->setVal(MATRIX4::Zero());
+                //stress_mf[lev]->setVal(Set::Matrix::Zero());
+                //strain_mf[lev]->setVal(Set::Matrix::Zero());
+                //model_mf[lev]->setVal(MODEL::Zero());
             }
 
         if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
@@ -277,30 +281,22 @@ protected:
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
-                    bool
-                        xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z),
-                        xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z);
+                    bool AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z));
+                    bool AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
 
                     if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                     {
                         auto sten = Numeric::GetStencil(i,j,k,domain);                        
-                        Set::Matrix      gradu = Numeric::Gradient(u,i,j,k,DX,sten);
-                        Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX,sten);
 
-                        Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
-                        
-                        Set::Vector divsig = ddw(i,j,k)*gradgradu;
+                        auto bctype = bc->getType(i,j,k,domain);
 
-                        std::array<BC::Operator::Elastic::Elastic::Type, 2> type = bc->getType(i,j,k,domain);
-                        Set::Vector f = (*bc)(u(i,j,k),eps(i,j,k),sig(i,j,k),i,j,k,domain);
-
-                        for (int d = 0; d < 2; d++)
+                        for (int d = 0; d < AMREX_SPACEDIM; d++)
                         {
-                            if (type[d] == BC::Operator::Elastic::Elastic::Type::Displacement)
+                            if (bctype[d] == BC::Operator::Elastic::Elastic::Type::Displacement)
                             {
                                 unew(i,j,k)(d) = b(i,j,k)(d);
                             }
-                            else if (type[d] == BC::Operator::Elastic::Elastic::Type::Traction)
+                            else if (bctype[d] == BC::Operator::Elastic::Elastic::Type::Traction)
                             {
                                 
                                 Set::Vector N = Set::Normal(AMREX_D_DECL(xmin,ymin,zmin),
@@ -310,6 +306,7 @@ protected:
                                 
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
+                                //Util::Message(INFO,b(i,j,k).transpose());
 
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
                                     for (int q = 0; q < AMREX_SPACEDIM; q++)

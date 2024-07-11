@@ -97,6 +97,7 @@ public:
     void Add(const int& lev, Set::Field<Set::Vector>& a_field, Set::Scalar a_time = 0.0)
     {
         Util::Assert(INFO, TEST(a_field[lev]->nComp() == 1));
+        Util::Assert(INFO, TEST(f.size() >= AMREX_SPACEDIM));
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
