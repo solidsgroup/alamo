@@ -59,10 +59,10 @@ struct Stencil<T, 1, 0, 0>
     };
     AMREX_FORCE_INLINE
     static std::pair<Set::Scalar,T>
-    Dsplit(const amrex::Array4<const T>& f,
-           const int& i, const int& j, const int& k, const int& m,
-           const Set::Scalar dx[AMREX_SPACEDIM],
-           std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    Dsplit( const amrex::Array4<const T>& f,
+            const int& i, const int& j, const int& k, const int& m,
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
     {
         if (stencil[0] == StencilType::Lo)
             return std::make_pair(

@@ -120,8 +120,8 @@ Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * (const Matrix4<AMREX_SPACEDIM,
     return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * (const Set::Scalar& b,
-                                                   const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a)
+Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * ( const Set::Scalar& b,
+                                                    const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a)
 {
     return a*b;
 }

@@ -124,8 +124,8 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
 }
 
 AMREX_FORCE_INLINE
-Vector Normal(AMREX_D_DECL(bool xmin,bool ymin, bool zmin),
-              AMREX_D_DECL(bool xmax,bool ymax, bool zmax))
+Vector Normal(  AMREX_D_DECL(bool xmin,bool ymin, bool zmin),
+                AMREX_D_DECL(bool xmax,bool ymax, bool zmax))
 {
     Set::Vector N =  Set::Vector::Zero();
     if (xmin)      N(0) = -1.0;

@@ -101,7 +101,9 @@ public:
         Isotropic::Parse(value,pp);
         // J2 Yield criterion
         pp_query_default("sigma0",value.sigma0,1.0);
+        // Hardening coefficient (negative value disables rate hardening)
         pp_query_default("hardening",value.hardening,-1.0);
+        // Rate coefficient (negative value disables rate hardening)
         pp_query_default("ratecoeff",value.ratecoeff,-1.0);
     }
 

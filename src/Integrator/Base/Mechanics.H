@@ -76,8 +76,10 @@ public:
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
             value.RegisterGeneralFab(value.ddw_mf, 1, 2);
-            pp_query_default("viscous.mu", value.mu,0.0); // Viscous (rate) damping parameter
-            pp.query("viscous.mu2", value.mu2);
+            pp_forbid("viscous.mu","replaced with viscous.mu_dashpot")
+            pp_query_default("viscous.mu_dashpot", value.mu_dashpot,0.0); // Dashpot damping (damps velocity)
+            pp_forbid("viscous.mu2","replaced with viscous.mu_newton");
+            pp.query_default("viscous.mu_newton", value.mu_newton,0.0); // Newtonian viscous damping (damps velocity gradient)
 
             std::string velocity_ic_str;
             pp_query_validate("velocity.ic.type",velocity_ic_str,{"none","expression"}); // Initializer for RHS
@@ -335,22 +337,18 @@ protected:
                         
                         Set::Vector f = ddw(i,j,k)*gradgradu;
 
-                        MATRIX4 
-                            AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(ddw, i, j, k, 0, DX)),
-                                         Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(ddw, i, j, k, 0, DX)),
-                                         Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(ddw, i, j, k, 0, DX)));
+                        MATRIX4 AMREX_D_DECL(
+                            Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(ddw, i, j, k, 0, DX)),
+                            Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(ddw, i, j, k, 0, DX)),
+                            Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(ddw, i, j, k, 0, DX)));
 
-                        f += AMREX_D_TERM( ( Cgrad1*gradu).col(0),
-                                           +(Cgrad2*gradu).col(1),
-                                           +(Cgrad3*gradu).col(2));
+                        f += AMREX_D_TERM(  ( Cgrad1*gradu).col(0),
+                                            +(Cgrad2*gradu).col(1),
+                                            +(Cgrad3*gradu).col(2));
                         
-
                         Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
-                        f += mu2 * lapv + b(i,j,k) - mu*v(i,j,k);
+                        f += mu_newton * lapv + b(i,j,k) - mu_dashpot*v(i,j,k);
                         
-                        //Set::Vector udotdot = Numeric::Divergence(sig, i, j, k, DX) + b(i, j, k) - mu * v(i, j, k);
-                        
-
                         Set::Vector udotdot = f / rho;
                         vnew(i, j, k) = v(i, j, k) + dt * udotdot;
                         unew(i, j, k) = u(i, j, k) + dt * v(i, j, k);
@@ -470,8 +468,8 @@ protected:
     Set::Field<Set::Vector> vel_old_mf;
     //Set::Field<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> ddw_mf;
     Set::Scalar rho = 1.0;
-    Set::Scalar mu = 0.0;
-    Set::Scalar mu2 = 0.0;
+    Set::Scalar mu_dashpot = NAN;
+    Set::Scalar mu_newton = NAN;
 
     //Set::Vector trac_lo[AMREX_SPACEDIM];
     Set::Vector trac_hi[AMREX_SPACEDIM];
