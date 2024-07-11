@@ -60,8 +60,6 @@ public:
         pp_query_default("plot_stress", value.plot_stress, true); // Include stress in output
         pp_query_default("plot_strain", value.plot_strain, true); // Include strain in output
 
-        pp_query_required("tmp_fac",value.tmp_fac);
-        
         value.RegisterGeneralFab(value.disp_mf, 1, 2, value.plot_disp, "disp", value.m_time_evolving);
         value.RegisterGeneralFab(value.rhs_mf, 1, 2, value.plot_rhs, "rhs", value.m_time_evolving);
         value.RegisterGeneralFab(value.stress_mf, 1, 2, value.plot_stress, "stress", value.m_time_evolving);
@@ -272,12 +270,7 @@ protected:
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
                     sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
-
-                    //Set::Matrix gradv = Numeric::Gradient(v, i, j, k, DX,sten);
-                    //sig(i,j,k) += mu2 * (gradv + gradv.transpose());
-
                     ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
-
                 });
 
                 bx = mfi.nodaltilebox() & domain;
@@ -296,17 +289,6 @@ protected:
 
                         Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
                         
-                        //Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"Only works in 2D right now!!");
-
-                        //#if AMREX_SPACEDIM==2
-                        Set::Scalar fac = 0.5;
-                        //if      ((xmin||xmax) && (ymin||ymax) && (zmin||zmax)) fac = 0.125;
-                        if ((xmin||xmax) && (ymin||ymax) ) fac = 0.25;
-                        //else if ((ymin||ymax) && (zmin||zmax) ) fac = 0.25;
-                        //else if ((zmin||zmax) && (xmin||xmax) ) fac = 0.25;
-                        //else fac = 0.5;
-
-
                         Set::Vector divsig = ddw(i,j,k)*gradgradu;
 
                         std::array<BC::Operator::Elastic::Elastic::Type, 2> type = bc->getType(i,j,k,domain);
@@ -523,8 +505,6 @@ protected:
 
 
     Set::Scalar tstart = -1;
-
-    Set::Scalar tmp_fac = NAN;
 };
 }
 }

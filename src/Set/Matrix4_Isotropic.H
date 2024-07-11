@@ -3,19 +3,19 @@
 //
 // .. math::
 // 
-//     C_{ijkl} = mu(d_{il}d_{jk} + d_{ik}d_{jl}) + lambda d_{ij} d_{kl}
+//     C_{ijkl} = \mu(d_{il}d_{jk} + d_{ik}d_{jl}) + \lambda d_{ij} d_{kl}
 // 
 // The inverse ("compliance") tensor is 
 // 
 // .. math::
 //
-//     S_{ijkl} = ((1+nu)/2E)(d_{il}d_{jl} + d_{ik}d_{jl}) - (nu/E)d_{ij}d_{kl}
+//     S_{ijkl} = ((1+\nu)/2E)(d_{il}d_{jl} + d_{ik}d_{jl}) - (\nu/E)d_{ij}d_{kl}
 //
 // Replacing E, nu with Lame constants gives:
 // 
 // .. math::
 //
-//     S_{ijkl} = (1/(4 mu))(d_{il}d_{jl} + d_{ik}d_{jl}) + (lambda/(2*mu*(3lambda+2mu))) * d_{ij} * d_{kl}
+//     S_{ijkl} = (1/(4 \mu))(d_{il}d_{jl} + d_{ik}d_{jl}) + (\lambda/(2*\mu*(3\lambda+2\mu))) * d_{ij} * d_{kl}
 //
 // For reference: http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm
 //                https://en.wikipedia.org/wiki/Lam%C3%A9_parameters

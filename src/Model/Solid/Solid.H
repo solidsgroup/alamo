@@ -39,8 +39,6 @@ public:
     {Util::Abort(INFO,"W not implemented"); return 0.0;};
     virtual Set::Matrix DW(const Set::Matrix &) const         
     {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
-    virtual Set::Matrix DWinv(const Set::Matrix &) const         
-    {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
     virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
     {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
     

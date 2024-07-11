@@ -1,0 +1,72 @@
+#@
+#@ [pressure-profile-2d]
+#@ exe=mechanics
+#@ dim=2
+#@ check-file = reference/pressure-profile-2d.dat
+#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+#@
+#@ [flyer-plate-impact-2d]
+#@ exe=mechanics
+#@ dim=2
+#@ check-file = reference/flyer-plate-impact-2d.dat
+#@ args = velocity.ic.type = expression
+#@ args = velocity.ic.expression.region0 = "10.0*(x<4)"
+#@ args = velocity.ic.expression.region1 = "0.0"
+
+alamo.program.mechanics.model = affine.isotropic
+
+plot_file		    = tests/DynamicBar/output
+
+type=dynamic
+
+timestep		    = 0.005
+stop_time		    = 100.0
+
+amr.plot_dt		    = 1
+amr.max_level		    = 0
+amr.blocking_factor	    = 8
+amr.regrid_int		    = 50
+amr.grid_eff		    = 1.0
+amr.cell.all                = 1
+
+# geometry
+geometry.is_periodic	    = 0 0 0
+amr.n_cell		    = 128 8 18
+geometry.prob_lo	    = 0 -1 -1
+geometry.prob_hi	    = 32 1  1
+
+ic.type = constant
+ic.constant.value = 1.0
+
+
+# elastic moduli
+nmodels = 1
+model1.E = 1.1 
+model1.nu = 0.3
+
+viscous.mu = 0
+viscous.mu2 = 0.05
+
+
+bc.type = expression
+
+## boundary conditions ##
+bc.expression.type.xlo     = trac trac disp
+bc.expression.type.xloyhi  = trac disp trac
+bc.expression.type.xloylo  = trac disp trac
+bc.expression.type.xhi     = trac trac disp
+bc.expression.type.xhiyhi  = trac disp trac
+bc.expression.type.xhiylo  = trac disp trac
+bc.expression.type.ylo     = trac disp 
+bc.expression.type.yhi     = trac disp 
+
+
+time_evolving = 0
+
+
+# Elastic refinement criterion
+ref_threshold = 0.01
+eta_ref_threshold = 10.1
+eta_reset_on_regrid = 1

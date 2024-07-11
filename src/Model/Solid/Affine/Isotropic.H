@@ -41,10 +41,6 @@ public:
     {
         return ddw * (F - F0);
     }
-    Set::Matrix DWinv(const Set::Matrix& P) const override
-    {
-        return F0 + ddw.Inverse() * P;
-    }
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Isotropic> DDW(const Set::Matrix& /*F*/) const override
     {
         return ddw;
