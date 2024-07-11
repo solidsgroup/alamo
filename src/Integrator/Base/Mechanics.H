@@ -149,11 +149,6 @@ protected:
             if (velocity_ic)
             {
                 velocity_ic->Initialize(lev,vel_mf);
-                //velocity_ic->Initialize(lev,vel_old_mf);
-                //ddw_mf[lev]->setVal(MATRIX4::Zero());
-                //stress_mf[lev]->setVal(Set::Matrix::Zero());
-                //strain_mf[lev]->setVal(Set::Matrix::Zero());
-                //model_mf[lev]->setVal(MODEL::Zero());
             }
 
         if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
@@ -267,7 +262,7 @@ protected:
                 Set::Patch<Set::Vector>       vnew  = vel_mf.Patch(lev,mfi);
                 Set::Patch<Set::Matrix>       eps   = strain_mf.Patch(lev,mfi);
                 Set::Patch<Set::Matrix>       sig   = stress_mf.Patch(lev,mfi);
-                Set::Patch<MATRIX4>           ddw   = ddw_mf.Patch(lev,mfi);
+                //Set::Patch<MATRIX4>           ddw   = ddw_mf.Patch(lev,mfi);
                 Set::Patch<MODEL>             model = model_mf.Patch(lev,mfi);
 
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
@@ -276,7 +271,7 @@ protected:
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
                     sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
-                    ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
+                    //ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
                 });
 
                 bx = mfi.nodaltilebox() & domain;
@@ -308,6 +303,7 @@ protected:
                                 
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
+                                MATRIX4 ddw = model(i,j,k).DDW(eps(i,j,k));
                                 //Util::Message(INFO,b(i,j,k).transpose());
 
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -315,9 +311,9 @@ protected:
                                         for (int r = 0; r < AMREX_SPACEDIM; r++)
                                             for (int s = 0; s < AMREX_SPACEDIM; s++)
                                             {
-                                                A(p,r) += ddw(i,j,k)(p,q,r,s) * phi(s) * N(q);
+                                                A(p,r) += ddw(p,q,r,s) * phi(s) * N(q);
 
-                                                rhs(p) -= ddw(i,j,k)(p,q,r,s) * eps(i,j,k)(r,s) * N(q);
+                                                rhs(p) -= ddw(p,q,r,s) * eps(i,j,k)(r,s) * N(q);
                                             }
                                 Set::Vector delta_u = (A.inverse() * rhs);
 
@@ -332,19 +328,20 @@ protected:
                     }
                     else
                     {
-                        Set::Matrix      gradu = Numeric::Gradient(u,i,j,k,DX);
-                        Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX);
+                        //Set::Matrix      gradu = Numeric::Gradient(u,i,j,k,DX);
+                        //Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX);
                         
-                        Set::Vector f = ddw(i,j,k)*gradgradu;
+                        //Set::Vector f = ddw(i,j,k)*gradgradu;
+                        Set::Vector f = Numeric::Divergence(sig, i, j, k, DX);
 
-                        MATRIX4 AMREX_D_DECL(
-                            Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(ddw, i, j, k, 0, DX)),
-                            Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(ddw, i, j, k, 0, DX)),
-                            Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(ddw, i, j, k, 0, DX)));
+                        //MATRIX4 AMREX_D_DECL(
+                        //    Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(ddw, i, j, k, 0, DX)),
+                        //    Cgrad2 = (Numeric::Stencil<MATRIX4, 0, 1, 0>::D(ddw, i, j, k, 0, DX)),
+                        //    Cgrad3 = (Numeric::Stencil<MATRIX4, 0, 0, 1>::D(ddw, i, j, k, 0, DX)));
 
-                        f += AMREX_D_TERM(  ( Cgrad1*gradu).col(0),
-                                            +(Cgrad2*gradu).col(1),
-                                            +(Cgrad3*gradu).col(2));
+                        //f += AMREX_D_TERM(  ( Cgrad1*gradu).col(0),
+                        //                    +(Cgrad2*gradu).col(1),
+                        //                    +(Cgrad3*gradu).col(2));
                         
                         Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
                         f += mu_newton * lapv + b(i,j,k) - mu_dashpot*v(i,j,k);
