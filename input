@@ -74,8 +74,8 @@ model2.sigma0=1000
 
 #ref_threshold = 1000000000
 
-viscous.mu = 0.25
-viscous.mu2 = 0.1
+viscous.mu_dashpot = 0.25
+viscous.mu_newton = 0.1
 
 bc.type = expression
 bc.expression.type.yhi = trac trac trac

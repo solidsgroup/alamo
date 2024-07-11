@@ -68,4 +68,4 @@ model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
 
 ref_threshold = 1000000000
 
-viscous.mu = 25
+viscous.mu_dashpot = 25

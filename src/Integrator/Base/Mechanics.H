@@ -76,10 +76,10 @@ public:
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
             value.RegisterGeneralFab(value.ddw_mf, 1, 2);
-            pp_forbid("viscous.mu","replaced with viscous.mu_dashpot")
+            pp_forbid("viscous.mu","replaced with viscous.mu_dashpot");
             pp_query_default("viscous.mu_dashpot", value.mu_dashpot,0.0); // Dashpot damping (damps velocity)
             pp_forbid("viscous.mu2","replaced with viscous.mu_newton");
-            pp.query_default("viscous.mu_newton", value.mu_newton,0.0); // Newtonian viscous damping (damps velocity gradient)
+            pp_query_default("viscous.mu_newton", value.mu_newton,0.0); // Newtonian viscous damping (damps velocity gradient)
 
             std::string velocity_ic_str;
             pp_query_validate("velocity.ic.type",velocity_ic_str,{"none","expression"}); // Initializer for RHS

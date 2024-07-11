@@ -48,8 +48,8 @@ nmodels = 1
 model1.E = 1.1 
 model1.nu = 0.3
 
-viscous.mu = 0
-viscous.mu2 = 0.05
+viscous.mu_dashpot = 0
+viscous.mu_newton = 0.05
 
 
 bc.type = expression
