@@ -220,29 +220,37 @@ public:
     int query_file( std::string name, std::string & value, bool copyfile, bool checkfile,
                     std::string file = "", std::string func = "query_file", int line = -1)
     {
-        if (!contains(name.c_str()))
+        try
         {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," must be specified");
+            if (!contains(name.c_str()))
+            {
+                Util::ParmParseException(INFO,file,func,line,full(name),full(name)," must be specified");
+            }
+
+            int retval = query(name.c_str(),value);
+
+            if (amrex::ParallelDescriptor::IOProcessor())
+            {
+                if ( checkfile && ! std::filesystem::exists(value))
+                {
+                    Util::ParmParseException(INFO,file,func,line,full(name),full(name)," does not exist");
+                }
+                if ( checkfile && !std::filesystem::is_regular_file(value))
+                {
+                    Util::ParmParseException(INFO,file,func,line,full(name),full(name)," is not a regular file");
+                }
+                if ( copyfile )
+                {
+                    Util::CopyFileToOutputDir(value, true, full(name));
+                }
+            }
+            return retval;
         }
-
-        int retval = query(name.c_str(),value);
-
-        if ( checkfile && ! std::filesystem::exists(value))
+        catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," does not exist");
+            Util::ParmParseException(INFO,file,func,line,full(name));
         }
-
-        if ( checkfile && !std::filesystem::is_regular_file(value))
-        {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," is not a regular file");
-        }
-
-        if ( copyfile )
-        {
-            Util::CopyFileToOutputDir(value, true);
-        }
-
-        return retval;
+        return -1;
     }
     int query_file( std::string name, std::string & value, bool copyfile, 
                     std::string file = "", std::string func = "query_file", int line = -1)
@@ -326,6 +334,19 @@ public:
         return cnt;
     }
 
+    std::vector<std::string> GetUnusedInputs()
+    {
+        std::vector<std::string> ret;
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table->begin(), End = m_table->end(); li != End; ++li)
+        {
+            if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
+            {
+                ret.push_back(li->m_name);
+            }
+        }
+        return ret;
+    }
+
     static int AllUnusedInputs()
     {
         ParmParse pp;
@@ -361,9 +382,13 @@ public:
         {
             this->pushPrefix(name);
             T::Parse(*value, *this);
-            if (AnyUnusedInputs())
+            std::vector<std::string> unused_inputs = GetUnusedInputs();
+            if (unused_inputs.size())
             {
-                Util::ParmParseException(INFO,file,func,line,full(name),"Above inputs specified but not used");
+                std::stringstream ss;
+                for (unsigned int i=0; i < unused_inputs.size(); i++)
+                    ss << "\n\t" << unused_inputs[i];
+                Util::ParmParseException(INFO,file,func,line,full(name),"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
@@ -381,9 +406,13 @@ public:
         {
             this->pushPrefix(name);
             T::Parse(value, *this);
-            if (AnyUnusedInputs())
+            std::vector<std::string> unused_inputs = GetUnusedInputs();
+            if (unused_inputs.size())
             {
-                Util::ParmParseException(INFO,file,func,line,full(name),"Above inputs specified but not used");
+                std::stringstream ss;
+                for (unsigned int i=0; i < unused_inputs.size(); i++)
+                    ss << "\n\t" << unused_inputs[i];
+                Util::ParmParseException(INFO,file,func,line,full(name),"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
@@ -400,14 +429,18 @@ public:
         try
         {
             T::Parse(*value, *this);
-            if (AnyUnusedInputs())
+            std::vector<std::string> unused_inputs = GetUnusedInputs();
+            if (unused_inputs.size())
             {
-                Util::ParmParseException(INFO,file,func,line,"Above inputs specified but not used");
+                std::stringstream ss;
+                for (unsigned int i=0; i < unused_inputs.size(); i++)
+                    ss << "\n\t" << unused_inputs[i];
+                Util::ParmParseException(INFO,file,func,line,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line);
+            Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
     }
     template<class T>
@@ -417,14 +450,18 @@ public:
         try
         {
             T::Parse(value, *this);
-            if (AnyUnusedInputs())
+            std::vector<std::string> unused_inputs = GetUnusedInputs();
+            if (unused_inputs.size())
             {
-                Util::ParmParseException(INFO,file,func,line,"Above inputs specified but not used");
+                std::stringstream ss;
+                for (unsigned int i=0; i < unused_inputs.size(); i++)
+                    ss << "\n\t" << unused_inputs[i];
+                Util::ParmParseException(INFO,file,func,line,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line);
+            Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
     }
 };
