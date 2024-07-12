@@ -217,7 +217,7 @@ void Exception (std::string file, std::string func, int line, Args const &... ar
 template<typename... Args>
 void ParmParseException (   std::string file, std::string func, int line,
                             std::string file2, std::string /*func2*/, int line2,
-                            std::string fullname="",
+                            std::string fullname,
                             Args const &... args)
 {
     if (amrex::ParallelDescriptor::IOProcessor())

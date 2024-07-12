@@ -7,10 +7,27 @@
 #@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0"
 #@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
 #@
+#@ [pressure-profile-3d]
+#@ exe=mechanics
+#@ dim=3
+#@ check-file = reference/pressure-profile-3d.dat
+#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+#@
 #@ [flyer-plate-impact-2d]
 #@ exe=mechanics
 #@ dim=2
 #@ check-file = reference/flyer-plate-impact-2d.dat
+#@ args = velocity.ic.type = expression
+#@ args = velocity.ic.expression.region0 = "10.0*(x<4)"
+#@ args = velocity.ic.expression.region1 = "0.0"
+#@ args = velocity.ic.expression.region2 = "0.0"
+#@
+#@ [flyer-plate-impact-3d]
+#@ exe=mechanics
+#@ dim=3
+#@ check-file = reference/flyer-plate-impact-3d.dat
 #@ args = velocity.ic.type = expression
 #@ args = velocity.ic.expression.region0 = "10.0*(x<4)"
 #@ args = velocity.ic.expression.region1 = "0.0"

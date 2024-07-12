@@ -36,6 +36,8 @@
 #include "AMReX.H"
 #include "IO/ParmParse.H"
 #include "Model/Solid/Affine/Isotropic.H"
+#include "Set/Set.H"
+#include <cmath>
 
 namespace Model
 {
@@ -65,12 +67,12 @@ public:
             Set::Matrix eps_dev = eps - eps.trace() * Set::Matrix::Identity() / (double)AMREX_SPACEDIM;
             Set::Scalar m_mu = ddw.Mu();
             Set::Matrix zeta_trial = sig_dev + 2.0*m_mu*eps_dev;
-            Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(sigma0 + hardening*alpha);
+            Set::Scalar f_trial = zeta_trial.norm() - sqrt(1.0 - 1.0/(double)AMREX_SPACEDIM)*(sigma0 + hardening*alpha);
             if (f_trial <= 0.0) return;
             Set::Matrix n_new = zeta_trial / zeta_trial.norm();
             Set::Scalar dGamma = f_trial / (2.0*m_mu*(1 + hardening/(3.0*m_mu)));
             dGamma *= ratecoeff * dt;
-            alpha = alpha + SQ2O3*dGamma;
+            alpha = alpha + sqrt(1.0 - 1.0/(double)AMREX_SPACEDIM)*dGamma;
             F0 += dGamma * n_new;
         }
         }
@@ -82,7 +84,6 @@ public:
 
     // Internal variables to track state
     Set::Scalar alpha = 0.0;
-    static constexpr Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));
 
     static J2 Zero()
     {
