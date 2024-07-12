@@ -303,11 +303,13 @@ protected:
                                 
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
+                                Set::Matrix DW_F0 = model(i,j,k).DW(Set::Matrix::Zero());
                                 MATRIX4 ddw = model(i,j,k).DDW(eps(i,j,k));
                                 //Util::Message(INFO,b(i,j,k).transpose());
 
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
                                     for (int q = 0; q < AMREX_SPACEDIM; q++)
+                                    {
                                         for (int r = 0; r < AMREX_SPACEDIM; r++)
                                             for (int s = 0; s < AMREX_SPACEDIM; s++)
                                             {
@@ -315,6 +317,9 @@ protected:
 
                                                 rhs(p) -= ddw(p,q,r,s) * eps(i,j,k)(r,s) * N(q);
                                             }
+                                        
+                                        rhs(p) -= DW_F0(p,q)*N(q);
+                                    }
                                 Set::Vector delta_u = (A.inverse() * rhs);
 
                                 unew(i,j,k)(d) = u(i,j,k)(d) + delta_u(d);

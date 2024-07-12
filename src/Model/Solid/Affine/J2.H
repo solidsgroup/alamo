@@ -128,6 +128,13 @@ template<>
 AMREX_ATTRIBUTE_WEAK
 std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const 
 {
+#if AMREX_SPACEDIM==2
+    if (i==0) return name + ".epsp_xx";
+    if (i==1) return name + ".epsp_xy";
+    if (i==2) return name + ".epsp_yx";
+    if (i==3) return name + ".epsp_yy";
+#endif
+#if AMREX_SPACEDIM==3
     if (i==0) return name + ".epsp_xx";
     if (i==1) return name + ".epsp_xy";
     if (i==2) return name + ".epsp_xz";
@@ -137,6 +144,7 @@ std::string Set::Field<Model::Solid::Affine::J2>::Name(int i) const
     if (i==6) return name + ".epsp_zx";
     if (i==7) return name + ".epsp_zy";
     if (i==8) return name + ".epsp_zz";
+#endif
     return name;
 }
 
