@@ -150,13 +150,21 @@ public:
 
     bool contains(std::string name)
     {
-        bool ret = amrex::ParmParse::contains(name.c_str());
-        std::set<std::string> subs = amrex::ParmParse::getEntries(name);
-        if (subs.size())
+        if (amrex::ParmParse::contains(name.c_str()))
+            return true;
+        if (amrex::ParmParse::contains(full(name).c_str()))
+            return true;
         {
-            ret = true;
+            std::set<std::string> subs = amrex::ParmParse::getEntries(name.c_str());
+            if (subs.size())
+                return true;
         }
-        return ret;
+        {
+            std::set<std::string> subs = amrex::ParmParse::getEntries(full(name).c_str());
+            if (subs.size())
+                return true;
+        }
+        return false;
     }
 
     template<typename T> 

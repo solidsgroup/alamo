@@ -112,22 +112,20 @@ public:
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
-        int nmodels = 1;
-        pp_query("nmodels", nmodels); // Number of elastic model varieties
+        int nmodels;
+        pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
         for (int i = 0; i < nmodels; i++)
         {
             bool init = false;
             MODEL tmp_model;
             if (pp.contains("model"))
             {
-                Util::Message(INFO,pp.full("model"));
                 pp_queryclass("model", tmp_model);
                 init = true;
             }
             std::string name = "model" + std::to_string(i + 1);
             if (pp.contains(name.c_str()))
             {
-                Util::Message(INFO,pp.full(std::string(name.data())));
                 pp_queryclass(std::string(name.data()), tmp_model);
                 init = true;
             }
