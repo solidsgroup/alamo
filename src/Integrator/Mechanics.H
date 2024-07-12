@@ -116,9 +116,24 @@ public:
         pp_query("nmodels", nmodels); // Number of elastic model varieties
         for (int i = 0; i < nmodels; i++)
         {
-            std::string name = "model" + std::to_string(i + 1);
+            bool init = false;
             MODEL tmp_model;
-            pp_queryclass(std::string(name.data()), tmp_model);
+            if (pp.contains("model"))
+            {
+                Util::Message(INFO,pp.full("model"));
+                pp_queryclass("model", tmp_model);
+                init = true;
+            }
+            std::string name = "model" + std::to_string(i + 1);
+            if (pp.contains(name.c_str()))
+            {
+                Util::Message(INFO,pp.full(std::string(name.data())));
+                pp_queryclass(std::string(name.data()), tmp_model);
+                init = true;
+            }
+
+            if (!init) Util::Exception(INFO,"No way to initialize ",pp.full(name));
+
             value.models.push_back(tmp_model);
         }
         Util::Assert(INFO, TEST(value.models.size() > 0));
@@ -278,8 +293,9 @@ public:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 auto sten = Numeric::GetStencil(i, j, k, bx);
+                for (int n = 0; n < eta_mf[lev]->nComp(); n++)
                 {
-                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data(), sten);
+                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, n, DX.data(), sten);
                     if (grad.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
                 }

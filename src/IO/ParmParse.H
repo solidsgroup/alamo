@@ -148,6 +148,17 @@ public:
         }
     }
 
+    bool contains(std::string name)
+    {
+        bool ret = amrex::ParmParse::contains(name.c_str());
+        std::set<std::string> subs = amrex::ParmParse::getEntries(name);
+        if (subs.size())
+        {
+            ret = true;
+        }
+        return ret;
+    }
+
     template<typename T> 
     int query_required( std::string name, T & value,
                         std::string file = "", std::string func = "", int line = -1)
@@ -403,7 +414,7 @@ public:
                 std::stringstream ss;
                 for (unsigned int i=0; i < unused_inputs.size(); i++)
                     ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,full(name),"The following inputs were specified but not used",ss.str());
+                Util::ParmParseException(INFO,file,func,line,name,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
@@ -427,7 +438,7 @@ public:
                 std::stringstream ss;
                 for (unsigned int i=0; i < unused_inputs.size(); i++)
                     ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,full(name),"The following inputs were specified but not used",ss.str());
+                Util::ParmParseException(INFO,file,func,line,name,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
@@ -450,7 +461,7 @@ public:
                 std::stringstream ss;
                 for (unsigned int i=0; i < unused_inputs.size(); i++)
                     ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,"The following inputs were specified but not used",ss.str());
+                Util::ParmParseException(INFO,file,func,line,getPrefix(),"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
@@ -471,7 +482,7 @@ public:
                 std::stringstream ss;
                 for (unsigned int i=0; i < unused_inputs.size(); i++)
                     ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,"The following inputs were specified but not used",ss.str());
+                Util::ParmParseException(INFO,file,func,line,getPrefix(),"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
