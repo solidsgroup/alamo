@@ -156,6 +156,7 @@ obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
+	@mkdir -p $(dir $@)
 	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
