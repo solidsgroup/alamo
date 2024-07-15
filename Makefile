@@ -40,7 +40,7 @@ CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_F
 LINKER_FLAGS += -Bsymbolic-functions
 
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     += -L${AMREX}/lib/ -lamrex -lpthread -lpng
+LIB     += -L${AMREX}/lib/ -lamrex -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
@@ -183,6 +183,11 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html # > /dev/null
 
+
+check: .FORCE
+	@./scripts/checkdoc.py
+	@./.github/workflows/style/check_tabs.py
+	@eclint check src
 
 test: .FORCE
 	@./.github/workflows/style/check_tabs.py

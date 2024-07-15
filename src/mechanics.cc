@@ -29,14 +29,14 @@ int main (int argc, char* argv[])
 
     std::string program = "mechanics";
     IO::ParmParse pp;
-    pp.query("alamo.program",program);
+    pp_query("alamo.program",program);
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "mechanics")
     {
         std::string model = "linear.isotropic";
-        pp.query("alamo.program.mechanics.model",model);
+        pp_query("alamo.program.mechanics.model",model);
         if (model == "linear.isotropic")        integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>(pp);
         else if (model == "linear.cubic")       integrator = new Integrator::Mechanics<Model::Solid::Linear::Cubic>(pp);
         else if (model == "affine.cubic")       integrator = new Integrator::Mechanics<Model::Solid::Affine::Cubic>(pp);

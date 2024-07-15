@@ -19,6 +19,7 @@ class GB
 {
 public:
     GB() {};
+    virtual ~GB() {};
     virtual Set::Scalar W(const Set::Scalar theta) const = 0;
     virtual Set::Scalar DW(const Set::Scalar theta) const = 0;
     virtual Set::Scalar DDW(const Set::Scalar theta) const = 0;

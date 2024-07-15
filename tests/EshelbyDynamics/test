@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-import sys
+import sys, glob
 sys.path.insert(0,"../../scripts")
 import testlib
 
 outdir = sys.argv[1]
 
-testlib.validate(path="{}/01000cell/".format(outdir),
+path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+
+testlib.validate(path=path,
                  outdir=outdir,
                  start=[-4,-4,0],
                  end=[4,4,0],

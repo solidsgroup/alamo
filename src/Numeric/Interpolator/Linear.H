@@ -152,9 +152,12 @@ public:
     static void Parse(Linear<T> & value, IO::ParmParse & pp)
     {
         std::string in;
-        pp.query("str",in); // Interpolator string used when Parsed from queryclass.
+        pp_query("str",in); // Interpolator string used when Parsed from queryclass.
         value.define(in);
     }
+
+
+    static Linear<T> Read(std::string filename, int derivative = 0);
 
 protected:
     std::vector<T> data_points;
@@ -176,6 +179,48 @@ Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
     ret.uniform = b.uniform;
     return ret;
 }
+
+template<>
+inline Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative)
+{
+    std::ifstream input;
+    input.open(filename);
+    std::string line;
+    std::vector<Set::Scalar> theta, w;
+    // parse input 
+    while (std::getline(input, line))
+    {        std::vector<std::string> dat = Util::String::Split(line);
+        theta.push_back(std::stof(dat[0]));
+        w.push_back(std::stof(dat[1]));
+    }
+    if (derivative == 0)
+    {
+        return Linear<Set::Scalar>(w,theta);
+    }
+    else if (derivative == 1)
+    {
+        std::vector<Set::Scalar> thetasmall, dw;
+        for (unsigned int i = 1; i < theta.size() - 1; i++)
+        {
+            thetasmall.push_back(theta[i]);
+            dw.push_back((w[i + 1] - w[i - 1]) / (theta[i + 1] - theta[i - 1]));
+        }
+        return Linear<Set::Scalar>(dw,thetasmall);
+    }
+    else if (derivative == 2)
+    {
+        std::vector<Set::Scalar> thetasmall, ddw;
+        for (unsigned int i = 1; i < theta.size() - 1; i++)
+        {
+            thetasmall.push_back(theta[i]);
+            ddw.push_back((w[i + 1] - 2.0 * w[i] + w[i - 1]) / ((theta[i + 1] - theta[i]) * (theta[i] - theta[i - 1])));
+        }
+        return Linear<Set::Scalar>(ddw,thetasmall);
+    }
+    else Util::Abort(INFO,"derivative must be 0,1,2 but got ",derivative);
+    exit(-1);
+}
+
 
 }
 }

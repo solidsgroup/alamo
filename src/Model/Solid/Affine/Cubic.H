@@ -75,7 +75,7 @@ public:
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         Linear::Cubic::Parse(value,pp);
-        if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
+        if (pp.contains("F0")) pp_queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE
@@ -105,14 +105,14 @@ public:
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
 {
     return 1;
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
 {
     if (i==0) return name + ".Cxxxx";
@@ -120,7 +120,7 @@ std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

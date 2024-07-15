@@ -80,59 +80,59 @@ public:
         Set::Matrix F0 = Set::Matrix::Zero();
         if (pp.contains("lame") && pp.contains("shear"))
         {
-            pp.query("lame", lambda); // Lame modulus
-            pp.query("shear", mu); // Shear modulus
+            pp_query("lame", lambda); // Lame modulus
+            pp_query("shear", mu); // Shear modulus
         }
         else if (pp.contains("E") && pp.contains("nu"))
         {
             Set::Scalar E, nu;
-            pp.query("E", E); // Elastic modulus
-            pp.query("nu", nu); // Poisson's ratio
+            pp_query("E", E); // Elastic modulus
+            pp_query("nu", nu); // Poisson's ratio
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0 * nu);
             mu = E / 2.0 / (1.0 + nu);
         }
         else if (pp.contains("E") && pp.contains("shear"))
         {
             Set::Scalar E;
-            pp.query("E", E); // Young's modulus
-            pp.query("shear", mu); // Shear modulus
+            pp_query("E", E); // Young's modulus
+            pp_query("shear", mu); // Shear modulus
             lambda = mu * (E - 2.0 * mu) / (3.0 * mu - E);
         }
         else if (pp.contains("E") && pp.contains("lame"))
         {
             Set::Scalar E;
-            pp.query("E", E); // Young's modulus
-            pp.query("lame", lambda); // Lame parameter
+            pp_query("E", E); // Young's modulus
+            pp_query("lame", lambda); // Lame parameter
             mu = (E - 3.0 * lambda + sqrt(E * E + 9.0 * lambda * lambda + 2.0 * E * lambda)) / 4.0;
         }
         else if (pp.contains("nu") && pp.contains("shear"))
         {
             Set::Scalar nu;
-            pp.query("nu", nu); // Poisson's ratio
-            pp.query("shear", mu); // Shear modulus
+            pp_query("nu", nu); // Poisson's ratio
+            pp_query("shear", mu); // Shear modulus
             lambda = 2.0 * mu * nu / (1.0 - 2.0 * nu);
         }
         else if (pp.contains("lambda") && pp.contains("nu"))
         {
             Set::Scalar nu;
-            pp.query("lambda", lambda); // Lame parameter
-            pp.query("nu", nu); // Poisson's ratio
+            pp_query("lambda", lambda); // Lame parameter
+            pp_query("nu", nu); // Poisson's ratio
             mu = lambda * (1.0 - 2.0 * nu) / 2.0 / nu;
         }
         else if (pp.contains("bulk") && pp.contains("shear"))
         {
             Set::Scalar K;
-            pp.query("bulk", K); // Bulk modulus
-            pp.query("shear", mu); // Shear modulus
+            pp_query("bulk", K); // Bulk modulus
+            pp_query("shear", mu); // Shear modulus
             lambda = K - (2.0 * mu / 3.0);
         }
         else
         {
-            Util::Abort(INFO, "Model parameters not specified with either (lame, shear), or (E, nu)");
+            Util::Exception(INFO, "Model parameters not specified with either (lame, shear), or (E, nu)");
         }
         if (pp.contains("F0"))
         {
-            pp.queryarr("F0", F0); // Eigendeformation gradient
+            pp_queryarr("F0", F0); // Eigendeformation gradient
         }
         value.Define(mu, lambda, F0);
     }
@@ -146,13 +146,13 @@ public:
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Affine::Isotropic>::NComp() const
 {
     return AMREX_SPACEDIM * AMREX_SPACEDIM + 2;
 }
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 std::string Set::Field<Model::Solid::Affine::Isotropic>::Name(int i) const
 {
     if (i == 0) return name + "_lambda";
@@ -176,7 +176,7 @@ std::string Set::Field<Model::Solid::Affine::Isotropic>::Name(int i) const
     return name;
 }
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Set::Field<Model::Solid::Affine::Isotropic>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

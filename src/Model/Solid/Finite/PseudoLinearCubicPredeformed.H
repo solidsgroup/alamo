@@ -71,13 +71,13 @@ public:
         else if (pp.contains("F0")) 
         {
             Set::Matrix F0;
-            pp.queryarr("F0", F0); // Large-strain eigendeformation (Identity = no deformation)
+            pp_queryarr("F0", F0); // Large-strain eigendeformation (Identity = no deformation)
             value.F0 = F0;
         }
         else if (pp.contains("eps0"))
         {
             Set::Matrix eps0;
-            pp.queryarr("eps0",eps0); // Small-strain eigendeformation (Zero = no deformation)
+            pp_queryarr("eps0",eps0); // Small-strain eigendeformation (Zero = no deformation)
             value.F0 = eps0 + Set::Matrix::Identity();
         }
         else
@@ -99,14 +99,14 @@ public:
 
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::NComp() const
 {
     return 4;
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 std::string Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Name(int i) const
 {
     if (i == 0) return name + "_F0xx";
@@ -117,7 +117,7 @@ std::string Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Name
 }
 
 template<>
-AMREX_ATTRIBUTE_WEAK
+ALAMO_SINGLE_DEFINITION
 void Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

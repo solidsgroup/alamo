@@ -140,6 +140,24 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
 }
 
 AMREX_FORCE_INLINE
+Vector Normal(  AMREX_D_DECL(bool xmin,bool ymin, bool zmin),
+                AMREX_D_DECL(bool xmax,bool ymax, bool zmax))
+{
+    Set::Vector N =  Set::Vector::Zero();
+    if (xmin)      N(0) = -1.0;
+    else if (xmax) N(0) =  1.0;
+#if AMREX_SPACEDIM>1
+    if (ymin)      N(1) = -1.0;
+    else if (ymax) N(1) =  1.0;
+#endif
+#if AMREX_SPACEDIM>2
+    if (zmin)      N(2) = -1.0;
+    else if (zmax) N(2) =  1.0;
+#endif 
+    return N;
+}
+
+AMREX_FORCE_INLINE
 Vector Size(const amrex::Geometry &geom)
 {
     Set::Vector size;
