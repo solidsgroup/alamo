@@ -127,7 +127,7 @@ public:
         }
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
-        value.RegisterNodalFab(value.euler_mf, 3, 2, "euler", true);   //newline for euler
+        value.RegisterNodalFab(value.euler_mf, 3, 3, "euler", true);   //newline for euler
         // Refinement threshold for eta field
         pp_query("eta_ref_threshold", value.m_eta_ref_threshold);
         // Refinement threshold for strain gradient
@@ -143,7 +143,7 @@ public:
             else if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "ic.constant");
             else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
             else if (type == "bmp")        value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
-            else if (type == "eulerangles")  value.ic_eta =  new IC::EulerAngles(value.geom, pp, "ic.eulerangles");   //newline
+            //else if (type == "eulerangles")  value.ic_eta =  new IC::EulerAngles(value.geom, pp, "ic.eulerangles");   //newline
             else if (type == "png")      value.ic_eta = new IC::PNG(value.geom, pp, "ic.png");
             else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
             else if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
@@ -161,7 +161,11 @@ public:
         {
             std::string type;
             pp_query("euler.ic.type", type); // Read IC type for the euler angles field
-            if (type == "eulerangles")       value.ic_euler = new IC::EulerAngles(value.geom, pp, "euler.ic.eulerangles");                             //newly added line
+            if (type == "eulerangles")  
+            {
+                 value.ic_euler = new IC::EulerAngles(value.geom, pp, "euler.ic.eulerangles");   
+                 value.euler_ic_type_flag = 1;
+            }                               //newly added line
             else Util::Abort(INFO,"Invalid value for ic.type: ",type);
             
             value.euler_reset_on_regrid = true;
@@ -257,7 +261,7 @@ public:
             }
         }
 
-        if (a_step > 0) return;
+        //if (a_step > 0) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
@@ -271,17 +275,31 @@ public:
 
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
+                amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                 amrex::Box bx = mfi.grownnodaltilebox();
                 bx = bx & domain;
 
-                amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
+                //amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
+                
+                //if (euler_ic_type_flag == 1)
+                {
+                    amrex::Array4<const Set::Scalar> const& euler = euler_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        model(i, j, k) = MODEL::Zero();
+			            model(i,j,k).Define(260.2, 154.5, 82.6, euler(i,j,k,0)/255*360*(3.14/180), euler(i,j,k,1)/255*360*(3.14/180), euler(i,j,k,2)/255*360*(3.14/180));
+                    });
+                }
+                //else
+                //{
+                
+                //    amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    model(i, j, k) = MODEL::Zero();
-                    for (unsigned int n = 0; n < models.size(); n++)
-                        model(i, j, k) += eta(i, j, k, n) * models[n];
-                });
+               //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+               //         model(i, j, k) = MODEL::Zero();
+               //         for (unsigned int n = 0; n < models.size(); n++)
+               //             model(i, j, k) += eta(i, j, k, n) * models[n];
+               // });
+                //}
             }
             Util::RealFillBoundary(*model_mf[lev], geom[lev]);
         }
@@ -364,6 +382,8 @@ protected:
     IC::IC* ic_trac_normal = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
+    int euler_ic_type_flag; // new member variable for the flag
+    
     bool psi_reset_on_regrid = false;
     bool eta_reset_on_regrid = false;
     bool euler_reset_on_regrid = false;

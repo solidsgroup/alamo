@@ -10,7 +10,7 @@
 #include "AMReX_ParmParse.H"
 
 #include "IO/ParmParse.H"
-#include "Integrator/Base/Mechanics.H"
+#include "Integrator/Mechanics.H"
 
 
 #include "IC/IC.H"
@@ -38,12 +38,12 @@
 namespace Integrator
 {
 template<class MODEL>
-class VoidPF: virtual public Base::Mechanics<MODEL>
+class VoidPF: virtual public Mechanics<MODEL>
 {
 public:
 
-    VoidPF(): Base::Mechanics<MODEL>() {}
-    VoidPF(IO::ParmParse& pp): Base::Mechanics<MODEL>()
+    VoidPF(): Mechanics<MODEL>() {}
+    VoidPF(IO::ParmParse& pp): Mechanics<MODEL>()
     {
         Parse(*this, pp);
     }
@@ -52,9 +52,9 @@ public:
     // solve using the MLMG solver. 
     static void Parse(VoidPF& value, IO::ParmParse& pp)
     {
-        pp_queryclass("mechanics",static_cast<Base::Mechanics<MODEL>&>(value));
+        pp_queryclass("mechanics",static_cast<Mechanics<MODEL>&>(value));
 
-        pp_queryclass("model", value.model);
+        //pp_queryclass("model", value.model);
     
 
         value.bc_d = new BC::Constant(1,pp,"d.bc.constant");
@@ -63,7 +63,22 @@ public:
         value.RegisterNewFab(value.d_mf, value.bc_d, 1, 3, "d",true);
         value.RegisterNewFab(value.d_old_mf, value.bc_d,  1, 3,"dold",false);
         value.RegisterNewFab(value.p_mf, value.bc_d, 1, 3, "p",true);
+
+        value.d_on = true;
+        
         //value.spall.ic = new IC::PSRead(value.geom, pp, "spall.ic.psread");
+        
+                // Read in IC for euler angles
+        //if (pp.contains("euler.ic.type"))
+        //{
+        //    std::string type;
+        //    pp_query("euler.ic.type", type); // Read IC type for the euler angles field
+        //    if (type == "eulerangles")  
+        //    {
+        //         value.ic_euler = new IC::EulerAngles(value.geom, pp, "euler.ic.eulerangles");   
+        //    }                               //newly added line
+        //    else Util::Abort(INFO,"Invalid value for ic.type: ",type);
+        //}
         
         // Initialize PSRead with parameters from the input file
         //std::string filename;
@@ -101,8 +116,9 @@ public:
 
     void Initialize(int lev) override
     {
-        spall.ic->Initialize(lev,d_mf);
-        spall.ic->Initialize(lev,d_old_mf);
+        Mechanics<MODEL>::Initialize(lev);
+        if (d_on)  spall.ic->Initialize(lev,d_mf);
+        if (d_on)  spall.ic->Initialize(lev,d_old_mf);
 
         p_mf[lev]->setVal(0.0);
     }
@@ -112,12 +128,14 @@ public:
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     { 
-        Base::Mechanics<MODEL>::TimeStepBegin(a_time, a_step);
-
+        Mechanics<MODEL>::TimeStepBegin(a_time, a_step);
     }
 
     virtual void UpdateModel(int a_step, Set::Scalar a_time) override
     {
+        Mechanics<MODEL>::UpdateModel(a_step, a_time);
+
+        if (!d_on) return;
         for (int lev = 0; lev <= this->finest_level; ++lev)
             {
                 amrex::Box domain = this->geom[lev].Domain();
@@ -125,7 +143,7 @@ public:
 
                 //this->rhs_mf[lev]->setVal(0.0);
                 d_mf[lev]->FillBoundary();
-                this->model_mf[lev]->setVal(this->model);
+                //this->model_mf[lev]->setVal(this->model);
                 Set::Vector DX(this->geom[lev].CellSize());
 
                 for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
@@ -140,7 +158,7 @@ public:
                             if (d_inv_avg > 1.0)   d_inv_avg = 1.0;
                             if (d_inv_avg < spall.small) d_inv_avg = spall.small;
 
-                            model_sum(i, j, k).ddw = model.ddw * d_inv_avg;
+                            //model_sum(i, j, k).ddw *= d_inv_avg;
                         });
                     }
                 Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
@@ -151,7 +169,7 @@ public:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
         BL_PROFILE("VoidPF::Advance");
-        Base::Mechanics<MODEL>::Advance(lev, time, dt);
+        Mechanics<MODEL>::Advance(lev, time, dt);
         std::swap(d_old_mf[lev], d_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::Box domain = geom[lev].Domain();
@@ -187,6 +205,9 @@ public:
                     df += spall.elastic_mult*(p(i,j,k) - spall.po);
 
                 d(i,j,k) = dold(i,j,k) - spall.M * dt * df;
+                if (d(i,j,k) > 1.0)   d(i,j,k) =1.0;
+                else if (d(i,j,k) < 0.0)   d(i,j,k) = 0.0;
+
 
             });
         }
@@ -195,8 +216,8 @@ public:
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
     {
-        if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
-        Base::Mechanics<MODEL>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
+        if (m_type == Mechanics<MODEL>::Type::Disable) return;
+        Mechanics<MODEL>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
@@ -205,6 +226,8 @@ public:
             amrex::Box bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
 
+            if (d_on)
+           {    
             amrex::Array4<Set::Scalar> const& d = d_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -215,28 +238,32 @@ public:
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
             });
+
+           }
             
         }
     }
 
 
 protected:
-    MODEL model;
+     MODEL model;
     IC::IC* ic;
+    //IC::IC* ic_euler;
     BC::BC<Set::Scalar>*bc_d, *bc_p;
     Set::Scalar m_eta_ref_threshold = 1E-2;
     Set::Field<Set::Scalar> d_old_mf;
     Set::Field<Set::Scalar> d_mf;
     Set::Field<Set::Scalar> p_mf;
 
+    bool d_on = false;
 
-    using Base::Mechanics<MODEL>::m_type;
-    using Base::Mechanics<MODEL>::finest_level;
-    using Base::Mechanics<MODEL>::geom;
-    using Base::Mechanics<MODEL>::model_mf;
+    using Mechanics<MODEL>::m_type;
+    using Mechanics<MODEL>::finest_level;
+    using Mechanics<MODEL>::geom;
+    using Mechanics<MODEL>::model_mf;
     //using Base::Mechanics<MODEL>::psi_on;
-    using Base::Mechanics<MODEL>::stress_mf;
-    using Base::Mechanics<MODEL>::strain_mf;
+    using Mechanics<MODEL>::stress_mf;
+    using Mechanics<MODEL>::strain_mf;
 
     //Set::Scalar alpha = 1.0;
     //Set::Scalar beta = 1.0;

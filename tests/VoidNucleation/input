@@ -1,4 +1,5 @@
 alamo.program               = voidpf
+alamo.program.mechanics.model = linear.cubic
 plot_file		    = tests/VoidNucleation/output
 
 
@@ -15,8 +16,8 @@ amr.grid_eff		    = 1.0
 amr.node.all = 1
 
 # geometry
-geometry.prob_lo	    = -8 -8 -8 
-geometry.prob_hi	    = 8 8 8
+geometry.prob_lo	    = -0.000100 -0.000100 0.0  
+geometry.prob_hi	    = 0.000100 0.000100 0.0
 geometry.is_periodic	    = 0 0 0
 
 
@@ -25,21 +26,21 @@ geometry.is_periodic	    = 0 0 0
 #ic.bmp.fit      = fitwidth
 #ic.bmp.channel  = g
 
-#euler.ic.type         = eulerangles
-#euler.ic.eulerangles.filename = tests/VoidNucleation/1_001_00004_angle.bmp
-#euler.ic.eulerangles.fit      = fitwidth
+mechanics.euler.ic.type         = eulerangles
+mechanics.euler.ic.eulerangles.filename = tests/VoidNucleation/1_001_00004_angle.bmp
+mechanics.euler.ic.eulerangles.fit      = fitwidth
 
 #spall.ic.type = psread
 #spall.ic.type = psread
-spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites_1.txt
+spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.txt
 
 ## ellipse configuration
 #ic.type         = ellipse
 #ic.ellipse.x0   = 1000 1000
 
 #Aluminum Oxide
-model.E = 370 #GPa
-model.nu = 0.22
+#model.E = 370 #GPa
+#model.nu = 0.22
 #elastic.model.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
 #Nickel
 #elastic.model2.E = 207 #GPa
@@ -49,9 +50,9 @@ model.nu = 0.22
 mechanics.interval = 1
 mechanics.tstart = 0.0
 
-mechanics.solver.verbose = 5
+mechanics.solver.verbose = 3
 mechanics.solver.nriters = 1
-mechanics.solver.fixed_iter=2000
+mechanics.solver.fixed_iter=100
 mechanics.solver.tol_abs = 1E-16
 mechanics.solver.bottom_solver =  smoother
 
@@ -81,6 +82,7 @@ mechanics.bc.constant.type.yhi    = disp disp
 mechanics.bc.constant.val.yhi    = 0.0 0.1
 mechanics.bc.constant.val.xloyhi = 0.0 0.1
 mechanics.bc.constant.val.xhiyhi = 0.0 0.1
+mechanics.print_model = 1
 #elastic.interval = 10
 
 eta_ref_threshold = 0.005
