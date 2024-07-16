@@ -157,7 +157,6 @@ private:
     Set::Scalar volume = 0.0;
     Set::Scalar area = 0.0;
     Set::Scalar chamber_area = 0.0;
-    Set::Scalar chamber_volume = 0.0;
     Set::Scalar chamber_pressure = 1.0;
     Set::Scalar massflux = 0.00000001;
 

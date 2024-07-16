@@ -282,8 +282,9 @@ namespace Set
 {
 namespace Constant
 {
+// Pi
 static const Set::Scalar Pi = 3.14159265359;
-//static const Set::Scalar Eu = 2.7182818;
+// Gas constant
 static const Set::Scalar Rg = 8.31446261815;
 }
 }
