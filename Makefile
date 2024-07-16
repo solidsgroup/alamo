@@ -39,6 +39,10 @@ CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_F
 
 LINKER_FLAGS += -Bsymbolic-functions
 
+#CXX_COMPILE_FLAGS += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
+#LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
+
+
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     += -L${AMREX}/lib/ -lamrex -lpthread
 
