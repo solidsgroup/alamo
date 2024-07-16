@@ -140,7 +140,7 @@ private:
         Set::Scalar T_fluid = 300.0;
         Set::Scalar massfraction = 0.8;
         Set::Scalar disperssion1 = 0.93;
-        Set::Scalar disperssion2 = 920.0;
+        Set::Scalar disperssion2 = 920.;
         Set::Scalar disperssion3 = 2418.29;
         IC::IC* ic_temp = nullptr;
     } thermal;

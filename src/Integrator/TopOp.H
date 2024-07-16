@@ -36,12 +36,12 @@
 namespace Integrator
 {
 template<class MODEL>
-class TopOp : virtual public Base::Mechanics<MODEL>
+class TopOp: virtual public Base::Mechanics<MODEL>
 {
 public:
 
-    TopOp() : Base::Mechanics<MODEL>() {}
-    TopOp(IO::ParmParse& pp) : Base::Mechanics<MODEL>()
+    TopOp(): Base::Mechanics<MODEL>() {}
+    TopOp(IO::ParmParse& pp): Base::Mechanics<MODEL>()
     {
         Parse(*this, pp);
     }
@@ -57,7 +57,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             std::string type;
-            pp_query_validate("psi.ic.type", type, { "elipse", "constant" }); // Read IC type for the eta field
+            pp_query("psi.ic.type", type); // Read IC type for the eta field
             if (type == "ellipse") value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant") value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);
@@ -67,23 +67,23 @@ public:
             value.RegisterNewFab(value.psi_old_mf, value.bc_psi, 1, 2, "psiold", false);
             value.psi_on = true;
         }
-        pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 1E-2); // Refinement threshold based on eta
-        pp_query_default("alpha", value.alpha, 1.0); // :math:`\alpha` parameter
-        pp_query_default("beta", value.beta, 1.0); // :math:`\beta` parameter
-        pp_query_default("gamma", value.gamma, 1.0); // :math:`\gamma` parameter
+        pp_query("eta_ref_threshold", value.m_eta_ref_threshold); // Refinement threshold based on eta
+        pp_query("alpha", value.alpha); // :math:`\alpha` parameter
+        pp_query("beta", value.beta); // :math:`\beta` parameter
+        pp_query("gamma", value.gamma); // :math:`\gamma` parameter
         pp_queryclass("L", value.L); // Mobility
         if (pp.contains("volume0frac"))
         {
             if (pp.contains("volume0")) Util::Abort(INFO, "Cannot specify volume0frac and volume0");
             Set::Scalar volumefrac;
-            pp_query_default("volume0frac", volumefrac, 0.5); // Prescribed volume fraction
+            pp_query("volume0frac", volumefrac); // Prescribed volume fraction
             value.volume0 = volumefrac *
                 AMREX_D_TERM((value.geom[0].ProbHi()[0] - value.geom[0].ProbLo()[0]),
                     *(value.geom[0].ProbHi()[1] - value.geom[0].ProbLo()[1]),
                     *(value.geom[0].ProbHi()[2] - value.geom[0].ProbLo()[2]));
         }
         else
-            pp_query_default("volume0", value.volume0, 0.5); // Prescribed total volume
+            pp_query("volume0", value.volume0); // Prescribed total vlume
 
         pp_queryclass("lambda", value.lambda); // Lagrange multiplier (can be interplated)
 
