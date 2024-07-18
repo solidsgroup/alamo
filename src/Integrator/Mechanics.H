@@ -154,7 +154,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             std::string type;
-            pp_query_validate("psi.ic.type", type, {"ellpise", "constant", "expression", "psread", "png"}); // Read IC type for the eta field
+            pp_query_validate("psi.ic.type", type, {"ellipse", "constant", "expression", "psread", "png"}); // Read IC type for the eta field
             if (type == "ellipse")         value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant")   value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else if (type == "expression") value.ic_psi = new IC::Expression(value.geom, pp, "psi.ic.expression");
