@@ -89,19 +89,19 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp_query_required("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
 
             pp_query_default("thermal.hc", value.thermal.hc, 1.0); // Used to change heat flux units
-            pp_query("thermal.massfraction", value.thermal.massfraction, 0.8); // Systen AP mass fraction
-            pp_query("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0); // AP mass flux reference value 
-            pp_query("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0); // HTPB mass flux reference value 
-            pp_query("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); // AP/HTPB mass flux reference value 
+            pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8); // Systen AP mass fraction
+            pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0); // AP mass flux reference value 
+            pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0); // HTPB mass flux reference value 
+            pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); // AP/HTPB mass flux reference value 
 
-            pp_query("thermal.T_fluid", value.thermal.T_fluid, 300.0); // Temperature of the Standin Fluid 
+            pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); // Temperature of the Standin Fluid 
 
-            pp_query("thermal.disperssion1", value.thermal.disperssion1, 0.93); // K; dispersion variables are use to set the outter field properties for the void grain case.
-            pp_query("thermal.disperssion1", value.thermal.disperssion2, 920.0); // rho; dispersion variables are use to set the outter field properties for the void grain case.
-            pp_query("thermal.disperssion1", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query_default("thermal.disperssion1", value.thermal.disperssion1, 0.93); // K; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query_default("thermal.disperssion1", value.thermal.disperssion2, 920.0); // rho; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query_default("thermal.disperssion1", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
 
-            pp_query("thermal.modeling_ap", value.thermal.modeling_ap); // Scaling factor for AP thermal conductivity (default = 1.0)
-            pp_query("thermal.modeling_htpb", value.thermal.modeling_htpb); // Scaling factor for HTPB thermal conductivity (default = 1.0)
+            pp_query_default("thermal.modeling_ap", value.thermal.modeling_ap, 1.0); // Scaling factor for AP thermal conductivity (default = 1.0)
+            pp_query_default("thermal.modeling_htpb", value.thermal.modeling_htpb, 1.0); // Scaling factor for HTPB thermal conductivity (default = 1.0)
 
             value.bc_temp = new BC::Constant(1);
             pp_queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
