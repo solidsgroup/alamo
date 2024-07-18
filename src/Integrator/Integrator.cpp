@@ -49,16 +49,16 @@ Integrator::Integrator() : amrex::AmrCore()
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
         IO::ParmParse pp("amr");
-        pp_query("regrid_int", regrid_int);           // Regridding interval in step numbers
-        pp_query("base_regrid_int", base_regrid_int); // Regridding interval based on coarse level only
-        pp_query("plot_int", plot_int);               // Interval (in timesteps) between plotfiles
-        pp_query("plot_dt", plot_dt);                 // Interval (in simulation time) between plotfiles
-        pp_query("plot_file", plot_file);             // Output file
+        pp_query_default("regrid_int", regrid_int, 2);           // Regridding interval in step numbers
+        pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
+        pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles
+        pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles
+        pp_query_default("plot_file", plot_file, "plt");             // Output file
 
-        pp_query("cell.all", cell.all);                // Turn on to write all output in cell fabs (default: off)
-        pp_query("cell.any", cell.any);                // Turn off to prevent any cell based output (default: on)
-        pp_query("node.all", node.all);                // Turn on to write all output in node fabs (default: off)
-        pp_query("node.any", node.any);                // Turn off to prevent any node based output (default: on)
+        pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
+        pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
+        pp_query_default("node.all", node.all, false);                // Turn on to write all output in node fabs (default: off)
+        pp_query_default("node.any", node.any, true);                // Turn off to prevent any node based output (default: on)
 
         Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO, TEST(!(!node.any && node.all)));
@@ -78,7 +78,7 @@ Integrator::Integrator() : amrex::AmrCore()
             else if (cnt == 1)
             {
                 int nsubsteps_all;
-                pp_query("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
+                pp_query_required("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
                 for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
             }
             else
