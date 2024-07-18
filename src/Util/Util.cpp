@@ -67,7 +67,7 @@ void CopyFileToOutputDir(std::string a_path, bool fullpath, std::string prefix)
         {
             std::string destinationpath;
             if (fullpath) destinationpath = filename+"/"+abspathfilename;
-            else filename+"/"+basefilename;
+            else          destinationpath = filename+"/"+basefilename;
 
             // Copy the file where the file name is the absolute path, with / replaced with _
             if (std::filesystem::exists(destinationpath))
