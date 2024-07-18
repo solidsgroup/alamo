@@ -139,7 +139,7 @@ public:
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
-        else Util::Abort(INFO,"Invalid elastic constants specified");
+        else Util::Exception(INFO,"Invalid elastic constants specified");
 
         if (AMREX_SPACEDIM==2 && planestress)
             value.Define(mu,lambda*(1.0 - lambda/(2.*mu + lambda)));

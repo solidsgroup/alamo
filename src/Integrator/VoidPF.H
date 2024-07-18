@@ -10,7 +10,7 @@
 #include "AMReX_ParmParse.H"
 
 #include "IO/ParmParse.H"
-#include "Integrator/Mechanics.H"
+#include "Integrator/Base/Mechanics.H"
 
 
 #include "IC/IC.H"
@@ -31,19 +31,19 @@
 #include "Model/Solid/Solid.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
-
+#include "Model/Solid/Linear/Cubic.H"
 #include "Operator/Operator.H"
 
 
 namespace Integrator
 {
 template<class MODEL>
-class VoidPF: virtual public Mechanics<MODEL>
+class VoidPF: virtual public Base::Mechanics<MODEL>
 {
 public:
 
-    VoidPF(): Mechanics<MODEL>() {}
-    VoidPF(IO::ParmParse& pp): Mechanics<MODEL>()
+    VoidPF(): Base::Mechanics<MODEL>() {}
+    VoidPF(IO::ParmParse& pp): Base::Mechanics<MODEL>()
     {
         Parse(*this, pp);
     }
@@ -52,9 +52,11 @@ public:
     // solve using the MLMG solver. 
     static void Parse(VoidPF& value, IO::ParmParse& pp)
     {
-        pp_queryclass("mechanics",static_cast<Mechanics<MODEL>&>(value));
+        pp_queryclass("mechanics",static_cast<Base::Mechanics<MODEL>&>(value));
 
         //pp_queryclass("model", value.model);
+
+
     
 
         value.bc_d = new BC::Constant(1,pp,"d.bc.constant");
@@ -63,22 +65,30 @@ public:
         value.RegisterNewFab(value.d_mf, value.bc_d, 1, 3, "d",true);
         value.RegisterNewFab(value.d_old_mf, value.bc_d,  1, 3,"dold",false);
         value.RegisterNewFab(value.p_mf, value.bc_d, 1, 3, "p",true);
+        
+        value.RegisterNodalFab(value.euler_mf, 3, 2, "euler", true);   //newline for euler
 
         value.d_on = true;
         
         //value.spall.ic = new IC::PSRead(value.geom, pp, "spall.ic.psread");
         
-                // Read in IC for euler angles
-        //if (pp.contains("euler.ic.type"))
-        //{
-        //    std::string type;
-        //    pp_query("euler.ic.type", type); // Read IC type for the euler angles field
-        //    if (type == "eulerangles")  
-        //    {
-        //         value.ic_euler = new IC::EulerAngles(value.geom, pp, "euler.ic.eulerangles");   
-        //    }                               //newly added line
-        //    else Util::Abort(INFO,"Invalid value for ic.type: ",type);
-        //}
+        if (pp.contains("euler.ic.type"))
+        {
+            std::string type;
+            pp_query("euler.ic.type", type); // Read IC type for the euler angles field
+            if (type == "eulerangles")  
+            {
+                 value.ic_euler = new IC::EulerAngles(value.geom, pp, "euler.ic.eulerangles");   
+                 value.euler_ic_type_flag = 1;
+            }                               //newly added line
+            else Util::Abort(INFO,"Invalid value for ic.type: ",type);
+            
+            value.euler_reset_on_regrid = true;
+            // Whether to re-initialize eta when re-gridding occurs.
+            // Default is false unless eta ic is set, then default is.
+            // true.
+            pp_query("euler.reset_on_regrid",value.euler_reset_on_regrid);
+        }
         
         // Initialize PSRead with parameters from the input file
         //std::string filename;
@@ -95,32 +105,24 @@ public:
         pp_query_required("spall.small",value.spall.small); // regularization to set minimum modulus multiplier
 
         pp_query_required("eta_ref_threshold", value.m_eta_ref_threshold); // Refinement threshold based on eta
-        //pp.query("alpha", value.alpha); // :math:`\alpha` parameter
-        //pp.query("beta", value.beta); // :math:`\beta` parameter
-        //pp.query("gamma", value.gamma); // :math:`\gamma` parameter
-        //pp.queryclass("L", value.L); // Mobility
 
-        //pp.queryclass("lambda", value.lambda); // Lagrange multiplier (can be interplated)
-
-
-        //value.RegisterIntegratedVariable(&value.volume, "volume");
-        //value.RegisterIntegratedVariable(&value.w_chem_potential, "chem_potential");
-        //value.RegisterIntegratedVariable(&value.w_bndry, "bndry");
-        //value.RegisterIntegratedVariable(&value.w_elastic, "elastic");
         
-        // std::string ictype;
-        // pp_query_validate("ic.type",{"constant","bmp"});
-        // if      (ictype == "constant") value.ic = new IC::Constant(value.geom, pp, "ic.constant");
-        // else if (ictype == "bmp")      value.ic = new IC::BMP(value.geom, pp, "ic.bmp");
+        // Read material properties
+        pp.query("C11", value.C11);
+        pp.query("C12", value.C12);
+        pp.query("C44", value.C44);
     }
 
     void Initialize(int lev) override
     {
-        Mechanics<MODEL>::Initialize(lev);
+        Base::Mechanics<MODEL>::Initialize(lev);
         if (d_on)  spall.ic->Initialize(lev,d_mf);
         if (d_on)  spall.ic->Initialize(lev,d_old_mf);
 
         p_mf[lev]->setVal(0.0);
+        
+        euler_mf[lev]->setVal(0.0); 
+        ic_euler->Initialize(lev, euler_mf);        //newline for euler angles
     }
 
 
@@ -128,12 +130,12 @@ public:
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     { 
-        Mechanics<MODEL>::TimeStepBegin(a_time, a_step);
+        Base::Mechanics<MODEL>::TimeStepBegin(a_time, a_step);
     }
 
     virtual void UpdateModel(int a_step, Set::Scalar a_time) override
     {
-        Mechanics<MODEL>::UpdateModel(a_step, a_time);
+        //Base::Mechanics<MODEL>::UpdateModel(a_step, a_time);
 
         if (!d_on) return;
         for (int lev = 0; lev <= this->finest_level; ++lev)
@@ -143,22 +145,26 @@ public:
 
                 //this->rhs_mf[lev]->setVal(0.0);
                 d_mf[lev]->FillBoundary();
-                //this->model_mf[lev]->setVal(this->model);
+                euler_mf[lev]->FillBoundary();    //euler angles
+                this->model_mf[lev]->setVal(this->model);
                 Set::Vector DX(this->geom[lev].CellSize());
 
                 for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
                     {
+                        amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                         amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                        Set::Patch<MODEL> model_sum = model_mf.Patch(lev,mfi);
+                        //Set::Patch<MODEL> model_sum = model_mf.Patch(lev,mfi);
                         Set::Patch<const Set::Scalar> d = d_mf.Patch(lev,mfi);
+                        amrex::Array4<const Set::Scalar> const& euler = euler_mf[lev]->array(mfi);
                 
                         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
                             Set::Scalar d_inv_avg = 1.0 - Numeric::Interpolate::CellToNodeAverage(d,i,j,k,0);
                             if (d_inv_avg > 1.0)   d_inv_avg = 1.0;
                             if (d_inv_avg < spall.small) d_inv_avg = spall.small;
-
-                            //model_sum(i, j, k).ddw *= d_inv_avg;
+                            model(i, j, k) = MODEL::Zero();
+			                model(i,j,k).Define(C11, C12,euler(i,j,k,0)*360*(3.14/180), euler(i,j,k,1)*360*(3.14/180), euler(i,j,k,2)*360*(3.14/180));
+                            model(i, j, k).ddw *=d_inv_avg;
                         });
                     }
                 Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
@@ -169,7 +175,7 @@ public:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
         BL_PROFILE("VoidPF::Advance");
-        Mechanics<MODEL>::Advance(lev, time, dt);
+        Base::Mechanics<MODEL>::Advance(lev, time, dt);
         std::swap(d_old_mf[lev], d_mf[lev]);
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::Box domain = geom[lev].Domain();
@@ -206,18 +212,19 @@ public:
 
                 d(i,j,k) = dold(i,j,k) - spall.M * dt * df;
                 if (d(i,j,k) > 1.0)   d(i,j,k) =1.0;
-                else if (d(i,j,k) < 0.0)   d(i,j,k) = 0.0;
+                if (d(i,j,k) < 0.0)   d(i,j,k) = 0.0;
 
 
             });
+        
         }
     }
 
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
     {
-        if (m_type == Mechanics<MODEL>::Type::Disable) return;
-        Mechanics<MODEL>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
+        if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
+        Base::Mechanics<MODEL>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
@@ -242,11 +249,36 @@ public:
            }
             
         }
+        
+         {
+             for (amrex::MFIter mfi(*euler_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+           {
+                amrex::Box bx = mfi.nodaltilebox();
+                amrex::Array4<char> const& tags = a_tags.array(mfi);
+                amrex::Array4<Set::Scalar> const& euler = euler_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    auto sten = Numeric::GetStencil(i, j, k, bx);
+                    {
+                        Set::Vector grad = Numeric::Gradient(euler, i, j, k, 0, DX.data(), sten);
+                        if (grad.lpNorm<2>() * DXnorm > m_euler_ref_threshold)
+                            tags(i, j, k) = amrex::TagBox::SET;
+                    }
+                });
+            }
+        }
+    }
+    
+    void Regrid(int lev, Set::Scalar time) override
+    {
+        ic_euler->Initialize(lev, euler_mf, time);                 //newline added for euler angles
     }
 
 
+
 protected:
-     MODEL model;
+    MODEL model;
     IC::IC* ic;
     //IC::IC* ic_euler;
     BC::BC<Set::Scalar>*bc_d, *bc_p;
@@ -257,27 +289,19 @@ protected:
 
     bool d_on = false;
 
-    using Mechanics<MODEL>::m_type;
-    using Mechanics<MODEL>::finest_level;
-    using Mechanics<MODEL>::geom;
-    using Mechanics<MODEL>::model_mf;
+    using Base::Mechanics<MODEL>::m_type;
+    using Base::Mechanics<MODEL>::finest_level;
+    using Base::Mechanics<MODEL>::geom;
+    using Base::Mechanics<MODEL>::model_mf;
     //using Base::Mechanics<MODEL>::psi_on;
-    using Mechanics<MODEL>::stress_mf;
-    using Mechanics<MODEL>::strain_mf;
+    using Base::Mechanics<MODEL>::stress_mf;
+    using Base::Mechanics<MODEL>::strain_mf;
 
-    //Set::Scalar alpha = 1.0;
-    //Set::Scalar beta = 1.0;
-    //Set::Scalar gamma = 1.0;
-    //Set::Scalar L = 1.0;
-    //Numeric::Interpolator::Linear<Set::Scalar> L;
-    //Set::Scalar volume0 = 0.5;
-    //Set::Scalar lambda = 1.0;
-    //Numeric::Interpolator::Linear<Set::Scalar> lambda;
-
-    //Set::Scalar volume = 0.0;
-    //Set::Scalar w_chem_potential = 0.0;
-    //Set::Scalar w_bndry = 0.0;
-    //Set::Scalar w_elastic = 0.0;
+    Set::Field<Set::Scalar> euler_mf;          //new line added
+    Set::Scalar m_euler_ref_threshold = 0.01;   //new line added
+    IC::IC* ic_euler = nullptr;     //newline added
+    int euler_ic_type_flag; // new member variable for the flag
+    bool euler_reset_on_regrid = false;
     
     std::string filename; 
     
@@ -290,6 +314,11 @@ protected:
         Set::Scalar elastic_mult = NAN;
         Set::Scalar small = 0.0;
     } spall;
+    
+    // Material properties
+    Set::Scalar C11 = NAN;
+    Set::Scalar C12 = NAN;
+    Set::Scalar C44 = NAN;
 };
 
 

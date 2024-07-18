@@ -4,7 +4,7 @@ plot_file		    = tests/VoidNucleation/output
 
 
 timestep		    = 0.01
-stop_time		    = 10.0
+stop_time		    = 1.0
 
 # amr parameters
 amr.plot_int		    = 1
@@ -26,26 +26,17 @@ geometry.is_periodic	    = 0 0 0
 #ic.bmp.fit      = fitwidth
 #ic.bmp.channel  = g
 
-mechanics.euler.ic.type         = eulerangles
-mechanics.euler.ic.eulerangles.filename = tests/VoidNucleation/1_001_00004_angle.bmp
-mechanics.euler.ic.eulerangles.fit      = fitwidth
+euler.ic.type         = eulerangles
+euler.ic.eulerangles.filename = tests/VoidNucleation/1_001_00004_angle.bmp
+euler.ic.eulerangles.fit      = fitwidth
 
 #spall.ic.type = psread
 #spall.ic.type = psread
 spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.txt
 
-## ellipse configuration
-#ic.type         = ellipse
-#ic.ellipse.x0   = 1000 1000
-
-#Aluminum Oxide
-#model.E = 370 #GPa
-#model.nu = 0.22
-#elastic.model.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
-#Nickel
-#elastic.model2.E = 207 #GPa
-#elastic.model2.nu = 0.31
-#elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
+C11             = 1.68
+C12             = 0.25
+C44             = 0.5
 
 mechanics.interval = 1
 mechanics.tstart = 0.0
@@ -83,7 +74,7 @@ mechanics.bc.constant.val.yhi    = 0.0 0.1
 mechanics.bc.constant.val.xloyhi = 0.0 0.1
 mechanics.bc.constant.val.xhiyhi = 0.0 0.1
 mechanics.print_model = 1
-#elastic.interval = 10
+elastic.interval = 10
 
 eta_ref_threshold = 0.005
 spall.M = 1.0
