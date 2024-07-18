@@ -215,6 +215,31 @@ void Exception (std::string file, std::string func, int line, Args const &... ar
 }
 
 template<typename... Args>
+AMREX_FORCE_INLINE
+void AssertException (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
+{
+    if (pass) return;
+
+    std::ostringstream infostream;
+    infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
+    infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
+    infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+    infostream << "Assertion failed: " << Color::BG::DarkGray << Color::Underlined << Color::Bold <<  Color::FG::LightGreen << smt << Color::Reset;
+    std::string info = infostream.str();
+
+
+    std::ostringstream messagestream;
+    using List= int[];
+    (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+    std::string message = messagestream.str();
+    String::ReplaceAll(message,'\n',"\n"+info);
+
+    std::cout << info << message << std::endl;
+
+    Exception(file,func,line,"Fatal Error");
+}
+
+template<typename... Args>
 void ParmParseException (   std::string file, std::string func, int line,
                             std::string file2, std::string /*func2*/, int line2,
                             std::string fullname,
@@ -236,7 +261,8 @@ void ParmParseException (   std::string file, std::string func, int line,
         const std::size_t nargs = sizeof...(Args);
 
         if (nargs) messagestream << "\n";
-        messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
+        if (fullname != "")
+            messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
         if (line2 >= 0)
         {
             messagestream << " at " << file2 << ":" << line2;

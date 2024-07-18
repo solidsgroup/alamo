@@ -1,3 +1,10 @@
+//
+// This implements the Riemann Roe solver.
+//
+// Notation and algorithm follow the presentation in Section 5.3.3
+// of *Computational Gasdynamics* by Culbert B. Laney (page 88)
+//
+
 #include "Set/Set.H"
 
 /// A bunch of solvers
@@ -26,83 +33,109 @@ public:
     };
 
     struct Flux {
-        Set::Scalar Mass;
-        Set::Scalar Energy;
-        Set::Scalar Momentum_normal;
-        Set::Scalar Momentum_tangent;
+        Set::Scalar mass;
+        Set::Scalar momentum_normal;
+        Set::Scalar momentum_tangent;
+        Set::Scalar energy;
     };
 
     // todo: convert to static functor by replacing with static () when c++23 is released
-    static Flux Solve(State lo, State hi, Set::Scalar gamma) {
-        Set::Scalar ke_lo = 0.5 * lo.rho * lo.velocity_normal * lo.velocity_normal;
-        Set::Scalar ue_lo = lo.pressure / (gamma - 1);
-        Set::Scalar h_lo = (ke_lo + ue_lo + lo.pressure) / lo.rho;
+    static Flux Solve(State lo, State hi, Set::Scalar gamma)
+    {
+        // STEP 1: Compute (or rename) primitives 
+        Set::Scalar rho_L = lo.rho,              rho_R = hi.rho;
+        Set::Scalar u_L   = lo.velocity_normal,  u_R   = hi.velocity_normal;
+        Set::Scalar v_L   = lo.velocity_tangent, v_R   = hi.velocity_tangent;
+        Set::Scalar p_L   = lo.pressure,         p_R   = hi.pressure;
 
-        Set::Scalar ke_hi = 0.5 * hi.rho * hi.velocity_normal * hi.velocity_normal;
-        Set::Scalar ue_hi = hi.pressure / (gamma - 1);
-        Set::Scalar h_hi = (ke_hi + ue_hi + hi.pressure) / hi.rho;
+        Set::Scalar ke_L = 0.5 * rho_L * u_L * u_L;
+        Set::Scalar ue_L = p_L / (gamma - 1);
+        Set::Scalar h_TL = (ke_L + ue_L + p_L) / rho_L;
 
-        // roe averages
-        Set::Scalar rho_RL = std::sqrt(lo.rho) * std::sqrt(hi.rho);
-        Set::Scalar u_RL = (std::sqrt(hi.rho) * hi.velocity_normal + std::sqrt(lo.rho) * lo.velocity_normal) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
-        Set::Scalar h_RL = (std::sqrt(hi.rho) * h_hi + std::sqrt(lo.rho) * h_lo) / (std::sqrt(hi.rho) + std::sqrt(lo.rho));
-        Set::Scalar a_RL2 = (gamma - 1) * (h_RL - 0.5 * u_RL * u_RL);
-        if (std::isnan(a_RL2)) Util::Abort(INFO, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
-        if (a_RL2 < 0.0) Util::Abort(INFO, hi.pressure, " ", lo.pressure, " ", hi.rho, " ", lo.rho);
-        Set::Scalar a_RL = std::sqrt(a_RL2);
+        Set::Scalar ke_R = 0.5 * rho_R * u_R * u_R;
+        Set::Scalar ue_R = p_R / (gamma - 1);
+        Set::Scalar h_TR = (ke_R + ue_R + p_R) / rho_R;
+        
+        //
+        // STEP 2: Compute Roe-averaged quantities
+        // 
+        Set::Scalar rho_RL  = std::sqrt(rho_L * rho_R);
+        Set::Scalar u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R));
+        Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R));
+        Set::Scalar a_RL_sq = (gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL);
 
-        // flux
+        if ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq))
+        {
+            Util::Message(INFO,rho_L, " ", rho_R);
+            Util::Message(INFO,u_L, " ", u_R);
+            Util::Message(INFO,v_L, " ", v_R);
+            Util::Message(INFO,p_L, " ", p_R);
+        }
+        Util::AssertException(INFO,TEST(a_RL_sq==a_RL_sq)," a_RL_sq is nan/inf; (a_RL_sq=", a_RL_sq,")");
+        Util::AssertException(INFO,TEST(a_RL_sq>=0),      " a_RL_sq is negative; (a_RL_sq=(",a_RL_sq,")");
+
+        Set::Scalar a_RL = std::sqrt(a_RL_sq);
+
+        //
+        // STEP 3: Compute Roe-averaged wave speeds
+        //
+        Set::Scalar lambda1 = u_RL;          // 5.53a
+        Set::Scalar lambda2 = u_RL + a_RL;   // 5.53b
+        Set::Scalar lambda3 = u_RL - a_RL;   // 5.53c
+
+        //
+        // STEP 4: Compute wave strengths
+        //
+        Set::Scalar deltarho= rho_R - rho_L;
+        Set::Scalar deltap  = p_R - p_L;
+        Set::Scalar deltau  = u_R - u_L;
+
+        Set::Scalar deltav1 = deltarho - deltap / a_RL_sq;         // 5.54a
+        Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL); // 5.54b
+        Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL); // 5.54c
+
+        //
+        // STEP 7: Compute fluxes
+        //
         Flux fl;
-        fl.Mass             = 0.5 * (lo.rho * lo.velocity_normal                                     + hi.rho * hi.velocity_normal);
-        fl.Momentum_normal  = 0.5 * (lo.rho * lo.velocity_normal  * lo.velocity_normal + lo.pressure + hi.rho * hi.velocity_normal  * hi.velocity_normal + hi.pressure);
-        fl.Momentum_tangent = 0.5 * (lo.rho * lo.velocity_tangent * lo.velocity_normal               + hi.rho * hi.velocity_tangent * hi.velocity_normal);
-        fl.Energy           = 0.5 * (lo.velocity_normal * (ke_lo + ue_lo + lo.pressure)              + hi.velocity_normal * (ke_hi + ue_hi + hi.pressure));
+        
+        fl.mass =
+            rho_L*u_L
+            + std::min(0.0,lambda1)*deltav1
+            + (0.5*rho_RL/a_RL)*(   std::min(0.0,lambda2)*deltav2 -
+                                    std::min(0.0,lambda3)*deltav3);
+        
+        fl.momentum_normal =
+            rho_L*u_L*u_L + p_L
+            + u_RL*std::min(0.0,lambda1)*deltav1
+            + (0.5*rho_RL/a_RL)*(   lambda2*std::min(0.0,lambda2)*deltav2 -
+                                    lambda3*std::min(0.0,lambda3)*deltav3);
+        
+        fl.energy =
+            rho_L*h_TL*u_L
+            + 0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
+            + (0.5*rho_RL/a_RL)*(   (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
+                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3);
 
-        //compute eigenvalues
-        std::array <double, 3> ev;
-        ev[0] = std::abs(u_RL);
-        ev[1] = std::abs(u_RL + a_RL);
-        ev[2] = std::abs(u_RL - a_RL);
+        //
+        // (Update the tangential momentum flux)
+        //
+        fl.momentum_tangent = 0.5 * (rho_L*u_L*v_L + rho_R*u_R*v_R);
 
-        //compute wave strengths
-
-        Set::Scalar drho, dp, dvel;
-        dvel = (hi.velocity_normal - lo.velocity_normal);
-        dp   = (hi.pressure        - lo.pressure       );
-        drho = (hi.rho             - lo.rho            );
-
-        std::array <double, 3> dv;
-        dv[0] = drho - dp / a_RL2;
-        dv[1] = dvel + dp / (rho_RL * a_RL);
-        dv[2] = dvel - dp / (rho_RL * a_RL);
-
-        //construct right characteristic eigenvectors
-        std::array <double, 3> rev_0;
-        rev_0[0] = 1;
-        rev_0[1] = u_RL;
-        rev_0[2] = 0.5 * u_RL * u_RL;
-
-        std::array <double, 3> rev_1;
-        rev_1[0] = (rho_RL / 2.0 / a_RL);
-        rev_1[1] = (rho_RL / 2.0 / a_RL) * (u_RL + a_RL);
-        rev_1[2] = (rho_RL / 2.0 / a_RL) * (h_RL + a_RL * u_RL);
-
-        std::array <double, 3> rev_2;
-        rev_2[0] = -(rho_RL / 2.0 / a_RL);
-        rev_2[1] = -(rho_RL / 2.0 / a_RL) * (u_RL - a_RL);
-        rev_2[2] = -(rho_RL / 2.0 / a_RL) * (h_RL - a_RL * u_RL);
-
-        //upwinding term 
-        fl.Mass             += -0.5 * (rev_0[0] * ev[0] * dv[0] + rev_1[0] * ev[1] * dv[1] + rev_2[0] * ev[2] * dv[2]);
-        fl.Momentum_normal  += -0.5 * (rev_0[1] * ev[0] * dv[0] + rev_1[1] * ev[1] * dv[1] + rev_2[1] * ev[2] * dv[2]);
-        fl.Momentum_tangent +=  0.0;
-        fl.Energy           += -0.5 * (rev_0[2] * ev[0] * dv[0] + rev_1[2] * ev[1] * dv[1] + rev_2[2] * ev[2] * dv[2]);
 
         return fl;
     }
 
     static int Test()
     {
+        //
+        // !! DO NOT DISABLE THIS TEST !!
+        //
+        // If you **must** disable this test for some reason, then make sure that it returns
+        // a nonzero value - otherwise future users may falsely assume that it is passing tests
+        // when it is not.
+        //
+
         int failed = 0;
         for (int i = 0; i < 10; i++)
         {
@@ -119,8 +152,8 @@ public:
             lo.pressure = Util::Random();
 
             fixed.rho = Util::Random();
-            fixed.velocity_normal = Util::Random();
-            fixed.velocity_tangent = Util::Random();
+            fixed.velocity_normal = 0.0; // Util::Random();
+            fixed.velocity_tangent = 0.0; //Util::Random();
             fixed.pressure = Util::Random();
 
             pos_vel1.rho = Util::Random();
@@ -147,63 +180,69 @@ public:
             // Zero flux test: if the state is the same on both sides,
             //                 the flux should be zero.
             // 
-            // Flux zero = Solve(fixed, fixed, 1.4, 0.5);
+            Flux zero = Solve(fixed, fixed, 1.4);
 
-            // if (fabs(zero.mass) > 1E-10) { Util::Warning(INFO, "Nonzero mass flux ", zero.mass); failed++; }
-            // if (fabs(zero.velocity_normal) > 1E-10) { Util::Warning(INFO, "Nonzero x.velocity flux ", zero.velocity_normal); failed++; }
-            // if (fabs(zero.velocity_tangent) > 1E-10) { Util::Warning(INFO, "Nonzero y.velocity flux ", zero.velocity_tangent); failed++; }
-            // if (fabs(zero.pressure) > 1E-10) { Util::Warning(INFO, "Nonzero.pressure flux ", zero.pressure); failed++; }
+            
 
-            // // 
-            // // Antisymmetry test: reversing hi and lo should produce the same
-            // //                    output 
-            // // 
+            if (fabs(zero.mass) > 1E-10) { Util::Warning(INFO, "Nonzero mass flux ", zero.mass); failed++; }
+            if (fabs(zero.momentum_normal) > 1E-10) { Util::Warning(INFO, "Nonzero x.momentum flux ", zero.momentum_normal); failed++; }
+            if (fabs(zero.momentum_tangent) > 1E-10) { Util::Warning(INFO, "Nonzero y.momentum flux ", zero.momentum_tangent); failed++; }
+            if (fabs(zero.energy) > 1E-10) { Util::Warning(INFO, "Nonzero.pressure flux ", zero.energy); failed++; }
 
-            // Flux plus = Solve(hi, lo, 1.4);
-            // Flux minus = Solve(lo, hi, 1.4);
+            // 
+            // Antisymmetry test: reversing hi and lo should produce the same
+            //                    output 
+            // 
 
-            // if (fabs(plus.mass + minus.mass) > 1E-10)
-            // {
-            //     Util::Warning(INFO, "mass flux error: plus=", plus.mass, " minus=", minus.mass); failed++;
-            // }
-            // if (fabs(plus.velocity_normal - minus.velocity_normal) > 1E-10)
-            // {
-            //     Util::Warning(INFO, .velocity x flux error: plus=", plus.velocity_normal, " minus=", minus.velocity_normal); failed++;
-            // }
-            // if (fabs(plus.velocity_tangent - minus.velocity_tangent) > 1E-10)
-            // {                
-            //     Util::Warning(INFO, .velocity y flux error: plus=", plus.velocity_tangent, " minus=", minus.velocity_tangent); failed++;
-            // }
-            // if (fabs(plus.pressure + minus.pressure) > 1E-10)
-            // {
-            //     Util::Warning(INFO, .pressure flux error: plus=", plus.pressure, " minus=", minus.pressure); failed++;
-            // }
+            Flux plus = Solve(hi, lo, 1.4);
+            Flux minus = Solve(lo, hi, 1.4);
+
+            if (fabs(plus.mass + minus.mass) > 1E-10)
+            {
+                Util::Warning(INFO, "mass flux error: plus=", plus.mass, " minus=", minus.mass);
+                failed++;
+            }
+            if (fabs(plus.momentum_normal - minus.momentum_normal) > 1E-10)
+            {
+                Util::Warning(INFO, ".momentum x flux error: plus=", plus.momentum_normal, " minus=", minus.momentum_normal);
+                failed++;
+            }
+            if (fabs(plus.momentum_tangent - minus.momentum_tangent) > 1E-10)
+            {                
+                Util::Warning(INFO, ".momentum y flux error: plus=", plus.momentum_tangent, " minus=", minus.momentum_tangent);
+                failed++;
+            }
+            if (fabs(plus.energy + minus.energy) > 1E-10)
+            {
+                Util::Warning(INFO, ".energy flux error: plus=", plus.energy, " minus=", minus.energy);
+                failed++;
+            }
 
 
-            // // 
-            //     // Wave Propogation Test: changing the sign of velocity should produce negative mass
-            //     //                   and.pressure fluxes and the same.velocity flux
-            //     // 
+            // 
+            // Wave Propagation Test: changing the sign of velocity should produce negative mass
+            //                   and.pressure fluxes and the same.velocity flux
+            // 
 
-            // Flux pos = Solve(pos_vel1, pos_vel2, 1.4);
-            // Flux neg = Solve(neg_vel1, neg_vel2, 1.4);
+            Flux pos = Solve(pos_vel1, pos_vel2, 1.4);
+            Flux neg = Solve(neg_vel1, neg_vel2, 1.4);
 
-            // if (fabs(pos.mass + neg.mass) > 1E-10)
-            // {                
-            //     Util::Warning(INFO, "mass flux error: positive vel=", pos.mass, " negative vel=", neg.mass); failed++;
-            // }
-            // if (fabs(pos.velocity_normal - neg.velocity_normal) > 1E-10)
-            // {
-            //     Util::Warning(INFO, .velocity x flux error: positive vel=", pos.velocity_normal, " negative vel=", neg.velocity_normal); failed++;
-            // }
-            // if (fabs(pos.velocity_tangent - neg.velocity_tangent) > 1E-10)
-            // {
-            //     Util::Warning(INFO, .velocity y flux error: positive vel=", pos.velocity_tangent, " negative vel=", neg.velocity_tangent); failed++;
-            // }
-            // if (fabs(pos.pressure + neg.pressure) > 1E-10)
-            // {
-            //     Util::Warning(INFO, .pressure flux error: positive vel=", pos.pressure, " negative vel=", neg.pressure); failed++;
-            // }
+            if (fabs(pos.mass + neg.mass) > 1E-10)
+            {                
+                Util::Warning(INFO, "mass flux error: positive vel=", pos.mass, " negative vel=", neg.mass); failed++;
+            }
+            if (fabs(pos.momentum_normal - neg.momentum_normal) > 1E-10)
+            {
+                Util::Warning(INFO, ".momentum x flux error: positive momentum=", pos.momentum_normal, " negative momentum=", neg.momentum_normal); failed++;
+            }
+            if (fabs(pos.momentum_tangent - neg.momentum_tangent) > 1E-10)
+            {
+                Util::Warning(INFO, ".momentum y flux error: positive momentum=", pos.momentum_tangent, " negative momentum=", neg.momentum_tangent); failed++;
+            }
+            if (fabs(pos.energy + neg.energy) > 1E-10)
+            {
+                Util::Warning(INFO, ".energy flux error: positive energy=", pos.energy, " negative vel=", neg.energy); failed++;
+            }
 
 
         }

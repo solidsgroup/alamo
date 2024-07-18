@@ -22,16 +22,17 @@ def readHeader(path):
 
 
 def validate(path, 
-            outdir,
-            vars = [],
-            start = [0,0,0],
-            end = [1,1,1],
-            axis = 2,
-            intercept = 0,
-            generate_ref_data = False,
-            reference=None,
-            tolerance=1E-8,
-            coord = 'x'):
+             outdir,
+             vars = [],
+             start = [0,0,0],
+             end = [1,1,1],
+             axis = 2,
+             intercept = 0,
+             generate_ref_data = False,
+             reference=None,
+             tolerance=1E-8,
+             coord = 'x',
+             tight_layout = True):
             
     info = readHeader(path)
             
@@ -60,22 +61,26 @@ def validate(path,
         print("Reference data generated, now exiting noisily so we don't accidentally pass the test")
         exit(-1)
     
-    ref_df = pandas.read_csv(reference)
 
     all_ok = True
     if not type(tolerance)==list:
         tolerance = [tolerance] * len(vars)
     elif len(tolerance) != len(vars):
         raise Exception("Wrong number of tolerance values")
-    for var, tol in zip(vars,tolerance):
+    for i, (var, tol) in enumerate(zip(vars,tolerance)):
+        if isinstance(reference,list):
+            ref_df = pandas.read_csv(reference[i])
+        else:
+            ref_df = pandas.read_csv(reference)
+        
         len_x = info["geom_hi"][0]-info["geom_lo"][0]
         len_y = info["geom_hi"][1]-info["geom_lo"][1]
         data2d = slice2d.to_frb(width=len_x,height=len_y,resolution=(1000,1000*len_y/len_x))[var]
         pylab.clf()
         pylab.imshow(data2d,origin='lower',cmap='jet',
-                    extent=[info["geom_lo"][0],info["geom_hi"][0],info["geom_lo"][1],info["geom_hi"][1]])
+                     extent=[info["geom_lo"][0],info["geom_hi"][0],info["geom_lo"][1],info["geom_hi"][1]])
         pylab.plot([start[0],end[0]],[start[1],end[1]],linestyle='-',color='white')
-        pylab.tight_layout()
+        if tight_layout: pylab.tight_layout()
         pylab.savefig("{}/2d_{}.png".format(outdir,var))
 
         new_x,new_y,new_var = [numpy.array(_x) for _x in zip(*sorted(zip(new_df["x"],new_df["y"],new_df[var])))]
@@ -88,19 +93,28 @@ def validate(path,
         elif coord == 'y':
             new_coord = new_y
             ref_coord = ref_y
-
+            
+        #print(type(ref_coord),axis=None)
+        final_coord = sorted(numpy.concatenate((ref_coord, new_coord),axis=None))
+        ref_final_var   = numpy.interp(final_coord, ref_coord, ref_var)
+        new_final_var   = numpy.interp(final_coord, new_coord, new_var)
+            
         pylab.clf()
-        pylab.plot(ref_coord,ref_var,color='C0',label='ref')
-        pylab.plot(new_coord,new_var,color='C1',label='new',linestyle='--')
+        pylab.plot(final_coord,ref_final_var,color='C0',label='ref')
+        pylab.plot(final_coord,new_final_var,color='C1',label='new',linestyle='--')
+        pylab.xlabel(coord)
+        pylab.ylabel(var)
         pylab.legend()
         pylab.savefig(outdir+"/{}.png".format(var))
-        
-        err = numpy.sqrt(integrate(ref_coord, (numpy.interp(ref_coord, new_coord, new_var) - ref_var)**2))
-        mag = numpy.sqrt(integrate(ref_coord, (numpy.interp(ref_coord, new_coord, new_var) + ref_var)**2))
+        err = numpy.sqrt(integrate(final_coord, (    new_final_var  -     ref_final_var )**2))
+        mag = numpy.sqrt(integrate(final_coord, (abs(new_final_var) + abs(ref_final_var))**2))
+
+
 
         relerr = err/mag
 
         print("{} abs error [tolerance={}]".format(var,tol),err)
+        print("{} norm".format(var),mag)
         print("{} rel error [tolerance={}]".format(var,tol),relerr)
         
         if relerr > tol: all_ok = False
