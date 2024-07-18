@@ -24,9 +24,9 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query("max_step", max_step);               // Number of iterations before ending
         pp_query_required("stop_time", stop_time);    // Simulation time before ending
         pp_query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
-        pp_query_file("restart", restart_file_cell);       // Name of restart file to READ from
-        pp_query_file("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
-        pp_query_file("restart_node", restart_file_node);  // Name of node-fab restart file to read from
+        pp_query_default("restart", restart_file_cell, "");       // Name of restart file to READ from
+        pp_query_default("restart_cell", restart_file_cell, "");  // Name of cell-fab restart file to read from
+        pp_query_default("restart_node", restart_file_node, "");  // Name of node-fab restart file to read from
     }
     {
         // This allows the user to ignore certain arguments that
