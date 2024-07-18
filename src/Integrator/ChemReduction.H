@@ -74,7 +74,7 @@ private:
     struct {
         Set::Scalar G; // Shear Modulli 
         Set::Scalar K; // Bulk Modulli 
-        Set::scalar D; // Diffusivity
+        Set::Scalar D; // Diffusivity
         Set::Scalar L; // Mobility
         Set::Scalar M; // Mobility
     } fe;
@@ -82,7 +82,7 @@ private:
     struct {
         Set::Scalar G; // Shear Modulli 
         Set::Scalar K; // Bulk Modulli 
-        Set::scalar D; // Diffusivity
+        Set::Scalar D; // Diffusivity
         Set::Scalar L; // Mobility
         Set::Scalar M; // Mobility
     } h;
@@ -90,7 +90,7 @@ private:
     struct {
         Set::Scalar G; // Shear Modulli 
         Set::Scalar K; // Bulk Modulli 
-        Set::scalar D; // Diffusivity
+        Set::Scalar D; // Diffusivity
         Set::Scalar L; // Mobility
         Set::Scalar M; // Mobility
     } o;
