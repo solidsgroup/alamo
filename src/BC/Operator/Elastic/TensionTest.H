@@ -18,7 +18,7 @@ public:
     {};
 
     TensionTest(IO::ParmParse &pp, std::string name) : TensionTest()
-    { pp.queryclass(name,*this); }
+    { pp_queryclass(name,*this); }
 
 
     ~TensionTest() {};
@@ -36,18 +36,18 @@ public:
         std::string disp = "0.0", trac = "0.0";
         LoadingMode mode;
 
-        pp.query("type",type); // Tension test type. (Only option right now is :code:`uniaxial_stress_clamp`)
+        pp_query("type",type); // Tension test type. (Only option right now is :code:`uniaxial_stress_clamp`)
         
         if (pp.contains("trac") && pp.contains("disp")) 
             Util::Abort(INFO,"Cannot specify both trac and disp");
         else if (pp.contains("disp"))
         {
-            pp.query("disp",disp); // Applied displacement (can be interpolator)
+            pp_query("disp",disp); // Applied displacement (can be interpolator)
             mode = LoadingMode::DISP;
         }
         else if (pp.contains("trac"))
         {
-            pp.query("trac",trac); // Applied traction (can be interpolator)
+            pp_query("trac",trac); // Applied traction (can be interpolator)
             mode = LoadingMode::TRAC;
         }
         else
@@ -112,7 +112,7 @@ public:
             value.m_bc_type[Face::ZLO_XLO][0]     = Type::Displacement;
             value.m_bc_type[Face::ZHI_XLO][0]     = Type::Displacement;
             value.m_bc_type[Face::XLO_YLO_ZLO][0] = Type::Displacement;
-            value.m_bc_type[Face::XLO_YLO_ZHI][0] = Type::Displacement;https://solidsgroup.github.io/alamo/docs/Inputs.html#ic-constant
+            value.m_bc_type[Face::XLO_YLO_ZHI][0] = Type::Displacement;
             value.m_bc_type[Face::XLO_YHI_ZLO][0] = Type::Displacement;
             value.m_bc_type[Face::XLO_YHI_ZHI][0] = Type::Displacement;
             #endif

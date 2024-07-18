@@ -642,10 +642,10 @@ public:
         Linear::Parse(value, pp);
 
         // Number of newton-raphson iterations.
-        pp.query("nriters", value.m_nriters);
+        pp_query("nriters", value.m_nriters);
 
         // Tolerance to use for newton-raphson convergence
-        pp.query("nrtolerance", value.m_nrtolerance); 
+        pp_query("nrtolerance", value.m_nrtolerance); 
     }
 
 };

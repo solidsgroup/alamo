@@ -14,4 +14,13 @@ Example output:
    :scale: 50%
    :align: center
 
-Notice that the sharp corner in the equilibrium shape is the result of strong anisotropy. :cite:t:`ribot2019new`
+Notice that the sharp corner in the equilibrium shape is the result of strong anisotropy. 
+
+
+.. bibliography::
+   :list: bullet
+   :filter: False
+
+   ribot2019new
+
+

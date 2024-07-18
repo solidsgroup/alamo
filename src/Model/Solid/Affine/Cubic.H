@@ -75,7 +75,7 @@ public:
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         Linear::Cubic::Parse(value,pp);
-        if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
+        if (pp.contains("F0")) pp_queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE

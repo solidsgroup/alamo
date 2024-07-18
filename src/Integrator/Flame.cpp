@@ -19,7 +19,7 @@ Flame::Flame() : Base::Mechanics<model_type>() {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
 {
-    pp.queryclass(*this);
+    pp_queryclass(*this);
 }
 
 // [parser]
@@ -28,33 +28,33 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
-        //pp.query("fields_verbose", value.plot_field);
-        pp.query("timestep", value.base_time);
+        //pp_query("fields_verbose", value.plot_field);
+        pp_query("timestep", value.base_time);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
-        pp.query("pf.eps", value.pf.eps); // Burn width thickness
-        pp.query("pf.kappa", value.pf.kappa); // Interface energy param
-        pp.query("pf.gamma", value.pf.gamma); // Scaling factor for mobility
-        pp.query("pf.lambda", value.pf.lambda); // Chemical potential multiplier
-        pp.query("pf.w1", value.pf.w1); // Unburned rest energy
-        pp.query("pf.w12", value.pf.w12);  // Barrier energy
-        pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-        pp.query("amr.ghost_cells", value.ghost_count); // number of ghost cells in all fields
-        pp.query("geometry.x_len", value.x_len); // Domain x length
-        pp.query("geometry.y_len", value.y_len); // Domain y length
+        pp_query("pf.eps", value.pf.eps); // Burn width thickness
+        pp_query("pf.kappa", value.pf.kappa); // Interface energy param
+        pp_query("pf.gamma", value.pf.gamma); // Scaling factor for mobility
+        pp_query("pf.lambda", value.pf.lambda); // Chemical potential multiplier
+        pp_query("pf.w1", value.pf.w1); // Unburned rest energy
+        pp_query("pf.w12", value.pf.w12);  // Barrier energy
+        pp_query("pf.w0", value.pf.w0);    // Burned rest energy
+        pp_query("amr.ghost_cells", value.ghost_count); // number of ghost cells in all fields
+        pp_query("geometry.x_len", value.x_len); // Domain x length
+        pp_query("geometry.y_len", value.y_len); // Domain y length
 
         value.bc_eta = new BC::Constant(1);
-        pp.queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
+        pp_queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, value.ghost_count, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
         std::string eta_bc_str = "constant";
-        pp.query("pf.eta.ic.type", eta_bc_str); // Eta boundary condition [constant, expression]
+        pp_query("pf.eta.ic.type", eta_bc_str); // Eta boundary condition [constant, expression]
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
         std::string eta_ic_type = "constant";
-        pp.query("eta.ic.type", eta_ic_type); // Eta initial condition [constant, laminate, expression, bmp]
+        pp_query("eta.ic.type", eta_ic_type); // Eta initial condition [constant, laminate, expression, bmp]
         if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
@@ -65,46 +65,52 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     {
         //IO::ParmParse pp("thermal");
-        pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
-        pp.query("elastic.on", value.elastic.on); // Whether to use Neo-hookean Elastic model
-        pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
-        pp.query("elastic.traction", value.elastic.traction); // Body force
-        pp.query("elastic.phirefinement", value.elastic.phirefinement); // Phi refinement criteria 
+        pp_query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
+        pp_query("elastic.on", value.elastic.on); // Whether to use Neo-hookean Elastic model
+        pp_query("thermal.bound", value.thermal.bound); // System Initial Temperature
+        pp_query("elastic.traction", value.elastic.traction); // Body force
+        pp_query("elastic.phirefinement", value.elastic.phirefinement); // Phi refinement criteria 
 
 
 
         if (value.thermal.on) {
-            pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
-            pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
-            pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
-            pp.query("thermal.k_htpb", value.thermal.k_htpb); // HTPB Thermal Conductivity
-            pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
-            pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
+            pp_query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
+            pp_query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
+            pp_query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
+            pp_query("thermal.k_htpb", value.thermal.k_htpb); // HTPB Thermal Conductivity
+            pp_query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
+            pp_query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
 
-            pp.query("thermal.q0", value.thermal.q0); // Baseline heat flux
+            pp_query("thermal.q0", value.thermal.q0); // Baseline heat flux
 
-            pp.query("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
-            pp.query("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
-            pp.query("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
-            pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
+            pp_query("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
+            pp_query("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
+            pp_query("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
+            pp_query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
 
-            pp.query("thermal.hc", value.thermal.hc); // Used to change heat flux units
-            pp.query("thermal.massfraction", value.thermal.massfraction); // Systen AP mass fraction
-            pp.query("thermal.mlocal_ap", value.thermal.mlocal_ap); // AP mass flux reference value 
-            pp.query("thermal.mlocal_htpb", value.thermal.mlocal_htpb); // HTPB mass flux reference value 
-            pp.query("thermal.mlocal_comb", value.thermal.mlocal_comb); // AP/HTPB mass flux reference value 
+            pp_query("thermal.hc", value.thermal.hc); // Used to change heat flux units
+            pp_query("thermal.massfraction", value.thermal.massfraction); // Systen AP mass fraction
+            pp_query("thermal.mlocal_ap", value.thermal.mlocal_ap); // AP mass flux reference value 
+            pp_query("thermal.mlocal_htpb", value.thermal.mlocal_htpb); // HTPB mass flux reference value 
+            pp_query("thermal.mlocal_comb", value.thermal.mlocal_comb); // AP/HTPB mass flux reference value 
 
-            pp.query("thermal.T_fluid", value.thermal.T_fluid); // Temperature of the Standin Fluid 
+            pp_query("thermal.T_fluid", value.thermal.T_fluid); // Temperature of the Standin Fluid 
 
+<<<<<<< HEAD
             pp.query("thermal.disperssion1", value.thermal.disperssion1); // K; dispersion variables are use to set the outter field properties for the void grain case.
             pp.query("thermal.disperssion2", value.thermal.disperssion2); // rho; dispersion variables are use to set the outter field properties for the void grain case.
             pp.query("thermal.disperssion3", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
+=======
+            pp_query("thermal.disperssion1", value.thermal.disperssion1); // K; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query("thermal.disperssion1", value.thermal.disperssion2); // rho; dispersion variables are use to set the outter field properties for the void grain case.
+            pp_query("thermal.disperssion1", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
+>>>>>>> 9ef1951cb4c007867ba5e1b0aa071165c53a6ad7
 
-            pp.query("thermal.modeling_ap", value.thermal.modeling_ap); // Scaling factor for AP thermal conductivity (default = 1.0)
-            pp.query("thermal.modeling_htpb", value.thermal.modeling_htpb); // Scaling factor for HTPB thermal conductivity (default = 1.0)
+            pp_query("thermal.modeling_ap", value.thermal.modeling_ap); // Scaling factor for AP thermal conductivity (default = 1.0)
+            pp_query("thermal.modeling_htpb", value.thermal.modeling_htpb); // Scaling factor for HTPB thermal conductivity (default = 1.0)
 
             value.bc_temp = new BC::Constant(1);
-            pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
+            pp_queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
             value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, value.ghost_count + 1, "temp", true);
             value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, value.ghost_count + 1, "temp_old", false);
             value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, value.ghost_count + 1, "temps", false);
@@ -123,89 +129,97 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
             std::string laser_ic_type = "constant";
-            pp.query("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
+            pp_query("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
             else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
             else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
+
+            std::string temp_ic_type;
+            pp_query_validate("temp.ic.type", temp_ic_type,{"default","constant","expression","bmp","png"}); // Temperature initial condition
+            if (temp_ic_type == "constant") value.thermal.ic_temp = new IC::Constant(value.geom, pp, "temp.ic.constant");
+            else if (temp_ic_type == "expression") value.thermal.ic_temp = new IC::Expression(value.geom, pp, "temp.ic.expression");
+            else if (temp_ic_type == "bmp") value.thermal.ic_temp = new IC::BMP(value.geom, pp, "temp.ic.bmp");
+            else if (temp_ic_type == "png") value.thermal.ic_temp = new IC::PNG(value.geom, pp, "temp.ic.png");
+            else if (temp_ic_type == "default") value.thermal.ic_temp = nullptr;
         }
     }
 
     {
-        pp.query("pressure.P", value.pressure.P); // Constant pressure value
+        pp_query("pressure.P", value.pressure.P); // Constant pressure value
         if (value.thermal.on)
         {
-            pp.query("pressure.a1", value.pressure.arrhenius.a1); // Surgate heat flux model paramater - AP
-            pp.query("pressure.a2", value.pressure.arrhenius.a2); // Surgate heat flux model paramater - HTPB
-            pp.query("pressure.a3", value.pressure.arrhenius.a3); // Surgate heat flux model paramater - Total
-            pp.query("pressure.b1", value.pressure.arrhenius.b1); // Surgate heat flux model paramater - AP
-            pp.query("pressure.b2", value.pressure.arrhenius.b2); // Surgate heat flux model paramater - HTPB
-            pp.query("pressure.b3", value.pressure.arrhenius.b3); // Surgate heat flux model paramater - Total
-            pp.query("pressure.c1", value.pressure.arrhenius.c1); // Surgate heat flux model paramater - Total
-            pp.query("pressure.mob_ap", value.pressure.arrhenius.mob_ap); // Whether to include pressure to the arrhenius law
-            pp.query("pressure.dependency", value.pressure.arrhenius.dependency); // Whether to use pressure to determined the reference Zeta 
-            pp.query("pressure.h1", value.pressure.arrhenius.h1); // Surgate heat flux model paramater - Homogenized
-            pp.query("pressure.h2", value.pressure.arrhenius.h2); // Surgate heat flux model paramater - Homogenized
+            pp_query("pressure.a1", value.pressure.arrhenius.a1); // Surgate heat flux model paramater - AP
+            pp_query("pressure.a2", value.pressure.arrhenius.a2); // Surgate heat flux model paramater - HTPB
+            pp_query("pressure.a3", value.pressure.arrhenius.a3); // Surgate heat flux model paramater - Total
+            pp_query("pressure.b1", value.pressure.arrhenius.b1); // Surgate heat flux model paramater - AP
+            pp_query("pressure.b2", value.pressure.arrhenius.b2); // Surgate heat flux model paramater - HTPB
+            pp_query("pressure.b3", value.pressure.arrhenius.b3); // Surgate heat flux model paramater - Total
+            pp_query("pressure.c1", value.pressure.arrhenius.c1); // Surgate heat flux model paramater - Total
+            pp_query("pressure.mob_ap", value.pressure.arrhenius.mob_ap); // Whether to include pressure to the arrhenius law
+            pp_query("pressure.dependency", value.pressure.arrhenius.dependency); // Whether to use pressure to determined the reference Zeta 
+            pp_query("pressure.h1", value.pressure.arrhenius.h1); // Surgate heat flux model paramater - Homogenized
+            pp_query("pressure.h2", value.pressure.arrhenius.h2); // Surgate heat flux model paramater - Homogenized
 
         }
         else
         {
-            pp.query("pressure.r_ap", value.pressure.power.r_ap);     // AP power pressure law parameter (r*P^n)
-            pp.query("pressure.r_htpb", value.pressure.power.r_htpb); // HTPB power pressure law parameter (r*P^n)
-            pp.query("pressure.r_comb", value.pressure.power.r_comb); // AP/HTPB power pressure law parameter (r*P^n)
-            pp.query("pressure.n_ap", value.pressure.power.n_ap);     // AP power pressure law parameter (r*P^n)
-            pp.query("pressure.n_htpb", value.pressure.power.n_htpb); // HTPB power pressure law parameter (r*P^n)
-            pp.query("pressure.n_comb", value.pressure.power.n_comb); // AP/HTPB power pressure law parameter (r*P^n)
+            pp_query("pressure.r_ap", value.pressure.power.r_ap);     // AP power pressure law parameter (r*P^n)
+            pp_query("pressure.r_htpb", value.pressure.power.r_htpb); // HTPB power pressure law parameter (r*P^n)
+            pp_query("pressure.r_comb", value.pressure.power.r_comb); // AP/HTPB power pressure law parameter (r*P^n)
+            pp_query("pressure.n_ap", value.pressure.power.n_ap);     // AP power pressure law parameter (r*P^n)
+            pp_query("pressure.n_htpb", value.pressure.power.n_htpb); // HTPB power pressure law parameter (r*P^n)
+            pp_query("pressure.n_comb", value.pressure.power.n_comb); // AP/HTPB power pressure law parameter (r*P^n)
         }
-        pp.query("variable_pressure", value.variable_pressure); // Whether to compute the pressure evolution
-        pp.query("homogeneousSystem", value.homogeneousSystem); // Whether to initialize Phi with homogenized properties
+        pp_query("variable_pressure", value.variable_pressure); // Whether to compute the pressure evolution
+        pp_query("homogeneousSystem", value.homogeneousSystem); // Whether to initialize Phi with homogenized properties
     }
 
-    pp.query("amr.refinement_criterion", value.m_refinement_criterion);// Refinement criterion for eta field   
-    pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion);// Refinement criterion for temperature field    
-    pp.query("amr.refinament_restriction", value.t_refinement_restriction);// Eta value to restrict the refinament for the temperature field 
-    pp.query("amr.phi_refinement_criterion", value.phi_refinement_criterion);// Refinement criterion for phi field [infinity]
-    pp.query("small", value.small); // Lowest value of Eta.
+    pp_query("amr.refinement_criterion", value.m_refinement_criterion);// Refinement criterion for eta field   
+    pp_query("amr.refinement_criterion_temp", value.t_refinement_criterion);// Refinement criterion for temperature field    
+    pp_query("amr.refinament_restriction", value.t_refinement_restriction);// Eta value to restrict the refinament for the temperature field 
+    pp_query("amr.phi_refinement_criterion", value.phi_refinement_criterion);// Refinement criterion for phi field [infinity]
+    pp_query("small", value.small); // Lowest value of Eta.
 
     {
         // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
         // specified using these parameters. 
         //IO::ParmParse pp("phi.ic");
         std::string phi_ic_type = "packedspheres";
-        pp.query("phi.ic.type", phi_ic_type); // IC type (psread, laminate, constant)
+        pp_query("phi.ic.type", phi_ic_type); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             //value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-            pp.query("phi.ic.psread.eps", value.zeta); // AP/HTPB interface length
-            pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
+            pp_query("phi.ic.psread.eps", value.zeta); // AP/HTPB interface length
+            pp_query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
         }
         else if (phi_ic_type == "laminate") {
             value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             //value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
-            pp.query("phi.ic.laminate.eps", value.zeta); // AP/HTPB interface length
-            pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
+            pp_query("phi.ic.laminate.eps", value.zeta); // AP/HTPB interface length
+            pp_query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
         }
         else if (phi_ic_type == "expression") {
             value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
             //value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
-            pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
-            pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
+            pp_query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
+            pp_query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
         else if (phi_ic_type == "constant") {
             value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
             //value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
-            pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
-            pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
+            pp_query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
+            pp_query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
         else if (phi_ic_type == "bmp") {
             value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             //value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
-            pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
-            pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
+            pp_query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
+            pp_query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
         else if (phi_ic_type == "png") {
             value.ic_phi = new IC::PNG(value.geom, pp, "phi.ic.png");
-            pp.query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
-            pp.query("phi.zeta", value.zeta); // AP/HTPB interface length
+            pp_query("phi.zeta_0", value.zeta_0); // Reference interface length for heat integration
+            pp_query("phi.zeta", value.zeta); // AP/HTPB interface length
         }
         else Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
@@ -213,14 +227,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
     }
 
-    pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
+    pp_queryclass("elastic",static_cast<Base::Mechanics<model_type>&>(value));
 
     if (value.m_type != Type::Disable)
     {
         value.elastic.Tref = value.thermal.bound;
-        pp.query("Tref", value.elastic.Tref); // Initial temperature for thermal expansion computation
-        pp.queryclass("model_ap", value.elastic.model_ap);
-        pp.queryclass("model_htpb", value.elastic.model_htpb);
+        pp_query("Tref", value.elastic.Tref); // Initial temperature for thermal expansion computation
+        pp_queryclass("model_ap", value.elastic.model_ap);
+        pp_queryclass("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
@@ -244,10 +258,20 @@ void Flame::Initialize(int lev)
         rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
     if (thermal.on) {
-        temp_mf[lev]->setVal(thermal.bound);
-        temp_old_mf[lev]->setVal(thermal.bound);
-        temps_mf[lev]->setVal(thermal.bound);
-        temps_old_mf[lev]->setVal(thermal.bound);
+        if (thermal.ic_temp)
+        {
+            thermal.ic_temp->Initialize(lev,temp_mf);
+            thermal.ic_temp->Initialize(lev,temp_old_mf);
+            thermal.ic_temp->Initialize(lev,temps_mf);
+            thermal.ic_temp->Initialize(lev,temps_old_mf);
+        }
+        else
+        {
+            temp_mf[lev]->setVal(thermal.bound);
+            temp_old_mf[lev]->setVal(thermal.bound);
+            temps_mf[lev]->setVal(thermal.bound);
+            temps_old_mf[lev]->setVal(thermal.bound);
+        }
         alpha_mf[lev]->setVal(0.0);
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);

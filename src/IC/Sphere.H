@@ -26,11 +26,11 @@ public:
     Sphere(amrex::Vector<amrex::Geometry>& _geom): IC(_geom) {}
     Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp): IC(_geom)
     {
-        pp.queryclass(*this);
+        pp_queryclass(*this);
     }
     Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name): IC(_geom)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     }
     /// Constructor defining radius, center, dimension/orientation, and field values within and outside of the area.
     Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type = Type::XYZ, Set::Scalar _alpha_in = 1, Set::Scalar _alpha_out = 0)
@@ -132,12 +132,12 @@ public:
     // with the Expression IC.
     static void Parse(Sphere& value, IO::ParmParse& pp)
     {
-        pp.query("radius", value.radius); // Radius of the sphere
-        pp.queryarr("center", value.center); // Vector location of the sphere center
-        pp.query("inside", value.alpha_in); // Value of the field inside the sphere
-        pp.query("outside", value.alpha_out); // Value of the field outside teh sphere
+        pp_query("radius", value.radius); // Radius of the sphere
+        pp_queryarr("center", value.center); // Vector location of the sphere center
+        pp_query("inside", value.alpha_in); // Value of the field inside the sphere
+        pp_query("outside", value.alpha_out); // Value of the field outside teh sphere
         std::string type;
-        pp.query("type", type); // Type - can be cylinder oriented along the x, y, z directions or full sphere.
+        pp_query("type", type); // Type - can be cylinder oriented along the x, y, z directions or full sphere.
         if (type == "yz")
             value.type = Type::YZ;
         if (type == "zx")

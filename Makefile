@@ -184,6 +184,11 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst .FORCE
 	@make -C docs html # > /dev/null
 
 
+check: .FORCE
+	@./scripts/checkdoc.py
+	@./.github/workflows/style/check_tabs.py
+	@eclint check src
+
 test: .FORCE
 	@./.github/workflows/style/check_tabs.py
 	@make docs

@@ -32,7 +32,7 @@ public:
         Define(_alpha,AMREX_D_DECL(_n1,_n2,_n3),_dim);
     }
     Trig(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom)
-    {pp.queryclass(name,*this);}
+    {pp_queryclass(name,*this);}
 
 
     void Define(Set::Scalar _alpha = 1.0,
@@ -164,9 +164,9 @@ public:
     static void Parse(Trig & value, IO::ParmParse & pp)
     {
         std::vector<int> n_real(AMREX_SPACEDIM,0.0);
-        pp.queryarr("nr",n_real); // Number of real (cosin) waves
+        pp_queryarr("nr",n_real); // Number of real (cosin) waves
         std::vector<int> n_imag(AMREX_SPACEDIM,0.0);
-        pp.queryarr("ni",n_imag); // Number of imaginary (sin) waves
+        pp_queryarr("ni",n_imag); // Number of imaginary (sin) waves
 
         AMREX_D_TERM(
             value.n1 = std::complex<int>(n_real[0],n_imag[0]);,
@@ -178,8 +178,8 @@ public:
             value.phi2 = std::atan2(value.n2.imag(),value.n2.real()),
             value.phi3 = std::atan2(value.n3.imag(),value.n3.real()));
 
-        pp.query("dim",value.dim); // Spatial dimension
-        pp.query("alpha",value.alpha); // Multiplier
+        pp_query("dim",value.dim); // Spatial dimension
+        pp_query("alpha",value.alpha); // Multiplier
 
     }
 
