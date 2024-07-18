@@ -92,9 +92,9 @@ Integrator::Integrator() : amrex::AmrCore()
         // data (to show up in thermo.dat)
         IO::ParmParse pp("amr.thermo");
         thermo.interval = 1;                           // Default: integrate every time.
-        pp_query("int", thermo.interval);              // Integration interval (1)
-        pp_query("plot_int", thermo.plot_int);         // Interval (in timesteps) between writing
-        pp_query("plot_dt", thermo.plot_dt);           // Interval (in simulation time) between writing
+        pp_query_default("int", thermo.interval, -1);              // Integration interval (1)
+        pp_query_default("plot_int", thermo.plot_int, -1.0);         // Interval (in timesteps) between writing
+        pp_query_default("plot_dt", thermo.plot_dt, -1.0);           // Interval (in simulation time) between writing
     }
 
     {
@@ -102,7 +102,7 @@ Integrator::Integrator() : amrex::AmrCore()
         // set of grids to work on. This is pretty much always used
         // for testing purposes only.
         IO::ParmParse pp("explicitmesh");
-        pp_query("on", explicitmesh.on); // Use explicit mesh instead of AMR
+        pp_query_default("on", explicitmesh.on, 0); // Use explicit mesh instead of AMR
         if (explicitmesh.on)
         {
             for (int ilev = 0; ilev < maxLevel(); ++ilev)
