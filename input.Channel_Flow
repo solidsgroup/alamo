@@ -13,7 +13,7 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 200 30 0
+amr.n_cell = 400 60 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -28,7 +28,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-4
 stop_time = 1000.0
 
 ### ETA IC ###
@@ -48,7 +48,7 @@ deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.eps   = 0.2
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.region0        = "(0.5*tanh((y+0.5)/eps) - 0.5*tanh((y - 1.5)/eps))"
@@ -64,13 +64,18 @@ Ldot_active = 0.0
 rho_solid = 200.0 #kgvInjected/m^3 
 rho_fluid = 200.0 #kg/m^3
 
-Velocity.ic.type = expression
-Velocity.ic.expression.region0 = "0.001"
-Velocity.ic.expression.region1 = "0.0"
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "0.001"
+velocity.ic.expression.region1 = "0.0"
 
-Pressure.ic.type = expression
-Pressure.ic.expression.constant.gamma = 1.4
-Pressure.ic.expression.region0 = "2.0"
+solid.velocity.ic.type = constant
+solid.velocity.ic.constant.value = 0.0 0.0
+
+
+
+pressure.ic.type = expression
+pressure.ic.expression.constant.gamma = 1.4
+pressure.ic.expression.region0 = "2.0"
 
 ### ETA BC  ###
 
@@ -90,34 +95,35 @@ pf.eta.bc.val.zhi = 0.0
 
 ### HYDRO BC ###
 
-rho.bc.type.xhi = neumann
-rho.bc.type.xlo = dirichlet
-rho.bc.type.ylo = neumann
-rho.bc.type.yhi = neumann
+density.ic.type = constant
+density.ic.constant.value = 200.0
 
-rho.bc.val.xhi = 0.0
-rho.bc.val.xlo = 200.0
-rho.bc.val.ylo = 0.0 
-rho.bc.val.yhi = 0.0
+density.bc.type.xhi = neumann
+density.bc.type.xlo = dirichlet
+density.bc.type.ylo = neumann
+density.bc.type.yhi = neumann
+density.bc.val.xhi = 0.0
+density.bc.val.xlo = 200.0
+density.bc.val.ylo = 0.0 
+density.bc.val.yhi = 0.0
 
-p.bc.type.xhi = dirichlet
-p.bc.type.xlo = neumann
-p.bc.type.ylo = neumann
-p.bc.type.yhi = neumann
+pressure.bc.type.xhi = neumann
+pressure.bc.type.xlo = neumann
+pressure.bc.type.ylo = neumann
+pressure.bc.type.yhi = neumann
+pressure.bc.val.xhi = 0.0
+pressure.bc.val.xlo = 0.0
+pressure.bc.val.ylo = 0.0 
+pressure.bc.val.yhi = 0.0
 
-p.bc.val.xhi = 2.0
-p.bc.val.xlo = 0.0
-p.bc.val.ylo = 0.0 
-p.bc.val.yhi = 0.0
-
-v.bc.type.xhi = neumann neumann
-v.bc.type.xlo = dirichlet neumann
-v.bc.type.ylo = dirichlet dirichlet
-v.bc.type.yhi = dirichlet dirichlet
-v.bc.val.xhi = 0.0 0.0
-v.bc.val.xlo = 0.001 0.0
-v.bc.val.ylo = 0.0 0.0
-v.bc.val.yhi = 0.0 0.0
+velocity.bc.type.xlo = dirichlet neumann
+velocity.bc.type.xhi = neumann neumann
+velocity.bc.type.ylo = dirichlet dirichlet
+velocity.bc.type.yhi = dirichlet dirichlet
+velocity.bc.val.xlo = 0.001 0.0
+velocity.bc.val.xhi = 0.0 0.0
+velocity.bc.val.ylo = 0.0 0.0
+velocity.bc.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
