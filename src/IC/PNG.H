@@ -6,7 +6,12 @@
 #define IC_PNG_H
 #include <cmath>
 
-#include "png.h"
+#ifndef ALAMO_NOPNG
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <png.h>
+#endif
 
 #include "IC/IC.H"
 #include "Util/Util.H"
@@ -27,11 +32,13 @@ public:
 
     PNG(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : PNG(_geom)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     }
 
     void Define(std::string filename)
     {
+#ifndef ALAMO_NOPNG
+
         FILE* fp = std::fopen(filename.c_str(), "rb");
 
         if (fp == NULL) Util::Abort(INFO, "Cannot find file", filename);
@@ -89,11 +96,15 @@ public:
         fclose(fp);
 
         png_destroy_read_struct(&png, &info, NULL);
+#else
+        Util::Abort(INFO,"PNG is disabled");
+#endif
     }
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
 
+#ifndef ALAMO_NOPNG
         Set::Vector DX(geom[lev].CellSize());
         amrex::Box domain = geom[lev].Domain();
 
@@ -233,9 +244,14 @@ public:
             });
         }
         a_field[lev]->FillBoundary();
+#else
+        Util::Abort(INFO,"PNG is disabled");
+#endif
+        
     };
 
 private:
+#ifndef ALAMO_NOPNG
     int png_width, png_height;
     png_byte color_type;
     png_byte bit_depth;
@@ -246,31 +262,35 @@ private:
     //Util::BMP bmp;
     Fit fit = Fit::Stretch;
     Channel channel = Channel::G;
-    Set::Scalar min = 0.0, max = 255.0;
+    Set::Scalar min = NAN, max = NAN;
+#endif
 
 public:
     static void Parse(PNG& value, IO::ParmParse& pp)
     {
+#ifndef ALAMO_NOPNG
         std::string filename;
-        pp.query("filename", filename); // BMP filename.
+        pp_query_file("filename", filename); // BMP filename.
         value.Define(filename);
         //value.bmp.Define(filename);
 
         std::string fit = "stretch";
-        pp.query("fit", fit); // How to fit. {options: stretch, fitheight, fitwidth}
+        pp_query("fit", fit); // How to fit. {options: stretch, fitheight, fitwidth}
         if (fit == "stretch")        value.fit = Fit::Stretch;
         else if (fit == "fitheight") value.fit = Fit::FitHeight;
         else if (fit == "fitwidth")  value.fit = Fit::FitWidth;
         else if (fit == "coord")
         {
             value.fit = Fit::Coord;
-            pp.queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
-            pp.queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
+            pp_queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
+            pp_queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
         }
         else Util::Abort(INFO, "Invalid value for png fit - should be stretch/fitheight/fitwidth/coord but received '", fit, "'");
 
         std::string channel = "g";
-        pp.query("channel", channel); // Color channel to use (options: r, R, g, G, b, B, a, A)
+        //pp_query("channel", channel); // Color channel to use (options: r, R, g, G, b, B, a, A)
+        
+        pp_query_validate("channel", channel, {"r","g","b","a","R","G","B","A"}); // Color channel to use (options: r, R, g, G, b, B, a, A)
         if (channel == "r" || channel == "R") value.channel = Channel::R;
         else if (channel == "g" || channel == "G") value.channel = Channel::G;
         else if (channel == "b" || channel == "B") value.channel = Channel::B;
@@ -279,8 +299,11 @@ public:
 
         value.min = 0.0; //(Set::Scalar) value.bmp.min()[value.channel];
         value.max = 255.0; //(Set::Scalar) value.bmp.max()[value.channel];
-        pp.query("min", value.min); // Scaling value - minimum (default: 0.0)
-        pp.query("max", value.max); // Scaling value - maximum (default: 255.0)
+        pp_query_default("min", value.min, 0.0  ); // Scaling value - minimum
+        pp_query_default("max", value.max, 255.0); // Scaling value - maximum
+#else
+        Util::Abort(INFO,"PNG is disabled");
+#endif
     }
 };
 }

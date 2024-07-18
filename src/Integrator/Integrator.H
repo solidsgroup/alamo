@@ -93,7 +93,7 @@ public:
     /// ```
     Integrator();
 
-    ~Integrator();
+    virtual ~Integrator();
 
     /// \fn    FrontData
     /// \brief Front-end method to initialize simulation
@@ -230,12 +230,14 @@ protected:
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout);
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
     template<class T>
-    inline void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
+    void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
     template<class T>
-    inline void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true);
+    void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true);
+    template<class T>
+    void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving = true);
 
     template<class T, int d>
-    inline void AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string, bool writeout, bool evolving);
+    void AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string, bool writeout, bool evolving);
 
     void SetFinestLevel(const int a_finestlevel)
     {
@@ -249,7 +251,7 @@ protected:
             m_basefields[i]->SetFinestLevel(finest_level);
     }
 
-    void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name);
+    void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive=true);
 
     void SetTimestep(Set::Scalar _timestep);
     void SetPlotInt(int plot_int);
@@ -296,7 +298,7 @@ protected:
 
     // TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
-    amrex::Real timestep;   ///< Timestep for the base level of refinement
+    amrex::Real timestep = NAN;   ///< Timestep for the base level of refinement
 private:
     amrex::Vector<amrex::Real> dt;  ///< Timesteps for each level of refinement
     amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
@@ -305,7 +307,7 @@ private:
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
     int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
     amrex::Real tstart = 0; ///< Default start time (default: 0)
-    amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
+    amrex::Real stop_time = NAN; ///< Default stop time 
 
 protected:
     bool integrate_variables_before_advance = true;
@@ -350,6 +352,7 @@ protected:
         int number = 0;
         std::vector<Set::Scalar*> vars;
         std::vector<std::string> names;
+        std::vector<bool> extensives;
     } thermo;
 
     // REGRIDDING
@@ -371,7 +374,8 @@ protected:
 
 
 template<>
-inline void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<Set::Scalar>& new_field,
+ALAMO_SINGLE_DEFINITION
+void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<Set::Scalar>& new_field,
     BC::BC<Set::Scalar>* new_bc,
     int ncomp,
     int nghost,
@@ -392,7 +396,8 @@ inline void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<S
 }
 
 template<>
-inline void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Scalar>& new_field,
+ALAMO_SINGLE_DEFINITION
+void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Scalar>& new_field,
     BC::BC<Set::Scalar>* new_bc,
     int ncomp,
     int nghost,
@@ -414,7 +419,8 @@ inline void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<S
 }
 
 template<class T, int d>
-inline void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving)
+ALAMO_SINGLE_DEFINITION
+void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving)
 {
     if (d == Set::Hypercube::Node)
     {
@@ -450,18 +456,26 @@ inline void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, in
 
 
 template<class T>
-inline void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving)
+ALAMO_SINGLE_DEFINITION
+void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving) 
 {
-    Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
+    //Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, "", true, evolving);
 }
 template<class T>
-inline void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving)
+ALAMO_SINGLE_DEFINITION
+void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving)
 {
-    Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
+    //Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
     AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, a_name, true, evolving);
 }
-
+template<class T>
+AMREX_ATTRIBUTE_WEAK
+void Integrator::RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving)
+{
+    //Util::Warning(INFO, "RegisterGeneralFab is depricated. Please replace with AddField");
+    AddField<T, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, a_name, writeout, evolving);
+}
 
 }
 #endif

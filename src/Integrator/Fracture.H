@@ -65,7 +65,7 @@ public:
 
         // IC for crack field
         IO::ParmParse pp("crack.ic");
-        pp.queryarr("type", crack.ic_type); // Type of crack {notch,ellipsoid}
+        pp_queryarr("type", crack.ic_type); // Type of crack {notch,ellipsoid}
         
         if (crack.ic_type.size() == 0) crack.is_ic = false;
         else
@@ -76,13 +76,13 @@ public:
                 if(crack.ic_type[i] == "notch")
                 {
                     IC::Notch *tmpic = new IC::Notch(geom);
-                    pp.queryclass("notch",*tmpic);
+                    pp_queryclass("notch",*tmpic);
                     crack.ic.push_back(tmpic);
                 }
                 else if (crack.ic_type[i] == "ellipsoid")
                 {
                     IC::Ellipsoid *tmpic = new IC::Ellipsoid(geom);
-                    pp.queryclass("ellipsoid",*tmpic);
+                    pp_queryclass("ellipsoid",*tmpic);
                     crack.ic.push_back(tmpic);
                 }
                 else
@@ -331,7 +331,7 @@ protected:
             IO::ParmParse pp("elastic");
             Solver::Nonlocal::Newton<brittle_fracture_model_type_test>  solver(op_b);
             //Solver::Nonlocal::Linear<brittle_fracture_model_type_test>  solver(op_b);
-            pp.queryclass("solver",solver);
+            pp_queryclass("solver",solver);
             solver.solve(elastic.disp_mf, elastic.rhs_mf, material.model_mf,1E-8,1E-8);
             solver.compResidual(elastic.residual_mf,elastic.disp_mf,elastic.rhs_mf,material.model_mf);
         }

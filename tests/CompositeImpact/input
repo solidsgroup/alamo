@@ -1,0 +1,77 @@
+#@
+#@ [2d-parallel]
+#@ dim=2
+#@ exe=mechanics
+#@ nprocs=4
+#@ check  = false
+##
+
+alamo.program.mechanics.model = affine.j2
+
+plot_file		    = tests/CompositeImpact/output
+
+type=dynamic
+
+timestep		    = 0.001
+stop_time		    = 10.0
+
+amr.plot_dt		    = 0.1
+amr.max_level		    = 2
+amr.blocking_factor	    = 16
+amr.regrid_int		    = 500
+amr.grid_eff		    = 1.0
+amr.cell.all                = 1
+
+geometry.is_periodic	    = 0 0 0
+
+amr.n_cell		    = 256 96 256
+geometry.prob_lo	    = -16 -6 -8 
+geometry.prob_hi	    = 16 6 8
+
+
+ic.type = bmp
+ic.bmp.filename = tests/CompositeImpact/spheres2.bmp
+ic.bmp.fit = "coord"
+ic.bmp.coord.lo = -16 -6
+ic.bmp.coord.hi = 16 2
+
+# elastic moduli
+nmodels = 2
+model1.E = 1.1 
+model1.nu = 0.3
+model1.sigma0=0.5
+model1.hardening=15
+model1.ratecoeff=0.5
+model2.E = 4.1 
+model2.nu = 0.3
+model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
+model2.sigma0=1000
+
+viscous.mu_dashpot = 0.25
+viscous.mu_newton = 0.1
+
+bc.type = expression
+bc.expression.type.yhi = trac trac trac
+bc.expression.val.yhi = "0.0" "- 6.0 * (t < 2) * (0.5*(1+tanh(3-abs(x))))"
+bc.expression.type.ylo = trac trac trac
+
+time_evolving = 0
+
+
+# Elastic refinement criterion
+ref_threshold = 0.1
+eta_ref_threshold = 10.1
+eta_reset_on_regrid = 1
+
+#bc.type = constant
+#bc.constant.type.xlo = disp trac trac
+#bc.constant.type.xhi = disp trac trac
+#bc.constant.val.xhi = 0.1 0.0 0.0
+#bc.constant.type.ylo = trac disp trac
+#bc.constant.type.yhi = trac disp trac
+#bc.constant.type.xloylo = disp trac trac
+#bc.constant.type.xloyhi = disp trac trac
+#bc.constant.type.xhiylo = disp disp trac
+#bc.constant.type.xhiyhi = disp disp trac
+#bc.constant.val.xhiylo = 0.1 0.0 0.0
+#bc.constant.val.xhiyhi = 0.1 0.0 0.0

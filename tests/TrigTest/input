@@ -1,9 +1,11 @@
 #@  [2D-1AMR-Levels-serial]
+#@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
 #@  args = amr.max_level=0
 #@
 #@  [2D-1AMR-Levels-serial-coverage]
+#@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
 #@  args = amr.max_level=0
@@ -11,23 +13,28 @@
 #@  check = false
 #@
 #@  [2D-2AMRLevels-serial]
+#@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
 #@  args = amr.max_level=1
 #@
 #@  [2D-3AMRLevels-serial]
+#@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
 #@
 #@  [2D-3AMRLevels-parallel]
+#@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 4
 #@ 
 #@  [3D-1AMRLevels-serial]
+#@  exe=mechanics
 #@  dim = 3
 #@  nprocs = 1
 #@
 #@  [3D-3AMRLevels-parallel]
+#@  exe=mechanics
 #@  dim = 3
 #@  nprocs = 4
 
@@ -66,6 +73,9 @@ rhs.trig.nr = 0 0 0
 rhs.trig.ni = 1 1 1
 rhs.dim = 1
 rhs.alpha = 1
+
+# laplacian coefficient
+model.alpha = 1
 
 solver.verbose = 3
 solver.nriters = 1

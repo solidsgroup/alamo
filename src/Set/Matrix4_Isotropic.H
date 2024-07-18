@@ -1,3 +1,26 @@
+//
+// The isotropic tensor is defined to be
+//
+// .. math::
+// 
+//     C_{ijkl} = \mu(d_{il}d_{jk} + d_{ik}d_{jl}) + \lambda d_{ij} d_{kl}
+// 
+// The inverse ("compliance") tensor is 
+// 
+// .. math::
+//
+//     S_{ijkl} = ((1+\nu)/2E)(d_{il}d_{jl} + d_{ik}d_{jl}) - (\nu/E)d_{ij}d_{kl}
+//
+// Replacing E, nu with Lame constants gives:
+// 
+// .. math::
+//
+//     S_{ijkl} = (1/(4 \mu))(d_{il}d_{jl} + d_{ik}d_{jl}) + (\lambda/(2*\mu*(3\lambda+2\mu))) * d_{ij} * d_{kl}
+//
+// For reference: http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm
+//                https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
+//
+
 #ifndef SET_MATRIX4_ISOTROPIC_H
 #define SET_MATRIX4_ISOTROPIC_H
 
@@ -13,6 +36,7 @@ class Matrix4<AMREX_SPACEDIM,Sym::Isotropic>
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_GPU_HOST_DEVICE Matrix4(Set::Scalar a_lambda, Set::Scalar a_mu) : lambda(a_lambda), mu(a_mu) {};
+
     /// Note: for the Isotropic Matrix4 this routine works for **retrieval only**!
     /// If you try to assign a value using this with, say
     ///
@@ -54,23 +78,8 @@ public:
         return zero;
     }
 
-    //
-    // The isotropic tensor is defined to be
-    //
-    // C_{ijkl} = mu(d_{il}d_{jk} + d_{ik}d_{jl}) + lambda d_{ij} d_{kl}
-    // 
-    // The inverse ("compliance") tensor is 
-    // 
-    // S_{ijkl} = ((1+nu)/2E)(d_{il}d_{jl} + d_{ik}d_{jl}) - (nu/E)d_{ij}d_{kl}
-    //
-    // Replacing E, nu with Lame constants gives:
-    // 
-    // S_{ijkl} = (1/(4 mu))(d_{il}d_{jl} + d_{ik}d_{jl}) + (lambda/(2*mu*(3lambda+2mu))) * d_{ij} * d_{kl}
-    //
-    // For reference: http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm
-    //                https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
-    //
-    Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Inverse()
+
+    Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Inverse() const
     {
         Matrix4<AMREX_SPACEDIM,Sym::Isotropic> inv;
         inv.mu = 1./4./mu;
@@ -81,6 +90,7 @@ public:
     friend Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix3 &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator - (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
+    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator / (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
     friend bool operator == (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a,const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
@@ -127,6 +137,10 @@ Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const S
     #endif         
     return ret;
 }
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Matrix operator * (const Set::Matrix &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a)
+{return a*b;}
+
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix3 &b)

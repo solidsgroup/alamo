@@ -1,15 +1,18 @@
 #@
 #@ [2d-serial]
+#@ exe=mechanics
 #@ dim=2
 #@ benchmark-beaker=16.9
 #@
 #@ [2d-serial-coverage]
+#@ exe=mechanics
 #@ dim=2
 #@ args=stop_time=0.1
 #@ check=false
 #@ coverage=true
 #@
 #@ [2d-parallel]
+#@ exe=mechanics
 #@ dim=2
 #@ nprocs=2
 #@ benchmark-beaker=12.49

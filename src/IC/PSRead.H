@@ -31,7 +31,7 @@ public:
 
     PSRead(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
-        pp.queryclass(name, *this);
+        pp_queryclass(name, *this);
     }
 
     void Define() {
@@ -105,13 +105,13 @@ public:
     {
         std::string filename;
         int verbose = 0;
-        pp.query("eps", value.eps); // Diffuseness of the sphere boundary
-        pp.query("filename", filename); // Location of .xyzr file
-        pp.query("verbose", verbose); // Verbosity (used in parser only)
-        pp.query("mult",value.mult); // Coordinate multiplier
+        pp_query("eps", value.eps); // Diffuseness of the sphere boundary
+        pp_query_file("filename", filename); // Location of .xyzr file
+        pp_query("verbose", verbose); // Verbosity (used in parser only)
+        pp_query("mult",value.mult); // Coordinate multiplier
         pp.query("invert",value.invert); // Coordinate multiplier
         if (pp.contains("x0"))
-            pp.queryarr("x0",value.x0); // Coordinate offset
+            pp_queryarr("x0",value.x0); // Coordinate offset
         std::ifstream datafile(filename);
         std::string line;
         if (datafile.is_open())

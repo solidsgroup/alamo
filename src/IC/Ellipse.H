@@ -25,7 +25,7 @@ public:
 
     Ellipse (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
     Ellipse (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : Ellipse(_geom)
-    {pp.queryclass(name,*this);}
+    {pp_queryclass(name,*this);}
     
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
@@ -107,31 +107,31 @@ public:
             value.eps.resize(0);
             
             value.number_of_inclusions = 0;
-            pp.queryarr("x0",x0); // Coorinates of ellipse center
+            pp_queryarr("x0",x0); // Coorinates of ellipse center
             value.center.push_back(Set::Vector(AMREX_D_DECL(x0[0],x0[1],x0[2])));
 
             Set::Scalar _eps;
-            pp.query("eps",_eps); // Diffuse boundary thickness
+            pp_query_default("eps",_eps,0.0); // Diffuse boundary thickness
             value.eps.push_back(_eps);
 
             Set::Matrix _A = Set::Matrix::Zero();
             if (pp.contains("A"))
             {
-                pp.queryarr("A",_A); // DxD square matrix defining an ellipse. 
+                pp_queryarr("A",_A); // DxD square matrix defining an ellipse. 
                 value.A.push_back(_A);
             }
             else if (pp.contains("a"))
             {
                 Set::Matrix _A = Set::Matrix::Zero();
                 Set::Vector a = Set::Vector::Ones();
-                pp.queryarr("a",a); // If :code:`A` is not defined, then assume a sphere with radius :code:`a`
+                pp_queryarr("a",a); // If :code:`A` is not defined, then assume a sphere with radius :code:`a`
                 for (int d = 0; d < AMREX_SPACEDIM; d++) _A(d,d) = 1./a(d)/a(d);
                 value.A.push_back(_A);
             }
         }
         else
         {
-            pp.query("number_of_inclusions",value.number_of_inclusions); // Number of ellipses
+            pp_query("number_of_inclusions",value.number_of_inclusions); // Number of ellipses
             if(value.number_of_inclusions < 1) Util::Abort(INFO, "number of inclusions have to be at least 1");
             
             value.center.resize(0);
@@ -139,8 +139,8 @@ public:
             value.eps.resize(0);
 
             if (pp.contains("center") && pp.contains("x0")) Util::Abort(INFO,"Cannot specify both center (depricated) and x0");
-            pp.queryarr("center", x0); // center of the ellipse
-            pp.queryarr("x0", x0); // center of the ellipse
+            pp_queryarr("center", x0); // center of the ellipse
+            pp_queryarr("x0", x0); // center of the ellipse
             
             if(x0.size() != value.number_of_inclusions*AMREX_SPACEDIM){
                 Util::Message(INFO, value.number_of_inclusions*AMREX_SPACEDIM);
@@ -152,13 +152,13 @@ public:
             if (pp.contains("A"))
             {
                 amrex::Vector<Set::Scalar> _A;
-                pp.queryarr("A", _A); // either a vector containing ellipse radii, or a matrix defining the ellipse
+                pp_queryarr("A", _A); // either a vector containing ellipse radii, or a matrix defining the ellipse
                 if(_A.size() != value.number_of_inclusions*AMREX_SPACEDIM*AMREX_SPACEDIM && _A.size() != AMREX_SPACEDIM*AMREX_SPACEDIM)
                     Util::Abort(INFO, "Invalid value of A for ellipse initialization");
                 if(_A.size() ==  AMREX_SPACEDIM*AMREX_SPACEDIM)
                 {
                     Set::Matrix _A1 = Set::Matrix::Zero();
-                    pp.queryarr("A",_A1); // Same
+                    pp_queryarr("A",_A1); // Same
                     for (int i = 0; i < value.number_of_inclusions; i++)
                         value.A.push_back(_A1);
                 } 
@@ -183,7 +183,7 @@ public:
             else if (pp.contains("radius"))
             {
                 amrex::Vector<Set::Scalar> _r;
-                pp.queryarr("radius", _r); // Array of radii [depricated]
+                pp_queryarr("radius", _r); // Array of radii [depricated]
 
                 if(_r.size() != value.number_of_inclusions*AMREX_SPACEDIM && _r.size() != AMREX_SPACEDIM)
                     Util::Abort(INFO, "Invalid value of radius for ellipse initialization");
@@ -206,7 +206,7 @@ public:
             }
 
             amrex::Vector<Set::Scalar> _eps;
-            pp.queryarr("eps",_eps); // Regularization for smooth boundary
+            pp_queryarr("eps",_eps); // Regularization for smooth boundary
             if(_eps.size() != 1 && _eps.size() != value.number_of_inclusions)
                 Util::Abort(INFO, "Incorrect eps. Check the number of values specified");
             
@@ -217,7 +217,7 @@ public:
                 for (int i = 0; i < value.number_of_inclusions; i++) value.eps.push_back(_eps[i]);
         }
         // Flip the inside and the outside
-        pp.query("invert",value.invert);
+        pp_query("invert",value.invert);
     }
 };
 }

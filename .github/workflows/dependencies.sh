@@ -6,7 +6,7 @@ sudo apt-get install -y --no-install-recommends \
   build-essential \
   g++ gfortran \
   libmpich-dev libmpich12 mpich libeigen3-dev libpng-dev \
-  python3-pip npm lcov
+  python3-pip npm lcov doxygen
 
 # Requirements for regression test scripts
 pip3 install yt matplotlib numpy pandas

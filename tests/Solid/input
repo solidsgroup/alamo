@@ -1,9 +1,11 @@
 #@
 #@  [linear-isotropic]
+#@  exe=mechanics
 #@  dim = 3
 #@  check = false
 #@
 #@  [linear-cubic]
+#@  exe=mechanics
 #@  dim = 3
 #@  check-file = reference/linear-cubic.dat
 #@  args = alamo.program.mechanics.model=linear.cubic
@@ -14,6 +16,7 @@
 #@  coverage = true
 #@  
 #@  [affine-cubic]
+#@  exe=mechanics
 #@  dim = 3
 #@  check-file = reference/affine-cubic.dat
 #@  args = alamo.program.mechanics.model=affine.cubic
@@ -26,6 +29,7 @@
 #@
 #@
 #@  [affine-hexagonal]
+#@  exe=mechanics
 #@  dim = 3
 #@  check-file = reference/affine-hexagonal.dat
 #@  args = alamo.program.mechanics.model=affine.hexagonal
@@ -39,6 +43,7 @@
 #@  coverage = true
 #@
 #@  [j2]
+#@  exe=mechanics
 #@  dim = 3
 #@  check-file = reference/j2.dat
 #@  args = timestep = 0.001
@@ -52,6 +57,7 @@
 #@  benchmark-github = 11.09
 #@
 #@  [affine-isotropic]
+#@  exe=mechanics
 #@  dim = 3
 #@  check = false
 #@  args = alamo.program.mechanics.model=affine.isotropic
@@ -61,10 +67,11 @@
 #@  coverage=true
 #@
 #@  [neo-hookean]
+#@  exe=mechanics
 #@  dim=3
 #@  check-file = reference/neo-hookean.dat
 #@  args = timestep=0.01
-#@  args = alamo.program.mechanics.model=elastic.neohookean
+#@  args = alamo.program.mechanics.model=finite.neohookean
 #@  args = model1.mu=3.0
 #@  args = model1.kappa=6.5
 #@  args = bc.tension_test.disp=(0,1:0,1)
@@ -75,10 +82,11 @@
 #@  benchmark-github = 11.35
 #@ 
 #@  [neo-hookean-2d]
+#@  exe=mechanics
 #@  dim=2
 #@  check-file = reference/neo-hookean-2d.dat
 #@  args = timestep=0.01
-#@  args = alamo.program.mechanics.model=elastic.neohookean
+#@  args = alamo.program.mechanics.model=finite.neohookean
 #@  args = model1.mu=3.0
 #@  args = model1.kappa=6.5
 #@  args = bc.tension_test.disp=(0,1:0,1)
@@ -87,9 +95,10 @@
 #@  coverage = true
 #@
 #@  [pseudolinear-cubic]
+#@  exe=mechanics
 #@  dim = 3
 #@  check-file = reference/pseudolinear-cubic.dat
-#@  args = alamo.program.mechanics.model=elastic.pseudolinearcubic
+#@  args = alamo.program.mechanics.model=finite.pseudolinearcubic
 #@  args = model1.C11=168.3
 #@  args = model1.C12=1.221
 #@  args = model1.C44=0.757

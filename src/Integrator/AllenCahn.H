@@ -59,20 +59,20 @@ public:
     static void Parse(AllenCahn& value, IO::ParmParse& pp)
     {
         // Criterion for mesh refinement [0.01]
-        pp.query("refinement_threshold", value.refinement_threshold);
+        pp_query("refinement_threshold", value.refinement_threshold);
 
         // Value for :math:`L` (mobility)
-        pp.query("ch.L",value.ch.L);
+        pp_query("ch.L",value.ch.L);
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp.query("ch.eps",value.ch.eps);
+        pp_query("ch.eps",value.ch.eps);
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp.query("ch.grad",value.ch.grad);
+        pp_query("ch.grad",value.ch.grad);
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp.query("ch.chempot",value.ch.chempot);
+        pp_query("ch.chempot",value.ch.chempot);
 
         std::string type = "sphere";
         // Initial condition type ([sphere], constant, expression, bmp)
-        pp.query("alpha.ic.type", type);
+        pp_query("alpha.ic.type", type);
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
@@ -83,7 +83,7 @@ public:
         // Use a constant BC object for temperature
         value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
-        pp.queryclass("alpha.bc", *static_cast<BC::Constant*>(value.bc));
+        pp_queryclass("alpha.bc", *static_cast<BC::Constant*>(value.bc));
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.
