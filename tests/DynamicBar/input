@@ -1,0 +1,114 @@
+#@
+#@ [pressure-profile-2d]
+#@ exe=mechanics
+#@ dim=2
+#@ check-file = reference/pressure-profile-2d.dat
+#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+#@
+#@ [pressure-profile-3d]
+#@ exe=mechanics
+#@ dim=3
+#@ check-file = reference/pressure-profile-3d.dat
+#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+#@
+#@ [flyer-plate-impact-2d]
+#@ exe=mechanics
+#@ dim=2
+#@ check-file = reference/flyer-plate-impact-2d.dat
+#@ args = velocity.ic.type = expression
+#@ args = velocity.ic.expression.region0 = "10.0*(x<4)"
+#@ args = velocity.ic.expression.region1 = "0.0"
+#@ args = velocity.ic.expression.region2 = "0.0"
+#@
+#@ [flyer-plate-impact-3d]
+#@ exe=mechanics
+#@ dim=3
+#@ check-file = reference/flyer-plate-impact-3d.dat
+#@ args = velocity.ic.type = expression
+#@ args = velocity.ic.expression.region0 = "10.0*(x<4)"
+#@ args = velocity.ic.expression.region1 = "0.0"
+#@ args = velocity.ic.expression.region2 = "0.0"
+#@
+
+alamo.program.mechanics.model = affine.isotropic
+
+plot_file		    = tests/DynamicBar/output
+
+type=dynamic
+
+timestep		    = 0.005
+stop_time		    = 100.0
+
+amr.plot_dt		    = 1
+amr.max_level		    = 0
+amr.blocking_factor	    = 8
+amr.regrid_int		    = 50
+amr.grid_eff		    = 1.0
+amr.cell.all                = 1
+
+# geometry
+geometry.is_periodic	    = 0 0 0
+amr.n_cell		    = 128 8 8
+geometry.prob_lo	    = 0 -1 -1
+geometry.prob_hi	    = 32 1  1
+
+ic.type = constant
+ic.constant.value = 1.0
+
+
+# elastic moduli
+nmodels = 1
+model1.E = 1.1 
+model1.nu = 0.3
+
+viscous.mu_dashpot = 0
+viscous.mu_newton = 0.05
+
+
+bc.type = expression
+
+## boundary conditions ##
+## 2D and 3D ##
+bc.expression.type.xlo     = trac trac disp
+bc.expression.type.xloyhi  = trac disp trac
+bc.expression.type.xloylo  = trac disp trac
+bc.expression.type.xhi     = trac trac disp
+bc.expression.type.xhiyhi  = trac disp trac
+bc.expression.type.xhiylo  = trac disp trac
+bc.expression.type.ylo     = trac disp trac
+bc.expression.type.yhi     = trac disp trac
+## 3D only ##
+#  faces
+bc.expression.type.zlo     = trac trac disp
+bc.expression.type.zhi     = trac trac disp
+#  edges
+bc.expression.type.zhixlo  = trac trac disp
+bc.expression.type.zloxlo  = trac trac disp
+bc.expression.type.zhixhi  = trac trac disp
+bc.expression.type.zloxhi  = trac trac disp
+bc.expression.type.ylozlo  = trac disp disp
+bc.expression.type.ylozhi  = trac disp disp
+bc.expression.type.yhizlo  = trac disp disp
+bc.expression.type.yhizhi  = trac disp disp
+##  corners
+bc.expression.type.xloylozlo  = trac disp disp
+bc.expression.type.xloylozhi  = trac disp disp
+bc.expression.type.xloyhizlo  = trac disp disp
+bc.expression.type.xloyhizhi  = trac disp disp
+bc.expression.type.xhiylozlo  = trac disp disp
+bc.expression.type.xhiylozhi  = trac disp disp
+bc.expression.type.xhiyhizlo  = trac disp disp
+bc.expression.type.xhiyhizhi  = trac disp disp
+
+time_evolving = 0
+
+
+# Elastic refinement criterion
+ref_threshold = 0.01
+eta_ref_threshold = 10.1
+eta_reset_on_regrid = 1
+

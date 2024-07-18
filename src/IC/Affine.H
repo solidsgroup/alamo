@@ -25,10 +25,10 @@ public:
         IC(_geom)
     {
         amrex::ParmParse pp("ic");
-        amrex::Vector<amrex::Real> ntmp; pp.queryarr("n",ntmp); // Normal vector for hyperplane
+        amrex::Vector<amrex::Real> ntmp; pp_queryarr("n",ntmp); // Normal vector for hyperplane
         for (int i = 0; i < AMREX_SPACEDIM; i++) n(i) = ntmp[i];
         Util::Warning(INFO,"This function is not complete");
-        pp.query("alpha",alpha); // Value of the field on the positive side of the hyperplane
+        pp_query("alpha",alpha); // Value of the field on the positive side of the hyperplane
     }
   
     Affine (amrex::Vector<amrex::Geometry> &_geom,

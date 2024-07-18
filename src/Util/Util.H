@@ -44,7 +44,7 @@ std::complex<int> Parse(std::string);
 }
 
 std::string GetFileName();
-void CopyFileToOutputDir(std::string a_path, bool fullpath = true);
+void CopyFileToOutputDir(std::string a_path, bool fullpath = true, std::string prefix = "");
 
 std::pair<std::string,std::string> GetOverwrittenFile();
 
@@ -186,6 +186,72 @@ void Warning (std::string file, std::string func, int line, Args const &... args
         std::cout << info << message << std::endl;
     }
 }
+
+
+template<typename... Args>
+void Exception (std::string file, std::string func, int line, Args const &... args)
+{
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        std::ostringstream infostream;
+        infostream << Color::Bold << Color::FG::Red << "EXCEPTION" << Color::Reset << ": ";
+        infostream << Color::FG::LightGray << file << ":" << line << " (" << func << Color::Reset << ") ";
+        std::string info = infostream.str();
+
+        std::ostringstream messagestream;
+        messagestream << Color::FG::Red;
+        using List= int[];
+        (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+        messagestream << Color::Reset;
+
+        std::string message = messagestream.str();
+
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
+
+        std::cout << info << message << std::endl;
+
+        std::throw_with_nested(std::runtime_error("IO::Exception"));
+    }
+}
+
+template<typename... Args>
+void ParmParseException (   std::string file, std::string func, int line,
+                            std::string file2, std::string /*func2*/, int line2,
+                            std::string fullname,
+                            Args const &... args)
+{
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        std::ostringstream infostream;
+        infostream << Color::Bold << Color::FG::Red << "EXCEPTION" << Color::Reset << ": ";
+        infostream << Color::FG::LightGray << file << ":" << line << " (" << func << Color::Reset << ") ";
+        std::string info = infostream.str();
+
+        std::ostringstream messagestream;
+        messagestream << Color::FG::Red;
+        using List= int[];
+        (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+        messagestream << Color::Reset;
+
+        const std::size_t nargs = sizeof...(Args);
+
+        if (nargs) messagestream << "\n";
+        messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
+        if (line2 >= 0)
+        {
+            messagestream << " at " << file2 << ":" << line2;
+        }
+
+        std::string message = messagestream.str();
+
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
+
+        std::cout << info << message << std::endl;
+
+        std::throw_with_nested(std::runtime_error("IO::ParmParse Exception"));
+    }
+}
+
 
 std::pair<std::string,std::string>
 CreateCleanDirectory (const std::string &path, bool callbarrier = true);

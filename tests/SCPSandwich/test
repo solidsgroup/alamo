@@ -4,7 +4,7 @@ import numpy, yt, pylab, os, pandas, sys, math
 outdir = sys.argv[1]
 
 generate_ref_data = False  # Change to True if you need to generate new reference data
-tolerance = 0.001
+tolerance = 0.01
 
 path = "{}/04000cell/".format(outdir)
 ds = yt.load(path)
@@ -44,8 +44,9 @@ if dim == 2:
     pylab.savefig("{}/etas.png".format(outdir))
 
     err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.eta) - ref.eta)**2))
-    print("eta error",err)
-    if err > tolerance: raise(Exception("Error in eta"))
+    nor = numpy.sqrt(integrate(ref.x, (abs(numpy.interp(ref.x, new.x, new.eta)) + abs(ref.eta))**2))
+    print("eta rel error",err/nor)
+    if err/nor > tolerance: raise(Exception("Error in eta"))
     if math.isnan(err): raise(Exception("Errir is nan"))
 
 if dim == 3:

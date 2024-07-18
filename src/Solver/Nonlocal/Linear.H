@@ -298,38 +298,38 @@ public:
     static void Parse(Linear& value, amrex::ParmParse& pp)
     {
         // Max number of iterations to perform before erroring out
-        pp.query("max_iter", value.max_iter);
+        pp_query("max_iter", value.max_iter);
 
         // Max number of iterations on the bottom solver
-        pp.query("bottom_max_iter", value.bottom_max_iter);
+        pp_query("bottom_max_iter", value.bottom_max_iter);
 
         // Max number of F-cycle iterations to perform
-        pp.query("max_fmg_iter", value.max_fmg_iter);
+        pp_query("max_fmg_iter", value.max_fmg_iter);
 
         // DEPRICATED - do not use
         if (pp.contains("max_fixed_iter"))
             Util::Abort(INFO, "max_fixed_iter is depricated. Use fixed_iter instead.");
 
         // Number of fixed iterations to perform before exiting gracefully
-        pp.query("fixed_iter", value.fixed_iter);
+        pp_query("fixed_iter", value.fixed_iter);
 
         // Verbosity of the solver (1-5)
-        pp.query("verbose", value.verbose);
+        pp_query("verbose", value.verbose);
 
         // Number of smoothing operations before bottom solve (2)
-        pp.query("pre_smooth", value.pre_smooth);
+        pp_query("pre_smooth", value.pre_smooth);
 
         // Number of smoothing operations after bottom solve (2)
-        pp.query("post_smooth", value.post_smooth);
+        pp_query("post_smooth", value.post_smooth);
 
         // Number of final smoothing operations when smoother is used as bottom solver (8)
-        pp.query("final_smooth", value.final_smooth);
+        pp_query("final_smooth", value.final_smooth);
 
         // Additional smoothing after bottom CG solver (0)
-        pp.query("bottom_smooth", value.bottom_smooth);
+        pp_query("bottom_smooth", value.bottom_smooth);
 
         // The method that is used for the multigrid bottom solve (cg, bicgstab, smoother)
-        pp.query("bottom_solver", value.bottom_solver);
+        pp_query("bottom_solver", value.bottom_solver);
 
         if (pp.contains("cg_tol_rel"))
             Util::Abort(INFO, "cg_tol_rel is depricated. Use bottom_tol_rel instead.");
@@ -337,42 +337,42 @@ public:
             Util::Abort(INFO, "cg_tol_abs is depricated. Use bottom_tol_abs instead.");
 
         // Relative tolerance on bottom solver
-        pp.query("bottom_tol_rel", value.bottom_tol_rel);
+        pp_query("bottom_tol_rel", value.bottom_tol_rel);
 
         // Absolute tolerance on bottom solver
-        pp.query("bottom_tol_abs", value.bottom_tol_abs);
+        pp_query("bottom_tol_abs", value.bottom_tol_abs);
 
         // Relative tolerance
-        pp.query("tol_rel", value.tol_rel);
+        pp_query("tol_rel", value.tol_rel);
 
         // Absolute tolerance
-        pp.query("tol_abs", value.tol_abs);
+        pp_query("tol_abs", value.tol_abs);
 
         // Omega (used in gauss-seidel solver)
-        pp.query("omega", value.omega);
+        pp_query("omega", value.omega);
 
         // Whether to average down coefficients or use the ones given.
         // (Setting this to true is important for fracture.)
-        pp.query("average_down_coeffs", value.average_down_coeffs);
+        pp_query("average_down_coeffs", value.average_down_coeffs);
 
         // Whether to normalize DDW when calculating the diagonal.
         // This is primarily used when DDW is near-singular - like when there
         // is a "void" region or when doing phase field fracture.
-        pp.query("normalize_ddw", value.normalize_ddw);
+        pp_query("normalize_ddw", value.normalize_ddw);
 
         // [false] 
         // If set to true, output diagnostic multifab information 
         // whenever the MLMG solver fails to converge.
         // (Note: you must also set :code:`amrex.signalhandling=0`
         // and :code:`amrex.throw_exception=1` for this to work.)
-        pp.query("dump_on_fail", value.m_dump_on_fail);
+        pp_query("dump_on_fail", value.m_dump_on_fail);
 
         // [true]
         // If set to false, MLMG will not die if convergence criterion
         // is not reached.
         // (Note: you must also set :code:`amrex.signalhandling=0`
         // and :code:`amrex.throw_exception=1` for this to work.)
-        pp.query("abort_on_fail", value.m_abort_on_fail);
+        pp_query("abort_on_fail", value.m_abort_on_fail);
 
         if (value.m_dump_on_fail || !value.m_abort_on_fail)
         {

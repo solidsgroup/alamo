@@ -29,6 +29,7 @@
 #include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
 #include "BC/Constant.H"
+#include "BC/Expression.H"
 #include "IC/IC.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
@@ -69,13 +70,13 @@ public:
         // Diffusion coefficient :math:`\alpha`.
         //   *This is an example of a required input variable -
         //    - program will terminate unless it is provided.*
-        pp.query_required("heat.alpha", value.alpha);
+        pp_query_required("heat.alpha", value.alpha);
 
         // Criterion for mesh refinement.
         //   *This is an example of a default input variable.
         //    The default value is provided here, not in the 
         //    definition of the variable.*
-        pp.query_default("heat.refinement_threshold", value.refinement_threshold, 0.01);
+        pp_query_default("heat.refinement_threshold", value.refinement_threshold, 0.01);
 
         std::string type;
 
@@ -84,16 +85,17 @@ public:
         //    the input variable must be one of the three provided values, 
         //    and will error if not. The default selection is the first
         //    argument.*
-        pp.query_validate("ic.type", type, {"constant", "sphere","expression"});
+        pp_query_validate("ic.type", type, {"constant", "sphere","expression"});
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "ic.expression");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
-        // Use a constant BC object for temperature
-        value.bc = new BC::Constant(1);
-        // :ref:`BC::Constant` parameters with prefix bc.temp
-        pp.queryclass("bc.temp", *static_cast<BC::Constant*>(value.bc));
+        std::string bc_type;
+        // Select BC object for temperature
+        pp_query_validate("bc.temp.type",bc_type,{"constant","expression"});
+        if (bc_type == "expression")      value.bc = new BC::Expression(1, pp, "bc.temp.expression");
+        else if (bc_type == "constant")   value.bc = new BC::Constant(1, pp, "bc.temp");
 
         // Register the temperature and old temperature fields.
         // temp_mf and temp_old_mf are defined near the bottom of this Header file.

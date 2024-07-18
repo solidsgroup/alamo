@@ -14,7 +14,7 @@ public:
 
     Voronoi (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
     Voronoi (amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom) 
-    {pp.queryclass(name,*this);}
+    {pp_queryclass(name,*this);}
     Voronoi (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, Set::Scalar a_alpha) : IC(_geom) 
     {
         Define(_number_of_grains,a_alpha);
@@ -111,17 +111,17 @@ public:
 
     static void Parse(Voronoi &value, IO::ParmParse &pp)
     {
-        pp.query("number_of_grains",value.number_of_grains); // Number of grains
+        pp_query("number_of_grains",value.number_of_grains); // Number of grains
         if (pp.contains("alpha"))
         {
-            pp.queryarr("alpha",value.alpha); // Value to take in the region [1.0]
+            pp_queryarr("alpha",value.alpha); // Value to take in the region [1.0]
             value.Define(value.number_of_grains,value.alpha);    
         }
         else
         {
             value.Define(value.number_of_grains,1.0);
         }
-        pp.query("seed",value.seed); // Random seed to use
+        pp_query("seed",value.seed); // Random seed to use
     }
     
 private:

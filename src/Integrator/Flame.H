@@ -142,6 +142,7 @@ private:
         Set::Scalar disperssion1 = 0.93;
         Set::Scalar disperssion2 = 920.;
         Set::Scalar disperssion3 = 2418.29;
+        IC::IC* ic_temp = nullptr;
     } thermal;
 
     struct {
@@ -156,7 +157,6 @@ private:
     Set::Scalar volume = 0.0;
     Set::Scalar area = 0.0;
     Set::Scalar chamber_area = 0.0;
-    Set::Scalar chamber_volume = 0.0;
     Set::Scalar chamber_pressure = 1.0;
     Set::Scalar massflux = 0.00000001;
 

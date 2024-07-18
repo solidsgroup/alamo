@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+import sys
+sys.path.insert(0,"../../scripts")
+import testlib
+import glob
+
+outdir = sys.argv[1]
+reference = sys.argv[2]
+
+path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+
+testlib.validate(path=path,
+                 outdir=outdir,
+                 start=[0,0,0],
+                 end=[32,0,0],
+                 vars=["disp_x","stress_xx","strain_xx"],
+                 tolerance=[0.01,0.01,0.01],
+                 reference=reference,
+                 generate_ref_data = False,
+)
+exit(0)
+
+
+
+
+

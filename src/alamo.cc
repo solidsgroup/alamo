@@ -28,14 +28,14 @@ int main (int argc, char* argv[])
 
     std::string program = "microstructure";
     IO::ParmParse pp;
-    pp.query("alamo.program",program);
+    pp_query("alamo.program",program);
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")
     {
         std::string model = "affine.cubic";
-        pp.query("alamo.program.microstructure.model",model);
+        pp_query("alamo.program.microstructure.model",model);
         if      (model == "affine.cubic")       integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>(pp);
         else if (model == "affine.hexagonal")   integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>(pp);
         else Util::Abort(INFO,model," is not a valid model");

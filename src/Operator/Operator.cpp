@@ -272,7 +272,7 @@ void Operator<Grid::Node>::fixUpResidualMask(int amrlev, iMultiFab& resmsk)
         Array4<int const> const& fmsk = cfmask.const_array(mfi);
         AMREX_HOST_DEVICE_PARALLEL_FOR_3D(bx, i, j, k,
             {
-                if (fmsk(i,j,k) == crse_fine_node) rmsk(i,j,k) = 1;
+                if (fmsk(i,j,k) == amrex::nodelap_detail::crse_fine_node) rmsk(i,j,k) = 1;
             });
     }
 }

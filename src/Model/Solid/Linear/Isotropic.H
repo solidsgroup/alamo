@@ -120,22 +120,22 @@ public:
         // Whether or not to use the
         // `plane stress <https://en.wikipedia.org/wiki/Plane_stress>`_ 
         // approximation.
-        pp.query("planestress",planestress); 
+        pp_query("planestress",planestress); 
         if (pp.contains("lame") && pp.contains("shear"))
         {
-            pp.query("lame",lambda); // Lame parameter
-            pp.query("shear",mu); // Shear modulus (redundant with "mu")
+            pp_query("lame",lambda); // Lame parameter
+            pp_query("shear",mu); // Shear modulus (redundant with "mu")
         }
         if (pp.contains("lambda") && pp.contains("mu"))
         {
-            pp.query("lambda",lambda); // Lame parameter
-            pp.query("mu",mu); // Shear modulus (redundant with "shear")
+            pp_query("lambda",lambda); // Lame parameter
+            pp_query("mu",mu); // Shear modulus (redundant with "shear")
         }
         else if (pp.contains("E") && pp.contains("nu"))
         {
             Set::Scalar E, nu;
-            pp.query("E",E); // Elastic modulus
-            pp.query("nu",nu); // Poisson's ratio
+            pp_query("E",E); // Elastic modulus
+            pp_query("nu",nu); // Poisson's ratio
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }

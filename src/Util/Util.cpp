@@ -7,6 +7,7 @@
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
 
+#include "IO/ParmParse.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
 #include "Color.H"
@@ -22,8 +23,8 @@ std::string GetFileName()
 {
     if (filename == "")
     {
-        amrex::ParmParse pp;
-        amrex::ParmParse pp_amr("amr");
+        IO::ParmParse pp;
+        IO::ParmParse pp_amr("amr");
 
         if (pp_amr.contains("plot_file") && pp.contains("plot_file"))
             Util::Abort("plot_file specified in too many locations");
@@ -36,7 +37,7 @@ std::string GetFileName()
         }
         else if (pp.contains("plot_file"))
         {
-            pp.query("plot_file", filename); // Name of directory containing all output data
+            pp_query("plot_file", filename); // Name of directory containing all output data
         }
         IO::FileNameParse(filename);
         // else
@@ -45,22 +46,45 @@ std::string GetFileName()
     }
     return filename;
 }
-void CopyFileToOutputDir(std::string a_path, bool fullpath)
+void CopyFileToOutputDir(std::string a_path, bool fullpath, std::string prefix)
 {
-    if (filename == "")
-        Util::Abort(INFO,"Cannot back up files yet because the output directory has not been specified");
-
-    std::string basefilename = std::filesystem::path(a_path).filename();
-    std::string absolutepath = std::filesystem::absolute(std::filesystem::path(a_path)).string();
-    std::string abspathfilename = absolutepath;
-    std::replace(abspathfilename.begin()+1,abspathfilename.end(),'/','_');
-
-    if (amrex::ParallelDescriptor::IOProcessor())
+    try
     {
-    // Copy the file where the file name is the absolute path, with / replaced with _
-    if (fullpath) std::filesystem::copy_file(a_path,filename+abspathfilename);
-    // Copy the file with the consistent base name
-    else          std::filesystem::copy_file(a_path,filename+basefilename);
+        if (filename == "")
+            Util::Exception(INFO,"Cannot back up files yet because the output directory has not been specified");
+
+        std::string basefilename = std::filesystem::path(a_path).filename();
+        std::string absolutepath = std::filesystem::absolute(std::filesystem::path(a_path)).string();
+        std::string abspathfilename = absolutepath;
+        std::replace(abspathfilename.begin(),abspathfilename.end(),'/','_');
+        if (prefix != "")
+        {
+            abspathfilename = prefix + "__" + abspathfilename;
+            basefilename    = prefix + "__" + abspathfilename;
+        }
+
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            std::string destinationpath;
+            if (fullpath) destinationpath = filename+"/"+abspathfilename;
+            else          destinationpath = filename+"/"+basefilename;
+
+            // Copy the file where the file name is the absolute path, with / replaced with _
+            if (std::filesystem::exists(destinationpath))
+                Util::Exception(INFO,"Trying to copy ",destinationpath," but it already exists.");
+            std::filesystem::copy_file(a_path,destinationpath);
+        }
+    }
+    catch (std::filesystem::filesystem_error const& ex)
+    {
+        Util::Exception(INFO,
+                        "file system error: \n",
+                        "     what():  " , ex.what()  , '\n',
+                        "     path1(): " , ex.path1() , '\n',
+                        "     path2(): " , ex.path2() , '\n',
+                        "     code().value():    " , ex.code().value() , '\n',
+                        "     code().message():  " , ex.code().message() , '\n',
+                        "     code().category(): " , ex.code().category().name());
     }
 }
 
@@ -83,7 +107,7 @@ void SignalHandler(int s)
     }
 
 #ifdef MEME
-    amrex::ParmParse pp;
+    IO::ParmParse pp;
     if (!pp.contains("nomeme"))
     {
         time_t timer; time(&timer);
@@ -110,7 +134,7 @@ void Initialize (int argc, char* argv[])
 
     amrex::Initialize(argc, argv);
 
-    amrex::ParmParse pp_amrex("amrex");
+    IO::ParmParse pp_amrex("amrex");
     pp_amrex.add("throw_exception",1);
     //amrex.throw_exception=1
 
