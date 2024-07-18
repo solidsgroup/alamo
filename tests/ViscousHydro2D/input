@@ -1,9 +1,11 @@
 #@ [couette-x]
+#@ exe = hydro
 #@ check-file = reference/couette-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 
 #@ [couette-y]
+#@ exe = hydro
 #@ check-file = reference/couette-y.dat
 #@ dim    = 2
 #@ nprocs = 1
@@ -11,23 +13,25 @@
 #@ args   = geometry.prob_lo = 0.0 -1.0 0.0 # [ m ] 
 #@ args   = geometry.prob_hi = 5.0  2.0 0.0 # [ m ]
 #@ args   = eta.ic.expression.region0 = "0.5 + 0.5*tanh((x - vel_x*t)/eps)"
-#@ args   = Velocity.ic.expression.region0 = "0.0"
-#@ args   = Velocity.ic.expression.region1 = "0.01 * (0.5 + 0.5*tanh(x/0.1))"
-#@ args   = v.bc.type.xhi = neumann dirichlet
-#@ args   = v.bc.type.yhi = neumann neumann
-#@ args   = v.bc.val.xhi = 0.0 0.01
-#@ args   = v.bc.val.yhi = 0.0 0.0
+#@ args   = velocity.ic.expression.region0 = "0.0"
+#@ args   = velocity.ic.expression.region1 = "0.01 * (0.5 + 0.5*tanh(x/0.1))"
+#@ args   = velocity.bc.type.xhi = neumann dirichlet
+#@ args   = velocity.bc.type.yhi = neumann neumann
+#@ args   = velocity.bc.val.xhi = 0.0 0.01
+#@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [stokes-x]
+#@ exe = hydro
 #@ check-file = reference/stokes-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 #@ args   = vInterface.ic.expression.region0 = "0.01"
-#@ args   = Velocity.ic.expression.region0 = "0.0"
-#@ args   = v.bc.type.yhi = neumann neumann
-#@ args   = v.bc.val.yhi = 0.0 0.0
+#@ args   = velocity.ic.expression.region0 = "0.0"
+#@ args   = velocity.bc.type.yhi = neumann neumann
+#@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [stokes-y]
+#@ exe = hydro
 #@ check-file = reference/stokes-y.dat
 #@ dim    = 2
 #@ nprocs = 1
@@ -37,11 +41,12 @@
 #@ args   = geometry.prob_hi = 5.0  2.0 0.0 # [ m ]
 #@ args   = eta.ic.expression.region0 = "0.5 + 0.5*tanh((x - vel_x*t)/eps)"
 #@ args   = vInterface.ic.expression.region1 = "0.01"
-#@ args   = Velocity.ic.expression.region0 = "0.0"
-#@ args   = v.bc.type.yhi = neumann neumann
-#@ args   = v.bc.val.yhi = 0.0 0.0
+#@ args   = velocity.ic.expression.region0 = "0.0"
+#@ args   = velocity.bc.type.yhi = neumann neumann
+#@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [cylinder-x]
+#@ exe = hydro
 #@ check-file = reference/cylinder-x.dat
 #@ dim    = 2
 #@ nprocs = 1
@@ -50,12 +55,13 @@
 #@ args   = geometry.prob_hi =  5.0  2.0 0.0 # [ m ]
 #@ args   = rhoInterface.ic.expression.region0 = "100.0"
 #@ args   = eta.ic.expression.region0 = "(1.0 - 0.5*tanh((sqrt((x - vel_x * t)**2 + y*y) + 0.5)/eps) + 0.5*tanh((sqrt(x*x + y*y) - 0.5)/eps))"
-#@ args   = Velocity.ic.expression.region0 = "0.01 * (1.0 - 0.5*tanh((sqrt(x*x + y*y) + 0.5)/0.1) + 0.5*tanh((sqrt(x*x + y*y) - 0.5)/0.1))"
-#@ args   = Velocity.ic.expression.region1 = "0.0"
-#@ args   = v.bc.type.yhi = neumann neumann
-#@ args   = v.bc.val.yhi = 0.0 0.0
+#@ args   = velocity.ic.expression.region0 = "0.01 * (1.0 - 0.5*tanh((sqrt(x*x + y*y) + 0.5)/0.1) + 0.5*tanh((sqrt(x*x + y*y) - 0.5)/0.1))"
+#@ args   = velocity.ic.expression.region1 = "0.0"
+#@ args   = velocity.bc.type.yhi = neumann neumann
+#@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [cylinder-y]
+#@ exe = hydro
 #@ check-file = reference/cylinder-y.dat
 #@ dim    = 2
 #@ nprocs = 1
@@ -64,16 +70,16 @@
 #@ args   = geometry.prob_hi =  5.0  2.0 0.0 # [ m ]
 #@ args   = rhoInterface.ic.expression.region0 = "100.0"
 #@ args   = eta.ic.expression.region0 = "(1.0 - 0.5*tanh((sqrt((x - vel_x * t)**2 + y*y) + 0.5)/eps) + 0.5*tanh((sqrt(x*x + y*y) - 0.5)/eps))"
-#@ args   = Velocity.ic.expression.region0 = "0.0"
-#@ args   = Velocity.ic.expression.region1 = "0.01 * (1.0 - 0.5*tanh((sqrt(x*x + y*y) + 0.5)/0.1) + 0.5*tanh((sqrt(x*x + y*y) - 0.5)/0.1))"
-#@ args   = v.bc.type.yhi = neumann neumann
-#@ args   = v.bc.val.yhi = 0.0 0.0
+#@ args   = velocity.ic.expression.region0 = "0.0"
+#@ args   = velocity.ic.expression.region1 = "0.01 * (1.0 - 0.5*tanh((sqrt(x*x + y*y) + 0.5)/0.1) + 0.5*tanh((sqrt(x*x + y*y) - 0.5)/0.1))"
+#@ args   = velocity.bc.type.yhi = neumann neumann
+#@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = ./tests/ViscousHydro2D/output
 
 ### MESHING ###
 
@@ -99,7 +105,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-4
 stop_time = 50.0
 
 ### ETA IC ###
@@ -111,6 +117,8 @@ vInterface.ic.type = expression
 vInterface.ic.expression.region0 = "0.0"
 vInterface.ic.expression.region1 = "0.0"
 
+vInjected.ic.constant.value = 0.0
+
 deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
@@ -119,6 +127,7 @@ eta.ic.expression.constant.eps   = 0.1
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.region0        = "0.5 + 0.5*tanh((y - vel_y*t)/eps)"
+#eta.ic.expression.region0        = "1.0"
 
 ### HYDRO PARAM ###
 
@@ -130,14 +139,24 @@ rho_solid = 1000.0 #kg/m^3
 rho_fluid = 100.0 #kg/m^3
 E_solid   = 5.0
 
-Velocity.ic.type = expression
-Velocity.ic.expression.region0 = "0.01 * (0.5 + 0.5*tanh(y/0.1))"
-Velocity.ic.expression.region1 = "0.0"
+solid.density.ic.type = constant
+solid.density.ic.constant.value = 1.0
+solid.velocity.ic.type = constant
+solid.velocity.ic.constant.value = 0.0
+solid.momentum.ic.type = constant
+solid.momentum.ic.constant.value = 0.0
+solid.energy.ic.type = constant
+solid.energy.ic.constant.value = 0.0
 
-Pressure.ic.type = expression
-Pressure.ic.expression.constant.gamma = 1.4
-Pressure.ic.expression.constant.E_solid = 5.0
-Pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "0.0" #"0.01 * (0.5 + 0.5*tanh(y/0.1))"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.constant.gamma = 1.4
+pressure.ic.expression.constant.E_solid = 5.0
+pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
 
 ### ETA BC  ###
 
@@ -157,35 +176,32 @@ pf.eta.bc.val.zhi = 0.0
 
 ### HYDRO BC ###
 
-rho.bc.type.xhi = neumann
-rho.bc.type.xlo = neumann
-rho.bc.type.ylo = neumann
-rho.bc.type.yhi = neumann
+density.bc.type.xhi = neumann
+density.bc.type.xlo = neumann
+density.bc.type.ylo = neumann
+density.bc.type.yhi = neumann
+density.bc.val.xhi = 0.0
+density.bc.val.xlo = 0.0
+density.bc.val.ylo = 0.0 
+density.bc.val.yhi = 0.0
 
-rho.bc.val.xhi = 0.0
-rho.bc.val.xlo = 0.0
-rho.bc.val.ylo = 0.0 
-rho.bc.val.yhi = 0.0
+pressure.bc.type.xhi = neumann
+pressure.bc.type.xlo = neumann
+pressure.bc.type.ylo = neumann
+pressure.bc.type.yhi = neumann
+pressure.bc.val.xhi = 0.0
+pressure.bc.val.xlo = 0.0
+pressure.bc.val.ylo = 0.0 
+pressure.bc.val.yhi = 0.0
 
-p.bc.type.xhi = neumann
-p.bc.type.xlo = neumann
-p.bc.type.ylo = neumann
-p.bc.type.yhi = neumann
-
-p.bc.val.xhi = 0.0
-p.bc.val.xlo = 0.0
-p.bc.val.ylo = 0.0 
-p.bc.val.yhi = 0.0
-
-v.bc.type.xhi = neumann neumann
-v.bc.type.xlo = neumann neumann
-v.bc.type.ylo = neumann neumann
-v.bc.type.yhi = dirichlet neumann
-
-v.bc.val.xhi = 0.0 0.0
-v.bc.val.xlo = 0.0 0.0
-v.bc.val.ylo = 0.0 0.0
-v.bc.val.yhi = 0.01 0.0
+velocity.bc.type.xhi = neumann neumann
+velocity.bc.type.xlo = neumann neumann
+velocity.bc.type.ylo = neumann neumann
+velocity.bc.type.yhi = dirichlet neumann
+velocity.bc.val.xhi = 0.0 0.0
+velocity.bc.val.xlo = 0.0 0.0
+velocity.bc.val.ylo = 0.0 0.0
+velocity.bc.val.yhi = 0.01 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 

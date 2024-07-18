@@ -30,22 +30,20 @@ public:
     static void Parse(Hydro& value, IO::ParmParse& pp);
     virtual ~Hydro()
     {
-        delete bc_rho;
-        delete bc_E;
-        delete bc_M;
-        delete bc_v;
-        delete bc_p;
-        delete bc_eta;
+        delete density_bc;
+        delete velocity_bc;
+        delete pressure_bc;
+        delete eta_bc;
 
-        delete ic_Velocity;
-        delete ic_Pressure;
+        delete velocity_ic;
+        delete pressure_ic;
 
         delete ic_rhoInterface;
         delete ic_vInjected;
         delete ic_q;
 
-        delete ic_eta;
-        delete ic_etadot;
+        delete eta_ic;
+        delete etadot_ic;
     }
 
 protected:
@@ -60,20 +58,26 @@ protected:
     virtual void UpdateEta(int lev, Set::Scalar time);
 private:
 
-    Set::Field<Set::Scalar> Density_mf;
-    Set::Field<Set::Scalar> Density_old_mf;
+    Set::Field<Set::Scalar> density_mf;
+    Set::Field<Set::Scalar> density_old_mf;
 
-    Set::Field<Set::Scalar> Energy_mf;
-    Set::Field<Set::Scalar> Energy_old_mf;
+    Set::Field<Set::Scalar> energy_mf;
+    //Set::Field<Set::Scalar> energy_old_mf;
 
-    Set::Field<Set::Scalar> Momentum_mf;
-    Set::Field<Set::Scalar> Momentum_old_mf;
+    Set::Field<Set::Scalar> momentum_mf;
+    //Set::Field<Set::Scalar> momentum_old_mf;
 
-    Set::Field<Set::Scalar> Velocity_mf;
-    Set::Field<Set::Scalar> Pressure_mf;
+    Set::Field<Set::Scalar> velocity_mf;
+    Set::Field<Set::Scalar> velocity_old_mf;
+    Set::Field<Set::Scalar> pressure_mf;
+    Set::Field<Set::Scalar> pressure_old_mf;
 
-    Set::Field<Set::Scalar> SolidDensity_mf;
-    Set::Field<Set::Scalar> SolidVelocity_mf;
+    struct {
+        Set::Field<Set::Scalar> density_mf;
+        Set::Field<Set::Scalar> velocity_mf;
+        IC::IC* density_ic  = nullptr;
+        IC::IC* velocity_ic = nullptr;
+    } solid;
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
@@ -88,26 +92,22 @@ private:
     Set::Field<Set::Scalar> q_mf;
     Set::Field<Set::Scalar> Source_mf;
 
-    BC::BC<Set::Scalar>* bc_rho = nullptr;
-    BC::BC<Set::Scalar>* bc_E = nullptr;
-    BC::BC<Set::Scalar>* bc_M = nullptr;
-    BC::BC<Set::Scalar>* bc_v = nullptr;
-    BC::BC<Set::Scalar>* bc_p = nullptr;
-    BC::BC<Set::Scalar>* bc_eta = nullptr;
+    BC::BC<Set::Scalar>* density_bc = nullptr;
+    BC::BC<Set::Scalar>* velocity_bc = nullptr;
+    BC::BC<Set::Scalar>* pressure_bc = nullptr;
+    BC::BC<Set::Scalar>* eta_bc = nullptr;
 
-    IC::IC* ic_Velocity = nullptr;
-    IC::IC* ic_Pressure = nullptr;
-    IC::IC* ic_Density  = nullptr;
+    IC::IC* velocity_ic = nullptr;
+    IC::IC* pressure_ic = nullptr;
+    IC::IC* density_ic  = nullptr;
 
-    IC::IC* ic_SolidDensity  = nullptr;
-    IC::IC* ic_SolidVelocity = nullptr;
 
     IC::IC* ic_rhoInterface = nullptr;
     IC::IC* ic_vInjected = nullptr;
     IC::IC* ic_q = nullptr;
 
-    IC::IC* ic_eta = nullptr;
-    IC::IC* ic_etadot = nullptr;
+    IC::IC* eta_ic = nullptr;
+    IC::IC* etadot_ic = nullptr;
 
     BC::Nothing bc_nothing;
 

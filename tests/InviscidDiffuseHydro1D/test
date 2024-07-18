@@ -10,7 +10,7 @@ print(datfile)
 start = [-4,0]
 end   = [4,0]
 coord = 'x'
-vars = ["eta","Velocity001","Pressure"]
+vars = ["eta","velocity001","pressure"]
 
 testlib.validate(path=datfile,
                  outdir=outdir,
