@@ -133,7 +133,7 @@ public:
         if (nmodels > 1 && pp.contains("ic.type"))
         {
             std::string type;
-            pp_query_validate("ic.type", typ, {"ellipse", "constant", "voronoi", "bmp", "png", "expression", "psread"}); // Read IC type for the eta field
+            pp_query_validate("ic.type", type, {"ellipse", "constant", "voronoi", "bmp", "png", "expression", "psread"}); // Read IC type for the eta field
             if (type == "ellipse")    value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
             else if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "ic.constant");
             else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
