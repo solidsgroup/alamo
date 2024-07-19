@@ -1,9 +1,19 @@
 #@  [2D-serial-5levels]
+#@  exe    = mechanics
 #@  dim    = 2
 #@  nprocs = 1
 #@  check  = false
 #@   
+#@  [2D-serial-5levels-coverage]
+#@  exe    = mechanics
+#@  dim    = 2
+#@  nprocs = 1
+#@  check  = false
+#@  coverage = true
+#@  args=amr.max_level=3
+#@
 #@  [3D-serial-4levels]
+#@  exe    = mechanics
 #@  dim    = 3
 #@  nprocs = 1
 #@  args   = amr.max_level=4
@@ -12,6 +22,7 @@
 #@  benchmark-github = 22.75
 #@  
 #@  [3D-parallel-5levels]
+#@  exe    = mechanics
 #@  dim    = 3
 #@  nprocs = 4
 #@  benchmark-beaker = 24.66

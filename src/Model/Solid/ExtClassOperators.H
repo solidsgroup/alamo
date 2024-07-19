@@ -31,5 +31,16 @@ OP_CLASS operator - (const OP_CLASS a, const OP_CLASS b)
     return ret;
 }    
 
+AMREX_FORCE_INLINE
+bool operator == (const OP_CLASS a, const OP_CLASS b)
+{
+    bool ret = true;
+#define X(name) \
+    if (!(a.name == b.name)) ret = false;
+    OP_VARS
+#undef X
+    return ret;
+}
+
 #undef OP_VARS
 #undef OP_CLASS

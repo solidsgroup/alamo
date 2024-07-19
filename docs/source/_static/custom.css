@@ -2,3 +2,87 @@
 .wy-table-responsive table th {
     white-space: normal;
 }
+
+table pre /*Wrap text in tables*/
+{
+    white-space:pre-wrap !important;
+}
+
+span.sd-badge /*Wrap long text inside badges*/
+{
+    white-space:pre-wrap !important;
+}
+
+table .notranslate
+{
+    margin:0px !important;
+}
+
+p
+{
+    line-height: 20px;   /* within paragraph */
+    margin-bottom: 10px; /* between paragraphs */    
+}
+
+
+table.api-inputs-table
+{
+    width:100%!important;
+    max-width:100%!important;
+    border-spacing: 0px!important;
+    border-collapse:separate!important;
+    border-radius:7px!important;
+    border: 2px solid #f3f3f3!important;
+    overflow: hidden;
+    white-space:pre-wrap !important;
+}
+
+table.api-inputs-table th
+{
+    background-color:#b1b6b9;
+    color:rgb(30, 30, 30);
+    border:none!important;
+}
+table.api-inputs-table tr.row-odd td
+{
+    background:#f3f3f3;
+    padding:3px;
+    border:none!important;
+}
+
+table.api-inputs-table tr.row-even td
+{
+    background-color:#f8f8f8 !important;
+    padding:3px;
+    border:none!important;
+}
+.api-inputs-table code.code
+{
+    background-color:transparent !important;
+    border-color:transparent !important;
+    font-weight:bold !important;
+}
+
+
+img.logo
+{
+    width:100%!important;
+}
+
+li[class="toctree-l1"] a:hover
+{
+    color:white!important;
+}
+
+h1 {font-size:xx-large!important;}
+h2 {font-size:x-large!important;}
+h3 {font-size:large!important;text-decoration: underline;}
+h4 {font-size:medium!important;text-decoration: underline;}
+h5 {font-size:small!important;text-decoration: underline;}
+h6 {font-size:x-small!important;text-decoration: underline;}
+h7 {font-size:xx-small!important;text-decoration: underline;}
+
+
+.wy-nav-content {
+   //max-width: none; // uncomment to make full-width (but this doesn't look as good)
+}

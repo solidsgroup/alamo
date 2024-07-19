@@ -1,3 +1,7 @@
+//
+// Class of BC operators that work with :ref:`Operator::Elastic`.
+//
+
 #ifndef BC_OPERATOR_ELASTIC_H
 #define BC_OPERATOR_ELASTIC_H
 
@@ -17,7 +21,7 @@ public:
     static const int min = 1, max = 2;
 
 public:
-    enum Type {Displacement, Traction, Periodic, Neumann}; 
+    enum Type {Displacement, Traction, Periodic, Neumann, None}; 
 
     #if AMREX_SPACEDIM==2
     enum Face{
@@ -73,6 +77,10 @@ public:
 #define SQRT3INV 0.57735026919
 #define SQRT2INV 0.70710678118
 
+    virtual
+    std::array<Type,AMREX_SPACEDIM> getType (
+                const int &i, const int &j, const int &k,
+                const amrex::Box &domain) = 0;
 
     virtual
     Set::Vector operator () (const Set::Vector &u,

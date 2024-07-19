@@ -35,27 +35,20 @@ public:
 
     static constexpr Set::Sym sym = SYM;
 
-    AMREX_FORCE_INLINE
-    virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/=true) const
-    {
-        return ddw*F;
-    };
-
-    AMREX_FORCE_INLINE
-    virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/=true)
-    {
-        return ddw*gradF;
-    };
-
-    virtual Set::Scalar W(const Set::Matrix &) const          {Util::Abort(INFO,"W not implemented"); return 0.0;};
-    virtual Set::Matrix DW(const Set::Matrix &) const         {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
-    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
+    virtual Set::Scalar W(const Set::Matrix &) const      
+    {Util::Abort(INFO,"W not implemented"); return 0.0;};
+    virtual Set::Matrix DW(const Set::Matrix &) const         
+    {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
+    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
+    {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
     
     virtual void Advance(Set::Scalar, Set::Matrix, Set::Matrix) {}
 
+    // Todo: implement for all models and make this pure virtual
+    virtual bool ContainsNan() {return true;};
+
 
 public:
-    Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
     static const KinematicVariable kinvar = KinematicVariable::F;
 
 
@@ -71,6 +64,40 @@ public:
 
 public: 
     template <class T>
+    static int ArithmeticTest(int verbose = 0)
+    {
+        const T z = T::Zero();
+        if (!(z==z) && verbose) 
+        {
+            Util::Message(INFO,"Zero() failed: z = \n",z); return 1;
+        }
+        
+        const T a = T::Random();
+        if (!(a==a) && verbose) 
+        {
+            Util::Message(INFO,"Random() failed: a = \n",a); return 1;
+        }
+
+        const T b = T::Random();
+
+        T c = a;
+        if (!(c==a) && verbose) {Util::Message(INFO); return 1;}
+        c = 1.0 * a;
+        if (!(c==a) && verbose) {Util::Message(INFO); return 1;}
+        c = 0.0 * a;
+        if (!(c==z) && verbose) 
+        {
+            Util::Message(INFO,"0.0*a = \n",c); 
+            Util::Message(INFO,"Zero() returns \n",z); 
+            return 1;
+        }
+
+        // Todo: add some more arithmetic checks in here
+
+        return 0;
+    }
+
+    template <class T>
     static int DerivativeTest1(int verbose = 0)
     {
         for (int iter = 0; iter < 10; iter++)
@@ -80,7 +107,7 @@ public:
             Set::Scalar dx = 1E-8, tol = 1E-6;
 
             Set::Matrix F = Set::Matrix::Random();
-            while (fabs(F.determinant()) < 0.10) F = Set::Matrix::Random(); // Ensure that F in GL(3)
+            while (F.determinant() < 0.1) F = Set::Matrix::Random(); // Ensure that F in GL(3)
 
             Set::Matrix dw_exact = model.DW(F);
             Set::Matrix dw_numeric = Set::Matrix::Zero();
@@ -117,7 +144,7 @@ public:
 
             Set::Scalar dx = 1E-8, tol = 1E-4;
             Set::Matrix F = Set::Matrix::Random();
-            while (fabs(F.determinant()) < 1.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
+            while (F.determinant() < 0.1) F = Set::Matrix::Random(); // Ensure that F in GL(3)
 
             Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_exact = model.DDW(F);
             Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_numeric = Set::Matrix4<AMREX_SPACEDIM,T::sym>::Zero();
@@ -139,12 +166,73 @@ public:
                     Util::Message(INFO,"F \n",F);
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"ddw exact \n",ddw_exact);
-                    Util::Message(INFO,"ddw numeric \n",ddw_numeric);::
-                    Util::Message(INFO,"ddw difference \n",ddw_exact - ddw_numeric);::
+                    Util::Message(INFO,"ddw numeric \n",ddw_numeric);
+                    Util::Message(INFO,"ddw difference \n",ddw_exact - ddw_numeric);
                     Util::Message(INFO,"error norm \n",relnorm);
                 }
                 return 1;
             }   
+        }
+        return 0;
+    }
+
+    template <class T>
+    static int MaterialFrameIndifference(int verbose = 0)
+    {
+        if (T::kinvar != Model::Solid::KinematicVariable::F)
+            Util::Abort(INFO,"Attempting to test material frame indifference in a non-finite-kinematics model will fail");
+
+        for (int iter = 0; iter < 10; iter++)
+        {
+            T model = T::Random();
+
+            Set::Scalar tol = 1E-4;
+            Set::Matrix F = Set::Matrix::Random();
+            while (
+                F.determinant() < 0.5 || // skip if determinant negative or too small
+                F.determinant() > 2 // also skip if determinant too large
+                )
+                F = Set::Matrix::Random(); // Ensure that F is reasonably well-behaved.
+
+            Set::Scalar W_unrotated = model.W(F);
+
+            for (int jter = 0; jter < 10; jter++)
+            {
+                #if AMREX_SPACEDIM == 2
+                Set::Scalar theta = 2.0 * Set::Constant::Pi * Util::Random();
+                Set::Matrix R;
+                R(0,0) =  cos(theta);
+                R(0,1) =  sin(theta);
+                R(1,0) = -sin(theta);
+                R(1,1) =  cos(theta);
+                #elif AMREX_SPACEDIM == 3
+                Set::Scalar phi1 = 2.0 * Set::Constant::Pi *(Util::Random() - 0.5);
+                Set::Scalar Phi  = Set::Constant::Pi * Util::Random();
+                Set::Scalar phi2 = 2.0 * Set::Constant::Pi *(Util::Random() - 0.5);
+                Eigen::Matrix3d R;
+                R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+                    Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+                #endif
+
+                Util::Assert(INFO,TEST( fabs(R.determinant() - 1.0) < tol ));
+                Util::Assert(INFO,TEST( fabs((R.transpose() * R - Set::Matrix::Identity()).norm()) < tol ));
+                
+                Set::Scalar W_rotated = model.W(R*F);
+                Set::Scalar error = fabs(W_rotated - W_unrotated) / fabs(W_rotated + W_unrotated + tol);
+
+                if (error > tol)
+                {
+                    if (verbose)
+                    {
+                        Util::Message(INFO,"F = \n",F);
+                        Util::Message(INFO,"R = \n",R);
+                        Util::Message(INFO,"W unrotated = ",W_unrotated);
+                        Util::Message(INFO,"W rotated = ",W_rotated);
+                    }
+                    return 1;
+                }
+            }
         }
         return 0;
     }

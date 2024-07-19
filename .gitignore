@@ -1,3 +1,4 @@
+Record_*
 Backtrace*
 *.mpg
 *.o
@@ -38,6 +39,9 @@ amrex.build.log
 .diff
 eigen3
 IAMR
+obj
+cov
+githubpages
 *_BACKUP_*
 *_BASE_*
 *_LOCAL_*

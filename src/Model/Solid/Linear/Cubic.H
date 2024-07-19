@@ -26,41 +26,12 @@ public:
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
-        Eigen::Matrix3d m;
-        m =     Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
-            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
-        Define(C11,C12,C44,m);
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,phi1,Phi,phi2);
     }
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R)
     {
-    
-        amrex::Real Ctmp[3][3][3][3];
-        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
-
-        for(int i = 0; i < 3; i++) 
-            for(int j = 0; j < 3; j++) 
-                for(int k = 0; k < 3; k++) 
-                    for(int l = 0; l < 3; l++)
-                    {
-                        if(i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11;
-                        else if (i==k && j==l) Ctmp[i][j][k][l] = C44;
-                        else if (i==j && k==l) Ctmp[i][j][k][l] = C12;
-                        else Ctmp[i][j][k][l] = 0.0;
-                    }
-        for(int p = 0; p < AMREX_SPACEDIM; p++) 
-            for(int q = 0; q < AMREX_SPACEDIM; q++) 
-                for(int s = 0; s < AMREX_SPACEDIM; s++) 
-                    for(int t = 0; t < AMREX_SPACEDIM; t++)
-                    {
-                        ddw(p,q,s,t) = 0.0;
-                        for(int i = 0; i < 3; i++) 
-                            for(int j = 0; j < 3; j++) 
-                                for(int k = 0; k < 3; k++) 
-                                    for(int l = 0; l < 3; l++) 
-                                        ddw(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
-                    }
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,R);
     }
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
@@ -74,12 +45,13 @@ public:
     {
         return ddw;
     }
-    virtual void Print(std::ostream &out) const //override 
+    virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }
 
 public:
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> ddw;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
     AMREX_FORCE_INLINE
@@ -119,10 +91,10 @@ public:
 
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
-        Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
-        pp.query("C11",C11); // Elastic constant (default: 1.68)
-        pp.query("C12",C12); // Elastic constant (default: 1.21)
-        pp.query("C44",C44); // Elastic constant (default: 0.75)
+        Set::Scalar C11 = NAN, C12 = NAN, C44 = NAN;
+        pp_query_default("C11",C11,1.68); // Elastic constant
+        pp_query_default("C12",C12,1.21); // Elastic constant
+        pp_query_default("C44",C44,0.75); // Elastic constant
 
         if (pp.contains("random"))
         {
@@ -130,10 +102,10 @@ public:
             return;
         }
 
-        Set::Scalar phi1 = 0.0, Phi = 0.0, phi2 = 0.0;
-        pp.query("phi1",phi1);  // Bunge Euler angle :math:`\phi_1`
-        pp.query("Phi",Phi);    // Bunge Euler angle :math:`\Phi`
-        pp.query("phi2",phi2);  // Bunge Euler angle :math:`\phi_2`
+        Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
+        pp_query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
+        pp_query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:`\Phi`
+        pp_query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:`\phi_2`
         value.Define(C11,C12,C44,phi1,Phi,phi2);
     }
 

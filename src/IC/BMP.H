@@ -1,3 +1,10 @@
+// 
+// Initialize a field using a bitmap image. (2D only)
+//
+// Note that in GIMP, you must select "do not write color space information"
+// and "24 bit R8 G8 B8" when exporting the BMP file.
+//
+
 #ifndef IC_BMP_H
 #define IC_BMP_H
 #include <cmath>
@@ -14,14 +21,14 @@ class BMP : public IC
 {
 public:
     //enum Type {XYZ, XY, YZ, XZ};
-    enum Fit {Stretch,FitWidth,FitHeight};
+    enum Fit {Stretch,FitWidth,FitHeight,Coord};
     enum Channel {R=0, G=1, B=2};
 
     BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
 
     BMP (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : BMP(_geom)
     {
-        pp.queryclass(name,*this);
+        pp_queryclass(name,*this);
     }
 
     void Define(std::string bmpfilename)
@@ -29,7 +36,7 @@ public:
         bmp.Define(bmpfilename);//"Interface_Blur2.bmp");
     }
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {        
         
         Set::Vector DX(geom[lev].CellSize());
@@ -48,7 +55,6 @@ public:
 
         Set::Vector domlo(AMREX_D_DECL(geom[lev].ProbLo()[0],geom[lev].ProbLo()[1],0.0));
         Set::Vector domhi(AMREX_D_DECL(geom[lev].ProbHi()[0],geom[lev].ProbHi()[1],0.0));
-
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -97,6 +103,11 @@ public:
                     ximg(1) = (x(1) - domlo(1)) / (domhi(1) - domlo(1)); 
                     ximg(0) -= 0.5 - 0.5 / aspect_ratio;
                     ximg(0) *= aspect_ratio;
+                }
+                else if (fit == Fit::Coord)
+                {
+                    ximg(0) = (x(0) - coord_lo(0)) / (coord_hi(0)-coord_lo(0));
+                    ximg(1) = (x(1) - coord_lo(1)) / (coord_hi(1)-coord_lo(1));
                 }
 
                 ximg(0) = std::min(ximg(0),1.0); ximg(1) = std::min(ximg(1),1.0);
@@ -154,27 +165,35 @@ private:
     Util::BMP bmp;
     Fit fit = Fit::Stretch;
     Channel channel = Channel::G;
-    Set::Scalar min=0.0, max=255.0;
+    Set::Scalar min=NAN, max=NAN;
+    Set::Vector coord_lo = Set::Vector::Zero();
+    Set::Vector coord_hi = Set::Vector::Zero();
+
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
         std::string filename;
-        // BMP filename.
-        // Note that in GIMP, you must select "do not write color space information"
-        // and "24 bit R8 G8 B8" when exporting the BMP file.
-        pp.query("filename",filename);
+        pp_query_file("filename",filename); // BMP filename.
         value.bmp.Define(filename);
 
-        std::string fit = "stretch";
-        pp.query("fit",fit);
+        std::string fit;
+        // How to position image in space
+        pp_query_validate("fit",fit,{"stretch","fitheight","fitwidth","coord"}); 
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
+        else if (fit=="coord")
+        {
+            value.fit = Fit::Coord;
+            pp_queryarr("coord.lo",value.coord_lo); // Location of lower-left corner in the domain
+            pp_queryarr("coord.hi",value.coord_hi); // Location of upper-right corner in the domain
+        }
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
 
-        std::string channel = "g";
-        pp.query("channel",channel);
+        std::string channel;
+        // Color channel to use
+        pp_query_validate("channel",channel,{"r","g","b","R","G","B"}); 
         if      (channel=="r" || channel=="R") value.channel = Channel::R;
         else if (channel=="g" || channel=="G") value.channel = Channel::G;
         else if (channel=="b" || channel=="B") value.channel = Channel::B;
@@ -182,8 +201,8 @@ public:
 
         value.min = (Set::Scalar) value.bmp.min()[value.channel];
         value.max = (Set::Scalar) value.bmp.max()[value.channel];
-        pp.query("min",value.min);
-        pp.query("max",value.max);
+        pp_query_default("min",value.min,0.0); // Scaling value - minimum
+        pp_query_default("max",value.max,255.0); // Scaling value - maximum
 }    
 };
 }

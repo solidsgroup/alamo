@@ -26,11 +26,12 @@ class Laplacian : public Model::Solid::Solid<Set::Sym::Diagonal>
 {
 public:
     Laplacian() { Define(); } ;
+    Laplacian(Set::Scalar alpha) { Define(alpha); } ;
     Laplacian(Solid<Set::Sym::Diagonal> base) : Solid<Set::Sym::Diagonal>(base) {};
     ~Laplacian() {} ;
-    void Define()
+    void Define(Set::Scalar alpha = 1.0)
     {
-        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>(Set::Matrix::Ones());
+        ddw = alpha*Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>(Set::Matrix::Ones());
     }
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
@@ -44,61 +45,32 @@ public:
     {
         return ddw;
     }
-    using Model::Solid::Solid<Set::Sym::Diagonal>::operator();
 public:
-    void Randomize() {}
     static Laplacian Zero()
     {
-        Laplacian ret;
-        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Zero();
-        return ret;
+        return Laplacian(0.0);
     }
-    static void Parse(Laplacian,IO::ParmParse) {}
+    static void Parse(Laplacian value,IO::ParmParse pp)
+    {
+        Set::Scalar alpha = NAN;
+        // Coefficient for the Laplacian
+        pp_query_default("alpha",alpha,1.0);
+        value.Define(alpha);
+    }
     
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal> ddw;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
     static Laplacian Random()
     {
-        Laplacian ret;
-        return ret;
+        Set::Scalar alpha = (Util::Random() + 0.1)/1.1;
+        return Laplacian(alpha);
     }
-    AMREX_FORCE_INLINE
-    void operator += (const Laplacian &rhs)
-    {
-        ddw += rhs.ddw;
-    }    
-    AMREX_FORCE_INLINE
-        virtual Laplacian operator * (const Set::Scalar alpha) const
-    {
-        Laplacian ret;
-        ret.ddw = ddw*alpha;
-        return ret;
-    }    
-    friend Laplacian operator * (const Set::Scalar alpha, const Laplacian b);
-    friend Laplacian operator + (const Laplacian a, const Laplacian b);
-    friend Laplacian operator - (const Laplacian a, const Laplacian b);
-};
-AMREX_FORCE_INLINE
-Laplacian operator * (const Set::Scalar alpha, const Laplacian b)
-{
-    Laplacian ret;
-    ret.ddw = b.ddw*alpha;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Laplacian operator + (const Laplacian a, const Laplacian b)
-{
-    Laplacian ret;
-    ret.ddw = a.ddw + b.ddw;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Laplacian operator - (const Laplacian a, const Laplacian b)
-{
-    Laplacian ret;
-    ret.ddw = a.ddw - b.ddw;
-    return ret;
-}    
 
+#define OP_CLASS Laplacian
+#define OP_VARS X(ddw)
+#include "Model/Solid/InClassOperators.H"
+};
+#include "Model/Solid/ExtClassOperators.H"
 
 }
 }

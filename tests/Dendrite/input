@@ -1,0 +1,59 @@
+#@ [2d]
+#@ dim=2
+#@
+#@ [2d-coverage]
+#@ dim=2
+#@ coverage=true
+#@ check=false
+#@ args=stop_time=4E-4
+
+
+alamo.program = dendrite
+plot_file     = tests/Dendrite/output
+
+# Simulation length
+#timestep = 0.0001
+timestep = 2E-4
+stop_time = 1.0
+
+# AMR parameters
+amr.plot_int = 100
+amr.max_level = 2
+amr.n_cell = 64 64 64
+amr.blocking_factor = 4
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 6.0 6.0 6.0
+geometry.is_periodic= 0 0 0
+
+ic.phi.region0  = "x^2 + y^2 + z^2 < 0.1"
+
+ic.temp.constant.DeltaT = 0.25
+ic.temp.region0 = "-DeltaT*(x^2 + y^2 + z^2 > 0.1)"
+
+tau = 3E-4
+eps = 1E-2
+alpha = 0.9
+gamma = 40.0
+delta = 0.5
+
+# Boundary conditions
+bc.temp.type.xhi = neumann
+bc.temp.type.xlo = neumann
+bc.temp.type.yhi = neumann
+bc.temp.type.ylo = neumann
+bc.temp.type.zhi = neumann
+bc.temp.type.zlo = neumann
+bc.phi.type.xhi = neumann
+bc.phi.type.xlo = neumann
+bc.phi.type.yhi = neumann
+bc.phi.type.ylo = neumann
+bc.phi.type.zhi = neumann
+bc.phi.type.zlo = neumann
+
+
+
+

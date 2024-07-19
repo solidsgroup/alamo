@@ -1,0 +1,60 @@
+#@
+#@ [2d-serial]
+#@ exe=mechanics
+#@ dim=2
+#@ benchmark-beaker=16.9
+#@
+#@ [2d-serial-coverage]
+#@ exe=mechanics
+#@ dim=2
+#@ args=stop_time=0.1
+#@ check=false
+#@ coverage=true
+#@
+#@ [2d-parallel]
+#@ exe=mechanics
+#@ dim=2
+#@ nprocs=2
+#@ benchmark-beaker=12.49
+#@
+
+alamo.program               = mechanics
+alamo.program.mechanics.model = affine.j2
+plot_file = tests/Scratch/output
+
+timestep		    = 0.05
+stop_time		    = 6.0
+
+# amr parameters
+amr.plot_int		    = 10
+amr.max_level		    = 3
+amr.n_cell		    = 16 16 16
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 1
+amr.grid_eff		    = 1.0
+amr.node.any = 0
+amr.cell.all = 1
+
+# geometry
+geometry.prob_lo	    = -8 -8 -8 
+geometry.prob_hi	    = 8 8 8
+geometry.is_periodic	    = 0 0 0
+
+# elastic moduli
+nmodels = 1
+model1.E = 210 
+model1.nu = 0.3
+model1.sigma0=0.2
+
+# solver parameters
+solver.verbose = 3
+solver.nriters = 1
+solver.max_iter = 40
+
+# Elastic refinement criterion
+ref_threshold = 0.0005
+
+# Expression-based boundary condition
+bc.type = expression
+bc.expression.type.yhi = trac trac trac
+bc.expression.val.yhi = "0.0" "-exp(-((x-t)*(x-t)+z*z)/0.4)" "0.0"

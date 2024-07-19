@@ -1,6 +1,7 @@
 #ifndef IC_TABULATEDINTERFACE_H_
 #define IC_TABULATEDINTERFACE_H_
 
+#include "IO/ParmParse.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "Numeric/Interpolator/Linear.H"
@@ -17,9 +18,9 @@ public:
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom) :
         IC(_geom) {}
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) :
-        IC(_geom) {pp.queryclass(*this);}
+        IC(_geom) {pp_queryclass(*this);}
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) :
-        IC(_geom) {pp.queryclass(name,*this);}
+        IC(_geom) {pp_queryclass(name,*this);}
     
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom,
                         std::vector<Set::Scalar> a_xs, std::vector<Set::Scalar> a_ys) :
@@ -46,7 +47,7 @@ public:
         ys = a_ys;
     }
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field,Set::Scalar)
     {
         Numeric::Interpolator::Linear<Set::Scalar> f(ys,xs);
 
@@ -89,10 +90,10 @@ private:
     Set::Scalar alpha1, alpha2;
 
 public:
-    static void Parse(TabulatedInterface & value, amrex::ParmParse & pp)
+    static void Parse(TabulatedInterface & value, IO::ParmParse & pp)
     {
-        pp.queryarr("xs",value.xs);
-        pp.queryarr("ys",value.ys);
+        pp_queryarr("xs",value.xs); // x location of points
+        pp_queryarr("ys",value.ys); // y location of points
         value.Define(value.xs,value.ys);
     }
 };

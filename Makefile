@@ -39,6 +39,10 @@ CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_F
 
 LINKER_FLAGS += -Bsymbolic-functions
 
+#CXX_COMPILE_FLAGS += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
+#LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
+
+
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     += -L${AMREX}/lib/ -lamrex -lpthread
 
@@ -156,6 +160,7 @@ obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
+	@mkdir -p $(dir $@)
 	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
@@ -184,10 +189,48 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst .FORCE
 	@make -C docs html # > /dev/null
 
 
+check: .FORCE
+	@./scripts/checkdoc.py
+	@./.github/workflows/style/check_tabs.py
+	@eclint check src
+
 test: .FORCE
 	@./.github/workflows/style/check_tabs.py
 	@make docs
 	@./scripts/runtests.py
+
+GCDA = $(shell find obj/ -name "*.gcda" )
+GCNO = $(shell find obj/ -name "*.gcno" )
+
+GCDA_DIRS  = $(shell find obj/ -maxdepth 1 -name "*coverage*" )
+GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
+GCDA_INFOS = $(subst obj-,cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+GCDA_LCOVS = $(subst obj-,--add-tracefile cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
+
+cov-report: cov/index.html
+	@echo $(GCDA_LCOVS)
+	@echo "Done - output in cov/index.html"
+
+cov-clean: .FORCE
+	rm -rf $(GCDA)
+	rm -rf ./cov
+
+cov/index.html: cov/coverage_merged.info
+	genhtml cov/coverage_merged.info --output-directory cov
+
+cov/coverage_merged.info: $(GCDA_INFOS)
+	mkdir -p ./cov/
+	lcov --ignore-errors=gcov,source,graph $(GCDA_LCOVS) -o cov/coverage_merged.info  
+
+cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
+	mkdir -p ./cov/
+	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
+
+githubpages: docs cov-report
+	mkdir -p ./githubpages/
+	echo "<head><meta http-equiv=\"refresh\" content=\"0; url='docs/index.html\" /></head>" > githubpages/index.html
+	cp -rf docs/build/html ./githubpages/docs/
+	cp -rf cov/ ./githubpages/cov/
 
 ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)

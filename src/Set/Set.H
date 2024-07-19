@@ -1,3 +1,20 @@
+//
+// The Set namespace defines the Alamo datatypes.
+// This includes scalars (:code:`Set::Scalar`), vectors (:code:`Set::Vector`), and nD tensors (:code:`Set::Tensor`).
+// Scalars are an alias for AMReX :code:`Real`.
+// Vectors and tensors are an alias for the Tuxfamily Eigen vectors and matrices, and so you can use
+// Eigen operations on them (like :code:`A.determinant()`, etc.)
+// See the Eigen documentation for more.
+//
+// The Set namespace defines the :code:`Matrix4` datatype for fourth order tensors.
+// These can have isotropic, major, minor, majorminor, etc., symmetries.
+//
+// The Set namespace also defines the :code:`Field` datatype, which is where most data is stored.
+// It is templated so that :code:`Set::Field<Set::Scalar>` is a field of scalars, :code:`Set::Field<Set::Vector>`
+// is a vector field, etc.
+// One can also have, for instance, a field of models, like :code:`Set::Field<Model::Solid::Linear::Iostropic>`.
+//
+
 #ifndef SET_SET_
 #define SET_SET_
 
@@ -22,10 +39,11 @@ using HC = Hypercube;
 
 //};
 template <class T>
-class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>
+class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> 
 {
 public:
     Field() {} 
+    //~Field() {}
     Field(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost) 
     {
         Define(a_levs,a_grids,a_dmap,a_ncomp,a_nghost);
@@ -52,12 +70,27 @@ public:
     void Add(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) const {}
     void AddFrom(int /*a_lev*/, amrex::MultiFab &/*a_src*/, int /*a_srccomp*/, int /*a_nghost*/) const {}
     int NComp() const {return 0;}
-    virtual std::string Name(int) const {return name;}
-    std::string name;    
+    std::string Name(int) const {return name;}
+    std::string name;
+
+    amrex::Array4<T> Patch (int lev, amrex::MFIter &mfi) const &
+    {
+        if (this->size()) return (*(*this)[lev]).array(mfi);
+        else return empty;
+    }
+
+
+    amrex::Array4<T> empty;
 };
 
+
+template <typename T>
+using Patch = amrex::Array4<T> const&;
+
+
 template<>
-inline void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -76,7 +109,8 @@ inline void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_ds
     }    
 }
 template<>
-inline void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_dstcomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_src, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -95,7 +129,8 @@ inline void Field<Set::Vector>::CopyFrom(int a_lev, amrex::MultiFab &a_src, int 
     }    
 }
 template<>
-inline void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -114,7 +149,8 @@ inline void Field<Set::Vector>::Add(int a_lev, amrex::MultiFab &a_dst, int a_dst
     }    
 }
 template<>
-inline void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a_srccomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_src, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -133,8 +169,8 @@ inline void Field<Set::Vector>::AddFrom(int a_lev, amrex::MultiFab &a_src, int a
     }    
 }
 
-template<> inline int         Field<Set::Vector>::NComp() const {return AMREX_SPACEDIM;} 
-template<> inline std::string Field<Set::Vector>::Name(int i) const
+template<> ALAMO_SINGLE_DEFINITION int         Field<Set::Vector>::NComp() const {return AMREX_SPACEDIM;} 
+template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Vector>::Name(int i) const
 {
     #if AMREX_SPACEDIM>0
     if (i==0) return name + "_x";
@@ -150,7 +186,8 @@ template<> inline std::string Field<Set::Vector>::Name(int i) const
 }
 
 template<>
-inline void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -169,8 +206,8 @@ inline void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_ds
     }    
 }
 template<>
-inline int Field<Set::Matrix>::NComp() const {return AMREX_SPACEDIM*AMREX_SPACEDIM;} 
-template<> inline std::string Field<Set::Matrix>::Name(int i) const
+ALAMO_SINGLE_DEFINITION int Field<Set::Matrix>::NComp() const {return AMREX_SPACEDIM*AMREX_SPACEDIM;} 
+template<> ALAMO_SINGLE_DEFINITION std::string Field<Set::Matrix>::Name(int i) const
 {
     #if AMREX_SPACEDIM==1
     if (i==0) return name + "_xx";
@@ -222,7 +259,16 @@ public:
     {Util::Abort(INFO,"This should never get called");}
     int NComp() const
     {Util::Abort(INFO,"This should never be called");return -1;}
+
+    amrex::Array4<Set::Scalar> Patch (int lev, amrex::MFIter &mfi) const &
+    {
+        if (this->size()) return (*(*this)[lev]).array(mfi);
+        else return empty;
+    }
+
+    amrex::Array4<Set::Scalar> empty;
 };
+
 
 }
 
@@ -236,7 +282,10 @@ namespace Set
 {
 namespace Constant
 {
+// Pi
 static const Set::Scalar Pi = 3.14159265359;
+// Gas constant
+static const Set::Scalar Rg = 8.31446261815;
 }
 }
 

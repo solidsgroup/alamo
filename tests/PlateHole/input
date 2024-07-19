@@ -1,21 +1,35 @@
 #@  [2D-serial]
+#@  exe    = mechanics
 #@  dim    = 2 
 #@  nprocs = 1
 #@  check  = true
 #@ 
+#@  [2D-serial-coverage]
+#@  exe    = mechanics
+#@  dim    = 2 
+#@  nprocs = 1
+#@  check  = false
+#@  coverage = true
+#@  args=solver.fixed_iter = 1
+#@
 #@  [3D-parallel]
+#@  exe    = mechanics
 #@  dim    = 3
 #@  nprocs = 4
 #@  check  = false
 #@  benchmark-beaker = 13.52
 #@  benchmark-statler = 11.48
+#@  benchmark-waldorf = 7.05
 #@
 #@  [3D-serial]
+#@  exe    = mechanics
 #@  dim    = 3
 #@  nprocs = 1
 #@  check  = false
 #@  benchmark-beaker = 42.00
-#@  benchmark-beaker = 29.41
+#@  benchmark-waldorf = 21.28
+
+
 
 
 alamo.program = mechanics

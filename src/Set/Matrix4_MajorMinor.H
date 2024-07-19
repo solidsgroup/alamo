@@ -32,7 +32,7 @@ public:
         else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[4]; // [0111] [1011] [1101] [1110]
         else if (uid==15 )                                 return data[5]; // [1111]
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage;
     }
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
@@ -45,7 +45,7 @@ public:
         else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[4]; // [0111] [1011] [1101] [1110]
         else if (uid==15 )                                 return data[5]; // [1111]
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage; 
     }
     void Print (std::ostream& os)
     {
@@ -115,13 +115,68 @@ public:
         for (int i = 0 ; i < 6; i++) ret.data[i] = 0.0;
         return ret;
     }
+    static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    {
+        Set::Matrix4<2,Sym::MajorMinor> ret;
+        Set::Scalar Ctmp[3][3][3][3];
+
+        for(int i = 0; i < 3; i++) 
+            for(int j = 0; j < 3; j++) 
+                for(int k = 0; k < 3; k++) 
+                    for(int l = 0; l < 3; l++)
+                    {
+                        if(i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11;
+                        else if (i==k && j==l) Ctmp[i][j][k][l] = C44;
+                        else if (i==j && k==l) Ctmp[i][j][k][l] = C12;
+                        else Ctmp[i][j][k][l] = 0.0;
+                    }
+        for(int p = 0; p < 2; p++) 
+            for(int q = 0; q < 2; q++) 
+                for(int s = 0; s < 2; s++) 
+                    for(int t = 0; t < 2; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++) 
+                            for(int j = 0; j < 3; j++) 
+                                for(int k = 0; k < 3; k++) 
+                                    for(int l = 0; l < 3; l++) 
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }                
+        return ret;
+    }
+    static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    {
+        Eigen::Matrix3d R;
+        R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+        return Matrix4<2,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
+    }
+    static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Quaternion q)
+    {
+        Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+        return Cubic(C11,C12,C44,R);
+    }
+
+
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
+    friend bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
+    friend Matrix4<2,Sym::MajorMinor> operator * (Set::Scalar b, Matrix4<2,Sym::MajorMinor> a);
     friend Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
     friend Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
 };
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
+{
+    for (int i = 0 ; i < 6 ; i++) if (a.data[i] != b.data[i]) return false;
+    return true;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
 {
@@ -142,6 +197,11 @@ Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar
     Matrix4<2,Sym::MajorMinor> ret;
     for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] * b;
     return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator * (Set::Scalar b,Matrix4<2,Sym::MajorMinor> a)
+{
+    return a*b;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
@@ -240,7 +300,7 @@ public:
         // [2222]
         else if (uid==80 ) return data[20];
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage; 
     }
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
@@ -289,7 +349,7 @@ public:
         // [2222]
         else if (uid==80 ) return data[20];
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage; 
     }
     void Print (std::ostream& os)
     {
@@ -380,13 +440,67 @@ public:
         for (int i = 0 ; i < 21; i++) ret.data[i] = 0.0;
         return ret;
     }
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    {
+        Set::Matrix4<3,Sym::MajorMinor> ret;
+        Set::Scalar Ctmp[3][3][3][3];
+
+        for(int i = 0; i < 3; i++) 
+            for(int j = 0; j < 3; j++) 
+                for(int k = 0; k < 3; k++) 
+                    for(int l = 0; l < 3; l++)
+                    {
+                        if(i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11;
+                        else if (i==k && j==l) Ctmp[i][j][k][l] = C44;
+                        else if (i==j && k==l) Ctmp[i][j][k][l] = C12;
+                        else Ctmp[i][j][k][l] = 0.0;
+                    }
+        for(int p = 0; p < 3; p++) 
+            for(int q = 0; q < 3; q++) 
+                for(int s = 0; s < 3; s++) 
+                    for(int t = 0; t < 3; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++) 
+                            for(int j = 0; j < 3; j++) 
+                                for(int k = 0; k < 3; k++) 
+                                    for(int l = 0; l < 3; l++) 
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }                
+        return ret;
+    }
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    {
+        Eigen::Matrix3d R;
+        R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+        return Matrix4<3,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
+    }
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Quaternion q)
+    {
+        Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+        return Cubic(C11,C12,C44,R);
+    }
+
+    friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
+    friend Matrix4<3,Sym::MajorMinor> operator * (Set::Scalar b, Matrix4<3,Sym::MajorMinor> a);
     friend Matrix4<3,Sym::MajorMinor> operator / (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
     friend Set::Vector operator * (Matrix4<3,Sym::MajorMinor> a, Set::Matrix3 b);
     friend Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
 };
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
+{
+    for (int i = 0 ; i < 21 ; i++) if (a.data[i] != b.data[i]) return false;
+    return true;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
 {
@@ -407,6 +521,11 @@ Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar
     Matrix4<3,Sym::MajorMinor> ret;
     for (int i = 0 ; i < 21 ; i++) ret.data[i] = a.data[i] * b;
     return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3,Sym::MajorMinor> operator * (Set::Scalar b,Matrix4<3,Sym::MajorMinor> a)
+{
+    return a*b;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3,Sym::MajorMinor> operator / (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b)

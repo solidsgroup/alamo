@@ -175,7 +175,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 }
             });
         }
-        
     }
 
     // if (time < disconnection.tstart) return;
@@ -186,37 +185,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 //
 //    Set::Matrix F0 = Set::Matrix::Zero();
 //
-//    Set::Scalar beta = 0.2;
-//    Set::Scalar phi = -Set::Constant::Pi * 0.15;
-//    F0(0, 0) = - beta * sin(phi) * cos(phi);
-//    F0(0, 1) = - beta * cos(phi) * cos(phi);
-//    F0(1, 0) = beta * sin(phi) * sin(phi);
-//    F0(1, 1) = beta * sin(phi) * cos(phi);
-//
-//    amrex::Box domain = this->geom[lev].Domain();
-//    domain.convert(amrex::IntVect::TheNodeVector());
-//    for (amrex::MFIter mfi(*this->model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//    {
-//        const amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
-//        amrex::Array4<const Set::Scalar> const& etaold = (*eta_old_mf[lev]).array(mfi);
-//        amrex::Array4<const Set::Scalar> const& etanew = (*eta_new_mf[lev]).array(mfi);
-//        amrex::Array4<Set::Scalar> const& disc = (*disc_mf[lev]).array(mfi);
-//        amrex::Array4<model_type> const& model = this->model_mf[lev]->array(mfi);
-//        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-//        {
-//            auto sten = Numeric::GetStencil(i, j, k, bx);
-//            Set::Scalar e0new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 0, sten);
-//            Set::Scalar e0old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 0, sten);
-//            Set::Scalar e1new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 1, sten);
-//            Set::Scalar e1old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 1, sten);
-//
-//            Set::Scalar g0new = (e0new * e0new) / (e0new * e0new + e1new * e1new);
-//            Set::Scalar g0old = (e0old * e0old) / (e0old * e0old + e1old * e1old);
-//
-//            model(i, j, k).F0 += (g0new - g0old) * F0;
-//        });
-//    }
-//    Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
 }
 
 template <class model_type>
@@ -286,7 +254,7 @@ void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_new_mf);
     ic->Initialize(lev, eta_old_mf);
-    this->model_mf[lev]->setVal(mechanics.model[0]);
+    //this->model_mf[lev]->setVal(mechanics.model[0]);
 }
 
 template<class model_type>
@@ -324,7 +292,7 @@ void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar /*time*/
 }
 
 template<class model_type>
-void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step)
+void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /*a_time*/)
 {
     BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
     if (a_step % this->m_interval) return;

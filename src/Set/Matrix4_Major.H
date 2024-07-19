@@ -61,7 +61,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
 
     AMREX_FORCE_INLINE
@@ -80,7 +80,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
     void Print(std::ostream &os)
     {
@@ -168,6 +168,7 @@ public:
     friend Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
     friend Matrix4<2, Sym::Major> operator-(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
     friend Matrix4<2, Sym::Major> operator*(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
+    friend Matrix4<2, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<2, Sym::Major> &a);
     friend Matrix4<2, Sym::Major> operator/(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b);
     friend Set::Matrix operator*(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b);
 };
@@ -192,6 +193,12 @@ Matrix4<2, Sym::Major> operator*(const Matrix4<2, Sym::Major> &a, const Set::Sca
     for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] * b;
     return ret;
 }
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2, Sym::Major> operator*(const Set::Scalar &b, const Matrix4<2, Sym::Major> &a)
+{
+    return a*b;
+}
+
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2, Sym::Major> operator/(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b)
 {
@@ -306,7 +313,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
     
 
@@ -362,7 +369,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
 
     Set::Scalar Norm()
@@ -455,6 +462,7 @@ public:
     friend Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
     friend Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b);
     friend Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
+    friend Matrix4<3, Sym::Major> operator*(const Set::Scalar &b,const Matrix4<3, Sym::Major> &a);
     friend Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
 };
 
@@ -479,6 +487,12 @@ Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Sca
     for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] * b;
     return ret;
 }
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3, Sym::Major> operator*(const Set::Scalar &b, const Matrix4<3, Sym::Major> &a)
+{
+    return a*b;
+}
+
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b)
 {

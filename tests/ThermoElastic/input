@@ -1,3 +1,18 @@
+#@
+#@ [2d]
+#@ dim=2
+#@ check=true
+#@ exe=thermoelastic
+#@ args=stop_time=10
+#@ 
+#@ [2d-coverage]
+#@ dim=2
+#@ check=false
+#@ exe=thermoelastic
+#@ args=stop_time=1
+#@ coverage=true
+#@
+
 alamo.program = thermoelastic
 
 plot_file     = tests/ThermoElastic/output
@@ -14,8 +29,7 @@ amr.blocking_factor	    = 4
 amr.regrid_int		    = 50
 amr.grid_eff		    = 1.0
 
-amr.node.all = 1
-amr.cell.any = 0
+amr.cell.all = 1
 
 # geometry
 geometry.prob_lo	    = -8 -8 -8 
@@ -54,7 +68,6 @@ hc.bc.temp.val.zhi  = 0.0
 hc.bc.temp.val.zlo  = 1.0
 
 
-
 #
 # ELASTICITY MODEL
 #
@@ -68,15 +81,15 @@ el.ic.ellipse.x0  = 0 0 0 # location of ellipse center
 el.ic.ellipse.eps = 0.8 # diffuse boundary
 
 # elastic moduli
-el.elastic.nmodels = 2
-el.elastic.model1.E = 210 
-el.elastic.model1.nu = 0.3
-el.elastic.model1.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
-el.elastic.model2.E = 210 
-el.elastic.model2.nu = 0.3
-el.elastic.model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
-el.elastic.solver.verbose = 4
-el.elastic.solver.nriters = 1
+el.nmodels = 2
+el.model1.E = 210 
+el.model1.nu = 0.3
+el.model1.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
+el.model2.E = 210 
+el.model2.nu = 0.3
+el.model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
+el.solver.verbose = 4
+el.solver.nriters = 1
 
-el.elastic.ref_threshold = 5E-5
-el.elastic.eta_ref_threshold = 10
+el.ref_threshold = 5E-5
+el.eta_ref_threshold = 5E-5

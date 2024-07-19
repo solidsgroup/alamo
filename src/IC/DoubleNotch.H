@@ -1,3 +1,10 @@
+//
+// Implement a double-notch. Primarily used in fracture.
+//
+// .. WARNING::
+//
+//    This function is depricated. Use :ref:`IC::Expression` instead.
+//
 #ifndef IC_DOUBLENOTCH_H_
 #define IC_DOUBLENOTCH_H_
 
@@ -60,22 +67,10 @@ private:
 public:
     static void Parse(DoubleNotch & value, IO::ParmParse & pp)
     {
-        pp.query("thickness",value.thickness);
-        pp.query("width",value.width);
-        pp.queryarr("x0",value.x0);
-        pp.query("L",value.L);
-        //pp.queryarr("x0",value.x0);
-        //pp.query("eps",value.eps);
-        //if (pp.contains("A"))
-        //{
-        //    pp.queryarr("A",value.A);
-        //}
-        //else if (pp.contains("a"))
-        //{
-        //    Set::Vector a = Set::Vector::Ones();
-        //    pp.queryarr("a",a);
-        //    for (int d = 0; d < AMREX_SPACEDIM; d++) value.A(d,d) = 1./a(d)/a(d);
-        //}
+        pp_query("thickness",value.thickness); // Thickness of the notches
+        pp_query("width",value.width); // Width of the notches
+        pp_queryarr("x0",value.x0); // Center of the notches
+        pp_query("L",value.L); // Length of the notches
     }
 };
 }

@@ -16,7 +16,7 @@ class Cubic : public Linear::Cubic
 public:
 
     Cubic() {};
-    Cubic(Solid<Set::Sym::MajorMinor> base) : Linear::Cubic(base) {};
+    Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
     virtual ~Cubic() {};
 
     void
@@ -43,7 +43,7 @@ public:
     {
         return Linear::Cubic::DDW(gradu - F0);
     }
-    virtual void Print(std::ostream &out) const //override 
+    virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }
@@ -75,7 +75,7 @@ public:
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         Linear::Cubic::Parse(value,pp);
-        if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
+        if (pp.contains("F0")) pp_queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE
@@ -105,20 +105,23 @@ public:
 }
 
 template<>
-inline int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
+ALAMO_SINGLE_DEFINITION
+int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
 {
     return 1;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
+ALAMO_SINGLE_DEFINITION
+std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
 {
     if (i==0) return name + ".Cxxxx";
     return name;
 }
 
 template<>
-inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+ALAMO_SINGLE_DEFINITION
+void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {

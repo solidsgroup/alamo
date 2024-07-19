@@ -1,4 +1,7 @@
 breathe
 m2r
-sphinx_rtd_theme
-linuxdoc==20210324
+sphinx_rtd_theme>=1.2.2
+linuxdoc
+sphinx_design
+sphinx_copybutton
+sphinxcontrib-bibtex

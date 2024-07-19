@@ -5,7 +5,6 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "IO/ParmParse.H"
-#include "Model/Solid/Elastic/NeoHookean.H"
 #include "Numeric/Stencil.H"
 
 namespace Solver
@@ -643,11 +642,10 @@ public:
         Linear::Parse(value, pp);
 
         // Number of newton-raphson iterations.
-        pp.query("nriters", value.m_nriters);
+        pp_query("nriters", value.m_nriters);
 
         // Tolerance to use for newton-raphson convergence
-
-        pp.query("nrtolerance", value.m_nrtolerance);
+        pp_query("nrtolerance", value.m_nrtolerance); 
     }
 
 };

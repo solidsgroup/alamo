@@ -134,7 +134,7 @@ public:
 
     }
     void 
-    FillPatch (int lev, amrex::Real time)
+    FillPatch (int lev, amrex::Real time) override
     {
         this->FillPatch(lev,time,m_field,*(m_field[lev]),0);
     }
@@ -236,7 +236,7 @@ public:
     virtual void MakeNewLevelFromScratch (int lev, 
                                         amrex::Real /*time*/, 
                                         const amrex::BoxArray& cgrids,
-                                        const amrex::DistributionMapping& dm)
+                                        const amrex::DistributionMapping& dm) override
     {
         if (m_gridtype == Set::Hypercube::Node)
         {
@@ -254,7 +254,7 @@ public:
             Util::Abort(INFO,"Invalid grid");
     }                                 
 
-    virtual void SetFinestLevel(const int a_finestlevel)
+    virtual void SetFinestLevel(const int a_finestlevel) override
     {
         m_field.finest_level = a_finestlevel;
     }
@@ -309,10 +309,10 @@ public:
     virtual std::string Name(int i) override {
         return m_field.Name(i);
     }
-    virtual void setBC(void * a_bc) {
+    virtual void setBC(void * a_bc) override {
         m_bc = (BC::BC<T> *)(a_bc);
     }
-    virtual void * getBC() {
+    virtual void * getBC() override {
         return (void*)m_bc;
     }
 

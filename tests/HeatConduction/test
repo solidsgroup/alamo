@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+import sys
+sys.path.insert(0,"../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+
+testlib.validate(path="{}/00500cell/".format(outdir),
+                 outdir=outdir,
+                 start=[0,0,0],
+                 end=[1,1,1],
+                 vars=["Temp"],
+                 tolerance=1E-4)
+exit(0)
+
+
+
+
+

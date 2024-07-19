@@ -1,0 +1,98 @@
+#@
+#@ [2d-serial]
+#@ exe = mechanics
+#@ dim = 2
+#@ args = stop_time=1
+#@ check = false
+#@
+
+
+
+alamo.program.mechanics.model = affine.cubic
+
+plot_file		    = tests/VoronoiDynamics/output
+
+type=dynamic
+
+timestep		    = 0.001
+stop_time		    = 100.0
+
+amr.plot_dt		    = 1
+#amr.plot_int		    = 1
+amr.max_level		    = 2
+amr.blocking_factor	    = 8
+amr.regrid_int		    = 50
+amr.grid_eff		    = 1.0
+amr.cell.all                = 1
+
+# geometry
+geometry.is_periodic	    = 0 0 0
+amr.n_cell		    = 128 32 32
+geometry.prob_lo	    = 0  -4 4
+geometry.prob_hi	    = 32 4 4
+
+#ic.type = constant
+#ic.constant.value = 1.0
+ic.type			        = voronoi
+ic.voronoi.number_of_grains	= 40
+
+# elastic moduli
+#nmodels = 1
+#model1.E = 1.1 
+#model1.nu = 0.3
+
+nmodels = 10
+model.C11             = 1.68
+model.C12             = 0.25
+model.C44             = 0.5
+model.random          = 1
+
+viscous.mu_dashpot = 0
+viscous.mu_newton = 0.0075
+
+bc.type = expression
+
+## boundary conditions ##
+## 2D and 3D ##
+bc.expression.type.xlo     = trac trac disp
+bc.expression.type.xloyhi  = trac disp trac
+bc.expression.type.xloylo  = trac disp trac
+bc.expression.type.xhi     = trac trac disp
+bc.expression.type.xhiyhi  = trac disp trac
+bc.expression.type.xhiylo  = trac disp trac
+bc.expression.type.ylo     = trac disp trac
+bc.expression.type.yhi     = trac disp trac
+bc.expression.val.xlo    = "1.0*(t<4)"  "0"
+bc.expression.val.xloylo = "1.0*(t<4)"  "0"
+bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+
+## 3D only ##
+#  faces
+bc.expression.type.zlo     = trac trac disp
+bc.expression.type.zhi     = trac trac disp
+#  edges
+bc.expression.type.zhixlo  = trac trac disp
+bc.expression.type.zloxlo  = trac trac disp
+bc.expression.type.zhixhi  = trac trac disp
+bc.expression.type.zloxhi  = trac trac disp
+bc.expression.type.ylozlo  = trac disp disp
+bc.expression.type.ylozhi  = trac disp disp
+bc.expression.type.yhizlo  = trac disp disp
+bc.expression.type.yhizhi  = trac disp disp
+##  corners
+bc.expression.type.xloylozlo  = trac disp disp
+bc.expression.type.xloylozhi  = trac disp disp
+bc.expression.type.xloyhizlo  = trac disp disp
+bc.expression.type.xloyhizhi  = trac disp disp
+bc.expression.type.xhiylozlo  = trac disp disp
+bc.expression.type.xhiylozhi  = trac disp disp
+bc.expression.type.xhiyhizlo  = trac disp disp
+bc.expression.type.xhiyhizhi  = trac disp disp
+
+time_evolving = 0
+
+# Elastic refinement criterion
+ref_threshold = 0.1
+eta_ref_threshold = 1
+eta_reset_on_regrid = 1
+

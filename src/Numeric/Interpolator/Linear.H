@@ -1,3 +1,39 @@
+//
+// This is a general-purpose routine for specifying time-interpolated
+// quantities in an input file.
+// Interpolators obey the following syntax:
+// 
+// .. code-block:: bash
+// 
+//    (t1,t2,..,tn;v1,v2,...,vn)
+//
+// where :code:`tn` are times and :code:`vn` are values at those times.
+//
+// :bdg-danger-line:`Note: do not include whitespace in an interpolator, this will mess with the parser.`
+//
+// Interpolators can usually be used in place of regular numbers, but only
+// when supported by the calling parse function.
+// 
+// For instance, the `BC::Operator::Elastic::TensionTest` allows the user to specify
+// fixed displacement; for instance, to specify a value of 0.1:
+// 
+// .. code-block:: bash
+// 
+//    bc.tenstion_test.disp = 0.1
+// 
+// However, it may be desirable to change the value over time.
+// In this case, one may specify an interpolator string instead:
+//
+// .. code-block:: bash
+// 
+//    bc.tenstion_test.disp = (1.0,1.5,2.0;0.0,0.1,0.0)
+// 
+// This will cause the displacement value to be zero for :code:`t<1.0`; 
+// ramp to :code:`0.1` as :code:`1.0<t<2.0`; 
+// ramp back to :code:`0.0` as :code:`2.0<t<3.0`; 
+// and then remain at the constant value of :code:`3.0` for :code:`t>3.0`.
+//
+
 #ifndef NUMERIC_INTERPOLATOR_LINEAR_H_
 #define NUMERIC_INTERPOLATOR_LINEAR_H_
 
@@ -116,9 +152,12 @@ public:
     static void Parse(Linear<T> & value, IO::ParmParse & pp)
     {
         std::string in;
-        pp.query("str",in);
+        pp_query("str",in); // Interpolator string used when Parsed from queryclass.
         value.define(in);
     }
+
+
+    static Linear<T> Read(std::string filename, int derivative = 0);
 
 protected:
     std::vector<T> data_points;
@@ -130,7 +169,8 @@ public:
 };
 
 template<class T>
-inline Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
+AMREX_FORCE_INLINE
+Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
 {
     Linear<T> ret;
     for (unsigned int i = 0; i < b.data_points.size(); i++) 
@@ -139,6 +179,49 @@ inline Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
     ret.uniform = b.uniform;
     return ret;
 }
+
+template<>
+ALAMO_SINGLE_DEFINITION
+Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative)
+{
+    std::ifstream input;
+    input.open(filename);
+    std::string line;
+    std::vector<Set::Scalar> theta, w;
+    // parse input 
+    while (std::getline(input, line))
+    {        std::vector<std::string> dat = Util::String::Split(line);
+        theta.push_back(std::stof(dat[0]));
+        w.push_back(std::stof(dat[1]));
+    }
+    if (derivative == 0)
+    {
+        return Linear<Set::Scalar>(w,theta);
+    }
+    else if (derivative == 1)
+    {
+        std::vector<Set::Scalar> thetasmall, dw;
+        for (unsigned int i = 1; i < theta.size() - 1; i++)
+        {
+            thetasmall.push_back(theta[i]);
+            dw.push_back((w[i + 1] - w[i - 1]) / (theta[i + 1] - theta[i - 1]));
+        }
+        return Linear<Set::Scalar>(dw,thetasmall);
+    }
+    else if (derivative == 2)
+    {
+        std::vector<Set::Scalar> thetasmall, ddw;
+        for (unsigned int i = 1; i < theta.size() - 1; i++)
+        {
+            thetasmall.push_back(theta[i]);
+            ddw.push_back((w[i + 1] - 2.0 * w[i] + w[i - 1]) / ((theta[i + 1] - theta[i]) * (theta[i] - theta[i - 1])));
+        }
+        return Linear<Set::Scalar>(ddw,thetasmall);
+    }
+    else Util::Abort(INFO,"derivative must be 0,1,2 but got ",derivative);
+    exit(-1);
+}
+
 
 }
 }

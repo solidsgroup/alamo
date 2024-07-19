@@ -17,24 +17,21 @@ amr.max_grid_size = 8
 #amr.ref_ratio = 4
 
 ic.type=expression
-ic.expression.region0 = "-0.25882*x-0.96593*z < -5.6661 &  0.25882*x - 0.96593*z < -5.6661 "
-
-ic.expression.region1 = "0.25882*x + 0.96593*z < 5.6661 & z>0 & x<0"
-#"z<0 & x>=0"
-
-ic.expression.region2 = "-0.25882*x + 0.96593*z < 5.6661 & z>0 & x> 0"
+ic.expression.region0 = "-0.25882*x - 0.96593*z < -5.6661 and 0.25882*x - 0.96593*z < -5.6661 "
+ic.expression.region1 = " 0.25882*x + 0.96593*z <  5.6661 and z>0 and x<0"
+ic.expression.region2 = "-0.25882*x + 0.96593*z <  5.6661 and z>0 and x>0"
 
 
 geometry.prob_lo = -0.5 -0.5 0
 geometry.prob_hi = 0.5 0.5 7
 geometry.is_periodic= 0 0 0
 
-bc.eta.type.xlo = REFLECT_EVEN
-bc.eta.type.xhi = REFLECT_EVEN
-bc.eta.type.ylo = REFLECT_EVEN
-bc.eta.type.yhi = REFLECT_EVEN
-bc.eta.type.zlo = REFLECT_EVEN
-bc.eta.type.zhi = REFLECT_EVEN
+bc.eta.type.xlo = neumann
+bc.eta.type.xhi = neumann
+bc.eta.type.ylo = neumann
+bc.eta.type.yhi = neumann
+bc.eta.type.zlo = neumann
+bc.eta.type.zhi = neumann
 #bc.eta.val.ylo  = 1.0 0.0
 #bc.eta.val.yhi  = 0.0 1.0
 

@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+import sys
+sys.path.insert(0,"../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+
+testlib.validate(path="{}/00020cell/".format(outdir),
+                 outdir=outdir,
+                 start=[1,0,0],
+                 end=[8,0,1],
+                 vars=["stress_xx","stress_yy","disp_x"],
+                 tolerance=1E-6,
+                 generate_ref_data=False)
+exit(0)
+
+
+
+
+

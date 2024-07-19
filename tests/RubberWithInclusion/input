@@ -1,0 +1,66 @@
+#@
+#@ [serial-2d]
+#@ exe=mechanics
+#@ dim=2
+#@ benchmark-beaker=13.8
+#@ check-file=reference/thermo.dat
+#@
+#@ [serial-2d-coverage]
+#@ exe=mechanics
+#@ dim=2
+#@ check=false
+#@ args=stop_time=0.1
+#@ coverage=true
+#@
+#@ [parallel-2d]
+#@ exe=mechanics
+#@ dim=2
+#@ nprocs=4
+#@ benchmark-beaker=6.6
+#@ check-file=reference/thermo.dat
+#@
+
+alamo.program = mechanics
+alamo.program.mechanics.model = finite.neohookean
+plot_file = tests/RubberWithInclusion/output
+type = static
+timestep = 0.1
+stop_time = 1.0
+
+amr.plot_int = 1
+amr.max_level = 2 
+amr.n_cell = 16 16 16
+amr.blocking_factor = 2
+amr.thermo.int = 1
+amr.thermo.plot_int = 1
+
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 1
+
+ic.type = ellipse
+ic.ellipse.a = 0.25 0.25 0.25
+ic.ellipse.x0 = 0.5 0.5 0.5
+ic.ellipse.eps = 0.05
+
+nmodels = 2
+model1.mu = 30
+model1.kappa = 60
+model2.mu = 3.0
+model2.kappa = 6.0
+
+solver.verbose = 3
+solver.max_iter = 150
+solver.nriters = 1000
+solver.nrtolerance = 1E-5
+
+
+ref_threshold = 100
+
+bc.type = tension_test
+bc.tension_test.type = uniaxial_stress
+bc.tension_test.disp = (0,1:0,0.5)
+
+solver.dump_on_fail = 1
+amrex.signal_handling = 0
+amrex.throw_exception = 1
+

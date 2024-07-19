@@ -1,6 +1,7 @@
-///
-/// \file CahnHilliard.H
-///
+//
+// CahnHilliard
+//
+
 #ifndef INTEGRATOR_CAHNHILLIARD_H
 #define INTEGRATOR_CAHNHILLIARD_H
 

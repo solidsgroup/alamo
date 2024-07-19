@@ -1,74 +1,142 @@
-===============
-Getting Started
-===============
+.. getting-started:
 
 Note: this README page is also the Doxygen main page, the Github readme page, 
 and the Docs main page.
 You can view it by running :code:`make docs` in the root directory, then opening 
 :code:`docs/doxygen/html/index.html` or :code:`docs/build/html/index.html` in a web browser. 
 
-Quick Start:
-============
+
+
+Downloading Alamo
+=================
+
+Download alamo using git:
 
 .. code-block::
 
-    git clone https://github.com/solidsuccs/alamo.git
-    cd alamo
-    ./configure --build-amrex --get-eigen
-    make
+    git clone git@github.com:solidsgroup/alamo.git
+    
+If you do not have a Github account and/or you have not uploaded your public SSH key, this will probably throw an error.
+You can download alamo using HTTPS instead,
+
+.. code-block::
+    
+    https://github.com/solidsuccs/alamo.git 
+
+Note, however, that you will not be able to push anything using HTTPS authentication.
+The :code:`master` branch is the most stable and is what is checked out by default.
+The :code:`develompent` branch is generally stable, and includes the latest functionality.
+To switch to :code:`development`, in the alamo directory,
+
+.. code-block::
+    
+    git checkout development
 
 
-Compiling Alamo
-===============
 
-This section describes how to compile and install Alamo and its dependencies.
+.. literalinclude:: .git/workflows/dependencies.sh
+   :caption: Dependencies
+   :language: bash
+    
+Installing dependencies
+=======================
 
-**Installing Eigen**: You need to have the Eigen3 library installed. You can do this in one of two ways:
-
-1.  Install using your package manager. In Ubuntu, you can install using
-
-    .. code-block::
-
-        sudo apt install libeigen3-dev
-
-2.  Use the :code:`--get-eigen` flag in the :code:`./configure` script.
-    This will download Eigen into the root alamo directory.
-
-3. Download `eigen3` from the website http://eigen.tuxfamily.org.
-   Store it in a directory (e.g. /home/myusername/eigen3/).
-
-**Cloning**: Clone the repository using the command
+Alamo depends primarily on AMReX, but has some of its own dependencies, such as Eigen.
+The two officially supported Linux distributions are currently: the latest version of Ubuntu, and Ubuntu 20.04. (This is subject to change).
+If you are using Ubuntu (or a debian-based distribution) you can install all necessary dependencies by running the dependencies script:
 
 .. code-block::
 
-    git clone https://github.com/solidsuccs/alamo.git
+    sudo bash .github/workflows/dependencies.sh
 
-**Configuring**: Navigate to the :code:`alamo` directory, and run the configure script:
+If you are using a non-debian based system such as RedHat, you can install the corresponding packages in :code:`dependencies.sh`. 
+Windows and Mac OS are not supported.
+
+Setting MPICH as default MPI
+============================
+
+Alamo and AMReX require either mpich or mvapich. 
+OpenMPI is not supported, but is often set as the default on Ubuntu systems.
+This can often happen after the installation of other packages, such as Paraview, and is not usually caught by the configure script.
+
+On Ubuntu, you can check to see whether openmpi is being used by the :code:`update-alternatives` command.
+
+.. code-block::
+
+    $> sudo update-alternatives --config mpi
+
+    There are 2 choices for the alternative mpi (providing /usr/bin/mpicc).
+    
+      Selection    Path                    Priority   Status
+    ------------------------------------------------------------
+    * 0            /usr/bin/mpicc.openmpi   50        auto mode
+      1            /usr/bin/mpicc.mpich     40        manual mode
+      2            /usr/bin/mpicc.openmpi   50        manual mode
+    
+    Press <enter> to keep the current choice[*], or type selection number:     
+
+In this case, mpich is installed along with openmpi, but openmpi has been set to the default.
+Here, you can just type 1 to set the selection to mpich.
+Do the same thing for :code:`mpirun`:
+
+.. code-block::
+
+    $> sudo update-alternatives --config mpirun
+    
+Now your system should be properly configured.
+
+If you are using an HPC, it is easier to switch to mpich or mvapich using the :code:`module` command.
+See the documentation for your specific platform to see how to load mpich or mvapich.    
+
+Configuring
+===========
+
+To compile alamo, you must first run the configure script. 
+This is done simply by running the following in the alamo directory 
+(note that AMReX download is triggered by this command, so it may take a couple minutes to complete depending on your internet connection)
 
 .. code-block::
 
     ./configure
 
-This will download and configure the AMReX repository for use by Alamo.
-If you are compiling in 2D, add the argument :code:`--dim 2` to the command.
-For a full list of options run :code:`./configure --help`.
+By default, alamo will configure in 3D production mode. 
+To compile in  2D debug mode, 
+
+.. code-block::
+
+    ./configure --dim=2 --debug
+
+There are multiple compilation options available for Alamo, and they must all be specified at configure time.
+For a complete listing of the Alamo configuration options, type
+
+.. code-block::
+
+    ./configure --help
+
 
 .. NOTE:: 
-    If amrex is installed and built elsewhere, you can just add 
-    :code:`--amrex /path/to/amrex` to your configure command.
+    The configure script produces output designed to assist in determining compile issues with Alamo.
+    Whenever you request help with alamo, please always include the complete output of the configure script.
 
-.. NOTE:: 
-    If you used option (3) to obtain Eigen, you need to add
-    :code:`--eigen /path/to/eigen` to your configure command:
+Compiling
+=========
 
-**Making**: To build the code:
+Once you have configured Alamo, compile it by
 
 .. code-block::
 
     make
 
-This will automatically build the appropriate version of AMReX as well as Alamo.
-To build in parallel, add the :code:`-jN` argument where :code:`N` is the number of processors.
+If you are on a platform with multiple cores, you can compile in parallel (for instance, with 4 cores) with
+
+.. code-block::
+
+    make -j4
+
+The alamo exectuable will be stored in :code:`./bin/` and name according to the options specified at configure time.
+For instance, if you are using GCC to make Alamo in 2D using debug mode, the alamo executable will be :code:`./bin/alamo-2d-debug-g++`.
+You can work with multiple versions of Alamo at the same time without having to re-compile the entire code base.
+All you need to do is re-run the configure script, and previous versions of Alamo and AMReX will be saved automatically.
 
 .. WARNING::
     There is an issue with GNU Make that can cause I/O errors during parallel builds.
@@ -81,19 +149,29 @@ To build in parallel, add the :code:`-jN` argument where :code:`N` is the number
     To continue the build, just issue the :code:`make` command again and it should continue normally.
     You can also add the :code:`--output-sync=target` option which may help eliminate the issue.
 
-**Python Interface** See :ref:`building-python`
-
 Testing
 =======
 
-Upon successful compilation, run tests by typing
+Upon successful compilation, run tests by
 
 .. code-block::
 
-    ./bin/test-3d-debug-g++
+    make test
 
-The output will indicate whether the tests pass or fail.
-If you are committing changes, you should always make sure the tests pass in 2 and 3 dimensions before committing.
+This will run the unit tests and regression tests for all compiled production versions of Alamo.
+If you have only run in 2D, only 2D tests will be generated.
+If you are a developer and you are preparing to merge your branch into :code:`development`, you should perform a complete test via
+
+.. code-block::
+
+    ./configure --dim=2
+    make
+    ./configure --dim=3
+    make
+    make test
+
+For a full description of the Alamo regression test system, please see 
+
 
 Common Error Messages
 =====================

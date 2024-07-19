@@ -1,3 +1,20 @@
+// Initialize a perturbed interface using Fourier Modes
+///
+// Notes:
+// 1. \todo Extend this class to allow for 3D perturbations, currently only 2D are allowed
+// 2. \todo Allow for cosine (or complex exponential) expansions rather than just sin.
+// 3. \note This is a **two grain only** initial condition.
+// 4. \note This replaces the depricated "perturbed_bar" initial condition from previous versions
+//
+// The interface is defined as the :math:`x=0` plane (2D), or the :math:`x=0,z=0` plane (3D).
+// The equation for the interface is given by
+// :math:`y(x,z) = \sum_{n\in \{n_1,\ldots,n_N\}} A_n \sin(n\pi x/L_x)`
+// where :math:`A_n` are the amplitudes (stored in #wave_amplitudes),
+// :math:`n_1,\ldots,n_N\subset\mathbb{Z}_+` are wave numbers (stored in #wave_numbers),
+// and :math:`L_x` is the length in the x direction (obtained using the #geom object).
+//
+// Grain 1 is defined as being above :math:`y(x,z)`, Grain 2 is defined as being below.
+
 #ifndef IC_PERTURBEDINTERFACE_H_
 #define IC_PERTURBEDINTERFACE_H_
 
@@ -5,22 +22,6 @@
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 
-/// \class PerturbedInterface
-/// \brief Initialize a perturbed interface using Fourier Modes
-///
-/// \todo Extend this class to allow for 3D perturbations, currently only 2D are allowed
-/// \todo Allow for cosine (or complex exponential) expansions rather than just sin.
-/// \note This is a **two grain only** initial condition.
-/// \note This replaces the depricated "perturbed_bar" initial condition from previous versions
-///
-/// The interface is defined as the \f$x=0\f$ plane (2D), or the \f$x=0,z=0\f$ plane (3D).
-/// The equation for the interface is given by
-/// \f[y(x,z) = \sum_{n\in \{n_1,\ldots,n_N\}} A_n \sin(n\pi x/L_x) \f]
-/// where \f$A_n\f$ are the amplitudes (stored in #wave_amplitudes),
-/// \f$n_1,\ldots,n_N\subset\mathbb{Z}_+\f$ are wave numbers (stored in #wave_numbers),
-/// and \f$L_x\f$ is the length in the x direction (obtained using the #geom object).
-///
-/// Grain 1 is defined as being above \f$y(x,z)\f$, Grain 2 is defined as being below.
 namespace IC
 {
 class PerturbedInterface : public IC
@@ -31,11 +32,11 @@ public:
         IC(_geom)
     { }
     PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom)
-    {pp.queryclass(name,*this);}
+    {pp_queryclass(name,*this);}
     PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp) : IC(_geom)
-    {pp.queryclass(*this);}
+    {pp_queryclass(*this);}
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Set::Scalar AMREX_D_DECL(L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0],
                                 L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1],
@@ -141,30 +142,30 @@ public:
     static void Parse(PerturbedInterface & value, IO::ParmParse & pp)
     {
         std::vector<std::string> wave_numbers_str;
-        pp.queryarr("wave_numbers",wave_numbers_str);
+        pp_queryarr("wave_numbers",wave_numbers_str); // Wave numbers
         for (unsigned int i = 0; i<wave_numbers_str.size(); ++i)
         {
             value.wave_numbers.push_back(Util::String::Parse<std::complex<int> >(wave_numbers_str[i]));
             value.phis.push_back(std::atan2(value.wave_numbers[i].imag(),value.wave_numbers[i].real()));
         }
-        pp.queryarr("wave_amplitudes",value.wave_amplitudes);
+        pp_queryarr("wave_amplitudes",value.wave_amplitudes); // Wave amplitudes
 
         std::string normal_str;
-        pp.query("normal",normal_str);
+        pp_query("normal",normal_str); // Which axis is normal to the interface (x,y,z)
         if (normal_str == "x") value.normal = Direction::X;
         if (normal_str == "y") value.normal = Direction::Y;
         if (normal_str == "z") value.normal = Direction::Z;
         std::string offset_str;
-        pp.query("offset",value.offset);
+        pp_query("offset",value.offset); // Interface offset from origin
         
-        pp.query("reverse",value.reverse);
+        pp_query("reverse",value.reverse); // If true, flip the interface (default:false)
         Util::Assert(INFO,TEST(value.reverse==0 || value.reverse==1));
 
         if (value.wave_numbers.size() != value.wave_amplitudes.size())
             Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 
         std::string mollifier = "dirac";
-        pp.query("mollifier", mollifier);
+        pp_query("mollifier", mollifier); // Mollifier (options: dirac, [gaussian])
 
         if(mollifier == "dirac")
         {
@@ -174,7 +175,7 @@ public:
         else
         {
             value.mol = Mollifier::Gaussian;
-            pp.query("eps",value.eps);
+            pp_query("eps",value.eps); // Magnitude of mollifier
             Util::Message(INFO, "eps = ", value.eps);
         }
     }

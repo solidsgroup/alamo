@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import argparse
 import os, glob, subprocess
 import configparser, io
@@ -7,6 +8,7 @@ from datetime import datetime
 import socket
 import time
 import re
+import pathlib
 
 from sympy import capture
 
@@ -57,11 +59,36 @@ parser.add_argument('--serial',action='store_true',default=False,help='Run in se
 parser.add_argument('--dim',default=None,type=int,help='Specify dimensions to run in')
 parser.add_argument('--cmd',default=False,action='store_true',help="Print out the exact command used to run each test")
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
+parser.add_argument('--exe',default=None, nargs='*', help='Run only certain executables')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code for all tests')
+parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
+parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
+parser.add_argument('--no-coverage',default=False,action='store_true',help='Prevent coverage version of the code from being used')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
+parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
+parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
+parser.add_argument('--post', default=None, help='Use a post script to post results')
+parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
+parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
+parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 args=parser.parse_args()
+
+if args.coverage and args.no_coverage:
+    raise Exception("Cannot specify both --coverage and --no-coverage")
+if args.only_coverage and args.no_coverage:
+    raise Exception("Cannot specify both --only-coverage and --no-coverage")
+
+if args.post:
+    if not os.path.isfile(args.post):
+        raise Exception(args.post,"is not a file")
+    sys.path.append(str(pathlib.Path(args.post).parent))
+    import post
+    postdata = post.init()
+
+
 
 class DryRunException(Exception):
     pass
@@ -85,6 +112,8 @@ def test(testdir):
     checks = 0
     fasters = 0
     slowers = 0
+    timeouts = 0
+    records = []
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
@@ -109,13 +138,25 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,[]
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
 
     # Iterate through all test configurations
     for desc in sections:
+
+        record = dict()
+        record['testdir'] = testdir
+        record['section'] = desc
+        record['test-section'] = record['testdir']+'/'+record['section']
+        record['section'] = desc
+        record['testid']  = testid
+        record['path'] = "{}/{}_{}".format(testdir,testid,desc)
+
+
+        p = subprocess.check_output('git rev-parse --abbrev-ref HEAD'.split(),stderr=subprocess.PIPE)
+        record['branch'] = p.decode('ascii').replace('\n','')
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -127,6 +168,26 @@ def test(testdir):
                 check = True
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
+
+        # Determine if we want to use the coverage version of the code.
+        coverage = args.coverage
+        if 'coverage' in config[desc].keys():
+            if config[desc]['coverage'] in {"no","No","false","False","0"}:
+                coverage = False
+            elif config[desc]['coverage'] in {"yes","Yes","true","True","1"}:
+                coverage = True
+            else:
+                raise(Exception("Invalid value for coverage: {}".format(config[desc]['coverage'])))
+        if args.only_coverage and not coverage:
+            continue
+        if args.only_non_coverage and coverage:
+            continue
+        if args.no_coverage:
+            coverage = False
+
+        timeout = int(args.timeout)
+        if 'timeout' in config[desc].keys():
+            timeout = int(config[desc]['timeout'])
 
         dobenchmark = False
         benchmark = None
@@ -147,6 +208,8 @@ def test(testdir):
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
         else:
+            exe = 'alamo'
+            if 'exe' in config[desc].keys(): exe = config[desc]['exe']
             dim = 3 # Dimension of alamo to use
             if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
@@ -166,20 +229,39 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             
-            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-g++".format(dim)
-            elif args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
-            elif args.profile: exe = "./bin/alamo-{}d-profile-g++".format(dim)
-            else: exe = "./bin/alamo-{}d-g++".format(dim)
+            exestr = "./bin/{}-{}d".format(exe,dim)
+            if args.debug: exestr += "-debug"
+            if args.profile: exestr += "-profile"
+            if coverage: exestr += "-coverage"
+            exestr += "-"+args.comp
+            
+            #
+            # Sometimes we don't have a coverage version built; in that case,
+            # use the non-coverage version.
+            #
+            if not os.path.isfile(exestr):
+                exestr=exestr.replace("-coverage","")
+
+            #if args.debug and args.profile: exestr = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
+            #elif args.debug: exestr = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
+            #elif args.profile: exestr = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
+            #else: exestr = "./bin/alamo-{}d-{}".format(dim,args.comp)
+
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
-            # If the exe doesn't exist, exit noisily. The script will continue but will return a nonzero
+
+            if args.exe:
+                if not exe in args.exe:
+                    continue
+
+            # If the exestr doesn't exist, exit noisily. The script will continue but will return a nonzero
             # exit code.
-            if not os.path.isfile(exe):
-                print("  ├ {}{} (skipped - no executable){}".format(color.boldyellow,desc,color.reset))
+            if not os.path.isfile(exestr):
+                print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exestr,color.reset))
                 skips += 1
                 continue
-            command += exe + " "
+            command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
 
@@ -192,8 +274,9 @@ def test(testdir):
         try:
             if args.dryrun: raise DryRunException()
             timeStarted = time.time()
-            p = subprocess.run(command.split(),capture_output=True,check=True)
+            p = subprocess.run(command.split(),capture_output=True,check=True,timeout=timeout)
             executionTime = time.time() - timeStarted
+            record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
             fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))
             fstdout.close()
@@ -201,6 +284,7 @@ def test(testdir):
             fstderr.write(ansi_escape.sub('',p.stderr.decode('ascii')))
             fstderr.close()
             print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            record['runStatus'] = 'PASS'
             if dobenchmark:
                 if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
                 elif abs(executionTime < benchmark):
@@ -210,22 +294,46 @@ def test(testdir):
                     print(",{} {:.2f}% slower{})".format(color.magenta,100*(executionTime-benchmark)/executionTime,color.reset))
                     slowers += 1
             else: print(")")
+
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.CalledProcessError as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
             for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             fails += 1
             continue
+        # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
+        # we will continue with running other tests. (Script will return an error)
+        except subprocess.TimeoutExpired as e:
+            print("[{}TIMEOUT{}]".format(color.red,color.reset))
+            record['runStatus'] = 'TIMEOUT'
+            print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
+            try:
+                stdoutlines = e.stdout.decode('ascii').split('\n')
+                if len(stdoutlines) < 10:
+                    for line in stdoutlines: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                else:
+                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                    for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
+                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                #for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+            except Exception as e1:
+                for line in str(e1).split('\n'):
+                    print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
+            timeouts += 1
+            continue
         except DryRunException as e:
             print("[----]")
+            record['runStatus'] = '----'
             
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
             fails += 1
             continue
@@ -246,32 +354,103 @@ def test(testdir):
                 p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
                 print("[{}PASS{}]".format(color.boldgreen,color.reset))
+                record['checkStatus'] = 'PASS'
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
+                record['checkStatus'] = 'FAIL'
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
                 for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                 for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
             except DryRunException as e:
-                  print("[----]")
+                print("[----]")
+                record['checkStatus'] = "----"
             except Exception as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
+                record['checkStatus'] = 'FAIL'
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
-    
+        else:
+            record['checkStatus'] = 'NONE'
+
+
+        #
+        # Scan metadata file for insteresting things to include in the record
+        #
+        if args.post:
+            try:
+                metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
+                metadata = dict()
+                for line in metadatafile.readlines():
+                    if line.startswith('#'): continue;
+                    if '::' in line:
+                        ### skip these for now ...
+                        continue
+                        #line = re.sub(r'\([^)]*\)', '',line)
+                        #line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+                    if len(line.split(' = ')) != 2: continue;
+                    col = line.split(' = ')[0]#.replace('.','_')
+                    val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
+                    metadata[col] = val
+                metadatafile.close()
+                record['git_commit_hash'] = metadata['Git_commit_hash']
+                record['platform'] = metadata['Platform']
+                record['test-section'] = record['testdir'] + '/' + record['section']
+                p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
+                record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
+            except Exception as e:
+                if not args.permissive:
+                    print("Problem getting metadata, here it is:")
+                    print(record)
+                    raise Exception()
+                True # permissive
+
+            try:
+                post.updateDatabase(postdata,[record])
+            except Exception as e:
+                print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
+        records.append(record)
+
+
+        #
+        # Clean up all of the node and cell file 
+        #
+        ok_to_clean = False
+        if args.clean and record['runStatus'] == 'PASS':
+            if not 'checkStatus' in record.keys():
+                ok_to_clean = True # successful run and no testing done
+            elif record['checkStatus'] == 'PASS':
+                ok_to_clean = True # successful run and testing completed
+            else:
+                ok_to_clean = False # successful run but testing failed
+        else:
+            ok_to_clean = False
+
+        if ok_to_clean:
+            path = "{}/{}_{}".format(testdir,testid,desc)
+            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+            
+        
+            
     # Print a quick summary for this test family.
-    if fails: print("  └ {}{} tests failed{}".format(color.red,fails,color.reset),end="")
-    else: print("  └ {}{} tests failed{}".format(color.boldgreen,0,color.reset),end="")
-    if skips: print(", {}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
-    else: print("")
-    return fails, checks, tests, skips, fasters, slowers
+    summary = "  └ "
+    sums = []
+    if tests: sums.append("{}{} tests run{}".format(color.blue,tests,color.reset))
+    if checks: sums.append("{}{} checks passed{}".format(color.green,checks,color.reset))
+    if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
+    if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
+    if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
+    print(summary + ", ".join(sums))
+    return fails, checks, tests, skips, fasters, slowers, timeouts, records
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
 if args.tests: tests = sorted(args.tests)
 else: tests = sorted(glob.glob("./tests/*"))
+
+tests = [str(pathlib.Path(f)) for f in tests]
 
 class stats:
     fails = 0   # Number of failed runs - script errors if this is nonzero
@@ -280,6 +459,8 @@ class stats:
     tests = 0   # Number of successful checks
     fasters = 0
     slowers = 0
+    timeouts = 0
+    records = []
 
 # Iterate through all test directories, running the above "test" function
 # for each.
@@ -287,24 +468,26 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s, fa, sl = test(testdir)
+    f, c, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
     stats.skips += s
     stats.fasters += fa
     stats.slowers += sl
-    
+    stats.timeouts += to
+    stats.records += re
 
 # Print a quick summary of all tests
 print("\nTest Summary")
-print("{}{} tests run{}".format(color.green,stats.tests,color.reset))
+print("{}{} tests run{}".format(color.blue,stats.tests,color.reset))
 print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.reset))
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
+if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
 print("")
 
 # Return nonzero only if no tests failed or were unexpectedly skipped

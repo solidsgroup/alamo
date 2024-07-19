@@ -1,3 +1,8 @@
+//
+// Basic IC that just sets the entire field to a constant value.
+// Works with a single or multiple-component field.
+//
+
 #ifndef IC_CONSTANT_H_
 #define IC_CONSTANT_H_
 
@@ -15,15 +20,15 @@ class Constant : public IC
 public:
     Constant (amrex::Vector<amrex::Geometry> &_geom) :IC::IC(_geom) {}
     Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC::IC(_geom) 
-    {pp.queryclass(*this);}
+    {pp_queryclass(*this);}
     Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC::IC(_geom) 
-    {pp.queryclass(name,*this);}
+    {pp_queryclass(name,*this);}
 
     Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> a_value)
     : IC(_geom), m_value(a_value)
     {}
     ~Constant() { };
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == (int)a_field[lev]->nComp())));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -41,7 +46,7 @@ public:
         // Default: set equal to one everywhere
         value.m_value.clear();
         value.m_value.push_back(1.0);
-        pp.queryarr("value",value.m_value); // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
+        pp_queryarr("value",value.m_value); // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
     }
 private:
     std::vector<Set::Scalar> m_value;

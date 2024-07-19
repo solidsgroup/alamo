@@ -20,3 +20,4 @@ OP_CLASS operator * (const Set::Scalar alpha) const
 friend OP_CLASS operator * (const Set::Scalar alpha, const OP_CLASS b);
 friend OP_CLASS operator + (const OP_CLASS a, const OP_CLASS b);
 friend OP_CLASS operator - (const OP_CLASS a, const OP_CLASS b);
+friend bool operator == (const OP_CLASS a, const OP_CLASS b);

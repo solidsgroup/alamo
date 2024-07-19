@@ -15,29 +15,36 @@ class color:
     reset = "\033[0m"
     red   = "\033[31m"
     green   = "\033[32m"
+    blue   = "\033[34m"
     lightgray = "\033[37m"
+    lightblue   = "\033[94m"
     boldgray = "\033[1m\033[37m"
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
     boldred   = "\033[1m\033[31m"
     bggray = "\033[47m\033[30m"
+    bglightgreen = "\033[30m\033[102m"
+    bgdarkgray = "\033[30m\033[100m"
 
 width = 20
-def wrap(input_string):
+def wrap(input_string,hanging=True,strcolor=""):
+    if len(input_string) == 0: return
     pre = ""
     wrapper = textwrap.TextWrapper(width=70,)
+    if not hanging: print(" "*width,end="")
     for line in wrapper.wrap(input_string):
         if line != "\n":
-            print(pre + line)
+            print(pre + strcolor + line + color.reset)
             pre = "".ljust(width)
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
-def error(message):
+def error(message,printwrap=True):
     print(color.boldred + "ERROR".ljust(width) + color.reset,end="")
-    wrap(message)
+    if printwrap: wrap(message)
+    else: print(message)
 def code(code):
-    return(color.green + code + color.reset);
+    return(color.bgdarkgray + color.green + code + color.reset);
 def note(message):
     print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
     wrap(message)
@@ -45,9 +52,27 @@ def message(title,message="",wrap_message=True):
     print(color.boldgreen + title.ljust(width) + color.reset,end="")
     if wrap_message: wrap(message)
     else: print(message)
-def shellmessage(title,cmd,env=None):
-    print(color.boldgreen + title.ljust(width) + color.reset,end="")
-    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT,env=env).decode('ascii').replace('\n',' '))
+def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None):
+    print(color.boldgreen + title.ljust(width) + color.reset, end="")
+    if message and hidecmd:
+        print(message)
+    elif message and not hidecmd: 
+        print(message)
+        print(" "*width + code(cmd.ljust(width)))
+    elif not message and not hidecmd:
+        print(code(cmd))
+    
+    p = subprocess.run(cmd.split(' '),capture_output=True,cwd=cwd)
+    wrap(p.stdout.decode('ascii').replace('\n',' '),hanging=hidecmd,strcolor=color.lightblue)
+    wrap(p.stderr.decode('ascii').replace('\n',' '),hanging=hidecmd,strcolor=color.blue)
+    try:
+        p.check_returncode()
+    except subprocess.CalledProcessError as e:
+        error("Tried to execute")
+        error(color.bgdarkgray + color.green + ' '.join(e.cmd) + color.reset,printwrap=False)
+        error("but got the following error")
+        print(color.red + e.stderr.decode('ascii') + color.reset)
+        raise e
 
 message("Python",python_version)
 if sys.version_info.minor < 5:
@@ -56,7 +81,7 @@ if sys.version_info.minor < 5:
 #
 # This is the current Alamo-supported version of AMReX. 
 #
-amrex_current_version = "22.10"
+amrex_current_version = "24.07"
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
@@ -75,11 +100,12 @@ parser.add_argument('--alternate-mpi', dest='alternate_mpi', action='store_true'
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
+parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
+parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
-parser.add_argument('--jit',dest='jit',action='store_true',default=False)
-parser.add_argument('--libmesh',dest='libmesh',default=None,help="Specify location of LIBMESH library (for use with JIT expression parsing)")
+parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 if not (args.buildamrexbranch or args.buildamrextag):
@@ -101,14 +127,15 @@ postfix += str(args.dim)+"d"
 if args.debug: postfix += "-debug"
 if fpic: postfix += "-fpic"
 if args.profile: postfix += "-profile"
+if args.coverage: postfix += "-coverage"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
 
 #
 # Current Repo settings
 #
-shellmessage("Current Branch", "git rev-parse --abbrev-ref HEAD")
-shellmessage("Current Hash",   "git log -1 --pretty=format:%H")
+shellmessage("Current Branch", "git rev-parse --abbrev-ref HEAD", hidecmd=True)
+shellmessage("Current Hash",   "git log -1 --pretty=format:%H", hidecmd=True)
 
 #
 # DIMENSION
@@ -139,38 +166,40 @@ if args.omp:
 #
 if args.buildamrex and not args.amrex:
     if not os.path.isdir("ext"): 
-        subprocess.run(['mkdir','-p','ext'])
+        shellmessage("Make ext",'mkdir -p ext')
     if not os.path.isdir("ext/amrex"):
         if args.offline:
-            raise Exception(error() + "Cannot download AMReX and no version currently exists!")
+            raise Exception(error("Cannot download AMReX and no version currently exists!"))
         if args.buildamrexbranch:
-            message("AMReX-Clone","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
-            p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
-                                 stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
-        else:
-            message("AMReX-Clone","Cloning AMReX [default branch] -- This may take a while",True)
-            p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git").split(),
-                                 stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
-        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+            shellmessage("AMReX-Clone",
+                            cmd = "git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch,
+                            message="Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",
+                            cwd="ext/")
+        else: shellmessage("AMReX-Clone", 
+                            cmd="git clone https://github.com/AMReX-Codes/amrex.git",
+                            message="Cloning AMReX [default branch] -- This may take a while",
+                            cwd="ext/")
+    else:
+        shellmessage("AMReX-Update",cmd="git -C ext/amrex fetch --all")
+        #p = subprocess.Popen("".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
     
     if not args.offline:
-        if args.buildamrextag:
-            p = subprocess.Popen(("git -C ext/amrex checkout "+args.buildamrextag).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-            for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        elif args.buildamrexbranch:
-            message("AMReX-Checkout","Checking out branch " + args.buildamrexbranch,False)
-            p = subprocess.Popen(("git -C ext/amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-            for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-            message("AMReX-Update","Updating branch " + args.buildamrexbranch,False)
-            p = subprocess.Popen("git -C ext/amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        else:
-            message("AMReX-Update","Updating",False)
-            p = subprocess.Popen("git -C ext/amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        try:
+            if args.buildamrextag:
+                shellmessage("AMReX-Checkout",
+                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrextag)
+            elif args.buildamrexbranch:
+                shellmessage("AMReX-Checkout",
+                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrexbranch)
+            else:
+                shellmessage("AMReX-Checkout",
+                                cmd="git -C ext/amrex pull")
+        except Exception as e:
+            error("There was an error updating AMReX. It often helps to run")
+            error(color.bgdarkgray+color.green+"make realclean"+color.reset)
+            raise e
+            
     else:
         message("AMReX","In offline mode, using existing version of AMReX")
     
@@ -264,10 +293,11 @@ if (args.geteigen):
     if not os.path.isdir("ext"): subprocess.run(['mkdir','-p','ext'])
     if not os.path.isdir("ext/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
-        p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
+        #p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
+        p = subprocess.Popen(("git clone https://gitlab.com/libeigen/eigen.git eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
-        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
+        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
         #subprocess.run("mv eigen-git-mirror eigen3".split())
     message("Eigen-Directory","ext/")
     f.write("EIGEN = ./ext/\n")
@@ -277,6 +307,23 @@ elif (args.eigen != ""):
     message("Eigen-Directory",args.eigen)
     f.write("EIGEN = " + args.eigen + "\n")
 
+
+#
+# MAC OS SUPPORT
+#
+if args.macos:
+    #f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
+    f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
+#else:
+f.write("LIB += -lpng \n")
+
+#
+# ADD ADDITIONAL LINK LIBRARIES
+#
+if args.link:
+    for l in args.link:
+        f.write("LIB += -L" + l + "\n")
+    
 #
 # Compiler and MPI library
 #
@@ -312,8 +359,12 @@ else:
 if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+    if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
+
+    if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
+    elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
 if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
@@ -325,15 +376,15 @@ if args.comp == 'icc':
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
 
 #
-# LibGFortran?
+# LibGFortran? -- not needed anymore
 #
-if args.gfortranln:
-    shellmessage("Gfort Link","ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so")
-run = subprocess.run(['ld','-lgfortran'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-if run.returncode:
-    warning("Could not find -lgfortran, which will probably cause linking errors. You can try running " 
-            + code("ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so"))
-subprocess.run(['rm','a.out','-rf'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+#if args.gfortranln:
+#    shellmessage("Gfort Link","ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so")
+#run = subprocess.run(['ld','-lgfortran'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+#if run.returncode:
+#    warning("Could not find -lgfortran, which will probably cause linking errors. You can try running " 
+#            + code("ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so"))
+#subprocess.run(['rm','a.out','-rf'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
 #
 # Python information
@@ -390,13 +441,13 @@ f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 #       arbitrary user libmesh install path.
 # https://mooseframework.inl.gov/modules/phase_field/FunctionMaterials/JITCompilation.html
 #
-if args.libmesh:
-    if not os.path.isfile(args.libmesh+'/lib/libmesh_opt.so'):
-        raise Exception(error("{}/lib/libmesh_opt.so not found. libmesh path must contain lib/libmesh_opt.so".format(args.libmesh)))
-    f.write('ALAMO_INCLUDE += -I{}/include/\n'.format(args.libmesh))
-    f.write('LIB     +=   {}/lib/libmesh_opt.so -Wl,-rpath,{}/lib/ \n'.format(args.libmesh,args.libmesh))
-if args.jit:
-    f.write('CXX_COMPILE_FLAGS += -DALAMO_JIT\n')
+#if args.libmesh:
+#    if not os.path.isfile(args.libmesh+'/lib/libmesh_opt.so'):
+#        raise Exception(error("{}/lib/libmesh_opt.so not found. libmesh path must contain lib/libmesh_opt.so".format(args.libmesh)))
+#    f.write('ALAMO_INCLUDE += -I{}/include/\n'.format(args.libmesh))
+#    f.write('LIB     +=   {}/lib/libmesh_opt.so -Wl,-rpath,{}/lib/ \n'.format(args.libmesh,args.libmesh))
+#if args.jit:
+#    f.write('CXX_COMPILE_FLAGS += -DALAMO_JIT\n')
 
 #
 # Documentation check

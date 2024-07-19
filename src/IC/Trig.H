@@ -1,3 +1,9 @@
+//
+// This is an old-fashioned IC. 
+// You use IC::Expression instead.
+//
+
+
 #ifndef IC_TRIG_H_
 #define IC_TRIG_H_
 
@@ -26,7 +32,7 @@ public:
         Define(_alpha,AMREX_D_DECL(_n1,_n2,_n3),_dim);
     }
     Trig(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom)
-    {pp.queryclass(name,*this);}
+    {pp_queryclass(name,*this);}
 
 
     void Define(Set::Scalar _alpha = 1.0,
@@ -44,7 +50,7 @@ public:
     }
 
 
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
@@ -98,7 +104,7 @@ public:
             });
         }
     }
-    void Add(const int &lev, Set::Field<Set::Vector> &a_field)
+    void Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
@@ -158,9 +164,9 @@ public:
     static void Parse(Trig & value, IO::ParmParse & pp)
     {
         std::vector<int> n_real(AMREX_SPACEDIM,0.0);
-        pp.queryarr("nr",n_real);
+        pp_queryarr("nr",n_real); // Number of real (cosin) waves
         std::vector<int> n_imag(AMREX_SPACEDIM,0.0);
-        pp.queryarr("ni",n_imag);
+        pp_queryarr("ni",n_imag); // Number of imaginary (sin) waves
 
         AMREX_D_TERM(
             value.n1 = std::complex<int>(n_real[0],n_imag[0]);,
@@ -172,8 +178,8 @@ public:
             value.phi2 = std::atan2(value.n2.imag(),value.n2.real()),
             value.phi3 = std::atan2(value.n3.imag(),value.n3.real()));
 
-        pp.query("dim",value.dim);
-        pp.query("alpha",value.alpha);
+        pp_query("dim",value.dim); // Spatial dimension
+        pp_query("alpha",value.alpha); // Multiplier
 
     }
 
