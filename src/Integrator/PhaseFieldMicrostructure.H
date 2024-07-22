@@ -294,7 +294,7 @@ public:
         if (value.shearcouple.on)
         {
             value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld", false);
-            value.RegisterNodalFab(value.elasticdf_mf,value.number_of_grains,value.number_of_ghost_cells,"elasticdf",true);
+            //value.RegisterNodalFab(value.elasticdf_mf,value.number_of_grains,value.number_of_ghost_cells,"elasticdf",true);
         }
         value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
         if (value.pf.threshold.on)
@@ -343,7 +343,7 @@ private:
     Set::Field<Set::Scalar> fluct_mf;
     Set::Field<Set::Scalar> disc_mf; //see box
     // Node fab
-    Set::Field<Set::Scalar> elasticdf_mf;
+    //Set::Field<Set::Scalar> elasticdf_mf;
     Set::Field<Set::Scalar> totaldf_mf;
 
     BC::BC<Set::Scalar> *mybc = nullptr;
