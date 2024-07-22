@@ -406,7 +406,9 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
     //
     // Manual Disconnection Nucleation
     //
-
+    // currently supportedfor 2d only
+    //
+    #if AMREX_SPACEDIM == 2 
     if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
     {
         disconnection.sitex.clear();
@@ -489,6 +491,8 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
             }
         }
     }
+    #endif
+    
     Base::Mechanics<model_type>::TimeStepBegin(time, iter);
 
     if (anisotropy.on && time >= anisotropy.tstart)
