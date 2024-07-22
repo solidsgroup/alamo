@@ -35,7 +35,8 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
     Base::Mechanics<model_type>::Advance(lev, time, dt);
     /// TODO Make this optional
     //if (lev != max_level) return;
-    std::swap(eta_old_mf[lev], eta_mf[lev]);
+    if (shearcouple.on)
+        std::swap(eta_old_mf[lev], eta_mf[lev]);
     const Set::Scalar* DX = this->geom[lev].CellSize();
 
 
@@ -48,6 +49,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         //bx.grow(number_of_ghost_cells-1);
         //bx = bx & domain;
         Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> driving_force = driving_force_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);// = (*driving_force_mf[lev]).array(mfi);
 
@@ -55,6 +57,8 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         {
             for (int m = 0; m < number_of_grains; m++)
             {
+                if (shearcouple.on) etaold(i,j,k,m) = eta(i,j,k,m);
+
                 driving_force(i, j, k, m) = 0.0;
                 if (pf.threshold.on) driving_force_threshold(i, j, k, m) = 0.0;
                 Set::Scalar kappa = NAN, mu = NAN;
@@ -169,7 +173,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                             / normsq / normsq;
                     }
 
-                    Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
+                    tmpdf = (dF0deta.transpose() * sig).trace();
                     }
 
                     if (pf.threshold.mechanics)
@@ -322,7 +326,7 @@ void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_mf);
-    ic->Initialize(lev, eta_old_mf);
+    if (shearcouple.on) ic->Initialize(lev, eta_old_mf);
 }
 
 template<class model_type>
