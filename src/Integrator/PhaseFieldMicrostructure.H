@@ -82,7 +82,25 @@ public:
         pp_query_default("pf.elastic_df",value.pf.elastic_df,false);   // Determine whether to use elastic driving force
         pp_query_default("pf.elastic_mult",value.pf.elastic_mult,1.0); // Multiplier of elastic energy
 
-        pp.query("pf.elastic_threshold",value.pf.elastic_threshold); // Elastic threshold (:math:`\phi_0`)
+        pp_query_default("pf.threshold.value",value.pf.threshold.value,0.0);          // Value used for thresholding kinetic relation
+        pp_query_default("pf.threshold.chempot",value.pf.threshold.chempot,false);    // Whether to include chemical potential in threshold
+        pp_query_default("pf.threshold.boundary",value.pf.threshold.boundary,false);  // Whether to include boundary energy in threshold
+        pp_query_default("pf.threshold.corner",value.pf.threshold.corner,false);      // Whether to include corner regularization in threshold
+        pp_query_default("pf.threshold.lagrange",value.pf.threshold.lagrange,false);  // Whether to include lagrange multiplier in threshold
+        pp_query_default("pf.threshold.mechanics",value.pf.threshold.mechanics,false);// Whether to include mechanical driving force in threshold
+        pp_query_default("pf.threshold.sdf",value.pf.threshold.sdf,false);// Whether to include mechanical driving force in threshold
+        {
+            value.pf.threshold.on =
+                value.pf.threshold.chempot || value.pf.threshold.boundary ||
+                value.pf.threshold.corner || value.pf.threshold.lagrange ||
+                value.pf.threshold.mechanics;
+
+            std::string type = "continuous";
+            pp_query_validate("pf.threshold.type",type,{"continuous","chop"}); // Type of thresholding to use
+            if (type == "continuous") value.pf.threshold.type = ThresholdType::Continuous;
+            else if (type == "chop") value.pf.threshold.type = ThresholdType::Chop;
+        }
+        
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
     
         pp_query("amr.max_level", value.max_level);            // Maximum AMR level
@@ -108,7 +126,7 @@ public:
         pp_queryclass("mechanics",static_cast<Base::Mechanics<model_type>&>(value));
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
-        
+
 
         // Lagrange multiplier method for enforcing volumes
         pp_query_default("lagrange.on", value.lagrange.on,false);
@@ -211,21 +229,25 @@ public:
         }
 
         // Shear coupling matrices
-        value.shearcouple.Fgb.resize(value.number_of_grains * value.number_of_grains, Set::Matrix::Zero());
-        for (int i = 0 ; i < value.number_of_grains ; i++)
-        for (int j = 0 ; j < value.number_of_grains ; j++)
+        pp_query_default("shearcouple.on",value.shearcouple.on,false);
+        if (value.shearcouple.on)
         {
-            std::string name    = "shearcouple.Fgb."+std::to_string(i)+"."+std::to_string(j);
-            std::string namerev = "shearcouple.Fgb."+std::to_string(j)+"."+std::to_string(i);
-            if ( i==j && pp.contains(name.data())) 
-                Util::Abort(INFO,"Cannot specify self FGB ", name);
-            if (pp.contains(name.data()) && pp.contains(namerev.data())) 
-                Util::Abort(INFO,"Cannot specify both ",name," and ",namerev);
-            if (pp.contains(name.data())) 
-            {
-                pp.queryarr(name.data(),value.shearcouple.Fgb[i*value.number_of_grains + j]);
-                value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
-            }
+            value.shearcouple.Fgb.resize(value.number_of_grains * value.number_of_grains, Set::Matrix::Zero());
+            for (int i = 0 ; i < value.number_of_grains ; i++)
+                for (int j = 0 ; j < value.number_of_grains ; j++)
+                {
+                    std::string name    = "shearcouple.Fgb."+std::to_string(i)+"."+std::to_string(j);
+                    std::string namerev = "shearcouple.Fgb."+std::to_string(j)+"."+std::to_string(i);
+                    if ( i==j && pp.contains(name.data())) 
+                        Util::Abort(INFO,"Cannot specify self FGB ", name);
+                    if (pp.contains(name.data()) && pp.contains(namerev.data())) 
+                        Util::Abort(INFO,"Cannot specify both ",name," and ",namerev);
+                    if (pp.contains(name.data())) 
+                    {
+                        pp.queryarr(name.data(),value.shearcouple.Fgb[i*value.number_of_grains + j]);
+                        value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
+                    }
+                }
         }
 
         std::string bc_type;
@@ -265,9 +287,14 @@ public:
             value.RegisterNewFab(value.anisotropic_kinetics.threshold_mf, value.mybc, value.number_of_grains, 0, "theshold",true);
         }
 
-        value.RegisterNewFab(value.eta_new_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
-        value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta old",false);
-        value.RegisterNewFab(value.totaldf_mf, new BC::Nothing(), value.number_of_grains,0, "totaldf",true);
+
+
+
+        value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
+        value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
+        value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
+        if (value.pf.threshold.on)
+            value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
         value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
         value.RegisterNodalFab(value.elasticdf_mf,value.number_of_grains,value.number_of_ghost_cells,"elasticdf",true);
 
@@ -306,8 +333,10 @@ private:
     Set::Scalar ref_threshold = 0.1;
 
     // Cell fab
-    Set::Field<Set::Scalar> eta_new_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-    Set::Field<Set::Scalar> eta_old_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+    Set::Field<Set::Scalar> eta_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+    Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar> driving_force_mf;
+    Set::Field<Set::Scalar> driving_force_threshold_mf;
     Set::Field<Set::Scalar> fluct_mf;
     Set::Field<Set::Scalar> disc_mf; //see box
     // Node fab
@@ -330,7 +359,17 @@ private:
         Set::Scalar l_gb = NAN;
         bool elastic_df = false;
         Set::Scalar elastic_mult = 1.0;
-        Set::Scalar elastic_threshold = 0.0;
+        struct {
+            bool on = false;
+            bool chempot = false;
+            bool boundary = false;
+            bool corner = false;
+            bool lagrange = false;
+            bool mechanics = false;
+            bool sdf = false;
+            Set::Scalar value = NAN;
+            ThresholdType type = ThresholdType::Continuous;
+        } threshold;
     } pf;
 
     struct {
