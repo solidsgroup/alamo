@@ -140,8 +140,8 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         //
         if (pf.elastic_df)
         {
-            amrex::Array4<const Set::Matrix> const& sigma = (*this->stress_mf[lev]).array(mfi); 
-            amrex::Array4<const Set::Scalar> const& elasticdf = (*elasticdf_mf[lev]).array(mfi);
+            Set::Patch<const Set::Matrix> sigma     = stress_mf.Patch(lev,mfi); 
+            Set::Patch<const Set::Scalar> elasticdf = elasticdf_mf.Patch(lev,mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 for (int m = 0; m < number_of_grains; m++)
@@ -151,29 +151,28 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                         tmpdf = Numeric::Interpolate::NodeToCellAverage(elasticdf, i, j, k, m);
                     else
                     {
-                    Set::Scalar etasum = 0.0;
-                    Set::Matrix F0avg = Set::Matrix::Zero();
+                        Set::Scalar etasum = 0.0;
+                        Set::Matrix F0avg = Set::Matrix::Zero();
 
-                    for (int n = 0; n < number_of_grains; n++)
-                    {
-                        etasum += eta(i, j, k, n);
-                        F0avg += eta(i, j, k, n) * mechanics.model[n].F0;
-                    }
+                        for (int n = 0; n < number_of_grains; n++)
+                        {
+                            etasum += eta(i, j, k, n);
+                            F0avg += eta(i, j, k, n) * mechanics.model[n].F0;
+                        }
 
-                    Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
+                        Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
 
-                    //Set::Matrix dF0deta = mechanics.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
-                    Set::Matrix dF0deta = Set::Matrix::Zero();
+                        Set::Matrix dF0deta = Set::Matrix::Zero();
 
-                    for (int n = 0; n < number_of_grains; n++)
-                    {
-                        if (n == m) continue;
-                        Set::Scalar normsq = eta(i, j, k, m) * eta(i, j, k, m) + eta(i, j, k, n) * eta(i, j, k, n);
-                        dF0deta += (2.0 * eta(i, j, k, m) * eta(i, j, k, n) * eta(i, j, k, n) * (mechanics.model[m].F0 - mechanics.model[n].F0))
-                            / normsq / normsq;
-                    }
+                        for (int n = 0; n < number_of_grains; n++)
+                        {
+                            if (n == m) continue;
+                            Set::Scalar normsq = eta(i, j, k, m) * eta(i, j, k, m) + eta(i, j, k, n) * eta(i, j, k, n);
+                            dF0deta += (2.0 * eta(i, j, k, m) * eta(i, j, k, n) * eta(i, j, k, n) * (mechanics.model[m].F0 - mechanics.model[n].F0))
+                                / normsq / normsq;
+                        }
 
-                    tmpdf = (dF0deta.transpose() * sig).trace();
+                        tmpdf = (dF0deta.transpose() * sig).trace();
                     }
 
                     if (pf.threshold.mechanics)
@@ -298,9 +297,9 @@ void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
     for (amrex::MFIter mfi(*this->model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.nodaltilebox();
-        amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const &etanew = (*eta_mf[lev]).array(mfi);
-        amrex::Array4<model_type> const &model = this->model_mf[lev]->array(mfi);
+        Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> etanew = eta_mf.Patch(lev,mfi);
+        Set::Patch<model_type>        model  = model_mf.Patch(lev,mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             for (int m = 0; m < number_of_grains; m++)

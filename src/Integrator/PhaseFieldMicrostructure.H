@@ -472,6 +472,8 @@ private:
         std::vector<model_type> model;
     } mechanics;
     
+    using Base::Mechanics<model_type>::model_mf;
+    using Base::Mechanics<model_type>::stress_mf;
 
 };
 }
