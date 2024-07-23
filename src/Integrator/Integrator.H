@@ -348,7 +348,7 @@ protected:
         int interval = -1;
         Set::Scalar dt = -1.0;
         int plot_int = -1;
-        Set::Scalar plot_dt = 0.1;
+        Set::Scalar plot_dt = -1.0;
         int number = 0;
         std::vector<Set::Scalar*> vars;
         std::vector<std::string> names;

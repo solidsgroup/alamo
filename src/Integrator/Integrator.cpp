@@ -94,7 +94,7 @@ Integrator::Integrator() : amrex::AmrCore()
         thermo.interval = 1;                           // Default: integrate every time.
         pp_query_default("int", thermo.interval, -1);              // Integration interval (1)
         pp_query_default("plot_int", thermo.plot_int, -1.0);         // Interval (in timesteps) between writing
-        pp_query_default("plot_dt", thermo.plot_dt, 0.1);           // Interval (in simulation time) between writing
+        pp_query_required("plot_dt", thermo.plot_dt);           // Interval (in simulation time) between writing
     }
 
     {
