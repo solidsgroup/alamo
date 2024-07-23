@@ -24,9 +24,9 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query("max_step", max_step);               // Number of iterations before ending
         pp_query_required("stop_time", stop_time);    // Simulation time before ending
         pp_query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
-        pp_query_default("restart", restart_file_cell, "");       // Name of restart file to READ from
-        pp_query_default("restart_cell", restart_file_cell, "");  // Name of cell-fab restart file to read from
-        pp_query_default("restart_node", restart_file_node, "");  // Name of node-fab restart file to read from
+        pp_query("restart", restart_file_cell);       // Name of restart file to READ from
+        pp_query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
+        pp_query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
     }
     {
         // This allows the user to ignore certain arguments that
@@ -318,7 +318,7 @@ Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int ng
 
 
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name, bool extensive)
+Integrator::RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive)
 {
     BL_PROFILE("Integrator::RegisterIntegratedVariable");
     thermo.vars.push_back(integrated_variable);
