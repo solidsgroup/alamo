@@ -24,9 +24,9 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query("max_step", max_step);               // Number of iterations before ending
         pp_query_required("stop_time", stop_time);    // Simulation time before ending
         pp_query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
-        pp_query("restart", restart_file_cell);       // Name of restart file to READ from
-        pp_query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
-        pp_query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
+        pp_query_default("restart", restart_file_cell, "");       // Name of restart file to READ from
+        pp_query_default("restart_cell", restart_file_cell, "");  // Name of cell-fab restart file to read from
+        pp_query_default("restart_node", restart_file_node, "");  // Name of node-fab restart file to read from
     }
     {
         // This allows the user to ignore certain arguments that
@@ -49,16 +49,16 @@ Integrator::Integrator() : amrex::AmrCore()
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
         IO::ParmParse pp("amr");
-        pp_query("regrid_int", regrid_int);           // Regridding interval in step numbers
-        pp_query("base_regrid_int", base_regrid_int); // Regridding interval based on coarse level only
-        pp_query("plot_int", plot_int);               // Interval (in timesteps) between plotfiles
-        pp_query("plot_dt", plot_dt);                 // Interval (in simulation time) between plotfiles
-        pp_query("plot_file", plot_file);             // Output file
+        pp_query_default("regrid_int", regrid_int, 2);           // Regridding interval in step numbers
+        pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
+        pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles
+        pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles
+        pp_query_default("plot_file", plot_file, "plt");             // Output file
 
-        pp_query("cell.all", cell.all);                // Turn on to write all output in cell fabs (default: off)
-        pp_query("cell.any", cell.any);                // Turn off to prevent any cell based output (default: on)
-        pp_query("node.all", node.all);                // Turn on to write all output in node fabs (default: off)
-        pp_query("node.any", node.any);                // Turn off to prevent any node based output (default: on)
+        pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
+        pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
+        pp_query_default("node.all", node.all, false);                // Turn on to write all output in node fabs (default: off)
+        pp_query_default("node.any", node.any, true);                // Turn off to prevent any node based output (default: on)
 
         Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO, TEST(!(!node.any && node.all)));
@@ -78,7 +78,7 @@ Integrator::Integrator() : amrex::AmrCore()
             else if (cnt == 1)
             {
                 int nsubsteps_all;
-                pp_query("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
+                pp_query_required("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
                 for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
             }
             else
@@ -92,9 +92,9 @@ Integrator::Integrator() : amrex::AmrCore()
         // data (to show up in thermo.dat)
         IO::ParmParse pp("amr.thermo");
         thermo.interval = 1;                           // Default: integrate every time.
-        pp_query("int", thermo.interval);              // Integration interval (1)
-        pp_query("plot_int", thermo.plot_int);         // Interval (in timesteps) between writing
-        pp_query("plot_dt", thermo.plot_dt);           // Interval (in simulation time) between writing
+        pp_query_default("int", thermo.interval, -1);              // Integration interval (1)
+        pp_query_default("plot_int", thermo.plot_int, -1.0);         // Interval (in timesteps) between writing
+        pp_query_default("plot_dt", thermo.plot_dt, -1.0);           // Interval (in simulation time) between writing
     }
 
     {
@@ -102,7 +102,7 @@ Integrator::Integrator() : amrex::AmrCore()
         // set of grids to work on. This is pretty much always used
         // for testing purposes only.
         IO::ParmParse pp("explicitmesh");
-        pp_query("on", explicitmesh.on); // Use explicit mesh instead of AMR
+        pp_query_default("on", explicitmesh.on, 0); // Use explicit mesh instead of AMR
         if (explicitmesh.on)
         {
             for (int ilev = 0; ilev < maxLevel(); ++ilev)
