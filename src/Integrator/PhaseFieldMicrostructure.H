@@ -121,6 +121,7 @@ public:
             if (pp.getEntries(name).size())
                 pp_queryclass(std::string(name.data()), value.mechanics.model[i]);
         }
+        pp_query_default("mechanics.model.mix_order",value.mechanics.model_mix_order,1);
 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
         pp_queryclass("mechanics",static_cast<Base::Mechanics<model_type>&>(value));
@@ -205,7 +206,7 @@ public:
 
         // Disconnection generation
         pp.query("disconnection.on",value.disconnection.on);
-        if (disconnection.on)
+        if (value.disconnection.on)
         {
             Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"2D only");
             pp_query_default("disconnection.tstart", value.disconnection.tstart,0.0); // time to start applying disconnections
@@ -300,15 +301,14 @@ public:
 
 
         value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
-        if (value.shearcouple.on)
-        {
-            value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld", false);
-            //value.RegisterNodalFab(value.elasticdf_mf,value.number_of_grains,value.number_of_ghost_cells,"elasticdf",true);
-        }
         value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
+
+        if (value.shearcouple.on)
+            value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld", false);
         if (value.pf.threshold.on)
             value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
-        value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
+        if (value.disconnection.on)
+            value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
         value.RegisterIntegratedVariable(&value.area, "area");
@@ -334,7 +334,7 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
-    void UpdateEigenstrain(int lev);
+    virtual void UpdateEigenstrain(int lev);
 
     virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
@@ -479,6 +479,7 @@ private:
     {
         Set::Scalar tstart = 0.0;
         std::vector<model_type> model;
+        int model_mix_order;
     } mechanics;
     
     using Base::Mechanics<model_type>::model_mf;

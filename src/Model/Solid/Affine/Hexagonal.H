@@ -87,19 +87,24 @@ public:
     }
 
     AMREX_FORCE_INLINE
-    static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta)
+    static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta, int order)
     {
-        Hexagonal ret;
-        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
-        ret.F0 = Set::Matrix::Zero();
-        Set::Scalar etasum = 0.;
-        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
-        for (unsigned int n = 0 ; n < models.size(); n++)
+        if (order == 1)
         {
-            ret.ddw += models[n].ddw * (eta[n] / etasum);
-            ret.F0  += models[n].F0  * (eta[n] / etasum);
+            Hexagonal ret;
+            ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+            ret.F0 = Set::Matrix::Zero();
+            Set::Scalar etasum = 0.;
+            for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+            for (unsigned int n = 0 ; n < models.size(); n++)
+            {
+                ret.ddw += models[n].ddw * (eta[n] / etasum);
+                ret.F0  += models[n].F0  * (eta[n] / etasum);
+            }
+            return ret;
         }
-        return ret;
+        else
+            Util::Exception(INFO,"Order value of ", order, " not supported yet");
     }
 
     #define OP_CLASS Hexagonal
