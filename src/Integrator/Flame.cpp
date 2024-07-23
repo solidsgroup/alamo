@@ -49,7 +49,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
         std::string eta_bc_str = "constant";
-        pp_query_validate("pf.eta.ic.type", eta_bc_str, {"contant", "expression"}); // Eta boundary condition [constant, expression]
+        pp_query_validate("pf.eta.ic.type", eta_bc_str, {"constant", "expression"}); // Eta boundary condition [constant, expression]
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
