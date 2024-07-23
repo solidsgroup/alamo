@@ -153,10 +153,9 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     
                     if (shearcouple.on)
                     {
-                        for (int n = 0; m < number_of_grains; n++)
+                        for (int n = 0; n < number_of_grains; n++)
                         {
                             if (n==m) continue;
-
                             Set::Scalar etam = eta(i,j,k,m);
                             Set::Scalar etan = eta(i,j,k,n);
 
