@@ -21,12 +21,12 @@ Integrator::Integrator() : amrex::AmrCore()
         // These are basic parameters that are, in 
         // general, common to all Alamo simulations.
         IO::ParmParse pp;
-        pp_query("max_step", max_step);               // Number of iterations before ending
+        pp_query_default("max_step", max_step, 2147483647);  // Number of iterations before ending (default is maximum possible int)
         pp_query_required("stop_time", stop_time);    // Simulation time before ending
         pp_query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
-        pp_query_default("restart", restart_file_cell, "");       // Name of restart file to READ from
-        pp_query_default("restart_cell", restart_file_cell, "");  // Name of cell-fab restart file to read from
-        pp_query_default("restart_node", restart_file_node, "");  // Name of node-fab restart file to read from
+        pp_query("restart", restart_file_cell);       // Name of restart file to READ from
+        pp_query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
+        pp_query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
     }
     {
         // This allows the user to ignore certain arguments that
