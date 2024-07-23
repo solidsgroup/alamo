@@ -143,7 +143,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
             Set::Patch<const Set::Matrix> sigma     = stress_mf.Patch(lev,mfi); 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                auto sten = Numeric::GetStencil(i,j,k,bx);
                 Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
 
                 for (int m = 0; m < number_of_grains; m++)
@@ -161,18 +160,17 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                             Set::Scalar sumsq = (etam*etam + etan*etan);
                             sumsq = sumsq * sumsq;
 
-                            Set::Scalar dgm = 2.0*etan*etan*etam / sumsq;
+                            //Set::Scalar dgm = 2.0*etan*etan*etam / sumsq;
                             Set::Scalar dgn = 2.0*etan*etam*etam / sumsq;
 
                             Set::Matrix Fgbn = shearcouple.Fgb[n*number_of_grains + m];
-                            Set::Matrix Fgbm = shearcouple.Fgb[m*number_of_grains + n];
+                            //Set::Matrix Fgbm = shearcouple.Fgb[m*number_of_grains + n];
 
                             elastic_df_m += (sig.transpose() * Fgbn).trace() * dgn;
                         }
                     }
                     else
                     {
-                        Set::Scalar tmpdf = NAN;
                         Set::Scalar etasum = 0.0;
                         Set::Matrix F0avg = Set::Matrix::Zero();
 
@@ -485,10 +483,8 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
                     //amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
                     amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
                     amrex::Array4<Set::Scalar> const &disc = (*disc_mf[lev]).array(mfi);
-                    amrex::Array4<model_type> const &model = this->model_mf[lev]->array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
-                        auto sten = Numeric::GetStencil(i, j, k, bx);
                         Set::Vector x;
                         AMREX_D_TERM(
                             x(0) = this->geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,

@@ -81,11 +81,11 @@ public:
     AMREX_FORCE_INLINE
     static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta, int order)
     {
+        Cubic ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        ret.F0 = Set::Matrix::Zero();
         if (order == 1)
         {
-            Cubic ret;
-            ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
-            ret.F0 = Set::Matrix::Zero();
             Set::Scalar etasum = 0.;
             for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
             for (unsigned int n = 0 ; n < models.size(); n++)
@@ -97,9 +97,6 @@ public:
         }
         else if (order == 2)
         {
-            Cubic ret;
-            ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
-            ret.F0 = Set::Matrix::Zero();
             Set::Scalar etasum = 0.;
             for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n]*eta[n];
             for (unsigned int n = 0 ; n < models.size(); n++)
@@ -109,8 +106,9 @@ public:
             }
             return ret;
         }
-        else
-            Util::Exception(INFO,"invalid value used for order, ",order);
+
+        Util::Exception(INFO,"invalid value used for order, ",order);
+        return ret; // should never happen
     }
 
     #define OP_CLASS Cubic

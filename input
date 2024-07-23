@@ -39,7 +39,7 @@ anisotropy.beta = 0.00005
 
 ic.type = perturbed_interface
 ic.wave_numbers = 2
-ic.wave_amplitudes = 2.0
+ic.wave_amplitudes = 0.1
 ic.normal = y
 ic.mollifier = dirac
 mechanics.type = static
@@ -53,12 +53,14 @@ mechanics.model.C12 = 1.22
 mechanics.model.C44 = 0.75
 mechanics.model.Phi = 0.19739674
 mechanics.model.F0 = 0 0 0 0
+mechanics.mix_order = 2
+
 mechanics.bc.type = constant
 mechanics.bc.constant.type.xlo = neumann disp
 mechanics.bc.constant.type.xhi = neumann disp
-#mechanics.bc.constant.val.xhiyhi = (1,50:0.25,0.5) 0
-#mechanics.bc.constant.val.xloyhi = (1,50:0.25,0.5) 0
-#mechanics.bc.constant.val.yhi    = (1,50:0.25,0.5) 0
+mechanics.bc.constant.val.xhiyhi = (1,50:0.25,0.5) 0
+mechanics.bc.constant.val.xloyhi = (1,50:0.25,0.5) 0
+mechanics.bc.constant.val.yhi    = (1,50:0.25,0.5) 0
 mechanics.zero_out_displacement = 0
 mechanics.print_model = 1
 disconnection.fixed.on = 0

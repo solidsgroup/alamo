@@ -121,7 +121,8 @@ public:
             if (pp.getEntries(name).size())
                 pp_queryclass(std::string(name.data()), value.mechanics.model[i]);
         }
-        pp_query_default("mechanics.model.mix_order",value.mechanics.model_mix_order,1);
+        // Mixing order 
+        pp_query_validate("mechanics.mix_order",value.mechanics.model_mix_order,{1,2});
 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
         pp_queryclass("mechanics",static_cast<Base::Mechanics<model_type>&>(value));
@@ -144,10 +145,11 @@ public:
         {
             std::vector<std::string> vals;
             pp_queryarr("sdf.val",vals);  // value of SDF for each grain
-            if (vals.size() == 1)
+            int nvals = static_cast<int>(vals.size());
+            if (nvals == 1)
                 for (int i = 0; i < value.number_of_grains; i++)
                     value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0]));
-            else if (vals.size() == value.number_of_grains)
+            else if (nvals == value.number_of_grains)
                 for (int i = 0; i < value.number_of_grains; i++)
                     value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[i]));
             else
@@ -163,34 +165,34 @@ public:
         {
             pp_query_required("anisotropy.beta", value.anisotropy.beta);               // Regularization param 
             pp_query_required("anisotropy.tstart", value.anisotropy.tstart);           // Time to turn on anisotropy
-        value.anisotropy.timestep = value.timestep;
-        pp_query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
-        value.anisotropy.plot_int = value.plot_int;
-        pp_query("anisotropy.plot_int", value.anisotropy.plot_int);                // Modify plot_int when turned on
-        value.anisotropy.plot_dt = value.plot_dt;
-        pp_query("anisotropy.plot_dt", value.anisotropy.plot_dt);                  // Modify plot_dt when turned on
-        pp_query("anisotropy.thermo_int", value.anisotropy.thermo_int);            // Modify thermo int when turned on
-        pp_query("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
-        pp_query("anisotropy.elastic_int",value.anisotropy.elastic_int);           // Frequency of elastic calculation
-        if (value.anisotropy.on) 
-            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
+            value.anisotropy.timestep = value.timestep;
+            pp_query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
+            value.anisotropy.plot_int = value.plot_int;
+            pp_query("anisotropy.plot_int", value.anisotropy.plot_int);                // Modify plot_int when turned on
+            value.anisotropy.plot_dt = value.plot_dt;
+            pp_query("anisotropy.plot_dt", value.anisotropy.plot_dt);                  // Modify plot_dt when turned on
+            pp_query("anisotropy.thermo_int", value.anisotropy.thermo_int);            // Modify thermo int when turned on
+            pp_query("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
+            pp_query("anisotropy.elastic_int",value.anisotropy.elastic_int);           // Frequency of elastic calculation
+            if (value.anisotropy.on) 
+                value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
-        // Determine the kind of regularization to use
-        std::map<std::string, RegularizationType> regularization_type;
-        regularization_type["wilmore"] = RegularizationType::Wilmore;
-        regularization_type["k12"] = RegularizationType::K12;
+            // Determine the kind of regularization to use
+            std::map<std::string, RegularizationType> regularization_type;
+            regularization_type["wilmore"] = RegularizationType::Wilmore;
+            regularization_type["k12"] = RegularizationType::K12;
 
             std::string regularization_type_input;
             // Type of regularization to use  
             pp_query_validate("anisotropy.regularization", regularization_type_input,{"k12","wilmore"});    
-        value.regularization = regularization_type[regularization_type_input];
+            value.regularization = regularization_type[regularization_type_input];
 
             // Type of GB to use
             pp_query_validate("anisotropy.gb_type", value.gb_type,{"abssin","sin","read","sh"}); 
-        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
+            if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
+            else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
+            else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
+            else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
             else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
         }
 

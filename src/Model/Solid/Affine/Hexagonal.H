@@ -89,11 +89,11 @@ public:
     AMREX_FORCE_INLINE
     static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta, int order)
     {
+        Hexagonal ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        ret.F0 = Set::Matrix::Zero();
         if (order == 1)
         {
-            Hexagonal ret;
-            ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
-            ret.F0 = Set::Matrix::Zero();
             Set::Scalar etasum = 0.;
             for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
             for (unsigned int n = 0 ; n < models.size(); n++)
@@ -103,8 +103,8 @@ public:
             }
             return ret;
         }
-        else
-            Util::Exception(INFO,"Order value of ", order, " not supported yet");
+        Util::Exception(INFO,"Order value of ", order, " not supported yet");
+        return ret;
     }
 
     #define OP_CLASS Hexagonal
