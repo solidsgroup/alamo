@@ -150,7 +150,7 @@ public:
     {
         for (int i = 0; i < NUM; i++)
             pp.queryclass("model" + std::to_string(i + 1), value.m_models[i]);
-        pp.query("order", value.order);
+        pp.query("order", value.order); // order to use when mixing
     }
 };
 

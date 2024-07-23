@@ -138,11 +138,11 @@ public:
             value.SetThermoInt(1);
         }
 
-        pp.query("sdf.on",value.sdf.on);
+        pp_query_default("sdf.on",value.sdf.on,false); // synthetic driving force (SDF)
         if(value.sdf.on)
         {
             std::vector<std::string> vals;
-            pp.queryarr("val",vals);
+            pp_queryarr("sdf.val",vals);  // value of SDF for each grain
             if (vals.size() == 1)
                 for (int i = 0; i < value.number_of_grains; i++)
                     value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0]));
@@ -152,7 +152,7 @@ public:
             else
                 Util::Abort(INFO,"sdf.val received ", vals.size(), " but requires 1 or ", value.number_of_grains);
 
-            pp.query("tstart",value.sdf.tstart);
+            pp_query_default("sdf.tstart",value.sdf.tstart,0.0); // time to begin applying SDF
         }
 
         // Anisotropic grain boundary energy parameters
@@ -193,39 +193,48 @@ public:
             else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
         }
 
-        // Thermal disconnection fluctuations
+        // Thermal fluctuations
         pp.query("fluctuation.on",value.fluctuation.on);
-        pp.query("fluctuation.amp",value.fluctuation.amp);
-        pp.query("fluctuation.sd",value.fluctuation.sd);
-        pp.query("fluctuation.tstart", value.fluctuation.tstart);
-        value.fluctuation.norm_dist = std::normal_distribution<double>(0.0,value.fluctuation.sd);
+        if (value.fluctuation.on)
+        {
+            pp.query("fluctuation.amp",value.fluctuation.amp); // fluctuation amplitude
+            pp.query("fluctuation.sd",value.fluctuation.sd); // fluctuation stadard deviation
+            pp.query("fluctuation.tstart", value.fluctuation.tstart); // time to start applying fluctuation
+            value.fluctuation.norm_dist = std::normal_distribution<double>(0.0,value.fluctuation.sd);
+        }
 
         // Disconnection generation
         pp.query("disconnection.on",value.disconnection.on);
-        pp.query("disconnection.tstart", value.disconnection.tstart);
-        pp.query("disconnection.nucleation_energy",value.disconnection.nucleation_energy);
-        pp.query("disconnection.tau_vol",value.disconnection.tau_vol);
-        pp.query("disconnection.temp",value.disconnection.temp);
-        pp.query("disconnection.box_size",value.disconnection.box_size);
-        pp.query("disconnection.interval",value.disconnection.interval);
-        pp.query("disconnectionepsilon",value.disconnection.epsilon);
-        pp.query("disconnection.fixed.on",value.disconnection.fixed.on);
-        if (value.disconnection.fixed.on)
+        if (disconnection.on)
         {
-            pp.queryarr("disconnection.fixed.sitex",value.disconnection.fixed.sitex);
-            pp.queryarr("disconnection.fixed.sitey",value.disconnection.fixed.sitey);
-            pp.queryarr("disconnection.fixed.phases",value.disconnection.fixed.phases);
-            pp.queryarr("disconnection.fixed.time",value.disconnection.fixed.time);
-            Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.sitey.size()));
-            Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.phases.size()));
-            Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.time.size()));
-            value.disconnection.fixed.done.resize(value.disconnection.fixed.sitex.size(),false);
-        }
-        else
-        {
-            value.disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
-            value.disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
-            value.disconnection.rand_num_gen.seed(amrex::ParallelDescriptor::MyProc());
+            Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"2D only");
+            pp_query_default("disconnection.tstart", value.disconnection.tstart,0.0); // time to start applying disconnections
+            pp_query_default("disconnection.nucleation_energy",value.disconnection.nucleation_energy,0.0); // nucleation energy
+            pp_query_default("disconnection.tau_vol",value.disconnection.tau_vol, 1.0); // characteristic time
+            pp_query_default("disconnection.temp",value.disconnection.temp,0.0); // temperature
+            pp_query_default("disconnection.box_size",value.disconnection.box_size ,0.0); // characteristic size
+            pp_query_required("disconnection.interval",value.disconnection.interval); // interval between generation events
+            pp_query_default("disconnection.epsilon",value.disconnection.epsilon,1E-20); // regularization epsilon
+
+            // whether to manually specify disconnection nucleation points
+            pp.query("disconnection.fixed.on",value.disconnection.fixed.on); 
+            if (value.disconnection.fixed.on)
+            {
+                pp.queryarr("disconnection.fixed.sitex",value.disconnection.fixed.sitex); // array of x locations
+                pp.queryarr("disconnection.fixed.sitey",value.disconnection.fixed.sitey); // array of y locations
+                pp.queryarr("disconnection.fixed.phases",value.disconnection.fixed.phases); // array of order parameter number
+                pp.queryarr("disconnection.fixed.time",value.disconnection.fixed.time); // time to appear
+                Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.sitey.size()));
+                Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.phases.size()));
+                Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.time.size()));
+                value.disconnection.fixed.done.resize(value.disconnection.fixed.sitex.size(),false);
+            }
+            else
+            {
+                value.disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
+                value.disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
+                value.disconnection.rand_num_gen.seed(amrex::ParallelDescriptor::MyProc());
+            }
         }
 
         // Shear coupling matrices
@@ -424,15 +433,15 @@ private:
         //int phase = 0;
         int interval = -1;
         bool nucleate = false;
-        Set::Scalar tstart = 0.0;
+        Set::Scalar tstart = NAN;
         Set::Scalar fixed_site = 4.0;
         Set::Scalar range = 0.06;
-        Set::Scalar nucleation_energy = 0.0;
-        Set::Scalar tau_vol = 1.0;
-        Set::Scalar temp = 0.0;
+        Set::Scalar nucleation_energy = NAN;
+        Set::Scalar tau_vol = NAN;
+        Set::Scalar temp = NAN;
         Set::Scalar K_b = 8.617333262145e-5; // eV/K
-        Set::Scalar box_size = 0.0;
-        Set::Scalar epsilon = 1E-20;
+        Set::Scalar box_size = NAN;
+        Set::Scalar epsilon = NAN;
         std::uniform_real_distribution<double> unif_dist;
         std::uniform_int_distribution<int> int_dist;
         std::default_random_engine rand_num_gen;
