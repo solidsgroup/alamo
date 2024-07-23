@@ -244,6 +244,9 @@ public:
         pp_query_default("shearcouple.on",value.shearcouple.on,false);
         if (value.shearcouple.on)
         {
+            Util::AssertException(INFO,TEST(value.m_time_evolving == true), " mechanics.time_evolving must be true when using shearcouple");
+            Util::AssertException(INFO,TEST(value.mechanics.model_mix_order == 2), " mechanics.model.mix_order must be 2 when using shearcouple");
+            
             value.shearcouple.Fgb.resize(value.number_of_grains * value.number_of_grains, Set::Matrix::Zero());
             for (int i = 0 ; i < value.number_of_grains ; i++)
                 for (int j = 0 ; j < value.number_of_grains ; j++)

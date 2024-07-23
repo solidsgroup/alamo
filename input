@@ -1,9 +1,9 @@
 alamo.program = microstructure
 plot_file = output
 timestep = 0.005
-stop_time = 400.0
-amr.plot_dt = 0.1
-amr.plot_int = 10
+stop_time = 100.0
+amr.plot_dt = 1
+#amr.plot_int = 10
 amr.max_level = 2
 amr.n_cell = 32 64 64
 amr.blocking_factor = 8
@@ -39,7 +39,7 @@ anisotropy.beta = 0.00005
 
 ic.type = perturbed_interface
 ic.wave_numbers = 2
-ic.wave_amplitudes = 0.1
+ic.wave_amplitudes = 0.5
 ic.normal = y
 ic.mollifier = dirac
 mechanics.type = static
@@ -47,22 +47,23 @@ mechanics.tstart = 0.1
 mechanics.interval = 10
 mechanics.solver.verbose = 3
 mechanics.solver.fixed_iter = 100
-mechanics.print_residual=1
 mechanics.model.C11 = 1.71
 mechanics.model.C12 = 1.22
 mechanics.model.C44 = 0.75
 mechanics.model.Phi = 0.19739674
 mechanics.model.F0 = 0 0 0 0
 mechanics.mix_order = 2
+#mechanics.elastic_ref_threshold = 0.001
 
 mechanics.bc.type = constant
 mechanics.bc.constant.type.xlo = neumann disp
 mechanics.bc.constant.type.xhi = neumann disp
-mechanics.bc.constant.val.xhiyhi = (1,50:0.25,0.5) 0
-mechanics.bc.constant.val.xloyhi = (1,50:0.25,0.5) 0
-mechanics.bc.constant.val.yhi    = (1,50:0.25,0.5) 0
+mechanics.bc.constant.val.xhiyhi = (1,100:0.0,1.0) 0
+mechanics.bc.constant.val.xloyhi = (1,100:0.0,1.0) 0
+mechanics.bc.constant.val.yhi    = (1,100:0.0,1.0) 0
 mechanics.zero_out_displacement = 0
 mechanics.print_model = 1
+mechanics.time_evolving = 1
 disconnection.fixed.on = 0
 #disconnection.fixed.sitex = 4.0
 #disconnection.fixed.sitey = 0.0
@@ -72,18 +73,18 @@ disconnection.fixed.on = 0
 
 
 shearcouple.on = 1
-shearcouple.Fgb.0.1 = 0 0.2 0 0
+#shearcouple.Fgb.0.1 = 0 0.2 0 0
 #shearcouple.Fgb.0.1 = 0 0 0 0
 
+#shearcouple.Fgb.0.1 = 0.07660444  0.16427876  -0.03572124 -0.07660444 # +20degrees
 
+#shearcouple.Fgb.0.1 = -0.07660444  0.16427876 -0.03572124  0.07660444 # -20 degrees
 
+#shearcouple.Fgb.0.1 = 0.1  0.1 -0.1 -0.1 # +40 degrees
 
+shearcouple.Fgb.0.1 = 0.0809017   0.15877853 -0.04122147 -0.0809017 # +27 degrees
 
-
-
-
-
-
+shearcouple.Fgb.0.1 = -0.0809017   0.15877853 -0.04122147  0.0809017 # -27 degrees
 
 
 #alamo.program = microstructure

@@ -104,7 +104,6 @@
 #define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
 #define pp_forbid(...) pp.forbid(__VA_ARGS__,INFO)
 
-
 namespace IO
 {
 class ParmParse : public amrex::ParmParse
