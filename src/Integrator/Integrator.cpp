@@ -91,7 +91,7 @@ Integrator::Integrator() : amrex::AmrCore()
         // Information on how to generate thermodynamic
         // data (to show up in thermo.dat)
         IO::ParmParse pp("amr.thermo");
-        thermo.interval = -1;                           // Default: integrate every time.
+        thermo.interval = 1;                           // Default: integrate every time.
         pp_query_default("int", thermo.interval, -1);              // Integration interval (1)
         pp_query_default("plot_int", thermo.plot_int, -1.0);         // Interval (in timesteps) between writing
         pp_query_default("plot_dt", thermo.plot_dt, -1.0);           // Interval (in simulation time) between writing
