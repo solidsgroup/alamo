@@ -29,6 +29,10 @@ plot_file		    = tests/Voronoi/output
 timestep		    = 0.005
 stop_time		    = 1
 
+timestep.cfl = 5
+timestep.min = 1E-8
+timestep.max = 0.1
+
 amr.plot_dt		    = 0.1
 
 amr.max_level		    = 3

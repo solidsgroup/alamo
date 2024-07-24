@@ -33,25 +33,23 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 {
     BL_PROFILE("PhaseFieldMicrostructure::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
-    /// TODO Make this optional
-    //if (lev != max_level) return;
-    // if (shearcouple.on)
-    //     std::swap(eta_old_mf[lev], eta_mf[lev]);
     const Set::Scalar* DX = this->geom[lev].CellSize();
 
+    Set::Scalar df_max = std::numeric_limits<Set::Scalar>::min();
+    Set::Scalar df_min = std::numeric_limits<Set::Scalar>::max();
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
     for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.tilebox();
-        //if (m_type == MechanicsBase<model_type>::Type::Static)
-        //bx.grow(number_of_ghost_cells-1);
-        //bx = bx & domain;
         Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> driving_force = driving_force_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);// = (*driving_force_mf[lev]).array(mfi);
+        Set::Patch<Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);
+
+        Set::Scalar *df_max_handle = &df_max;
+        Set::Scalar *df_min_handle = &df_min;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -216,25 +214,31 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
             {
                 for (int m = 0; m < number_of_grains; m++)
                 {
+                    Set::Scalar totaldf = 0.0;
+
                     if (pf.threshold.on)
                     {
                         if (driving_force_threshold(i, j, k, m) > pf.threshold.value)
                         {
                             if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m) - pf.threshold.value);
+                                totaldf -= pf.L * (driving_force_threshold(i, j, k, m) - pf.threshold.value);
                             else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m));
+                                totaldf -= pf.L * (driving_force_threshold(i, j, k, m));
                         }
                         else if (driving_force_threshold(i, j, k, m) < -pf.threshold.value)
                         {
                             if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m) + pf.threshold.value);
+                                totaldf -= pf.L * (driving_force_threshold(i, j, k, m) + pf.threshold.value);
                             else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m));
+                                totaldf -= pf.L  * (driving_force_threshold(i, j, k, m));
                         }
                     }
 
-                    eta(i, j, k, m) -= pf.L * dt * driving_force(i, j, k, m);
+                    totaldf -= pf.L * driving_force(i, j, k, m);
+                    eta(i, j, k, m) +=  dt * totaldf;
+
+                    *df_max_handle = std::max(df_max, std::fabs(totaldf));
+                    *df_min_handle = std::min(df_min, std::fabs(totaldf));
                 }
             });
         }
@@ -304,6 +308,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
     }
     
     if (shearcouple.on && time >= mechanics.tstart) UpdateEigenstrain(lev);
+    SyncDrivingForceLimits(lev,df_min,df_max);
 }
 
 template <class model_type>
@@ -343,6 +348,15 @@ void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
 }
 
 template<class model_type>
+void PhaseFieldMicrostructure<model_type>::SyncDrivingForceLimits(int lev, Set::Scalar df_min, Set::Scalar df_max)
+{
+    df_limit_min[lev] = df_min;
+    amrex::ParallelDescriptor::ReduceRealMin(df_limit_min[lev]);
+    df_limit_max[lev] = df_max;
+    amrex::ParallelDescriptor::ReduceRealMax(df_limit_max[lev]);
+}
+
+template<class model_type>
 void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
@@ -377,9 +391,61 @@ void PhaseFieldMicrostructure<model_type>::TagCellsForRefinement(int lev, amrex:
 }
 
 template<class model_type>
-void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/)
+void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar time, int iter) 
 {
-    // TODO: remove this function, it is no longer needed.
+    Set::Scalar final_timestep = NAN;
+
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        Set::Scalar timestep_average = this->dt[0];
+        if (previous_timesteps.size() > 0)
+        {
+            timestep_average = 0.0;
+            for (int d = 0; d < previous_timesteps.size(); d++)
+                timestep_average += previous_timesteps[d];
+            timestep_average /= previous_timesteps.size();
+        }
+
+        Set::Scalar new_timestep = std::numeric_limits<Set::Scalar>::max();
+        for (int lev = 0; lev <= this->max_level; lev++)
+        {
+            const Set::Scalar* DX = this->geom[lev].CellSize();
+            Set::Scalar dt_lev = cfl * (DX[0]*DX[0]) / df_limit_max[lev];
+
+            Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
+        
+            for (int ilev = lev; ilev > 0; ilev--) dt_lev *= (Set::Scalar)(this->nsubsteps[ilev]);
+
+            Util::Message(INFO,"lev=",lev,"       -->    ",dt_lev);
+
+            new_timestep = std::min(new_timestep,dt_lev);
+        }
+
+        if (new_timestep < timestep_average)
+        {
+            previous_timesteps.clear();
+
+            final_timestep = new_timestep;
+            final_timestep = std::max(final_timestep,timestep_min);
+            final_timestep = std::min(final_timestep,timestep_max);
+
+            previous_timesteps.push_back(new_timestep);
+        }
+        else
+        {
+            final_timestep = timestep_average;
+            final_timestep = std::max(final_timestep,timestep_min);
+            final_timestep = std::min(final_timestep,timestep_max);
+
+            if (previous_timesteps.size() > nprevious)
+                previous_timesteps.erase(previous_timesteps.begin()); // pop first timestep
+            previous_timesteps.push_back(new_timestep); // push back new timestep
+        }
+
+    }
+    amrex::ParallelDescriptor::Bcast(&final_timestep,1);
+    this->SetTimestep(final_timestep);
+    
 }
 
 template<class model_type>
@@ -425,6 +491,9 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
 {
     BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     for (int lev = 0; lev < totaldf_mf.size(); lev++) totaldf_mf[lev]->setVal(0.0);
+
+    df_limit_max.resize(this->max_level+1);
+    df_limit_min.resize(this->max_level+1);
 
     //
     // Manual Disconnection Nucleation

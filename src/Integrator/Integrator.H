@@ -178,7 +178,7 @@ protected:
     virtual void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time,
         int ngrow) = 0;
 
-    /// \fn    TimeStepComplete
+    /// \fn    TimeStepBegin
     /// \brief Run another system calculation (e.g. implicit solve) before integration step
     ///
     /// This function is called at the beginning of every timestep. This function can be used
@@ -186,7 +186,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    TimeStepComplete
     /// \brief Run another system calculation (e.g. implicit solve) after integration step
@@ -196,7 +196,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepComplete(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    Integrate
     /// \brief Perform an integration to compute integrated quantities
@@ -299,9 +299,9 @@ protected:
     // TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
     amrex::Real timestep = NAN;   ///< Timestep for the base level of refinement
-private:
     amrex::Vector<amrex::Real> dt;  ///< Timesteps for each level of refinement
     amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
+private:
     int max_plot_level = -1;
 
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
@@ -370,6 +370,8 @@ protected:
 protected:
     int plot_int = -1;               ///< How frequently to dump plot file (default: never)
     Set::Scalar plot_dt = -1.0;
+
+    int abort_on_nan = true;
 };
 
 

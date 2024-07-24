@@ -75,7 +75,7 @@ public:
         // Number of grain fields (may be more if using different IC)
         pp_query_default("pf.number_of_grains", value.number_of_grains,2);     
         pp_query_required("pf.M", value.pf.M);                         // Mobility
-        pp_query_required("pf.mu", value.pf.mu);                       // Phase field :math:`\mu`
+        //pp_query_required("pf.mu", value.pf.mu);                       // Phase field :math:`\mu`
         pp_query_required("pf.gamma", value.pf.gamma);                 // Phase field :math:`\gamma`
         pp_query_required("pf.sigma0", value.pf.sigma0);               // Initial GB energy if not using  anisotropy
         pp_query_required("pf.l_gb", value.pf.l_gb);                   // Mobility
@@ -105,6 +105,10 @@ public:
     
         pp_query("amr.max_level", value.max_level);            // Maximum AMR level
         pp_query("amr.ref_threshold", value.ref_threshold);    // Phase field refinement threshold
+
+        pp_query_default("timestep.cfl",value.cfl,1.0);
+        pp_query_default("timestep.min",value.timestep_min,1E-8);
+        pp_query_default("timestep.max",value.timestep_max,0.1);
 
         // Elasticity
         pp_query("mechanics.tstart",value.mechanics.tstart);
@@ -334,10 +338,20 @@ protected:
 
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-    void TimeStepBegin(amrex::Real time, int iter) override;
-    void TimeStepComplete(amrex::Real time, int iter) override;
+    virtual void TimeStepBegin(amrex::Real time, int iter) override;
+    virtual void TimeStepComplete(amrex::Real time, int iter) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
+
+    std::vector<Set::Scalar> df_limit_max;
+    std::vector<Set::Scalar> df_limit_min;
+    std::vector<Set::Scalar> previous_timesteps;
+    int nprevious = 5;
+    void SyncDrivingForceLimits(int lev, Set::Scalar df_min, Set::Scalar df_max);
+    Set::Scalar cfl = NAN;
+    Set::Scalar timestep_min = NAN;
+    Set::Scalar timestep_max = NAN;
+    
 
     virtual void UpdateEigenstrain(int lev);
 
