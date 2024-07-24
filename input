@@ -42,6 +42,14 @@ ic.wave_numbers = 2
 ic.wave_amplitudes = 0.5
 ic.normal = y
 ic.mollifier = dirac
+pf.elastic_mult = 500
+
+#ic.type = expression
+#ic.expression.constant.R = 1.0
+#ic.expression.region0 = "(x-2)^2 + y^2 < R"
+#ic.expression.region1 = "(x-2)^2 + y^2 > R"
+#pf.elastic_mult = 10
+
 mechanics.type = static
 mechanics.tstart = 0.1
 mechanics.interval = 10
@@ -75,16 +83,14 @@ disconnection.fixed.on = 0
 shearcouple.on = 1
 #shearcouple.Fgb.0.1 = 0 0.2 0 0
 #shearcouple.Fgb.0.1 = 0 0 0 0
-
 #shearcouple.Fgb.0.1 = 0.07660444  0.16427876  -0.03572124 -0.07660444 # +20degrees
-
 #shearcouple.Fgb.0.1 = -0.07660444  0.16427876 -0.03572124  0.07660444 # -20 degrees
-
 #shearcouple.Fgb.0.1 = 0.1  0.1 -0.1 -0.1 # +40 degrees
-
 shearcouple.Fgb.0.1 = 0.0809017   0.15877853 -0.04122147 -0.0809017 # +27 degrees
+#shearcouple.Fgb.0.1 = -0.0809017   0.15877853 -0.04122147  0.0809017 # -27 degrees
 
-shearcouple.Fgb.0.1 = -0.0809017   0.15877853 -0.04122147  0.0809017 # -27 degrees
+#sdf.on = 1
+#sdf.val = 0.5 0
 
 
 #alamo.program = microstructure
