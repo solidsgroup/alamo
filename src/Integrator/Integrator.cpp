@@ -90,6 +90,20 @@ Integrator::Integrator() : amrex::AmrCore()
                 nsubsteps[lev] = MaxRefRatio(lev - 1);
     }
     {
+        IO::ParmParse pp("dynamictimestep");
+        pp_query("on",dynamictimestep.on);
+        if (dynamictimestep.on)
+        {
+            pp_query_validate("verbose",dynamictimestep.verbose,{0,1});
+            pp_query_default("nprevious",dynamictimestep.nprevious,5);
+            pp_query_default("cfl",dynamictimestep.cfl,1.0);
+            pp_query_default("min",dynamictimestep.min,timestep);
+            pp_query_default("max",dynamictimestep.max,timestep);
+
+            Util::AssertException(INFO,TEST(dynamictimestep.max >= dynamictimestep.min));
+        }
+    }
+    {
         // Information on how to generate thermodynamic
         // data (to show up in thermo.dat)
         IO::ParmParse pp("amr.thermo");

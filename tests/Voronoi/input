@@ -6,6 +6,15 @@
 #@ benchmark-statler = 11.58
 #@ benchmark-waldorf = 9.32
 #@ 
+#@ [2D-100grain-parallel-dynamictimestep]
+#@ nprocs = 4
+#@ dim = 2
+#@ args = dynamictimestep.on=1
+#@ args = dynamictimestep.cfl=5.0
+#@ args = dynamictimestep.min=0.000001
+#@ args = dynamictimestep.max=0.1
+#@ args = stop_time=60
+#@
 #@ [2D-100grain-serial]
 #@ nprocs = 1
 #@ dim = 2
@@ -28,10 +37,6 @@ plot_file		    = tests/Voronoi/output
 
 timestep		    = 0.005
 stop_time		    = 1
-
-timestep.cfl = 5
-timestep.min = 1E-8
-timestep.max = 0.1
 
 amr.plot_dt		    = 0.1
 

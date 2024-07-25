@@ -106,10 +106,6 @@ public:
         pp_query("amr.max_level", value.max_level);            // Maximum AMR level
         pp_query("amr.ref_threshold", value.ref_threshold);    // Phase field refinement threshold
 
-        pp_query_default("timestep.cfl",value.cfl,1.0);
-        pp_query_default("timestep.min",value.timestep_min,1E-8);
-        pp_query_default("timestep.max",value.timestep_max,0.1);
-
         // Elasticity
         pp_query("mechanics.tstart",value.mechanics.tstart);
         value.mechanics.model.clear();
@@ -310,12 +306,11 @@ public:
 
 
         value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
-        value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
+        //value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
 
-        if (value.shearcouple.on)
-            value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld", false);
-        if (value.pf.threshold.on)
-            value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
+        value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld", false);
+        //if (value.pf.threshold.on)
+        //value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
         if (value.disconnection.on)
             value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
 
@@ -343,14 +338,13 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
-    std::vector<Set::Scalar> df_limit_max;
-    std::vector<Set::Scalar> df_limit_min;
-    std::vector<Set::Scalar> previous_timesteps;
-    int nprevious = 5;
-    void SyncDrivingForceLimits(int lev, Set::Scalar df_min, Set::Scalar df_max);
-    Set::Scalar cfl = NAN;
-    Set::Scalar timestep_min = NAN;
-    Set::Scalar timestep_max = NAN;
+    // std::vector<Set::Scalar> df_limit_max;
+    // std::vector<Set::Scalar> df_limit_min;
+    // std::vector<Set::Scalar> previous_timesteps;
+    // int nprevious = 5;
+    // Set::Scalar cfl = NAN;
+    // Set::Scalar timestep_min = NAN;
+    // Set::Scalar timestep_max = NAN;
     
 
     virtual void UpdateEigenstrain(int lev);
