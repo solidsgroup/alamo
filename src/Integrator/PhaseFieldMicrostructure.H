@@ -29,6 +29,7 @@
 #include "IC/Sphere.H"
 #include "IC/Expression.H"
 #include "IC/Ellipse.H"
+#include "IC/Random.H"
 
 #include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
@@ -273,7 +274,7 @@ public:
 
         std::string ic_type;
         // Initial condition to use for eta
-        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse"});  
+        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse","random"});  
         // [switch ic.type] Initial conditions for Etas
         if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
         else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");
@@ -282,6 +283,7 @@ public:
         else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
         else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
         else if (ic_type == "ellipse")             value.ic = new IC::Ellipse(value.geom,pp,"ic.ellipse");
+        else if (ic_type == "random")              value.ic = new IC::Random(value.geom,pp,"ic.random");
         else Util::Abort(INFO, "No valid initial condition specified");
         // [end switch]
 
