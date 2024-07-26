@@ -210,17 +210,14 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     else
                         driving_force -= pf.elastic_mult * elastic_df_m;
                 }
-//            });
-//        }
-//
-//
-//
+
+                //
+                // Update eta
+                // (if we are NOT using anisotropic kinetics)
+                //
+
                 if (!anisotropic_kinetics.on || time < anisotropic_kinetics.tstart)
                 {
-//            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-//            {
-//                for (int m = 0; m < number_of_grains; m++)
-//                {
                     Set::Scalar totaldf = 0.0;
 
                     if (pf.threshold.on)
@@ -246,50 +243,18 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     etanew(i, j, k, m) = eta(i,j,k,m) +  dt * totaldf;
 
                     *df_max_handle = std::max(df_max, std::fabs(totaldf));
-//                }
-//            });
                 }
-//    }
-//
+
                 //
                 // Update eta
                 // (if we ARE using anisotropic kinetics)
                 //
-//    
                 if (anisotropic_kinetics.on && time >= anisotropic_kinetics.tstart)
                 {
-//        for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//        {
-//            amrex::Box bx = mfi.tilebox();
-//            amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-//            amrex::Array4<Set::Scalar> const& L = (*anisotropic_kinetics.L_mf[lev]).array(mfi);
-//            amrex::Array4<Set::Scalar> const& threshold = (*anisotropic_kinetics.threshold_mf[lev]).array(mfi);
-//
-//            for (int m = 0; m < number_of_grains; m++)
-//            {
-//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-//                {
-                    Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
                     Set::Scalar theta = atan2(Deta(1), Deta(0));
                     Set::Scalar aniso_L = (4. / 3.) * anisotropic_kinetics.mobility(theta) / pf.l_gb;
                     Set::Scalar aniso_threshold = anisotropic_kinetics.threshold(theta);
-//                });
-//            }
-//        }
-//        
-//        for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//        {
-//            amrex::Box bx = mfi.tilebox();
-//            Set::Patch<Set::Scalar>       eta = eta_mf.Patch(lev,mfi);
-//            Set::Patch<const Set::Scalar> driving_force = driving_force_mf.Patch(lev,mfi);
-//            Set::Patch<const Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);
-//            Set::Patch<const Set::Scalar> L = anisotropic_kinetics.L_mf.Patch(lev,mfi);
-//            Set::Patch<const Set::Scalar> threshold = anisotropic_kinetics.threshold_mf.Patch(lev,mfi);
-//
-//            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-//            {
-//                for (int m = 0; m < number_of_grains; m++)
-//                {
+
                     if (pf.threshold.on)
                     {
                         if (driving_force_threshold > aniso_threshold)

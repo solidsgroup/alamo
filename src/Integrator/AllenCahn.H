@@ -104,7 +104,8 @@ protected:
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
         std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
-
+        Set::Scalar df_max = 0.0;
+        
         const Set::Scalar *DX = this->geom[lev].CellSize();
         // Evolve alpha
         for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
@@ -112,6 +113,7 @@ protected:
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<Set::Scalar> const& alpha_new = (*alpha_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& alpha = (*alpha_old_mf[lev]).array(mfi);
+            Set::Scalar* df_max_handle = &df_max;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -123,11 +125,16 @@ protected:
                 // Gradient
                 Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
                 driving_force -= ch.eps * ch.grad * alpha_lap;
+                // Multiply by mobility
+                driving_force *= ch.L;
                 // Update
                 alpha_new(i, j, k) =
-                    alpha(i, j, k) - ch.L * dt * driving_force;
+                    alpha(i, j, k) - dt * driving_force;
+
+                *df_max_handle = std::max(df_max, fabs(driving_force));
             });
         }
+        this->DynamicTimestep_SyncDrivingForce(lev,df_max);
     }
 
     // Tag cells for mesh refinement based on temperature gradient
