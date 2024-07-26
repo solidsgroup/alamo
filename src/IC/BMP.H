@@ -179,7 +179,7 @@ public:
 
         std::string fit;
         // How to position image in space
-        pp_query_validate("fit",fit,{"stretch","fitheight","fitwidth"}); 
+        pp_query_validate("fit",fit,{"stretch","fitheight","fitwidth","coord"}); 
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
