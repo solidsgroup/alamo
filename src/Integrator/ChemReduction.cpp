@@ -34,7 +34,7 @@ ChemReduction::Parse(ChemReduction& value, IO::ParmParse& pp)
             pp.query_required("temperature", value.T); // Domain temperature (Isothermal)
             pp.query_default("gas_constant", value.R, 8.3145); // Universal gas constant
 
-            pp.query_default("refinement_criterion", value.phi_refinement_criterion, 0.001);
+            pp.query_default("refinement_criterion", value.phi_refinement_criterion, 0.001); // Criterion for mesh refinement
             pp.query_default("ghost_cells_count", value.ghost_count, 2); // Number of ghost cells in each field
 
             pp.query_required("wustite.bulk", value.wustite.K); // Wustite bulk modulus 
