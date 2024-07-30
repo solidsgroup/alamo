@@ -57,7 +57,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Matrix sig = Set::Matrix::Zero();
-            if (pf.elastic_df) Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
+            if (pf.elastic_df) sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
 
             for (int m = 0; m < number_of_grains; m++)
             {
@@ -144,16 +144,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 // ELASTIC DRIVING FORCE
                 //
 
-//            }
-//        });
-//
-//            Set::Patch<const Set::Matrix> sigma     = stress_mf.Patch(lev,mfi); 
-//            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-//            {
-                // Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
 
-                // for (int m = 0; m < number_of_grains; m++)
-                // {
                 if (pf.elastic_df)
                 {
                     Set::Scalar elastic_df_m = 0.0;
@@ -180,15 +171,10 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     }
                     else
                     {
-                        Set::Scalar etasum = 0.0;
                         Set::Matrix F0avg = Set::Matrix::Zero();
 
                         for (int n = 0; n < number_of_grains; n++)
-                        {
-                            etasum += eta(i, j, k, n);
                             F0avg += eta(i, j, k, n) * mechanics.model[n].F0;
-                        }
-
 
                         Set::Matrix dF0deta = Set::Matrix::Zero();
 
@@ -213,68 +199,46 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
                 //
                 // Update eta
-                // (if we are NOT using anisotropic kinetics)
                 //
-
+                // Final mobility and threshold values:
+                Set::Scalar L = NAN, threshold = NAN;
+                // (if we are NOT using anisotropic kinetics)
                 if (!anisotropic_kinetics.on || time < anisotropic_kinetics.tstart)
                 {
-                    Set::Scalar totaldf = 0.0;
-
-                    if (pf.threshold.on)
-                    {
-                        if (driving_force_threshold > pf.threshold.value)
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                totaldf -= pf.L * (driving_force_threshold - pf.threshold.value);
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                totaldf -= pf.L * (driving_force_threshold);
-                        }
-                        else if (driving_force_threshold < -pf.threshold.value)
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                totaldf -= pf.L * (driving_force_threshold + pf.threshold.value);
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                totaldf -= pf.L  * (driving_force_threshold);
-                        }
-                    }
-
-                    totaldf -= pf.L * driving_force;
-
-                    etanew(i, j, k, m) = eta(i,j,k,m) +  dt * totaldf;
-
-                    *df_max_handle = std::max(df_max, std::fabs(totaldf));
+                    L = pf.L;
+                    threshold = pf.threshold.value;
                 }
-
-                //
-                // Update eta
                 // (if we ARE using anisotropic kinetics)
-                //
-                if (anisotropic_kinetics.on && time >= anisotropic_kinetics.tstart)
+                else
                 {
                     Set::Scalar theta = atan2(Deta(1), Deta(0));
-                    Set::Scalar aniso_L = (4. / 3.) * anisotropic_kinetics.mobility(theta) / pf.l_gb;
-                    Set::Scalar aniso_threshold = anisotropic_kinetics.threshold(theta);
-
-                    if (pf.threshold.on)
-                    {
-                        if (driving_force_threshold > aniso_threshold)
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                etanew(i, j, k, m) -= aniso_L * dt * (driving_force_threshold - aniso_threshold);
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                etanew(i, j, k, m) -= aniso_L * dt * (driving_force_threshold);
-                        }
-                        else if (driving_force_threshold < -aniso_threshold)
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                etanew(i, j, k, m) -= aniso_L * dt * (driving_force_threshold + aniso_threshold);
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                etanew(i, j, k, m) -= aniso_L * dt * (driving_force_threshold);
-                        }
-                    }
-
-                    etanew(i, j, k, m) = eta(i,j,k,m) - aniso_L * dt * driving_force;
+                    L = (4. / 3.) * anisotropic_kinetics.mobility(theta) / pf.l_gb;
+                    threshold = anisotropic_kinetics.threshold(theta);
                 }
+
+                Set::Scalar totaldf = 0.0;
+                if (pf.threshold.on)
+                {
+                    if (driving_force_threshold > threshold)
+                    {
+                        if (pf.threshold.type == ThresholdType::Continuous)
+                            totaldf -= L * (driving_force_threshold - threshold);
+                        else if (pf.threshold.type == ThresholdType::Chop)
+                            totaldf -= L * (driving_force_threshold);
+                    }
+                    else if (driving_force_threshold < -threshold)
+                    {
+                        if (pf.threshold.type == ThresholdType::Continuous)
+                            totaldf -= L * (driving_force_threshold + threshold);
+                        else if (pf.threshold.type == ThresholdType::Chop)
+                            totaldf -= L  * (driving_force_threshold);
+                    }
+                }
+                totaldf -= L * driving_force;
+
+                // Final Eta Update
+                etanew(i, j, k, m) = eta(i,j,k,m) +  dt * totaldf;
+                *df_max_handle = std::max(df_max, std::fabs(totaldf));
             }
         });
     }
@@ -325,7 +289,7 @@ void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_mf);
-    if (shearcouple.on) ic->Initialize(lev, eta_old_mf);
+    ic->Initialize(lev, eta_old_mf);
 }
 
 template<class model_type>
