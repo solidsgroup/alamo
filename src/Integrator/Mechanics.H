@@ -137,16 +137,16 @@ public:
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field
-        pp_query("eta_ref_threshold", value.m_eta_ref_threshold);
+        pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
         // Refinement threshold for strain gradient
-        pp_query("ref_threshold", value.m_elastic_ref_threshold);
+        pp_query_default("ref_threshold", value.m_elastic_ref_threshold, 0.01);
 
 
         // Read in IC for eta
         if (nmodels > 1 && pp.contains("ic.type"))
         {
             std::string type;
-            pp_query("ic.type", type); // Read IC type for the eta field
+            pp_query_validate("ic.type", type, {"ellipse", "constant", "voronoi", "bmp", "png", "expression", "psread"}); // Read IC type for the eta field
             if (type == "ellipse")    value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
             else if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "ic.constant");
             else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
@@ -160,14 +160,14 @@ public:
             // Whether to re-initialize eta when re-gridding occurs.
             // Default is false unless eta ic is set, then default is.
             // true.
-            pp_query("eta.reset_on_regrid", value.eta_reset_on_regrid);
+            pp_query_default("eta.reset_on_regrid", value.eta_reset_on_regrid, true);
         }
 
         // Read in IC for psi
         if (pp.contains("psi.ic.type"))
         {
             std::string type;
-            pp_query("psi.ic.type", type); // Read IC type for the eta field
+            pp_query_validate("psi.ic.type", type, {"ellipse", "constant", "expression", "psread", "png"}); // Read IC type for the eta field
             if (type == "ellipse")         value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant")   value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else if (type == "expression") value.ic_psi = new IC::Expression(value.geom, pp, "psi.ic.expression");
@@ -183,13 +183,13 @@ public:
             // Whether to re-initialize psi when re-gridding occurs.
             // Default is false unless a psi ic is set, then default is
             // true.
-            pp_query("psi.reset_on_regrid", value.psi_reset_on_regrid);
+            pp_query_default("psi.reset_on_regrid", value.psi_reset_on_regrid, true);
         }
 
         // Read in IC for psi
         {
             std::string type;
-            pp_query("trac_normal.ic.type", type); // Read IC type for the eta field
+            pp_query_validate("trac_normal.ic.type", type, {"ellipse", "constant", "expression", "psread"}); // Read IC type for the eta field
             if (type == "ellipse")         value.ic_trac_normal = new IC::Ellipse(value.geom, pp, "trac_normal.ic.ellipse");
             else if (type == "constant")   value.ic_trac_normal = new IC::Constant(value.geom, pp, "trac_normal.ic.constant");
             else if (type == "expression") value.ic_trac_normal = new IC::Expression(value.geom, pp, "trac_normal.ic.expression");
