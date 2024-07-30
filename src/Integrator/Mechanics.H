@@ -139,7 +139,7 @@ public:
         // Refinement threshold for eta field
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
         // Refinement threshold for strain gradient
-        pp_query_default("ref_threshold", value.m_elastic_ref_threshold, 0.01);
+        pp_query("ref_threshold", value.m_elastic_ref_threshold);
 
 
         // Read in IC for eta
