@@ -63,6 +63,7 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("3D - Full", test_3d_full.SymmetryTest(0));
         Test::Set::Matrix4<3,Set::Sym::MajorMinor> test_3d_majorminor;
         subfailed += Util::Test::SubMessage("3D - MajorMinor", test_3d_majorminor.SymmetryTest(0));
+        failed += Util::Test::SubFinalMessage(subfailed);
     }
 
     Util::Test::Message("Numeric::Interpolator<Linear>");
