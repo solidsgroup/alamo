@@ -67,10 +67,10 @@ public:
             value.RegisterNewFab(value.psi_old_mf, value.bc_psi, 1, 2, "psiold", false);
             value.psi_on = true;
         }
-        pp_query("eta_ref_threshold", value.m_eta_ref_threshold); // Refinement threshold based on eta
-        pp_query("alpha", value.alpha); // :math:`\alpha` parameter
-        pp_query("beta", value.beta); // :math:`\beta` parameter
-        pp_query("gamma", value.gamma); // :math:`\gamma` parameter
+        pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01); // Refinement threshold based on eta
+        pp_query_default("alpha", value.alpha, 1.0); // :math:`\alpha` parameter
+        pp_query_default("beta", value.beta, 1.0); // :math:`\beta` parameter
+        pp_query_default("gamma", value.gamma, 1.0); // :math:`\gamma` parameter
         pp_queryclass("L", value.L); // Mobility
         if (pp.contains("volume0frac"))
         {
@@ -83,7 +83,7 @@ public:
                     *(value.geom[0].ProbHi()[2] - value.geom[0].ProbLo()[2]));
         }
         else
-            pp_query("volume0", value.volume0); // Prescribed total vlume
+            pp_query("volume0", value.volume0, 0.5); // Prescribed total vlume
 
         pp_queryclass("lambda", value.lambda); // Lagrange multiplier (can be interplated)
 
