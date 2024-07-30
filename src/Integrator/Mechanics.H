@@ -113,7 +113,7 @@ public:
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
         int nmodels;
-        pp_query_default("nmodels", nmodels); // Number of elastic model varieties
+        pp_query("nmodels", nmodels); // Number of elastic model varieties
         for (int i = 0; i < nmodels; i++)
         {
             bool init = false;
