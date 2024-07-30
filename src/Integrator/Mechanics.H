@@ -160,7 +160,7 @@ public:
             // Whether to re-initialize eta when re-gridding occurs.
             // Default is false unless eta ic is set, then default is.
             // true.
-            pp_query("eta.reset_on_regrid", value.eta_reset_on_regrid;
+            pp_query("eta.reset_on_regrid", value.eta_reset_on_regrid);
         }
 
         // Read in IC for psi
