@@ -113,7 +113,7 @@ public:
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
         int nmodels;
-        pp_query("nmodels", nmodels); // Number of elastic model varieties
+        pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
         for (int i = 0; i < nmodels; i++)
         {
             bool init = false;
@@ -137,7 +137,7 @@ public:
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field
-        pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
+        pp_query("eta_ref_threshold", value.m_eta_ref_threshold);
         // Refinement threshold for strain gradient
         pp_query("ref_threshold", value.m_elastic_ref_threshold);
 
@@ -160,7 +160,7 @@ public:
             // Whether to re-initialize eta when re-gridding occurs.
             // Default is false unless eta ic is set, then default is.
             // true.
-            pp_query_default("eta.reset_on_regrid", value.eta_reset_on_regrid, true);
+            pp_query("eta.reset_on_regrid", value.eta_reset_on_regrid;
         }
 
         // Read in IC for psi
@@ -183,7 +183,7 @@ public:
             // Whether to re-initialize psi when re-gridding occurs.
             // Default is false unless a psi ic is set, then default is
             // true.
-            pp_query_default("psi.reset_on_regrid", value.psi_reset_on_regrid, true);
+            pp_query("psi.reset_on_regrid", value.psi_reset_on_regrid);
         }
 
         // Read in IC for psi
