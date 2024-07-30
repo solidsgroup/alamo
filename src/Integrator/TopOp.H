@@ -83,7 +83,7 @@ public:
                     *(value.geom[0].ProbHi()[2] - value.geom[0].ProbLo()[2]));
         }
         else
-            pp_query("volume0", value.volume0, 0.5); // Prescribed total vlume
+            pp_query_default("volume0", value.volume0, 0.5); // Prescribed total vlume
 
         pp_queryclass("lambda", value.lambda); // Lagrange multiplier (can be interplated)
 
