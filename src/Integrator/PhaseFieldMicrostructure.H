@@ -150,7 +150,7 @@ public:
         pp_query_default("anisotropy.plot_dt", value.anisotropy.plot_dt, -1.0);                  // Modify plot_dt when turned on
         pp_query_default("anisotropy.thermo_int", value.anisotropy.thermo_int, -1);            // Modify thermo int when turned on
         pp_query_default("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int, -1);  // Modify thermo plot int when turned on
-        pp_query_deafult("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           // Frequency of elastic calculation
+        pp_query_default("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           // Frequency of elastic calculation
         if (value.anisotropy.on) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
