@@ -19,27 +19,27 @@ void IO::FileNameParse(std::string &filename)
     //
     
     IO::ParmParse pp;
+    std::string input = filename;
     // Define the regex pattern to match {name_of_variable,"formatting string"} or {name_of_variable}
-    std::regex pattern("\\{([a-zA-Z_][a-zA-Z0-9_\\.]*)(\\s*,\\s*\"([^\"]*)\")?\\}");
+    std::regex pattern("\\{([a-zA-Z0-9_\\.]+)(\\s*,\\s*\"([^\"]*)\")?\\}");
 
     // Iterator to find all matches
-    auto matches_begin = std::sregex_iterator(filename.begin(), filename.end(), pattern);
+    auto matches_begin = std::sregex_iterator(input.begin(), input.end(), pattern);
     auto matches_end = std::sregex_iterator();
 
     // Iterate over the matches and print them
-    for (std::sregex_iterator i = matches_begin; i != matches_end; ++i) {
+    for (std::sregex_iterator i = matches_begin; i != matches_end; ++i)
+    {
         std::smatch match = *i;
         std::string variable_name = match[1].str();
         std::string formatting_string = match[3].str(); // match[3] captures the format string
 
-        std::cout << "Variable Name: " << variable_name << std::endl;
         if (!formatting_string.empty()) {
             Util::Exception(INFO,"Formatting strings are not supported yet");
-            std::cout << "Formatting String: " << formatting_string << std::endl;
         } else {
-            std::string variable_value;
-            pp.query(variable_name.c_str(),variable_value);
-            Util::String::ReplaceAll(filename,"{"+variable_name+"}",variable_value);
+            std::vector<std::string> variable_value;
+            pp.queryarr(variable_name.c_str(),variable_value);
+            Util::String::ReplaceAll(filename,"{"+variable_name+"}",Util::String::Join(variable_value,'_'));
         }
     }
 

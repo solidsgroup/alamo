@@ -35,6 +35,7 @@ namespace String
 int ReplaceAll(std::string &str, const std::string before, const std::string after);
 int ReplaceAll(std::string &str, const char before, const std::string after);
 std::string Wrap(std::string text, unsigned per_line);
+std::string Join(std::vector<std::string> & vec, char separator = '_');
 std::vector<std::string> Split(std::string &str, const char token = ' ');
 bool Contains(std::string &str, const std::string find);
 template<class T>
