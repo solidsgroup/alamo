@@ -63,7 +63,7 @@ Integrator::Integrator() : amrex::AmrCore()
         Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO, TEST(!(!node.any && node.all)));
 
-        pp_query("max_plot_level", max_plot_level);    // Specify a maximum level of refinement for output files
+        pp_query("max_plot_level", max_plot_level, -1);    // Specify a maximum level of refinement for output files
 
         IO::FileNameParse(plot_file);
 
