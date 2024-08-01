@@ -146,7 +146,7 @@ public:
         if (nmodels > 1 && pp.contains("ic.type"))
         {
             std::string type;
-            pp_query_validate("ic.type", type, {"ellipse", "constant", "voronoi", "bmp", "png", "expression", "psread"}); // Read IC type for the eta field
+            pp_query("ic.type", type); // Read IC type for the eta field
             if (type == "ellipse")    value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
             else if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "ic.constant");
             else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
@@ -167,7 +167,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             std::string type;
-            pp_query_validate("psi.ic.type", type, {"ellipse", "constant", "expression", "psread", "png"}); // Read IC type for the eta field
+            pp_query("psi.ic.type", type); // Read IC type for the eta field
             if (type == "ellipse")         value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant")   value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else if (type == "expression") value.ic_psi = new IC::Expression(value.geom, pp, "psi.ic.expression");
@@ -189,7 +189,7 @@ public:
         // Read in IC for psi
         {
             std::string type;
-            pp_query_validate("trac_normal.ic.type", type, {"ellipse", "constant", "expression", "psread"}); // Read IC type for the eta field
+            pp_query("trac_normal.ic.type", type); // Read IC type for the eta field
             if (type == "ellipse")         value.ic_trac_normal = new IC::Ellipse(value.geom, pp, "trac_normal.ic.ellipse");
             else if (type == "constant")   value.ic_trac_normal = new IC::Constant(value.geom, pp, "trac_normal.ic.constant");
             else if (type == "expression") value.ic_trac_normal = new IC::Expression(value.geom, pp, "trac_normal.ic.expression");
@@ -201,7 +201,7 @@ public:
                 value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
             }
         }
-
+        
     }
 
     void Initialize(int lev) override
