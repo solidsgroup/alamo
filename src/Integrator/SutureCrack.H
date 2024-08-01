@@ -48,10 +48,10 @@ public:
     SutureCrack()
     {
         IO::ParmParse pp_crack("crack");
-        pp_crack.query_default("modulus_scaling_max",crack.scaleModulusMax, 0.02);
-        pp_crack.query_default("refinement_threshold",crack.refinement_threshold, 0.001);
-        pp_crack.query_default("df_tol_rel",crack.driving_force_tolerance_rel, 1E-4);
-        pp_crack.query_default("df_tol_abs",crack.driving_force_tolerance_abs, 0.0);
+        pp_crack.query("modulus_scaling_max",crack.scaleModulusMax);
+        pp_crack.query("refinement_threshold",crack.refinement_threshold);
+        pp_crack.query("df_tol_rel",crack.driving_force_tolerance_rel);
+        pp_crack.query("df_tol_abs",crack.driving_force_tolerance_abs);
 
         Model::Interface::Crack::Constant *tmpbdy = new Model::Interface::Crack::Constant();
         pp_crack.queryclass("constant",*tmpbdy);
@@ -77,17 +77,17 @@ public:
 
         IO::ParmParse pp_material("material");
         pp_material.queryclass("isotropic",material.brittlemodeltype);
-        pp_material.query_default("refinement_threshold",material.refinement_threshold, 0.1);
+        pp_material.query("refinement_threshold",material.refinement_threshold);
 
         IO::ParmParse pp_material_ic("material.ic");
-        pp_material_ic.query_validate("type",material.ic_type, {"laminate"});
+        pp_material_ic.query("type",material.ic_type);
         if (material.ic_type == "laminate")
         {
             IC::Laminate *tmpic = new IC::Laminate(geom);
             pp_material_ic.queryclass("laminate",*tmpic);
 
             IO::ParmParse _temp("material.ic.laminate");
-            _temp.query_default("number_of_inclusions",number_of_materials, 1);
+            _temp.query("number_of_inclusions",number_of_materials);
             number_of_materials++;
 
             material.ic = tmpic;
@@ -98,36 +98,36 @@ public:
 
         IO::ParmParse pp_load("loading");
         if (pp_load.countval("body_force")) pp_load.queryarr("body_force",loading.body_force);
-        pp_load.query_default("val", loading.val, 0.0);
+        pp_load.query("val", loading.val);
 
         IO::ParmParse pp_elastic("elastic");
-        pp_elastic.query_default("df_mult", elastic.df_mult, 1.0);
+        pp_elastic.query("df_mult", elastic.df_mult);
         pp_elastic.queryclass("bc",elastic.brittlebc);
 
         IO::ParmParse pp_solver("solver");
-        pp_solver.query_default("int",              sol.interval, 100);
-        pp_solver.query_default("type",         sol.type, "single");
-        pp_solver.query_default("max_iter",     sol.max_iter, 1000);
-        pp_solver.query_default("max_fmg_iter", sol.max_fmg_iter, 0);
-        pp_solver.query_default("verbose",          sol.verbose, 3);
-        pp_solver.query_default("cgverbose",        sol.cgverbose, 3);
-        pp_solver.query_default("tol_rel",          sol.tol_rel, 1.0E-6);
-        pp_solver.query_default("tol_abs",          sol.tol_abs, 1.0E-6);
-        pp_solver.query_default("cg_tol_rel",       sol.cg_tol_rel, 1.0E-6);
-        pp_solver.query_default("cg_tol_abs",       sol.cg_tol_abs, 1.0E-6);
-        pp_solver.query_default("use_fsmooth",      sol.use_fsmooth, false);
-        pp_solver.query_default("agglomeration",    sol.agglomeration, true);
-        pp_solver.query_default("consolidation",    sol.consolidation, false);
-        pp_solver.query_default("bottom_solver",       sol.bottom_solver, "bicgstab");
-        pp_solver.query_default("linop_maxorder",      sol.linop_maxorder, 2);
-        pp_solver.query_default("max_coarsening_level",sol.max_coarsening_level, 0);
-        pp_solver.query_default("verbose",             sol.verbose, 3);
-        pp_solver.query_default("cg_verbose",          sol.cgverbose, 3);
-        pp_solver.query_default("bottom_max_iter",     sol.bottom_max_iter, 200);
-        pp_solver.query_default("max_fixed_iter",      sol.max_fixed_iter, 500);
-        pp_solver.query_default("bottom_tol",          sol.bottom_tol, 1.0E-6);
-        pp_solver.query_default("pre_smooth", sol.pre_smooth, 2);
-        pp_solver.query_default("post_smooth", sol.post_smooth, 2);
+        pp_solver.query("int",              sol.interval);
+        pp_solver.query("type",         sol.type);
+        pp_solver.query("max_iter",     sol.max_iter);
+        pp_solver.query("max_fmg_iter", sol.max_fmg_iter);
+        pp_solver.query("verbose",          sol.verbose);
+        pp_solver.query("cgverbose",        sol.cgverbose);
+        pp_solver.query("tol_rel",          sol.tol_rel);
+        pp_solver.query("tol_abs",          sol.tol_abs);
+        pp_solver.query("cg_tol_rel",       sol.cg_tol_rel);
+        pp_solver.query("cg_tol_abs",       sol.cg_tol_abs);
+        pp_solver.query("use_fsmooth",      sol.use_fsmooth);
+        pp_solver.query("agglomeration",    sol.agglomeration);
+        pp_solver.query("consolidation",    sol.consolidation);
+        pp_solver.query("bottom_solver",       sol.bottom_solver);
+        pp_solver.query("linop_maxorder",      sol.linop_maxorder);
+        pp_solver.query("max_coarsening_level",sol.max_coarsening_level);
+        pp_solver.query("verbose",             sol.verbose);
+        pp_solver.query("cg_verbose",          sol.cgverbose);
+        pp_solver.query("bottom_max_iter",     sol.bottom_max_iter);
+        pp_solver.query("max_fixed_iter",      sol.max_fixed_iter);
+        pp_solver.query("bottom_tol",          sol.bottom_tol);
+        pp_solver.query("pre_smooth", sol.pre_smooth);
+        pp_solver.query("post_smooth", sol.post_smooth);
         
 
         nlevels = maxLevel() + 1;
