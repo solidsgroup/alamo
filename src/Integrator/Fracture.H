@@ -50,18 +50,18 @@ public:
     Fracture()
     {
         IO::ParmParse pp_crack("crack");
-        pp_crack.query("modulus_scaling_max",crack.scaleModulusMax);
-        pp_crack.query("refinement_threshold",crack.refinement_threshold);
+        pp_crack.query_default("modulus_scaling_max",crack.scaleModulusMax, 0.02);
+        pp_crack.query_default("refinement_threshold",crack.refinement_threshold, 0.001);
         
 
         pp_crack.queryclass("constant",crack.cracktype);
 
         IO::ParmParse pp_crack_df("crack.df");
-        pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
-        pp_crack_df.query("mult_Lap", crack.mult_df_lap);
-        pp_crack_df.query("beta", crack.beta);
-        pp_crack_df.query("tol_rel",crack.driving_force_tolerance_rel);
-        pp_crack_df.query("tol_abs",crack.driving_force_tolerance_abs);
+        pp_crack_df.query_default("mult_Gc", crack.mult_df_Gc, 1.0);
+        pp_crack_df.query_default("mult_Lap", crack.mult_df_lap, 1.0);
+        pp_crack_df.query_default("beta", crack.beta, 0.0);
+        pp_crack_df.query_default("tol_rel",crack.driving_force_tolerance_rel, 1E-4);
+        pp_crack_df.query_default("tol_abs",crack.driving_force_tolerance_abs, 0.0);
 
         // IC for crack field
         IO::ParmParse pp("crack.ic");
@@ -162,13 +162,13 @@ public:
         
         IO::ParmParse pp_load("loading");
         if (pp_load.countval("body_force")) pp_load.queryarr("body_force",loading.body_force);
-        pp_load.query("val", loading.val);
+        pp_load.query_default("val", loading.val, 0.0);
 
         IO::ParmParse pp_elastic("elastic");
-        pp_elastic.query("df_mult", elastic.df_mult);
+        pp_elastic.query_default("df_mult", elastic.df_mult, 1.0);
         pp_elastic.queryclass("bc",elastic.brittlebc);
-        pp_elastic.query("int",elastic.interval);
-        pp_elastic.query("omega",elastic.omega);
+        pp_elastic.query_default("int",elastic.interval, 0);
+        pp_elastic.query_default("omega",elastic.omega, 2./3.);
 
 
         nlevels = maxLevel() + 1;
