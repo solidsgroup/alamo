@@ -185,37 +185,37 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             //value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-            pp_query("phi.ic.psread.eps", value.zeta, 1.0e-5); // AP/HTPB interface length
-            pp_query("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
+            pp_query_default("phi.ic.psread.eps", value.zeta, 1.0e-5); // AP/HTPB interface length
+            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
         }
         else if (phi_ic_type == "laminate") {
             value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
             //value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
-            pp_query("phi.ic.laminate.eps", value.zeta, 1.0e-5); // AP/HTPB interface length
-            pp_query("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
+            pp_query_default("phi.ic.laminate.eps", value.zeta, 1.0e-5); // AP/HTPB interface length
+            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
         }
         else if (phi_ic_type == "expression") {
             value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
             //value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
-            pp_query("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
+            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
+            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
         }
         else if (phi_ic_type == "constant") {
             value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
             //value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
-            pp_query("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
+            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
+            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
         }
         else if (phi_ic_type == "bmp") {
             value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             //value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
-            pp_query("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
+            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
+            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
         }
         else if (phi_ic_type == "png") {
             value.ic_phi = new IC::PNG(value.geom, pp, "phi.ic.png");
-            pp_query("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
+            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
+            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
         }
         else Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
         //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
@@ -228,7 +228,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.m_type != Type::Disable)
     {
         value.elastic.Tref = value.thermal.bound;
-        pp_query("Tref", value.elastic.Tref); // Initial temperature for thermal expansion computation
+        pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
         pp_queryclass("model_ap", value.elastic.model_ap);
         pp_queryclass("model_htpb", value.elastic.model_htpb);
 
