@@ -74,6 +74,7 @@ parser.add_argument('--post', default=None, help='Use a post script to post resu
 parser.add_argument('--clean', dest='clean', default=True, action='store_true', help='Clean up output files if test is successful (on by default)')
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
+parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -489,6 +490,10 @@ if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
 if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
 print("")
+
+return_code = stats.fails + stats.skips
+if not args.permit_timeout:
+    return_code += stats.timeouts
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
 exit(stats.fails + stats.skips)

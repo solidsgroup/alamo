@@ -104,7 +104,6 @@
 #define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
 #define pp_forbid(...) pp.forbid(__VA_ARGS__,INFO)
 
-
 namespace IO
 {
 class ParmParse : public amrex::ParmParse
@@ -188,6 +187,37 @@ public:
         }
         return query(name.c_str(),value);
     } 
+
+    int query_validate( std::string name, int & value, std::vector<int> possibleintvals,
+                        std::string file = "", std::string func = "", int line = -1)
+    {        
+        // First value is accepted by default...
+
+        // set default value
+        value = possibleintvals[0];
+
+        // get the read value (if it exists)
+        int retval = query(name.c_str(),value);
+
+        // check to make sure the read value matches one of the inpus
+        bool ok = false;
+        for (unsigned int i = 0; i < possibleintvals.size(); i++)
+        {
+            if (value == possibleintvals[i]) ok = true;
+        }
+        
+        if (ok) return retval;
+
+        std::stringstream ss;
+        ss << possibleintvals[0];
+        for (unsigned int i = 1; i < possibleintvals.size(); i++)
+            ss << "," << possibleintvals[i];
+
+        Util::ParmParseException(INFO,file,func,line,full(name),"' expected [", ss.str(), "] but got ", value);
+
+        return -1;
+    }
+
 
     int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault,
                         std::string file = "", std::string func = "", int line = -1)
