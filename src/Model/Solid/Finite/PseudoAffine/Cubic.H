@@ -1,8 +1,8 @@
-#ifndef MODEL_SOLID_FINITE_PSEUDOLINEARPREDEFORMED_H_
-#define MODEL_SOLID_FINITE_PSEUDOLINEARPREDEFORMED_H_
+#ifndef MODEL_SOLID_FINITE_PSEUDOAFFINE_CUBIC_H_
+#define MODEL_SOLID_FINITE_PSEUDOAFFINE_CUBIC_H_
 
 #include "IO/ParmParse.H"
-#include "Model/Solid/Finite/PseudoLinearCubic.H"
+#include "Model/Solid/Finite/PseudoLinear/Cubic.H"
 
 namespace Model
 {
@@ -10,27 +10,29 @@ namespace Solid
 {
 namespace Finite
 {
-class PseudoLinearCubicPredeformed : public PseudoLinearCubic
+namespace PseudoAffine
+{
+class Cubic : public PseudoLinear::Cubic
 {
 public:
-    PseudoLinearCubicPredeformed() {};
-    PseudoLinearCubicPredeformed(PseudoLinearCubic base) : PseudoLinearCubic(base) {};
-    virtual ~PseudoLinearCubicPredeformed() {};
+    Cubic() {};
+    Cubic(PseudoLinear::Cubic base) : PseudoLinear::Cubic(base) {};
+    virtual ~Cubic() {};
 
     Set::Scalar W(const Set::Matrix& F) const override
     {
         Set::Matrix F0inv = F0.inverse();
-        return PseudoLinearCubic::W(F * F0inv);
+        return PseudoLinear::Cubic::W(F * F0inv);
     }
     Set::Matrix DW(const Set::Matrix& F) const override
     {
         Set::Matrix F0inv = F0.inverse();
-        return PseudoLinearCubic::DW(F * F0inv) * F0inv.transpose();
+        return PseudoLinear::Cubic::DW(F * F0inv) * F0inv.transpose();
     }
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
     {
         Set::Matrix F0inv = F0.inverse();
-        auto DDW = PseudoLinearCubic::DDW(F * F0inv);
+        auto DDW = PseudoLinear::Cubic::DDW(F * F0inv);
         auto ret = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>::Zero();
         for (int i = 0; i < AMREX_SPACEDIM; i++)
             for (int J = 0; J < AMREX_SPACEDIM; J++)
@@ -49,23 +51,23 @@ public:
     Set::Matrix F0 = Set::Matrix::Identity();
 
 public:
-    static PseudoLinearCubicPredeformed Zero()
+    static Cubic Zero()
     {
-        PseudoLinearCubicPredeformed ret = PseudoLinearCubic::Zero();
+        Cubic ret = PseudoLinear::Cubic::Zero();
         ret.F0 = Set::Matrix::Zero();
         return ret;
     }
-    static PseudoLinearCubicPredeformed Random()
+    static Cubic Random()
     {
-        PseudoLinearCubicPredeformed ret = PseudoLinearCubic::Random();
+        Cubic ret = PseudoLinear::Cubic::Random();
         ret.F0 = Set::Matrix::Random();
         return ret;
     }
 
     AMREX_FORCE_INLINE
-    static PseudoLinearCubicPredeformed Combine(const std::vector<PseudoLinearCubicPredeformed> &models, const std::vector<Set::Scalar> &eta, int order)
+    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta, int order)
     {
-        PseudoLinearCubicPredeformed ret = PseudoLinearCubicPredeformed::Zero();
+        Cubic ret = Cubic::Zero();
         if (order == 1)
         {
             Set::Scalar etasum = 0.;
@@ -100,9 +102,9 @@ public:
     }
 
 
-    static void Parse(PseudoLinearCubicPredeformed& value, IO::ParmParse& pp)
+    static void Parse(Cubic& value, IO::ParmParse& pp)
     {
-        PseudoLinearCubic::Parse(value, pp);
+        PseudoLinear::Cubic::Parse(value, pp);
         if (pp.contains("eps0") && pp.contains("F0"))
         {
             Util::Abort("Cannot specify both F0 and eps0");
@@ -126,7 +128,7 @@ public:
         Util::Assert(INFO,TEST(fabs(value.F0.determinant()) > 1E-8 ),"F0 must be non-singular");
     }
 
-#define OP_CLASS PseudoLinearCubicPredeformed
+#define OP_CLASS Cubic
 #define OP_VARS X(C11) X(C12) X(C44) X(q) X(F0)
 #include "Model/Solid/InClassOperators.H"
 };
@@ -135,18 +137,19 @@ public:
 }
 }
 }
+}
 
 
 template<>
 ALAMO_SINGLE_DEFINITION
-int Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::NComp() const
+int Set::Field<Model::Solid::Finite::PseudoAffine::Cubic>::NComp() const
 {
     return 4;
 }
 
 template<>
 ALAMO_SINGLE_DEFINITION
-std::string Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Name(int i) const
+std::string Set::Field<Model::Solid::Finite::PseudoAffine::Cubic>::Name(int i) const
 {
     if (i == 0) return name + "_F0xx";
     if (i == 1) return name + "_F0xy";
@@ -157,14 +160,14 @@ std::string Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Name
 
 template<>
 ALAMO_SINGLE_DEFINITION
-void Set::Field<Model::Solid::Finite::PseudoLinearCubicPredeformed>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
+void Set::Field<Model::Solid::Finite::PseudoAffine::Cubic>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
         if (bx.ok())
         {
-            amrex::Array4<const Model::Solid::Finite::PseudoLinearCubicPredeformed> const& src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<const Model::Solid::Finite::PseudoAffine::Cubic> const& src = ((*this)[a_lev])->array(mfi);
             amrex::Array4<Set::Scalar> const& dst = a_dst.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {

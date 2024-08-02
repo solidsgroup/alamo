@@ -86,14 +86,14 @@ public:
         ret.F0 = Set::Matrix::Zero();
         if (order == 1)
         {
-            Set::Scalar etasum = 0.;
-            for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
-            for (unsigned int n = 0 ; n < models.size(); n++)
-            {
-                ret.ddw += models[n].ddw * (eta[n] / etasum);
-                ret.F0  += models[n].F0  * (eta[n] / etasum);
-            }
-            return ret;
+        Set::Scalar etasum = 0.;
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++)
+        {
+            ret.ddw += models[n].ddw * (eta[n] / etasum);
+            ret.F0  += models[n].F0  * (eta[n] / etasum);
+        }
+        return ret;
         }
         else if (order == 2)
         {

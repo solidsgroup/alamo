@@ -23,7 +23,7 @@
 
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Affine/Hexagonal.H"
-#include "Model/Solid/Finite/PseudoLinearCubicPredeformed.H"
+#include "Model/Solid/Finite/PseudoAffine/Cubic.H"
 
 #include "Util/MPI.H"
 
@@ -577,7 +577,7 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
 
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>;
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>;
-template class PhaseFieldMicrostructure<Model::Solid::Finite::PseudoLinearCubicPredeformed>;
+template class PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>;
 
 
 } // namespace Integrator
