@@ -98,7 +98,7 @@
 #@  exe=mechanics
 #@  dim = 3
 #@  check-file = reference/pseudolinear-cubic.dat
-#@  args = alamo.program.mechanics.model=finite.pseudolinearcubic
+#@  args = alamo.program.mechanics.model=finite.pseudolinear.cubic
 #@  args = model1.C11=168.3
 #@  args = model1.C12=1.221
 #@  args = model1.C44=0.757
