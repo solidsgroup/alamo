@@ -10,6 +10,7 @@
 
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Affine/Hexagonal.H"
+#include "Model/Solid/Finite/PseudoLinearCubicPredeformed.H"
 
 #include "Integrator/AllenCahn.H"
 #include "Integrator/CahnHilliard.H"
@@ -37,6 +38,7 @@ int main (int argc, char* argv[])
         pp_query("alamo.program.microstructure.model",model);
         if      (model == "affine.cubic")       integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>(pp);
         else if (model == "affine.hexagonal")   integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>(pp);
+        else if (model == "finite.pseudolinearcubic")   integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoLinearCubicPredeformed>(pp);
         else Util::Abort(INFO,model," is not a valid model");
     }
     else if (program == "flame")                integrator = new Integrator::Flame(pp);

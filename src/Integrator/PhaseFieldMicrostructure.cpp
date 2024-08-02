@@ -23,6 +23,7 @@
 
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Affine/Hexagonal.H"
+#include "Model/Solid/Finite/PseudoLinearCubicPredeformed.H"
 
 #include "Util/MPI.H"
 
@@ -52,7 +53,8 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
         Set::Scalar *df_max_handle = &df_max;
 
-        Set::Patch<const Set::Matrix> sigma     = stress_mf.Patch(lev,mfi); 
+        Set::Patch<const Set::Matrix> sigma = stress_mf.Patch(lev,mfi); 
+        Set::Patch<const Set::Vector> disp  = this->disp_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -163,8 +165,17 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                             //Set::Scalar dgm = 2.0*etan*etan*etam / sumsq;
                             Set::Scalar dgn = 2.0*etan*etam*etam / sumsq;
 
+
                             Set::Matrix Fgbn = shearcouple.Fgb[n*number_of_grains + m];
                             //Set::Matrix Fgbm = shearcouple.Fgb[m*number_of_grains + n];
+
+                            if (model_type::kinvar == Model::Solid::KinematicVariable::F)
+                            {
+                                Set::Matrix F =
+                                    Set::Matrix::Identity() +
+                                    Numeric::NodeGradientOnCell(disp,i,j,k,DX);
+                                Fgbn = F*Fgbn;
+                            }
 
                             elastic_df_m += (sig.transpose() * Fgbn).trace() * dgn;
                         }
@@ -275,7 +286,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
                     Set::Scalar enold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, n);//, sten);
                     Set::Scalar gmnew = (emnew * emnew) / (emnew * emnew + ennew * ennew);
                     Set::Scalar gmold = (emold * emold) / (emold * emold + enold * enold);
-                    model(i, j, k).F0 -= (gmnew - gmold) * shearcouple.Fgb[m*number_of_grains + n]; 
+                    model(i, j, k).F0 -= 0.5 * (gmnew - gmold) * shearcouple.Fgb[m*number_of_grains + n]; 
                 }
         });
     }
@@ -352,8 +363,44 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
                 if (a_step == 0 || !shearcouple.on) // Do a complete model initialization
                     model(i,j,k) = mix ;
                 else // Otherwise, we will set the modulus only and leave the eigenstrain alone
-                    model(i,j,k).ddw = mix.ddw;
+                {
+                    Set::Matrix F0 = model(i,j,k).F0;
+                    model(i,j,k) = mix;
+                    model(i,j,k).F0 = F0;
+                }
             });
+        }
+
+        if (mechanics.model_neumann_boundary)
+        {
+            Util::AssertException(INFO,TEST(AMREX_SPACEDIM==2),"neumann boundary works in 2d only");
+            for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                amrex::Array4<model_type> const& model = this->model_mf[lev]->array(mfi);
+                const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if      (i==lo.x && j==lo.y)
+                        model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
+                    else if (i==lo.x && j==hi.y)
+                        model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j-1,k));
+                    else if (i==hi.x && j==lo.y)
+                        model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j+1,k));
+                    else if (i==hi.x && j==hi.y)
+                        model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j-1,k));
+
+                    else if (i==lo.x)
+                        model(i,j,k) = model(i+1,j,k);
+                    else if (i==hi.x)
+                        model(i,j,k) = model(i-1,j,k);
+                    else if (j==lo.y)
+                        model(i,j,k) = model(i,j+1,k);
+                    else if (j==hi.y)
+                        model(i,j,k) = model(i,j-1,k);
+                });
+            }
         }
 
         Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
@@ -530,6 +577,7 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
 
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>;
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>;
+template class PhaseFieldMicrostructure<Model::Solid::Finite::PseudoLinearCubicPredeformed>;
 
 
 } // namespace Integrator

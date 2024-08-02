@@ -124,6 +124,8 @@ public:
         }
         // Mixing order 
         pp_query_validate("mechanics.mix_order",value.mechanics.model_mix_order,{1,2});
+        // Force Neumann BCs on the model
+        pp_query_default("mechanics.model_neuman_boundary",value.mechanics.model_neumann_boundary,false);
 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
         pp_queryclass("mechanics",static_cast<Base::Mechanics<model_type>&>(value));
@@ -495,6 +497,7 @@ private:
         Set::Scalar tstart = 0.0;
         std::vector<model_type> model;
         int model_mix_order;
+        bool model_neumann_boundary = false;
     } mechanics;
     
     using Base::Mechanics<model_type>::model_mf;
