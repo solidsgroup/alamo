@@ -235,7 +235,6 @@ public:
         eta_mf[lev]->setVal(0.0);
         //euler_mf[lev]->setVal(0.0);   //newline for euler angles
         if (models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
-        else eta_mf[lev]->setVal(1.0);
         //ic_euler->Initialize(lev, euler_mf);        //newline for euler angles
 
         if (psi_on) ic_psi->Initialize(lev, psi_mf);

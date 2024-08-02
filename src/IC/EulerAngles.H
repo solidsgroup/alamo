@@ -159,7 +159,7 @@ public:
                     //Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
                     //Set::Scalar fQ12 = ((Set::Scalar)(bmp(I  ,J+1)[channel]) - min) / (max - min);
                     
-                    Set::Scalar fQ11R = ((Set::Scalar)(bmp(I  ,J  )[channel1]) - min[1]) / (max[1] - min[1]);
+                    Set::Scalar fQ11R = ((Set::Scalar)(bmp(I  ,J  )[channel1]) - min[0]) / (max[0] - min[0]);
                     Set::Scalar fQ12R = ((Set::Scalar)(bmp(I  ,J+1)[channel1]) - min[0]) / (max[0] - min[0]);
                     field(i,j,k,0) = fQ11R + (fQ12R-fQ11R) * (ximg(1) - y1);
                     
@@ -228,8 +228,8 @@ private:
     Channel channel2 = Channel::G;
     Channel channel3 = Channel::B;
     //Set::Scalar min=NAN, max=NAN;
-    Set::Scalar min[3] = {NAN, NAN, NAN};
-    Set::Scalar max[3] = {NAN, NAN, NAN};
+    Set::Scalar min[3] = {0.0, 0.0, 0.0};
+    Set::Scalar max[3] = {255.0, 255.0, 255.0};
     Set::Vector coord_lo = Set::Vector::Zero();
     Set::Vector coord_hi = Set::Vector::Zero();
 
