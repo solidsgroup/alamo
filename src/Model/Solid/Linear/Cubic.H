@@ -103,6 +103,7 @@ public:
         }
 
         std::string anglefmt;
+        // specify whether using radians or degrees
         pp_query_validate("anglefmt",anglefmt,{"radians","degrees"});
 
         Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
