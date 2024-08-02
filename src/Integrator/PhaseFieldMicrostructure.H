@@ -100,11 +100,11 @@ public:
         
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
     
-        pp_query("amr.max_level", value.max_level);            // Maximum AMR level
-        pp_query("amr.ref_threshold", value.ref_threshold);    // Phase field refinement threshold
+        pp_query_required("amr.max_level", value.max_level);            // Maximum AMR level
+        pp_query_default("amr.ref_threshold", value.ref_threshold, 0.1);    // Phase field refinement threshold
 
         // Elasticity
-        pp_query("mechanics.tstart",value.mechanics.tstart);
+        pp_query_default("mechanics.tstart",value.mechanics.tstart, 0.0);
         value.mechanics.model.clear();
         value.mechanics.model.resize(value.number_of_grains,model_type::Zero());
         for (int i=0; i < value.number_of_grains; i++)
@@ -145,12 +145,12 @@ public:
         value.anisotropy.timestep = value.timestep;
         pp_query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
         value.anisotropy.plot_int = value.plot_int;
-        pp_query("anisotropy.plot_int", value.anisotropy.plot_int);                // Modify plot_int when turned on
+        pp_query_default("anisotropy.plot_int", value.anisotropy.plot_int, -1);                // Modify plot_int when turned on
         value.anisotropy.plot_dt = value.plot_dt;
-        pp_query("anisotropy.plot_dt", value.anisotropy.plot_dt);                  // Modify plot_dt when turned on
-        pp_query("anisotropy.thermo_int", value.anisotropy.thermo_int);            // Modify thermo int when turned on
-        pp_query("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
-        pp_query("anisotropy.elastic_int",value.anisotropy.elastic_int);           // Frequency of elastic calculation
+        pp_query_default("anisotropy.plot_dt", value.anisotropy.plot_dt, -1.0);                  // Modify plot_dt when turned on
+        pp_query_default("anisotropy.thermo_int", value.anisotropy.thermo_int, -1);            // Modify thermo int when turned on
+        pp_query_default("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int, -1);  // Modify thermo plot int when turned on
+        pp_query_default("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           // Frequency of elastic calculation
         if (value.anisotropy.on) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
@@ -194,11 +194,11 @@ public:
         // [end switch]
 
         // Anisotropic mobility
-        pp_query("anisotropic_kinetics.on",value.anisotropic_kinetics.on);
+        pp_query_default("anisotropic_kinetics.on",value.anisotropic_kinetics.on, 0);
         if (value.anisotropic_kinetics.on)
         {
             // simulation time when anisotropic kinetics is activated
-            pp_query("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart);
+            pp_query_default("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart, 0.0);
             std::string mobility_filename, threshold_filename;
             // file containing anisotropic mobility data
             pp_query_file("anisotropic_kinetics.mobility",mobility_filename); 
