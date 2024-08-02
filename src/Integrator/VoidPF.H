@@ -244,8 +244,8 @@ public:
                 d(i,j,k) = dold(i,j,k) - spall.M * dt * df;
                             
                 
-                //if (d(i,j,k) > 1.0)   d(i,j,k) = 1.0;
-                //if (d(i,j,k) < 0.0)   d(i,j,k) = 0.0;
+                if (d(i,j,k) > 1.0)   d(i,j,k) = 1.0;
+                if (d(i,j,k) < 0.0)   d(i,j,k) = 0.0;
                 //d(i,j,k) = (eps_avg.transpose()*eps_avg).trace();
 
             });
