@@ -167,7 +167,7 @@ public:
         if (pp.contains("psi.ic.type"))
         {
             std::string type;
-            pp_query("psi.ic.type", type, {"ellipse", "constant", "expression", "psread", "png"}); // Read IC type for the eta field
+            pp_query_validate("psi.ic.type", type, {"ellipse", "constant", "expression", "psread", "png"}); // Read IC type for the eta field
             if (type == "ellipse")         value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant")   value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else if (type == "expression") value.ic_psi = new IC::Expression(value.geom, pp, "psi.ic.expression");
@@ -189,7 +189,7 @@ public:
         // Read in IC for psi
         {
             std::string type;
-            pp_query("trac_normal.ic.type", type, {"ellipse", "constant", "expression", "psread"}); // Read IC type for the eta field
+            pp_query_validate("trac_normal.ic.type", type, {"ellipse", "constant", "expression", "psread"}); // Read IC type for the eta field
             if (type == "ellipse")         value.ic_trac_normal = new IC::Ellipse(value.geom, pp, "trac_normal.ic.ellipse");
             else if (type == "constant")   value.ic_trac_normal = new IC::Constant(value.geom, pp, "trac_normal.ic.constant");
             else if (type == "expression") value.ic_trac_normal = new IC::Expression(value.geom, pp, "trac_normal.ic.expression");
