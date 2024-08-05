@@ -3,8 +3,8 @@ alamo.program.mechanics.model = linear.cubic
 plot_file		    = tests/VoidNucleation/output
 
 
-timestep		    = 0.001
-stop_time		    = 0.046
+timestep		    = 0.00001
+stop_time		    = 0.05
 
 # amr parameters
 amr.plot_int		    = 1
