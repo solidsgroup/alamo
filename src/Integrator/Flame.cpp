@@ -67,8 +67,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //IO::ParmParse pp("thermal");
         pp_query_default("thermal.on", value.thermal.on, false); // Whether to use the Thermal Transport Model
         pp_query_default("elastic.on", value.elastic.on, 0); // Whether to use Neo-hookean Elastic model
-        pp_query_required("thermal.bound", value.thermal.bound); // System Initial Temperature
-        pp_query_required("elastic.traction", value.elastic.traction); // Body force
+        pp_query_default("thermal.bound", value.thermal.bound, 0.0); // System Initial Temperature
+        pp_query_default("elastic.traction", value.elastic.traction, 0); // Body force
         pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); // Phi refinement criteria 
 
 
