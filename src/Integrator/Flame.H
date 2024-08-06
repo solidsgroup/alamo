@@ -96,10 +96,10 @@ private:
 
     struct {
         Set::Scalar gamma = 1.0;
-        Set::Scalar eps = NAN;
-        Set::Scalar lambda = NAN;
-        Set::Scalar kappa = NAN;
-        Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
+        Set::Scalar eps = 0.0;
+        Set::Scalar lambda = 0.0;
+        Set::Scalar kappa = 0.0;
+        Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
         Set::Scalar min_eta = 0.001;
         int evolve = 1;
     } pf;
@@ -110,17 +110,17 @@ private:
         Set::Scalar Energy = 1;
 
         struct {
-            Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
-            Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
-            Set::Scalar c1 = NAN;
+            Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
+            Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
+            Set::Scalar c1 = 0.0;
             int mob_ap = 0;
             int dependency = 1;
             Set::Scalar h1 = 1.81, h2 = 1.34;
 
         } arrhenius;
         struct {
-            Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
-            Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
+            Set::Scalar r_ap = 0.0, r_htpb = 0.0, r_comb = 0.0;
+            Set::Scalar n_ap = 0.0, n_htpb = 0.0, n_comb = 0.0;
             Set::Scalar a_fit = 0.0, b_fit = 0.0, c_fit = 0.0;
         } power;
     } pressure;
@@ -130,13 +130,13 @@ private:
         Set::Scalar rho_ap, rho_htpb;
         Set::Scalar k_ap, k_htpb;
         Set::Scalar cp_ap, cp_htpb;
-        Set::Scalar q0 = NAN;
+        Set::Scalar q0 = 0.0;
         Set::Scalar bound = 0.0;
         Set::Scalar m_ap, m_htpb, m_comb;
         Set::Scalar E_ap, E_htpb;
         Set::Scalar hc = 1.0, w1 = 1.0;
         Set::Scalar modeling_ap = 1.0, modeling_htpb = 1.0;
-        Set::Scalar mlocal_ap = NAN, mlocal_htpb = NAN, mlocal_comb = NAN;
+        Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0, mlocal_comb = 0.0;
         Set::Scalar T_fluid = 300.0;
         Set::Scalar massfraction = 0.8;
         Set::Scalar disperssion1 = 0.93;

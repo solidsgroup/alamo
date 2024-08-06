@@ -32,13 +32,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query("timestep", value.base_time);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
-        pp_query_required("pf.eps", value.pf.eps); // Burn width thickness
-        pp_query_required("pf.kappa", value.pf.kappa); // Interface energy param
+        pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
+        pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
         pp_query_default("pf.gamma", value.pf.gamma, 1.0); // Scaling factor for mobility
-        pp_query_required("pf.lambda", value.pf.lambda); // Chemical potential multiplier
-        pp_query_required("pf.w1", value.pf.w1); // Unburned rest energy
-        pp_query_required("pf.w12", value.pf.w12);  // Barrier energy
-        pp_query_required("pf.w0", value.pf.w0);    // Burned rest energy
+        pp_query_default("pf.lambda", value.pf.lambda, 0.0); // Chemical potential multiplier
+        pp_query_default("pf.w1", value.pf.w1, 0.0); // Unburned rest energy
+        pp_query_default("pf.w12", value.pf.w12, 0.0);  // Barrier energy
+        pp_query_default("pf.w0", value.pf.w0, 0.0);    // Burned rest energy
         pp_query_default("amr.ghost_cells", value.ghost_count, 2); // number of ghost cells in all fields
         pp_query_default("geometry.x_len", value.x_len, 0.001); // Domain x length
         pp_query_default("geometry.y_len", value.y_len, 0.001); // Domain y length
@@ -81,7 +81,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp_query_required("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp_query_required("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
 
-            pp_query_required("thermal.q0", value.thermal.q0); // Baseline heat flux
+            pp_query_default("thermal.q0", value.thermal.q0, 0.0); // Baseline heat flux
 
             pp_query_required("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
             pp_query_required("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
@@ -90,9 +90,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             pp_query_default("thermal.hc", value.thermal.hc, 1.0); // Used to change heat flux units
             pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8); // Systen AP mass fraction
-            pp_query_required("thermal.mlocal_ap", value.thermal.mlocal_ap); // AP mass flux reference value 
-            pp_query_required("thermal.mlocal_htpb", value.thermal.mlocal_htpb); // HTPB mass flux reference value 
-            pp_query_required("thermal.mlocal_comb", value.thermal.mlocal_comb); // AP/HTPB mass flux reference value 
+            pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0); // AP mass flux reference value 
+            pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0); // HTPB mass flux reference value 
+            pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); // AP/HTPB mass flux reference value 
 
             pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); // Temperature of the Standin Fluid 
 
@@ -717,3 +717,5 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
+
+
