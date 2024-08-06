@@ -32,13 +32,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query("timestep", value.base_time);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
-        pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
-        pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
+        pp_query_required("pf.eps", value.pf.eps); // Burn width thickness
+        pp_query_required("pf.kappa", value.pf.kappa); // Interface energy param
         pp_query_default("pf.gamma", value.pf.gamma, 1.0); // Scaling factor for mobility
-        pp_query_default("pf.lambda", value.pf.lambda, 0.0); // Chemical potential multiplier
-        pp_query_default("pf.w1", value.pf.w1, 0.0); // Unburned rest energy
-        pp_query_default("pf.w12", value.pf.w12, 0.0);  // Barrier energy
-        pp_query_default("pf.w0", value.pf.w0, 0.0);    // Burned rest energy
+        pp_query_required("pf.lambda", value.pf.lambda); // Chemical potential multiplier
+        pp_query_required("pf.w1", value.pf.w1); // Unburned rest energy
+        pp_query_required("pf.w12", value.pf.w12);  // Barrier energy
+        pp_query_required("pf.w0", value.pf.w0);    // Burned rest energy
         pp_query_default("amr.ghost_cells", value.ghost_count, 2); // number of ghost cells in all fields
         pp_query_default("geometry.x_len", value.x_len, 0.001); // Domain x length
         pp_query_default("geometry.y_len", value.y_len, 0.001); // Domain y length
