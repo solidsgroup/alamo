@@ -131,7 +131,7 @@ private:
         Set::Scalar k_ap, k_htpb;
         Set::Scalar cp_ap, cp_htpb;
         Set::Scalar q0 = NAN;
-        Set::Scalar bound = nanf32x;
+        Set::Scalar bound = NAN;
         Set::Scalar m_ap, m_htpb, m_comb;
         Set::Scalar E_ap, E_htpb;
         Set::Scalar hc = 1.0, w1 = 1.0;
