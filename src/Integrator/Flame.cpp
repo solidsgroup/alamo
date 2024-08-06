@@ -68,7 +68,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("thermal.on", value.thermal.on, false); // Whether to use the Thermal Transport Model
         pp_query_default("elastic.on", value.elastic.on, 0); // Whether to use Neo-hookean Elastic model
         pp_query_required("thermal.bound", value.thermal.bound); // System Initial Temperature
-        pp_query_required("elastic.traction", value.elastic.traction; // Body force
+        pp_query_required("elastic.traction", value.elastic.traction); // Body force
         pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); // Phi refinement criteria 
 
 
@@ -717,5 +717,3 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
-
-
