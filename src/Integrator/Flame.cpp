@@ -67,8 +67,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //IO::ParmParse pp("thermal");
         pp_query_default("thermal.on", value.thermal.on, false); // Whether to use the Thermal Transport Model
         pp_query_default("elastic.on", value.elastic.on, 0); // Whether to use Neo-hookean Elastic model
-        pp_query_default("thermal.bound", value.thermal.bound, 0.0); // System Initial Temperature
-        pp_query_default("elastic.traction", value.elastic.traction, 0.0); // Body force
+        pp_query_required("thermal.bound", value.thermal.bound); // System Initial Temperature
+        pp_query_required("elastic.traction", value.elastic.traction; // Body force
         pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); // Phi refinement criteria 
 
 
@@ -81,7 +81,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp_query_required("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp_query_required("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
 
-            pp_query_default("thermal.q0", value.thermal.q0, 0.0); // Baseline heat flux
+            pp_query_required("thermal.q0", value.thermal.q0); // Baseline heat flux
 
             pp_query_required("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
             pp_query_required("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
@@ -90,9 +90,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             pp_query_default("thermal.hc", value.thermal.hc, 1.0); // Used to change heat flux units
             pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8); // Systen AP mass fraction
-            pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0); // AP mass flux reference value 
-            pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0); // HTPB mass flux reference value 
-            pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); // AP/HTPB mass flux reference value 
+            pp_query_required("thermal.mlocal_ap", value.thermal.mlocal_ap); // AP mass flux reference value 
+            pp_query_required("thermal.mlocal_htpb", value.thermal.mlocal_htpb); // HTPB mass flux reference value 
+            pp_query_required("thermal.mlocal_comb", value.thermal.mlocal_comb); // AP/HTPB mass flux reference value 
 
             pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); // Temperature of the Standin Fluid 
 
@@ -144,13 +144,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("pressure.P", value.pressure.P, 1.0); // Constant pressure value
         if (value.thermal.on)
         {
-            pp_query_default("pressure.a1", value.pressure.arrhenius.a1, 0.0); // Surgate heat flux model paramater - AP
-            pp_query_default("pressure.a2", value.pressure.arrhenius.a2, 0.0); // Surgate heat flux model paramater - HTPB
-            pp_query_default("pressure.a3", value.pressure.arrhenius.a3, 0.0); // Surgate heat flux model paramater - Total
-            pp_query_default("pressure.b1", value.pressure.arrhenius.b1, 0.0); // Surgate heat flux model paramater - AP
-            pp_query_default("pressure.b2", value.pressure.arrhenius.b2, 0.0); // Surgate heat flux model paramater - HTPB
-            pp_query_default("pressure.b3", value.pressure.arrhenius.b3, 0.0); // Surgate heat flux model paramater - Total
-            pp_query_default("pressure.c1", value.pressure.arrhenius.c1, 0.0); // Surgate heat flux model paramater - Total
+            pp_query_required("pressure.a1", value.pressure.arrhenius.a1); // Surgate heat flux model paramater - AP
+            pp_query_required("pressure.a2", value.pressure.arrhenius.a2); // Surgate heat flux model paramater - HTPB
+            pp_query_required("pressure.a3", value.pressure.arrhenius.a3); // Surgate heat flux model paramater - Total
+            pp_query_required("pressure.b1", value.pressure.arrhenius.b1); // Surgate heat flux model paramater - AP
+            pp_query_required("pressure.b2", value.pressure.arrhenius.b2); // Surgate heat flux model paramater - HTPB
+            pp_query_required("pressure.b3", value.pressure.arrhenius.b3); // Surgate heat flux model paramater - Total
+            pp_query_required("pressure.c1", value.pressure.arrhenius.c1); // Surgate heat flux model paramater - Total
             pp_query_default("pressure.mob_ap", value.pressure.arrhenius.mob_ap, 0); // Whether to include pressure to the arrhenius law
             pp_query_default("pressure.dependency", value.pressure.arrhenius.dependency, 1); // Whether to use pressure to determined the reference Zeta 
             pp_query_default("pressure.h1", value.pressure.arrhenius.h1, 1.81); // Surgate heat flux model paramater - Homogenized
@@ -159,12 +159,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         }
         else
         {
-            pp_query_default("pressure.r_ap", value.pressure.power.r_ap, 0.0);     // AP power pressure law parameter (r*P^n)
-            pp_query_default("pressure.r_htpb", value.pressure.power.r_htpb, 0.0); // HTPB power pressure law parameter (r*P^n)
-            pp_query_default("pressure.r_comb", value.pressure.power.r_comb, 0.0); // AP/HTPB power pressure law parameter (r*P^n)
-            pp_query_default("pressure.n_ap", value.pressure.power.n_ap, 0.0);     // AP power pressure law parameter (r*P^n)
-            pp_query_default("pressure.n_htpb", value.pressure.power.n_htpb, 0.0); // HTPB power pressure law parameter (r*P^n)
-            pp_query_default("pressure.n_comb", value.pressure.power.n_comb, 0.0); // AP/HTPB power pressure law parameter (r*P^n)
+            pp_query_required("pressure.r_ap", value.pressure.power.r_ap);     // AP power pressure law parameter (r*P^n)
+            pp_query_required("pressure.r_htpb", value.pressure.power.r_htpb); // HTPB power pressure law parameter (r*P^n)
+            pp_query_required("pressure.r_comb", value.pressure.power.r_comb); // AP/HTPB power pressure law parameter (r*P^n)
+            pp_query_required("pressure.n_ap", value.pressure.power.n_ap);     // AP power pressure law parameter (r*P^n)
+            pp_query_required("pressure.n_htpb", value.pressure.power.n_htpb); // HTPB power pressure law parameter (r*P^n)
+            pp_query_required("pressure.n_comb", value.pressure.power.n_comb); // AP/HTPB power pressure law parameter (r*P^n)
         }
         pp_query_default("variable_pressure", value.variable_pressure, 0); // Whether to compute the pressure evolution
         pp_query_default("homogeneousSystem", value.homogeneousSystem, 0); // Whether to initialize Phi with homogenized properties
