@@ -110,17 +110,17 @@ private:
         Set::Scalar Energy = 1;
 
         struct {
-            Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
-            Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
-            Set::Scalar c1 = 0.0;
+            Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
+            Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
+            Set::Scalar c1 = NAN;
             int mob_ap = 0;
             int dependency = 1;
             Set::Scalar h1 = 1.81, h2 = 1.34;
 
         } arrhenius;
         struct {
-            Set::Scalar r_ap = 0.0, r_htpb = 0.0, r_comb = 0.0;
-            Set::Scalar n_ap = 0.0, n_htpb = 0.0, n_comb = 0.0;
+            Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
+            Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
             Set::Scalar a_fit = 0.0, b_fit = 0.0, c_fit = 0.0;
         } power;
     } pressure;
