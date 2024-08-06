@@ -149,7 +149,7 @@ private:
         int on = 0;
         Set::Scalar Tref = 300.0;
         model_type model_ap, model_htpb;
-        Set::Scalar traction = 0;
+        Set::Scalar traction = 0.0;
         int phirefinement = 1;
     } elastic;
 
