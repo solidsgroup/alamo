@@ -496,4 +496,4 @@ if not args.permit_timeout:
     return_code += stats.timeouts
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
-exit(stats.fails + stats.skips)
+exit(return_code)

@@ -106,7 +106,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     driving_force(i, j, k, m) += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
                 //
-                // SYNTHETIC DRIVING FORCE
+                // LAGRANGE MULTIPLIER
                 //
                 if (lagrange.on && m == 0 && time > lagrange.tstart)
                 {
@@ -114,6 +114,17 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                         driving_force_threshold(i, j, k, m) += lagrange.lambda * (volume - lagrange.vol0);
                     else
                         driving_force(i, j, k, m) += lagrange.lambda * (volume - lagrange.vol0);
+                }
+
+                //
+                // SYNTHETIC DRIVING FORCE
+                //
+                if (sdf.on && time > sdf.tstart)
+                {
+                    if (pf.threshold.sdf)
+                        driving_force_threshold(i, j, k, m) += sdf.val[m](time);
+                    else
+                        driving_force(i, j, k, m) += sdf.val[m](time);
                 }
             }
         });
@@ -264,7 +275,6 @@ void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
-    ic->Initialize(lev, eta_mf);
     ic->Initialize(lev, eta_mf);
 }
 
