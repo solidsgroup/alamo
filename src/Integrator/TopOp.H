@@ -240,10 +240,10 @@ protected:
     //Set::Scalar lambda = 1.0;
     Numeric::Interpolator::Linear<Set::Scalar> lambda;
 
-    Set::Scalar volume = 0.0;
-    Set::Scalar w_chem_potential = 0.0;
-    Set::Scalar w_bndry = 0.0;
-    Set::Scalar w_elastic = 0.0;
+    Set::Scalar volume = NAN;
+    Set::Scalar w_chem_potential = NAN;
+    Set::Scalar w_bndry = NAN;
+    Set::Scalar w_elastic = NAN;
 };
 
 
