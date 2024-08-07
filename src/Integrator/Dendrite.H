@@ -195,8 +195,8 @@ private:
     // evolution of p
     Set::Scalar eps, tau;
 
-    Set::Scalar refinement_threshold_temp = 0.01; // Criterion for cell refinement
-    Set::Scalar refinement_threshold_phi = 0.01; // Criterion for cell refinement
+    Set::Scalar refinement_threshold_temp = NAN; // Criterion for cell refinement
+    Set::Scalar refinement_threshold_phi = NAN; // Criterion for cell refinement
 
     IC::IC* ic_temp, * ic_phi;
     BC::BC<Set::Scalar>* bc_temp, * bc_phi;

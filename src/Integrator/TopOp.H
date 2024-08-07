@@ -76,7 +76,7 @@ public:
         {
             if (pp.contains("volume0")) Util::Abort(INFO, "Cannot specify volume0frac and volume0");
             Set::Scalar volumefrac;
-            pp_query("volume0frac", volumefrac); // Prescribed volume fraction
+            pp_query_default("volume0frac", volumefrac, 0.5); // Prescribed volume fraction
             value.volume0 = volumefrac *
                 AMREX_D_TERM((value.geom[0].ProbHi()[0] - value.geom[0].ProbLo()[0]),
                     *(value.geom[0].ProbHi()[1] - value.geom[0].ProbLo()[1]),
