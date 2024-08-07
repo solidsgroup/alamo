@@ -96,13 +96,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); // Temperature of the Standin Fluid 
 
-            pp_query_default("thermal.disperssion1", value.thermal.disperssion1, 0.93); // K; dispersion variables are use to set the outter field properties for the void grain case.
-            pp_query_default("thermal.disperssion1", value.thermal.disperssion2, 920.0); // rho; dispersion variables are use to set the outter field properties for the void grain case.
-            pp_query_default("thermal.disperssion1", value.thermal.disperssion3, 2418.29); // cp; dispersion variables are use to set the outter field properties for the void grain case.
 
             pp_query_default("thermal.modeling_ap", value.thermal.modeling_ap, 1.0); // Scaling factor for AP thermal conductivity (default = 1.0)
             pp_query_default("thermal.modeling_htpb", value.thermal.modeling_htpb, 1.0); // Scaling factor for HTPB thermal conductivity (default = 1.0)
-
 
 
             value.bc_temp = new BC::Constant(1);
