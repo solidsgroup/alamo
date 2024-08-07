@@ -54,7 +54,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
         std::string eta_ic_type = "constant";
-        pp_query_validate("eta.ic.type", eta_ic_type, {"laminate", "constant", "expression", "bmp", "png"}); // Eta initial condition [constant, laminate, expression, bmp]
+        pp_query_validate("eta.ic.type", eta_ic_type, {"laminate", "constant", "expression"}); // Eta initial condition [constant, laminate, expression, bmp]
         if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
