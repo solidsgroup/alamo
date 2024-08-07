@@ -62,21 +62,21 @@ private:
     Set::Field<Set::Scalar> density_old_mf;
 
     Set::Field<Set::Scalar> energy_mf;
-    //Set::Field<Set::Scalar> energy_old_mf;
+    Set::Field<Set::Scalar> energy_old_mf;
 
     Set::Field<Set::Scalar> momentum_mf;
-    //Set::Field<Set::Scalar> momentum_old_mf;
+    Set::Field<Set::Scalar> momentum_old_mf;
 
     Set::Field<Set::Scalar> velocity_mf;
-    Set::Field<Set::Scalar> velocity_old_mf;
     Set::Field<Set::Scalar> pressure_mf;
-    Set::Field<Set::Scalar> pressure_old_mf;
 
     struct {
         Set::Field<Set::Scalar> density_mf;
-        Set::Field<Set::Scalar> velocity_mf;
-        IC::IC* density_ic  = nullptr;
-        IC::IC* velocity_ic = nullptr;
+        Set::Field<Set::Scalar> momentum_mf;
+        Set::Field<Set::Scalar> energy_mf;
+        IC::IC* density_ic   = nullptr;
+        IC::IC* momentum_ic  = nullptr;
+        IC::IC* energy_ic    = nullptr;
     } solid;
 
 protected:
@@ -85,7 +85,7 @@ protected:
 private:
     Set::Field<Set::Scalar> etadot_mf;
 
-    Set::Field<Set::Scalar> Vorticity_mf;
+    Set::Field<Set::Scalar> vorticity_mf;
 
     Set::Field<Set::Scalar> rhoInterface_mf;
     Set::Field<Set::Scalar> vInjected_mf;
@@ -100,7 +100,6 @@ private:
     IC::IC* velocity_ic = nullptr;
     IC::IC* pressure_ic = nullptr;
     IC::IC* density_ic  = nullptr;
-
 
     IC::IC* ic_rhoInterface = nullptr;
     IC::IC* ic_vInjected = nullptr;

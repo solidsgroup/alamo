@@ -22,14 +22,15 @@ class Roe
 {
 public:
     struct State {
-        Set::Scalar rho;
-        Set::Scalar velocity_normal;
-        Set::Scalar velocity_tangent;
-        Set::Scalar pressure;
+        Set::Scalar rho = NAN;
+        Set::Scalar M_normal = NAN;
+        Set::Scalar M_tangent = NAN;
+        Set::Scalar E = NAN;
+        Set::Scalar eta = NAN;
         // Construtor for convenience
-        State() { rho = 0.0; velocity_normal = 0.0, velocity_tangent = 0.0; pressure = 0.0; }
-        State(Set::Scalar a_rho, Set::Scalar a_velocity_normal, Set::Scalar a_velocity_tangent, Set::Scalar a_pressure)
-            : rho(a_rho), velocity_normal(a_velocity_normal), velocity_tangent(a_velocity_tangent), pressure(a_pressure) {}
+        State() { rho = 0.0; M_normal = 0.0, M_tangent = 0.0; E = 0.0; eta = 0.0;}
+      State(Set::Scalar a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E, Set::Scalar a_eta)
+	: rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E), eta(a_eta) {}
     };
 
     struct Flux {
@@ -40,21 +41,27 @@ public:
     };
 
     // todo: convert to static functor by replacing with static () when c++23 is released
-    static Flux Solve(State lo, State hi, Set::Scalar gamma)
+    static Flux Solve(State lo, State hi, State solid_lo, State solid_hi, Set::Scalar gamma, Set::Scalar eta_cell, Set::Scalar small)
     {
-        // STEP 1: Compute (or rename) primitives 
-        Set::Scalar rho_L = lo.rho,              rho_R = hi.rho;
-        Set::Scalar u_L   = lo.velocity_normal,  u_R   = hi.velocity_normal;
-        Set::Scalar v_L   = lo.velocity_tangent, v_R   = hi.velocity_tangent;
-        Set::Scalar p_L   = lo.pressure,         p_R   = hi.pressure;
+        // STEP 0: Compute fluid fields 
+        Set::Scalar rho_L = (lo.rho       - (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small) + small,  rho_R = (hi.rho       - (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small) + small;
+        Set::Scalar Mn_L  = (lo.M_normal  - (1.0 - lo.eta) * solid_lo.M_normal) /(lo.eta + small),  Mn_R  = (hi.M_normal  - (1.0 - hi.eta) * solid_hi.M_normal) /(hi.eta + small);
+        Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
+        Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
 
-        Set::Scalar ke_L = 0.5 * rho_L * u_L * u_L;
-        Set::Scalar ue_L = p_L / (gamma - 1);
+        // STEP 1: Compute fluid primitives 
+        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L + Mt_L * Mt_L) / rho_L;
+        Set::Scalar ue_L = E_L - ke_L;
+        Set::Scalar p_L  = (gamma - 1.0) * ue_L;
         Set::Scalar h_TL = (ke_L + ue_L + p_L) / rho_L;
 
-        Set::Scalar ke_R = 0.5 * rho_R * u_R * u_R;
-        Set::Scalar ue_R = p_R / (gamma - 1);
+        Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R + Mt_R * Mt_R) / rho_R;
+        Set::Scalar ue_R = E_R - ke_R;
+        Set::Scalar p_R  = (gamma - 1.0) * ue_R;
         Set::Scalar h_TR = (ke_R + ue_R + p_R) / rho_R;
+
+        Set::Scalar u_L   = Mn_L/rho_L,  u_R   = Mn_R/rho_R;
+        Set::Scalar v_L   = Mt_L/rho_L,  v_R   = Mt_R/rho_R;
         
         //
         // STEP 2: Compute Roe-averaged quantities
@@ -65,11 +72,29 @@ public:
         Set::Scalar a_RL_sq = (gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL);
 
         if ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq))
-        {
-            Util::Message(INFO,rho_L, " ", rho_R);
-            Util::Message(INFO,u_L, " ", u_R);
-            Util::Message(INFO,v_L, " ", v_R);
-            Util::Message(INFO,p_L, " ", p_R);
+        {   
+            Util::Message(INFO, "sound speed ", a_RL_sq);
+            Util::Message(INFO, lo.eta, " ", hi.eta);
+
+            Util::Message(INFO, "solid rho ", solid_lo.rho, " ",       solid_hi.rho);
+            Util::Message(INFO, "solid Mn ", solid_lo.M_normal, " ",  solid_hi.M_normal);
+            Util::Message(INFO, "solid Mt ", solid_lo.M_tangent, " ", solid_hi.M_tangent);
+            Util::Message(INFO, "solid E ", solid_lo.E, " ",         solid_hi.E);
+
+            Util::Message(INFO, "mixed rho ", lo.rho, " ", hi.rho);
+            Util::Message(INFO, "mixed Mn ", lo.M_normal, " ", hi.M_normal);
+            Util::Message(INFO, "mixed Mt ", lo.M_tangent, " ", hi.M_tangent);
+            Util::Message(INFO, "mixed E ", lo.E, " ", hi.E);
+
+            Util::Message(INFO, "fluid rho ", rho_L, " ", rho_R);
+            Util::Message(INFO, "fluid Mn ", Mn_L, " ", Mn_R);
+            Util::Message(INFO, "fluid Mt ", Mt_L, " ", Mt_R);
+            Util::Message(INFO, "fluid E ", E_L, " ", E_R);
+
+            Util::Message(INFO, "fluid rho ", rho_L, " ", rho_R);
+            Util::Message(INFO, "fluid u ", u_L, " ", u_R);
+            Util::Message(INFO, "fluid v ", v_L, " ", v_R);
+            Util::Message(INFO, "fluid p ", p_L, " ", p_R);
         }
         Util::AssertException(INFO,TEST(a_RL_sq==a_RL_sq)," a_RL_sq is nan/inf; (a_RL_sq=", a_RL_sq,")");
         Util::AssertException(INFO,TEST(a_RL_sq>=0),      " a_RL_sq is negative; (a_RL_sq=(",a_RL_sq,")");
@@ -90,9 +115,9 @@ public:
         Set::Scalar deltap  = p_R - p_L;
         Set::Scalar deltau  = u_R - u_L;
 
-        Set::Scalar deltav1 = deltarho - deltap / a_RL_sq;         // 5.54a
-        Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL); // 5.54b
-        Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL); // 5.54c
+        Set::Scalar deltav1 = deltarho - deltap / (a_RL_sq + small);       // 5.54a
+        Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL + small); // 5.54b
+        Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL + small); // 5.54c
 
         //
         // STEP 7: Compute fluxes
@@ -100,28 +125,37 @@ public:
         Flux fl;
         
         fl.mass =
+            (
             rho_L*u_L
             + std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/a_RL)*(   std::min(0.0,lambda2)*deltav2 -
-                                    std::min(0.0,lambda3)*deltav3);
+            + (0.5*rho_RL/(a_RL + small))*(   std::min(0.0,lambda2)*deltav2 -
+                                    std::min(0.0,lambda3)*deltav3)
+            ) * eta_cell
+            ;
         
         fl.momentum_normal =
+            (
             rho_L*u_L*u_L + p_L
             + u_RL*std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/a_RL)*(   lambda2*std::min(0.0,lambda2)*deltav2 -
-                                    lambda3*std::min(0.0,lambda3)*deltav3);
+            + (0.5*rho_RL/(a_RL + small))*(   lambda2*std::min(0.0,lambda2)*deltav2 -
+                                    lambda3*std::min(0.0,lambda3)*deltav3)
+            ) * eta_cell
+            ;
         
         fl.energy =
+            (
             rho_L*h_TL*u_L
             + 0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/a_RL)*(   (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
-                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3);
+            + (0.5*rho_RL/(a_RL + small))*(   (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
+                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3)
+                                    
+            ) * eta_cell
+            ;
 
         //
         // (Update the tangential momentum flux)
         //
-        fl.momentum_tangent = 0.5 * (rho_L*u_L*v_L + rho_R*u_R*v_R);
-
+        fl.momentum_tangent = 0.5 * (rho_L*u_L*v_L + rho_R*u_R*v_R) * eta_cell;
 
         return fl;
     }
@@ -142,45 +176,53 @@ public:
 
             State hi, lo, fixed, pos_vel1, pos_vel2, neg_vel1, neg_vel2;
             hi.rho = Util::Random();
-            hi.velocity_normal = Util::Random();
-            hi.velocity_tangent = Util::Random();
-            hi.pressure = Util::Random();
+            hi.M_normal = Util::Random();
+            hi.M_tangent = Util::Random();
+            hi.E = Util::Random();
+            hi.eta = Util::Random();
 
             lo.rho = Util::Random();
-            lo.velocity_normal = Util::Random();
-            lo.velocity_tangent = Util::Random();
-            lo.pressure = Util::Random();
+            lo.M_normal = Util::Random();
+            lo.M_tangent = Util::Random();
+            lo.E = Util::Random();
+            lo.eta = Util::Random();
 
             fixed.rho = Util::Random();
-            fixed.velocity_normal = 0.0; // Util::Random();
-            fixed.velocity_tangent = 0.0; //Util::Random();
-            fixed.pressure = Util::Random();
+            fixed.M_normal = 0.0; // Util::Random();
+            fixed.M_tangent = 0.0; //Util::Random();
+            fixed.E = Util::Random();
+            fixed.eta = Util::Random();
 
             pos_vel1.rho = Util::Random();
-            pos_vel1.velocity_normal = Util::Random();
-            pos_vel1.velocity_tangent = Util::Random();
-            pos_vel1.pressure = Util::Random();
+            pos_vel1.M_normal = Util::Random();
+            pos_vel1.M_tangent = Util::Random();
+            pos_vel1.E = Util::Random();
+            pos_vel1.eta = Util::Random();
 
             neg_vel1.rho = pos_vel1.rho;
-            neg_vel1.velocity_normal = -pos_vel1.velocity_normal;
-            neg_vel1.velocity_tangent = -pos_vel1.velocity_tangent;
-            neg_vel1.pressure = pos_vel1.pressure;
+            neg_vel1.M_normal = -pos_vel1.M_normal;
+            neg_vel1.M_tangent = -pos_vel1.M_tangent;
+            neg_vel1.E = pos_vel1.E;
+            neg_vel1.eta = pos_vel1.eta;
 
             pos_vel2.rho = Util::Random();
-            pos_vel2.velocity_normal = Util::Random();
-            pos_vel2.velocity_tangent = Util::Random();
-            pos_vel2.pressure = Util::Random();
+            pos_vel2.M_normal = Util::Random();
+            pos_vel2.M_tangent = Util::Random();
+            pos_vel2.E = Util::Random();
+            pos_vel2.eta = Util::Random();
 
             neg_vel2.rho = pos_vel2.rho;
-            neg_vel2.velocity_normal = -pos_vel2.velocity_normal;
-            neg_vel2.velocity_tangent = -pos_vel2.velocity_tangent;
-            neg_vel2.pressure = pos_vel2.pressure;
+            neg_vel2.M_normal = -pos_vel2.M_normal;
+            neg_vel2.M_tangent = -pos_vel2.M_tangent;
+            neg_vel2.E = pos_vel2.eta;
+            neg_vel2.eta = pos_vel2.eta;
 
             // 
             // Zero flux test: if the state is the same on both sides,
             //                 the flux should be zero.
             // 
-            Flux zero = Solve(fixed, fixed, 1.4);
+	    Util::Abort(INFO, "we broke this code, believe nothing that it does");
+            Flux zero = Solve(fixed, fixed, fixed, fixed, 1.4, 1.0, 1E-8);
 
             
 
@@ -194,8 +236,8 @@ public:
             //                    output 
             // 
 
-            Flux plus = Solve(hi, lo, 1.4);
-            Flux minus = Solve(lo, hi, 1.4);
+            Flux plus = Solve(hi, lo, hi, lo, 1.4, 1.0, 1E-8);
+            Flux minus = Solve(lo, hi, lo, hi, 1.4, 1.0, 1E-8);
 
             if (fabs(plus.mass + minus.mass) > 1E-10)
             {
@@ -224,8 +266,8 @@ public:
             //                   and.pressure fluxes and the same.velocity flux
             // 
 
-            Flux pos = Solve(pos_vel1, pos_vel2, 1.4);
-            Flux neg = Solve(neg_vel1, neg_vel2, 1.4);
+            Flux pos = Solve(pos_vel1, pos_vel2, pos_vel1, pos_vel2, 1.4, 1.0, 1E-8);
+            Flux neg = Solve(neg_vel1, neg_vel2, neg_vel1, neg_vel2, 1.4, 1.0, 1E-8);
 
             if (fabs(pos.mass + neg.mass) > 1E-10)
             {                

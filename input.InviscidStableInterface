@@ -51,7 +51,7 @@ plot_file = ./output
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 100
+amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
@@ -71,13 +71,13 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-4
-stop_time = 100.0
+timestep  = 1.0e-2
+stop_time = 10000.0
 
 ### ETA IC ###
 
 rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "0.0"
+rhoInterface.ic.expression.region0 = "1.0"
 
 vInjected.ic.type = expression
 vInjected.ic.expression.region0 = "0.0"
@@ -91,7 +91,7 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.2
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "1.0" #"(0.5 + 0.5*tanh(x/eps))"
+eta.ic.expression.region0        = "(0.5 + 0.5*tanh(x/eps))"
 
 ### HYDRO PARAM ###
 
@@ -100,26 +100,26 @@ cfl   = 0.4
 mu    = 0.0
 
 density.ic.type = expression
-density.ic.expression.region0 = "2.0"
+density.ic.expression.region0 = "1.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "(0.5 + 0.5*tanh(x/0.2)) + 1.0" 
+pressure.ic.expression.region0 = "1.0" 
 
 ### SOLID ###
 
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "1.0"
+solid.density.ic.expression.region0 = "2.0"
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.0"
 solid.momentum.ic.expression.region1 = "0.0"
 
 solid.energy.ic.type = expression
-solid.energy.ic.expression.region0 = "1.0"
+solid.energy.ic.expression.region0 = "1.0" 
 
 ### ETA BC  ###
 
