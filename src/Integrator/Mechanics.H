@@ -322,7 +322,7 @@ public:
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
-    Set::Scalar m_eta_ref_threshold = 0.01;
+    Set::Scalar m_eta_ref_threshold = NAN;
     std::vector<MODEL> models;
     IC::IC* ic_eta = nullptr;
     IC::IC* ic_psi = nullptr;
