@@ -150,7 +150,7 @@ private:
         Set::Scalar Tref = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
-        int phirefinement = NAN;
+        int phirefinement = ;
     } elastic;
 
     // Integrated variables
@@ -160,8 +160,8 @@ private:
     Set::Scalar chamber_pressure = 1.0;
     Set::Scalar massflux = 0.00000001;
 
-    Set::Scalar x_len = NAN
-    Set::Scalar y_len = NAN
+    Set::Scalar x_len = NAN;
+    Set::Scalar y_len = NAN;
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
 };
