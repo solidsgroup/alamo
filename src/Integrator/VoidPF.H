@@ -179,7 +179,24 @@ public:
                             if (d_inv_avg > 1.0)   d_inv_avg = 1.0;
                             if (d_inv_avg < spall.small) d_inv_avg = spall.small;
                             model(i, j, k) = MODEL::Zero();
-			                model(i,j,k).Define(C11, C12,C44 ,euler(i,j,k,0)*180.0*(3.14/180.), euler(i,j,k,1)*360.0*(3.14/180.), euler(i,j,k,2)*360.0*(3.14/180.));
+                            
+                            // Extract quaternion components
+                            Set::Scalar w = euler(i, j, k, 0);
+                            Set::Scalar x = euler(i, j, k, 1);
+                            Set::Scalar y = euler(i, j, k, 2);
+                            Set::Scalar z = euler(i, j, k, 3);
+
+                            // Convert quaternion to Euler angles (yaw-pitch-roll)
+                            Set::Scalar roll = atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y));
+                            Set::Scalar pitch = asin(2.0 * (w * y - z * x));
+                            Set::Scalar yaw = atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z));
+
+                            // Define model with converted Euler angles
+                            model(i, j, k).Define(C11, C12, C44, roll, pitch, yaw);
+			                
+			                
+			                
+			                //model(i,j,k).Define(C11, C12,C44 ,euler(i,j,k,0)*180.0*(3.14/180.), euler(i,j,k,1)*360.0*(3.14/180.), euler(i,j,k,2)*360.0*(3.14/180.));
 			                //model(i,j,k).Define(C11, C12,C44,0.0,0.0,0.0);
                             model(i,j,k).ddw *= (d_inv_avg);
                         });
@@ -242,6 +259,10 @@ public:
                     df += spall.elastic_mult*(p(i,j,k) - spall.po);
 
                 d(i,j,k) = dold(i,j,k) - spall.M * dt * df;
+                
+                
+                if (df < 0)
+                    df = 0;
                             
                 
                 if (d(i,j,k) > 1.0)   d(i,j,k) = 1.0;

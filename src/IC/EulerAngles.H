@@ -131,15 +131,20 @@ public:
                     Set::Scalar fQ21B = (static_cast<Set::Scalar>(bmp(I+1,J  )[channel3]) - min[2]) / (max[2] - min[2]);
                     Set::Scalar fQ22B = (static_cast<Set::Scalar>(bmp(I+1,J+1)[channel3]) - min[2]) / (max[2] - min[2]);
 
-                    // Compute interpolated Euler angles
-                    Set::Scalar eulerR = (fQ11R*(x2-ximg(0))*(y2-ximg(1)) + fQ21R*(ximg(0)-x1)*(y2-ximg(1)) 
-                                          + fQ12R*(x2-ximg(0))*(ximg(1)-y1) + fQ22R*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
+                    // Compute interpolated Euler angles (normalized)
+                    Set::Scalar eulerR_norm = (fQ11R*(x2-ximg(0))*(y2-ximg(1)) + fQ21R*(ximg(0)-x1)*(y2-ximg(1)) 
+                                               + fQ12R*(x2-ximg(0))*(ximg(1)-y1) + fQ22R*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
 
-                    Set::Scalar eulerG = (fQ11G*(x2-ximg(0))*(y2-ximg(1)) + fQ21G*(ximg(0)-x1)*(y2-ximg(1)) 
-                                          + fQ12G*(x2-ximg(0))*(ximg(1)-y1) + fQ22G*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
+                    Set::Scalar eulerG_norm = (fQ11G*(x2-ximg(0))*(y2-ximg(1)) + fQ21G*(ximg(0)-x1)*(y2-ximg(1)) 
+                                               + fQ12G*(x2-ximg(0))*(ximg(1)-y1) + fQ22G*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
 
-                    Set::Scalar eulerB = (fQ11B*(x2-ximg(0))*(y2-ximg(1)) + fQ21B*(ximg(0)-x1)*(y2-ximg(1)) 
-                                          + fQ12B*(x2-ximg(0))*(ximg(1)-y1) + fQ22B*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
+                    Set::Scalar eulerB_norm = (fQ11B*(x2-ximg(0))*(y2-ximg(1)) + fQ21B*(ximg(0)-x1)*(y2-ximg(1)) 
+                                               + fQ12B*(x2-ximg(0))*(ximg(1)-y1) + fQ22B*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
+
+                    // Scale normalized Euler angles to radians
+                    Set::Scalar eulerR = eulerR_norm * 2.0 * M_PI;
+                    Set::Scalar eulerG = eulerG_norm * 2.0 * M_PI;
+                    Set::Scalar eulerB = eulerB_norm * 2.0 * M_PI;
 
                     // Convert Euler angles to quaternions
                     Set::Scalar c1 = std::cos(eulerR / 2);
@@ -159,15 +164,20 @@ public:
                 {
                     Set::Scalar fQ11R = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel1]) - min[0]) / (max[0] - min[0]);
                     Set::Scalar fQ12R = (static_cast<Set::Scalar>(bmp(I  ,J+1)[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar eulerR = fQ11R + (fQ12R-fQ11R) * (ximg(1) - y1);
+                    Set::Scalar eulerR_norm = fQ11R + (fQ12R-fQ11R) * (ximg(1) - y1);
 
                     Set::Scalar fQ11G = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel2]) - min[1]) / (max[1] - min[1]);
                     Set::Scalar fQ12G = (static_cast<Set::Scalar>(bmp(I  ,J+1)[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar eulerG = fQ11G + (fQ12G-fQ11G) * (ximg(1) - y1);
+                    Set::Scalar eulerG_norm = fQ11G + (fQ12G-fQ11G) * (ximg(1) - y1);
 
                     Set::Scalar fQ11B = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel3]) - min[2]) / (max[2] - min[2]);
                     Set::Scalar fQ12B = (static_cast<Set::Scalar>(bmp(I  ,J+1)[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar eulerB = fQ11B + (fQ12B-fQ11B) * (ximg(1) - y1);
+                    Set::Scalar eulerB_norm = fQ11B + (fQ12B-fQ11B) * (ximg(1) - y1);
+
+                    // Scale normalized Euler angles to radians
+                    Set::Scalar eulerR = eulerR_norm * 2.0 * M_PI;
+                    Set::Scalar eulerG = eulerG_norm * 2.0 * M_PI;
+                    Set::Scalar eulerB = eulerB_norm * 2.0 * M_PI;
 
                     // Convert Euler angles to quaternions
                     Set::Scalar c1 = std::cos(eulerR / 2);
@@ -187,15 +197,20 @@ public:
                 {
                     Set::Scalar fQ11R = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel1]) - min[0]) / (max[0] - min[0]);
                     Set::Scalar fQ21R = (static_cast<Set::Scalar>(bmp(I+1,J  )[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar eulerR = fQ11R + (fQ21R-fQ11R) * (ximg(0) - x1);
+                    Set::Scalar eulerR_norm = fQ11R + (fQ21R-fQ11R) * (ximg(0) - x1);
 
                     Set::Scalar fQ11G = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel2]) - min[1]) / (max[1] - min[1]);
                     Set::Scalar fQ21G = (static_cast<Set::Scalar>(bmp(I+1,J  )[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar eulerG = fQ11G + (fQ21G-fQ11G) * (ximg(0) - x1);
+                    Set::Scalar eulerG_norm = fQ11G + (fQ21G-fQ11G) * (ximg(0) - x1);
 
                     Set::Scalar fQ11B = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel3]) - min[2]) / (max[2] - min[2]);
                     Set::Scalar fQ21B = (static_cast<Set::Scalar>(bmp(I+1,J  )[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar eulerB = fQ11B + (fQ21B-fQ11B) * (ximg(0) - x1);
+                    Set::Scalar eulerB_norm = fQ11B + (fQ21B-fQ11B) * (ximg(0) - x1);
+
+                    // Scale normalized Euler angles to radians
+                    Set::Scalar eulerR = eulerR_norm * 2.0 * M_PI;
+                    Set::Scalar eulerG = eulerG_norm * 2.0 * M_PI;
+                    Set::Scalar eulerB = eulerB_norm * 2.0 * M_PI;
 
                     // Convert Euler angles to quaternions
                     Set::Scalar c1 = std::cos(eulerR / 2);
@@ -214,13 +229,18 @@ public:
                 else if (I ==  bmp.nx-1 && J == bmp.ny - 1)
                 {
                     Set::Scalar fQ11R = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar eulerR = fQ11R;
+                    Set::Scalar eulerR_norm = fQ11R;
 
                     Set::Scalar fQ11G = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar eulerG = fQ11G;
+                    Set::Scalar eulerG_norm = fQ11G;
 
                     Set::Scalar fQ11B = (static_cast<Set::Scalar>(bmp(I  ,J  )[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar eulerB = fQ11B;
+                    Set::Scalar eulerB_norm = fQ11B;
+
+                    // Scale normalized Euler angles to radians
+                    Set::Scalar eulerR = eulerR_norm * 2.0 * M_PI;
+                    Set::Scalar eulerG = eulerG_norm * 2.0 * M_PI;
+                    Set::Scalar eulerB = eulerB_norm * 2.0 * M_PI;
 
                     // Convert Euler angles to quaternions
                     Set::Scalar c1 = std::cos(eulerR / 2);
@@ -239,10 +259,10 @@ public:
                 else
                 {
                     // Default value for out-of-bounds
-                    field(i,j,k,0) = 0.0;  
-                    field(i,j,k,1) = 0.0;  
-                    field(i,j,k,2) = 0.0;  
-                    field(i,j,k,3) = 0.0;  
+                    field(i,j,k,0) = 1.0;  // Identity quaternion w
+                    field(i,j,k,1) = 0.0;  // Identity quaternion x
+                    field(i,j,k,2) = 0.0;  // Identity quaternion y
+                    field(i,j,k,3) = 0.0;  // Identity quaternion z
                 }
             });
         }
