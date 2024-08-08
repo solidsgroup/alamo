@@ -247,9 +247,9 @@ protected:
 
 private:
 
-    int number_of_grains = NAN;
-    int number_of_ghost_cells = NAN;
-    Set::Scalar ref_threshold = NAN;
+    int number_of_grains = -1;
+    int number_of_ghost_cells = 1;
+    Set::Scalar ref_threshold = 0.1;
 
     // Cell fab
     Set::Field<Set::Scalar> eta_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
@@ -286,7 +286,7 @@ private:
 
     struct {
         int on = 0;
-        Set::Scalar tstart = NAN;
+        Set::Scalar tstart = 0.0;
         Numeric::Interpolator::Linear<Set::Scalar> mobility;
         Numeric::Interpolator::Linear<Set::Scalar> threshold;
         Set::Field<Set::Scalar> L_mf;
@@ -298,12 +298,12 @@ private:
         Set::Scalar beta;
         Set::Scalar timestep;
         Set::Scalar tstart;
-        int plot_int = NAN;
-        Set::Scalar plot_dt = NAN;
-        int thermo_int = NAN, thermo_plot_int = NAN;
+        int plot_int = -1;
+        Set::Scalar plot_dt = -1.0;
+        int thermo_int = -1, thermo_plot_int = -1;
         Set::Scalar theta0,sigma0,sigma1;
         Set::Scalar phi0 = 0.0;
-        int elastic_int = NAN;
+        int elastic_int = -1;
     } anisotropy;
     
     struct { 
@@ -327,7 +327,7 @@ private:
 
     struct
     {
-        Set::Scalar tstart = NAN;
+        Set::Scalar tstart = 0.0;
         std::vector<model_type> model;
     } mechanics;
     
