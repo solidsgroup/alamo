@@ -150,7 +150,7 @@ private:
         Set::Scalar Tref = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
-        int phirefinement = ;
+        int phirefinement = NAN;
     } elastic;
 
     // Integrated variables
