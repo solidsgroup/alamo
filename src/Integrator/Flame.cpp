@@ -29,7 +29,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     BL_PROFILE("Integrator::Flame::Flame()");
     {
         //pp_query("fields_verbose", value.plot_field);
-        pp_query("timestep", value.base_time);
+        pp_query_default("timestep", value.base_time, 1.0e-4);
         // These are the phase field method parameters
         // that you use to inform the phase field method.
         pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
