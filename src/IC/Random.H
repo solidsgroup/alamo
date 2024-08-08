@@ -38,7 +38,7 @@ public:
         }
 
     };
-    static void Parse(Random& value, IO::ParmParse& pp)
+    static void Parse(Random& /*value*/, IO::ParmParse& /*pp*/)
     {
     }
 
