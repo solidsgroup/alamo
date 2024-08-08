@@ -217,7 +217,7 @@ protected:
     MODEL model;
     IC::IC* ic_psi = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
-    Set::Scalar m_eta_ref_threshold = 1E-2;
+    Set::Scalar m_eta_ref_threshold = NAN;
     Set::Field<Set::Scalar> psi_old_mf;
 
 
@@ -231,12 +231,12 @@ protected:
     using Base::Mechanics<MODEL>::strain_mf;
 
 
-    Set::Scalar alpha = 1.0;
-    Set::Scalar beta = 1.0;
-    Set::Scalar gamma = 1.0;
+    Set::Scalar alpha = NAN;
+    Set::Scalar beta = NAN;
+    Set::Scalar gamma = NAN;
     //Set::Scalar L = 1.0;
     Numeric::Interpolator::Linear<Set::Scalar> L;
-    Set::Scalar volume0 = 0.5;
+    Set::Scalar volume0 = NAN;
     //Set::Scalar lambda = 1.0;
     Numeric::Interpolator::Linear<Set::Scalar> lambda;
 
