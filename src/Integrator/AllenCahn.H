@@ -165,17 +165,17 @@ protected:
     Set::Field<Set::Scalar> alpha_old_mf;     // Temperature field variable (previous timestep)
 
     struct {
-        Set::Scalar L = 1.0;
-        Set::Scalar eps = 0.1;
-        Set::Scalar grad = 1.0;
-        Set::Scalar chempot = 1.0;
+        Set::Scalar L = NAN;
+        Set::Scalar eps = NAN;
+        Set::Scalar grad = NAN;
+        Set::Scalar chempot = NAN;
     } ch;
 
 private:
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 2;           // Number of ghost cells
 
-    Set::Scalar refinement_threshold = 0.01; // Criterion for cell refinement
+    Set::Scalar refinement_threshold = NAN; // Criterion for cell refinement
 
     IC::IC* ic;                              // Object used to initialize temperature field
     BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
