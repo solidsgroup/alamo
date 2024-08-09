@@ -181,7 +181,8 @@ Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
 }
 
 template<>
-inline Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative)
+ALAMO_SINGLE_DEFINITION
+Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative)
 {
     std::ifstream input;
     input.open(filename);

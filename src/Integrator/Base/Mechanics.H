@@ -157,7 +157,7 @@ protected:
 
     virtual void UpdateModel(int a_step, Set::Scalar a_time) = 0;
 
-    void TimeStepBegin(Set::Scalar a_time, int a_step) override
+    virtual void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         BL_PROFILE("Integrator::Base::Mechanics::TimeStepBegin");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
