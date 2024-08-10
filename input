@@ -1,20 +1,21 @@
 alamo.program               = mechanics
-alamo.program.mechanics.model = elastic.crystalplastic
+alamo.program.mechanics.model = finite.crystalplastic
 #alamo.program.mechanics.model = elastic.pseudolinearcubic
 plot_file = output
 
-timestep		    = 0.005
+timestep		    = 0.0005
 stop_time		    = 6.0
 
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 3
-amr.n_cell		    = 16 16 16
+amr.max_level		    = 1
+#amr.max_level		    = 0
+amr.n_cell		    = 64 64 64 
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0
-amr.node.any = 0
-amr.cell.all = 1
+amr.node.any = 1
+amr.cell.all = 0
 
 # geometry
 geometry.prob_lo	    = -8 -8 -8 
@@ -29,21 +30,35 @@ model1.C44 = 0.75
 model1.tstart = 0.02
 #model1.random = 1
 
+
+
+
 # solver parameters
 solver.verbose = 3
 solver.nriters = 100
 solver.max_iter = 400
 solver.nrtolerance = 1E-4
+solver.fixed_iter=10
 
 # Elastic refinement criterion
-ref_threshold = 0.005
+ref_threshold = 0.001
 
 # Expression-based boundary condition
 bc.type = expression
-bc.expression.type.xlo = disp trac trac
-bc.expression.type.xhi = disp trac trac
-bc.expression.type.xloyhi = disp trac trac
-bc.expression.type.xhiyhi = disp trac trac
-bc.expression.type.yhi = trac trac trac
-bc.expression.val.yhi = "0.0" "-0.1*exp(-((x)*(x)+z*z)/0.4)" "0.0"
-#bc.expression.val.yhi = "0.0" "-0.1" "0.0"
+bc.expression.type.xlo = trac trac trac
+bc.expression.type.xhi = trac trac trac
+bc.expression.val.xloyhi = "0.0" "-0.1*t" "0.0"
+bc.expression.val.xhiyhi = "0.0" "-0.1*t" "0.0"
+bc.expression.val.yhi = "0.0" "-0.1*t" "0.0"
+
+time_evolving = 1
+
+#nmodels = 10
+#model.random = 1
+#ic.type = voronoi
+#ic.voronoi.number_of_grains = 20
+#bc.expression.type.xlo = trac trac trac
+#bc.expression.type.xhi = trac trac trac
+#bc.expression.val.xloyhi = "0.0" "-0.1*t" "0.0"
+#bc.expression.val.xhiyhi = "0.0" "-0.1*t" "0.0"
+#bc.expression.val.yhi = "0.0" "-0.1*t" "0.0"

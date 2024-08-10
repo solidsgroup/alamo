@@ -435,13 +435,13 @@ protected:
         Set::Scalar DXnorm = DX.lpNorm<2>();
         for (amrex::MFIter mfi(*strain_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Box bx = mfi.tilebox();
+            bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Matrix> const& eps = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                auto sten = Numeric::GetStencil(i, j, k, bx);
-                Set::Matrix3 grad = Numeric::Gradient(eps, i, j, k, DX.data(), sten);
+                Set::Matrix3 grad = Numeric::NodeGradientOnCell(eps, i, j, k, DX.data());
                 if (grad.norm() * DXnorm > m_elastic_ref_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });

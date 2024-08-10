@@ -51,17 +51,17 @@ public:
 
     J2() {};
 
-    void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/) override
+    void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/, Set::Scalar /*time*/) override
     {
         Set::Matrix sigma = DW(eps);
         Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / 3.0;
         if ((hardening<0.0) || (ratecoeff<0.0)) // rate independent
         {
-        Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
-        if (J2 < sigma0) return; // No plasticity happens.
-        Set::Matrix dsigp = (1. - sigma0/J2) * sig_dev;
-        F0 += ddw.Inverse() * dsigp;
-    }
+            Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
+            if (J2 < sigma0) return; // No plasticity happens.
+            Set::Matrix dsigp = (1. - sigma0/J2) * sig_dev;
+            F0 += ddw.Inverse() * dsigp;
+        }
         else // rate-dependent
         {
             Set::Matrix eps_dev = eps - eps.trace() * Set::Matrix::Identity() / (double)AMREX_SPACEDIM;
@@ -75,7 +75,7 @@ public:
             alpha = alpha + sqrt(1.0 - 1.0/(double)AMREX_SPACEDIM)*dGamma;
             F0 += dGamma * n_new;
         }
-        }
+    }
 
     // Parameters
     Set::Scalar sigma0 = 1.0;

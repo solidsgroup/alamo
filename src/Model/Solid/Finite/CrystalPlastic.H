@@ -4,7 +4,7 @@
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
-#include "PseudoLinearCubic.H"
+#include "PseudoLinear/Cubic.H"
 
 namespace Model
 {
@@ -12,26 +12,26 @@ namespace Solid
 {
 namespace Finite
 {
-class CrystalPlastic : public PseudoLinearCubic
+class CrystalPlastic : public PseudoLinear::Cubic
 {
 public:
     CrystalPlastic() {};
-    //CrystalPlastic(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
+
     virtual ~CrystalPlastic() {};
 
     Set::Scalar W(const Set::Matrix & F) const override
     {
-        return PseudoLinearCubic::W(F * Set::reduce(Fp).inverse());
+        return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse());
     }
     Set::Matrix DW(const Set::Matrix & F) const override
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
-        return PseudoLinearCubic::DW(F * Fpinv) * Fpinv.transpose();
+        return PseudoLinear::Cubic::DW(F * Fpinv) * Fpinv.transpose();
     }
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
-        auto DDW = PseudoLinearCubic::DDW(F * Fpinv);
+        auto DDW = PseudoLinear::Cubic::DDW(F * Fpinv);
         auto ret = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>::Zero();
         for (int i = 0; i < AMREX_SPACEDIM; i++)
             for (int J = 0; J < AMREX_SPACEDIM; J++)
@@ -46,7 +46,7 @@ public:
         return ret;
     }
     
-    virtual void Advance(Set::Scalar dt, Set::Matrix F, Set::Matrix P, Set::Scalar time) override
+    virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
     {
         if (time  < tstart) return;
 
@@ -54,17 +54,13 @@ public:
         Set::Matrix3d R = q.toRotationMatrix();
         std::array<std::pair<Set::Vector3d,Set::Vector3d>,12> ss = slipSystems(R);
 
-
-
         Set::Matrix3d L = Set::Matrix3d::Zero();
 
         for (int n = 0; n < 12; n++)
         {
             Set::Vector3d A = ss[n].first;
             Set::Vector3d N = ss[n].second;
-
             Set::Scalar tau = A.dot(Set::expand(P)*N);
-
             Set::Scalar sign = tau>0 ? 1.0 : -1.0;
 
             Set::Scalar gammadot
@@ -73,11 +69,9 @@ public:
             L += gammadot * A * N.transpose();
 
             gamma[n] += gammadot * dt;
-
         }
 
         Fp += L * Fp * dt;
-
     }
 
 
@@ -173,7 +167,7 @@ public:
     }
     static void Parse(CrystalPlastic & value, IO::ParmParse & pp)
     {
-        PseudoLinearCubic::Parse(value,pp);
+        PseudoLinear::Cubic::Parse(value,pp);
         // TODO Add inputs for the CP values
 
         pp.query("tstart",value.tstart);    // Time to activate plastic slip
