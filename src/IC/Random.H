@@ -19,13 +19,10 @@ public:
         IC(_geom), mult(a_mult)
     {}
     Random(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
-<<<<<<< HEAD
     {
         pp.queryclass(name, *this);
     }  
     void Add(const int &lev, Set::Field<Set::Scalar> &field, Set::Scalar)
-=======
->>>>>>> development
     {
         pp.queryclass(name, *this);
     }

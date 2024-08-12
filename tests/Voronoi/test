@@ -13,7 +13,6 @@ path = "{}/00200cell/".format(outdir)
 ds = yt.load(path)
 dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
 
-<<<<<<< HEAD
 def integrate(x,y):
     ret = 0
     for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
