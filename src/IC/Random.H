@@ -48,14 +48,11 @@ public:
         }
     }
 
-<<<<<<< HEAD
     };
     static void Parse(Random& /*value*/, IO::ParmParse& /*pp*/)
     {
     }
 
-=======
->>>>>>> development
     using IC::Add;
 
     static void Parse(Random & value, IO::ParmParse & pp)
