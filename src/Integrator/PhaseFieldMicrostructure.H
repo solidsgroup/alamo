@@ -27,6 +27,7 @@
 #include "IC/Sphere.H"
 #include "IC/Expression.H"
 #include "IC/Ellipse.H"
+#include "IC/Random.H"
 
 #include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
@@ -135,6 +136,24 @@ public:
             value.SetThermoInt(1);
         }
 
+        pp_query_default("sdf.on",value.sdf.on,false); // synthetic driving force (SDF)
+        if(value.sdf.on)
+        {
+            std::vector<std::string> vals;
+            pp_queryarr("sdf.val",vals);  // value of SDF for each grain
+            int nvals = static_cast<int>(vals.size());
+            if (nvals == 1)
+                for (int i = 0; i < value.number_of_grains; i++)
+                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0]));
+            else if (nvals == value.number_of_grains)
+                for (int i = 0; i < value.number_of_grains; i++)
+                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[i]));
+            else
+                Util::Abort(INFO,"sdf.val received ", vals.size(), " but requires 1 or ", value.number_of_grains);
+
+            pp_query_default("sdf.tstart",value.sdf.tstart,0.0); // time to begin applying SDF
+        }
+
         // Anisotropic grain boundary energy parameters
 
         pp_query_default("anisotropy.on", value.anisotropy.on,false);              // Turn on
@@ -181,7 +200,7 @@ public:
 
         std::string ic_type;
         // Initial condition to use for eta
-        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse"});  
+        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse","random"});  
         // [switch ic.type] Initial conditions for Etas
         if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
         else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");
@@ -190,6 +209,7 @@ public:
         else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
         else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
         else if (ic_type == "ellipse")             value.ic = new IC::Ellipse(value.geom,pp,"ic.ellipse");
+        else if (ic_type == "random")              value.ic = new IC::Random(value.geom,pp,"ic.random");
         else Util::Abort(INFO, "No valid initial condition specified");
         // [end switch]
 
@@ -237,8 +257,8 @@ protected:
 
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-    void TimeStepBegin(amrex::Real time, int iter) override;
-    void TimeStepComplete(amrex::Real time, int iter) override;
+    virtual void TimeStepBegin(amrex::Real time, int iter) override;
+    virtual void TimeStepComplete(amrex::Real time, int iter) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
@@ -279,6 +299,7 @@ private:
             bool corner = false;
             bool lagrange = false;
             bool mechanics = false;
+            bool sdf = false;
             Set::Scalar value = NAN;
             ThresholdType type = ThresholdType::Continuous;
         } threshold;
@@ -312,6 +333,12 @@ private:
         Set::Scalar vol0 = NAN;
         Set::Scalar lambda = NAN;
     } lagrange;
+
+    struct {
+        int on = 0;
+        std::vector<Numeric::Interpolator::Linear<Set::Scalar>> val;
+        Set::Scalar tstart = 0.0;
+    } sdf;
 
     std::string gb_type, filename;
 

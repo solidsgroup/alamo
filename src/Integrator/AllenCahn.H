@@ -32,6 +32,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/Random.H"
 #include "Numeric/Stencil.H"
 #include "IC/Random.H"
 

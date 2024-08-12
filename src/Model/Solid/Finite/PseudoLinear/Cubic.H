@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_FINITE_PSEUDOLINEARCUBIC_H_
-#define MODEL_SOLID_FINITE_PSEUDOLINEARCUBIC_H_
+#ifndef MODEL_SOLID_FINITE_PSEUDOLINEAR_CUBIC_H_
+#define MODEL_SOLID_FINITE_PSEUDOLINEAR_CUBIC_H_
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
@@ -10,12 +10,14 @@ namespace Solid
 {
 namespace Finite
 {
-class PseudoLinearCubic : public Solid<Set::Sym::Major>
+namespace PseudoLinear
+{
+class Cubic : public Solid<Set::Sym::Major>
 {
 public:
-    PseudoLinearCubic() {};
-    //PseudoLinearCubic(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
-    virtual ~PseudoLinearCubic() {};
+    Cubic() {};
+    //Cubic(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
+    virtual ~Cubic() {};
 
     Set::Scalar W(const Set::Matrix & F) const override
     {
@@ -82,9 +84,9 @@ public:
     mutable Set::Quaternion q = Set::Quaternion(1.0, 0.0, 0.0, 0.0);
 
 public:
-    static PseudoLinearCubic Zero()
+    static Cubic Zero()
     {
-        PseudoLinearCubic ret;
+        Cubic ret;
         ret.C11 = 0.0;
         ret.C12 = 0.0;
         ret.C44 = 0.0;
@@ -92,13 +94,13 @@ public:
         //ret.CC = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         return ret;
     }
-    static PseudoLinearCubic Random()
+    static Cubic Random()
     {
         return Random(Util::Random(), Util::Random(), Util::Random());
     }
-    static PseudoLinearCubic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
+    static Cubic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
     {
-        PseudoLinearCubic ret;
+        Cubic ret;
         ret.C11 = C11;
         ret.C12 = C12;
         ret.C44 = C44;
@@ -110,7 +112,7 @@ public:
         //if (ret.CC.contains_nan()) Util::Abort(INFO);
         return ret;
     }
-    static void Parse(PseudoLinearCubic & value, IO::ParmParse & pp)
+    static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         //Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
         pp_query("C11",value.C11); // Elastic constant (default: 1.68)
@@ -119,7 +121,7 @@ public:
 
         if (pp.contains("random"))
         {
-            value = PseudoLinearCubic::Random(value.C11,value.C12,value.C44);
+            value = Cubic::Random(value.C11,value.C12,value.C44);
             return;
         }
 
@@ -134,12 +136,13 @@ public:
         value.q = Set::Quaternion(R);
     }
 
-#define OP_CLASS PseudoLinearCubic
+#define OP_CLASS Cubic
 #define OP_VARS X(C11) X(C12) X(C44) X(q)
 #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
 
+}
 }
 }
 }

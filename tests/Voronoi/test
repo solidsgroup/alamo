@@ -13,6 +13,7 @@ path = "{}/00200cell/".format(outdir)
 ds = yt.load(path)
 dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
 
+<<<<<<< HEAD
 def integrate(x,y):
     ret = 0
     for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
@@ -64,6 +65,17 @@ if dim == 2:
 
 if dim == 3:
     raise(Exception("Not implemented for 3D yet"))
+=======
+
+testlib.validate(path="{}/00200cell/".format(outdir),
+                 outdir=outdir,
+                 start=[0,0,0],
+                 end=[5,5,1],
+                 vars=["Eta001","Eta002","Eta003","Eta004","Eta005","Eta006","Eta007","Eta008","Eta009","Eta010",],
+                 tolerance=tolerance,
+                 reference="reference/reference.csv",
+                 filename_suffix="diag")
+>>>>>>> development
 exit(0)
 
     

@@ -7,6 +7,7 @@
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
+#include "IO/ParmParse.H"
 
 namespace IC
 {
@@ -14,38 +15,61 @@ namespace IC
 class Random : public IC
 {
 public:
-    Random (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult = 1.0) :
+    Random (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult) :
         IC(_geom), mult(a_mult)
     {}
     Random(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
+<<<<<<< HEAD
     {
         pp.queryclass(name, *this);
     }  
     void Add(const int &lev, Set::Field<Set::Scalar> &field, Set::Scalar)
+=======
+>>>>>>> development
     {
-        for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
+        pp.queryclass(name, *this);
+    }
+  
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
+    {
+        for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& box = mfi.tilebox();
-
-            amrex::BaseFab<amrex::Real> &field_box = (*field[lev])[mfi];
-
-            AMREX_D_TERM(for (int i = box.loVect()[0]-field[lev]->nGrow(); i<=box.hiVect()[0]+field[lev]->nGrow(); i++),
-                    for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++),
-                    for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++))
+            amrex::Box bx;
+            amrex::IndexType type = a_field[lev]->ixType();
+            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+            else Util::Abort(INFO, "Unkonwn index type");
+            
+            Set::Patch<Set::Scalar> field = a_field.Patch(lev,mfi);
+            for (int n = 0; n < a_field[lev]->nComp(); n++)
             {
-                field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) += mult * Util::Random();
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    field(i,j,k,n) += mult * Util::Random();
+                });
             }
         }
+    }
 
+<<<<<<< HEAD
     };
     static void Parse(Random& /*value*/, IO::ParmParse& /*pp*/)
     {
     }
 
+=======
+>>>>>>> development
     using IC::Add;
+
+    static void Parse(Random & value, IO::ParmParse & pp)
+    {
+        pp.query_default("mult",value.mult,1.0); // Multiplier
+    }
+    
 private:
-    Set::Scalar mult;
+    Set::Scalar mult = NAN;
 
 };
 }
 #endif
+
