@@ -136,24 +136,6 @@ public:
             value.SetThermoInt(1);
         }
 
-        pp_query_default("sdf.on",value.sdf.on,false); // synthetic driving force (SDF)
-        if(value.sdf.on)
-        {
-            std::vector<std::string> vals;
-            pp_queryarr("sdf.val",vals);  // value of SDF for each grain
-            int nvals = static_cast<int>(vals.size());
-            if (nvals == 1)
-                for (int i = 0; i < value.number_of_grains; i++)
-                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0]));
-            else if (nvals == value.number_of_grains)
-                for (int i = 0; i < value.number_of_grains; i++)
-                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[i]));
-            else
-                Util::Abort(INFO,"sdf.val received ", vals.size(), " but requires 1 or ", value.number_of_grains);
-
-            pp_query_default("sdf.tstart",value.sdf.tstart,0.0); // time to begin applying SDF
-        }
-
         // Anisotropic grain boundary energy parameters
 
         pp_query_default("anisotropy.on", value.anisotropy.on,false);              // Turn on

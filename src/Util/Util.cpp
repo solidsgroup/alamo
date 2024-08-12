@@ -239,19 +239,6 @@ int ReplaceAll(std::string &str, const char before, const std::string after)
     }
     return 0;
 }
-
-std::string Join(std::vector<std::string> & vec, char separator)
-{
-    std::ostringstream oss;
-    for (size_t i = 0; i < vec.size(); ++i) {
-        oss << vec[i];
-        if (i < vec.size() - 1) { // Don't add separator after the last element
-            oss << separator;
-        }
-    }
-    return oss.str();
-}
-
 std::string Wrap(std::string text, unsigned per_line)
 {
     unsigned line_begin = 0;

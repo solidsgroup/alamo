@@ -37,7 +37,6 @@ public:
                 field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) += mult * Util::Random();
             }
         }
-    }
 
     };
     static void Parse(Random& /*value*/, IO::ParmParse& /*pp*/)
@@ -45,16 +44,9 @@ public:
     }
 
     using IC::Add;
-
-    static void Parse(Random & value, IO::ParmParse & pp)
-    {
-        pp.query_default("mult",value.mult,1.0); // Multiplier
-    }
-    
 private:
     Set::Scalar mult;
 
 };
 }
 #endif
-

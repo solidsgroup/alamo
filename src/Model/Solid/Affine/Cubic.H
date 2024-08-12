@@ -84,8 +84,6 @@ public:
         Cubic ret;
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
-        if (order == 1)
-        {
         Set::Scalar etasum = 0.;
         for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
         for (unsigned int n = 0 ; n < models.size(); n++)
@@ -94,21 +92,6 @@ public:
             ret.F0  += models[n].F0  * (eta[n] / etasum);
         }
         return ret;
-        }
-        else if (order == 2)
-        {
-            Set::Scalar etasum = 0.;
-            for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n]*eta[n];
-            for (unsigned int n = 0 ; n < models.size(); n++)
-            {
-                ret.ddw += models[n].ddw * (eta[n]*eta[n] / etasum);
-                ret.F0  += models[n].F0  * (eta[n]*eta[n] / etasum);
-            }
-            return ret;
-        }
-
-        Util::Exception(INFO,"invalid value used for order, ",order);
-        return ret; // should never happen
     }
 
     #define OP_CLASS Cubic

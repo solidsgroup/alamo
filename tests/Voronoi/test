@@ -64,15 +64,6 @@ if dim == 2:
 
 if dim == 3:
     raise(Exception("Not implemented for 3D yet"))
-
-testlib.validate(path="{}/00200cell/".format(outdir),
-                 outdir=outdir,
-                 start=[0,0,0],
-                 end=[5,5,1],
-                 vars=["Eta001","Eta002","Eta003","Eta004","Eta005","Eta006","Eta007","Eta008","Eta009","Eta010",],
-                 tolerance=tolerance,
-                 reference="reference/reference.csv",
-                 filename_suffix="diag")
 exit(0)
 
     

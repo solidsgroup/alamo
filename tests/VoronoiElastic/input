@@ -89,4 +89,3 @@ mechanics.solver.tol_rel = 1E-8
 mechanics.solver.tol_abs = 1E-8
 mechanics.solver.average_down_coeffs = 0
 mechanics.time_evolving = 0
-mechanics.tstart = 0

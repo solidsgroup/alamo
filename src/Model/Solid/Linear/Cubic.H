@@ -102,10 +102,6 @@ public:
             return;
         }
 
-        std::string anglefmt;
-        // specify whether using radians or degrees
-        pp_query_validate("anglefmt",anglefmt,{"radians","degrees"});
-
         Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
         pp_query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
         pp_query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:`\Phi`

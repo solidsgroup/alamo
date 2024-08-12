@@ -60,8 +60,6 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("node.all", node.all, false);                // Turn on to write all output in node fabs (default: off)
         pp_query_default("node.any", node.any, true);                // Turn off to prevent any node based output (default: on)
 
-        pp_query_default("abort_on_nan",abort_on_nan, true); // Abort if a plotfile contains nan or inf.
-
         Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO, TEST(!(!node.any && node.all)));
 

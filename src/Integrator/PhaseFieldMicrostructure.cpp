@@ -115,17 +115,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     else
                         driving_force(i, j, k, m) += lagrange.lambda * (volume - lagrange.vol0);
                 }
-
-                //
-                // SYNTHETIC DRIVING FORCE
-                //
-                if (sdf.on && time > sdf.tstart)
-                {
-                    if (pf.threshold.sdf)
-                        driving_force_threshold(i, j, k, m) += sdf.val[m](time);
-                    else
-                        driving_force(i, j, k, m) += sdf.val[m](time);
-                }
             }
         });
 
