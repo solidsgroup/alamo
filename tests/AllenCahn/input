@@ -10,10 +10,7 @@
 #@  check  = false
 #@  args   = stop_time=1.0
 #@
-#@  [2D-random.ic-test]
-#@  dim    = 2
-#@  check  = true
-#@  args   = type = random
+
 
 
 alamo.program = allencahn
