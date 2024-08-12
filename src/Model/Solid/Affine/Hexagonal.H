@@ -87,7 +87,7 @@ public:
     }
 
     AMREX_FORCE_INLINE
-    static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta, int order)
+    static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta)
     {
         Hexagonal ret;
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();

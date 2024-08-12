@@ -64,7 +64,6 @@ if dim == 2:
 
 if dim == 3:
     raise(Exception("Not implemented for 3D yet"))
-=======
 
 testlib.validate(path="{}/00200cell/".format(outdir),
                  outdir=outdir,
@@ -74,7 +73,6 @@ testlib.validate(path="{}/00200cell/".format(outdir),
                  tolerance=tolerance,
                  reference="reference/reference.csv",
                  filename_suffix="diag")
->>>>>>> development
 exit(0)
 
     

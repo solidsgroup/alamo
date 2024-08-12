@@ -79,7 +79,7 @@ public:
     }
 
     AMREX_FORCE_INLINE
-    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta, int order)
+    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta)
     {
         Cubic ret;
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();

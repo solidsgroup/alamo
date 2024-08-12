@@ -31,8 +31,7 @@ def validate(path,
             generate_ref_data = False,
             reference=None,
             tolerance=1E-8,
-            coord = 'x',
-            filename_suffix=None):
+            coord = 'x'):
             
     info = readHeader(path)
             
@@ -69,9 +68,6 @@ def validate(path,
     elif len(tolerance) != len(vars):
         raise Exception("Wrong number of tolerance values")
     for var, tol in zip(vars,tolerance):
-        varname = var
-        if filename_suffix: varname = var + "_" + filename_suffix
-
         len_x = info["geom_hi"][0]-info["geom_lo"][0]
         len_y = info["geom_hi"][1]-info["geom_lo"][1]
         data2d = slice2d.to_frb(width=len_x,height=len_y,resolution=(1000,1000*len_y/len_x))[var]
@@ -80,7 +76,7 @@ def validate(path,
                     extent=[info["geom_lo"][0],info["geom_hi"][0],info["geom_lo"][1],info["geom_hi"][1]])
         pylab.plot([start[0],end[0]],[start[1],end[1]],linestyle='-',color='white')
         pylab.tight_layout()
-        pylab.savefig("{}/2d_{}.png".format(outdir,varname))
+        pylab.savefig("{}/2d_{}.png".format(outdir,var))
 
         new_x,new_y,new_var = [numpy.array(_x) for _x in zip(*sorted(zip(new_df["x"],new_df["y"],new_df[var])))]
         ref_x,ref_y,ref_var = [numpy.array(_x) for _x in zip(*sorted(zip(ref_df["x"],ref_df["y"],ref_df[var])))]
@@ -97,7 +93,7 @@ def validate(path,
         pylab.plot(ref_coord,ref_var,color='C0',label='ref')
         pylab.plot(new_coord,new_var,color='C1',label='new',linestyle='--')
         pylab.legend()
-        pylab.savefig(outdir+"/{}.png".format(varname))
+        pylab.savefig(outdir+"/{}.png".format(var))
         
         err = numpy.sqrt(integrate(ref_coord, (numpy.interp(ref_coord, new_coord, new_var) - ref_var)**2))
         mag = numpy.sqrt(integrate(ref_coord, (numpy.interp(ref_coord, new_coord, new_var) + ref_var)**2))

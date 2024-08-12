@@ -200,7 +200,7 @@ public:
 
         std::string ic_type;
         // Initial condition to use for eta
-        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse","random"});  
+        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse"});  
         // [switch ic.type] Initial conditions for Etas
         if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
         else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");
@@ -257,8 +257,8 @@ protected:
 
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-    virtual void TimeStepBegin(amrex::Real time, int iter) override;
-    virtual void TimeStepComplete(amrex::Real time, int iter) override;
+    void TimeStepBegin(amrex::Real time, int iter) override;
+    void TimeStepComplete(amrex::Real time, int iter) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
