@@ -368,8 +368,10 @@ protected:
     } explicitmesh;
 
 protected:
-    int plot_int = NAN;               ///< How frequently to dump plot file (default: never)
-    Set::Scalar plot_dt = NAN;
+    int plot_int = -1;               ///< How frequently to dump plot file (default: never)
+    Set::Scalar plot_dt = -1.0;
+
+    int abort_on_nan = true;
 };
 
 
