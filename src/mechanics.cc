@@ -14,7 +14,6 @@
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
-#include "Model/Solid/Finite/PseudoLinearCubic.H"
 #include "Model/Solid/Finite/PseudoLinearCubicPredeformed.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/J2.H"
