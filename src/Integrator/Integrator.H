@@ -178,7 +178,7 @@ protected:
     virtual void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time,
         int ngrow) = 0;
 
-    /// \fn    TimeStepComplete
+    /// \fn    TimeStepBegin
     /// \brief Run another system calculation (e.g. implicit solve) before integration step
     ///
     /// This function is called at the beginning of every timestep. This function can be used
@@ -186,7 +186,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    TimeStepComplete
     /// \brief Run another system calculation (e.g. implicit solve) after integration step
@@ -196,7 +196,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepComplete(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    Integrate
     /// \brief Perform an integration to compute integrated quantities

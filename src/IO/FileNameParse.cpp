@@ -13,6 +13,41 @@ std::time_t t = 0;
 
 void IO::FileNameParse(std::string &filename)
 {
+
+    //
+    // Variable substitution
+    //
+    
+    IO::ParmParse pp;
+    std::string input = filename;
+    // Define the regex pattern to match {name_of_variable,"formatting string"} or {name_of_variable}
+    std::regex pattern("\\{([a-zA-Z0-9_\\.]+)(\\s*,\\s*\"([^\"]*)\")?\\}");
+
+    // Iterator to find all matches
+    auto matches_begin = std::sregex_iterator(input.begin(), input.end(), pattern);
+    auto matches_end = std::sregex_iterator();
+
+    // Iterate over the matches and print them
+    for (std::sregex_iterator i = matches_begin; i != matches_end; ++i)
+    {
+        std::smatch match = *i;
+        std::string variable_name = match[1].str();
+        std::string formatting_string = match[3].str(); // match[3] captures the format string
+
+        if (!formatting_string.empty()) {
+            Util::Exception(INFO,"Formatting strings are not supported yet");
+        } else {
+            std::vector<std::string> variable_value;
+            pp.queryarr(variable_name.c_str(),variable_value);
+            Util::String::ReplaceAll(filename,"{"+variable_name+"}",Util::String::Join(variable_value,'_'));
+        }
+    }
+
+
+    //
+    // Time wildcards
+    //
+
     if (!t) t = std::time(0);
     std::tm * now = std::localtime(&t);
     int year = now->tm_year+1900;
@@ -73,6 +108,14 @@ void IO::FileNameParse(std::string &filename)
     ss << AMREX_SPACEDIM;
     std::string _D = ss.str();
     Util::String::ReplaceAll(filename,"%D",_D);
+
+
+    
+
+
+
+
+    
 
     // Ensure consistency in filename across processor name.
     // (if %f - microseconds is used, then processors will typically have different filenames.)
