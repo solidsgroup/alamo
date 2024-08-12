@@ -11,7 +11,7 @@ testlib.validate(path="{}/01000cell/".format(outdir),
                  end=[0.5,0,1],
                  vars=["alpha"],
                  tolerance=1E-6,
-                 generate_ref_data = False)
+                 generate_ref_data = True)
 
 exit(0)
 
