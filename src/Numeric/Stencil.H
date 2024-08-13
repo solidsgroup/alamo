@@ -830,6 +830,26 @@ Gradient(const amrex::Array4<const Set::Matrix>& f,
 
     return ret;
 }
+[[nodiscard]] AMREX_FORCE_INLINE
+Set::Matrix3
+NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,
+    const int& i, const int& j, const int& k,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix3 ret;
+
+#if AMREX_SPACEDIM > 0
+    ret[0] = (f(i+1,j,k) - f(i,j,k)) / dx[0];
+#endif
+#if AMREX_SPACEDIM > 1
+    ret[1] = (f(i,j+1,k) - f(i,j,k)) / dx[1];
+#endif
+#if AMREX_SPACEDIM > 2
+    ret[2] = (f(i,j,k+1) - f(i,j,k)) / dx[2];
+#endif
+
+    return ret;
+}
 
 
 [[nodiscard]] AMREX_FORCE_INLINE
