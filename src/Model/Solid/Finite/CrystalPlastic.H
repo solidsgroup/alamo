@@ -1,3 +1,27 @@
+//
+// A basic and relatively untested implementation of finite-deformation FCC crystal plasticity.
+// Use with caution.
+//
+// Inherits from :ref:`PseudoLinear::Cubic` to provide elastic response.
+//
+// Plastic flow modeled as:
+//
+// .. math::
+//
+//    \mathbf{F}^p\mathbf{F}^{p-1} =
+//    \sum \dot{\gamma}_n \mathbf{a}_n\otimes\mathbf{N}_n
+//
+// where :math:`\mathbf{F}=\mathbf{F}^e\mathbf{F}^p` and :math:`\gamma_n` are
+// slips on system :math:`n`.
+// 
+// Power law rate hardening is used in the integration of slips:
+//
+// .. math::
+//
+//    \dot{\gamma}_n = \dot{\gamma}_0 \Big(\frac{\tau}{\tau_{crss}}\Big)^m \operatorname{sign}(\tau)
+//
+//
+
 #ifndef MODEL_SOLID_FINITE_CRYSTALPLASTIC_H_
 #define MODEL_SOLID_FINITE_CRYSTALPLASTIC_H_
 
@@ -64,7 +88,7 @@ public:
             Set::Scalar sign = tau>0 ? 1.0 : -1.0;
 
             Set::Scalar gammadot
-                = gammadot0 * std::pow(fabs(tau/tau_crss),m_rate_inv) * sign;
+                = gammadot0 * std::pow(fabs(tau/tau_crss[n]),m_rate_inv) * sign;
             
             L += gammadot * A * N.transpose();
 
@@ -86,45 +110,46 @@ public:
     Eigen::Matrix<Set::Scalar,12,1> gamma = Eigen::Matrix<Set::Scalar,12,1>::Zero();
 
     // Parameters
-    Set::Scalar m_rate_inv = 0.5;
-    Set::Scalar tau_crss = 1.0;
-    Set::Scalar gammadot0 = 1.0;
+    Set::Scalar m_rate_inv = NAN;
+    //Set::Scalar tau_crss = NAN;
+    Eigen::Matrix<Set::Scalar,12,1> tau_crss = Eigen::Matrix<Set::Scalar,12,1>::Zero();
+    Set::Scalar gammadot0 = NAN;
 
     // Control variables
-    Set::Scalar tstart = 0.0;
+    Set::Scalar tstart = NAN;
 
 private:
     static std::array<std::pair<Set::Vector3d,Set::Vector3d>,12> slipSystems(Set::Matrix3d R)
     {
         const std::array<Set::Vector3d,12> n0 =
             {
-             Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
-             Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
-             Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
-             Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
-             Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
-             Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
-             Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
-             Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
-             Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
-             Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0),
-             Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0),
-             Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0)
+                Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
+                Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
+                Set::Vector3d::Constant( 1, 1, 1) / sqrt(3.0),
+                Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
+                Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
+                Set::Vector3d::Constant(-1, 1,-1) / sqrt(3.0),
+                Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
+                Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
+                Set::Vector3d::Constant( 1,-1,-1) / sqrt(3.0),
+                Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0),
+                Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0),
+                Set::Vector3d::Constant(-1,-1, 1) / sqrt(3.0)
             };
         const std::array<Set::Vector3d,12> a0 =
             {
-             Set::Vector3d::Constant( 1, 0,-1) / sqrt(2.0),
-             Set::Vector3d::Constant( 0,-1, 1) / sqrt(2.0),
-             Set::Vector3d::Constant( 1,-1, 0) / sqrt(2.0),
-             Set::Vector3d::Constant( 1, 0,-1) / sqrt(2.0),
-             Set::Vector3d::Constant( 1, 1, 0) / sqrt(2.0),
-             Set::Vector3d::Constant( 0, 1, 1) / sqrt(2.0),
-             Set::Vector3d::Constant( 1, 1, 0) / sqrt(2.0),
-             Set::Vector3d::Constant( 0,-1, 1) / sqrt(2.0),
-             Set::Vector3d::Constant( 1, 0, 1) / sqrt(2.0),
-             Set::Vector3d::Constant( 0, 1, 1) / sqrt(2.0),
-             Set::Vector3d::Constant( 1, 0, 1) / sqrt(2.0),
-             Set::Vector3d::Constant( 1,-1, 0) / sqrt(2.0)
+                Set::Vector3d::Constant( 1, 0,-1) / sqrt(2.0), //  1  1  1
+                Set::Vector3d::Constant( 0,-1, 1) / sqrt(2.0), //  1  1  1
+                Set::Vector3d::Constant( 1,-1, 0) / sqrt(2.0), //  1  1  1
+                Set::Vector3d::Constant( 1, 0,-1) / sqrt(2.0), // -1  1 -1
+                Set::Vector3d::Constant( 1, 1, 0) / sqrt(2.0), // -1  1 -1
+                Set::Vector3d::Constant( 0, 1, 1) / sqrt(2.0), // -1  1 -1
+                Set::Vector3d::Constant( 1, 1, 0) / sqrt(2.0), // 1  -1 -1
+                Set::Vector3d::Constant( 0,-1, 1) / sqrt(2.0), // 1  -1 -1
+                Set::Vector3d::Constant( 1, 0, 1) / sqrt(2.0), // 1  -1 -1
+                Set::Vector3d::Constant( 0, 1, 1) / sqrt(2.0), // -1  -1 1
+                Set::Vector3d::Constant( 1, 0, 1) / sqrt(2.0), // -1  -1 1
+                Set::Vector3d::Constant( 1,-1, 0) / sqrt(2.0)  // -1  -1 1
             };
 
 
@@ -148,7 +173,7 @@ public:
         ret.Fp = Set::Matrix3d::Zero();
         ret.gamma = Eigen::Matrix<Set::Scalar,12,1>::Zero();
         ret.m_rate_inv = 0.0;
-        ret.tau_crss = 0.0;
+        ret.tau_crss = Eigen::Matrix<Set::Scalar,12,1>::Zero();
         ret.gammadot0 = 0.0;
         return ret;
     }
@@ -170,8 +195,24 @@ public:
         PseudoLinear::Cubic::Parse(value,pp);
         // TODO Add inputs for the CP values
 
-        pp.query("tstart",value.tstart);    // Time to activate plastic slip
+        std::vector<Set::Scalar> tau_crss;
+        // Critical resolved shear stress :math:`\tau_{crss}`
+        pp_queryarr("tau_crss",tau_crss);
+        if (tau_crss.size() == 1)
+            for (int n = 0; n < 12; n++) value.tau_crss[n] = tau_crss[0];
+        else if (tau_crss.size() == 12)
+            for (int n = 0; n < 12; n++) value.tau_crss[n] = tau_crss[n];
+        else
+            Util::Exception(INFO,"Expected either 1 or 12 values for tau_crss but got ",tau_crss.size());
 
+        // Rate hardening coefficient :math:`\dot{\gamma}_0`
+        pp_query_default("gammadot0",value.gammadot0,1.0);
+
+        // Inverse of the hardening exponent :math:`\frac{1}{m}`
+        pp_query_default("m_rate_inv",value.m_rate_inv,0.5);
+        
+        // Time to activate plastic slip
+        pp_query_default("tstart",value.tstart,0.0);    
     }
 
 #define OP_CLASS CrystalPlastic

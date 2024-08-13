@@ -60,7 +60,7 @@ public:
             Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
             if (J2 < sigma0) return; // No plasticity happens.
             Set::Matrix dsigp = (1. - sigma0/J2) * sig_dev;
-            F0 += ddw.Inverse() * dsigp;
+            F0 += ddw.Inverse() * dsigp; 
         }
         else // rate-dependent
         {
