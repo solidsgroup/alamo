@@ -32,6 +32,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/Random.H"
 #include "Numeric/Stencil.H"
 
 namespace Integrator
@@ -76,6 +77,7 @@ public:
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
         else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
+        else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
         // Use a constant BC object for temperature

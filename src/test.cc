@@ -17,8 +17,8 @@
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
-#include "Model/Solid/Finite/PseudoLinearCubic.H"
-#include "Model/Solid/Finite/PseudoLinearCubicPredeformed.H"
+#include "Model/Solid/Finite/PseudoLinear/Cubic.H"
+#include "Model/Solid/Finite/PseudoAffine/Cubic.H"
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
@@ -49,9 +49,9 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Linear::Hexagonal);
     MODELTEST(Model::Solid::Affine::Hexagonal);
     MODELTEST(Model::Solid::Finite::NeoHookean);
-    MODELTEST(Model::Solid::Finite::PseudoLinearCubic);
+    MODELTEST(Model::Solid::Finite::PseudoLinear::Cubic);
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
-    MODELTEST(Model::Solid::Finite::PseudoLinearCubicPredeformed);
+    MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
     
 
     Util::Test::Message("Set::Matrix4");
@@ -63,6 +63,7 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("3D - Full", test_3d_full.SymmetryTest(0));
         Test::Set::Matrix4<3,Set::Sym::MajorMinor> test_3d_majorminor;
         subfailed += Util::Test::SubMessage("3D - MajorMinor", test_3d_majorminor.SymmetryTest(0));
+        failed += Util::Test::SubFinalMessage(subfailed);
     }
 
     Util::Test::Message("Numeric::Interpolator<Linear>");

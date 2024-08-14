@@ -18,9 +18,25 @@ namespace Set
 {
 using Scalar   = amrex::Real;
 using Vector   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,1>;
+using Vector3d = Eigen::Vector3d;
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
+using Matrix3d = Eigen::Matrix3d;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
+
+AMREX_FORCE_INLINE
+Set::Matrix reduce(const Set::Matrix3d &in)
+{
+    return in.block<AMREX_SPACEDIM,AMREX_SPACEDIM>(0,0);
+}
+
+AMREX_FORCE_INLINE
+Set::Matrix3d expand(const Set::Matrix &in)
+{
+    Set::Matrix3d ret = Set::Matrix3d::Zero();
+    ret.block<AMREX_SPACEDIM,AMREX_SPACEDIM>(0,0) = in;
+    return ret;
+}
 
 //using Quaternion = Eigen::Quaterniond;
 
