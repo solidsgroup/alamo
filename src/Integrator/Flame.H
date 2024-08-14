@@ -159,6 +159,25 @@ private:
     Set::Scalar chamber_area = 0.0;
     Set::Scalar chamber_pressure = 1.0;
     Set::Scalar massflux = 0.00000001;
+    struct {
+        bool on = 0;
+        // integrated **spatially**
+        Set::Scalar mdot = 0.0; // total mass inside chamber
+        Set::Scalar area = 0.0; // area of burn surface
+        Set::Scalar volume = 0.0; // chamber volume
+        // integrated **temporally**
+        Set::Scalar mass = NAN; // chamber mass - must be initialized with parmparse
+        // determined as a function of time
+        Set::Scalar pressure = NAN; // chamber pressure - must be ininitialized with parmparse
+        // parameters
+        Set::Scalar rho0 = NAN; // initial chamber density
+        Set::Scalar c_star = NAN;
+        Set::Scalar At = NAN;
+        Set::Scalar p0 = NAN;
+        Set::Scalar gamma = NAN;
+        Set::Scalar T0 = NAN;
+        Set::Scalar R = NAN;
+    } chamber;
 
     Set::Scalar x_len = 0.001;
     Set::Scalar y_len = 0.001;

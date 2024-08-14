@@ -122,6 +122,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
+            value.RegisterIntegratedVariable(&value.chamber.area, "chamber.area");
+            value.RegisterIntegratedVariable(&value.chamber.mdot, "chamber.mdot");
+            value.RegisterIntegratedVariable(&value.chamber.volume, "chamber.volume");
+
+
             std::string laser_ic_type = "constant";
             pp_query("laser.ic.type", laser_ic_type); // heat laser initial condition type [constant, expression]
             if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
@@ -166,6 +171,29 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         }
         pp_query("variable_pressure", value.variable_pressure); // Whether to compute the pressure evolution
         pp_query("homogeneousSystem", value.homogeneousSystem); // Whether to initialize Phi with homogenized properties
+    }
+
+    // do time integration of chamber state
+    pp_query_default("chamber.on",value.chamber.on,false);
+    if (value.chamber.on)
+    {
+        // initial chamber density
+        pp_query_required("chamber.rho0",value.chamber.rho0);
+        // initial chamber pressure
+        pp_query_required("chamber.pressure0",value.chamber.pressure);
+
+        // characteristic flow velocity
+        pp_query_required("chamber.c_star",value.chamber.c_star);
+        // nozzle throat area
+        pp_query_required("chamber.At",value.chamber.At);
+        // chamber stagnation pressure
+        pp_query_required("chamber.p0",value.chamber.p0);
+        // ratio of specific heats
+        pp_query_required("chamber.gamma",value.chamber.gamma);
+        // reference temperature
+        pp_query_required("chamber.T0",value.chamber.T0);
+        // specific gas constant
+        pp_query_required("chamber.R",value.chamber.R);
     }
 
     pp_query("amr.refinement_criterion", value.m_refinement_criterion);// Refinement criterion for eta field   
@@ -360,7 +388,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
+void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure) {
@@ -369,6 +397,25 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
         chamber_area = domain_area - volume;
         Util::Message(INFO, "Mass = ", massflux);
         Util::Message(INFO, "Pressure = ", pressure.P);
+    }
+    if (chamber.on)
+    {
+        if (a_iter)
+        {
+            chamber.mass = chamber.rho0 * chamber.volume;
+        }
+        //
+        // new bit
+        // 
+
+        // calculate mass flux out of nozzle
+        Set::Scalar mdot_out = chamber.p0 * chamber.At / chamber.c_star;
+        // integrate mass conservation equation to get current chamber mass
+        chamber.mass += (chamber.mdot - mdot_out) *  timestep;
+        // use ideal gas EOS to calculate current chamber pressure
+        chamber.pressure = chamber.mass * chamber.R * chamber.T0 / chamber.volume;
+
+        // todo: set the actual pressure equal to chamber.pressure if needed.
     }
 }
 
@@ -700,6 +747,9 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             Set::Scalar dm = mnormgrad * dv;
             massflux += dm;
 
+            // new - chamber model
+            chamber.mdot += mdot(i,j,k,0) * dv; 
+            chamber.area += da;
         });
     }
     else {
