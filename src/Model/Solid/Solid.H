@@ -42,7 +42,7 @@ public:
     virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
     {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
     
-    virtual void Advance(Set::Scalar, Set::Matrix, Set::Matrix) {}
+    virtual void Advance(Set::Scalar /*dt*/, Set::Matrix /*strain*/, Set::Matrix /*stress*/, Set::Scalar /*time*/) {}
 
     // Todo: implement for all models and make this pure virtual
     virtual bool ContainsNan() {return true;};

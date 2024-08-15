@@ -170,7 +170,6 @@ void Integrator::SetPlotInt(int a_plot_int)
 void
 Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxArray& cgrids, const amrex::DistributionMapping& dm)
 {
-    Util::Message(INFO);
     BL_PROFILE("Integrator::MakeNewLevelFromCoarse");
 
     for (int n = 0; n < cell.number_of_fabs; n++)
