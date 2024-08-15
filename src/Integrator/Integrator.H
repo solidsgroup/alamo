@@ -302,7 +302,7 @@ protected:
 private:
     amrex::Vector<amrex::Real> dt;  ///< Timesteps for each level of refinement
     amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
-    int max_plot_level = NAN;
+    int max_plot_level = -1;
 
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
     int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
@@ -345,9 +345,9 @@ protected:
 
     // KEEP TRACK OF ALL INTEGRATED VARIABLES
     struct {
-        int interval = NAN;
+        int interval = -1;
         Set::Scalar dt = NAN;
-        int plot_int = NAN;
+        int plot_int = -1;
         Set::Scalar plot_dt = NAN;
         int number = 0;
         std::vector<Set::Scalar*> vars;
@@ -356,8 +356,8 @@ protected:
     } thermo;
 
     // REGRIDDING
-    int regrid_int = NAN;       ///< Determine how often to regrid (default: 2)
-    int base_regrid_int = NAN; ///< Determine how often to regrid based on coarse level only (default: 0)
+    int regrid_int = -1;       ///< Determine how often to regrid (default: 2)
+    int base_regrid_int = -1; ///< Determine how often to regrid based on coarse level only (default: 0)
 
     std::string restart_file_cell = "";
     std::string restart_file_node = "";
