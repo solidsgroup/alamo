@@ -2,6 +2,7 @@
 #@  dim    = 2
 #@  nprocs = 1
 #@  check  = true
+#@  check-file = reference/reference-2d.csv
 #@  args   = stop_time=10.0
 #@
 #@  [2D-serial-level-coverage]
