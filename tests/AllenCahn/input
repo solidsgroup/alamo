@@ -16,6 +16,7 @@
 #@  check  = true
 #@  check-file = reference/random.ic-test-2d.dat
 #@  args   = alpha.ic.type = random
+#@  args   = stop_time=30.0
 
 
 alamo.program = allencahn
