@@ -4,7 +4,6 @@ sys.path.insert(0,"../../scripts")
 import testlib
 
 outdir = sys.argv[1]
-outdir = sys.argv[2]
 
 testlib.validate(path="{}/01000cell/".format(outdir),
                  outdir=outdir,
