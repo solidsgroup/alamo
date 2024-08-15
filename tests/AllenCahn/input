@@ -13,7 +13,7 @@
 #@  [2D-random.ic-test]
 #@  dim    = 2
 #@  check  = true
-#@  args   = alpha.ic.type = "random"
+#@  args   = alpha.ic.type = random
 
 
 alamo.program = allencahn
