@@ -13,6 +13,6 @@ testlib.validate(path="{}/01000cell/".format(outdir),
                  vars=["alpha"],
                  tolerance=1E-6,
                  reference=reference,
-                 generate_ref_data = True)
+                 generate_ref_data = False)
 
 exit(0)
