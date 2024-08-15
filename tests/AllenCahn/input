@@ -13,6 +13,7 @@
 #@  [2D-random.ic-test]
 #@  dim    = 2
 #@  check  = true
+#@  check-file = reference/random.ic-test-2d.dat
 #@  args   = alpha.ic.type = random
 
 
