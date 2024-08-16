@@ -3,6 +3,7 @@
 
 #include "AMReX_Vector.H"
 
+#include "IO/ParmParse.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
