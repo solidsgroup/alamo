@@ -359,7 +359,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Matrix T     = 0.5 * mu * (gradu + gradu.transpose());
 
             Set::Scalar mdot0 = (rho0 * u0).dot(grad_eta);
-            Set::Vector Pdot0 = (rho0 * (u0*u0.transpose())  + p * I /*- T + 0.5 * (gradu.transpose() + divu * I)*/)*grad_eta;
+            Set::Vector Pdot0 = (rho0 * (u0*u0.transpose()) + p * I /*- T + 0.5 * (gradu.transpose() + divu * I)*/)*grad_eta;
             Set::Scalar qdot0 = (0.5*rho0*(u0.dot(u0))*u0 + p*u0/(gamma - 1.0)/*- T*u0 + q0*/).dot(grad_eta); 
             Set::Vector Ldot0 = Set::Vector::Zero();
 
@@ -436,6 +436,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Solver::Local::Riemann::Roe::State hi_statey_solid(rho_solid(i, j + 1, k), M_solid(i, j + 1, k, 1), M_solid(i, j + 1, k, 0), E_solid(i, j + 1, k), eta(i, j + 1, k));
 
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
+
+            //Set::Scalar xlo_edge_eta = 0.5 * (eta(i-1, j, k) + eta(i, j, k));
+            //Set::Scalar xhi_edge_eta = 0.5 * (eta(i, j, k) + eta(i+1, j, k));
+            //Set::Scalar ylo_edge_eta = 0.5 * (eta(i, j-1, k) + eta(i, j, k));
+            //Set::Scalar yhi_edge_eta = 0.5 * (eta(i, j, k) + eta(i, j+1, k));
 
             //lo interface fluxes
             flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), small);

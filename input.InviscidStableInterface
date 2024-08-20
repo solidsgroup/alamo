@@ -51,7 +51,7 @@ plot_file = ./output
 ### MESHING ###
 
 #amr.plot_dt = 0.1
-amr.plot_int = 1
+amr.plot_int = 10
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
@@ -71,7 +71,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-4
 stop_time = 10000.0
 
 ### ETA IC ###
@@ -107,12 +107,12 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "1.0" 
+pressure.ic.expression.region0 = "0.0" 
 
 ### SOLID ###
 
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "1.0"
+solid.density.ic.expression.region0 = "2.0"
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.0"

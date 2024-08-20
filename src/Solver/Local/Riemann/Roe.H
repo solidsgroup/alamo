@@ -49,15 +49,18 @@ public:
         Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
         Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
 
+
+        Set::Scalar p_ref = 101325.0;
+
         // STEP 1: Compute fluid primitives 
         Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L + Mt_L * Mt_L) / rho_L;
         Set::Scalar ue_L = E_L - ke_L;
-        Set::Scalar p_L  = (gamma - 1.0) * ue_L;
+        Set::Scalar p_L  = (gamma - 1.0) * ue_L + p_ref;
         Set::Scalar h_TL = (ke_L + ue_L + p_L) / rho_L;
 
         Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R + Mt_R * Mt_R) / rho_R;
         Set::Scalar ue_R = E_R - ke_R;
-        Set::Scalar p_R  = (gamma - 1.0) * ue_R;
+        Set::Scalar p_R  = (gamma - 1.0) * ue_R + p_ref;
         Set::Scalar h_TR = (ke_R + ue_R + p_R) / rho_R;
 
         Set::Scalar u_L   = Mn_L/rho_L,  u_R   = Mn_R/rho_R;
@@ -154,7 +157,7 @@ public:
         //
         // (Update the tangential momentum flux)
         //
-        fl.momentum_tangent = 0.5 * (rho_L*u_L*v_L + rho_R*u_R*v_R) * eta_cell;
+        fl.momentum_tangent = 0.5 * (rho_L*u_L*v_L + rho_R*u_R*v_R);
 
         return fl;
     }
