@@ -44,7 +44,7 @@ public:
     static Flux Solve(State lo, State hi, State solid_lo, State solid_hi, Set::Scalar gamma, Set::Scalar eta_cell, Set::Scalar small)
     {
         // STEP 0: Compute fluid fields 
-        Set::Scalar rho_L = (lo.rho       - (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small) + small,  rho_R = (hi.rho       - (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small) + small;
+        Set::Scalar rho_L = lo.rho     /*- (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small)*/, rho_R = hi.rho       /*- (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small) + small*/;
         Set::Scalar Mn_L  = (lo.M_normal  - (1.0 - lo.eta) * solid_lo.M_normal) /(lo.eta + small),  Mn_R  = (hi.M_normal  - (1.0 - hi.eta) * solid_hi.M_normal) /(hi.eta + small);
         Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
         Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
@@ -69,7 +69,7 @@ public:
         Set::Scalar rho_RL  = std::sqrt(rho_L * rho_R);
         Set::Scalar u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R));
         Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R));
-        Set::Scalar a_RL_sq = (gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL);
+        Set::Scalar a_RL_sq = (gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL) + small;
 
         if ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq))
         {   
@@ -99,7 +99,7 @@ public:
         Util::AssertException(INFO,TEST(a_RL_sq==a_RL_sq)," a_RL_sq is nan/inf; (a_RL_sq=", a_RL_sq,")");
         Util::AssertException(INFO,TEST(a_RL_sq>=0),      " a_RL_sq is negative; (a_RL_sq=(",a_RL_sq,")");
 
-        Set::Scalar a_RL = std::sqrt(a_RL_sq);
+        Set::Scalar a_RL = std::sqrt(a_RL_sq) + small;
 
         //
         // STEP 3: Compute Roe-averaged wave speeds
@@ -115,9 +115,9 @@ public:
         Set::Scalar deltap  = p_R - p_L;
         Set::Scalar deltau  = u_R - u_L;
 
-        Set::Scalar deltav1 = deltarho - deltap / (a_RL_sq + small);       // 5.54a
-        Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL + small); // 5.54b
-        Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL + small); // 5.54c
+        Set::Scalar deltav1 = deltarho - deltap / (a_RL_sq);       // 5.54a
+        Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL); // 5.54b
+        Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL); // 5.54c
 
         //
         // STEP 7: Compute fluxes
@@ -128,7 +128,7 @@ public:
             (
             rho_L*u_L
             + std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/(a_RL + small))*(   std::min(0.0,lambda2)*deltav2 -
+            + (0.5*rho_RL/(a_RL))*(   std::min(0.0,lambda2)*deltav2 -
                                     std::min(0.0,lambda3)*deltav3)
             ) * eta_cell
             ;
@@ -137,7 +137,7 @@ public:
             (
             rho_L*u_L*u_L + p_L
             + u_RL*std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/(a_RL + small))*(   lambda2*std::min(0.0,lambda2)*deltav2 -
+            + (0.5*rho_RL/(a_RL))*(   lambda2*std::min(0.0,lambda2)*deltav2 -
                                     lambda3*std::min(0.0,lambda3)*deltav3)
             ) * eta_cell
             ;
@@ -146,9 +146,8 @@ public:
             (
             rho_L*h_TL*u_L
             + 0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/(a_RL + small))*(   (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
-                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3)
-                                    
+            + (0.5*rho_RL/(a_RL))*(   (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
+                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3)                       
             ) * eta_cell
             ;
 
