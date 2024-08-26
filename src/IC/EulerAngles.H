@@ -259,7 +259,7 @@ public:
                 else
                 {
                     // Default value for out-of-bounds
-                    field(i,j,k,0) = 1.0;  // Identity quaternion w
+                    field(i,j,k,0) = 0.0;  // Identity quaternion w
                     field(i,j,k,1) = 0.0;  // Identity quaternion x
                     field(i,j,k,2) = 0.0;  // Identity quaternion y
                     field(i,j,k,3) = 0.0;  // Identity quaternion z

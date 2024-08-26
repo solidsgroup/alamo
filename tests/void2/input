@@ -1,39 +1,51 @@
 alamo.program               = voidpf2
-#alamo.program.mechanics.model = linear.cubic
+alamo.program.mechanics.model = linear.cubic
 plot_file		    = tests/void2/output
 
 
-timestep		    = 0.01
-stop_time		    = 1.0
+timestep		    = 0.00001
+stop_time		    = 0.05
 
 # amr parameters
 amr.plot_int		    = 1
 amr.max_level		    = 1
-amr.n_cell		    = 64 64 64
+amr.n_cell		    = 128 128 128
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0
 amr.node.all = 1
 
 # geometry
-geometry.prob_lo	    = -0.000100 -0.000100 0.0  
-geometry.prob_hi	    = 0.000100 0.000100 0.0
+#geometry.prob_lo	    = -0.0001500 -0.0001500 0.0  
+#geometry.prob_hi	    = 0.0001500 0.0001500 0.0
+#geometry.is_periodic	    = 0 0 0
+
+# geometry
+geometry.prob_lo	    = -1.5 -1.5 0.0  
+geometry.prob_hi	    = 1.5 1.5 0.0
 geometry.is_periodic	    = 0 0 0
 
-model.E = 3.70 
-model.nu = 0.22
-
 #ic.type         = bmp
-#ic.bmp.filename = tests/VoidNucleation/ebsd_blur.bmp
+#ic.bmp.filename = tests/void2/ebsd_blur.bmp
 #ic.bmp.fit      = fitwidth
 #ic.bmp.channel  = g
 
-#euler.ic.type         = eulerangles
-#euler.ic.eulerangles.filename = tests/VoidNucleation/1_001_00004_angle.bmp
-#euler.ic.eulerangles.fit      = fitwidth
+euler.ic.type         = eulerangles
+euler.ic.eulerangles.filename = tests/void2/output.png
+euler.ic.eulerangles.fit      = fitwidth
 
 
+#quat.ic.type         = quaternions
+#quat.ic.quaternions.filename = tests/void2/output_image.bmp
+#quat.ic.quaternions.fit      = fitwidth
 
+#spall.ic.type = psread
+spall.ic.type = psread
+spall.ic.psread.filename = tests/void2/nucleation_sites.xyzr
+
+C11             = 260.2
+C12             = 154.5
+C44             = 82.6
 
 mechanics.interval = 1
 mechanics.tstart = 0.0
@@ -45,18 +57,17 @@ mechanics.solver.tol_abs = 1E-16
 mechanics.solver.bottom_solver =  smoother
 
 
+d.bc.constant.type.xlo = neumann
+d.bc.constant.type.xhi = neumann
+d.bc.constant.type.ylo = neumann
+d.bc.constant.type.yhi = neumann
 
-psi.ic.type = psread
-psi.ic.psread.filename = tests/void2/nucleation_sites.txt
-psi.bc.constant.type.xhi = NEUMANN
-psi.bc.constant.type.xlo = NEUMANN
-psi.bc.constant.type.yhi = NEUMANN
-psi.bc.constant.type.ylo = NEUMANN
+d.bc.constant.val.xlo = 0.0
+d.bc.constant.val.xhi = 0.0
+d.bc.constant.val.ylo = 0.0
+d.bc.constant.val.yhi = 0.0
 
-#psi.bc.constant.val.xlo = 0.0
-#psi.bc.constant.val.xhi = 0.0
-#psi.bc.constant.val.ylo = 0.0
-#psi.bc.constant.val.yhi = 0.0
+
 
 
 #bc
@@ -69,18 +80,17 @@ mechanics.bc.constant.type.xhi    = disp trac
 mechanics.bc.constant.type.xloyhi = disp disp
 mechanics.bc.constant.type.xhiyhi = disp disp
 mechanics.bc.constant.type.yhi    = disp disp
-mechanics.bc.constant.val.yhi    = 0.0 0.00001
-mechanics.bc.constant.val.xloyhi = 0.0 0.00001
-mechanics.bc.constant.val.xhiyhi = 0.0 0.00001
+mechanics.bc.constant.val.yhi    = 0.0 0.1
+mechanics.bc.constant.val.xloyhi = 0.0 0.1
+mechanics.bc.constant.val.xhiyhi = 0.0 0.1
 mechanics.print_model = 1
 elastic.interval = 10
 
 eta_ref_threshold = 0.005
 spall.M = 1.0
 #spall.M = 0.005
-spall.kappa =  -0.0005
+spall.kappa = -0.0005 # -0.0005
 spall.po = 1.0
 spall.cp = 1.0
 spall.elastic_mult = -2.0
 spall.small = 0.1
-elasticop.small=0.01

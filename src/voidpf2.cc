@@ -9,6 +9,7 @@
 #include "AMReX_ParmParse.H"
 
 #include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Linear/Cubic.H"
 #include "Integrator/VoidPF2.H"
 
 int main (int argc, char* argv[])
@@ -21,7 +22,7 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
-    if (program == "voidpf2")                integrator = new Integrator::VoidPF2<Model::Solid::Linear::Isotropic>(pp);
+    if (program == "voidpf2")                integrator = new Integrator::VoidPF2<Model::Solid::Linear::Cubic>(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();

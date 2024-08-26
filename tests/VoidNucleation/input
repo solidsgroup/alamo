@@ -16,13 +16,13 @@ amr.grid_eff		    = 1.0
 amr.node.all = 1
 
 # geometry
-#geometry.prob_lo	    = -0.000100 -0.000100 0.0  
-#geometry.prob_hi	    = 0.000100 0.000100 0.0
+#geometry.prob_lo	    = -0.0001500 -0.0001500 0.0  
+#geometry.prob_hi	    = 0.0001500 0.0001500 0.0
 #geometry.is_periodic	    = 0 0 0
 
 # geometry
-geometry.prob_lo	    = -1.0 -1.0 0.0  
-geometry.prob_hi	    = 1.0 1.0 0.0
+geometry.prob_lo	    = -1.5 -1.5 0.0  
+geometry.prob_hi	    = 1.5 1.5 0.0
 geometry.is_periodic	    = 0 0 0
 
 #ic.type         = bmp
@@ -34,8 +34,13 @@ euler.ic.type         = eulerangles
 euler.ic.eulerangles.filename = tests/VoidNucleation/1_001_00004_angle.bmp
 euler.ic.eulerangles.fit      = fitwidth
 
+
+#quat.ic.type         = quaternions
+#quat.ic.quaternions.filename = tests/VoidNucleation/output_image.bmp
+#quat.ic.quaternions.fit      = fitwidth
+
 #spall.ic.type = psread
-#spall.ic.type = psread
+spall.ic.type = psread
 
 spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.txt
 

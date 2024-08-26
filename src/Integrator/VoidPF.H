@@ -26,6 +26,7 @@
 #include "IC/Constant.H"
 #include "IC/BMP.H"
 #include "IC/EulerAngles.H"
+#include "IC/Quaternions.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 #include "Model/Solid/Solid.H"
@@ -96,6 +97,27 @@ public:
             pp_query("euler.reset_on_regrid",value.euler_reset_on_regrid);
         }
         
+         //if (pp.contains("quat.ic.type"))
+        //{
+        
+            //value.RegisterNodalFab(value.quat_mf, 4, 3, "quat", true);   //newline for quaernions
+            //std::string type;
+            //pp_query("quat.ic.type", type); // Read IC type for the quaternions angles field
+            //if (type == "quaternions")  
+            //{
+                 //value.ic_quat = new IC::Quaternions(value.geom, pp, "quat.ic.quaternions");   
+                 //value.quat_ic_type_flag = 1;
+            //}                               //newly added line
+            //else Util::Abort(INFO,"Invalid value for ic.type: ",type);
+            
+            //value.quat_reset_on_regrid = true;
+            // Whether to re-initialize eta when re-gridding occurs.
+            // Default is false unless eta ic is set, then default is.
+            // true.
+            //pp_query("quat.reset_on_regrid",value.quat_reset_on_regrid);
+        //}
+        
+        
         // Initialize PSRead with parameters from the input file
         //std::string filename;
         std::string ictype;
@@ -128,6 +150,9 @@ public:
         
         euler_mf[lev]->setVal(0.0); 
         ic_euler->Initialize(lev, euler_mf);        //newline for euler angles
+        
+        //quat_mf[lev]->setVal(0.0); 
+        //ic_quat->Initialize(lev, quat_mf);        //newline for quaternions
     }
 
 
@@ -150,6 +175,9 @@ public:
         for (int lev = 0; lev <= finest_level; ++lev)
             {
                 euler_mf[lev]->FillBoundary();    //euler angles
+                
+                //quat_mf[lev]->FillBoundary();    //quaternions
+                
                 amrex::Box domain = this->geom[lev].Domain();
                 domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -168,6 +196,8 @@ public:
                         //Set::Patch<MODEL> model_sum = model_mf.Patch(lev,mfi);
                         Set::Patch<const Set::Scalar> d = d_mf.Patch(lev,mfi);
                         amrex::Array4<const Set::Scalar> const& euler = euler_mf[lev]->array(mfi);
+                        
+                        //amrex::Array4<const Set::Scalar> const& quat = quat_mf[lev]->array(mfi);
                 
                         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                         {
@@ -185,18 +215,34 @@ public:
                             Set::Scalar x = euler(i, j, k, 1);
                             Set::Scalar y = euler(i, j, k, 2);
                             Set::Scalar z = euler(i, j, k, 3);
+                            
+                              // Extract quaternion components
+                            //Set::Scalar w = quat(i, j, k, 0);
+                            //Set::Scalar x = quat(i, j, k, 1);
+                            //Set::Scalar y = quat(i, j, k, 2);
+                            //Set::Scalar z = quat(i, j, k, 3);
+                            
+                            
+                            
 
-                            // Convert quaternion to Euler angles (yaw-pitch-roll)
-                            Set::Scalar roll = atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y));
-                            Set::Scalar pitch = asin(2.0 * (w * y - z * x));
-                            Set::Scalar yaw = atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z));
+                            // Calculate Phi
+                            double Phi = acos(2.0 * (w * w + x * x) - 1.0);
+
+                            // Calculate phi1
+                            double phi1 = atan2(z * x - w * y, w * x + y * z);
+
+                            // Calculate phi2
+                            double phi2 = atan2(w * z + x * y, w * y - x * z);
 
                             // Define model with converted Euler angles
-                            model(i, j, k).Define(C11, C12, C44, roll, pitch, yaw);
+                            model(i, j, k).Define(C11, C12, C44, phi1, Phi, phi2);
 			                
 			                
 			                
 			                //model(i,j,k).Define(C11, C12,C44 ,euler(i,j,k,0)*180.0*(3.14/180.), euler(i,j,k,1)*360.0*(3.14/180.), euler(i,j,k,2)*360.0*(3.14/180.));
+			                
+			                //model(i,j,k).Define(C11, C12,C44 ,euler(i,j,k,0)*180.0*(3.14/180.), euler(i,j,k,1)*360.0*(3.14/180.), euler(i,j,k,2)*360.0*(3.14/180.));
+			                
 			                //model(i,j,k).Define(C11, C12,C44,0.0,0.0,0.0);
                             model(i,j,k).ddw *= (d_inv_avg);
                         });
@@ -204,6 +250,7 @@ public:
                 Util::RealFillBoundary(*model_mf[lev], this->geom[lev]);
                 Util::RealFillBoundary(*d_mf[lev], geom[lev]);
                 Util::RealFillBoundary(*d_old_mf[lev], geom[lev]);
+
             }
 
     }
@@ -322,12 +369,32 @@ public:
                     }
                 });
             }
+            
+            
+                //for (amrex::MFIter mfi(*quat_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+              //{
+                    //amrex::Box bx = mfi.nodaltilebox();
+                    //amrex::Array4<char> const& tags = a_tags.array(mfi);
+                    //amrex::Array4<Set::Scalar> const& quat = quat_mf[lev]->array(mfi);
+
+                    //amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    //{
+                        //auto sten = Numeric::GetStencil(i, j, k, bx);
+                        //{
+                           //Set::Vector grad = Numeric::Gradient(quat, i, j, k, 0, DX.data(), sten);
+                            //if (grad.lpNorm<2>() * DXnorm > m_quat_ref_threshold)
+                                //tags(i, j, k) = amrex::TagBox::SET;
+                        //}
+                    //});
+            //}
         }
     }
     
     void Regrid(int lev, Set::Scalar time) override
     {
         ic_euler->Initialize(lev, euler_mf, time);                 //newline added for euler angles
+        
+        //ic_quat->Initialize(lev, quat_mf, time);                 //newline added for euler angles
     }
 
 
@@ -355,6 +422,13 @@ protected:
     IC::IC* ic_euler = nullptr;     //newline added
     int euler_ic_type_flag; // new member variable for the flag
     bool euler_reset_on_regrid = false;
+    
+    
+    //Set::Field<Set::Scalar> quat_mf;          //new line added
+    //Set::Scalar m_quat_ref_threshold = 0.01;   //new line added
+    //IC::IC* ic_quat = nullptr;     //newline added
+    //int quat_ic_type_flag; // new member variable for the flag
+    //bool quat_reset_on_regrid = false;
     
     std::string filename; 
     

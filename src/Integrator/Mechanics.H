@@ -83,6 +83,7 @@
 #include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "IC/EulerAngles.H"          //newline
+#include "IC/Quaternions.H"          //newline
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "IC/Constant.H"
