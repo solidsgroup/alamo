@@ -385,7 +385,7 @@ public:
         value.channel1 = Channel::R;
         value.channel2 = Channel::G;
         value.channel3 = Channel::B;
-        value.channel3 = Channel::A;
+        value.channel4 = Channel::A;
         
         value.min[0] = 0.0;
         value.max[0] = 255.0;
