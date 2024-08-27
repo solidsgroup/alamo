@@ -27,6 +27,7 @@
 #include "IC/BMP.H"
 #include "IC/EulerAngles.H"
 #include "IC/PNG4.H"
+#include "IC/PNG3.H"
 #include "IC/Quaternions.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
@@ -216,7 +217,8 @@ public:
                             Set::Scalar w = euler(i, j, k, 0);
                             Set::Scalar x = euler(i, j, k, 1);
                             Set::Scalar y = euler(i, j, k, 2);
-                            Set::Scalar z = euler(i, j, k, 3);
+                            Set::Scalar z = 0;
+                            //Set::Scalar z = euler(i, j, k, 3);
                             
                               // Extract quaternion components
                             //Set::Scalar w = quat(i, j, k, 0);
