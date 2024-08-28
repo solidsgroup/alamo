@@ -104,7 +104,7 @@ public:
     {
         std::string filename;
         int verbose = 0;
-        pp_query("eps", value.eps); // Diffuseness of the sphere boundary
+        pp_query_default("eps", value.eps, 1E-16); // Diffuseness of the sphere boundary - extremely sharp by default
         pp_query_file("filename", filename); // Location of .xyzr file
         pp_query("verbose", verbose); // Verbosity (used in parser only)
         pp_query("mult",value.mult); // Coordinate multiplier

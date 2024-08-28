@@ -276,24 +276,17 @@ public:
             bx.grow(1);
             bx = bx & domain;
             
-            amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const& dold = (*d_old_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar> const& d = (*d_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar> const& p = (*p_mf[lev]).array(mfi);
-            
-            
-            //Set::Patch<const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
-            //Set::Patch<const Set::Matrix> eps  = strain_mf.Patch(lev,mfi);
-            //Set::Patch<const Set::Scalar> dold = d_old_mf.Patch(lev,mfi);
-            //Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
-            //Set::Patch<Set::Scalar>       p    = p_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Matrix> eps  = strain_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> dold = d_old_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       p    = p_mf.Patch(lev,mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 //auto sten = Numeric::GetStencil(i, j, k, bx);
                 Set::Scalar df = 0.0;
 
-                df += spall.cp * 2.0 * dold(i,j,k)*(1 - 2.0*dold(i,j,k))*(1.0 - dold(i,j,k));
+                df += spall.cp * 2.0 * dold(i,j,k)*(1.0 - 2.0*dold(i,j,k))*(1.0 - dold(i,j,k));
                 df += spall.kappa * Numeric::Laplacian(dold,i,j,k,0,DX);
                 
 
