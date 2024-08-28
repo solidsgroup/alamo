@@ -42,7 +42,7 @@ euler.ic.eulerangles.fit      = fitwidth
 #spall.ic.type = psread
 spall.ic.type = psread
 
-spall.ic.psread.filename = tests/VoidNucleation/nucleation_sites.txt
+spall.ic.psread.filename = tests/VoidNucleation/nucleation.xyzr
 
 C11             = 260.2
 C12             = 154.5
