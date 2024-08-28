@@ -217,8 +217,8 @@ public:
                             Set::Scalar w = euler(i, j, k, 0);
                             Set::Scalar x = euler(i, j, k, 1);
                             Set::Scalar y = euler(i, j, k, 2);
-                            Set::Scalar z = 0;
-                            //Set::Scalar z = euler(i, j, k, 3);
+                            //Set::Scalar z = 0;
+                            Set::Scalar z = euler(i, j, k, 3);
                             
                               // Extract quaternion components
                             //Set::Scalar w = quat(i, j, k, 0);
