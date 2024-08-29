@@ -298,7 +298,7 @@ public:
             {
                 if ( checkfile && ! std::filesystem::exists(value))
                 {
-                    Util::ParmParseException(INFO,file,func,line,full(name),full(name)," does not exist");
+                    Util::ParmParseException(INFO,file,func,line,full(name),value," does not exist");
                 }
                 if ( checkfile && !std::filesystem::is_regular_file(value))
                 {
