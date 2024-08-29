@@ -89,6 +89,7 @@
 
 #include <filesystem>
 #include <exception>
+#include <list>
 
 #include "Util/Util.H"
 #include "Set/Set.H"
@@ -127,7 +128,7 @@ private:
 public:
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {Define();} ;
     ParmParse() : amrex::ParmParse::ParmParse() {Define();} ;
-    std::string getPrefix() const {return amrex::ParmParse::getPrefix();};
+    std::string getPrefix() const {return m_prefix;};
     void ignore(std::string name)
     {
         (void)amrex::ParmParse::contains(name.c_str());
@@ -387,11 +388,11 @@ public:
     int AnyUnusedInputs()
     {
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table->begin(), End = m_table->end(); li != End; ++li)
+        for (auto li = m_table->begin(), End = m_table->end(); li != End; ++li)
         {
-            if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
+            if (!li->second.m_count && li->first.rfind(getPrefix()+".",0) != std::string::npos)
             {
-                Util::Warning(INFO,li->m_name);
+                Util::Warning(INFO,li->first);
                 cnt++;
             }
         }
@@ -401,11 +402,11 @@ public:
     std::vector<std::string> GetUnusedInputs()
     {
         std::vector<std::string> ret;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table->begin(), End = m_table->end(); li != End; ++li)
+        for (auto li = m_table->begin(), End = m_table->end(); li != End; ++li)
         {
-            if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
+            if (!li->second.m_count && li->first.rfind(getPrefix()+".",0) != std::string::npos)
             {
-                ret.push_back(li->m_name);
+                ret.push_back(li->first);
             }
         }
         return ret;
@@ -415,11 +416,11 @@ public:
     {
         ParmParse pp;
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table->begin(), End = pp.m_table->end(); li != End; ++li)
+        for (auto li = pp.m_table->begin(), End = pp.m_table->end(); li != End; ++li)
         {
-            if (!li->m_queried)
+            if (!li->second.m_count)
             {
-                Util::Warning(INFO,li->m_name);
+                Util::Warning(INFO,li->first);
                 cnt++;
             }
         }
@@ -442,9 +443,11 @@ public:
     void queryclass(std::string name, T * value,
                     std::string file = "", std::string func = "", int line = -1)
     {
+        auto old_prefix = m_prefix;
         try
         {
-            this->pushPrefix(name);
+            if (old_prefix.empty()) m_prefix = name;
+            else m_prefix.append(".").append(name);
             T::Parse(*value, *this);
             std::vector<std::string> unused_inputs = GetUnusedInputs();
             if (unused_inputs.size())
@@ -457,18 +460,20 @@ public:
         }
         catch (...)
         {
-            this->popPrefix();
+            m_prefix = old_prefix;
             Util::ParmParseException(INFO,file,func,line,full(name));
         }
-        this->popPrefix();
+        m_prefix = old_prefix;
     }
     template<class T>
     void queryclass(std::string name, T & value,
                     std::string file = "", std::string func = "", int line = __LINE__)
     {
+        auto old_prefix = m_prefix;
         try
         {
-            this->pushPrefix(name);
+            if (old_prefix.empty()) m_prefix = name;
+            else m_prefix.append(".").append(name);
             T::Parse(value, *this);
             std::vector<std::string> unused_inputs = GetUnusedInputs();
             if (unused_inputs.size())
@@ -481,10 +486,10 @@ public:
         }
         catch (...)
         {
-            this->popPrefix();
+            m_prefix = old_prefix;
             Util::ParmParseException(INFO,file,func,line,full(name));
         }
-        this->popPrefix();
+        m_prefix = old_prefix;
     }
     template<class T>
     void queryclass(T * value,
