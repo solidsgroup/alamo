@@ -41,16 +41,13 @@ public:
     };
 
     // todo: convert to static functor by replacing with static () when c++23 is released
-    static Flux Solve(State lo, State hi, State solid_lo, State solid_hi, Set::Scalar gamma, Set::Scalar eta_cell, Set::Scalar small)
+    static Flux Solve(State lo, State hi, State solid_lo, State solid_hi, Set::Scalar gamma, Set::Scalar cell_eta, Set::Scalar p_ref, Set::Scalar small)
     {
         // STEP 0: Compute fluid fields 
         Set::Scalar rho_L = lo.rho     /*- (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small)*/, rho_R = hi.rho       /*- (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small) + small*/;
         Set::Scalar Mn_L  = (lo.M_normal  - (1.0 - lo.eta) * solid_lo.M_normal) /(lo.eta + small),  Mn_R  = (hi.M_normal  - (1.0 - hi.eta) * solid_hi.M_normal) /(hi.eta + small);
         Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
         Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
-
-
-        Set::Scalar p_ref = 101325.0;
 
         // STEP 1: Compute fluid primitives 
         Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L + Mt_L * Mt_L) / rho_L;
@@ -129,35 +126,35 @@ public:
         
         fl.mass =
             (
-            rho_L*u_L
-            + std::min(0.0,lambda1)*deltav1
+            rho_L * u_L
+            + (std::min(0.0,lambda1)*deltav1
             + (0.5*rho_RL/(a_RL))*(   std::min(0.0,lambda2)*deltav2 -
-                                    std::min(0.0,lambda3)*deltav3)
-            ) * eta_cell
+                                    std::min(0.0,lambda3)*deltav3)) 
+            ) * cell_eta
             ;
         
         fl.momentum_normal =
             (
-            rho_L*u_L*u_L + p_L
-            + u_RL*std::min(0.0,lambda1)*deltav1
+            rho_L * u_L * u_L + p_L
+            + (u_RL*std::min(0.0,lambda1)*deltav1
             + (0.5*rho_RL/(a_RL))*(   lambda2*std::min(0.0,lambda2)*deltav2 -
-                                    lambda3*std::min(0.0,lambda3)*deltav3)
-            ) * eta_cell
+                                    lambda3*std::min(0.0,lambda3)*deltav3)) 
+            ) * cell_eta
             ;
         
         fl.energy =
             (
-            rho_L*h_TL*u_L
-            + 0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
+            ke_L * u_L + (p_L + ue_L) * u_L
+            + (0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
             + (0.5*rho_RL/(a_RL))*(   (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
-                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3)                       
-            ) * eta_cell
+                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
+            ) * cell_eta
             ;
 
         //
         // (Update the tangential momentum flux)
         //
-        fl.momentum_tangent = 0.5 * (rho_L*u_L*v_L + rho_R*u_R*v_R);
+        fl.momentum_tangent = 0.5 * (rho_L * u_L * v_L + rho_R * u_R * v_R) * cell_eta;
 
         return fl;
     }
@@ -224,7 +221,7 @@ public:
             //                 the flux should be zero.
             // 
 	    Util::Abort(INFO, "we broke this code, believe nothing that it does");
-            Flux zero = Solve(fixed, fixed, fixed, fixed, 1.4, 1.0, 1E-8);
+            Flux zero = Solve(fixed, fixed, fixed, fixed, 1.4, 1.0, 1.0, 1E-8);
 
             
 
@@ -238,8 +235,8 @@ public:
             //                    output 
             // 
 
-            Flux plus = Solve(hi, lo, hi, lo, 1.4, 1.0, 1E-8);
-            Flux minus = Solve(lo, hi, lo, hi, 1.4, 1.0, 1E-8);
+            Flux plus = Solve(hi, lo, hi, lo, 1.4, 1.0, 1.0, 1E-8);
+            Flux minus = Solve(lo, hi, lo, hi, 1.4, 1.0, 1.0, 1E-8);
 
             if (fabs(plus.mass + minus.mass) > 1E-10)
             {
@@ -268,8 +265,8 @@ public:
             //                   and.pressure fluxes and the same.velocity flux
             // 
 
-            Flux pos = Solve(pos_vel1, pos_vel2, pos_vel1, pos_vel2, 1.4, 1.0, 1E-8);
-            Flux neg = Solve(neg_vel1, neg_vel2, neg_vel1, neg_vel2, 1.4, 1.0, 1E-8);
+            Flux pos = Solve(pos_vel1, pos_vel2, pos_vel1, pos_vel2, 1.4, 1.0, 1.0, 1E-8);
+            Flux neg = Solve(neg_vel1, neg_vel2, neg_vel1, neg_vel2, 1.4, 1.0, 1.0, 1E-8);
 
             if (fabs(pos.mass + neg.mass) > 1E-10)
             {                

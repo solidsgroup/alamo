@@ -71,17 +71,17 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-4
+timestep  = 1.0e-3
 stop_time = 10000.0
 
 ### ETA IC ###
 
-rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "0.0"
+rho_injected.ic.type = expression
+rho_injected.ic.expression.region0 = "1.0"
 
-vInjected.ic.type = expression
-vInjected.ic.expression.region0 = "0.0"
-vInjected.ic.expression.region1 = "0.0"
+mdot.ic.type = expression
+mdot.ic.expression.region0 = "0.0"
+mdot.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
@@ -119,7 +119,7 @@ solid.momentum.ic.expression.region0 = "0.0"
 solid.momentum.ic.expression.region1 = "0.0"
 
 solid.energy.ic.type = expression
-solid.energy.ic.expression.region0 = "2.5" 
+solid.energy.ic.expression.region0 = "0.0" 
 
 ### ETA BC  ###
 
