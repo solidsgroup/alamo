@@ -92,7 +92,44 @@ public:
         }
 
         png_read_image(png, row_pointers);
+        
+        // Flip the row pointers to invert the image vertically (newly added since image is getting inverted)
+        for (int y = 0; y < png_height / 2; y++) {
+            png_bytep temp = row_pointers[y];
+            row_pointers[y] = row_pointers[png_height - 1 - y];
+            row_pointers[png_height - 1 - y] = temp;
+        }
+        
+        
+        // Initialize min and max for each channel with extreme values
+        for (int c = 0; c < 4; ++c) {
+            min[c] = 255.0;   // Min to infinity
+            max[c] = 0.0;  // Max to -infinity
+        }
 
+        // First pass: Calculate actual min/max values for each channel (R, G, B, A)
+        for (int y = 0; y < png_height; y++) {
+            png_bytep row = row_pointers[y];
+            for (int x = 0; x < png_width; x++) {
+                png_bytep px = &(row[x * 4]);  // Assuming 4 bytes per pixel (RGBA)
+
+                // Update min/max for the Red channel
+                min[0] = std::min(min[0], (Set::Scalar)px[Channel::R]);
+                max[0] = std::max(max[0], (Set::Scalar)px[Channel::R]);
+
+                // Update min/max for the Green channel
+                min[1] = std::min(min[1], (Set::Scalar)px[Channel::G]);
+                max[1] = std::max(max[1], (Set::Scalar)px[Channel::G]);
+
+                // Update min/max for the Blue channel
+                min[2] = std::min(min[2], (Set::Scalar)px[Channel::B]);
+                max[2] = std::max(max[2], (Set::Scalar)px[Channel::B]);
+
+                // Update min/max for the Alpha channel
+                min[3] = std::min(min[3], (Set::Scalar)px[Channel::A]);
+                max[3] = std::max(max[3], (Set::Scalar)px[Channel::A]);
+            }
+        }  
         fclose(fp);
 
         png_destroy_read_struct(&png, &info, NULL);
@@ -220,31 +257,31 @@ public:
                     
 
                     field(i, j, k,0) =
-                        (fQ11R * (x2 - ximg(0)) * (y2 - ximg(1)) +
+                        2*((fQ11R * (x2 - ximg(0)) * (y2 - ximg(1)) +
                             fQ21R * (ximg(0) - x1) * (y2 - ximg(1)) +
                             fQ12R * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22R * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy);
+                            fQ22R * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
                             
                             
                     field(i, j, k,1) =
-                        (fQ11G * (x2 - ximg(0)) * (y2 - ximg(1)) +
+                        2*((fQ11G * (x2 - ximg(0)) * (y2 - ximg(1)) +
                             fQ21G * (ximg(0) - x1) * (y2 - ximg(1)) +
                             fQ12G * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22G * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy);
+                            fQ22G * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
                             
                             
                     field(i, j, k,2) =
-                        (fQ11B * (x2 - ximg(0)) * (y2 - ximg(1)) +
+                        2*((fQ11B * (x2 - ximg(0)) * (y2 - ximg(1)) +
                             fQ21B * (ximg(0) - x1) * (y2 - ximg(1)) +
                             fQ12B * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22B * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy);
+                            fQ22B * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
                             
                             
                     field(i, j, k,3) =
-                        (fQ11A * (x2 - ximg(0)) * (y2 - ximg(1)) +
+                        2*((fQ11A * (x2 - ximg(0)) * (y2 - ximg(1)) +
                             fQ21A * (ximg(0) - x1) * (y2 - ximg(1)) +
                             fQ12A * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22A * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy);
+                            fQ22A * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
 
 
                 }
@@ -270,10 +307,10 @@ public:
                     
                     
                     
-                    field(i, j, k, 0) = fQ11R + (fQ12R - fQ11R) * (ximg(1) - y1);
-                    field(i, j, k, 1) = fQ11G + (fQ12G - fQ11G) * (ximg(1) - y1);
-                    field(i, j, k, 2) = fQ11B + (fQ12B - fQ11B) * (ximg(1) - y1);
-                    field(i, j, k, 3) = fQ11A + (fQ12A - fQ11A) * (ximg(1) - y1);
+                    field(i, j, k, 0) = 2*(fQ11R + (fQ12R - fQ11R) * (ximg(1) - y1))-1;
+                    field(i, j, k, 1) = 2*(fQ11G + (fQ12G - fQ11G) * (ximg(1) - y1))-1;
+                    field(i, j, k, 2) = 2*(fQ11B + (fQ12B - fQ11B) * (ximg(1) - y1))-1;
+                    field(i, j, k, 3) = 2*(fQ11A + (fQ12A - fQ11A) * (ximg(1) - y1))-1;
                     
                 }
                 else if (I < png_width - 1 && (J == 0 || J == png_height - 1))
@@ -294,10 +331,10 @@ public:
                     Set::Scalar fQ21A = ((Set::Scalar)(px_se[channel4]) - min[3]) / (max[3] - min[3]);
                     
                                                                                 
-                    field(i, j, k, 0) = fQ11R + (fQ21R - fQ11R) * (ximg(0) - x1);
-                    field(i, j, k, 1) = fQ11G + (fQ21G - fQ11G) * (ximg(0) - x1);
-                    field(i, j, k, 2) = fQ11B + (fQ21B - fQ11B) * (ximg(0) - x1);
-                    field(i, j, k, 3) = fQ11A + (fQ21A - fQ11A) * (ximg(0) - x1);                                        
+                    field(i, j, k, 0) = 2*(fQ11R + (fQ21R - fQ11R) * (ximg(0) - x1))-1;
+                    field(i, j, k, 1) = 2*(fQ11G + (fQ21G - fQ11G) * (ximg(0) - x1))-1;
+                    field(i, j, k, 2) = 2*(fQ11B + (fQ21B - fQ11B) * (ximg(0) - x1))-1;
+                    field(i, j, k, 3) = 2*(fQ11A + (fQ21A - fQ11A) * (ximg(0) - x1))-1;                                        
                 }
                 else if (I == png_width - 1 && J == png_height - 1)
                 {
@@ -311,13 +348,13 @@ public:
                     
                     Set::Scalar fQ11A = ((Set::Scalar)(px_sw[channel4]) - min[3]) / (max[3] - min[3]);
                     
-                    field(i, j, k, 0) = fQ11R;
+                    field(i, j, k, 0) = 2*(fQ11R)-1;
                     
-                    field(i, j, k, 1) = fQ11G;
+                    field(i, j, k, 1) = 2*(fQ11G)-1;
                     
-                    field(i, j, k, 2) = fQ11B;
+                    field(i, j, k, 2) = 2*(fQ11B)-1;
                     
-                    field(i, j, k, 3) = fQ11A;
+                    field(i, j, k, 3) = 2*(fQ11A)-1;
                     
                 }
                 else
@@ -387,26 +424,41 @@ public:
         value.channel3 = Channel::B;
         value.channel4 = Channel::A;
         
-        value.min[0] = 0.0;
-        value.max[0] = 255.0;
+        //value.min[0] = 0.0;
+        //value.max[0] = 255.0;
 
-        value.min[1] = 0.0;
-        value.max[1] = 255.0;
+        //value.min[1] = 0.0;
+        //value.max[1] = 255.0;
 
-        value.min[2] = 0.0;
-        value.max[2] = 255.0;;
+        //value.min[2] = 0.0;
+        //value.max[2] = 255.0;
         
-        value.min[3] = 0.0;
-        value.max[3] = 255.0;
+        //value.min[3] = 0.0;
+        //value.max[3] = 255.0;
         
-        pp_query("minR",value.min[0], 0.0 );
-        pp_query("maxR",value.max[0], 255.0);
-        pp_query("minG",value.min[1], 0.0 );
-        pp_query("maxG",value.max[1], 255.0);
-        pp_query("minB",value.min[2], 0.0 );
-        pp_query("maxB",value.max[2], 255.0);        
-        pp_query("minA",value.min[3], 0.0 );
-        pp_query("maxA",value.max[3], 255.0);
+        //pp_query("minR",value.min[0], 0.0 );
+        //pp_query("maxR",value.max[0], 255.0);
+        //pp_query("minG",value.min[1], 0.0 );
+        //pp_query("maxG",value.max[1], 255.0);
+        //pp_query("minB",value.min[2], 0.0 );
+        //pp_query("maxB",value.max[2], 255.0);        
+        //pp_query("minA",value.min[3], 0.0 );
+        //pp_query("maxA",value.max[3], 255.0);
+        
+     
+     
+        pp_query("minR",value.min[0]);
+        pp_query("maxR",value.max[0]);
+        pp_query("minG",value.min[1]);
+        pp_query("maxG",value.max[1]);
+        pp_query("minB",value.min[2]);
+        pp_query("maxB",value.max[2]);        
+        pp_query("minA",value.min[3]);
+        pp_query("maxA",value.max[3]);
+        
+     
+     
+        
 
 #else
         Util::Abort(INFO,"PNG is disabled");

@@ -3,8 +3,8 @@ alamo.program.mechanics.model = linear.cubic
 plot_file		    = tests/void2/output
 
 
-timestep		    = 0.00001
-stop_time		    = 0.05
+timestep		    = 0.001
+stop_time		    = 0.08
 
 # amr parameters
 amr.plot_int		    = 1
@@ -31,7 +31,7 @@ geometry.is_periodic	    = 0 0 0
 #ic.bmp.channel  = g
 
 euler.ic.type         = eulerangles
-euler.ic.eulerangles.filename = tests/void2/output.png
+euler.ic.eulerangles.filename = tests/void2/micrograph.png
 euler.ic.eulerangles.fit      = fitwidth
 
 
@@ -42,6 +42,7 @@ euler.ic.eulerangles.fit      = fitwidth
 #spall.ic.type = psread
 spall.ic.type = psread
 spall.ic.psread.filename = tests/void2/nucleation.txt
+spall.ic.psread.eps = 0.01
 
 C11             = 260.2
 C12             = 154.5
