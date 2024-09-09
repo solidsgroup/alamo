@@ -217,7 +217,6 @@ public:
                             Set::Scalar w = euler(i, j, k, 0);
                             Set::Scalar x = euler(i, j, k, 1);
                             Set::Scalar y = euler(i, j, k, 2);
-                            //Set::Scalar z = 0;
                             Set::Scalar z = euler(i, j, k, 3);
                             
                               // Extract quaternion components
@@ -225,21 +224,61 @@ public:
                             //Set::Scalar x = quat(i, j, k, 1);
                             //Set::Scalar y = quat(i, j, k, 2);
                             //Set::Scalar z = quat(i, j, k, 3);
+                
+                            Eigen::Quaterniond q(w, x, y, z);
+                            
+                          
+                            q.normalize();
+                            
+                           
+                            
+                            
+                            // ZYX -> yaw (phi1), pitch (Phi), roll (phi2)
+                            
+                            //Eigen::Matrix3d rotationMatrix = q.toRotationMatrix();
+                            
+                            //Eigen::Vector3d eulerAngles = rotationMatrix.eulerAngles(2, 1, 0); // ZYX -> yaw (phi1), pitch (Phi), roll (phi2)
+                                                       
+                            //double phi1 = eulerAngles[0];  // Yaw (Z)
+                            //double Phi  = eulerAngles[1];  // Pitch (Y)
+                            //double phi2 = eulerAngles[2];  // Roll (X)
+                                                     
+                            // Step: Use the Euler angles in the model definition
+                            //model(i, j, k).Define(C11, C12, C44, phi1, Phi, phi2); // Pass the Euler angles to the model
+                        
+                            
+                            
+                            //rotation about ZYZ
+                            
+                            Eigen::Matrix3d R = q.toRotationMatrix();
+                            
+                            // Beta (rotation about Y-axis)
+                            double beta = std::acos(R(2, 2));  // R33
+                            
+                            // Alpha (first rotation about Z-axis)
+                            double alpha = std::atan2(R(1, 2), R(0, 2));  // R23, R13
+                            
+                            // Gamma (second rotation about Z-axis)
+                            double gamma = std::atan2(R(2, 1), -R(2, 0)); // R32, -R31
+                            // Step 6: Define the model with the Euler angles
+                            model(i, j, k).Define(C11, C12, C44, alpha, beta, gamma);                            
+
+
                             
                             
                             
 
                             // Calculate Phi
-                            double Phi = acos(2.0 * (w * w + x * x) - 1.0);
+                            //double Phi = acos(2.0 * (w * w + x * x) - 1.0);
 
                             // Calculate phi1
-                            double phi1 = atan2(z * x - w * y, w * x + y * z);
+                            //double phi1 = atan2(z * x - w * y, w * x + y * z);
 
                             // Calculate phi2
-                            double phi2 = atan2(w * z + x * y, w * y - x * z);
+                            //double phi2 = atan2(w * z + x * y, w * y - x * z);
 
                             // Define model with converted Euler angles
-                            model(i, j, k).Define(C11, C12, C44, phi1, Phi, phi2);
+                            //model(i, j, k).Define(C11, C12, C44, phi1, Phi, phi2);
 			                
 			                
 			                
