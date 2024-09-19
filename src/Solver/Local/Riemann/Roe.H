@@ -126,7 +126,7 @@ public:
         
         fl.mass =
             (
-            rho_L * u_L
+            rho_L * u_L 
             + (std::min(0.0,lambda1)*deltav1
             + (0.5*rho_RL/(a_RL))*(   std::min(0.0,lambda2)*deltav2 -
                                     std::min(0.0,lambda3)*deltav3)) 

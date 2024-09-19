@@ -50,8 +50,8 @@ plot_file = ./output
 
 ### MESHING ###
 
-amr.plot_dt = 100
-#amr.plot_int = 1000000
+#amr.plot_dt = 100
+amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
