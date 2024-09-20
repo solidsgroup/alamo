@@ -17,7 +17,7 @@ def find_node_directories(base_path):
 base_dir = "/home/thoopul/alamo/tests/void2"
 
 # Loop through each directory starting with "output"
-for output_folder in glob.glob(os.path.join(base_dir, "output*")):
+for output_folder in glob.glob(os.path.join(base_dir, "output")):
     
     # Find all directories containing "node" within the current output folder
     node_directories = find_node_directories(output_folder)
