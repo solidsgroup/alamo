@@ -21,13 +21,14 @@ amr.grid_eff		    = 1.0
 amr.cell.all = 1
 
 # geometry
-geometry.prob_lo	    = -0.000100 -0.000100 0.0 
-geometry.prob_hi	    = 0.000100 0.000100 0.0
+geometry.prob_lo	    = -1.0 -1.0 0.0 
+geometry.prob_hi	    = 1.0 1.0 0.0
 geometry.is_periodic	    = 0 0 0
 
 
 euler.ic.type         = eulerangles
-euler.ic.eulerangles.filename = tests/tension/micrograph.png
+#euler.ic.eulerangles.filename = tests/tension/micrograph.png
+euler.ic.eulerangles.filename = tests/tension/6_009_00008_AnglesRepairQuatBlur.png
 euler.ic.eulerangles.fit      = fitwidth
 
 

@@ -279,7 +279,7 @@ protected:
     MODEL model;
     IC::IC* ic;
     Set::Scalar m_eta_ref_threshold = 1E-2;
-    Set::Field<Set::Scalar> p_mf;
+ 
 
 
 
