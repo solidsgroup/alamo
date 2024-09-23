@@ -1,56 +1,10 @@
 //
-// This model implements an isotropic linear elastic material.
-// See `this link <https://en.wikipedia.org/wiki/Linear_elasticity#(An)isotropic_(in)homogeneous_media>`_
-// for more information about the theory.
-//
-// Free energy for a linear material is defined as
-// 
-// .. math::
-//
-//     W(\nabla\mathbf{u}) = 
-//     \frac{1}{2}\nabla\mathbf{u}\cdot\mathbb{C}\,\nabla\mathbf{u}
-//
-// For an isotropic material, stress and strain are related through
-// 
-// .. math::
-// 
-//     \mathbb{C}_{ijkl} = \lambda \delta_{ij}\varepsilon_{kk} + 2\mu\varepsilon_{ij}
-// 
-// where :math:`\lambda` and :math:`\mu` are the Lame constant and shear modulus, respectively.
-// Users can specify these either through (:code:`lame` and :code:`shear`)
-// OR (:code:`lambda` and :code:`mu`) OR (:code:`E` and :code:`nu`).
-//
-// Class methods:
-// 
-// #. :code:`Isotropic()`: 
-//    Basic constructor. Does nothing, and leaves all values initiated as NAN.
-// #. :code:`Isotropic(Solid<Set::Sym::Isotropic> base)`
-//    Basic constructor. Does nothing gut allows for inheritance.
-// #. :code:`Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda)`
-//    BAD old-fashioned constructor. Do not use!
-// #. :code:`~Isotropic()`
-//    Simple destructor. Don't need to change it.
-// #. :code:`void Define(Set::Scalar a_mu, Set::Scalar a_lambda)`
-//    BAD old-fashioned way of doing things. Use :code:`Parse` instead.
-// #. :code:`Set::Scalar W(const Set::Matrix & gradu) const override`
-//    Returns elastic free energy density
-// #. :code:`Set::Matrix DW(const Set::Matrix & gradu) const override`
-//    Returns first derivative of free energy, the stress tensor
-// #. :code:`Set::Matrix4<...> DDW(const Set::Matrix & ) const override`
-//    Returns second derivative of free energy, the modulus tensor
-// #. :code:`virtual void Print(std::ostream &out) const override`
-//    Prints the modulus tensor object to output stream (usually the terminal)
-// #. :code:`static Isotropic Random()`
-//    Static method that generates a random yet acceptable model.
-// #. :code:`static Isotropic Zero()`
-//    Static method that generates a "zero" element (so that there is no effect under addition)
-// #. :code:`static void Parse(Isotropic & value, IO::ParmParse & pp)`
-//    Parser where all the IO occurs
-//
+// This class implements basic cubic elasticity.
+// For a discussion on cubic elasticity, please see this link <http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16>_.
 //
 
-#ifndef MODEL_SOLID_LINEAR_NimaModel1_H_
-#define MODEL_SOLID_LINEAR_NimaModel1_H_
+#ifndef MODEL_SOLID_LINEAR_NIMAMODEL1_H_
+#define MODEL_SOLID_LINEAR_NIMAMODEL1_H_
 
 #include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
@@ -61,24 +15,27 @@ namespace Solid
 {
 namespace Linear
 {
-class NimaModel1 : public Solid<Set::Sym::Isotropic>
+class NimaModel1 : public Solid<Set::Sym::MajorMinor>
 {
 public:
 
     NimaModel1() {};
-    NimaModel1(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
-    NimaModel1(Set::Scalar a_mu, Set::Scalar a_lambda) 
-    {
-        Define(a_mu,a_lambda);
-    };
+    NimaModel1(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
     virtual ~NimaModel1() {};
-
-    void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
+    
+    void
+    Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
-        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Transverse(C11,C12,C13,C32,C33,C44,phi1,Phi,phi2);
     }
 
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    void
+    Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
+                                            Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    {
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Transverse(C11,C12,C13,C32,C33,C44,R);
+    }
+       Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
@@ -86,7 +43,7 @@ public:
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(const Set::Matrix & /*gradu*/) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;
     }
@@ -96,56 +53,63 @@ public:
     }
 
 public:
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw;
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> ddw;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
-public:
-    static NimaModel1 Random()
+    AMREX_FORCE_INLINE
+    static NimaModel1 Combine(const std::vector<NimaModel1> &models, const std::vector<Set::Scalar> &eta)
     {
         NimaModel1 ret;
-        ret.Define(Util::Random(),Util::Random());
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        Set::Scalar etasum = 0.;
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++)
+        {
+            ret.ddw += models[n].ddw * (eta[n] / etasum);
+        }
         return ret;
     }
+
     static NimaModel1 Zero()
     {
         NimaModel1 ret;
-        ret.Define(0.,0.);
+        ret.Define(0.0,0.0,0.0,0.0,0.0,0.0);
+        return ret;
+        
+    }
+    static NimaModel1 Random()
+    {
+        return Random(Util::Random(), Util::Random(), Util::Random(), Util::Random(), Util::Random(), Util::Random());
+    }
+    static NimaModel1 Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44)
+    {
+        NimaModel1 ret;
+        Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random();
+        Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random();
+        Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
+        ret.Define(C11,C12,C13,C32,C33,C44,phi1,Phi,phi2);
         return ret;
     }
+
     static void Parse(NimaModel1 & value, IO::ParmParse & pp)
     {
-        Set::Scalar mu, lambda;
-        bool planestress = false;
+        Set::Scalar C11 = NAN, C12 = NAN, C13 = NAN , C32 = NAN , C33 = NAN , C44 = NAN; 
         
-        // Whether or not to use the
-        // `plane stress <https://en.wikipedia.org/wiki/Plane_stress>`_ 
-        // approximation.
-        pp_query("planestress",planestress); 
-        if (pp.contains("lame") && pp.contains("shear"))
-        {
-            pp_query("lame",lambda); // Lame parameter
-            pp_query("shear",mu); // Shear modulus (redundant with "mu")
-        }
-        if (pp.contains("lambda") && pp.contains("mu"))
-        {
-            pp_query("lambda",lambda); // Lame parameter
-            pp_query("mu",mu); // Shear modulus (redundant with "shear")
-        }
-        else if (pp.contains("E") && pp.contains("nu"))
-        {
-            Set::Scalar E, nu;
-            pp_query("E",E); // Elastic modulus
-            pp_query("nu",nu); // Poisson's ratio
-            lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
-            mu = E / 2.0 / (1.0 + nu);
-        }
-        else Util::Abort(INFO,"Invalid elastic constants specified");
+        pp_query_default("C11",C11,1.68); // Elastic constant
+        pp_query_default("C12",C12,1.21); // Elastic constant
+        pp_query_default("C44",C44,0.75); // Elastic constant
 
-        if (AMREX_SPACEDIM==2 && planestress)
-            value.Define(mu,lambda*(1.0 - lambda/(2.*mu + lambda)));
-        else
-            value.Define(mu,lambda);
-        Util::Message(INFO,value);
+        if (pp.contains("random"))
+        {
+            value = NimaModel1::Random(C11,C12,C13,C32,C33,C44);
+            return;
+        }
+
+        Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
+        pp_query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:\phi_1
+        pp_query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:\Phi
+        pp_query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:\phi_2
+        value.Define(C11,C12,C13,C32,C33,C44,phi1,Phi,phi2);
     }
 
     #define OP_CLASS NimaModel1
@@ -153,8 +117,6 @@ public:
     #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
-
-
 
 }
 }

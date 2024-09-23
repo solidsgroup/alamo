@@ -162,6 +162,121 @@ public:
     }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Here:
+
+// TODO: write a function to create, fill, and return a modulus tensor (C) 
+//       (this is similar to the Cubic function above)
+
+static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
+                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+{
+    Set::Matrix4<2,Sym::MajorMinor> ret;
+    Set::Scalar Ctmp[3][3][3][3];
+
+    for(int i = 0; i < 3; i++) 
+        for(int j = 0; j < 3; j++) 
+            for(int k = 0; k < 3; k++) 
+                for(int l = 0; l < 3; l++)
+                {
+                    // Assign values for the transverse matrix based on the provided screenshot
+                    if(i == j && j == k && k == l) Ctmp[i][j][k][l] = C11; // C11 on diagonal
+                    else if (i == j && k == l && i == 1) Ctmp[i][j][k][l] = C33; // C33
+                    else if (i == j && k == l && i == 2) Ctmp[i][j][k][l] = C32; // C32
+                    else if (i == j && k == l && i == 0) Ctmp[i][j][k][l] = C12; // C12
+                    else if ((i == j && k == l && i == 0 && k == 2) || (i == j && k == l && i == 2 && k == 0)) Ctmp[i][j][k][l] = C13; // C13
+                    else if (i == k && j == l) Ctmp[i][j][k][l] = C44; // C44 on shear
+                    else if (i == j && k == l && i == 1 && j == 1) Ctmp[i][j][k][l] = 0.5 * (C11 - C12); // Special off-diagonal term 0.5*(C11-C12)
+                    else Ctmp[i][j][k][l] = 0.0; // Default to zero for other elements
+                }
+                
+    for(int p = 0; p < 2; p++) 
+        for(int q = 0; q < 2; q++) 
+            for(int s = 0; s < 2; s++) 
+                for(int t = 0; t < 2; t++)
+                {
+                    ret(p,q,s,t) = 0.0;
+                    for(int i = 0; i < 3; i++) 
+                        for(int j = 0; j < 3; j++) 
+                            for(int k = 0; k < 3; k++) 
+                                for(int l = 0; l < 3; l++) 
+                                    ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                }                
+    return ret;
+}
+
+static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
+                                             Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+{
+    // Rotation matrix based on Euler angles
+    Eigen::Matrix3d R;
+    R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+        Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+        Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+
+    // Call the new Transverse function with the stiffness constants and rotation matrix
+    return Transverse(C11, C12, C13, C32, C33, C44, R);
+}
+
+static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
+                                             Set::Quaternion q)
+{
+    // Create the rotation matrix from the quaternion
+    Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+
+    // Call the new Transverse function with the stiffness constants and rotation matrix
+    return Transverse(C11, C12, C13, C32, C33, C44, R);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
     friend bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
@@ -479,6 +594,108 @@ public:
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Cubic(C11,C12,C44,R);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Here:
+
+static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
+                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+{
+    Set::Matrix4<3,Sym::MajorMinor> ret;
+    Set::Scalar Ctmp[3][3][3][3];
+
+    // Fill in the Ctmp tensor based on the stiffness matrix elements
+    for(int i = 0; i < 3; i++) 
+        for(int j = 0; j < 3; j++) 
+            for(int k = 0; k < 3; k++) 
+                for(int l = 0; l < 3; l++)
+                {
+                    if (i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11; // C11 on diagonal
+                    else if (i == j && i == 1 && k == l) Ctmp[i][j][k][l] = C33; // C33 for 2nd axis
+                    else if (i == j && i == 2 && k == l) Ctmp[i][j][k][l] = C32; // C32
+                    else if (i == j && i == 0 && k == l) Ctmp[i][j][k][l] = C12; // C12
+                    else if ((i == j && k == l && (i == 0 && k == 2)) || (i == j && k == l && (i == 2 && k == 0))) 
+                        Ctmp[i][j][k][l] = C13; // C13 for off-diagonal elements
+                    else if (i == k && j == l) Ctmp[i][j][k][l] = C44; // C44 for shear moduli
+                    else if (i == j && k == l && i == 1 && j == 1) Ctmp[i][j][k][l] = 0.5 * (C11 - C12); // Special term 0.5*(C11-C12)
+                    else Ctmp[i][j][k][l] = 0.0; // Default to zero for remaining elements
+                }
+
+    // Perform the transformation using the rotation matrix R
+    for(int p = 0; p < 3; p++) 
+        for(int q = 0; q < 3; q++) 
+            for(int s = 0; s < 3; s++) 
+                for(int t = 0; t < 3; t++)
+                {
+                    ret(p,q,s,t) = 0.0;
+                    for(int i = 0; i < 3; i++) 
+                        for(int j = 0; j < 3; j++) 
+                            for(int k = 0; k < 3; k++) 
+                                for(int l = 0; l < 3; l++) 
+                                    ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                }                
+    return ret;
+}
+
+static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
+                                             Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+{
+    // Create rotation matrix using Euler angles
+    Eigen::Matrix3d R;
+    R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+        Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+        Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+
+    // Call the new Transverse function with the stiffness constants and rotation matrix
+    return Transverse(C11, C12, C13, C32, C33, C44, R);
+}
+
+static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
+                                             Set::Quaternion q)
+{
+    // Create the rotation matrix from the quaternion
+    Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+
+    // Call the new Transverse function with the stiffness constants and rotation matrix
+    return Transverse(C11, C12, C13, C32, C33, C44, R);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
