@@ -33,6 +33,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_required("gamma", value.gamma);
         pp.query_required("cfl", value.cfl);
         pp.query_required("mu", value.mu);
+        pp.query_required("Lfactor", value.Lfactor);
+        pp.query_required("Lfactor", value.pref);
 
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
@@ -351,6 +353,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector grad_eta     = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
             Set::Matrix hess_eta     = Numeric::Hessian(eta, i, j, k, 0, DX);
+            Set::Scalar lap_eta      = Numeric::Laplacian(eta, i, j, k, 0, DX);
 
             Set::Scalar boundary_energy = 0.5 * (mdot(i, j, k, 0) * mdot(i, j, k, 0) + mdot(i, j, k, 1) * mdot(i, j, k, 1)) / rho_injected(i, j, k);
             Set::Vector u_injected      = Set::Vector(mdot(i, j, k, 0), mdot(i, j, k, 1)) / rho_injected(i, j, k);
@@ -388,13 +391,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 if (p==r && q==s) Mpqrs += 0.5 * mu;
                 if (p==s && q==r) Mpqrs += 0.5 * mu;
                 if (p==q && r==s) Mpqrs -= 0.5 * mu;
-                Ldot0(p) += -Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
+                Ldot0(p) += Lfactor * Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
             }
             
             Source(i,j, k, 0) = mdot0;
-            Source(i,j, k, 1) = Pdot0(0) + Ldot0(0);
-            Source(i,j, k, 2) = Pdot0(1) + Ldot0(1);
-            Source(i,j, k, 3) = qdot0 + Ldot0(0)*v(i,j,k,0) + Ldot0(1)*v(i,j,k,1);
+            Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
+            Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
+            Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
 //        });
 //    }
@@ -460,12 +463,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
             //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), 1.0, small);
-            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), 1.0, small);
+            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), pref, small);
+            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
 
             //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, statex_solid, hi_statex_solid, gamma, eta(i, j, k), 1.0, small);
-            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), 1.0, small);
+            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, statex_solid, hi_statex_solid, gamma, eta(i, j, k), pref, small);
+            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
 
                 
             rho_new(i, j, k) =
@@ -483,7 +486,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     M(i, j, k, 0)
                     + (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] * dt
                     + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] * dt 
-                    + (mu * (lap_ux * eta(i, j, k) + grad_eta.dot(grad_ux))) * dt
+                    + (mu * (lap_ux * eta(i, j, k) /*+ grad_eta.dot(grad_ux)*/)) * dt
                     + Source(i, j, k, 1) * dt
                     //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * 2.0 * div_u * v(i, j, k, 0))
                     ) 
@@ -494,7 +497,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     M(i, j, k, 1)
                     + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] * dt
                     + (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] * dt
-                    + (mu * (lap_uy * eta(i, j, k) + grad_eta.dot(grad_uy))) * dt
+                    + (mu * (lap_uy * eta(i, j, k) /*+ grad_eta.dot(grad_uy)*/)) * dt
                     + Source(i, j, k, 2) * dt
                     //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * 2.0 * div_u * v(i, j, k, 1))
                     ) 
