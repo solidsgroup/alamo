@@ -29,6 +29,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_default("m_refinement_criterion",     value.m_refinement_criterion    , 0.01);
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
         pp.query_default("omega_refinement_criterion", value.omega_refinement_criterion, 0.01);
+        pp.query_default("p_refinement_criterion",     value.p_refinement_criterion    , 0.01);
+        pp.query_default("rho_refinement_criterion",   value.rho_refinement_criterion  , 0.01);
 
         pp.query_required("gamma", value.gamma);
         pp.query_required("cfl", value.cfl);
@@ -76,6 +78,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         pp.query("eta.ic.type", type);
+        if (type == "constant") value.eta_ic = new IC::Constant(value.geom, pp, "eta.ic.constant");
+        pp.query("eta.ic.type", type);
+        if (type == "constant") value.eta_ic = new IC::Constant(value.geom, pp, "eta.ic.constant");
         if (type == "constant") value.eta_ic = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (type == "laminate") value.eta_ic = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (type == "expression") value.eta_ic = new IC::Expression(value.geom, pp, "eta.ic.expression");
@@ -431,7 +436,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Viscous Terms
             Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
             Set::Scalar lap_uy = Numeric::Laplacian(v, i, j, k, 1, DX);
-            Set::Scalar div_u  = Numeric::Divergence(v, i, j, k, 2, DX);
+            Set::Scalar div_u  = Numeric::Divergence(v, i, j, k, DX);
             Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
             //Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -561,7 +566,32 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         });
     }
 
-}//end TagCells
+    // Pressure criterion for refinement
+    for (amrex::MFIter mfi(*pressure_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& pressure = (*pressure_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            Set::Vector grad_pressure = Numeric::Gradient(pressure, i, j, k, 0, DX);
+            if (grad_pressure.lpNorm<2>() * dr * 2 > p_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
+
+    // Density criterion for refinement
+    for (amrex::MFIter mfi(*density_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& density = (*density_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            Set::Vector grad_density = Numeric::Gradient(density, i, j, k, 0, DX);
+            if (grad_density.lpNorm<2>() * dr * 2 > rho_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
+
+} //end TagCells
+} //end namespace
 
 // void Hydro::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/, const amrex::MFIter &mfi, const amrex::Box &box)
 // {
@@ -583,30 +613,3 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //  void Hydro::UpdateModel(int /*a_step*/)
 //  {
 //    for (int lev = 0; lev <= finest_level; ++lev)
-//    {
-//      eta_mf[lev] -> FillBoundary();
-//      density_mf[lev] -> FillBoundary();
-//      energy_mf[lev] -> FillBoundary();
-//      Momentum[lev] -> FillBoundary();
-//      
-//      for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//      {
-//  amrex::Box bx = mfi.nodaltilebox();
-//  amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
-//
-//  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//  // TODO
-//
-//  });
-//
-//
-//     } // end For2
-
-//     Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-//     amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]-> nGrow());
-
-//    } //end For1
-//}//end update
-
-
-}//end code

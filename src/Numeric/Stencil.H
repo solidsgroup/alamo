@@ -689,17 +689,17 @@ Divergence(const amrex::Array4<const Set::Matrix>& dw,
 AMREX_FORCE_INLINE
 Set::Scalar
 Divergence(const amrex::Array4<const Set::Scalar> &f,
-        const int &i, const int &j, const int &k, const int &m,
+        const int &i, const int &j, const int &k,
         const Set::Scalar dx[AMREX_SPACEDIM],
         std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Scalar ret;
-    ret  = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,m,dx,stencil));
+    ret  = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,0,dx,stencil));
 #if AMREX_SPACEDIM > 1
-    ret += (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx,stencil));
+    ret += (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,1,dx,stencil));
 #endif
 #if AMREX_SPACEDIM > 2
-    ret += (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx,stencil));
+    ret += (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,2,dx,stencil));
 #endif
     return ret;
 }
