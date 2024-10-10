@@ -9,7 +9,7 @@
 #include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "Base/Mechanics.H"
-
+#include "Model/Ballistics/Ballistic_new.H"
 #include <cmath>
 
 namespace Integrator
@@ -182,7 +182,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_required("chamber.rho0",value.chamber.rho0);
         // initial chamber pressure
         pp_query_required("chamber.pressure0",value.chamber.pressure);
-
         // characteristic flow velocity
         pp_query_required("chamber.c_star",value.chamber.c_star);
         // nozzle throat area
@@ -394,7 +393,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure) {
         Set::Scalar domain_area = x_len * y_len;
-        chamber_pressure = pressure.P;
+        chamber_pressure = chamber.pressure;
         chamber_area = domain_area - volume;
         Util::Message(INFO, "Mass = ", massflux);
         Util::Message(INFO, "Pressure = ", pressure.P);
@@ -405,16 +404,17 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         {
             chamber.mass = chamber.rho0 * chamber.volume;
         }
-        //
-        // new bit
-        // 
-
+        Model::Ballistics::Ballistic_new ballistic;
+        ballistic.Execute(chamber.mdot, timestep);
+        chamber.pressure = ballistic.pressure0; // Access updated pressure
+        Util::Message(INFO, "Mdot = ", chamber.mdot);
+        Util::Message(INFO, "Pressure = ", chamber.pressure);
         // calculate mass flux out of nozzle
-        Set::Scalar mdot_out = chamber.p0 * chamber.At / chamber.c_star;
-        // integrate mass conservation equation to get current chamber mass
-        chamber.mass += (chamber.mdot - mdot_out) *  timestep;
+        // Set::Scalar mdot_out = chamber.pressure0 * chamber.At / sqrt(chamber.gamma * chamber.R * chamber.T0);
+        // // integrate mass conservation equation to get current chamber mass
+        // chamber.mass += (mdot_out - chamber.mdot) *  timestep;
         // use ideal gas EOS to calculate current chamber pressure
-        chamber.pressure = chamber.mass * chamber.R * chamber.T0 / chamber.volume;
+        // chamber.pressure = chamber.mass / (chamber.volume / (chamber.R * chamber.T0));
 
         // todo: set the actual pressure equal to chamber.pressure if needed.
     }
@@ -756,7 +756,9 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
         });
     }
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
+
 }
+
 } // namespace Integrator
 
 
