@@ -33,8 +33,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_required("gamma", value.gamma);
         pp.query_required("cfl", value.cfl);
         pp.query_required("mu", value.mu);
-        pp.query_required("Lfactor", value.Lfactor);
-        pp.query_required("Lfactor", value.pref);
+        pp_query_default("Lfactor", value.Lfactor,1.0);
+        pp_query_default("pref", value.pref,1.0);
 
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
