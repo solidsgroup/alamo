@@ -110,6 +110,9 @@ private:
 
     BC::Nothing bc_nothing;
 
+    BC::Constant neumann_bc_1 = BC::Constant::ZeroNeumann(1);
+    BC::Constant neumann_bc_D = BC::Constant::ZeroNeumann(AMREX_SPACEDIM);
+
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;

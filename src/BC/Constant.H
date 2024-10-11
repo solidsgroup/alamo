@@ -15,9 +15,9 @@
 //    +--------------------------+-----------------------------------------------------------------+
 //    | BC Type                  | Description                                                     |
 //    +==========================+=================================================================+
-//    | :code:`Dirichlet`        | Standard Dirichlet boundary condition                           |                          
+//    | :code:`Dirichlet`        | Standard Dirichlet boundary condition                           |
 //    +--------------------------+ (https://en.wikipedia.org/wiki/Dirichlet_boundary_condition).   |
-//    | :code:`dirichlet`        | Fixes the value of the **function** at the boundary.            |                          
+//    | :code:`dirichlet`        | Fixes the value of the **function** at the boundary.            |
 //    +--------------------------+                                                                 +
 //    | :code:`EXT_DIR`          |                                                                 |                        
 //    +--------------------------+-----------------------------------------------------------------+
@@ -25,41 +25,41 @@
 //    +--------------------------+ (https://en.wikipedia.org/wiki/Neumann_boundary_condition)      +
 //    | :code:`neumann`          |                                                                 |                        
 //    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`Periodic`         | Standard periodic boundary condition.                           |                         
+//    | :code:`Periodic`         | Standard periodic boundary condition.                           |
 //    +--------------------------+ (https://en.wikipedia.org/wiki/Periodic_boundary_conditions).   |
 //    | :code:`periodic`         | **Important**: Ensure that your geometry is specified to be     |                        
 //    +--------------------------+ periodic using :code:`geometry.is_periodic`. For instance, if   |
-//    | :code:`INT_DIR`          | periodic in x, set to :code:`1 0 0`                             |                                
+//    | :code:`INT_DIR`          | periodic in x, set to :code:`1 0 0`                             |
 //    +--------------------------+-----------------------------------------------------------------+
 //    | :code:`REFLECT_ODD`      | Effectively the same as dirichlet but with value fixed to 0     |
 //    +--------------------------+                                                                 +
-//    | :code:`reflect_odd`      |                                                                 |                            
+//    | :code:`reflect_odd`      |                                                                 |
 //    +--------------------------+-----------------------------------------------------------------+
 //    | :code:`REFLECT_EVEN`     | Effectively the same as neumann but with value fixed to 0       |
 //    +--------------------------+-----------------------------------------------------------------+
 //    | :code:`BOGUS_BC`         | Used for internal operations - not for general use              |
 //    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`FOEXTRAP`         | These are BC types inherited from AMReX and not yet implemented |                         
+//    | :code:`FOEXTRAP`         | These are BC types inherited from AMReX and not yet implemented |
 //    +--------------------------+ in Alamo. If you need BCs of this type, you will need to        +
-//    | :code:`HOEXTRAP`         | implement them yourself.                                        |                         
+//    | :code:`HOEXTRAP`         | implement them yourself.                                        |
 //    +--------------------------+                                                                 +
-//    | :code:`Interior`         |                                                                 |                         
+//    | :code:`Interior`         |                                                                 |
 //    +--------------------------+                                                                 +
 //    | :code:`Inflow`           |                                                                 |                       
 //    +--------------------------+                                                                 +
 //    | :code:`Outflow`          |                                                                 |                        
 //    +--------------------------+                                                                 +
-//    | :code:`Symmetry`         |                                                                 |                         
+//    | :code:`Symmetry`         |                                                                 |
 //    +--------------------------+                                                                 +
-//    | :code:`SlipWall`         |                                                                 |                         
+//    | :code:`SlipWall`         |                                                                 |
 //    +--------------------------+                                                                 +
-//    | :code:`NoSlipWall`       |                                                                 |                           
+//    | :code:`NoSlipWall`       |                                                                 |
 //    +--------------------------+                                                                 +
-//    | :code:`interior`         |                                                                 |                         
+//    | :code:`interior`         |                                                                 |
 //    +--------------------------+                                                                 +
 //    | :code:`Marshak`          |                                                                 |                        
 //    +--------------------------+                                                                 +
-//    | :code:`SanchezPomraning` |                                                                 |                          
+//    | :code:`SanchezPomraning` |                                                                 |
 //    +--------------------------+                                                                 +
 //    | :code:`inflow`           |                                                                 |                       
 //    +--------------------------+-----------------------------------------------------------------+
@@ -117,6 +117,38 @@ public:
         AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
             amrex::Vector<amrex::Real> _bc_hi_2,
             amrex::Vector<amrex::Real> _bc_hi_3));
+
+    static Constant ZeroNeumann(int ncomp = 1)
+    {
+        Constant ret = Constant(ncomp);
+
+        for (int d = 0; d < m_nfaces; d++)
+        {
+            ret.m_bc_type[d].clear();
+            for (int n = 0; n < ncomp; n++)
+            {
+                ret.m_bc_type[d].push_back((int)amrex::LinOpBCType::Neumann);
+                ret.m_bc_val[d].push_back (0.0);;
+            }
+        }
+
+        return ret;
+    }
+
+    static Constant ZeroDirichlet(int ncomp = 1)
+    {
+        Constant ret = Constant(ncomp);
+
+        for (int d = 0; d < m_nfaces; d++)
+            for (int n = 0; n < ncomp; n++)
+            {
+                ret.m_bc_type[n][d] = (int)amrex::LinOpBCType::Dirichlet;
+                ret.m_bc_val [n][d]  = 0.0;
+            }
+
+        return ret;
+    }
+
 
     virtual ~Constant() {};
 

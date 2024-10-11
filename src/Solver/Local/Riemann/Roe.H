@@ -29,8 +29,8 @@ public:
         Set::Scalar eta = NAN;
         // Construtor for convenience
         State() { rho = 0.0; M_normal = 0.0, M_tangent = 0.0; E = 0.0; eta = 0.0;}
-      State(Set::Scalar a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E, Set::Scalar a_eta)
-	: rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E), eta(a_eta) {}
+        State(Set::Scalar a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E, Set::Scalar a_eta)
+            : rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E), eta(a_eta) {}
     };
 
     struct Flux {
@@ -126,29 +126,29 @@ public:
         
         fl.mass =
             (
-            rho_L * u_L 
-            + (std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/(a_RL))*(   std::min(0.0,lambda2)*deltav2 -
-                                    std::min(0.0,lambda3)*deltav3)) 
-            ) * cell_eta
+                rho_L * u_L 
+                + (std::min(0.0,lambda1)*deltav1
+                + (0.5*rho_RL/(a_RL))*( std::min(0.0,lambda2)*deltav2 -
+                                        std::min(0.0,lambda3)*deltav3)) 
+                ) * cell_eta
             ;
         
         fl.momentum_normal =
             (
-            rho_L * u_L * u_L + p_L
-            + (u_RL*std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/(a_RL))*(   lambda2*std::min(0.0,lambda2)*deltav2 -
-                                    lambda3*std::min(0.0,lambda3)*deltav3)) 
-            ) * cell_eta
+                rho_L * u_L * u_L + p_L
+                + (u_RL*std::min(0.0,lambda1)*deltav1
+                + (0.5*rho_RL/(a_RL))*( lambda2*std::min(0.0,lambda2)*deltav2 -
+                                        lambda3*std::min(0.0,lambda3)*deltav3)) 
+                ) * cell_eta
             ;
         
         fl.energy =
             (
-            ke_L * u_L + (p_L + ue_L) * u_L
-            + (0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
-            + (0.5*rho_RL/(a_RL))*(   (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
-                                    (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
-            ) * cell_eta
+                ke_L * u_L + (p_L + ue_L) * u_L
+                + (0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
+                + (0.5*rho_RL/(a_RL))*( (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
+                                        (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
+                ) * cell_eta
             ;
 
         //
@@ -220,7 +220,7 @@ public:
             // Zero flux test: if the state is the same on both sides,
             //                 the flux should be zero.
             // 
-	    Util::Abort(INFO, "we broke this code, believe nothing that it does");
+            Util::Abort(INFO, "we broke this code, believe nothing that it does");
             Flux zero = Solve(fixed, fixed, fixed, fixed, 1.4, 1.0, 1.0, 1E-8);
 
             

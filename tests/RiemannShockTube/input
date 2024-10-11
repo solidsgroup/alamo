@@ -64,6 +64,8 @@ gamma = 1.4
 cfl   = 0.4
 mu    = 0.0
 
+pref = 0.0
+
 density.ic.type = expression
 density.ic.expression.constant.rho_L = 1.0
 density.ic.expression.constant.rho_R = 0.125
