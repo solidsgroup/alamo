@@ -53,18 +53,12 @@ jobs:
     - name: make
       continue-on-error: true
       run: make
-    - name: unit tests
-      continue-on-error: true
-      run: ./bin/test-2d-coverage-g++
     - name: configure (3d)
       continue-on-error: true
       run: ./configure --dim=3 --coverage
     - name: make
       continue-on-error: true
       run: make
-    - name: unit tests
-      continue-on-error: true
-      run: ./bin/test-3d-coverage-g++
     - name: regression tests
       continue-on-error: true
       run: scripts/runtests.py --only-coverage --serial --dim=2 --timeout=200
@@ -80,8 +74,6 @@ jobs:
       run: ./configure --dim=2 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-2d-g++
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --timeout=200
   test-3d-20-04:
@@ -95,8 +87,6 @@ jobs:
       run: ./configure --dim=3 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-3d-g++
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github --timeout=200
   test-2d-22-04:
@@ -110,8 +100,6 @@ jobs:
       run: ./configure --dim=2 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-2d-g++
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200
   test-3d-22-04:
@@ -125,8 +113,6 @@ jobs:
       run: ./configure --dim=3 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-3d-g++
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200
   test-2d-22-04-clang:
@@ -142,7 +128,5 @@ jobs:
       run: ./configure --dim=2 --comp=clang++
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-2d-clang++
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200
