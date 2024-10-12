@@ -300,7 +300,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
 
-            p(i,j,k)   = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) / ((gamma - 1.0) * (eta(i, j, k) + small));
+            p(i,j,k)   = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) * (eta(i, j, k) + small));
         });
     }
 
