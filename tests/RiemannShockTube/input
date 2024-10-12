@@ -49,6 +49,9 @@ vInjected.ic.type = expression
 vInjected.ic.expression.region0 = "0.005"
 vInjected.ic.expression.region1 = "0.0"
 
+rho_injected.ic.constant.value = 1.0 # todo - remove
+mdot.ic.constant.value = 1.0 # todo - remove
+
 q.ic.type = constant
 q.ic.constant.value = 0.0
 

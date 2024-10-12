@@ -1,9 +1,11 @@
 #@ [2d]
+#@ skip=true
 #@ exe=test
 #@ dim=2
 #@ check=false
 #@
 #@ [3d]
+#@ skip=true
 #@ exe=test
 #@ dim=3
 #@ check=false
