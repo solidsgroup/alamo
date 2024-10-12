@@ -100,6 +100,7 @@
 #define pp_query_validate(...) pp.query_validate(__VA_ARGS__,INFO)
 #define pp_query_file(...) pp.query_file(__VA_ARGS__,INFO)
 #define pp_queryarr(...) pp.queryarr(__VA_ARGS__,INFO)
+#define pp_queryarr_required(...) pp.queryarr_required(__VA_ARGS__,INFO)
 #define pp_query(...) pp.query(__VA_ARGS__)
 #define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
 #define pp_forbid(...) pp.forbid(__VA_ARGS__,INFO)
@@ -352,6 +353,16 @@ public:
             Util::ParmParseException(INFO,file,func,line,full(name),full(name)," needs either 4 or 9 components, but got ",vals.size());
         }    
         return 0;
+    }
+    template<typename T>
+    int queryarr_required(   std::string name, std::vector<T> & value,
+                    std::string file, std::string func, int line)
+    {
+        if (!contains(name.c_str()))
+        {
+            Util::ParmParseException(INFO,file,func,line,full(name),"required value for ",full(name)," missing");
+        }        
+        return queryarr(name,value,file,func,line);
     }
 
     int AnyUnusedInputs()

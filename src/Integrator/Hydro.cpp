@@ -27,17 +27,22 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Hydro::Hydro()");
     {
-        pp.query_default("r_refinement_criterion",     value.r_refinement_criterion    , 0.01);
-        pp.query_default("e_refinement_criterion",     value.e_refinement_criterion    , 0.01);
-        pp.query_default("m_refinement_criterion",     value.m_refinement_criterion    , 0.01);
+        // pp.query_default("r_refinement_criterion",     value.r_refinement_criterion    , 0.01);
+        // energy-based refinement
+        // pp.query_default("e_refinement_criterion",     value.e_refinement_criterion    , 0.01);
+        // momentum-based refinement
+        // pp.query_default("m_refinement_criterion",     value.m_refinement_criterion    , 0.01);
+
+        // eta-based refinement
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
+        // vorticity-based refinement
         pp.query_default("omega_refinement_criterion", value.omega_refinement_criterion, 0.01);
 
-        pp.query_required("gamma", value.gamma);
-        pp.query_required("cfl", value.cfl);
-        pp.query_required("mu", value.mu);
-        pp_query_default("Lfactor", value.Lfactor,1.0);
-        pp_query_default("pref", value.pref,1.0);
+        pp_query_required("gamma", value.gamma); // gamma for gamma law
+        pp_query_required("cfl", value.cfl); // cfl condition
+        pp_query_required("mu", value.mu); // linear viscosity coefficient
+        pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
+        pp_query_default("pref", value.pref,1.0); // reference pressure for Roe solver
 
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
@@ -80,7 +85,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     {
         std::string type = "constant";
-        pp.query("eta.ic.type", type);
+        // eta initial condition
+        pp_query_validate("eta.ic.type", type, {"constant","laminate","expression","bmp","png"});
         if (type == "constant") value.eta_ic = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (type == "laminate") value.eta_ic = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
         else if (type == "expression") value.eta_ic = new IC::Expression(value.geom, pp, "eta.ic.expression");
@@ -91,6 +97,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
+        // velocity initial condition
         pp_query_validate("velocity.ic.type", type,{"constant","expression"});
         if (type == "constant") value.velocity_ic = new IC::Constant(value.geom, pp, "velocity.ic.constant");
         else if (type == "expression") value.velocity_ic = new IC::Expression(value.geom, pp, "velocity.ic.expression");
@@ -98,7 +105,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         pp_forbid("Pressure.ic", "--> pressure.ic");
-        pp.query("pressure.ic.type", type);
+        // solid pressure IC type
+        pp_query_validate("pressure.ic.type", type, {"constant","expression"});
         if (type == "constant") value.pressure_ic = new IC::Constant(value.geom, pp, "pressure.ic.constant");
         else if (type == "expression") value.pressure_ic = new IC::Expression(value.geom, pp, "pressure.ic.expression");
         else Util::Abort(INFO, "Invalid Pressure.ic: ", type);
@@ -106,7 +114,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         pp_forbid("SolidMomentum.ic", "--> solid.momentum.ic");
-        pp.query("solid.momentum.ic.type", type);
+        // solid momentum IC type
+        pp_query_validate("solid.momentum.ic.type", type, {"constant","expression"});
         if (type == "constant") value.solid.momentum_ic = new IC::Constant(value.geom, pp, "solid.momentum.ic.constant");
         else if (type == "expression") value.solid.momentum_ic = new IC::Expression(value.geom, pp, "solid.momentum.ic.expression");
         else Util::Abort(INFO, "Invalid solid.momentum.ic: ", type);
@@ -114,7 +123,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         pp_forbid("SolidDensity.ic.type", "--> solid.density.ic.type");
-        pp.query("solid.density.ic.type", type);
+        // solid density IC type
+        pp_query_validate("solid.density.ic.type", type, {"constant","expression"});
         if (type == "constant") value.solid.density_ic = new IC::Constant(value.geom, pp, "solid.density.ic.constant");
         else if (type == "expression") value.solid.density_ic = new IC::Expression(value.geom, pp, "solid.density.ic.expression");
         else Util::Abort(INFO, "Invalid solid.density.ic: ", type);
@@ -122,7 +132,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         pp_forbid("SolidEnergy.ic.type", "--> solid.energy.ic.type");
-        pp.query("solid.energy.ic.type", type);
+        // solid energy IC type
+        pp_query_validate("solid.energy.ic.type", type, {"constant","expression"});
         if (type == "constant") value.solid.energy_ic = new IC::Constant(value.geom, pp, "solid.energy.ic.constant");
         else if (type == "expression") value.solid.energy_ic = new IC::Expression(value.geom, pp, "solid.energy.ic.expression");
         else Util::Abort(INFO, "Invalid solid.energy.ic: ", type);
@@ -130,20 +141,23 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         pp_forbid("Density.ic.type", "--> density.ic.type");
-        pp.query("density.ic.type", type);
+        // density initial condition type
+        pp_query_validate("density.ic.type", type, {"constant","expression"});
         if (type == "constant") value.density_ic = new IC::Constant(value.geom, pp, "density.ic.constant");
         else if (type == "expression") value.density_ic = new IC::Expression(value.geom, pp, "density.ic.expression");
         else Util::Abort(INFO, "Invalid density.ic: ", type);
     }
     {
         std::string type = "constant";
-        pp.query("rho_injected.ic.type", type);
+        // injected density initial condition type
+        pp_query_validate("rho_injected.ic.type", type, {"constant","expression"});
         if (type == "constant") value.ic_rho_injected = new IC::Constant(value.geom, pp, "rho_injected.ic.constant");
         else if (type == "expression") value.ic_rho_injected = new IC::Expression(value.geom, pp, "rho_injected.ic.expression");
         else Util::Abort(INFO, "Invalid rho_injected.ic: ", type);
     }
     {
         std::string type = "constant";
+        // mass flux initial condition
         pp.query("mdot.ic.type", type);
         if (type == "constant") value.ic_mdot = new IC::Constant(value.geom, pp, "mdot.ic.constant");
         else if (type == "expression") value.ic_mdot = new IC::Expression(value.geom, pp, "mdot.ic.expression");
@@ -151,6 +165,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     {
         std::string type = "constant";
+        // injected heat initial condition
         pp.query("q.ic.type", type);
         if (type == "constant") value.ic_q = new IC::Constant(value.geom, pp, "q.ic.constant");
         else if (type == "expression") value.ic_q = new IC::Expression(value.geom, pp, "q.ic.expression");
