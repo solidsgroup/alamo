@@ -1,3 +1,5 @@
+#if AMREX_SPACEDIM==2
+
 #ifndef INTEGRATOR_SFI_H
 #define INTEGRATOR_SFI_H
 
@@ -72,4 +74,6 @@ protected:
 
 };
 } // namespace Integrator
+#endif
+
 #endif

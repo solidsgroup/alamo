@@ -19,6 +19,8 @@
 #include "IC/Laminate.H"
 #include "IC/Expression.H"
 
+#if AMREX_SPACEDIM==2
+
 namespace Integrator
 {
 class Hydro : virtual public AllenCahn, virtual public Integrator
@@ -122,4 +124,5 @@ private:
 };
 }
 
+#endif
 #endif

@@ -1,3 +1,4 @@
+
 #include "Hydro.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
@@ -10,6 +11,8 @@
 #include "IC/BMP.H"
 #include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
+
+#if AMREX_SPACEDIM == 2
 
 namespace Integrator
 {
@@ -571,3 +574,6 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
 
 }//end code
+
+
+#endif
