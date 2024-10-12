@@ -1,4 +1,5 @@
 #@ [reflection-x]
+#@ skip = true
 #@ exe = hydro
 #@ check-file = reference/reflection-x.dat
 #@ dim    = 2

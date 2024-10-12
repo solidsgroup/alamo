@@ -261,10 +261,18 @@ def test(testdir):
                 print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exestr,color.reset))
                 skips += 1
                 continue
+
+            # If the exestr doesn't exist, exit noisily. The script will continue but will return a nonzero
+            # exit code.
+            if 'skip' in config[desc].keys():
+                if config[desc]['skip'].lower() in ['true','yes','1']:
+                    print("  ├ {}{} (skip indicated in input){}".format(color.boldyellow,desc,color.reset))
+                    skips += 1
+                    continue
+
             command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
-
         
         # Run the actual test.
         print("  ├ " + desc)

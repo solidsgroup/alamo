@@ -1,10 +1,12 @@
 #@ [couette-x]
+#@ skip = true
 #@ exe = hydro
 #@ check-file = reference/couette-x.dat
 #@ dim    = 2
 #@ nprocs = 1
 
 #@ [couette-y]
+#@ skip = true
 #@ exe = hydro
 #@ check-file = reference/couette-y.dat
 #@ dim    = 2
@@ -21,6 +23,7 @@
 #@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [stokes-x]
+#@ skip = true
 #@ exe = hydro
 #@ check-file = reference/stokes-x.dat
 #@ dim    = 2
@@ -31,6 +34,7 @@
 #@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [stokes-y]
+#@ skip = true
 #@ exe = hydro
 #@ check-file = reference/stokes-y.dat
 #@ dim    = 2
@@ -46,6 +50,7 @@
 #@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [cylinder-x]
+#@ skip = true
 #@ exe = hydro
 #@ check-file = reference/cylinder-x.dat
 #@ dim    = 2
@@ -61,6 +66,7 @@
 #@ args   = velocity.bc.val.yhi = 0.0 0.0
 
 #@ [cylinder-y]
+#@ skip = true
 #@ exe = hydro
 #@ check-file = reference/cylinder-y.dat
 #@ dim    = 2

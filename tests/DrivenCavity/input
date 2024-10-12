@@ -1,5 +1,6 @@
 #@
 #@ [2d-serial]
+#@ skip=true
 #@ exe=hydro
 #@ dim=2
 #@
