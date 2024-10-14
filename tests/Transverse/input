@@ -33,7 +33,7 @@
 #@  
 
 alamo.program                 = mechanics
-alamo.program.mechanics.model = linear.isotropic
+alamo.program.mechanics.model = linear.TransverselyIsotropic
 plot_file		      = tests/UniaxialTension/output
 
 # this is not a time integration, so do
@@ -60,12 +60,18 @@ explicitmesh.hi2              = 79 79 79
 # geometry
 geometry.prob_lo	      = -8 -8 -8 
 geometry.prob_hi	      = 8 8 8
-geometry.is_periodic	      = 0 0 0
+geometry.is_periodic	      = 0 0 0 # ok
 
 # elastic moduli
-model1.planestress = true
-model1.E = 210 
-model1.nu = 0.3
+# model1.planestress = true
+# model1.E = 210 
+# model1.nu = 0.3
+
+model1.C11 = 1.68
+model1.C12 = 1.21
+model1.C13 = 0.75
+model1.C33 = 1.68
+model1.C44 = 1.68
 
 solver.verbose = 3
 solver.nriters = 1

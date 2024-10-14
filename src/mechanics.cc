@@ -11,7 +11,7 @@
 #include "Model/Solid/Linear/Isotropic.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Linear/Cubic.H"
-#include "Model/Solid/Linear/NimaModel1.H"
+#include "Model/Solid/Linear/TransverselyIsotropic.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
@@ -39,7 +39,7 @@ int main (int argc, char* argv[])
         std::string model = "linear.isotropic";
         pp_query("alamo.program.mechanics.model",model);
         if (model == "linear.isotropic")        integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>(pp);
-        else if (model == "linear.nimamodel1")  integrator = new Integrator::Mechanics<Model::Solid::Linear::NimaModel1>(pp);
+        else if (model == "linear.TransverselyIsotropic")  integrator = new Integrator::Mechanics<Model::Solid::Linear::TransverselyIsotropic>(pp);
         else if (model == "linear.cubic")       integrator = new Integrator::Mechanics<Model::Solid::Linear::Cubic>(pp);
         else if (model == "affine.cubic")       integrator = new Integrator::Mechanics<Model::Solid::Affine::Cubic>(pp);
         else if (model == "affine.hexagonal")   integrator = new Integrator::Mechanics<Model::Solid::Affine::Hexagonal>(pp);

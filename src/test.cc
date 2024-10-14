@@ -21,6 +21,7 @@
 #include "Model/Solid/Finite/PseudoLinearCubicPredeformed.H"
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
+#include "Model/Solid/Linear/TransverselyIsotropic.H"
 
 int main (int argc, char* argv[])
 {
@@ -52,6 +53,7 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoLinearCubic);
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
     MODELTEST(Model::Solid::Finite::PseudoLinearCubicPredeformed);
+    MODELTEST(Model::Solid::Linear::TransverselyIsotropic);
     
 
     Util::Test::Message("Set::Matrix4");
