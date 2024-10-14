@@ -51,7 +51,7 @@ public:
         Set::Scalar mdot_out = (current_p * At) / sqrt(gamma * R * T0);
 
         // Compute dp/dt
-        Set::Scalar current_dpdt = (mdot_out - mdot_in) / (volume / (R * T0));
+        Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
 
         // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt
         Set::Scalar new_p = current_p + current_dpdt * dt;
