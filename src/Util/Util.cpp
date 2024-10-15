@@ -17,6 +17,7 @@ namespace Util
 {
 
 std::string filename = "";
+std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
 
 std::string GetFileName()

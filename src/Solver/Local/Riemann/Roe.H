@@ -31,20 +31,40 @@ public:
         State() { rho = 0.0; M_normal = 0.0, M_tangent = 0.0; E = 0.0; eta = 0.0;}
         State(Set::Scalar a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E, Set::Scalar a_eta)
             : rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E), eta(a_eta) {}
+        friend std::ostream &operator<<(std::ostream &os, const State &state) 
+        {
+            os << "rho=" << state.rho << ", "; 
+            os << "Mn=" << state.M_normal << ", ";
+            os << "Mt=" << state.M_tangent << ", ";
+            os << "E=" << state.E << ", ";
+            os << "eta=" << state.eta;
+            // do stuf
+            return os;
+        }
     };
+
 
     struct Flux {
         Set::Scalar mass;
         Set::Scalar momentum_normal;
         Set::Scalar momentum_tangent;
         Set::Scalar energy;
+        friend std::ostream &operator<<(std::ostream &os, const Flux &flux) 
+        {
+            os << "mass=" << flux.mass << ", "; 
+            os << "Mn=" << flux.momentum_normal << ", ";
+            os << "Mt=" << flux.momentum_tangent << ", ";
+            os << "E=" << flux.energy << ", ";
+            // do stuff
+            return os;
+        }
     };
 
     // todo: convert to static functor by replacing with static () when c++23 is released
     static Flux Solve(State lo, State hi, State solid_lo, State solid_hi, Set::Scalar gamma, Set::Scalar cell_eta, Set::Scalar p_ref, Set::Scalar small)
     {
         // STEP 0: Compute fluid fields 
-        Set::Scalar rho_L = lo.rho     /*- (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small)*/, rho_R = hi.rho       /*- (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small) + small*/;
+        Set::Scalar rho_L = (lo.rho       - (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small),  rho_R = (hi.rho       - (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small) + small;
         Set::Scalar Mn_L  = (lo.M_normal  - (1.0 - lo.eta) * solid_lo.M_normal) /(lo.eta + small),  Mn_R  = (hi.M_normal  - (1.0 - hi.eta) * solid_hi.M_normal) /(hi.eta + small);
         Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
         Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
@@ -161,131 +181,213 @@ public:
 
     static int Test()
     {
-        //
-        // !! DO NOT DISABLE THIS TEST !!
-        //
-        // If you **must** disable this test for some reason, then make sure that it returns
-        // a nonzero value - otherwise future users may falsely assume that it is passing tests
-        // when it is not.
-        //
-
         int failed = 0;
-        for (int i = 0; i < 10; i++)
+
+        const State leftsol(1.0, 0.0, 0.0, 0.0, 1.0);
+        const State rightsol(1.0, 0.0, 0.0, 0.0, 1.0);
+        const Set::Scalar gamma = 1.4;
+        const Set::Scalar pref = 0.0;
+        const Set::Scalar small = 1E-10;
+        const Set::Scalar cell_eta = 1.0;
+
+        // Test 1: Tangential Velocity Difference - No Normal Flux
+        try {
+            State left(1.0, 1.0, 1.0, 1.0, 1.0);
+            State right(1.0, 1.0, 2.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
+                Util::Warning(INFO,   "1. left:  ",left);
+                Util::Warning(INFO,   "1. right: ",right);
+                Util::Warning(INFO,   "1. Flux:  ",flux);
+                Util::Exception(INFO, "1. Tangential velocity difference incorrectly affecting normal flux.");
+            }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
         {
+            failed++;
+            Util::Warning(INFO,"Test 1 failed");
+        }
 
-            State hi, lo, fixed, pos_vel1, pos_vel2, neg_vel1, neg_vel2;
-            hi.rho = Util::Random();
-            hi.M_normal = Util::Random();
-            hi.M_tangent = Util::Random();
-            hi.E = Util::Random();
-            hi.eta = Util::Random();
+        // Test 2: Same Normal Velocity with Different Transverse Velocities
+        try {
+            State left(1.0, 2.0, 3.0, 1.0, 1.0);
+            State right(1.0, 2.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
 
-            lo.rho = Util::Random();
-            lo.M_normal = Util::Random();
-            lo.M_tangent = Util::Random();
-            lo.E = Util::Random();
-            lo.eta = Util::Random();
-
-            fixed.rho = Util::Random();
-            fixed.M_normal = 0.0; // Util::Random();
-            fixed.M_tangent = 0.0; //Util::Random();
-            fixed.E = Util::Random();
-            fixed.eta = Util::Random();
-
-            pos_vel1.rho = Util::Random();
-            pos_vel1.M_normal = Util::Random();
-            pos_vel1.M_tangent = Util::Random();
-            pos_vel1.E = Util::Random();
-            pos_vel1.eta = Util::Random();
-
-            neg_vel1.rho = pos_vel1.rho;
-            neg_vel1.M_normal = -pos_vel1.M_normal;
-            neg_vel1.M_tangent = -pos_vel1.M_tangent;
-            neg_vel1.E = pos_vel1.E;
-            neg_vel1.eta = pos_vel1.eta;
-
-            pos_vel2.rho = Util::Random();
-            pos_vel2.M_normal = Util::Random();
-            pos_vel2.M_tangent = Util::Random();
-            pos_vel2.E = Util::Random();
-            pos_vel2.eta = Util::Random();
-
-            neg_vel2.rho = pos_vel2.rho;
-            neg_vel2.M_normal = -pos_vel2.M_normal;
-            neg_vel2.M_tangent = -pos_vel2.M_tangent;
-            neg_vel2.E = pos_vel2.eta;
-            neg_vel2.eta = pos_vel2.eta;
-
-            // 
-            // Zero flux test: if the state is the same on both sides,
-            //                 the flux should be zero.
-            // 
-            Util::Abort(INFO, "we broke this code, believe nothing that it does");
-            Flux zero = Solve(fixed, fixed, fixed, fixed, 1.4, 1.0, 1.0, 1E-8);
-
-            
-
-            if (fabs(zero.mass) > 1E-10) { Util::Warning(INFO, "Nonzero mass flux ", zero.mass); failed++; }
-            if (fabs(zero.momentum_normal) > 1E-10) { Util::Warning(INFO, "Nonzero x.momentum flux ", zero.momentum_normal); failed++; }
-            if (fabs(zero.momentum_tangent) > 1E-10) { Util::Warning(INFO, "Nonzero y.momentum flux ", zero.momentum_tangent); failed++; }
-            if (fabs(zero.energy) > 1E-10) { Util::Warning(INFO, "Nonzero.pressure flux ", zero.energy); failed++; }
-
-            // 
-            // Antisymmetry test: reversing hi and lo should produce the same
-            //                    output 
-            // 
-
-            Flux plus = Solve(hi, lo, hi, lo, 1.4, 1.0, 1.0, 1E-8);
-            Flux minus = Solve(lo, hi, lo, hi, 1.4, 1.0, 1.0, 1E-8);
-
-            if (fabs(plus.mass + minus.mass) > 1E-10)
-            {
-                Util::Warning(INFO, "mass flux error: plus=", plus.mass, " minus=", minus.mass);
-                failed++;
+            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
+                Util::Warning(INFO,   "2. left:  ",left);
+                Util::Warning(INFO,   "2. right: ",right);
+                Util::Warning(INFO,   "2. Flux:  ",flux);
+                Util::Exception(INFO, "2. Different transverse velocities affecting normal flux.");
             }
-            if (fabs(plus.momentum_normal - minus.momentum_normal) > 1E-10)
-            {
-                Util::Warning(INFO, ".momentum x flux error: plus=", plus.momentum_normal, " minus=", minus.momentum_normal);
-                failed++;
-            }
-            if (fabs(plus.momentum_tangent - minus.momentum_tangent) > 1E-10)
-            {                
-                Util::Warning(INFO, ".momentum y flux error: plus=", plus.momentum_tangent, " minus=", minus.momentum_tangent);
-                failed++;
-            }
-            if (fabs(plus.energy + minus.energy) > 1E-10)
-            {
-                Util::Warning(INFO, ".energy flux error: plus=", plus.energy, " minus=", minus.energy);
-                failed++;
-            }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Test 2 failed");
+        }
 
 
-            // 
-            // Wave Propagation Test: changing the sign of velocity should produce negative mass
-            //                   and.pressure fluxes and the same.velocity flux
-            // 
+        // Test 3: Pure Transverse Velocity Difference
+        try {
+            State left(1.0, 0.0, 1.0, 1.0, 1.0);
+            State right(1.0, 0.0, 2.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
 
-            Flux pos = Solve(pos_vel1, pos_vel2, pos_vel1, pos_vel2, 1.4, 1.0, 1.0, 1E-8);
-            Flux neg = Solve(neg_vel1, neg_vel2, neg_vel1, neg_vel2, 1.4, 1.0, 1.0, 1E-8);
+            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
+                Util::Warning(INFO,   "3. left:  ",left);
+                Util::Warning(INFO,   "3. right: ",right);
+                Util::Warning(INFO,   "3. Flux:  ",flux);
+                Util::Exception(INFO, "3. Pure transverse velocity difference affecting normal flux.");
+            }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Test 3 failed");
+        }
 
-            if (fabs(pos.mass + neg.mass) > 1E-10)
-            {                
-                Util::Warning(INFO, "mass flux error: positive vel=", pos.mass, " negative vel=", neg.mass); failed++;
+        // Test 4: Symmetry Test (no flux across identical states)
+        try {
+            State left(1.0, 0.0, 0.0, 1.0, 1.0);
+            State right(1.0, 0.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
+                Util::Warning(INFO,   "4. left:  ",left);
+                Util::Warning(INFO,   "4. right: ",right);
+                Util::Warning(INFO,   "4. Flux:  ",flux);
+                Util::Exception(INFO, "4. Symmetric states should result in zero flux.");
             }
-            if (fabs(pos.momentum_normal - neg.momentum_normal) > 1E-10)
-            {
-                Util::Warning(INFO, ".momentum x flux error: positive momentum=", pos.momentum_normal, " negative momentum=", neg.momentum_normal); failed++;
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 4");
+        }
+
+        // Test 5: Zero Velocity Test (no momentum flux, pressure-driven energy flux)
+        try {
+            State left(1.0, 0.0, 0.0, 1.0, 1.0);
+            State right(1.0, 0.0, 0.0, 0.5, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.momentum_normal) > 1E-10 || fabs(flux.mass) > 1E-10 || fabs(flux.energy) < 1E-10) {
+                Util::Warning(INFO,   "5. left:  ",left);
+                Util::Warning(INFO,   "5. right: ",right);
+                Util::Warning(INFO,   "5. Flux:  ",flux);
+                Util::Exception(INFO, "5. Zero velocity states should have no momentum flux but energy flux.");
             }
-            if (fabs(pos.momentum_tangent - neg.momentum_tangent) > 1E-10)
-            {
-                Util::Warning(INFO, ".momentum y flux error: positive momentum=", pos.momentum_tangent, " negative momentum=", neg.momentum_tangent); failed++;
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 5");
+        }
+
+        // Test 6: Stationary Contact Discontinuity (no flux across stationary contact)
+        try {
+            State left(2.0, 1.0, 0.0, 1.0, 1.0);
+            State right(1.0, 1.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
+                Util::Warning(INFO,   "6. left:  ",left);
+                Util::Warning(INFO,   "6. right: ",right);
+                Util::Warning(INFO,   "6. Flux:  ",flux);
+                Util::Exception(INFO, "6. Stationary contact discontinuity should result in no flux.");
             }
-            if (fabs(pos.energy + neg.energy) > 1E-10)
-            {
-                Util::Warning(INFO, ".energy flux error: positive energy=", pos.energy, " negative vel=", neg.energy); failed++;
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 6");
+        }
+
+        // Test 7: Uniform Flow Test (no flux across uniform flow)
+        try {
+            State left(1.0, 1.0, 0.0, 1.0, 1.0);
+            State right(1.0, 1.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
+                Util::Warning(INFO,   "7. left:  ",left);
+                Util::Warning(INFO,   "7. right: ",right);
+                Util::Warning(INFO,   "7. Flux:  ",flux);
+                Util::Exception(INFO, "7. Uniform flow should result in no flux.");
             }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 7");
+        }
+
+        // Test 8: Pressure-Driven Flux (no momentum flux, but energy flux)
+        try {
+            State left(1.0, 0.0, 0.0, 2.0, 1.0);
+            State right(1.0, 0.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.momentum_normal) > 1E-10 || fabs(flux.mass) > 1E-10 || fabs(flux.energy) < 1E-10) {
+                Util::Warning(INFO,   "8. left:  ",left);
+                Util::Warning(INFO,   "8. right: ",right);
+                Util::Warning(INFO,   "8. Flux:  ",flux);
+                Util::Exception(INFO, "8. Pressure difference should result in pressure-driven flux.");
+            }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 8");
+        }
+
+        // Test 9: Mass Conservation (flux consistent with velocity)
+        try {
+            State left(1.0, 1.0, 0.0, 1.0, 1.0);
+            State right(1.0, 2.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.mass - 1.0) > 1E-10) {
+                Util::Warning(INFO,   "9. left:  ",left);
+                Util::Warning(INFO,   "9. right: ",right);
+                Util::Warning(INFO,   "9. Flux:  ",flux);
+                Util::Exception(INFO, "9. Mass flux does not match expected value.");
+            }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 9");
+        }
 
 
+        // Test 10: Momentum Conservation (flux consistent with momentum equation)
+        try {
+            State left(1.0, 2.0, 0.0, 1.0, 1.0);
+            State right(1.0, 1.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.momentum_normal - (2.0 * 1.0)) > 1E-10) {
+                Util::Warning(INFO,   "10. left:  ",left);
+                Util::Warning(INFO,   "10. right: ",right);
+                Util::Warning(INFO,   "10. Flux:  ",flux);
+                Util::Exception(INFO, "10. Momentum flux does not match expected value.");
+            }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 10");
+        }
+
+        // Test 11: Energy Conservation (flux consistent with energy equation)
+        try {
+            State left(1.0, 2.0, 0.0, 1.0, 1.0);
+            State right(1.0, 1.0, 0.0, 1.0, 1.0);
+            Flux flux = Solve(left, right, left, rightsol, gamma, cell_eta, pref, small);
+
+            if (fabs(flux.energy - (2.0 * 2.5)) > 1E-10) {
+                Util::Warning(INFO,   "11. left:  ",left);
+                Util::Warning(INFO,   "11. right: ",right);
+                Util::Warning(INFO,   "11. Flux:  ",flux);
+                Util::Exception(INFO, "11. Energy flux does not match expected value.");
+            }
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Warning(INFO,"Runtime error on Test 11");
         }
 
         return failed;
@@ -294,3 +396,4 @@ public:
 }
 }
 }
+

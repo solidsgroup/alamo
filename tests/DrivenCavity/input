@@ -19,7 +19,7 @@ amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.8
 
-amr.max_level = 2
+amr.max_level = 0 # 2
 timestep  = 0.5e-3
 amr.n_cell = 32 32
 
@@ -31,19 +31,10 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 stop_time = 1.0
 
-### ETA IC ###
-rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "0.0"
-
-vInjected.ic.type = expression
-vInjected.ic.expression.region0 = "0.0"
-vInjected.ic.expression.region1 = "0.0"
-
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
-Ldot_active = 0.0
 
 eta.ic.type = expression
 eta.ic.expression.region0 = "1.0"
@@ -52,17 +43,13 @@ eta.ic.expression.region0 = "1.0"
 
 gamma = 1.4
 cfl   = 0.4
-mu    = 20.0
+mu    = 0.0 #20.0
 
 density.ic.type = expression
 density.ic.expression.region0 = "1.2" 
 
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "1.2" 
-
-solid.velocity.ic.type = expression
-solid.velocity.ic.expression.region0 = "0.0" 
-solid.velocity.ic.expression.region1 = "0.0" 
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"
@@ -88,6 +75,7 @@ density.bc.type.xlo = neumann
 density.bc.type.ylo = neumann
 density.bc.type.yhi = neumann
 
+
 pressure.bc.type.xhi = neumann
 pressure.bc.type.xlo = neumann
 pressure.bc.type.ylo = neumann
@@ -104,20 +92,14 @@ velocity.bc.val.yhi = 500.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-r_refinement_criterion   = 1.1
-e_refinement_criterion   = 1.1
-m_refinement_criterion   = 1.1
 eta_refinement_criterion = 1.1
 omega_refinement_criterion = 10.55
 
 #TODO
 
 
-momentum.bc.type.xlo = neumann
-momentum.bc.type.xhi = neumann
-momentum.bc.type.ylo = neumann
-momentum.bc.type.yhi = neumann
-energy.bc.type.xlo = neumann
-energy.bc.type.xhi = neumann
-energy.bc.type.ylo = neumann
-energy.bc.type.yhi = neumann
+solid.momentum.ic.constant.value = 0.0
+solid.energy.ic.constant.value = 0.0
+rho_injected.ic.constant.value = 1.0
+mdot.ic.constant.value = 0.0
+

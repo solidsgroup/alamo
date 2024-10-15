@@ -30,6 +30,9 @@ int main (int argc, char* argv[])
 
     int failed = 0;
 
+    Util::globalprefix = "  │  ";
+
+
     #define MODELTEST(TYPE) \
         Util::Test::Message(#TYPE); \
         { \
@@ -123,6 +126,7 @@ int main (int argc, char* argv[])
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 
+    Util::globalprefix = "";
     Util::Message(INFO,failed," tests failed");
 
     Util::Finalize();

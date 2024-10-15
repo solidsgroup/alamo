@@ -69,17 +69,17 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.momentum_mf,     value.velocity_bc, 2, nghost, "momentum",     true );
         value.RegisterNewFab(value.momentum_old_mf, value.velocity_bc, 2, nghost, "momentum_old", false);
  
-        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true);
-        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true);
+        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, 0, "pressure",  true);
+        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, 0, "velocity",  true);
+        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, 0, "vorticity", true);
 
-        value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, nghost, "rho_injected", true);
-        value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, nghost, "mdot",         true);
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, nghost, "q",            true);
+        value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", true);
+        value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, 0, "mdot",         true);
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",            true);
 
-        value.RegisterNewFab(value.solid.momentum_mf, value.velocity_bc, 2, nghost, "solid.momentum",true);
-        value.RegisterNewFab(value.solid.density_mf,  value.density_bc, 1, nghost, "solid.density", true);
-        value.RegisterNewFab(value.solid.energy_mf,   value.pressure_bc, 1, nghost, "solid.energy",  true);
+        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum",true);
+        value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
+        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",  true);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, nghost, "Source", true);
     }
@@ -242,7 +242,6 @@ void Hydro::Mix(int lev)
             E_old(i, j, k) = E(i, j, k);
         });
     }
-
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
@@ -287,7 +286,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
+        const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
@@ -370,7 +369,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix I            = Set::Matrix::Identity();
             Set::Vector u_applied    = u_injected + u_interface /*+ Set::Vector(0.1, 0.0)*/;
             Set::Vector u            = Set::Vector(v(i, j, k, 0), v(i, j, k, 1));
-            Set::Matrix gradu        = Numeric::Gradient(v, i, j, k, DX);
+            Set::Matrix gradu        = Set::Matrix::Zero() ; // [KEEP] Numeric::Gradient(v, i, j, k, DX);
             //Set::Scalar divu         = 0.0;//Numeric::Divergence(v, i, j, k, 2, DX);
             Set::Matrix T            = 0.5 * mu * (gradu + gradu.transpose());    
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
@@ -408,11 +407,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             //Viscous Terms
-            Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
-            Set::Scalar lap_uy = Numeric::Laplacian(v, i, j, k, 1, DX);
+            Set::Scalar lap_ux = 0.0; // [KEEP] Numeric::Laplacian(v, i, j, k, 0, DX);
+            Set::Scalar lap_uy = 0.0; // [KEEP]  Numeric::Laplacian(v, i, j, k, 1, DX);
             //Set::Scalar div_u  = Numeric::Divergence(v, i, j, k, 2, DX); // currently causes error!
-            Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
-            Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
+            Set::Vector grad_ux = Set::Vector::Zero(); // [KEEP] Numeric::Gradient(v, i, j, k, 0, DX);
+            Set::Vector grad_uy = Set::Vector::Zero(); // [KEEP] Numeric::Gradient(v, i, j, k, 1, DX);
             //Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 
             //Godunov flux
@@ -440,11 +439,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //lo interface fluxes
             flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), pref, small);
-            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
+            /*-->*/flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
 
             //hi interface fluxes
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, statex_solid, hi_statex_solid, gamma, eta(i, j, k), pref, small);
-            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
+            /*-->*/flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
 
             rho_new(i, j, k) =
                 ( 
@@ -478,6 +477,22 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     ) 
                 ;
 
+            if (i==16 && j==31)
+            {
+                Util::Message(INFO,"statey          ", state_y);
+                Util::Message(INFO,"lo.statey       ", lo_statey);
+                Util::Message(INFO,"hi.statey       ", hi_statey);
+                Util::Message(INFO,"statey.solid    ", statey_solid);
+                Util::Message(INFO,"lo.statey.solid ", lo_statey_solid);
+                Util::Message(INFO,"hi.statey.solid ", hi_statey_solid);
+                Util::Message(INFO,flux_xlo.momentum_tangent);
+                Util::Message(INFO,flux_xhi.momentum_tangent);
+                Util::Message(INFO,"ylonormalflux = ",flux_ylo.momentum_normal); // difference occurring
+                Util::Message(INFO,"yhinormalflux = ",flux_yhi.momentum_normal); // between these two
+                Util::Message(INFO,lap_uy);
+                Util::Message(INFO,Source(i,j,k,2));
+            }
+            
 
             E_new(i, j, k) =
                 ( 
@@ -535,7 +550,8 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::Array4<const Set::Scalar> const& omega = (*vorticity_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            Set::Vector grad_omega = Numeric::Gradient(omega, i, j, k, 0, DX);
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+            Set::Vector grad_omega = Numeric::Gradient(omega, i, j, k, 0, DX, sten);
             if (grad_omega.lpNorm<2>() * dr * 2 > omega_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
         });
     }
