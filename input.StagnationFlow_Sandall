@@ -37,7 +37,7 @@ pref = 1.0
 ### ETA IC ###
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.01
+eta.ic.expression.constant.eps   = 0.1
 eta.ic.expression.region0        = "0.5*(tanh((x - 5.0)/eps) - tanh((x - 3.5)/eps)) + 1.0"
 
 rho_injected.ic.type = expression
@@ -55,7 +55,7 @@ density.ic.type = expression
 density.ic.expression.region0 = "1.225"
 
 velocity.ic.type = expression
-velocity.ic.expression.constant.eps = 0.05
+velocity.ic.expression.constant.eps = 0.1
 velocity.ic.expression.region0 = "0.01" # " 0.1*(0.5*(tanh((x - 5.0)/eps) - tanh((x - 3.5)/eps)) + 1.0)" # "0.01*tanh((x-3.5)**2/2.0)" # * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 velocity.ic.expression.region1 = "0.0"
 

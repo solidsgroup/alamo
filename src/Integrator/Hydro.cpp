@@ -73,15 +73,16 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, 0, "velocity",  true);
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, 0, "vorticity", true);
 
-        value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", true);
-        value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, 0, "mdot",         true);
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",            true);
+        value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", false);
+        value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, 0, "mdot",         false);
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",            false);
+        value.RegisterNewFab(value.flux_mf,         &value.bc_nothing, 1, 0, "flux",            true);
 
-        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum",true);
-        value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
-        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",  true);
+        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", false);
+        value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", false);
+        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   false);
 
-        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, nghost, "Source", true);
+        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true);
     }
     {
         std::string type = "constant";
@@ -182,6 +183,8 @@ void Hydro::Initialize(int lev)
     eta_ic           ->Initialize(lev, eta_old_mf, 0.0);
     etadot_mf[lev]   ->setVal(0.0);
 
+    flux_mf[lev]   ->setVal(0.0);
+
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
     density_ic       ->Initialize(lev, density_mf, 0.0);
@@ -206,9 +209,9 @@ void Hydro::Mix(int lev)
 {
     Util::Message(INFO, eta_mf[lev]->nComp());
 
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box& bx = mfi.growntilebox();
 
         Set::Patch<const Set::Scalar> eta       = eta_mf.Patch(lev,mfi);
 
@@ -254,6 +257,7 @@ void Hydro::UpdateEta(int lev, Set::Scalar time)
 
 void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
 {
+
 }
 
 void Hydro::TimeStepComplete(Set::Scalar, int lev)
@@ -342,6 +346,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::Array4<Set::Scalar> const& omega   = (*vorticity_mf[lev]).array(mfi);
 
+        amrex::Array4<Set::Scalar> const& flux   = (*flux_mf[lev]).array(mfi);
+
         amrex::Array4<const Set::Scalar> const& eta    = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
@@ -369,7 +375,14 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix I            = Set::Matrix::Identity();
             Set::Vector u_applied    = u_injected + u_interface /*+ Set::Vector(0.1, 0.0)*/;
             Set::Vector u            = Set::Vector(v(i, j, k, 0), v(i, j, k, 1));
-            Set::Matrix gradu        = Set::Matrix::Zero() ; // [KEEP] Numeric::Gradient(v, i, j, k, DX);
+            //Set::Matrix gradu        = Numeric::Gradient(v, i, j, k, DX);
+
+
+            Set::Matrix gradM   = Numeric::Gradient(M, i, j, k, DX);
+            Set::Vector gradrho = Numeric::Gradient(rho,i,j,k,0,DX);
+            Set::Matrix gradu   = (gradM - u*gradrho.transpose()) / rho(i,j,k);
+            Set::Scalar divu    = gradu.trace();
+
             //Set::Scalar divu         = 0.0;//Numeric::Divergence(v, i, j, k, 2, DX);
             Set::Matrix T            = 0.5 * mu * (gradu + gradu.transpose());    
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
@@ -387,6 +400,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar qdot0 = prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
             //Set::Vector Ldot0 = rho(i, j, k) * (u*u.transpose() - u_applied*u_applied.transpose())*grad_eta;
 
+
             Set::Vector Ldot0 = Set::Vector::Zero();
 
             for (int p = 0; p<2; p++)
@@ -397,7 +411,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar Mpqrs = 0.0;
                 if (p==r && q==s) Mpqrs += 0.5 * mu;
                 if (p==s && q==r) Mpqrs += 0.5 * mu;
-                //if (p==q && r==s) Mpqrs -= 0.5 * mu;
+                if (p==q && r==s) Mpqrs -= 0.5 * mu;
                 Ldot0(p) += Lfactor * Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
             }
             
@@ -407,11 +421,18 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             //Viscous Terms
-            Set::Scalar lap_ux = 0.0; // [KEEP] Numeric::Laplacian(v, i, j, k, 0, DX);
-            Set::Scalar lap_uy = 0.0; // [KEEP]  Numeric::Laplacian(v, i, j, k, 1, DX);
+            Set::Scalar lapMx  = Numeric::Laplacian(M, i, j, k, 0, DX);
+            Set::Scalar lapMy  = Numeric::Laplacian(M, i, j, k, 1, DX);
+            Set::Scalar laprho = Numeric::Laplacian(rho, i, j, k, 0, DX);
+
+            Set::Scalar lap_ux = (lapMx - laprho*u(0) - 2.0*gradrho(0)*gradu(0,0)) / rho(i,j,k);
+            Set::Scalar lap_uy = (lapMy - laprho*u(1) - 2.0*gradrho(1)*gradu(1,1)) / rho(i,j,k);
+            
+            // Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
+            // Set::Scalar lap_uy = Numeric::Laplacian(v, i, j, k, 1, DX);
             //Set::Scalar div_u  = Numeric::Divergence(v, i, j, k, 2, DX); // currently causes error!
-            Set::Vector grad_ux = Set::Vector::Zero(); // [KEEP] Numeric::Gradient(v, i, j, k, 0, DX);
-            Set::Vector grad_uy = Set::Vector::Zero(); // [KEEP] Numeric::Gradient(v, i, j, k, 1, DX);
+            // Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
+            // Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
             //Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 
             //Godunov flux
@@ -439,11 +460,15 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //lo interface fluxes
             flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), pref, small);
-            /*-->*/flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
+            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
 
             //hi interface fluxes
             flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, statex_solid, hi_statex_solid, gamma, eta(i, j, k), pref, small);
-            /*-->*/flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
+            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
+
+
+
+            flux(i,j,k) = flux_xhi.mass - flux_xlo.mass;
 
             rho_new(i, j, k) =
                 ( 
@@ -451,7 +476,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     + (flux_xlo.mass - flux_xhi.mass) / DX[0] * dt
                     + (flux_ylo.mass - flux_yhi.mass) / DX[1] * dt
                     + Source(i, j, k, 0) * dt
-                    //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * div_u)
+                    //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * divu)
                     )
                 ;         
                 
@@ -475,24 +500,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     + Source(i, j, k, 2) * dt
                     //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * 2.0 * div_u * v(i, j, k, 1))
                     ) 
-                ;
-
-            if (i==16 && j==31)
-            {
-                Util::Message(INFO,"statey          ", state_y);
-                Util::Message(INFO,"lo.statey       ", lo_statey);
-                Util::Message(INFO,"hi.statey       ", hi_statey);
-                Util::Message(INFO,"statey.solid    ", statey_solid);
-                Util::Message(INFO,"lo.statey.solid ", lo_statey_solid);
-                Util::Message(INFO,"hi.statey.solid ", hi_statey_solid);
-                Util::Message(INFO,flux_xlo.momentum_tangent);
-                Util::Message(INFO,flux_xhi.momentum_tangent);
-                Util::Message(INFO,"ylonormalflux = ",flux_ylo.momentum_normal); // difference occurring
-                Util::Message(INFO,"yhinormalflux = ",flux_yhi.momentum_normal); // between these two
-                Util::Message(INFO,lap_uy);
-                Util::Message(INFO,Source(i,j,k,2));
-            }
-            
+                ;            
 
             E_new(i, j, k) =
                 ( 
@@ -508,7 +516,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
             // Compute vorticity
-            omega(i, j, k) = eta(i, j, k) * (grad_uy(0) - grad_ux(1));
+            omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
 
         });
     }
@@ -518,6 +526,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 void Hydro::Regrid(int lev, Set::Scalar /* time */)
 {
     BL_PROFILE("Integrator::Hydro::Regrid");
+    Source_mf[lev]->setVal(0.0);
     if (lev < finest_level) return;
 
     Util::Message(INFO, "Regridding on level", lev);

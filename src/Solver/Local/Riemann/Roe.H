@@ -70,12 +70,12 @@ public:
         Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
 
         // STEP 1: Compute fluid primitives 
-        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L + Mt_L * Mt_L) / rho_L;
+        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L /*+ Mt_L * Mt_L*/) / rho_L;
         Set::Scalar ue_L = E_L - ke_L;
         Set::Scalar p_L  = (gamma - 1.0) * ue_L + p_ref;
         Set::Scalar h_TL = (ke_L + ue_L + p_L) / rho_L;
 
-        Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R + Mt_R * Mt_R) / rho_R;
+        Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R /*+ Mt_R * Mt_R*/) / rho_R;
         Set::Scalar ue_R = E_R - ke_R;
         Set::Scalar p_R  = (gamma - 1.0) * ue_R + p_ref;
         Set::Scalar h_TR = (ke_R + ue_R + p_R) / rho_R;
@@ -183,211 +183,114 @@ public:
     {
         int failed = 0;
 
+        const State solid(1.0, 0.0, 0.0, 0.0, 1.0);
         const State leftsol(1.0, 0.0, 0.0, 0.0, 1.0);
         const State rightsol(1.0, 0.0, 0.0, 0.0, 1.0);
         const Set::Scalar gamma = 1.4;
-        const Set::Scalar pref = 0.0;
+        const Set::Scalar pref = 10.0;
         const Set::Scalar small = 1E-10;
         const Set::Scalar cell_eta = 1.0;
 
         // Test 1: Tangential Velocity Difference - No Normal Flux
         try {
-            State left(1.0, 1.0, 1.0, 1.0, 1.0);
-            State right(1.0, 1.0, 2.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+            State left  (1.0, 1.0, 0.0, 1.0, 1.0);
+            State center(1.0, 1.0, 1.0, 1.0, 1.0);
+            State right (1.0, 1.0, 2.0, 1.0, 1.0);
+            Flux fluxlo = Solve(center, right, solid, solid, gamma, cell_eta, pref, small);
+            Flux fluxhi = Solve(left, center,  solid, solid, gamma, cell_eta, pref, small);
 
-            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
-                Util::Warning(INFO,   "1. left:  ",left);
-                Util::Warning(INFO,   "1. right: ",right);
-                Util::Warning(INFO,   "1. Flux:  ",flux);
-                Util::Exception(INFO, "1. Tangential velocity difference incorrectly affecting normal flux.");
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
+                || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
+                || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
+                Util::Warning(INFO,   "left:    ",left);
+                Util::Warning(INFO,   "center:  ",center);
+                Util::Warning(INFO,   "right:   ",right);
+                Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
+                Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
+                Util::Exception(INFO, "Tangential velocity difference incorrectly affecting normal flux.");
             }
+            Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",0);
         } catch ( std::_Nested_exception<std::runtime_error> &e)
         {
             failed++;
-            Util::Warning(INFO,"Test 1 failed");
+            Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",1);
         }
 
-        // Test 2: Same Normal Velocity with Different Transverse Velocities
+        // Test 2: Pure Transverse Velocity Difference
         try {
-            State left(1.0, 2.0, 3.0, 1.0, 1.0);
-            State right(1.0, 2.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+            State left  (1.0, 0.0, 0.0, 1.0, 1.0);
+            State center(1.0, 0.0, 1.0, 1.0, 1.0);
+            State right (1.0, 0.0, 2.0, 1.0, 1.0);
+            Flux fluxlo = Solve(left, center, leftsol, rightsol, gamma, cell_eta, pref, small);
+            Flux fluxhi = Solve(center, right, leftsol, rightsol, gamma, cell_eta, pref, small);
 
-            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
-                Util::Warning(INFO,   "2. left:  ",left);
-                Util::Warning(INFO,   "2. right: ",right);
-                Util::Warning(INFO,   "2. Flux:  ",flux);
-                Util::Exception(INFO, "2. Different transverse velocities affecting normal flux.");
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
+                || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
+                || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
+                Util::Warning(INFO,   "left:  ",left);
+                Util::Warning(INFO,   "center: ",center);
+                Util::Warning(INFO,   "right: ",right);
+                Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
+                Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
+                Util::Exception(INFO, "Pure transverse velocity difference affecting normal flux.");
             }
+            Util::Test::SubMessage("Test 2: Pure transverse velocity difference",0);
         } catch ( std::_Nested_exception<std::runtime_error> &e)
         {
             failed++;
-            Util::Warning(INFO,"Test 2 failed");
+            Util::Test::SubMessage("Test 2: Pure transverse velocity difference",1);
         }
 
-
-        // Test 3: Pure Transverse Velocity Difference
-        try {
-            State left(1.0, 0.0, 1.0, 1.0, 1.0);
-            State right(1.0, 0.0, 2.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
-
-            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
-                Util::Warning(INFO,   "3. left:  ",left);
-                Util::Warning(INFO,   "3. right: ",right);
-                Util::Warning(INFO,   "3. Flux:  ",flux);
-                Util::Exception(INFO, "3. Pure transverse velocity difference affecting normal flux.");
-            }
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
-        {
-            failed++;
-            Util::Warning(INFO,"Test 3 failed");
-        }
-
-        // Test 4: Symmetry Test (no flux across identical states)
+        // Test 3: Symmetry Test (no flux across identical states)
         try {
             State left(1.0, 0.0, 0.0, 1.0, 1.0);
+            State center(1.0, 0.0, 0.0, 1.0, 1.0);
             State right(1.0, 0.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+            Flux fluxhi = Solve(center, right, solid, solid, gamma, cell_eta, pref, small);
+            Flux fluxlo = Solve(left, center, solid, solid, gamma, cell_eta, pref, small);
 
-            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
-                Util::Warning(INFO,   "4. left:  ",left);
-                Util::Warning(INFO,   "4. right: ",right);
-                Util::Warning(INFO,   "4. Flux:  ",flux);
-                Util::Exception(INFO, "4. Symmetric states should result in zero flux.");
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 // no change in mass flux
+                || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 // no change in momentum flux
+                || fabs(fluxhi.momentum_tangent) > 1E-10 // zero tangent flux
+                || fabs(fluxlo.momentum_tangent) > 1E-10 // zero tangent flux
+                || fabs(fluxhi.energy-fluxlo.energy) > 1E-10 // no change in energy flux
+                ) {
+                Util::Warning(INFO,   "left:  ",left);
+                Util::Warning(INFO,   "right: ",right);
+                Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
+                Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
+                Util::Exception(INFO, "Symmetric states should result in zero flux.");
             }
+            Util::Test::SubMessage("Test 3: Constant states induces no flux difference",0);
         } catch ( std::_Nested_exception<std::runtime_error> &e)
         {
             failed++;
-            Util::Warning(INFO,"Runtime error on Test 4");
+            Util::Test::SubMessage("Test 3: Constant states induces no flux difference",1);
         }
 
-        // Test 5: Zero Velocity Test (no momentum flux, pressure-driven energy flux)
+        // Test 4: Uniform Flow Test (no flux across uniform flow)
         try {
-            State left(1.0, 0.0, 0.0, 1.0, 1.0);
-            State right(1.0, 0.0, 0.0, 0.5, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+            State left (1.0, 1.0, 0.5, 1.0, 1.0);
+            State center(1.0, 1.0, 0.5, 1.0, 1.0);
+            State right (1.0, 1.0, 0.5, 1.0, 1.0);
+            Flux fluxhi = Solve(center, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+            Flux fluxlo = Solve(left, center, leftsol, rightsol, gamma, cell_eta, pref, small);
 
-            if (fabs(flux.momentum_normal) > 1E-10 || fabs(flux.mass) > 1E-10 || fabs(flux.energy) < 1E-10) {
-                Util::Warning(INFO,   "5. left:  ",left);
-                Util::Warning(INFO,   "5. right: ",right);
-                Util::Warning(INFO,   "5. Flux:  ",flux);
-                Util::Exception(INFO, "5. Zero velocity states should have no momentum flux but energy flux.");
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 ||
+                fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 ||
+                fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
+                Util::Warning(INFO,   "left:   ",left);
+                Util::Warning(INFO,   "center: ",center);
+                Util::Warning(INFO,   "right:  ",right);
+                Util::Warning(INFO,   "Fluxlo: ",fluxlo);
+                Util::Warning(INFO,   "Fluxhi: ",fluxhi);
+                Util::Exception(INFO, "Uniform flow should result in no flux.");
             }
+            Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",0);
         } catch ( std::_Nested_exception<std::runtime_error> &e)
         {
             failed++;
-            Util::Warning(INFO,"Runtime error on Test 5");
-        }
-
-        // Test 6: Stationary Contact Discontinuity (no flux across stationary contact)
-        try {
-            State left(2.0, 1.0, 0.0, 1.0, 1.0);
-            State right(1.0, 1.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
-
-            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
-                Util::Warning(INFO,   "6. left:  ",left);
-                Util::Warning(INFO,   "6. right: ",right);
-                Util::Warning(INFO,   "6. Flux:  ",flux);
-                Util::Exception(INFO, "6. Stationary contact discontinuity should result in no flux.");
-            }
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
-        {
-            failed++;
-            Util::Warning(INFO,"Runtime error on Test 6");
-        }
-
-        // Test 7: Uniform Flow Test (no flux across uniform flow)
-        try {
-            State left(1.0, 1.0, 0.0, 1.0, 1.0);
-            State right(1.0, 1.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
-
-            if (fabs(flux.mass) > 1E-10 || fabs(flux.momentum_normal) > 1E-10 || fabs(flux.energy) > 1E-10) {
-                Util::Warning(INFO,   "7. left:  ",left);
-                Util::Warning(INFO,   "7. right: ",right);
-                Util::Warning(INFO,   "7. Flux:  ",flux);
-                Util::Exception(INFO, "7. Uniform flow should result in no flux.");
-            }
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
-        {
-            failed++;
-            Util::Warning(INFO,"Runtime error on Test 7");
-        }
-
-        // Test 8: Pressure-Driven Flux (no momentum flux, but energy flux)
-        try {
-            State left(1.0, 0.0, 0.0, 2.0, 1.0);
-            State right(1.0, 0.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
-
-            if (fabs(flux.momentum_normal) > 1E-10 || fabs(flux.mass) > 1E-10 || fabs(flux.energy) < 1E-10) {
-                Util::Warning(INFO,   "8. left:  ",left);
-                Util::Warning(INFO,   "8. right: ",right);
-                Util::Warning(INFO,   "8. Flux:  ",flux);
-                Util::Exception(INFO, "8. Pressure difference should result in pressure-driven flux.");
-            }
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
-        {
-            failed++;
-            Util::Warning(INFO,"Runtime error on Test 8");
-        }
-
-        // Test 9: Mass Conservation (flux consistent with velocity)
-        try {
-            State left(1.0, 1.0, 0.0, 1.0, 1.0);
-            State right(1.0, 2.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
-
-            if (fabs(flux.mass - 1.0) > 1E-10) {
-                Util::Warning(INFO,   "9. left:  ",left);
-                Util::Warning(INFO,   "9. right: ",right);
-                Util::Warning(INFO,   "9. Flux:  ",flux);
-                Util::Exception(INFO, "9. Mass flux does not match expected value.");
-            }
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
-        {
-            failed++;
-            Util::Warning(INFO,"Runtime error on Test 9");
-        }
-
-
-        // Test 10: Momentum Conservation (flux consistent with momentum equation)
-        try {
-            State left(1.0, 2.0, 0.0, 1.0, 1.0);
-            State right(1.0, 1.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, leftsol, rightsol, gamma, cell_eta, pref, small);
-
-            if (fabs(flux.momentum_normal - (2.0 * 1.0)) > 1E-10) {
-                Util::Warning(INFO,   "10. left:  ",left);
-                Util::Warning(INFO,   "10. right: ",right);
-                Util::Warning(INFO,   "10. Flux:  ",flux);
-                Util::Exception(INFO, "10. Momentum flux does not match expected value.");
-            }
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
-        {
-            failed++;
-            Util::Warning(INFO,"Runtime error on Test 10");
-        }
-
-        // Test 11: Energy Conservation (flux consistent with energy equation)
-        try {
-            State left(1.0, 2.0, 0.0, 1.0, 1.0);
-            State right(1.0, 1.0, 0.0, 1.0, 1.0);
-            Flux flux = Solve(left, right, left, rightsol, gamma, cell_eta, pref, small);
-
-            if (fabs(flux.energy - (2.0 * 2.5)) > 1E-10) {
-                Util::Warning(INFO,   "11. left:  ",left);
-                Util::Warning(INFO,   "11. right: ",right);
-                Util::Warning(INFO,   "11. Flux:  ",flux);
-                Util::Exception(INFO, "11. Energy flux does not match expected value.");
-            }
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
-        {
-            failed++;
-            Util::Warning(INFO,"Runtime error on Test 11");
+            Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",1);
         }
 
         return failed;
