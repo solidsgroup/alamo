@@ -389,16 +389,25 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Boundary flux
             //states of solid/fluid boundary cells, eta = 1.0
-            Solver::Local::Riemann::Roe::State boundary_state(rho_injected(i, j, k), mdot(i, j, k, 0), mdot(i, j, k, 1), boundary_energy, 1.0);
+            Solver::Local::Riemann::Roe::State solid_state(rho_solid(i,j,k), M_solid(i,j,k,0), M_solid(i,j,k,1), E_solid(i,j,k), eta(i,j,k));
+            //Solver::Local::Riemann::Roe::State boundary_state(rho_injected(i, j, k), mdot(i, j, k, 0), mdot(i, j, k, 1), boundary_energy, 1.0);
+            Solver::Local::Riemann::Roe::State boundary_state(0.0,0.0,0.0,0.0, 1.0);
             Solver::Local::Riemann::Roe::State empty_state(small, 0.0, 0.0, 0.0, 1.0);
+            Solver::Local::Riemann::Roe::State current_state(rho(i,j,k), M(i,j,k,0), M(i,j,k,1), E(i,j,k), eta(i,j,k));
 
-            Solver::Local::Riemann::Roe::Flux prescribed_boundary_flux = Solver::Local::Riemann::Roe::Solve(boundary_state, boundary_state, empty_state, empty_state, gamma, 1.0, 0.0, small);
+            //Solver::Local::Riemann::Roe::Flux prescribed_boundary_flux = Solver::Local::Riemann::Roe::Solve(boundary_state, boundary_state, empty_state, empty_state, gamma, 1.0, 0.0, small);
+            //Solver::Local::Riemann::Roe::Flux prescribed_boundary_flux = Solver::Local::Riemann::Roe::Solve(current_state, boundary_state, solid_state, solid_state, gamma, eta(i,j,k), pref, small);
 
             //Active Source Terms
-            Set::Scalar mdot0 = 0.0;//prescribed_boundary_flux.mass * grad_eta_mag;
-            Set::Vector Pdot0 = Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
-            Set::Scalar qdot0 = prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
+            // Set::Scalar mdot0 = -1000.*grad_eta.dot(u); //-prescribed_boundary_flux.mass * grad_eta_mag;
+            // Set::Vector Pdot0 = Set::Vector::Zero();; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
+            // Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
             //Set::Vector Ldot0 = rho(i, j, k) * (u*u.transpose() - u_applied*u_applied.transpose())*grad_eta;
+
+            Set::Scalar mdot0 = 0.0; //-prescribed_boundary_flux.mass * grad_eta_mag;
+            Set::Vector Pdot0 = -u*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
+            Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
+
 
 
             Set::Vector Ldot0 = Set::Vector::Zero();

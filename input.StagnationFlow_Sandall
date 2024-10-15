@@ -23,7 +23,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 1.0e-4
 stop_time = 1000.0
 
 ### HYDRO PARAM ###
@@ -63,7 +63,7 @@ pressure.ic.type = expression
 pressure.ic.expression.region0 = "0.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "1.225"
+solid.density.ic.expression.region0 = "10.225"
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.0"

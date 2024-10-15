@@ -51,7 +51,7 @@ deltapInterface.ic.type = expression
 deltapInterface.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.eps   = 0.2
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.constant.x0    = 0.0 
