@@ -73,14 +73,14 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, 0, "velocity",  true);
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, 0, "vorticity", true);
 
-        value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", false);
-        value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, 0, "mdot",         false);
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",            false);
+        value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", true);
+        value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, 0, "mdot",         true);
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",            true);
         value.RegisterNewFab(value.flux_mf,         &value.bc_nothing, 1, 0, "flux",            true);
 
-        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", false);
-        value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", false);
-        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   false);
+        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true);
+        value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
+        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true);
     }
@@ -405,7 +405,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Vector Ldot0 = rho(i, j, k) * (u*u.transpose() - u_applied*u_applied.transpose())*grad_eta;
 
             Set::Scalar mdot0 = 0.0; //-prescribed_boundary_flux.mass * grad_eta_mag;
-            Set::Vector Pdot0 = -u*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
+            Set::Vector Pdot0 = rho(i,j,k)*(u_applied - u)*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
             Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
 
 
