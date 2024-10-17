@@ -42,7 +42,7 @@ int main (int argc, char* argv[])
     else if (program == "flame")                integrator = new Integrator::Flame(pp);
     else if (program == "heat")                 integrator = new Integrator::HeatConduction(pp);
     else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
-    else if (program == "fracture")             integrator = new Integrator::Fracture();
+    else if (program == "fracture")             integrator = new Integrator::Fracture(pp);
     else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
     else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
