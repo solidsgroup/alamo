@@ -89,7 +89,7 @@ public:
         Set::Scalar rho_RL  = std::sqrt(rho_L * rho_R);
         Set::Scalar u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R));
         Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R));
-        Set::Scalar a_RL_sq = (gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL) + small;
+        Set::Scalar a_RL_sq = std::max(0.0,(gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL));
 
         if ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq))
         {   

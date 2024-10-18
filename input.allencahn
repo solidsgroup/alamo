@@ -127,7 +127,7 @@ hydro.velocity.bc.type.xlo = dirichlet neumann
 hydro.velocity.bc.type.ylo = neumann dirichlet
 hydro.velocity.bc.type.yhi = neumann dirichlet
 hydro.velocity.bc.val.xhi = 0.0 0.0
-hydro.velocity.bc.val.xlo = 10.0 0.0
+hydro.velocity.bc.val.xlo = 0.0 0.0
 hydro.velocity.bc.val.ylo = 0.0 0.0
 hydro.velocity.bc.val.yhi = 0.0 0.0
 hydro.eta.ic.constant.value = 1.0
@@ -146,5 +146,15 @@ hydro.rho_injected.ic.constant.value = 1.0
 hydro.mdot.ic.constant.value = 0.0
 hydro.q.ic.constant.value = 0.0
 
-hydro.Lfactor=-1.0
-hydro.Pfactor=0.0
+hydro.Lfactor=-10
+hydro.Pfactor=10
+
+
+
+amr.abort_on_nan = 0
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.max  = 0.001
+dynamictimestep.min  = 0.0
+dynamictimestep.cfl = 0.05
