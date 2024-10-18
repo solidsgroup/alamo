@@ -138,11 +138,11 @@ public:
     void forbid(std::string name, std::string explanation,
                 std::string file = "", std::string func = "", int line = -1)
     {
-        if (amrex::ParmParse::contains(name.c_str()))
+        if (amrex::ParmParse::contains(full(name).c_str()))
         {
             Util::ParmParseException(INFO,file,func,line,full(name),full(name)," forbidden: ", explanation);
         }
-        std::set<std::string> subs = amrex::ParmParse::getEntries(name);
+        std::set<std::string> subs = amrex::ParmParse::getEntries(full(name));
         if (subs.size())
         {
             Util::ParmParseException(INFO,file,func,line,full(name),full(name)," forbidden: ", explanation);

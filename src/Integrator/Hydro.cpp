@@ -37,11 +37,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
         // vorticity-based refinement
         pp.query_default("omega_refinement_criterion", value.omega_refinement_criterion, 0.01);
+        pp.query_default("gradu_refinement_criterion", value.omega_refinement_criterion, 0.01);
 
         pp_query_required("gamma", value.gamma); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_required("mu", value.mu); // linear viscosity coefficient
         pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
+        pp_query_default("Pfactor", value.Pfactor,1.0); // (to be removed) test factor for viscous source
         pp_query_default("pref", value.pref,1.0); // reference pressure for Roe solver
 
         pp_forbid("rho.bc","--> density.bc");
@@ -405,7 +407,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Vector Ldot0 = rho(i, j, k) * (u*u.transpose() - u_applied*u_applied.transpose())*grad_eta;
 
             Set::Scalar mdot0 = 0.0; //-prescribed_boundary_flux.mass * grad_eta_mag;
-            Set::Vector Pdot0 = rho(i,j,k)*(u_applied - u)*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
+            //Set::Vector Pdot0 = rho(i,j,k)*(u_applied - u)*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
+            Set::Vector Pdot0 = - Pfactor*(u.dot(grad_eta)) * grad_eta/(grad_eta_mag + small); //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
             Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
 
 
@@ -420,8 +423,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar Mpqrs = 0.0;
                 if (p==r && q==s) Mpqrs += 0.5 * mu;
                 if (p==s && q==r) Mpqrs += 0.5 * mu;
-                if (p==q && r==s) Mpqrs -= 0.5 * mu;
-                Ldot0(p) += Lfactor * Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
+                if (p==q && r==s) Mpqrs -= Lfactor * 0.5;
+                Ldot0(p) += Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
             }
             
             Source(i,j, k, 0) = mdot0;
@@ -573,6 +576,20 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             if (grad_omega.lpNorm<2>() * dr * 2 > omega_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
         });
     }
+
+    // Gradu criterion for refinement
+    for (amrex::MFIter mfi(*vorticity_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& v = (*velocity_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+            Set::Matrix grad_u = Numeric::Gradient(v, i, j, k, DX, sten);
+            if (grad_u.lpNorm<2>() * dr * 2 > gradu_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
+
 
 }//end TagCells
 
