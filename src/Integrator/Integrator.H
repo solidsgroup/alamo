@@ -178,7 +178,7 @@ protected:
     virtual void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time,
         int ngrow) = 0;
 
-    /// \fn    TimeStepComplete
+    /// \fn    TimeStepBegin
     /// \brief Run another system calculation (e.g. implicit solve) before integration step
     ///
     /// This function is called at the beginning of every timestep. This function can be used
@@ -186,7 +186,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    TimeStepComplete
     /// \brief Run another system calculation (e.g. implicit solve) after integration step
@@ -196,7 +196,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepComplete(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    Integrate
     /// \brief Perform an integration to compute integrated quantities
@@ -259,6 +259,100 @@ protected:
     void SetThermoPlotInt(int a_thermo_plot_int) { thermo.plot_int = a_thermo_plot_int; }
     void SetStopTime(Set::Scalar a_stop_time) { stop_time = a_stop_time; }
 
+
+    // Dynamic timestep adjustment
+
+    struct {
+        // user params
+        bool on = false;
+        int verbose = -1;
+        int nprevious = -1;
+        Set::Scalar cfl = NAN;
+        Set::Scalar min = NAN;
+        Set::Scalar max = NAN;
+        // internal variables
+        std::vector<Set::Scalar> df_limit_max;
+        std::vector<Set::Scalar> previous_timesteps;
+    } dynamictimestep;
+    void DynamicTimestep_SyncDrivingForce(int lev, Set::Scalar df_max)
+    {
+        if (!dynamictimestep.on) return;
+        if (!dynamictimestep.df_limit_max.size())
+        {
+            dynamictimestep.df_limit_max.resize(max_level+1,0.0);
+        }
+        dynamictimestep.df_limit_max[lev] = std::max(df_max,
+                                                     dynamictimestep.df_limit_max[lev]);
+        
+        amrex::ParallelDescriptor::ReduceRealMax(dynamictimestep.df_limit_max[lev]);
+    }
+    void DynamicTimestep_Reset()
+    {
+        if (!dynamictimestep.on) return;
+        dynamictimestep.previous_timesteps.clear();
+    }
+    void DynamicTimestep_Update()
+    {
+        if (!dynamictimestep.on) return;
+        if (!dynamictimestep.df_limit_max.size()) return;
+        
+        Set::Scalar final_timestep = NAN;
+
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            Set::Scalar timestep_average = this->dt[0];
+            if (dynamictimestep.previous_timesteps.size() > 0)
+            {
+                timestep_average = 0.0;
+                for (unsigned int d = 0; d < dynamictimestep.previous_timesteps.size(); d++)
+                    timestep_average += dynamictimestep.previous_timesteps[d];
+                timestep_average /= dynamictimestep.previous_timesteps.size();
+            }
+
+            Set::Scalar new_timestep = std::numeric_limits<Set::Scalar>::max();
+            for (int lev = 0; lev <= this->max_level; lev++)
+            {
+                const Set::Scalar* DX = this->geom[lev].CellSize();
+                Set::Scalar dt_lev = dynamictimestep.cfl * (DX[0]*DX[0]) / dynamictimestep.df_limit_max[lev];
+
+                Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
+        
+                for (int ilev = lev; ilev > 0; ilev--) dt_lev *= (Set::Scalar)(this->nsubsteps[ilev]);
+
+                Util::Message(INFO,"lev=",lev,"       -->    ",dt_lev);
+
+                new_timestep = std::min(new_timestep,dt_lev);
+            }
+
+            if (new_timestep < timestep_average)
+            {
+                dynamictimestep.previous_timesteps.clear();
+
+                final_timestep = new_timestep;
+                final_timestep = std::max(final_timestep,dynamictimestep.min);
+                final_timestep = std::min(final_timestep,dynamictimestep.max);
+
+                dynamictimestep.previous_timesteps.push_back(new_timestep);
+            }
+            else
+            {
+                final_timestep = timestep_average;
+                final_timestep = std::max(final_timestep,dynamictimestep.min);
+                final_timestep = std::min(final_timestep,dynamictimestep.max);
+
+                if ((int)(dynamictimestep.previous_timesteps.size()) > dynamictimestep.nprevious)
+                    dynamictimestep.previous_timesteps.erase(dynamictimestep.previous_timesteps.begin()); // pop first
+                dynamictimestep.previous_timesteps.push_back(new_timestep); // push back new timestep
+            }
+
+        }
+        amrex::ParallelDescriptor::Bcast(&final_timestep,1);
+        this->SetTimestep(final_timestep);
+        dynamictimestep.df_limit_max.clear();
+    }
+
+
+    
     amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
     amrex::Vector<int> istep;           ///< Keep track of where each level is
     // PLOT FILES
@@ -299,9 +393,9 @@ protected:
     // TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
     amrex::Real timestep = NAN;   ///< Timestep for the base level of refinement
-private:
     amrex::Vector<amrex::Real> dt;  ///< Timesteps for each level of refinement
     amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
+private:
     int max_plot_level = -1;
 
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
@@ -370,6 +464,8 @@ protected:
 protected:
     int plot_int = -1;               ///< How frequently to dump plot file (default: never)
     Set::Scalar plot_dt = -1.0;
+
+    int abort_on_nan = true;
 };
 
 

@@ -56,7 +56,7 @@ allencahn.alpha.ic.bmp.min = 255
 #allencahn.alpha.ic.psread.mult = 10.0
 #allencahn.alpha.ic.psread.x0 = -20.0 0
 #allencahn.alpha.ic.psread.invert = 1
-allencahn.ch.L = 1.0
+allencahn.ch.L = 10.0
 allencahn.ch.eps = 0.1
 allencahn.ch.grad = 0.01
 allencahn.ch.chempot = 0.01
@@ -145,3 +145,6 @@ hydro.solid.energy.ic.constant.value = 0.0
 hydro.rho_injected.ic.constant.value = 1.0
 hydro.mdot.ic.constant.value = 0.0
 hydro.q.ic.constant.value = 0.0
+
+hydro.Lfactor=-1.0
+hydro.Pfactor=0.0

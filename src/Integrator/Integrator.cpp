@@ -60,6 +60,8 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query("node.all", node.all);                // Turn on to write all output in node fabs (default: off)
         pp_query("node.any", node.any);                // Turn off to prevent any node based output (default: on)
 
+        pp_query_default("abort_on_nan",abort_on_nan, true); // Abort if a plotfile contains nan or inf.
+
         Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO, TEST(!(!node.any && node.all)));
 
@@ -86,6 +88,20 @@ Integrator::Integrator() : amrex::AmrCore()
         else
             for (int lev = 1; lev <= maxLevel(); ++lev)
                 nsubsteps[lev] = MaxRefRatio(lev - 1);
+    }
+    {
+        IO::ParmParse pp("dynamictimestep");
+        pp_query("on",dynamictimestep.on);
+        if (dynamictimestep.on)
+        {
+            pp_query_validate("verbose",dynamictimestep.verbose,{0,1});
+            pp_query_default("nprevious",dynamictimestep.nprevious,5);
+            pp_query_default("cfl",dynamictimestep.cfl,1.0);
+            pp_query_default("min",dynamictimestep.min,timestep);
+            pp_query_default("max",dynamictimestep.max,timestep);
+
+            Util::AssertException(INFO,TEST(dynamictimestep.max >= dynamictimestep.min));
+        }
     }
     {
         // Information on how to generate thermodynamic
@@ -795,8 +811,16 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             for (int i = 0; i < cell.number_of_fabs; i++)
             {
                 if (!cell.writeout_array[i]) continue;
-                //if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO, cnames[i], " contains nan (i=", i, ")");
-                //if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
+                if ((*cell.fab_array[i])[ilev]->contains_nan())
+                {
+                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains nan (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[i], " contains nan (i=", i, ")");
+                }
+                if ((*cell.fab_array[i])[ilev]->contains_inf())
+                {
+                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[i], " contains inf (i=", i, ")");
+                }
                 amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
                 n += cell.ncomp_array[i];
             }

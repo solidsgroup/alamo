@@ -264,6 +264,8 @@ void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
 
 void Hydro::TimeStepComplete(Set::Scalar, int lev)
 {
+    Integrator::DynamicTimestep_Update();
+
     return;
 
     const Set::Scalar* DX = geom[lev].CellSize();
@@ -281,12 +283,16 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
+
+
+    
     const Set::Scalar small = 1E-8;
 
     std::swap(eta_old_mf, eta_mf);
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
+    Set::Scalar df_max = 0.0;
     
     UpdateEta(lev, time);
 
@@ -362,6 +368,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
+        Set::Scalar *df_max_handle = &df_max;
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             //Diffuse Sources
@@ -408,7 +416,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Set::Scalar mdot0 = 0.0; //-prescribed_boundary_flux.mass * grad_eta_mag;
             //Set::Vector Pdot0 = rho(i,j,k)*(u_applied - u)*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
-            Set::Vector Pdot0 = - Pfactor*(u.dot(grad_eta)) * grad_eta/(grad_eta_mag + small); //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
+            Set::Vector Pdot0 = Set::Vector::Zero(); //- Pfactor*(u.dot(grad_eta)) * grad_eta/(grad_eta_mag + small); //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
             Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
 
 
@@ -421,8 +429,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             for (int s = 0; s<2; s++)
             {
                 Set::Scalar Mpqrs = 0.0;
-                if (p==r && q==s) Mpqrs += 0.5 * mu;
-                if (p==s && q==r) Mpqrs += 0.5 * mu;
+                if (p==r && q==s) Mpqrs += 0.5 * Pfactor;
+                if (p==s && q==r) Mpqrs += 0.5 * Pfactor;
                 if (p==q && r==s) Mpqrs -= Lfactor * 0.5;
                 Ldot0(p) += Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
             }
@@ -527,11 +535,15 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
+            *df_max_handle = std::max(*df_max_handle, u.lpNorm<2>() * DX[0] );
+
             // Compute vorticity
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
 
         });
+        
     }
+    this->DynamicTimestep_SyncDrivingForce(lev,df_max);
 
 }//end Advance
 
