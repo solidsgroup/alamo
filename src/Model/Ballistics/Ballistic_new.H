@@ -17,6 +17,7 @@ public:
     {
         // Initialize constants and initial values
         DefineConstants();
+        pressure0=1.37;
         dpdt.push_back(0.0);  // Initialize dp/dt as zero
     }
 
@@ -42,24 +43,31 @@ public:
 
     // Function that computes dpdt using the mass flow rate (mdot)
     void Compute(Set::Scalar mdot, Set::Scalar dt)
-    {
-        // Get the current pressure
-        Set::Scalar current_p = pressure0;
+{
+    // Get the current pressure
+    Set::Scalar current_p = pressure0;
 
-        // Calculate mass flow rates
-        Set::Scalar mdot_in = mdot;
-        Set::Scalar mdot_out = (current_p * At) / sqrt(gamma * R * T0);
+    // Print values of gamma, At, R, and pressure0
+    std::cout << "gamma: " << gamma << std::endl;
+    std::cout << "At (throat area): " << At << std::endl;
+    std::cout << "R (specific gas constant): " << R << std::endl;
+    std::cout << "Initial pressure (pressure0): " << pressure0 << std::endl;
 
-        // Compute dp/dt
-        Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
+    // Calculate mass flow rates
+    Set::Scalar mdot_in = mdot;
+    Set::Scalar mdot_out = (current_p * At) / sqrt(gamma * R * T0);
 
-        // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt
-        Set::Scalar new_p = current_p + current_dpdt * dt;
+    // Compute dp/dt
+    Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
 
-        // Store the updated dp/dt and update chamber pressure
-        dpdt.push_back(current_dpdt);
-        pressure0 = new_p;
-    }
+    // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt
+    Set::Scalar new_p = current_p + current_dpdt * dt;
+
+    // Store the updated dp/dt and update chamber pressure
+    dpdt.push_back(current_dpdt);
+    pressure0 = new_p;
+}
+
 
     // Class members for chamber properties
     Set::Scalar pressure0;  // Chamber pressure

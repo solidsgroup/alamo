@@ -27,7 +27,7 @@ model_htpb.mu = 8
 
 ## TIME EPS ############################################################ TIME EPS
 
-timestep = 1.e-5 # 0.00005 # [s]
+timestep = 1.e-3 # 0.00005 # [s]
 stop_time = 0.3
 small = 1.0e-8
 pf.min_eta = 0.1
@@ -136,7 +136,7 @@ chamber.R = 287
 ## LASER Variables ########################################################## LASER
 
 laser.ic.type = "constant"
-laser.ic.constant.value = 5.0e6
+laser.ic.constant.value = 5.0e7
 #laser.ic.expression.region0 = "(t>0.1)*(t/5.0)*1.0e7"
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC

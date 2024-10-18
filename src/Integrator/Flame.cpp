@@ -408,7 +408,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         ballistic.Execute(chamber.mdot, timestep);
         chamber.pressure = ballistic.pressure0; // Access updated pressure
         Util::Message(INFO, "Mdot = ", chamber.mdot);
-        Util::Message(INFO, "Pressure = ", chamber.pressure);
+        Util::Message(INFO, "Pressure0 = ", chamber.pressure);
         // calculate mass flux out of nozzle
         // Set::Scalar mdot_out = chamber.pressure0 * chamber.At / sqrt(chamber.gamma * chamber.R * chamber.T0);
         // // integrate mass conservation equation to get current chamber mass
@@ -461,9 +461,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
 
-                // if (variable_pressure) {
-                //     pressure.P = chamber.pressure;
-                // }
+                if (variable_pressure) {
+                     pressure.P = chamber.pressure;
+                }
 
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
                 Set::Scalar zeta_1;
@@ -540,9 +540,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     if (isnan(heatflux(i, j, k))) {
                         Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
                         Util::Abort(INFO);
-                    }
-                });
-
+                    }timestep;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
@@ -586,9 +584,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                         Util::Abort(INFO);
                     }
                 });
-            } // MFi For loop 
+            }); // MFi For loop 
 
         } // thermal IF
+        }
         else
         {
             std::swap(eta_old_mf[lev], eta_mf[lev]);
