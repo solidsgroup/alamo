@@ -36,6 +36,8 @@
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/Linear/Cubic.H"
 #include "Operator/Operator.H"
+#include "IC/DynamicNucleation.H"
+#include "/usr/include/eigen3/Eigen/Dense"
 
 
 namespace Integrator
@@ -99,6 +101,18 @@ public:
             pp_query("euler.reset_on_regrid",value.euler_reset_on_regrid);
         }
         
+         if (pp.contains("heatmap.ic.type")) {
+        value.RegisterNodalFab(value.heatmap_mf, 3, 3, "heatmap", true);
+        std::string type;
+        pp_query("heatmap.ic.type", type); // Read IC type for heatmap field
+        if (type == "hm") {
+            value.ic_heatmap = new IC::PNG3(value.geom, pp, "heatmap.ic.hm"); // Specify the file
+            value.heatmap_ic_type_flag = 1;
+        } else {
+            //Util::Abort(INFO, "Invalid value for heatmap.ic.type: ", type);
+        }
+        }
+        
          //if (pp.contains("quat.ic.type"))
         //{
         
@@ -140,13 +154,22 @@ public:
         pp.query("C11", value.C11);
         pp.query("C12", value.C12);
         pp.query("C44", value.C44);
+        
+        
+        pp_query_required("nucleation.kb",value.nucleation.kb);
+        pp_query_required("nucleation.T",value.nucleation.T);
+        pp_query_required("nucleation.threshold",value.nucleation.threshold);
     }
 
     void Initialize(int lev) override
     {
         Base::Mechanics<MODEL>::Initialize(lev);
-        if (d_on)  spall.ic->Initialize(lev,d_mf);
-        if (d_on)  spall.ic->Initialize(lev,d_old_mf);
+        //if (d_on)  spall.ic->Initialize(lev,d_mf);
+        //if (d_on)  spall.ic->Initialize(lev,d_old_mf);
+        
+        
+       if (d_on)  d_mf[lev]->setVal(0.0);
+       if (d_on)  d_old_mf[lev]->setVal(0.0);
         
 
         p_mf[lev]->setVal(0.0);
@@ -154,17 +177,184 @@ public:
         euler_mf[lev]->setVal(0.0); 
         ic_euler->Initialize(lev, euler_mf);        //newline for euler angles
         
+        
+        ic_heatmap->Initialize(lev, heatmap_mf);
+        
         //quat_mf[lev]->setVal(0.0); 
         //ic_quat->Initialize(lev, quat_mf);        //newline for quaternions
     }
 
 
+    void TimeStepBegin(Set::Scalar a_time, int a_step) override
+    {
+        BL_PROFILE("VoidPF2::TimeStepBegin");
+        Base::Mechanics<MODEL>::TimeStepBegin(a_time, a_step);
+
+        // Constants and parameters
+        const Set::Scalar k_B = 1.0;
+        const Set::Scalar T = 300.0;            // Temperature
+        const Set::Scalar epsilon_e = 1e-6;     // Regularization term to avoid division by zero
+        const Set::Scalar nucleation_threshold = 0.8;  // Threshold for nucleation
+        const Set::Scalar void_radius = 0.025;   // Radius of the nucleated void
+        const Set::Scalar diffuse_thickness = 0.01;
+        const Set::Scalar n = 2;
+
+        Set::Scalar E_max = 0.0;  // Variable to store maximum strain energy
 
 
-    //void TimeStepBegin(Set::Scalar a_time, int a_step) override
-    //{ 
-    //    Base::Mechanics<MODEL>::TimeStepBegin(a_time, a_step);
-    //}
+
+        // Correctly passing geometry as argument to DynamicNucleation
+        IC::DynamicNucleation dynamic_ic(this->geom);
+
+        // Track if nucleation happens
+        bool nucleation_occurred = false;  // Flag to track nucleation
+
+        // **Step 1**: Store nucleation points temporarily
+        std::vector<std::pair<Set::Scalar, Set::Scalar>> nucleation_points;  // Store (x, y) coordinates
+
+
+        if (a_step >0) return;
+        
+        if (a_step == 0)  // Only perform nucleation during the first time step
+        {
+            // Step 1: Compute maximum strain energy (E_max)
+            for (int lev = 0; lev <= finest_level; ++lev)
+            {
+                amrex::Box domain = this->geom[lev].Domain();
+                domain.convert(amrex::IntVect::TheNodeVector());
+                const Set::Scalar* DX = geom[lev].CellSize();
+
+                for (amrex::MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                {
+                    amrex::Box bx = mfi.tilebox();
+                    amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+
+                    amrex::ParallelFor(bx, [=, &E_max] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        // Initialize stress and strain matrices
+                        Eigen::Matrix2d sigma, epsilon;
+                        sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
+                        sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
+                        epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
+                        epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
+
+                        // Compute strain energy density in 2D
+                        Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
+                                                      sigma(1, 1) * epsilon(1, 1) +
+                                                      2.0 * sigma(1, 0) * epsilon(1, 0));
+
+                        // Update maximum strain energy
+                        amrex::Gpu::Atomic::Max(&E_max, E_strain);
+                    });
+                }
+            }
+
+            // Step 2: Check for nucleation points and create voids
+            for (int lev = 0; lev <= finest_level; ++lev)
+            {
+                amrex::Box domain = this->geom[lev].Domain();
+                domain.convert(amrex::IntVect::TheNodeVector());
+                const Set::Scalar* DX = geom[lev].CellSize();
+
+                for (amrex::MFIter mfi(*d_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                {
+                    amrex::Box bx = mfi.tilebox();
+                    amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const& p = (*p_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const& d = (*d_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const& dold = (*d_old_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Scalar> const& heatmap = (*heatmap_mf[lev]).array(mfi);
+
+                    // Temporarily collect nucleation points from parallel for
+                    amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, E_max, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        // Initialize stress and strain matrices
+                        Eigen::Matrix2d sigma, epsilon;
+                        sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
+                        sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
+                        epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
+                        epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
+
+                        // Compute strain energy density
+                        Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
+                                                      sigma(1, 1) * epsilon(1, 1) +
+                                                      2.0 * sigma(1, 0) * epsilon(1, 0));
+
+                        // Normalize strain energy by E_max
+                        Set::Scalar E_strain_norm = E_strain / E_max;
+
+                        // Check principal stresses (positive indicates tension)
+                        Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(sigma);
+                        Set::Scalar max_principal_stress = solver.eigenvalues().maxCoeff();
+
+                        if (max_principal_stress > 0)  // Tension exists, proceed with nucleation
+                        {
+                            // Compute nucleation energy
+                            Set::Scalar R = heatmap(i, j, k, 0);
+                            Set::Scalar G = heatmap(i, j, k, 1);
+                            Set::Scalar B = heatmap(i, j, k, 2);
+                            Set::Scalar H = (R + G + B) / 3.0;
+
+                            Set::Scalar energy = (1.0 - std::max(H, epsilon_e)); // - E_strain_norm)/2;
+                            //Set::Scalar p_nucleation = std::exp(-energy / (k_B * T));
+                            //p(i, j, k) = std::clamp(p_nucleation, 0.0, 1.0);
+     
+     
+                            p(i,j,k) = 1.0 - B;
+
+                            // Step 3: If nucleation probability exceeds the threshold, create a void
+                            if (p(i, j, k) > nucleation_threshold)
+                            {
+                                // Step 4: Get the physical coordinates of the nucleation point
+                                const Set::Scalar* prob_lo = geom[lev].ProbLo();
+                                Set::Scalar center_x = prob_lo[0] + (i + 0.5) * DX[0];
+                                Set::Scalar center_y = prob_lo[1] + (j + 0.5) * DX[1];
+
+                                // Add nucleation points to a vector to print later
+                                nucleation_points.emplace_back(center_x, center_y);
+
+                                // Add this nucleation point to the dynamic nucleation class
+                                Set::Vector nucleation_point(2);
+                                nucleation_point(0) = center_x;
+                                nucleation_point(1) = center_y;
+                                dynamic_ic.AddNucleationPoint(nucleation_point, void_radius);
+
+                                // Mark that nucleation occurred
+                                nucleation_occurred = true;
+                            }
+                        }
+                    });
+                }
+
+                // Step 6: Apply the nucleation points to the domain (after the parallel region)
+                dynamic_ic.Add(lev, d_mf, 1E-6);
+                //std::swap(d_old_mf[lev], d_mf[lev]);
+                Util::RealFillBoundary(*d_mf[lev], geom[lev]);
+                Util::RealFillBoundary(*d_old_mf[lev], geom[lev]);            
+                
+            }
+        }
+        
+        //std::swap(d_old_mf[lev], d_mf[lev]);
+
+        // Step 7: Print nucleation points after processing
+        if (nucleation_occurred)
+        {
+            for (const auto& point : nucleation_points)
+            {
+                std::cout << "Nucleation occurred at physical coordinates (x, y): (" 
+                          << point.first << ", " << point.second << ")\n";
+            }
+        }
+        else
+        {
+            std::cout << "No nucleation occurred at any point during this time step.\n";
+        }
+    }
+
+
 
     virtual void UpdateModel(int a_step, Set::Scalar a_time) override
     {
@@ -181,11 +371,14 @@ public:
                 
                 //quat_mf[lev]->FillBoundary();    //quaternions
                 
+                heatmap_mf[lev]->FillBoundary(); 
+                
                 amrex::Box domain = this->geom[lev].Domain();
                 domain.convert(amrex::IntVect::TheNodeVector());
 
                 //this->rhs_mf[lev]->setVal(Set::Vector::Zero(0.0));
                 d_mf[lev]->FillBoundary();
+                //d_old_mf[lev]->FillBoundary();
 
                 // model.Define(C11,C12,C44);
                 // model_mf[lev]->setVal(model);
@@ -291,6 +484,7 @@ public:
                         });
                     }
                 Util::RealFillBoundary(*model_mf[lev], this->geom[lev]);
+                //Util::RealFillBoundary(*model_mf[lev], geom[lev]);
                 Util::RealFillBoundary(*d_mf[lev], geom[lev]);
                 Util::RealFillBoundary(*d_old_mf[lev], geom[lev]);
 
@@ -387,6 +581,7 @@ public:
                 {
                     Set::Vector gradpsi = Numeric::Gradient(d, i, j, k, 0, DX.data(), sten);
                     if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
+                    //if (gradpsi.lpNorm<2>() * DXnorm > 0.0001)
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
             });
@@ -473,6 +668,12 @@ protected:
     //int quat_ic_type_flag; // new member variable for the flag
     //bool quat_reset_on_regrid = false;
     
+    Set::Field<Set::Scalar> heatmap_mf;          //new line added
+    Set::Scalar m_heatmap_ref_threshold = 0.01;   //new line added
+    IC::IC* ic_heatmap = nullptr;     //newline added
+    int heatmap_ic_type_flag; // new member variable for the flag
+    bool heatmap_reset_on_regrid = false;
+    
     std::string filename; 
     
 
@@ -491,6 +692,14 @@ protected:
     Set::Scalar C11 = NAN;
     Set::Scalar C12 = NAN;
     Set::Scalar C44 = NAN;
+    
+    
+    struct {    
+        Set::Scalar kb = NAN;
+        Set::Scalar T  = NAN;
+        Set::Scalar threshold = NAN;
+        } nucleation;
+        
 };
 
 

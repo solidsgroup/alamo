@@ -4,7 +4,7 @@ plot_file		    = tests/void2/output
 
 
 timestep		    = 0.001
-stop_time		    = 0.08
+stop_time		    = 5.0
 
 # amr parameters
 amr.plot_int		    = 1
@@ -32,17 +32,28 @@ geometry.is_periodic	    = 0 0 0
 
 euler.ic.type         = eulerangles
 euler.ic.eulerangles.filename = tests/void2/micrograph.png
+#euler.ic.eulerangles.filename = tests/void2/green_blue_image.png
 euler.ic.eulerangles.fit      = fitwidth
 
 
+heatmap.ic.type         = hm
+heatmap.ic.hm.filename = tests/void2/heatmap.png
+heatmap.ic.hm.fit      = fitwidth
+
+
 #quat.ic.type         = quaternions
-#quat.ic.quaternions.filename = tests/void2/output_image.bmp
+#quat.ic.quaternions.filename = tests/void2/heatmap.bmp
 #quat.ic.quaternions.fit      = fitwidth
 
-#spall.ic.type = psread
+
+
+#the below three lines are only used along with psread.h
 spall.ic.type = psread
 spall.ic.psread.filename = tests/void2/nucleation.txt
+#spall.ic.psread.eps = 0.01
 spall.ic.psread.eps = 0.01
+
+
 
 C11             = 260.2
 C12             = 154.5
@@ -87,11 +98,34 @@ mechanics.bc.constant.val.xhiyhi = 0.0 0.1
 mechanics.print_model = 1
 elastic.interval = 10
 
+
+
+# current values which are not working!
+#eta_ref_threshold = 0.005
+#spall.M = 1.0
+#spall.kappa = -0.0005
+#spall.po = 1.0
+#spall.cp = 1.0
+#spall.elastic_mult = -2.0
+#spall.small = 0.1
+
+#eta_ref_threshold = 0.005
+#spall.M = 1.0
+#spall.kappa = -0.0005
+#spall.po = 6.0
+#spall.cp = 20.0
+#spall.elastic_mult = -1.0
+#spall.small = 0.1
+
+
 eta_ref_threshold = 0.005
 spall.M = 1.0
-#spall.M = 0.005
-spall.kappa = -0.0005 # -0.0005
-spall.po = 1.0
-spall.cp = 1.0
-spall.elastic_mult = -2.0
-spall.small = 0.1
+spall.kappa = -0.0005
+spall.po = 5.0
+spall.cp = 20.0
+spall.elastic_mult = -1.50
+spall.small = 1.0
+
+nucleation.kb = 1.0
+nucleation.T = 300
+nucleation.threshold = 0.98
