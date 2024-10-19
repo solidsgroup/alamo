@@ -145,7 +145,7 @@ public:
             value.Define(mu,lambda*(1.0 - lambda/(2.*mu + lambda)));
         else
             value.Define(mu,lambda);
-        Util::Message(INFO,value);
+        // Util::Message(INFO,value);
     }
 
     #define OP_CLASS Isotropic
