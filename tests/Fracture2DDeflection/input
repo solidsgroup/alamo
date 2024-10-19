@@ -45,7 +45,7 @@ crack.ic.type = notch
 crack.ic.notch.center = -0.01 0.0
 crack.ic.notch.orientation = 1.0 0.0
 crack.ic.notch.thickness = 3.e-4
-crack.ic.notch.length = 5.e-3
+crack.ic.notch.length = 2.e-2
 crack.ic.notch.eps = 4.e-5
 crack.ic.notch.mollifier = erf
 
@@ -89,16 +89,16 @@ bc.constant.val.xhiyhi = 0.0 3.e-5
 ### Mode-II test
 # bc.type = constant
 # bc.constant.type.xloylo = disp disp
-# bc.constant.type.xlo    = disp trac
+# bc.constant.type.xlo    = trac disp
 # bc.constant.type.xloyhi = disp disp
 # bc.constant.type.ylo    = disp disp
 # bc.constant.type.yhi    = disp disp
-# bc.constant.type.xhi    = disp trac
+# bc.constant.type.xhi    = trac disp
 # bc.constant.type.xhiylo = disp disp
 # bc.constant.type.xhiyhi = disp disp
-# bc.constant.val.yhi = 0.0 2.e-5
-# bc.constant.val.xloyhi = 0.0 2.e-5
-# bc.constant.val.xhiyhi = 0.0 2.e-5
+# bc.constant.val.yhi     = 8.e-5 0.0
+# bc.constant.val.xloyhi  = 8.e-5 0.0
+# bc.constant.val.xhiyhi  = 8.e-5 0.0
 
 
 
