@@ -9,7 +9,7 @@ stop_time		    = 5.0
 # amr parameters
 amr.plot_int		    = 1
 amr.max_level		    = 1
-amr.n_cell		    = 128 128 128
+amr.n_cell		    = 512 512 512
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0
@@ -124,7 +124,7 @@ spall.kappa = -0.0005
 spall.po = 5.0
 spall.cp = 20.0
 spall.elastic_mult = -1.50
-spall.small = 1.0
+spall.small = 0.1
 
 nucleation.kb = 1.0
 nucleation.T = 300

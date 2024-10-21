@@ -68,10 +68,12 @@ public:
 
         value.bc_d = new BC::Constant(1,pp,"d.bc.constant");
         value.bc_p = new BC::Nothing();
+        value.bc_pr = new BC::Nothing();
 
         value.RegisterNewFab(value.d_mf, value.bc_d, 1, 3, "d",true);
         value.RegisterNewFab(value.d_old_mf, value.bc_d,  1, 3,"dold",false);
         value.RegisterNewFab(value.p_mf, value.bc_d, 1, 3, "p",true);
+        value.RegisterNewFab(value.pr_mf, value.bc_d, 1, 3, "pr",true);
                 
         
         
@@ -173,6 +175,7 @@ public:
         
 
         p_mf[lev]->setVal(0.0);
+        pr_mf[lev]->setVal(0.0);
         
         euler_mf[lev]->setVal(0.0); 
         ic_euler->Initialize(lev, euler_mf);        //newline for euler angles
@@ -183,7 +186,6 @@ public:
         //quat_mf[lev]->setVal(0.0); 
         //ic_quat->Initialize(lev, quat_mf);        //newline for quaternions
     }
-
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
@@ -209,7 +211,7 @@ public:
         // Track if nucleation happens
         bool nucleation_occurred = false;  // Flag to track nucleation
 
-        // **Step 1**: Store nucleation points temporarily
+        // Store nucleation points temporarily
         std::vector<std::pair<Set::Scalar, Set::Scalar>> nucleation_points;  // Store (x, y) coordinates
 
 
@@ -217,35 +219,35 @@ public:
         
         if (a_step == 0)  // Only perform nucleation during the first time step
         {
-            // Step 1: Compute maximum strain energy (E_max)
+            // Compute maximum strain energy (E_max)
             for (int lev = 0; lev <= finest_level; ++lev)
             {
                 amrex::Box domain = this->geom[lev].Domain();
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar* DX = geom[lev].CellSize();
 
-                for (amrex::MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                for (amrex::MFIter mfi(*d_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.tilebox();
-                    amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
-                    amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+                    //amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
+                    //amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
 
                     amrex::ParallelFor(bx, [=, &E_max] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         // Initialize stress and strain matrices
-                        Eigen::Matrix2d sigma, epsilon;
-                        sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
-                        sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
-                        epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
-                        epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
+                        //Eigen::Matrix2d sigma, epsilon;
+                        //sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
+                        //sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
+                        //epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
+                        //epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
 
                         // Compute strain energy density in 2D
-                        Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
-                                                      sigma(1, 1) * epsilon(1, 1) +
-                                                      2.0 * sigma(1, 0) * epsilon(1, 0));
+                        //Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
+                                                      //sigma(1, 1) * epsilon(1, 1) +
+                                                      //2.0 * sigma(1, 0) * epsilon(1, 0));
 
                         // Update maximum strain energy
-                        amrex::Gpu::Atomic::Max(&E_max, E_strain);
+                        //amrex::Gpu::Atomic::Max(&E_max, E_strain);
                     });
                 }
             }
@@ -257,39 +259,40 @@ public:
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar* DX = geom[lev].CellSize();
 
-                for (amrex::MFIter mfi(*d_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                for (amrex::MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.tilebox();
-                    amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
-                    amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
-                    amrex::Array4<Set::Scalar> const& p = (*p_mf[lev]).array(mfi);
+                    //amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
+                    //amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const& pr = (*pr_mf[lev]).array(mfi);
                     amrex::Array4<Set::Scalar> const& d = (*d_mf[lev]).array(mfi);
                     amrex::Array4<Set::Scalar> const& dold = (*d_old_mf[lev]).array(mfi);
                     amrex::Array4<const Set::Scalar> const& heatmap = (*heatmap_mf[lev]).array(mfi);
 
                     // Temporarily collect nucleation points from parallel for
-                    amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, E_max, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
+                    //amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, E_max, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
+                    amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         // Initialize stress and strain matrices
-                        Eigen::Matrix2d sigma, epsilon;
-                        sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
-                        sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
-                        epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
-                        epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
+                        //Eigen::Matrix2d sigma, epsilon;
+                        //sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
+                        //sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
+                        //epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
+                        //epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
 
                         // Compute strain energy density
-                        Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
-                                                      sigma(1, 1) * epsilon(1, 1) +
-                                                      2.0 * sigma(1, 0) * epsilon(1, 0));
+                        //Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
+                                                      //sigma(1, 1) * epsilon(1, 1) +
+                                                      //2.0 * sigma(1, 0) * epsilon(1, 0));
 
                         // Normalize strain energy by E_max
-                        Set::Scalar E_strain_norm = E_strain / E_max;
+                        //Set::Scalar E_strain_norm = E_strain / E_max;
 
                         // Check principal stresses (positive indicates tension)
-                        Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(sigma);
-                        Set::Scalar max_principal_stress = solver.eigenvalues().maxCoeff();
+                        //Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(sigma);
+                        //Set::Scalar max_principal_stress = solver.eigenvalues().maxCoeff();
 
-                        if (max_principal_stress > 0)  // Tension exists, proceed with nucleation
+                        //if (max_principal_stress > 0)  // Tension exists, proceed with nucleation
                         {
                             // Compute nucleation energy
                             Set::Scalar R = heatmap(i, j, k, 0);
@@ -302,15 +305,15 @@ public:
                             //p(i, j, k) = std::clamp(p_nucleation, 0.0, 1.0);
      
      
-                            p(i,j,k) = 1.0 - B;
+                            pr(i,j,k) = 1.0 - B;
 
                             // Step 3: If nucleation probability exceeds the threshold, create a void
-                            if (p(i, j, k) > nucleation_threshold)
+                            if (pr(i, j, k) > nucleation_threshold)
                             {
                                 // Step 4: Get the physical coordinates of the nucleation point
                                 const Set::Scalar* prob_lo = geom[lev].ProbLo();
                                 Set::Scalar center_x = prob_lo[0] + (i + 0.5) * DX[0];
-                                Set::Scalar center_y = prob_lo[1] + (j + 0.5) * DX[1];
+                                Set::Scalar center_y = prob_lo[1] + (j + 30.5) * DX[1];
 
                                 // Add nucleation points to a vector to print later
                                 nucleation_points.emplace_back(center_x, center_y);
@@ -356,13 +359,15 @@ public:
 
 
 
+
+
     virtual void UpdateModel(int a_step, Set::Scalar a_time) override
     {
         //Base::Mechanics<MODEL>::UpdateModel(a_step, a_time);
         
         if (m_type == Base::Mechanics<MODEL>::Type::Disable) return;
         
-        if (a_step > 0) return;
+        //if (a_step > 0) return;
 
         if (!d_on) return;
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -520,7 +525,7 @@ public:
             amrex::Array4<Set::Scalar> const& p = (*p_mf[lev]).array(mfi);
             
             
-            //Set::Patch<const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
+            //Set::Patcht::Vector grad <const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
             //Set::Patch<const Set::Matrix> eps  = strain_mf.Patch(lev,mfi);
             //Set::Patch<const Set::Scalar> dold = d_old_mf.Patch(lev,mfi);
             //Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
@@ -546,7 +551,7 @@ public:
                 
                 
                 if (df < 0)
-                    df = 0;
+                    df = 0.1;
                             
                 
                 if (d(i,j,k) > 1.0)   d(i,j,k) = 1.0;
@@ -580,8 +585,8 @@ public:
                 auto sten = Numeric::GetStencil(i, j, k, bx);
                 {
                     Set::Vector gradpsi = Numeric::Gradient(d, i, j, k, 0, DX.data(), sten);
-                    if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
-                    //if (gradpsi.lpNorm<2>() * DXnorm > 0.0001)
+                    //if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
+                    if (gradpsi.lpNorm<2>() * DXnorm > 0.0001)
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
             });
@@ -628,23 +633,24 @@ public:
         }
     }
     
-    void Regrid(int lev, Set::Scalar time) override
-    {
-        ic_euler->Initialize(lev, euler_mf, time);                 //newline added for euler angles
+    //void Regrid(int lev, Set::Scalar time) override
+    //{
+        //ic_euler->Initialize(lev, euler_mf, time);                 //newline added for euler angles
         
         //ic_quat->Initialize(lev, quat_mf, time);                 //newline added for euler angles
-    }
+    //}
 
 
 
 protected:
     MODEL model;
     IC::IC* ic;
-    BC::BC<Set::Scalar>*bc_d, *bc_p;
+    BC::BC<Set::Scalar>*bc_d, *bc_p, *bc_pr;
     Set::Scalar m_eta_ref_threshold = 1E-2;
     Set::Field<Set::Scalar> d_old_mf;
     Set::Field<Set::Scalar> d_mf;
     Set::Field<Set::Scalar> p_mf;
+    Set::Field<Set::Scalar> pr_mf;
 
     bool d_on = true;
 
