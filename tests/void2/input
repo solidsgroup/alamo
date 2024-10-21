@@ -4,12 +4,12 @@ plot_file		    = tests/void2/output
 
 
 timestep		    = 0.001
-stop_time		    = 5.0
+stop_time		    = 1.0
 
 # amr parameters
 amr.plot_int		    = 1
 amr.max_level		    = 1
-amr.n_cell		    = 512 512 512
+amr.n_cell		    = 128 128 128
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0

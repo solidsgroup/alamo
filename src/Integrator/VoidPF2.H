@@ -252,7 +252,7 @@ public:
                 }
             }
 
-            // Step 2: Check for nucleation points and create voids
+            // Check for nucleation points and create voids
             for (int lev = 0; lev <= finest_level; ++lev)
             {
                 amrex::Box domain = this->geom[lev].Domain();
@@ -307,13 +307,13 @@ public:
      
                             pr(i,j,k) = 1.0 - B;
 
-                            // Step 3: If nucleation probability exceeds the threshold, create a void
+                            // If nucleation probability exceeds the threshold, create a void
                             if (pr(i, j, k) > nucleation_threshold)
                             {
-                                // Step 4: Get the physical coordinates of the nucleation point
+                                // Get the physical coordinates of the nucleation point
                                 const Set::Scalar* prob_lo = geom[lev].ProbLo();
                                 Set::Scalar center_x = prob_lo[0] + (i + 0.5) * DX[0];
-                                Set::Scalar center_y = prob_lo[1] + (j + 30.5) * DX[1];
+                                Set::Scalar center_y = prob_lo[1] + (j + 0.5) * DX[1];
 
                                 // Add nucleation points to a vector to print later
                                 nucleation_points.emplace_back(center_x, center_y);
@@ -331,7 +331,7 @@ public:
                     });
                 }
 
-                // Step 6: Apply the nucleation points to the domain (after the parallel region)
+                // Apply the nucleation points to the domain (after the parallel region)
                 dynamic_ic.Add(lev, d_mf, 1E-6);
                 //std::swap(d_old_mf[lev], d_mf[lev]);
                 Util::RealFillBoundary(*d_mf[lev], geom[lev]);
@@ -340,9 +340,9 @@ public:
             }
         }
         
-        //std::swap(d_old_mf[lev], d_mf[lev]);
+        
 
-        // Step 7: Print nucleation points after processing
+        // Print nucleation points after processing
         if (nucleation_occurred)
         {
             for (const auto& point : nucleation_points)
@@ -353,7 +353,7 @@ public:
         }
         else
         {
-            std::cout << "No nucleation occurred at any point during this time step.\n";
+            std::cout << "No nucleation occurred at any point during the time step.\n";
         }
     }
 
@@ -551,7 +551,7 @@ public:
                 
                 
                 if (df < 0)
-                    df = 0.1;
+                    df = 0.0;
                             
                 
                 if (d(i,j,k) > 1.0)   d(i,j,k) = 1.0;
@@ -585,8 +585,8 @@ public:
                 auto sten = Numeric::GetStencil(i, j, k, bx);
                 {
                     Set::Vector gradpsi = Numeric::Gradient(d, i, j, k, 0, DX.data(), sten);
-                    //if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
-                    if (gradpsi.lpNorm<2>() * DXnorm > 0.0001)
+                    if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
+                    //if (gradpsi.lpNorm<2>() * DXnorm > 0.0001)
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
             });
