@@ -283,7 +283,7 @@ protected:
         }
         dynamictimestep.df_limit_max[lev] = std::max(df_max,
                                                      dynamictimestep.df_limit_max[lev]);
-        
+
         amrex::ParallelDescriptor::ReduceRealMax(dynamictimestep.df_limit_max[lev]);
     }
     void DynamicTimestep_Reset()
@@ -295,7 +295,7 @@ protected:
     {
         if (!dynamictimestep.on) return;
         if (!dynamictimestep.df_limit_max.size()) return;
-        
+
         Set::Scalar final_timestep = NAN;
 
         if (amrex::ParallelDescriptor::IOProcessor())
@@ -316,7 +316,7 @@ protected:
                 Set::Scalar dt_lev = dynamictimestep.cfl * (DX[0]*DX[0]) / dynamictimestep.df_limit_max[lev];
 
                 Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
-        
+
                 for (int ilev = lev; ilev > 0; ilev--) dt_lev *= (Set::Scalar)(this->nsubsteps[ilev]);
 
                 Util::Message(INFO,"lev=",lev,"       -->    ",dt_lev);
@@ -352,7 +352,7 @@ protected:
     }
 
 
-    
+
     amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
     amrex::Vector<int> istep;           ///< Keep track of where each level is
     // PLOT FILES

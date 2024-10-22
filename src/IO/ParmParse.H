@@ -192,7 +192,7 @@ public:
 
     int query_validate( std::string name, int & value, std::vector<int> possibleintvals,
                         std::string file = "", std::string func = "", int line = -1)
-    {        
+    {
         // First value is accepted by default...
 
         // set default value
@@ -207,7 +207,7 @@ public:
         {
             if (value == possibleintvals[i]) ok = true;
         }
-        
+
         if (ok) return retval;
 
         std::stringstream ss;

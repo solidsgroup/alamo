@@ -285,7 +285,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
 
-    
+
     const Set::Scalar small = 1E-8;
 
     std::swap(eta_old_mf, eta_mf);
@@ -541,7 +541,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
 
         });
-        
+
     }
     this->DynamicTimestep_SyncDrivingForce(lev,df_max);
 
