@@ -1,0 +1,160 @@
+alamo.program = hydro
+
+### OUTPUT ###
+
+#plot_file = ./output
+plot_file = /mmfs1/home/jquinlan/alamo_data/VonKarman
+
+### MESHING ###
+
+amr.plot_dt = 1.0
+#amr.plot_int = 10
+amr.max_grid_size = 500000
+amr.blocking_factor = 8
+amr.regrid_int = 100
+amr.grid_eff = 0.8
+
+
+amr.max_level = 4
+timestep  = 0.01
+#amr.n_cell = 256 128
+amr.n_cell = 64 32
+#amr.n_cell = 128 32
+
+# Uncomment to test AMR
+#amr.max_level = 2
+#amr.n_cell = 128 32 0
+
+### DIMENSIONS ###
+
+geometry.prob_lo = -12.0 -12.0 0.0 # [ m ] 
+geometry.prob_hi =  36.0  12.0 0.0 # [ m ]
+
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+stop_time = 10000.0
+
+### ETA IC ###
+
+rho_injected.ic.type = expression
+rho_injected.ic.expression.region0 = "100.0"
+
+mdot.ic.type = expression
+mdot.ic.expression.region0 = "0.0"
+mdot.ic.expression.region1 = "0.0"
+
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.vel_x = 0.0 
+eta.ic.expression.constant.vel_y = 0.0 
+eta.ic.expression.constant.x0    = 0.0 
+eta.ic.expression.constant.R    = 1.0
+eta.ic.expression.region0        = "0.5*(1 + tanh((sqrt((x-x0)**2 + (y)**2) - R)/eps))"
+
+### HYDRO PARAM ###
+
+gamma = 1.4
+cfl   = 0.4
+mu    = 1.
+Lfactor = -1.0
+Pfactor = 1.0
+#pref = 1000.0
+pref = 1000.0
+
+density.ic.type = expression
+density.ic.expression.region0 = "100.0"
+
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.eps   = 0.1
+#velocity.ic.expression.constant.vel_x = 0.0
+#velocity.ic.expression.constant.vel_y = 0.0
+velocity.ic.expression.constant.x0    = 0.0
+velocity.ic.expression.constant.R    = 1.0
+velocity.ic.expression.region0 =  "1.0*0.5*(1 + tanh((sqrt((x-x0)**2 + (y)**2) - R)/eps))"
+
+
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.region0 = "0.0" 
+
+### SOLID ###
+
+solid.density.ic.type = expression
+solid.density.ic.expression.region0 = "100.0"
+
+solid.momentum.ic.type = expression
+solid.momentum.ic.expression.region0 = "0.0"
+solid.momentum.ic.expression.region1 = "0.0"
+
+solid.energy.ic.type = expression
+solid.energy.ic.expression.region0 = "0.0" 
+
+### ETA BC  ###
+
+pf.eta.bc.type.xlo = neumann
+pf.eta.bc.type.xhi = neumann
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.zlo = neumann
+pf.eta.bc.type.zhi = neumann
+
+pf.eta.bc.val.xlo = 0.0
+pf.eta.bc.val.xhi = 0.0
+pf.eta.bc.val.ylo = 0.0
+pf.eta.bc.val.yhi = 0.0
+pf.eta.bc.val.zlo = 0.0
+pf.eta.bc.val.zhi = 0.0
+
+### HYDRO BC ###
+
+density.bc.type.xhi = neumann
+density.bc.type.xlo = neumann
+density.bc.type.ylo = neumann
+density.bc.type.yhi = neumann
+density.bc.val.xhi = 0.0
+density.bc.val.xlo = 0.0
+density.bc.val.ylo = 0.0 
+density.bc.val.yhi = 0.0
+
+pressure.bc.type.xhi = neumann
+pressure.bc.type.xlo = neumann
+pressure.bc.type.ylo = neumann
+pressure.bc.type.yhi = neumann
+pressure.bc.val.xhi = 0.0
+pressure.bc.val.xlo = 0.0
+pressure.bc.val.ylo = 0.0 
+pressure.bc.val.yhi = 0.0
+
+velocity.bc.type.xlo = dirichlet neumann
+velocity.bc.type.xhi = neumann neumann
+velocity.bc.type.ylo = neumann dirichlet
+velocity.bc.type.yhi = neumann dirichlet
+velocity.bc.val.xlo = 100.0 0.0
+velocity.bc.val.xhi = 0.0 0.0
+velocity.bc.val.ylo = 0.0 0.0
+velocity.bc.val.yhi = 0.0 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.01
+gradu_refinement_criterion = 0.05
+
+#TODO
+
+amr.abort_on_nan = 0
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.max  = 0.1
+dynamictimestep.min  = 0.0
+dynamictimestep.cfl = 0.05
+#amr.nsubsteps = 4
