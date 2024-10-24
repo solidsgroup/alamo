@@ -2,7 +2,7 @@ alamo.program = flame
 plot_file = output-squarestart
 #amr.plot_dt = 0.001
 amr.plot_int = 10
-amr.max_level = 7
+amr.max_level = 5
 #amr.max_grid_size = 50
 amr.blocking_factor = 4
 amr.base_regrid_int = 1
@@ -32,7 +32,7 @@ stop_time = 0.3
 small = 1.0e-8
 pf.min_eta = 0.1
 
-pf.eps = 0.000001 #0.000003 # [m]
+pf.eps = 0.0001 #0.000003 # [m]
 pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
@@ -124,9 +124,9 @@ pressure.c1 = -0.09906
 
 ## CHAMBER VARIABLES ######################################################### CHAMBER
 chamber.on = 1
-chamber.rho0 = 1
+chamber.rho0 = 1.5
 chamber.c_star = 1
-chamber.pressure0 = 1.37
+chamber.pressure0 = 4
 chamber.At = 0.1
 chamber.p0 = 1
 chamber.gamma = 1.4
@@ -136,7 +136,7 @@ chamber.R = 287
 ## LASER Variables ########################################################## LASER
 
 laser.ic.type = "constant"
-laser.ic.constant.value = 5.0e7
+laser.ic.constant.value = 5.0e6
 #laser.ic.expression.region0 = "(t>0.1)*(t/5.0)*1.0e7"
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC

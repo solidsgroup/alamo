@@ -17,7 +17,7 @@ public:
     {
         // Initialize constants and initial values
         DefineConstants();
-        pressure0=1.37;
+        pressure0=4;
         dpdt.push_back(0.0);  // Initialize dp/dt as zero
     }
 
@@ -44,14 +44,8 @@ public:
     // Function that computes dpdt using the mass flow rate (mdot)
     void Compute(Set::Scalar mdot, Set::Scalar dt)
 {
-    // Get the current pressure
+    // Get the current pressure                
     Set::Scalar current_p = pressure0;
-
-    // Print values of gamma, At, R, and pressure0
-    std::cout << "gamma: " << gamma << std::endl;
-    std::cout << "At (throat area): " << At << std::endl;
-    std::cout << "R (specific gas constant): " << R << std::endl;
-    std::cout << "Initial pressure (pressure0): " << pressure0 << std::endl;
 
     // Calculate mass flow rates
     Set::Scalar mdot_in = mdot;
