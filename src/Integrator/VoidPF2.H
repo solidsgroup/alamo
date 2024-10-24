@@ -72,8 +72,8 @@ public:
 
         value.RegisterNewFab(value.d_mf, value.bc_d, 1, 3, "d",true);
         value.RegisterNewFab(value.d_old_mf, value.bc_d,  1, 3,"dold",false);
-        value.RegisterNewFab(value.p_mf, value.bc_d, 1, 3, "p",true);
-        value.RegisterNewFab(value.pr_mf, value.bc_d, 1, 3, "pr",true);
+        value.RegisterNewFab(value.p_mf, value.bc_p, 1, 3, "p",true);
+        value.RegisterNewFab(value.pr_mf, value.bc_pr, 1, 3, "pr",true);
                 
         
         
@@ -226,28 +226,28 @@ public:
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar* DX = geom[lev].CellSize();
 
-                for (amrex::MFIter mfi(*d_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                for (amrex::MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.tilebox();
-                    //amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
-                    //amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
 
                     amrex::ParallelFor(bx, [=, &E_max] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         // Initialize stress and strain matrices
-                        //Eigen::Matrix2d sigma, epsilon;
-                        //sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
-                        //sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
-                        //epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
-                        //epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
+                        Eigen::Matrix2d sigma, epsilon;
+                        sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
+                        sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
+                        epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
+                        epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
 
                         // Compute strain energy density in 2D
-                        //Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
-                                                      //sigma(1, 1) * epsilon(1, 1) +
-                                                      //2.0 * sigma(1, 0) * epsilon(1, 0));
+                        Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
+                                                      sigma(1, 1) * epsilon(1, 1) +
+                                                      2.0 * sigma(1, 0) * epsilon(1, 0));
 
                         // Update maximum strain energy
-                        //amrex::Gpu::Atomic::Max(&E_max, E_strain);
+                        amrex::Gpu::Atomic::Max(&E_max, E_strain);
                     });
                 }
             }
@@ -262,37 +262,37 @@ public:
                 for (amrex::MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.tilebox();
-                    //amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
-                    //amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[lev]).array(mfi);
                     amrex::Array4<Set::Scalar> const& pr = (*pr_mf[lev]).array(mfi);
                     amrex::Array4<Set::Scalar> const& d = (*d_mf[lev]).array(mfi);
                     amrex::Array4<Set::Scalar> const& dold = (*d_old_mf[lev]).array(mfi);
                     amrex::Array4<const Set::Scalar> const& heatmap = (*heatmap_mf[lev]).array(mfi);
 
                     // Temporarily collect nucleation points from parallel for
-                    //amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, E_max, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
-                    amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
+                    amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, E_max, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
+                    //amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         // Initialize stress and strain matrices
-                        //Eigen::Matrix2d sigma, epsilon;
-                        //sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
-                        //sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
-                        //epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
-                        //epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
+                        Eigen::Matrix2d sigma, epsilon;
+                        sigma(0, 0) = sig(i, j, k)(0, 0); sigma(0, 1) = sig(i, j, k)(0, 1);
+                        sigma(1, 0) = sig(i, j, k)(1, 0); sigma(1, 1) = sig(i, j, k)(1, 1);
+                        epsilon(0, 0) = eps(i, j, k)(0, 0); epsilon(0, 1) = eps(i, j, k)(0, 1);
+                        epsilon(1, 0) = eps(i, j, k)(1, 0); epsilon(1, 1) = eps(i, j, k)(1, 1);
 
                         // Compute strain energy density
-                        //Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
-                                                      //sigma(1, 1) * epsilon(1, 1) +
-                                                      //2.0 * sigma(1, 0) * epsilon(1, 0));
+                        Set::Scalar E_strain = 0.5 * (sigma(0, 0) * epsilon(0, 0) +
+                                                      sigma(1, 1) * epsilon(1, 1) +
+                                                      2.0 * sigma(1, 0) * epsilon(1, 0));
 
                         // Normalize strain energy by E_max
-                        //Set::Scalar E_strain_norm = E_strain / E_max;
+                        Set::Scalar E_strain_norm = E_strain / E_max;
 
                         // Check principal stresses (positive indicates tension)
-                        //Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(sigma);
-                        //Set::Scalar max_principal_stress = solver.eigenvalues().maxCoeff();
+                        Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(sigma);
+                        Set::Scalar max_principal_stress = solver.eigenvalues().maxCoeff();
 
-                        //if (max_principal_stress > 0)  // Tension exists, proceed with nucleation
+                        if (max_principal_stress > 0)  // Tension exists, proceed with nucleation
                         {
                             // Compute nucleation energy
                             Set::Scalar R = heatmap(i, j, k, 0);
@@ -450,16 +450,23 @@ public:
                             
                             Eigen::Matrix3d R = q.toRotationMatrix();
                             
+                            Eigen::Vector3d eulerAngles = R.eulerAngles(2,1,2);
+                            
+                            
+                            double phi1 = eulerAngles[0];  
+                            double Phi  = eulerAngles[1];  
+                            double phi2 = eulerAngles[2];  
+                            model(i, j, k).Define(C11, C12, C44, phi1, Phi, phi2);
                             // Beta (rotation about Y-axis)
-                            double beta = std::acos(R(2, 2));  // R33
+                            //double beta = std::acos(R(2, 2));  // R33
                             
                             // Alpha (first rotation about Z-axis)
-                            double alpha = std::atan2(R(1, 2), R(0, 2));  // R23, R13
+                            //double alpha = std::atan2(R(1, 2), R(0, 2));  // R23, R13
                             
                             // Gamma (second rotation about Z-axis)
-                            double gamma = std::atan2(R(2, 1), -R(2, 0)); // R32, -R31
-                            // Step 6: Define the model with the Euler angles
-                            model(i, j, k).Define(C11, C12, C44, alpha, beta, gamma);                            
+                           //double gamma = std::atan2(R(2, 1), -R(2, 0)); // R32, -R31
+                            // Define the model with the Euler angles
+                            //model(i, j, k).Define(C11, C12, C44, alpha, beta, gamma);                            
 
 
                             
@@ -633,12 +640,12 @@ public:
         }
     }
     
-    //void Regrid(int lev, Set::Scalar time) override
-    //{
-        //ic_euler->Initialize(lev, euler_mf, time);                 //newline added for euler angles
+    void Regrid(int lev, Set::Scalar time) override
+    {
+        ic_euler->Initialize(lev, euler_mf, time);                 //newline added for euler angles
         
         //ic_quat->Initialize(lev, quat_mf, time);                 //newline added for euler angles
-    //}
+    }
 
 
 

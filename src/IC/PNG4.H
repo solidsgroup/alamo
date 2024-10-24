@@ -24,7 +24,6 @@ namespace IC
 class PNG4 : public IC
 {
 public:
-    //enum Type {XYZ, XY, YZ, XZ};
     enum Fit { Stretch, FitWidth, FitHeight, Coord };
     enum Channel { R = 0, G = 1, B = 2, A = 3 };
 
@@ -100,11 +99,10 @@ public:
             row_pointers[png_height - 1 - y] = temp;
         }
         
-        
         // Initialize min and max for each channel with extreme values
         for (int c = 0; c < 4; ++c) {
-            min[c] = 255.0;   // Min to infinity
-            max[c] = 0.0;  // Max to -infinity
+            min[c] = 255.0;
+            max[c] = 0.0;
         }
 
         // First pass: Calculate actual min/max values for each channel (R, G, B, A)
@@ -113,19 +111,13 @@ public:
             for (int x = 0; x < png_width; x++) {
                 png_bytep px = &(row[x * 4]);  // Assuming 4 bytes per pixel (RGBA)
 
-                // Update min/max for the Red channel
+                // Update min/max for each channel
                 min[0] = std::min(min[0], (Set::Scalar)px[Channel::R]);
                 max[0] = std::max(max[0], (Set::Scalar)px[Channel::R]);
-
-                // Update min/max for the Green channel
                 min[1] = std::min(min[1], (Set::Scalar)px[Channel::G]);
                 max[1] = std::max(max[1], (Set::Scalar)px[Channel::G]);
-
-                // Update min/max for the Blue channel
                 min[2] = std::min(min[2], (Set::Scalar)px[Channel::B]);
                 max[2] = std::max(max[2], (Set::Scalar)px[Channel::B]);
-
-                // Update min/max for the Alpha channel
                 min[3] = std::min(min[3], (Set::Scalar)px[Channel::A]);
                 max[3] = std::max(max[3], (Set::Scalar)px[Channel::A]);
             }
@@ -140,7 +132,6 @@ public:
 
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
-
 #ifndef ALAMO_NOPNG
         Set::Vector DX(geom[lev].CellSize());
         amrex::Box domain = geom[lev].Domain();
@@ -165,12 +156,10 @@ public:
             if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
             bx = bx & domain;
 
-
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector x = Set::Vector::Zero();
-                // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
                     x(0) = domlo(0) + ((amrex::Real)(i)) * geom[lev].CellSize()[0];
@@ -182,7 +171,6 @@ public:
                     x(1) = domlo(1) + ((amrex::Real)(j)+0.5) * geom[lev].CellSize()[1];
                 }
 
-                //Set::Scalar x, y;
                 Set::Vector ximg;
 
                 if (fit == Fit::Stretch)
@@ -221,141 +209,30 @@ public:
                 int I = (int)(ximg(0));
                 int J = (int)(ximg(1));
 
-                Set::Scalar x1 = I * img_dx, x2 = (I + 1) * img_dx;
-                Set::Scalar y1 = J * img_dy, y2 = (J + 1) * img_dy;
-
-
-                if (I > 0 && I < png_width - 1 &&
-                    J>0 && J < png_height - 1)
+                if (I >= 0 && I < png_width && J >= 0 && J < png_height)
                 {
-                    png_bytep px_sw = &(row_pointers[J][I * 4]);
-                    png_bytep px_se = &(row_pointers[J][(I + 1) * 4]);
-                    png_bytep px_nw = &(row_pointers[J + 1][I * 4]);
-                    png_bytep px_ne = &(row_pointers[J + 1][(I + 1) * 4]);
+                    png_bytep px = &(row_pointers[J][I * 4]);
 
+                    // Assign quaternion components
+                    field(i, j, k, 0) = ((Set::Scalar)(px[channel1]) - min[0]) / (max[0] - min[0]);
+                    field(i, j, k, 1) = ((Set::Scalar)(px[channel2]) - min[1]) / (max[1] - min[1]);
+                    field(i, j, k, 2) = ((Set::Scalar)(px[channel3]) - min[2]) / (max[2] - min[2]);
+                    field(i, j, k, 3) = ((Set::Scalar)(px[channel4]) - min[3]) / (max[3] - min[3]);
 
-                    Set::Scalar fQ11R = ((Set::Scalar)(px_sw[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar fQ12R = ((Set::Scalar)(px_nw[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar fQ21R = ((Set::Scalar)(px_se[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar fQ22R = ((Set::Scalar)(px_ne[channel1]) - min[0]) / (max[0] - min[0]);
-                    
-                    Set::Scalar fQ11G = ((Set::Scalar)(px_sw[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar fQ12G = ((Set::Scalar)(px_nw[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar fQ21G = ((Set::Scalar)(px_se[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar fQ22G = ((Set::Scalar)(px_ne[channel2]) - min[1]) / (max[1] - min[1]);
-                    
-                    Set::Scalar fQ11B = ((Set::Scalar)(px_sw[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar fQ12B = ((Set::Scalar)(px_nw[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar fQ21B = ((Set::Scalar)(px_se[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar fQ22B = ((Set::Scalar)(px_ne[channel3]) - min[2]) / (max[2] - min[2]);
-                    
-                    Set::Scalar fQ11A = ((Set::Scalar)(px_sw[channel4]) - min[3]) / (max[3] - min[3]);
-                    Set::Scalar fQ12A = ((Set::Scalar)(px_nw[channel4]) - min[3]) / (max[3] - min[3]);
-                    Set::Scalar fQ21A = ((Set::Scalar)(px_se[channel4]) - min[3]) / (max[3] - min[3]);
-                    Set::Scalar fQ22A = ((Set::Scalar)(px_ne[channel4]) - min[3]) / (max[3] - min[3]);
-                    
-                    
+                    // Normalize the quaternion to maintain unit length
+                    Set::Scalar q0 = field(i, j, k, 0);
+                    Set::Scalar q1 = field(i, j, k, 1);
+                    Set::Scalar q2 = field(i, j, k, 2);
+                    Set::Scalar q3 = field(i, j, k, 3);
 
-                    field(i, j, k,0) =
-                        2*((fQ11R * (x2 - ximg(0)) * (y2 - ximg(1)) +
-                            fQ21R * (ximg(0) - x1) * (y2 - ximg(1)) +
-                            fQ12R * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22R * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
-                            
-                            
-                    field(i, j, k,1) =
-                        2*((fQ11G * (x2 - ximg(0)) * (y2 - ximg(1)) +
-                            fQ21G * (ximg(0) - x1) * (y2 - ximg(1)) +
-                            fQ12G * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22G * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
-                            
-                            
-                    field(i, j, k,2) =
-                        2*((fQ11B * (x2 - ximg(0)) * (y2 - ximg(1)) +
-                            fQ21B * (ximg(0) - x1) * (y2 - ximg(1)) +
-                            fQ12B * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22B * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
-                            
-                            
-                    field(i, j, k,3) =
-                        2*((fQ11A * (x2 - ximg(0)) * (y2 - ximg(1)) +
-                            fQ21A * (ximg(0) - x1) * (y2 - ximg(1)) +
-                            fQ12A * (x2 - ximg(0)) * (ximg(1) - y1) +
-                            fQ22A * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy))-1;
+                    Set::Scalar norm = std::sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
 
-
-                }
-                else if ((I == 0 || I == png_width - 1) && J < png_height - 1)
-                {
-                    png_bytep px_sw = &(row_pointers[J][I * 4]);
-                    png_bytep px_nw = &(row_pointers[J + 1][I * 4]);
-
-                    Set::Scalar fQ11R = ((Set::Scalar)(px_sw[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar fQ12R = ((Set::Scalar)(px_nw[channel1]) - min[0]) / (max[0] - min[0]);
-                    
-                    
-                    Set::Scalar fQ11G = ((Set::Scalar)(px_sw[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar fQ12G = ((Set::Scalar)(px_nw[channel2]) - min[1]) / (max[1] - min[1]);
-                    
-                    
-                    Set::Scalar fQ11B = ((Set::Scalar)(px_sw[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar fQ12B = ((Set::Scalar)(px_nw[channel3]) - min[2]) / (max[2] - min[2]);
-                    
-                    
-                    Set::Scalar fQ11A = ((Set::Scalar)(px_sw[channel4]) - min[3]) / (max[3] - min[3]);
-                    Set::Scalar fQ12A = ((Set::Scalar)(px_nw[channel4]) - min[3]) / (max[3] - min[3]);
-                    
-                    
-                    
-                    field(i, j, k, 0) = 2*(fQ11R + (fQ12R - fQ11R) * (ximg(1) - y1))-1;
-                    field(i, j, k, 1) = 2*(fQ11G + (fQ12G - fQ11G) * (ximg(1) - y1))-1;
-                    field(i, j, k, 2) = 2*(fQ11B + (fQ12B - fQ11B) * (ximg(1) - y1))-1;
-                    field(i, j, k, 3) = 2*(fQ11A + (fQ12A - fQ11A) * (ximg(1) - y1))-1;
-                    
-                }
-                else if (I < png_width - 1 && (J == 0 || J == png_height - 1))
-                {
-                    png_bytep px_sw = &(row_pointers[J][I * 4]);
-                    png_bytep px_se = &(row_pointers[J][(I + 1) * 4]);
-
-                    Set::Scalar fQ11R = ((Set::Scalar)(px_sw[channel1]) - min[0]) / (max[0] - min[0]);
-                    Set::Scalar fQ21R = ((Set::Scalar)(px_se[channel1]) - min[0]) / (max[0] - min[0]);
-                    
-                    Set::Scalar fQ11G = ((Set::Scalar)(px_sw[channel2]) - min[1]) / (max[1] - min[1]);
-                    Set::Scalar fQ21G = ((Set::Scalar)(px_se[channel2]) - min[1]) / (max[1] - min[1]);
-                    
-                    Set::Scalar fQ11B = ((Set::Scalar)(px_sw[channel3]) - min[2]) / (max[2] - min[2]);
-                    Set::Scalar fQ21B = ((Set::Scalar)(px_se[channel3]) - min[2]) / (max[2] - min[2]);
-                    
-                    Set::Scalar fQ11A = ((Set::Scalar)(px_sw[channel4]) - min[3]) / (max[3] - min[3]);
-                    Set::Scalar fQ21A = ((Set::Scalar)(px_se[channel4]) - min[3]) / (max[3] - min[3]);
-                    
-                                                                                
-                    field(i, j, k, 0) = 2*(fQ11R + (fQ21R - fQ11R) * (ximg(0) - x1))-1;
-                    field(i, j, k, 1) = 2*(fQ11G + (fQ21G - fQ11G) * (ximg(0) - x1))-1;
-                    field(i, j, k, 2) = 2*(fQ11B + (fQ21B - fQ11B) * (ximg(0) - x1))-1;
-                    field(i, j, k, 3) = 2*(fQ11A + (fQ21A - fQ11A) * (ximg(0) - x1))-1;                                        
-                }
-                else if (I == png_width - 1 && J == png_height - 1)
-                {
-                    png_bytep px_sw = &(row_pointers[J][I * 4]);
-
-                    Set::Scalar fQ11R = ((Set::Scalar)(px_sw[channel1]) - min[0]) / (max[0] - min[0]);
-                    
-                    Set::Scalar fQ11G = ((Set::Scalar)(px_sw[channel2]) - min[1]) / (max[1] - min[1]);
-                    
-                    Set::Scalar fQ11B = ((Set::Scalar)(px_sw[channel3]) - min[2]) / (max[2] - min[2]);
-                    
-                    Set::Scalar fQ11A = ((Set::Scalar)(px_sw[channel4]) - min[3]) / (max[3] - min[3]);
-                    
-                    field(i, j, k, 0) = 2*(fQ11R)-1;
-                    
-                    field(i, j, k, 1) = 2*(fQ11G)-1;
-                    
-                    field(i, j, k, 2) = 2*(fQ11B)-1;
-                    
-                    field(i, j, k, 3) = 2*(fQ11A)-1;
-                    
+                    if (norm > 0) {
+                        field(i, j, k, 0) = q0 / norm;
+                        field(i, j, k, 1) = q1 / norm;
+                        field(i, j, k, 2) = q2 / norm;
+                        field(i, j, k, 3) = q3 / norm;
+                    }
                 }
                 else
                 {
@@ -364,16 +241,12 @@ public:
                     field(i, j, k, 2) = 0.0;
                     field(i, j, k, 3) = 0.0;
                 }
-
-                //if (field.nComp() > 1) field(i, j, k, 1) = 1.0 - field(i, j, k, 0);
-
             });
         }
         a_field[lev]->FillBoundary();
 #else
         Util::Abort(INFO,"PNG is disabled");
 #endif
-        
     };
 
 private:
@@ -385,7 +258,6 @@ private:
     Set::Vector coord_lo = Set::Vector::Zero();
     Set::Vector coord_hi = Set::Vector::Zero();
 
-    //Util::BMP bmp;
     Fit fit = Fit::Stretch;
     Channel channel1 = Channel::R;
     Channel channel2 = Channel::G;
@@ -394,7 +266,6 @@ private:
     
     Set::Scalar min[4] = {0.0, 0.0, 0.0, 0.0};
     Set::Scalar max[4] = {255.0, 255.0, 255.0, 255.0};
-    //Set::Scalar min = NAN, max = NAN;
 #endif
 
 public:
@@ -402,63 +273,35 @@ public:
     {
 #ifndef ALAMO_NOPNG
         std::string filename;
-        pp_query_file("filename", filename); // BMP filename.
+        pp_query_file("filename", filename);
         value.Define(filename);
-        //value.bmp.Define(filename);
 
         std::string fit = "stretch";
-        pp_query("fit", fit); // How to fit. {options: stretch, fitheight, fitwidth}
-        if (fit == "stretch")        value.fit = Fit::Stretch;
+        pp_query("fit", fit);
+        if (fit == "stretch") value.fit = Fit::Stretch;
         else if (fit == "fitheight") value.fit = Fit::FitHeight;
-        else if (fit == "fitwidth")  value.fit = Fit::FitWidth;
+        else if (fit == "fitwidth") value.fit = Fit::FitWidth;
         else if (fit == "coord")
         {
             value.fit = Fit::Coord;
-            pp_queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
-            pp_queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
+            pp_queryarr("coord.lo", value.coord_lo);
+            pp_queryarr("coord.hi", value.coord_hi);
         }
-        else Util::Abort(INFO, "Invalid value for png fit - should be stretch/fitheight/fitwidth/coord but received '", fit, "'");
-        
+        else Util::Abort(INFO, "Invalid value for png fit");
+
         value.channel1 = Channel::R;
         value.channel2 = Channel::G;
         value.channel3 = Channel::B;
         value.channel4 = Channel::A;
-        
-        //value.min[0] = 0.0;
-        //value.max[0] = 255.0;
 
-        //value.min[1] = 0.0;
-        //value.max[1] = 255.0;
-
-        //value.min[2] = 0.0;
-        //value.max[2] = 255.0;
-        
-        //value.min[3] = 0.0;
-        //value.max[3] = 255.0;
-        
-        //pp_query("minR",value.min[0], 0.0 );
-        //pp_query("maxR",value.max[0], 255.0);
-        //pp_query("minG",value.min[1], 0.0 );
-        //pp_query("maxG",value.max[1], 255.0);
-        //pp_query("minB",value.min[2], 0.0 );
-        //pp_query("maxB",value.max[2], 255.0);        
-        //pp_query("minA",value.min[3], 0.0 );
-        //pp_query("maxA",value.max[3], 255.0);
-        
-     
-     
-        pp_query("minR",value.min[0]);
-        pp_query("maxR",value.max[0]);
-        pp_query("minG",value.min[1]);
-        pp_query("maxG",value.max[1]);
-        pp_query("minB",value.min[2]);
-        pp_query("maxB",value.max[2]);        
-        pp_query("minA",value.min[3]);
-        pp_query("maxA",value.max[3]);
-        
-     
-     
-        
+        pp_query("minR", value.min[0]);
+        pp_query("maxR", value.max[0]);
+        pp_query("minG", value.min[1]);
+        pp_query("maxG", value.max[1]);
+        pp_query("minB", value.min[2]);
+        pp_query("maxB", value.max[2]);
+        pp_query("minA", value.min[3]);
+        pp_query("maxA", value.max[3]);
 
 #else
         Util::Abort(INFO,"PNG is disabled");
@@ -467,3 +310,4 @@ public:
 };
 }
 #endif
+

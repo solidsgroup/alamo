@@ -95,6 +95,10 @@ mechanics.bc.constant.type.yhi    = disp disp
 mechanics.bc.constant.val.yhi    = 0.0 0.1
 mechanics.bc.constant.val.xloyhi = 0.0 0.1
 mechanics.bc.constant.val.xhiyhi = 0.0 0.1
+
+#mechanics.bc.constant.val.yhi    = 0.0 0.00001
+#mechanics.bc.constant.val.xloyhi = 0.0 0.00001
+#mechanics.bc.constant.val.xhiyhi = 0.0 0.00001
 mechanics.print_model = 1
 elastic.interval = 10
 
@@ -121,8 +125,8 @@ elastic.interval = 10
 eta_ref_threshold = 0.005
 spall.M = 1.0
 spall.kappa = -0.0005
-spall.po = 5.0
-spall.cp = 20.0
+spall.po = 4.0
+spall.cp = 17.0
 spall.elastic_mult = -1.50
 spall.small = 0.1
 
