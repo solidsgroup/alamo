@@ -31,8 +31,8 @@ geometry.is_periodic	    = 0 0 0
 #ic.bmp.channel  = g
 
 euler.ic.type         = eulerangles
-euler.ic.eulerangles.filename = tests/void2/micrograph.png
-#euler.ic.eulerangles.filename = tests/void2/green_blue_image.png
+#euler.ic.eulerangles.filename = tests/void2/micrograph.png
+euler.ic.eulerangles.filename = tests/void2/quaternion.png
 euler.ic.eulerangles.fit      = fitwidth
 
 
@@ -48,10 +48,9 @@ heatmap.ic.hm.fit      = fitwidth
 
 
 #the below three lines are only used along with psread.h
-spall.ic.type = psread
-spall.ic.psread.filename = tests/void2/nucleation.txt
+#spall.ic.type = psread
+#spall.ic.psread.filename = tests/void2/nucleation.txt
 #spall.ic.psread.eps = 0.01
-spall.ic.psread.eps = 0.01
 
 
 

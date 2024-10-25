@@ -70,10 +70,11 @@ public:
         value.bc_p = new BC::Nothing();
         value.bc_pr = new BC::Nothing();
 
+
         value.RegisterNewFab(value.d_mf, value.bc_d, 1, 3, "d",true);
         value.RegisterNewFab(value.d_old_mf, value.bc_d,  1, 3,"dold",false);
         value.RegisterNewFab(value.p_mf, value.bc_p, 1, 3, "p",true);
-        value.RegisterNewFab(value.pr_mf, value.bc_pr, 1, 3, "pr",true);
+         value.RegisterNewFab(value.pr_mf, value.bc_pr, 1, 3, "pr",true);
                 
         
         
@@ -138,9 +139,9 @@ public:
         
         // Initialize PSRead with parameters from the input file
         //std::string filename;
-        std::string ictype;
-        pp_query_validate("spall.ic.type",ictype,{"psread"});
-        if (ictype == "psread") value.spall.ic = new IC::PSRead(value.geom, pp,"spall.ic.psread");
+        //std::string ictype;
+        //pp_query_validate("spall.ic.type",ictype,{"psread"});
+        //if (ictype == "psread") value.spall.ic = new IC::PSRead(value.geom, pp,"spall.ic.psread");
 
         pp_query_required("spall.M",value.spall.M);
         pp_query_required("spall.kappa",value.spall.kappa);
@@ -177,6 +178,7 @@ public:
         p_mf[lev]->setVal(0.0);
         pr_mf[lev]->setVal(0.0);
         
+        
         euler_mf[lev]->setVal(0.0); 
         ic_euler->Initialize(lev, euler_mf);        //newline for euler angles
         
@@ -186,6 +188,7 @@ public:
         //quat_mf[lev]->setVal(0.0); 
         //ic_quat->Initialize(lev, quat_mf);        //newline for quaternions
     }
+
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
@@ -211,7 +214,7 @@ public:
         // Track if nucleation happens
         bool nucleation_occurred = false;  // Flag to track nucleation
 
-        // Store nucleation points temporarily
+        // **Step 1**: Store nucleation points temporarily
         std::vector<std::pair<Set::Scalar, Set::Scalar>> nucleation_points;  // Store (x, y) coordinates
 
 
@@ -219,7 +222,7 @@ public:
         
         if (a_step == 0)  // Only perform nucleation during the first time step
         {
-            // Compute maximum strain energy (E_max)
+            // Step 1: Compute maximum strain energy (E_max)
             for (int lev = 0; lev <= finest_level; ++lev)
             {
                 amrex::Box domain = this->geom[lev].Domain();
@@ -252,7 +255,7 @@ public:
                 }
             }
 
-            // Check for nucleation points and create voids
+            // Step 2: Check for nucleation points and create voids
             for (int lev = 0; lev <= finest_level; ++lev)
             {
                 amrex::Box domain = this->geom[lev].Domain();
@@ -271,7 +274,6 @@ public:
 
                     // Temporarily collect nucleation points from parallel for
                     amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, E_max, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
-                    //amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         // Initialize stress and strain matrices
                         Eigen::Matrix2d sigma, epsilon;
@@ -307,10 +309,10 @@ public:
      
                             pr(i,j,k) = 1.0 - B;
 
-                            // If nucleation probability exceeds the threshold, create a void
+                            // Step 3: If nucleation probability exceeds the threshold, create a void
                             if (pr(i, j, k) > nucleation_threshold)
                             {
-                                // Get the physical coordinates of the nucleation point
+                                // Step 4: Get the physical coordinates of the nucleation point
                                 const Set::Scalar* prob_lo = geom[lev].ProbLo();
                                 Set::Scalar center_x = prob_lo[0] + (i + 0.5) * DX[0];
                                 Set::Scalar center_y = prob_lo[1] + (j + 0.5) * DX[1];
@@ -331,7 +333,7 @@ public:
                     });
                 }
 
-                // Apply the nucleation points to the domain (after the parallel region)
+                // Step 6: Apply the nucleation points to the domain (after the parallel region)
                 dynamic_ic.Add(lev, d_mf, 1E-6);
                 //std::swap(d_old_mf[lev], d_mf[lev]);
                 Util::RealFillBoundary(*d_mf[lev], geom[lev]);
@@ -340,9 +342,9 @@ public:
             }
         }
         
-        
+        //std::swap(d_old_mf[lev], d_mf[lev]);
 
-        // Print nucleation points after processing
+        //  Print nucleation points after processing
         if (nucleation_occurred)
         {
             for (const auto& point : nucleation_points)
@@ -353,11 +355,9 @@ public:
         }
         else
         {
-            std::cout << "No nucleation occurred at any point during the time step.\n";
+            std::cout << "No nucleation occurred at any point during this time step.\n";
         }
     }
-
-
 
 
 
@@ -449,14 +449,17 @@ public:
                             //rotation about ZYZ
                             
                             Eigen::Matrix3d R = q.toRotationMatrix();
+
+                            Eigen::Vector3d eulerAngles = R.eulerAngles(2,1,2); // ZYZ -> yaw (phi1), pitch (Phi), roll (phi2)
+
                             
-                            Eigen::Vector3d eulerAngles = R.eulerAngles(2,1,2);
+                                                       
+                            double phi1 = eulerAngles[0];  // Yaw (Z)
+                            double Phi  = eulerAngles[1];  // Pitch (Y)
+                            double phi2 = eulerAngles[2];  // Roll (X)
                             
-                            
-                            double phi1 = eulerAngles[0];  
-                            double Phi  = eulerAngles[1];  
-                            double phi2 = eulerAngles[2];  
                             model(i, j, k).Define(C11, C12, C44, phi1, Phi, phi2);
+
                             // Beta (rotation about Y-axis)
                             //double beta = std::acos(R(2, 2));  // R33
                             
@@ -464,8 +467,8 @@ public:
                             //double alpha = std::atan2(R(1, 2), R(0, 2));  // R23, R13
                             
                             // Gamma (second rotation about Z-axis)
-                           //double gamma = std::atan2(R(2, 1), -R(2, 0)); // R32, -R31
-                            // Define the model with the Euler angles
+                            //double gamma = std::atan2(R(2, 1), -R(2, 0)); // R32, -R31
+                            // Step 6: Define the model with the Euler angles
                             //model(i, j, k).Define(C11, C12, C44, alpha, beta, gamma);                            
 
 
@@ -485,12 +488,7 @@ public:
                             // Define model with converted Euler angles
                             //model(i, j, k).Define(C11, C12, C44, phi1, Phi, phi2);
 			                
-			                
-			                
-			                //model(i,j,k).Define(C11, C12,C44 ,euler(i,j,k,0)*180.0*(3.14/180.), euler(i,j,k,1)*360.0*(3.14/180.), euler(i,j,k,2)*360.0*(3.14/180.));
-			                
-			                //model(i,j,k).Define(C11, C12,C44 ,euler(i,j,k,0)*180.0*(3.14/180.), euler(i,j,k,1)*360.0*(3.14/180.), euler(i,j,k,2)*360.0*(3.14/180.));
-			                
+			
 			                //model(i,j,k).Define(C11, C12,C44,0.0,0.0,0.0);
                             model(i,j,k).ddw *= (d_inv_avg);
                         });
@@ -532,7 +530,7 @@ public:
             amrex::Array4<Set::Scalar> const& p = (*p_mf[lev]).array(mfi);
             
             
-            //Set::Patcht::Vector grad <const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
+            //Set::Patch<const Set::Matrix> sig  = stress_mf.Patch(lev,mfi);
             //Set::Patch<const Set::Matrix> eps  = strain_mf.Patch(lev,mfi);
             //Set::Patch<const Set::Scalar> dold = d_old_mf.Patch(lev,mfi);
             //Set::Patch<Set::Scalar>       d    = d_mf.Patch(lev,mfi);
@@ -692,7 +690,7 @@ protected:
 
 
     struct {
-        IC::IC *ic;
+        //IC::IC *ic;
         Set::Scalar M = NAN;
         Set::Scalar kappa = NAN;
         Set::Scalar po = NAN;
