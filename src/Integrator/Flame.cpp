@@ -729,7 +729,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar pre_compute_mdot = chamber.mdot;
+            pre_compute_mdot = chamber.mdot;
             volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
