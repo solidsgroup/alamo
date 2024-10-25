@@ -409,6 +409,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         chamber.pressure = ballistic.pressure0; // Access updated pressure
         Util::Message(INFO, "Mdot = ", chamber.mdot);
         Util::Message(INFO, "Pressure0 = ", chamber.pressure);
+        pre_compute_mdot = chamber.mdot;
         // calculate mass flux out of nozzle
         // Set::Scalar mdot_out = chamber.pressure0 * chamber.At / sqrt(chamber.gamma * chamber.R * chamber.T0);
         // // integrate mass conservation equation to get current chamber mass
@@ -729,7 +730,6 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            pre_compute_mdot = chamber.mdot;
             volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
