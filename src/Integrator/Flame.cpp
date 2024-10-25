@@ -463,6 +463,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 if (variable_pressure) {
                      pressure.P = chamber.pressure;
+                     Util::Message(INFO, "pressure.P = ", pressure.P);
                 }
 
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
@@ -728,6 +729,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            Set::Scalar pre_compute_mdot = chamber.mdot;
             volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
@@ -743,6 +745,8 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             chamber.mdot += mdot(i,j,k,0) * dv; 
             chamber.area += da;
         });
+        Util::Message(INFO, "mdot = ", chamber.mdot);
+        Util::Message(INFO, "Change in mdot = ", chamber.mdot - pre_compute_mdot);
     }
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
