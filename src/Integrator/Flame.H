@@ -93,6 +93,7 @@ private:
     int homogeneousSystem = NAN;
     bool plot_field = true;
     int variable_pressure = NAN;
+    Set::Scalar pre_compute_mdot = 0;
 
     struct {
         Set::Scalar gamma = NAN;
