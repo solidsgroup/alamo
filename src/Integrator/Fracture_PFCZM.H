@@ -43,13 +43,13 @@
 // #. :code:`void TimeStepComplete(Set::Scalar /*time*/, int /* iter*/)`
 //    Checks whether the solver should work on crack problem or elastic problem.
 //
-#ifndef INTEGRATOR_FRACTURE_H
-#define INTEGRATOR_FRACTURE_H
+#ifndef INTEGRATOR_FRACTURE_PFCZM_H
+#define INTEGRATOR_FRACTURE_PFCZM_H
 
 #include "Integrator/Base/Mechanics.H"
 
 #include "Model/Solid/Linear/Isotropic.H"
-#include "Model/Interface/Crack/Constant.H"
+#include "Model/Interface/Crack/PFCZM.H"
 
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
@@ -66,21 +66,21 @@
 namespace Integrator
 {
 using brittle_model = Model::Solid::Linear::Isotropic;
-using crack_type = Model::Interface::Crack::Constant;
+using pfczm_crack_type = Model::Interface::Crack::PFCZM;
 
-class Fracture: 
+class Fracture_PFCZM: 
     virtual public Base::Mechanics<brittle_model>
 {
 
 public:
-    Fracture(): Base::Mechanics<brittle_model>(){}
+    Fracture_PFCZM(): Base::Mechanics<brittle_model>(){}
 
-    Fracture(IO::ParmParse &pp) : Base::Mechanics<brittle_model>()
+    Fracture_PFCZM(IO::ParmParse &pp) : Base::Mechanics<brittle_model>()
     {
         Parse(*this,pp);
     }
 
-    static void Parse(Fracture &value, IO::ParmParse &pp)
+    static void Parse(Fracture_PFCZM &value, IO::ParmParse &pp)
     {
         Base::Mechanics<brittle_model>::Parse(value,pp);
 
@@ -215,10 +215,10 @@ public:
             std::string mat_model_type;
             pp.query(name_type.c_str(),mat_model_type); // type of crack model - only constant so far
             // For now we only have a crack of constant Gc implemented
-            if(mat_model_type == "constant")
+            if(mat_model_type == "pfczm")
             {
-                crack_type tmp_model;
-                pp.queryclass(std::string((name+".constant").data()), tmp_model);   // get parameters for a constant crack model.
+                pfczm_crack_type tmp_model;
+                pp.queryclass(std::string((name+".pfczm").data()), tmp_model);   // get parameters for a constant crack model.
                 value.crack.cracktype.push_back(tmp_model);
             }
             else
@@ -420,7 +420,7 @@ public:
 
                     // =====================================================================
                     // Predictor step
-                    df(i,j,k,0) = crack.cracktype[0].Dg_phi(c_old(i,j,k),0.0)*en_cell*crack.el_mult;
+                    df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*en_cell*crack.el_mult;
                     rhs += df(i,j,k,0);
 
                     Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
@@ -442,10 +442,10 @@ public:
                     }
                     if (material.num_mat > 1) Gc *= (1.0 - _temp_product*(1.-crack.mult_Gc)/_temp_product2);
 
-                    df(i,j,k,1) = Gc*crack.cracktype[0].Dw_phi(c_old(i,j,k,0),0.0)/(4.0*Zeta);
+                    df(i,j,k,1) = Gc*crack.cracktype[0].Dw_phi(c_old(i,j,k,0),0.0)/(Zeta);
                     rhs += df(i,j,k,1);
 
-                    df(i,j,k,2) = Zeta*Gc*laplacian * crack.mult_lap;
+                    df(i,j,k,2) = 2.0*Zeta*Gc*laplacian * crack.mult_lap;
                     rhs -= df(i,j,k,2);
 
                     df(i,j,k,3) = crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
@@ -612,10 +612,6 @@ public:
             crack.driving_force_reference = crack.driving_force_norm;
         elastic_do_solve_now = false;
     }
-
-    // Trying out the generalized PF-CZM model from Wu, JMPS (2024)
-    Set::Scalar inline alpha(Set::Scalar c) {return 2.0*(1-c) - (1-c)*(1-c); }
-    Set::Scalar inline Dalpha(Set::Scalar c) {return -2.0*c;}
     
 
 // Member variables
@@ -627,7 +623,7 @@ protected:
         Set::Field<Set::Scalar> energy_pristine_mf;
         Set::Field<Set::Scalar> energy_pristine_old_mf;
         Set::Field<Set::Scalar> driving_force_mf;
-        std::vector<crack_type> cracktype;
+        std::vector<pfczm_crack_type> cracktype;
 
         std::vector<std::string> ic_type;
         std::vector<IC::IC*> ic;

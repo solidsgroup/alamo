@@ -18,6 +18,7 @@
 #include "Integrator/Flame.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
+#include "Integrator/Fracture_PFCZM.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/Dendrite.H"
 
@@ -43,6 +44,7 @@ int main (int argc, char* argv[])
     else if (program == "heat")                 integrator = new Integrator::HeatConduction(pp);
     else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
     else if (program == "fracture")             integrator = new Integrator::Fracture(pp);
+    else if (program == "fracture_pfczm")       integrator = new Integrator::Fracture_PFCZM(pp);
     else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
     else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");

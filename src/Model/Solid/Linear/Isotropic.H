@@ -153,11 +153,44 @@ public:
     #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
-
-
-
 }
 }
+}
+
+template<>
+ALAMO_SINGLE_DEFINITION
+int Set::Field<Model::Solid::Linear::Isotropic>::NComp() const
+{
+    return 2;
+}
+template<>
+ALAMO_SINGLE_DEFINITION
+std::string Set::Field<Model::Solid::Linear::Isotropic>::Name(int i) const
+{
+    if (i == 0) return name + "_lambda";
+    if (i == 1) return name + "_mu";
+    return name;
+}
+template<>
+ALAMO_SINGLE_DEFINITION
+void Set::Field<Model::Solid::Linear::Isotropic>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Model::Solid::Linear::Isotropic> const& src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const& dst = a_dst.array(mfi);
+            for (int n = 0; n < AMREX_SPACEDIM * AMREX_SPACEDIM; n++)
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    dst(i, j, k, a_dstcomp + 0) = src(i, j, k).ddw.Lambda();
+                    dst(i, j, k, a_dstcomp + 1) = src(i, j, k).ddw.Mu();
+                });
+            }
+        }
+    }
 }
 
 #endif
