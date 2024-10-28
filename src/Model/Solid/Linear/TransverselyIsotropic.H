@@ -35,7 +35,7 @@ public:
     {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,R);
     }
-       Set::Scalar W(const Set::Matrix & gradu) const override
+    Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
