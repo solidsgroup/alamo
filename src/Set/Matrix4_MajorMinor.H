@@ -656,6 +656,11 @@ static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                         if ((i == 0 && k == 2) || (i == 1 && k == 2))
                             Ctmp[i][j][k][l] = C44;
                     }
+                    else if (i != j && i != k && j != l && i == l && j == k)
+                    {
+                        // Unique in-plane shear term 0.5(C11 - C12)
+                        Ctmp[i][j][k][l] = 0.5 * (C11 - C12);
+                    }
                     else
                     {
                         Ctmp[i][j][k][l] = 0.0;
@@ -676,6 +681,7 @@ static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                 }
     return ret;
 }
+
 
 static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
 {
