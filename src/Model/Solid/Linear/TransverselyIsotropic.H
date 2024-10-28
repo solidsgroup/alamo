@@ -1,5 +1,5 @@
 //
-// This class implements basic Transvesely Isotropic elasticity.
+// This class implements basic Transvesely Isotropic elasticity .
 // For a discussion on cubic elasticity, please see this link <http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16>_.
 //
 
