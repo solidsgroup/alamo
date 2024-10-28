@@ -188,39 +188,61 @@ public:
 // TODO: write a function to create, fill, and return a modulus tensor (C) 
 //       (this is similar to the Cubic function above)
 
-static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, 
-                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
 {
-    Set::Matrix4<2,Sym::MajorMinor> ret;
-    
-    // Define the 6x6 stiffness matrix for transversely isotropic material
-    Set::Scalar Ctmp[6][6] = {
-        {C11, C12, C13, 0,   0,   0},
-        {C12, C11, C13, 0,   0,   0},
-        {C13, C13, C33, 0,   0,   0},
-        {0,   0,   0,   C44, 0,   0},
-        {0,   0,   0,   0,   C44, 0},
-        {0,   0,   0,   0,   0,   0.5*(C11-C12)} // C66 = 0.5*(C11 - C12)
-    };
+    Set::Matrix4<2, Sym::MajorMinor> ret;
+    Set::Scalar Ctmp[3][3][3][3];
 
-    // Perform the transformation using rotation matrix R
-    for(int p = 0; p < 2; p++) 
-        for(int q = 0; q < 2; q++) 
-            for(int s = 0; s < 2; s++) 
-                for(int t = 0; t < 2; t++)
+    for(int i = 0; i < 3; i++) 
+        for(int j = 0; j < 3; j++) 
+            for(int k = 0; k < 3; k++) 
+                for(int l = 0; l < 3; l++)
                 {
-                    ret(p,q,s,t) = 0.0;
-                    for(int i = 0; i < 3; i++) 
-                        for(int j = 0; j < 3; j++) 
-                            for(int k = 0; k < 3; k++) 
-                                for(int l = 0; l < 3; l++) 
-                                    ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j]*R(q,j)*R(t,l);
-                }                
-    return ret;
-}
+                    // Main diagonal terms: C11 for (1,1) and (2,2), C33 for (3,3)
+                    if(i == j && j == k && k == l)  
+                    {
+                        if(i == 0 || i == 1)  
+                            Ctmp[i][j][k][l] = C11;  // Set C11 for (1,1) and (2,2)
+                        else if(i == 2)  
+                            Ctmp[i][j][k][l] = C33;  // Set C33 for (3,3)
+                    }
+                    // Off-diagonal terms: C12 and C13
+                    else if (i == j && k == l)  
+                    {
+                        if((i == 0 || i == 1) && k == 2)  
+                            Ctmp[i][j][k][l] = C13;  // Set C13 for (1,3), (2,3), etc.
+                        else if(i == 0 && j == 1)  
+                            Ctmp[i][j][k][l] = C12;  // Set C12 for (1,2) and (2,1)
+                    }
+                    // Shear terms: C44 and C66
+                    else if (i == k && j == l)  
+                    {
+                        if((i == 0 && j == 1) || (i == 1 && j == 0))  
+                            Ctmp[i][j][k][l] = C44;  // Set C44 for (4,4) and (5,5)
+                        else if (i == 2 && j == 2)  
+                            Ctmp[i][j][k][l] = 0.5 * (C11 - C12);  // Set C66 for (6,6)
+                    }
+                    else 
+                    {
+                        Ctmp[i][j][k][l] = 0.0;  // Set remaining entries to zero
+                    }
+                }
 
-static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, 
-                                             Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+        for(int p = 0; p < 2; p++) 
+            for(int q = 0; q < 2; q++) 
+                for(int s = 0; s < 2; s++) 
+                    for(int t = 0; t < 2; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++) 
+                            for(int j = 0; j < 3; j++) 
+                                for(int k = 0; k < 3; k++) 
+                                    for(int l = 0; l < 3; l++) 
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }                
+        return ret;
+    }
+static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
 {
     // Rotation matrix based on Euler angles
     Eigen::Matrix3d R;
@@ -232,8 +254,7 @@ static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, S
     return Transverse(C11, C12, C13, C33, C44, R);
 }
 
-static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, 
-                                             Set::Quaternion q)
+static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C32, Set::Scalar C33, Set::Scalar C44, Set::Quaternion q)
 {
     // Create the rotation matrix from the quaternion
     Eigen::Matrix3d R = q.normalized().toRotationMatrix();
@@ -544,8 +565,7 @@ public:
         for (int i = 0 ; i < 21; i++) ret.data[i] = 0.0;
         return ret;
     }
-    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
-                                            Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
         Set::Matrix4<3,Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3];
@@ -574,8 +594,7 @@ public:
                     }                
         return ret;
     }
-    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
-                                            Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
         Eigen::Matrix3d R;
         R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
@@ -611,39 +630,62 @@ public:
 
 // Here:
 
-static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, 
-                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
 {
-    Set::Matrix4<3,Sym::MajorMinor> ret;
-    
-    // Define the 6x6 stiffness matrix for transversely isotropic material
-    Set::Scalar Ctmp[6][6] = {
-        {C11, C12, C13, 0,   0,   0},
-        {C12, C11, C13, 0,   0,   0},
-        {C13, C13, C33, 0,   0,   0},
-        {0,   0,   0,   C44, 0,   0},
-        {0,   0,   0,   0,   C44, 0},
-        {0,   0,   0,   0,   0,   0.5*(C11-C12)} // C66 = 0.5*(C11 - C12)
-    };
+    Set::Matrix4<3, Sym::MajorMinor> ret;
+    Set::Scalar Ctmp[3][3][3][3];
 
-    // Perform the transformation using rotation matrix R
-    for(int p = 0; p < 3; p++) 
-        for(int q = 0; q < 3; q++) 
-            for(int s = 0; s < 3; s++) 
-                for(int t = 0; t < 3; t++)
+    for(int i = 0; i < 3; i++) 
+        for(int j = 0; j < 3; j++) 
+            for(int k = 0; k < 3; k++) 
+                for(int l = 0; l < 3; l++)
                 {
-                    ret(p,q,s,t) = 0.0;
-                    for(int i = 0; i < 3; i++) 
-                        for(int j = 0; j < 3; j++) 
-                            for(int k = 0; k < 3; k++) 
-                                for(int l = 0; l < 3; l++) 
-                                    ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j]*R(q,j)*R(t,l);
-                }                
-    return ret;
-}
+                    if (i == j && j == k && k == l)  
+                    {
+                        // Main diagonal terms: C11 for (1,1) and (2,2), C33 for (3,3)
+                        if (i == 0 || i == 1) 
+                            Ctmp[i][j][k][l] = C11;  // Sets C11 for (1,1) and (2,2)
+                        else if (i == 2) 
+                            Ctmp[i][j][k][l] = C33;  // Sets C33 for (3,3)
+                    }
+                    else if (i == j && k == l)  
+                    {
+                        // Off-diagonal terms: C12 for (1,2) and (2,1), C13 for (1,3) and (2,3)
+                        if ((i == 0 || i == 1) && k == 2)  
+                            Ctmp[i][j][k][l] = C13;  // Sets C13 for (1,3), (2,3), etc.
+                        else if (i == 0 && j == 1) 
+                            Ctmp[i][j][k][l] = C12;  // Sets C12 for (1,2) and (2,1)
+                    }
+                    else if (i == k && j == l)  
+                    {
+                        // Shear terms: C44 for (4,4) and (5,5), C66 for (6,6)
+                        if ((i == 0 && j == 1) || (i == 1 && j == 0))  
+                            Ctmp[i][j][k][l] = C44;  // Sets C44 for (4,4) and (5,5)
+                        else if (i == 2 && j == 2) 
+                            Ctmp[i][j][k][l] = 0.5 * (C11 - C12);  // Sets C66 for (6,6)
+                    }
+                    else 
+                    {
+                        Ctmp[i][j][k][l] = 0.0;  // Remaining entries set to zero
+                    }
+                }
+  
+        for(int p = 0; p < 3; p++) 
+            for(int q = 0; q < 3; q++) 
+                for(int s = 0; s < 3; s++) 
+                    for(int t = 0; t < 3; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++) 
+                            for(int j = 0; j < 3; j++) 
+                                for(int k = 0; k < 3; k++) 
+                                    for(int l = 0; l < 3; l++) 
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }                
+        return ret;
+    }
 
-static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, 
-                                             Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
 {
     // Create rotation matrix using Euler angles
     Eigen::Matrix3d R;
@@ -655,8 +697,7 @@ static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, S
     return Transverse(C11, C12, C13, C33, C44, R);
 }
 
-static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, 
-                                             Set::Quaternion q)
+static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Quaternion q)
 {
     // Create the rotation matrix from the quaternion
     Eigen::Matrix3d R = q.normalized().toRotationMatrix();
