@@ -3,6 +3,7 @@
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Nothing.H"
+#include "BC/Expression.H"
 #include "Numeric/Stencil.H"
 #include "Numeric/Function.H"
 #include "IC/Laminate.H"
@@ -38,6 +39,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // vorticity-based refinement
         pp.query_default("omega_refinement_criterion", value.omega_refinement_criterion, 0.01);
         pp.query_default("gradu_refinement_criterion", value.omega_refinement_criterion, 0.01);
+        // pressure-based refinement
+        pp.query_default("p_refinement_criterion", value.p_refinement_criterion, 1e20);
+        pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e20);
 
         pp_query_required("gamma", value.gamma); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
@@ -49,9 +53,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
         pp_forbid("v.bc","--> velocity.bc");
-        value.density_bc = new BC::Constant(1, pp, "density.bc");
+        value.density_bc = new BC::Expression(1, pp, "density.bc");
         value.pressure_bc = new BC::Constant(1, pp, "pressure.bc");
-        value.velocity_bc = new BC::Constant(2, pp, "velocity.bc");
+        value.velocity_bc = new BC::Expression(2, pp, "velocity.bc");
         value.eta_bc = new BC::Constant(1, pp, "pf.eta.bc");
     }
     // Register FabFields:
@@ -602,6 +606,31 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         });
     }
 
+    // Pressure criterion for refinement
+    for (amrex::MFIter mfi(*pressure_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& p = (*pressure_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+            Set::Matrix grad_p = Numeric::Gradient(p, i, j, k, DX, sten);
+            if (grad_p.lpNorm<2>() * dr * 2 > p_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
+
+    // Density criterion for refinement
+    for (amrex::MFIter mfi(*density_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& rho = (*density_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+            Set::Matrix grad_rho = Numeric::Gradient(rho, i, j, k, DX, sten);
+            if (grad_rho.lpNorm<2>() * dr * 2 > rho_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
 
 }//end TagCells
 

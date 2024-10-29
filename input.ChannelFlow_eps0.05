@@ -6,7 +6,7 @@ plot_file = ./output
 
 ### MESHING ###
 
-amr.plot_dt = 2.0
+amr.plot_dt = 1.0
 #amr.plot_int = 10
 amr.max_level = 2
 amr.max_grid_size = 500000
@@ -25,15 +25,16 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-3
-stop_time = 1000.0
+stop_time = 70.0
 
 ### HYDRO PARAM ###
 
 gamma = 3.0
 cfl   = 0.4
 mu    = 10.0
-Lfactor = 1.0
-pref = 1.0
+Lfactor = -10.0
+Pfactor = 10.0
+pref = 100.0
 
 ### ETA IC ###
 
@@ -109,14 +110,14 @@ pressure.bc.val.xlo = 0.0
 pressure.bc.val.ylo = 0.0 
 pressure.bc.val.yhi = 0.0
 
-velocity.bc.type.xlo = neumann neumann
+velocity.bc.type.xlo = dirichlet dirichlet
 velocity.bc.type.xhi = neumann neumann
 velocity.bc.type.ylo = neumann neumann
 velocity.bc.type.yhi = neumann neumann
-velocity.bc.val.xlo = 0.0 0.0
-velocity.bc.val.xhi = 0.0 0.0
-velocity.bc.val.ylo = 0.0 0.0
-velocity.bc.val.yhi = 0.0 0.0
+velocity.bc.val.xlo = "0.1*(y>0.5)*(y<2.5)" "0.0"
+velocity.bc.val.xhi = "0.0" "0.0"
+velocity.bc.val.ylo = "0.0" "0.0"
+velocity.bc.val.yhi = "0.0" "0.0"
 
 ### HYDRO REFINEMENT CRITERIA ###
 
@@ -125,6 +126,7 @@ e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
-#p_refinement_criterion   = 0.1
+p_refinement_criterion   = 1.0
+rho_refinement_criterion   = 0.0
 
 #TODO
