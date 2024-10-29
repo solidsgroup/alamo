@@ -8,12 +8,12 @@ plot_file = ./output
 
 amr.plot_dt = 0.5
 #amr.plot_int = 10
-amr.max_level = 2
+amr.max_level = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 50 30 0
+amr.n_cell = 100 60 0
 
 ### DIMENSIONS ###
 
@@ -24,7 +24,7 @@ geometry.is_periodic = 1 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-3
 stop_time = 20.0
 
 ### HYDRO PARAM ###
@@ -32,8 +32,9 @@ stop_time = 20.0
 gamma = 3.0
 cfl   = 0.4
 mu    = 10.0
-Lfactor = -1.0
-Pfactor = 1.0
+Lfactor = -10.0
+Pfactor = 10.0
+pref = 100.0
 
 ### ETA IC ###
 
@@ -45,7 +46,7 @@ rho_injected.ic.type = expression
 rho_injected.ic.expression.region0 = "100.0"
 
 mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.1*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
+mdot.ic.expression.region0 = "0.01*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
 #mdot.ic.expression.region0 = "0.0"
 mdot.ic.expression.region1 = "0.0"
 
@@ -67,7 +68,7 @@ solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"
 
 solid.momentum.ic.type = expression
-solid.momentum.ic.expression.region0 = "0.0" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
+solid.momentum.ic.expression.region0 = "0.01*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
 solid.momentum.ic.expression.region1 = "0.0"
 
 solid.energy.ic.type = expression
