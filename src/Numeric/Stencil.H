@@ -790,6 +790,26 @@ GradientSplit(  const amrex::Array4<const Set::Vector>& f,
 
 
 [[nodiscard]] AMREX_FORCE_INLINE
+Set::Vector
+NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Vector ret;
+#if AMREX_SPACEDIM == 1
+    ret(0) = (f(i + 1, j, k) - f(i, j, k)) / dx[0];
+#elif AMREX_SPACEDIM == 2
+    ret(0) = (f(i + 1, j, k) - f(i, j, k) + f(i + 1, j + 1, k) - f(i, j + 1, k)) * 0.5 / dx[0];
+    ret(1) = (f(i, j + 1, k) - f(i, j, k) + f(i + 1, j + 1, k) - f(i + 1, j, k)) * 0.5 / dx[1];
+#elif AMREX_SPACEDIM == 3
+    ret(0) = (f(i + 1, j, k) - f(i, j, k) + f(i + 1, j + 1, k) - f(i, j + 1, k) + f(i + 1, j, k + 1) - f(i, j, k + 1) + f(i + 1, j + 1, k + 1) - f(i, j + 1, k + 1)) * 0.25 / dx[0];
+    ret(1) = (f(i, j + 1, k) - f(i, j, k) + f(i + 1, j + 1, k) - f(i + 1, j, k) + f(i, j + 1, k + 1) - f(i, j, k + 1) + f(i + 1, j + 1, k + 1) - f(i + 1, j, k + 1)) * 0.25 / dx[1];
+    ret(2) = (f(i, j, k + 1) - f(i, j, k) + f(i, j + 1, k + 1) - f(i, j + 1, k) + f(i + 1, j, k + 1) - f(i + 1, j, k) + f(i + 1, j + 1, k + 1) - f(i + 1, j + 1, k)) * 0.25 / dx[2];
+#endif
+    return ret;
+}
+
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,

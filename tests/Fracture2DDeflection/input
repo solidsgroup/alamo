@@ -41,13 +41,20 @@ crack.model1.constant.threshold = 0.0
 # crack.model2.constant.wtype = square
 # crack.model2.constant.threshold = 0.0
 
-crack.ic.type = notch
-crack.ic.notch.center = -0.01 0.0
-crack.ic.notch.orientation = 1.0 0.0
-crack.ic.notch.thickness = 3.e-4
-crack.ic.notch.length = 2.e-2
-crack.ic.notch.eps = 4.e-5
-crack.ic.notch.mollifier = erf
+
+crack.ic.type=expression
+crack.ic.expression.constant.eps = 4e-5
+crack.ic.expression.constant.thickness = 1.e-4
+crack.ic.expression.region0 = "1 - (x<=0)*(0.5 + 0.5*tanh(-(abs(y)-thickness)/eps)) - (x>0)*(0.5 + 0.5*tanh(-(sqrt(y^2+x^2)-thickness)/eps))"
+
+
+#crack.ic.type = notch
+#crack.ic.notch.center = -0.01 0.0
+#crack.ic.notch.orientation = 1.0 0.0
+#crack.ic.notch.thickness = 3.e-4
+#crack.ic.notch.length = 2.e-2
+#crack.ic.notch.eps = 4.e-5
+#crack.ic.notch.mollifier = erf
 
 # crack.ic.type = expression
 # crack.ic.expression.region0 = "(x > -0.005) or (y > 0.0001 or y < -0.0001)"
@@ -110,7 +117,7 @@ solver.bottom_solver = smoother
 solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
 solver.verbose = 3
 solver.nriters = 1
-solver.fixed_iter = 500
+solver.fixed_iter = 100
 
 #
 # Mechanics inputs
@@ -119,7 +126,8 @@ interval = 1
 print_residual=1
 elastic_ref_threshold = 1.e6
 zero_out_displacement = 0
-
+material.refinement_threshold=1e6
+crack.refinement_threshold = .01
 
 amrex.throw_exception = 1
 

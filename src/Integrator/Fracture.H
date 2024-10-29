@@ -563,12 +563,11 @@ public:
         for (amrex::MFIter mfi(*crack.c_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
-            bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Matrix grad = Numeric::Gradient(c, i, j, k, DX.data());
+                Set::Vector grad = Numeric::NodeGradientOnCell(c, i, j, k, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
             });
