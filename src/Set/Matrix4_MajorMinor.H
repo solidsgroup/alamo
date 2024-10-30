@@ -191,7 +191,7 @@ public:
 static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
 {
     Set::Matrix4<2, Sym::MajorMinor> ret;
-    Set::Scalar Ctmp[3][3][3][3];
+    Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};  // Initialize all entries to zero
 
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
@@ -205,6 +205,8 @@ static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                             Ctmp[i][j][k][l] = C11;
                         else if (i == 2)
                             Ctmp[i][j][k][l] = C33;
+                        else
+                            Util::Abort(INFO,"Unexpected indices in C11/C33 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
                     else if (i == j && k == l) 
                     {
@@ -213,12 +215,16 @@ static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                             Ctmp[i][j][k][l] = C12;
                         else if ((i == 0 && j == 2) || (i == 2 && j == 0) || (i == 1 && j == 2) || (i == 2 && j == 1))
                             Ctmp[i][j][k][l] = C13;
+                        else
+                            Util::Abort(INFO,"Unexpected indices in C12/C13 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
                     else if (i == k && j == l) 
                     {
                         // Shear terms C44 for 1,3 and 2,3
                         if ((i == 0 && k == 2) || (i == 1 && k == 2))
                             Ctmp[i][j][k][l] = C44;
+                        else
+                            Util::Abort(INFO,"Unexpected indices in C44 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
                     else if (i != j && i != k && j != l && i == l && j == k) 
                     {
@@ -627,7 +633,7 @@ public:
 static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
 {
     Set::Matrix4<3, Sym::MajorMinor> ret;
-    Set::Scalar Ctmp[3][3][3][3];
+    Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};  // Initialize all entries to zero
 
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
@@ -641,6 +647,8 @@ static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                             Ctmp[i][j][k][l] = C11;
                         else if (i == 2)
                             Ctmp[i][j][k][l] = C33;
+                        else
+                            Util::Abort(INFO,"Unexpected indices in C11/C33 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
                     else if (i == j && k == l)
                     {
@@ -649,12 +657,16 @@ static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                             Ctmp[i][j][k][l] = C12;
                         else if ((i == 0 && j == 2) || (i == 1 && j == 2) || (i == 2 && j == 0) || (i == 2 && j == 1))
                             Ctmp[i][j][k][l] = C13;
+                        else
+                            Util::Abort(INFO,"Unexpected indices in C12/C13 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
                     else if (i == k && j == l)
                     {
                         // C44 for the shear terms (in-plane/out-of-plane shear)
                         if ((i == 0 && k == 2) || (i == 1 && k == 2))
                             Ctmp[i][j][k][l] = C44;
+                        else
+                            Util::Abort(INFO,"Unexpected indices in C44 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
                     else if (i != j && i != k && j != l && i == l && j == k)
                     {
