@@ -100,61 +100,136 @@ protected:
     // Integrate the heat equation
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
+            // Advect the level set field
+               Advect(lev, dt);
+
+	    // Reinitialize the level set function
+              /* Reinitialize(lev);*/
+
+            // Update the narrow band
+               UpdateNarrowBand(lev);
+       
+    }
+
+    // Advect the level set field
+    void Advect(int lev, Set::Scalar dt)
+    {
         // Swap the old temp fab and the new temp fab so we use
         // the new one.
            std::swap(*ls_mf[lev], *ls_old_mf[lev]);
 
-        // Get the cell size corresponding to this level
-        const Set::Scalar* DX = geom[lev].CellSize();
-	/*const Set::Scalar Narrow_Band_Width = 6.0 * DX[0];
-        const Set::Scalar InnerTube = -Narrow_Band_Width;
-        const Set::Scalar OuterTube = Narrow_Band_Width;
-        const Set::Scalar radius    = 0.25;*/	
-
-        // Iterate over all of the patches on this level
+   	// Iterate over all of the patches on this level
         for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             // Get the box (index dimensions) for this patch
             const amrex::Box& bx = mfi.tilebox();
 
-            // Get an array-accessible handle to the data on this patch.
-            // amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
-            // amrex::Array4<Set::Scalar>       const& temp = temp_mf.Patch(lev,mfi);//(*temp_mf[lev]).array(mfi);
-            Set::Patch<const Set::Scalar>        ls_old = ls_old_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar>        ls     = ls_mf.Patch(lev,mfi);
-	    Set::Patch<Set::Scalar>        flux   = lsflux_mf.Patch(lev,mfi);
+            // Get an array-accessible handle to the data on this patch
+            Set::Patch<const Set::Scalar> ls_old = ls_old_mf.Patch(lev, mfi);
+            Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+            Set::Patch<Set::Scalar> flux = lsflux_mf.Patch(lev, mfi);
 
-            // Iterate over the grid on this patch
+            // Calculate the flux
+            CalculateFlux(ls_old, flux, bx, lev);
+
+            // Update the level set function
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-	     /*Set::Scalar  x = (i + 0.5) * DX[0];
-	     Set::Scalar  y = (j + 0.5) * DX[1];
-	     Set::Scalar  z = (AMREX_SPACEDIM == 3) ? (k + 0.5) * DX[2] : 0.0;
-	     Set::Scalar  dist = std::sqrt((x - 0.5) * (x - 0.5) +
-                                      (y - 0.5) * (y - 0.5) +
-                                      (z - 0.5) * (z - 0.5));*/
-                Set::Scalar ls_xm = (i > 0) ? ls_old(i-1, j, k) : ls_old(i, j, k);
-                Set::Scalar ls_xp = ls_old(i, j, k);
-                Set::Scalar vel_x = 0.1;
-                Set::Scalar flux_x = (vel_x > 0.0) ? vel_x * ls_xm : vel_x * ls_xp;
+                ls(i, j, k) = ls_old(i, j, k) + dt * flux(i, j, k);
+            });
+        }
+    }
 
-                Set::Scalar ls_ym = (j > 0) ? ls_old(i, j-1, k) : ls_old(i, j, k);
-                Set::Scalar ls_yp = ls_old(i, j, k);
-                Set::Scalar vel_y = 0.0;
-                Set::Scalar flux_y = (vel_y > 0.0) ? vel_y * ls_ym : vel_y * ls_yp;
+    // Calculate flux using an upwind scheme
+    void CalculateFlux(const Set::Patch<const Set::Scalar>& ls_old,
+                       Set::Patch<Set::Scalar>& flux,
+                       const amrex::Box& bx,
+                       int lev)
+    {
+        const Set::Scalar* DX = geom[lev].CellSize();
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar ls_xm = (i > 0) ? ls_old(i - 1, j, k) : ls_old(i, j, k);
+            Set::Scalar ls_xp = ls_old(i, j, k);
+            Set::Scalar vel_x = 2.0;
+            Set::Scalar flux_x = (vel_x > 0.0) ? vel_x * ls_xm : vel_x * ls_xp;
 
-                Set::Scalar flux_z = 0.0;
-                if (AMREX_SPACEDIM == 3)
+            Set::Scalar ls_ym = (j > 0) ? ls_old(i, j - 1, k) : ls_old(i, j, k);
+            Set::Scalar ls_yp = ls_old(i, j, k);
+            Set::Scalar vel_y = 0.0;
+            Set::Scalar flux_y = (vel_y > 0.0) ? vel_y * ls_ym : vel_y * ls_yp;
+
+            Set::Scalar flux_z = 0.0;
+            if (AMREX_SPACEDIM == 3)
+            {
+                Set::Scalar ls_zm = (k > 0) ? ls_old(i, j, k - 1) : ls_old(i, j, k);
+                Set::Scalar ls_zp = ls_old(i, j, k);
+                Set::Scalar vel_z = 0.0;
+                flux_z = (vel_z > 0.0) ? vel_z * ls_zm : vel_z * ls_zp;
+            }
+
+            flux(i, j, k) = -(flux_x / DX[0] + flux_y / DX[1] + flux_z / DX[2]);
+        });
+    }
+
+    // Reinitialize the level set function to maintain the signed distance property
+    void Reinitialize(int lev)
+    {
+        const Set::Scalar reinit_tolerance = 1e-3; // Tolerance for stopping criteria
+        const int max_iterations = 50;             // Maximum number of reinitialization iterations
+
+        for (int iter = 0; iter < max_iterations; ++iter)
+        {
+            bool converged = true;
+
+            // Iterate over all the patches on this level
+            for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+
+                amrex::ParallelFor(bx, [=, &converged] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Scalar ls_zm = (k > 0) ? ls_old(i, j, k-1) : ls_old(i, j, k);
-                    Set::Scalar ls_zp = ls_old(i, j, k);
-                    Set::Scalar vel_z = 0.0;
-                    flux_z = (vel_z > 0.0) ? vel_z * ls_zm : vel_z * ls_zp;
+                    // Calculate the gradient magnitude |∇phi|
+                    Set::Vector grad = Numeric::Gradient(ls, i, j, k, 0, geom[lev].CellSize());
+                    Set::Scalar grad_mag = grad.lpNorm<2>();
+
+                    // Update the level set function phi
+                    Set::Scalar sign_phi = (ls(i, j, k) >= 0) ? 1.0 : -1.0;
+                    Set::Scalar phi_new = ls(i, j, k) - sign_phi * (grad_mag - 1.0);
+
+                    if (std::abs(phi_new - ls(i, j, k)) > reinit_tolerance)
+                        converged = false;
+
+                    ls(i, j, k) = phi_new;
+                });
+            }
+
+            // Stop reinitialization if converged
+            if (converged)
+                break;
+        }
+    }
+
+    // Update the narrow band of the level set function
+    void UpdateNarrowBand(int lev)
+    {
+        const Set::Scalar narrow_band_width = 6.0 * geom[lev].CellSize()[0];
+        const Set::Scalar inner_tube = -narrow_band_width;
+        const Set::Scalar outer_tube = narrow_band_width;
+
+        // Iterate over all the patches on this level
+        for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (ls(i, j, k) < inner_tube || ls(i, j, k) > outer_tube)
+                {
+                    ls(i, j, k) = (ls(i, j, k) > 0) ? outer_tube : inner_tube;
                 }
-
-                flux(i, j, k) = -(flux_x / DX[0] + flux_y / DX[1] + flux_z / DX[2]);
-
-	        ls(i, j, k) = ls_old(i, j, k) + dt*flux(i, j, k);     
             });
         }
     }

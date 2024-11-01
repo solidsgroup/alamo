@@ -25,7 +25,7 @@ plot_file     = output
 
 # Simulation length
 timestep = 0.0001
-stop_time = 0.01
+stop_time = 0.05
 
 # AMR parameters
 amr.plot_int = 10
