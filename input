@@ -1,0 +1,69 @@
+#@
+#@ [2d-serial]
+#@ dim=2
+#@ 
+#@ [2d-serial-coverage]
+#@ dim=2
+#@ coverage=true
+#@ args=stop_time=0.0002
+#@ check=false
+#@
+#@ [3d-parallel]
+#@ dim=3
+#@ nprocs=4
+#@ benchmark-beaker=7.66
+#@ benchmark-waldorf=21.17
+#@
+#@ [3d-serial-coverage]
+#@ dim=3
+#@ coverage=true
+#@ args=stop_time=0.0002
+#@ check=false
+
+
+plot_file     = output
+
+# Simulation length
+timestep = 0.0001
+stop_time = 0.01
+
+# AMR parameters
+amr.plot_int = 10
+amr.max_level = 1
+amr.n_cell = 48 24 24
+amr.blocking_factor = 1
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 2 1 1
+geometry.is_periodic= 0 0 0
+
+# Criterion for mesh refinement
+heat.alpha = 1.0
+heat.refinement_threshold = 0.01
+
+# Specify initial conditions
+ls.ic.type = spherels
+ic.spherels.center = 0.5 0.5 0.5
+ic.spherels.radius = 0.25
+ic.spherels.type   = "xyz"
+
+# Boundary conditions
+ls.bc.type.xhi = neumann
+ls.bc.type.xlo = neumann
+ls.bc.type.yhi = neumann
+ls.bc.type.ylo = neumann
+ls.bc.type.zhi = neumann
+ls.bc.type.zlo = neumann
+ls.bc.val.xhi  = 0.0
+ls.bc.val.xlo  = 0.0
+ls.bc.val.yhi  = 0.0
+ls.bc.val.ylo  = 0.0
+ls.bc.val.zhi  = 0.0
+ls.bc.val.zlo  = 0.0
+
+
+
+

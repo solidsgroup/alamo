@@ -1,0 +1,45 @@
+plot_file     = output
+
+# Simulation length
+timestep = 0.0001
+stop_time = 0.0005
+
+# AMR parameters
+amr.plot_int = 10
+amr.max_level = 1
+amr.n_cell = 24 24 24
+amr.blocking_factor = 1
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 1
+geometry.is_periodic= 0 0 0
+
+# Specify initial conditions
+ls.ic.type = spherels
+ls.ic.spherels.center = 0.5 0.5 0.5
+ls.ic.spherels.radius = 0.25
+ls.ic.spherels.type   = "xyz"
+
+# Specify initial conditions for level set velocity
+lsvel.ic.type = constant  
+lsvel.ic.value = 0.1
+
+# Specify Boundary condition for levelset field
+ls.bc.type.xhi = neumann 
+ls.bc.type.xlo = neumann
+ls.bc.type.yhi = neumann 
+ls.bc.type.ylo = neumann 
+ls.bc.type.zhi = neumann 
+ls.bc.type.zlo = neumann 
+
+# Boundary conditions for level set velocity
+lsvel.bc.type.xhi = neumann 
+lsvel.bc.type.xlo = neumann 
+lsvel.bc.type.yhi = neumann 
+lsvel.bc.type.ylo = neumann 
+lsvel.bc.type.zhi = neumann 
+lsvel.bc.type.zlo = neumann 
+
