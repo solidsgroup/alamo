@@ -138,9 +138,9 @@ void Initialize(int lev)
                Advect(lev, dt);
 
 	    // Reinitialize the level set function
-	     /* if(current_timestep % 5 == 0) {
+	      if(current_timestep % 5 == 0) {
                Reinitialize(lev);
-	      }*/
+	      }
 
             // Update the narrow band
                UpdateNarrowBand(lev);
@@ -177,36 +177,38 @@ void Initialize(int lev)
     }
 
     // Calculate flux using an upwind scheme
-    void CalculateFlux(const Set::Patch<const Set::Scalar>& ls_old,
-                       Set::Patch<Set::Scalar>& flux,
-                       const amrex::Box& bx,
-                       int lev)
+void CalculateFlux(const Set::Patch<const Set::Scalar>& ls_old,
+                   Set::Patch<Set::Scalar>& flux,
+                   const amrex::Box& bx,
+                   int lev)
+{
+    const Set::Scalar* DX = geom[lev].CellSize();
+    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
     {
-        const Set::Scalar* DX = geom[lev].CellSize();
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        Set::Scalar vel_x = 2.0;  // Positive velocity in x-direction for advection to the right
+
+        Set::Scalar ls_xm = (i > 0) ? ls_old(i - 1, j, k) : ls_old(i, j, k); // Apply boundary handling if i == 0
+        Set::Scalar ls_xp = ls_old(i, j, k);
+        Set::Scalar flux_x = (vel_x > 0.0) ? vel_x * ls_xm : vel_x * ls_xp;
+
+        Set::Scalar vel_y = 0.0;
+        Set::Scalar ls_ym = (j > 0) ? ls_old(i, j - 1, k) : ls_old(i, j, k);
+        Set::Scalar ls_yp = ls_old(i, j, k);
+        Set::Scalar flux_y = (vel_y > 0.0) ? vel_y * ls_ym : vel_y * ls_yp;
+
+        Set::Scalar flux_z = 0.0;
+        if (AMREX_SPACEDIM == 3)
         {
-            Set::Scalar ls_xm = (i > 0) ? ls_old(i - 1, j, k) : ls_old(i, j, k);
-            Set::Scalar ls_xp = ls_old(i, j, k);
-            Set::Scalar vel_x = -2.0;
-            Set::Scalar flux_x = (vel_x > 0.0) ? vel_x * ls_xm : vel_x * ls_xp;
+            Set::Scalar vel_z = 0.0;
+            Set::Scalar ls_zm = (k > 0) ? ls_old(i, j, k - 1) : ls_old(i, j, k);
+            Set::Scalar ls_zp = ls_old(i, j, k);
+            flux_z = (vel_z > 0.0) ? vel_z * ls_zm : vel_z * ls_zp;
+        }
 
-            Set::Scalar ls_ym = (j > 0) ? ls_old(i, j - 1, k) : ls_old(i, j, k);
-            Set::Scalar ls_yp = ls_old(i, j, k);
-            Set::Scalar vel_y = 0.0;
-            Set::Scalar flux_y = (vel_y > 0.0) ? vel_y * ls_ym : vel_y * ls_yp;
+        flux(i, j, k) = -(flux_x / DX[0] + flux_y / DX[1] + flux_z / DX[2]);
+    });
+}
 
-            Set::Scalar flux_z = 0.0;
-            if (AMREX_SPACEDIM == 3)
-            {
-                Set::Scalar ls_zm = (k > 0) ? ls_old(i, j, k - 1) : ls_old(i, j, k);
-                Set::Scalar ls_zp = ls_old(i, j, k);
-                Set::Scalar vel_z = 0.0;
-                flux_z = (vel_z > 0.0) ? vel_z * ls_zm : vel_z * ls_zp;
-            }
-
-            flux(i, j, k) = -(flux_x / DX[0] + flux_y / DX[1] + flux_z / DX[2]);
-        });
-    }
 
     void Reinitialize(int lev)
     {
@@ -254,14 +256,23 @@ void Initialize(int lev)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+            Set::Patch<Set::Scalar> interface_patch = interface_mf.Patch(lev, mfi);
 
             amrex::ParallelFor(bx, [=, &converged] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                // Calculate the gradient magnitude |∇phi|
+             // Only update cells that are in the narrow band or at the interface
+             if (interface_patch(i, j, k) == 0.0 || interface_patch(i, j, k) == -1.0 || interface_patch(i, j, k) == 1.0)
+             {
+   	        // Calculate the gradient magnitude |∇phi|
                 Set::Vector grad = Numeric::Gradient(ls, i, j, k, 0, geom[lev].CellSize());
                 Set::Scalar grad_mag = std::max(grad.lpNorm<2>(), epsilon);  // Prevent division by zero
 
-                // Update the level set function phi using a smoothed sign function
+                if (std::isnan(grad_mag) || grad_mag < epsilon)
+                    {
+                        grad_mag = 1.0; // Prevent division by zero or NaN
+                    }
+
+		// Update the level set function phi using a smoothed sign function
                 Set::Scalar sign_phi = ls(i, j, k) / std::sqrt(ls(i, j, k) * ls(i, j, k) + epsilon);
                 Set::Scalar phi_new = ls(i, j, k) - sign_phi * (grad_mag - 1.0);
 
@@ -269,6 +280,7 @@ void Initialize(int lev)
                     converged = false;
 
                 ls(i, j, k) = phi_new;
+	     }	
             });
         }
 
@@ -276,6 +288,9 @@ void Initialize(int lev)
         if (converged)
             break;
       }
+     
+      // After reinitializing ls_mf, update ls_old_mf to keep them consistent
+      ls_old_mf[lev]->ParallelCopy(*ls_mf[lev], 0, 0, number_of_components, 0, number_of_ghost_cells);
     }
 
     // Update the narrow band of the level set function
