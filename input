@@ -30,7 +30,7 @@ stop_time = 32.0
 # AMR parameters
 amr.plot_int = 5
 amr.max_level = 1
-amr.n_cell = 100 50 50
+amr.n_cell = 48 24 24
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0
