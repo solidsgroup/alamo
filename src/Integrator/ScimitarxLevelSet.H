@@ -85,26 +85,62 @@ public:
         // Register the temperature and old temperature fields.
         // temp_mf and temp_old_mf are defined near the bottom of this Header file.
         value.RegisterNewFab(value.ls_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS", true);
-        value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", true);
+        value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
         value.RegisterNewFab(value.lsflux_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LSFlux", false);
+        value.RegisterNewFab(value.interface_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "ILabel", false);
+
     }
 
 protected:
 
-    // Use the ic object to initialize the temperature field
-    void Initialize(int lev)
+// Use the ic object to initialize the level set field
+void Initialize(int lev)
+{
+    ls_ic->Initialize(lev, ls_mf);
+
+    // Iterate over all the patches on this level
+    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        ls_ic->Initialize(lev, ls_mf);
+        const amrex::Box& bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> interface_patch = interface_mf.Patch(lev, mfi);
+
+        const Set::Scalar narrow_band_width = 6.0 * geom[lev].CellSize()[0];
+        const Set::Scalar inner_tube = -narrow_band_width;
+        const Set::Scalar outer_tube = narrow_band_width;
+
+        // Update interface_mf to reflect the level set initialization
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (std::abs(ls(i, j, k)) <= geom[lev].CellSize()[0])
+            {
+                interface_patch(i, j, k) = 0.0; // Cells closest to the interface (considered zero level set)
+            }
+            else if (ls(i, j, k) > inner_tube && ls(i, j, k) < outer_tube)
+            {
+                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 1.0 : -1.0; // Narrow band cells
+            }
+            else
+            {
+                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 2.0 : -2.0; // Cells outside the narrow band
+            }
+        });
     }
+}
 
     // Integrate the heat equation
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
-            // Advect the level set field
+            // Increment the timestep
+               current_timestep++;
+
+    	    // Advect the level set field
                Advect(lev, dt);
 
 	    // Reinitialize the level set function
-              /* Reinitialize(lev);*/
+	     /* if(current_timestep % 5 == 0) {
+               Reinitialize(lev);
+	      }*/
 
             // Update the narrow band
                UpdateNarrowBand(lev);
@@ -151,7 +187,7 @@ protected:
         {
             Set::Scalar ls_xm = (i > 0) ? ls_old(i - 1, j, k) : ls_old(i, j, k);
             Set::Scalar ls_xp = ls_old(i, j, k);
-            Set::Scalar vel_x = 2.0;
+            Set::Scalar vel_x = -2.0;
             Set::Scalar flux_x = (vel_x > 0.0) ? vel_x * ls_xm : vel_x * ls_xp;
 
             Set::Scalar ls_ym = (j > 0) ? ls_old(i, j - 1, k) : ls_old(i, j, k);
@@ -172,43 +208,74 @@ protected:
         });
     }
 
-    // Reinitialize the level set function to maintain the signed distance property
     void Reinitialize(int lev)
     {
-        const Set::Scalar reinit_tolerance = 1e-3; // Tolerance for stopping criteria
-        const int max_iterations = 50;             // Maximum number of reinitialization iterations
+        const Set::Scalar narrow_band_width = 6.0 * geom[lev].CellSize()[0];
+        const Set::Scalar inner_tube = -narrow_band_width;
+        const Set::Scalar outer_tube = narrow_band_width;
 
-        for (int iter = 0; iter < max_iterations; ++iter)
+        // Set the initial condition for reinitialization from Interface_mf
+        for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            bool converged = true;
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+            Set::Patch<Set::Scalar> interface_patch = interface_mf.Patch(lev, mfi);
 
-            // Iterate over all the patches on this level
-            for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                const amrex::Box& bx = mfi.tilebox();
-                Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
-
-                amrex::ParallelFor(bx, [=, &converged] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    // Calculate the gradient magnitude |∇phi|
-                    Set::Vector grad = Numeric::Gradient(ls, i, j, k, 0, geom[lev].CellSize());
-                    Set::Scalar grad_mag = grad.lpNorm<2>();
-
-                    // Update the level set function phi
-                    Set::Scalar sign_phi = (ls(i, j, k) >= 0) ? 1.0 : -1.0;
-                    Set::Scalar phi_new = ls(i, j, k) - sign_phi * (grad_mag - 1.0);
-
-                    if (std::abs(phi_new - ls(i, j, k)) > reinit_tolerance)
-                        converged = false;
-
-                    ls(i, j, k) = phi_new;
-                });
+                     // Set initial condition based on the interface_patch values
+            if (interface_patch(i, j, k) == 0.0)
+            {
+                ls(i, j, k) = 0.0; // Interface cells set to 0
+            }
+            else if (interface_patch(i, j, k) == -1.0 || interface_patch(i, j, k) == 1.0)
+            {
+                ls(i, j, k) = (interface_patch(i, j, k) == -1.0) ? inner_tube : outer_tube; // Narrow band cells set to inner_tube or outer_tube
+            }
+            else if (interface_patch(i, j, k) == -2.0 || interface_patch(i, j, k) == 2.0)
+            {
+                // Cells outside the narrow band maintain their signed distance value
+                ls(i, j, k) = (interface_patch(i, j, k) == -2.0) ? inner_tube : outer_tube;
             }
 
-            // Stop reinitialization if converged
-            if (converged)
-                break;
+            });
         }
+       
+	const Set::Scalar reinit_tolerance = 1e-3; // Tolerance for stopping criteria
+    	const int max_iterations = 50;             // Maximum number of reinitialization iterations
+    	const Set::Scalar epsilon = 1e-6;          // Small value to prevent division by zero
+
+      for (int iter = 0; iter < max_iterations; ++iter)
+      {
+        bool converged = true;
+
+        // Iterate over all the patches on this level
+        for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+
+            amrex::ParallelFor(bx, [=, &converged] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                // Calculate the gradient magnitude |∇phi|
+                Set::Vector grad = Numeric::Gradient(ls, i, j, k, 0, geom[lev].CellSize());
+                Set::Scalar grad_mag = std::max(grad.lpNorm<2>(), epsilon);  // Prevent division by zero
+
+                // Update the level set function phi using a smoothed sign function
+                Set::Scalar sign_phi = ls(i, j, k) / std::sqrt(ls(i, j, k) * ls(i, j, k) + epsilon);
+                Set::Scalar phi_new = ls(i, j, k) - sign_phi * (grad_mag - 1.0);
+
+                if (std::abs(phi_new - ls(i, j, k)) > reinit_tolerance)
+                    converged = false;
+
+                ls(i, j, k) = phi_new;
+            });
+        }
+
+        // Stop reinitialization if converged
+        if (converged)
+            break;
+      }
     }
 
     // Update the narrow band of the level set function
@@ -223,6 +290,7 @@ protected:
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+            Set::Patch<Set::Scalar> interface_patch = interface_mf.Patch(lev, mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -230,7 +298,23 @@ protected:
                 {
                     ls(i, j, k) = (ls(i, j, k) > 0) ? outer_tube : inner_tube;
                 }
-            });
+               
+	     // Update interface_mf to reflect the current level set values
+            
+	    if (std::abs(ls(i, j, k)) <= geom[lev].CellSize()[0])
+            {
+                interface_patch(i, j, k) = 0.0; // Interface cells (closest to zero level set)
+            }
+            else if (ls(i, j, k) > inner_tube && ls(i, j, k) < outer_tube)
+            {
+                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 1.0 : -1.0; // Narrow band cells
+            }
+            else
+            {
+                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 2.0 : -2.0; // Outside narrow band
+            }
+
+    	    });
         }
     }
 
@@ -268,6 +352,7 @@ protected:
     Set::Field<Set::Scalar> ls_mf;         // Levelset field variable (current timestep)
     Set::Field<Set::Scalar> ls_old_mf;     // Levelset field variable (previous timestep)
     Set::Field<Set::Scalar> lsflux_mf;     // Levelset flux field variable 
+    Set::Field<Set::Scalar> interface_mf;    // Variable for Interface Labeling
 
 private:
 
@@ -275,6 +360,7 @@ private:
     // Definition of parameters set only at instantiation by
     // constructors. 
     //
+    int current_timestep           = 0;
     const int number_of_components = 1;      // Number of components
     const int number_of_ghost_cells = 2;     // Number of ghost cells
 

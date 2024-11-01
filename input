@@ -24,11 +24,11 @@
 plot_file     = output
 
 # Simulation length
-timestep = 0.0001
-stop_time = 0.05
+timestep = 0.4
+stop_time = 32.0
 
 # AMR parameters
-amr.plot_int = 10
+amr.plot_int = 5
 amr.max_level = 1
 amr.n_cell = 48 24 24
 amr.blocking_factor = 1
