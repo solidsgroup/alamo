@@ -211,9 +211,9 @@ static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                     else if (i == j && k == l) 
                     {
                         // C12 for 1,2 and 2,1; C13 for 1,3, 3,1, 2,3, 3,2
-                        if ((i == 0 && j == 1) || (i == 1 && j == 0))
+                        if ((i == 0 && k == 1) || (i == 1 && k == 0))
                             Ctmp[i][j][k][l] = C12;
-                        else if ((i == 0 && j == 2) || (i == 2 && j == 0) || (i == 1 && j == 2) || (i == 2 && j == 1))
+                        else if ((i == 0 && k == 2) || (i == 2 && k == 0) || (i == 1 && k == 2) || (i == 2 && k == 1))
                             Ctmp[i][j][k][l] = C13;
                         else
                             Util::Abort(INFO,"Unexpected indices in C12/C13 assignment: i=",i,", j=",j,", k=",k,", l=",l);
@@ -653,9 +653,9 @@ static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                     else if (i == j && k == l)
                     {
                         // C12 for (1,2) and (2,1), C13 for (1,3), (2,3), etc.
-                        if ((i == 0 && j == 1) || (i == 1 && j == 0))
+                        if ((i == 0 && k == 1) || (i == 1 && k == 0))
                             Ctmp[i][j][k][l] = C12;
-                        else if ((i == 0 && j == 2) || (i == 1 && j == 2) || (i == 2 && j == 0) || (i == 2 && j == 1))
+                        else if ((i == 0 && k == 2) || (i == 1 && k == 2) || (i == 2 && k == 0) || (i == 2 && k == 1))
                             Ctmp[i][j][k][l] = C13;
                         else
                             Util::Abort(INFO,"Unexpected indices in C12/C13 assignment: i=",i,", j=",j,", k=",k,", l=",l);
