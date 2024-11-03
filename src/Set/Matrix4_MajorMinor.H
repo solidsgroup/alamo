@@ -221,15 +221,13 @@ static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                     else if (i == k && j == l) 
                     {
                         // Shear terms C44 for 1,3 and 2,3
-                        if ((i == 0 && k == 2) || (i == 1 && k == 2))
+                        if ((i == 0 && j == 2) || (i == 1 && j == 2))
                             Ctmp[i][j][k][l] = C44;
+
+                        else if  (i == 0 && j == 1)
+                            Ctmp[i][j][k][l] = 0.5 * (C11 - C12);  
                         else
                             Util::Abort(INFO,"Unexpected indices in C44 assignment: i=",i,", j=",j,", k=",k,", l=",l);
-                    }
-                    else if (i != j && i != k && j != l && i == l && j == k) 
-                    {
-                        // Special case for 6th term 0.5(C11 - C12)
-                        Ctmp[i][j][k][l] = 0.5 * (C11 - C12);
                     }
                     else 
                     {
@@ -663,15 +661,14 @@ static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                     else if (i == k && j == l)
                     {
                         // C44 for the shear terms (in-plane/out-of-plane shear)
-                        if ((i == 0 && k == 2) || (i == 1 && k == 2))
+                        if ((i == 0 && j == 2) || (i == 1 && j == 2))
                             Ctmp[i][j][k][l] = C44;
+
+                        else if  (i == 0 && j == 1)
+                                Ctmp[i][j][k][l] = 0.5 * (C11 - C12);    
+
                         else
                             Util::Abort(INFO,"Unexpected indices in C44 assignment: i=",i,", j=",j,", k=",k,", l=",l);
-                    }
-                    else if (i != j && i != k && j != l && i == l && j == k)
-                    {
-                        // Unique in-plane shear term 0.5(C11 - C12)
-                        Ctmp[i][j][k][l] = 0.5 * (C11 - C12);
                     }
                     else
                     {
