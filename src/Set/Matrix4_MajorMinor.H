@@ -218,7 +218,7 @@ static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                         else
                             Util::Abort(INFO,"Unexpected indices in C12/C13 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
-                    else if (i == k && j == l) 
+                    else if (i == k && j == l && i !=j && j !=k && k !=l) 
                     {
                         // Shear terms C44 for 1,3 and 2,3
                         if ((i == 0 && j == 2) || (i == 1 && j == 2))
@@ -658,7 +658,7 @@ static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, 
                         else
                             Util::Abort(INFO,"Unexpected indices in C12/C13 assignment: i=",i,", j=",j,", k=",k,", l=",l);
                     }
-                    else if (i == k && j == l)
+                    else if (i == k && j == l && i !=j && j !=k && k !=l) 
                     {
                         // C44 for the shear terms (in-plane/out-of-plane shear)
                         if ((i == 0 && j == 2) || (i == 1 && j == 2))
