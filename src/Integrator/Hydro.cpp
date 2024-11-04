@@ -46,8 +46,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_required("gamma", value.gamma); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_required("mu", value.mu); // linear viscosity coefficient
-        pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
-        pp_query_default("Pfactor", value.Pfactor,1.0); // (to be removed) test factor for viscous source
+        pp_forbid("Lfactor","replaced with mu");
+        //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
+        pp_forbid("Pfactor","replaced with mu");
+        //pp_query_default("Pfactor", value.Pfactor,1.0); // (to be removed) test factor for viscous source
         pp_query_default("pref", value.pref,1.0); // reference pressure for Roe solver
 
         pp_forbid("rho.bc","--> density.bc");
@@ -433,9 +435,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             for (int s = 0; s<2; s++)
             {
                 Set::Scalar Mpqrs = 0.0;
-                if (p==r && q==s) Mpqrs += 0.5 * Pfactor;
-                if (p==s && q==r) Mpqrs += 0.5 * Pfactor;
-                if (p==q && r==s) Mpqrs -= Lfactor * 0.5;
+                if (p==r && q==s) Mpqrs += 0.5 * mu;
+                if (p==s && q==r) Mpqrs += 0.5 * mu;
+                if (p==q && r==s) Mpqrs += 0.5 * mu;
                 Ldot0(p) += Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
             }
             
@@ -494,47 +496,56 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             flux(i,j,k) = flux_xhi.mass - flux_xlo.mass;
 
-            rho_new(i, j, k) =
-                ( 
-                    rho(i, j, k)
-                    + (flux_xlo.mass - flux_xhi.mass) / DX[0] * dt
-                    + (flux_ylo.mass - flux_yhi.mass) / DX[1] * dt
-                    + Source(i, j, k, 0) * dt
-                    //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * divu)
-                    )
-                ;         
-                
-            M_new(i, j, k, 0) =
-                ( 
-                    M(i, j, k, 0)
-                    + (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] * dt
-                    + (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] * dt 
-                    + (mu * (lap_ux * eta(i, j, k) /*+ grad_eta.dot(grad_ux)*/)) * dt
-                    + Source(i, j, k, 1) * dt
-                    //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * 2.0 * div_u * v(i, j, k, 0))
-                    ) 
-                ;
-                
-            M_new(i, j, k, 1) =
-                ( 
-                    M(i, j, k, 1)
-                    + (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] * dt
-                    + (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] * dt
-                    + (mu * (lap_uy * eta(i, j, k) /*+ grad_eta.dot(grad_uy)*/)) * dt
-                    + Source(i, j, k, 2) * dt
-                    //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * 2.0 * div_u * v(i, j, k, 1))
-                    ) 
-                ;            
+            Set::Scalar drhof_dt = 
+                (flux_xlo.mass - flux_xhi.mass) / DX[0] +
+                (flux_ylo.mass - flux_yhi.mass) / DX[1] +
+                Source(i, j, k, 0);
 
-            E_new(i, j, k) =
+            rho_new(i, j, k) = rho(i, j, k) + 
+                (
+                    eta(i,j,k)*drhof_dt +
+                    // todo add drhos_dt term
+                    etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + small)
+                ) * dt;
+                
+            Set::Scalar dMxf_dt =
+                (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
+                (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
+                (mu * (lap_ux * eta(i, j, k))) +
+                Source(i, j, k, 1);
+
+            M_new(i, j, k, 0) = M(i, j, k, 0) +
                 ( 
-                    E(i, j, k)
-                    + (flux_xlo.energy - flux_xhi.energy) / DX[0] * dt
-                    + (flux_ylo.energy - flux_yhi.energy) / DX[1] * dt
-                    + Source(i, j, k, 3) * dt
-                    //+ (1.0 - eta(i, j, k)) * (rho_solid(i, j, k) * div_u * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)))
-                    ) 
-                ;
+                    eta(i,j,k)*dMxf_dt + 
+                    // todo add dMs_dt term
+                    etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + small)
+                ) * dt;
+                
+
+            Set::Scalar dMyf_dt =
+                (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
+                (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
+                (mu * (lap_uy * eta(i, j, k))) +
+                Source(i, j, k, 2);
+                
+            M_new(i, j, k, 1) = M(i, j, k, 1) +
+                ( 
+                    eta(i,j,k)*dMyf_dt +
+                    // todo add dMs_dt term
+                    etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+small)
+                )*dt;
+
+            Set::Scalar dEf_dt =
+                (flux_xlo.energy - flux_xhi.energy) / DX[0] +
+                (flux_ylo.energy - flux_yhi.energy) / DX[1] +
+                Source(i, j, k, 3);
+                
+            E_new(i, j, k) = E(i, j, k) + 
+                ( 
+                    eta(i,j,k)*dEf_dt +
+                    // todo add dEs_dt term
+                    etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+small)
+                ) * dt;
 
             //Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);

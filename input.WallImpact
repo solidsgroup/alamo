@@ -74,7 +74,7 @@ gamma = 1.4
 cfl   = 0.4
 mu    = 10
 Lfactor = -10
-Pfactor = 0.0
+Pfactor = 10.0
 #pref = 1000.0
 pref = 1000.0
 
