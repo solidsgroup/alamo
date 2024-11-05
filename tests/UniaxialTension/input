@@ -33,7 +33,7 @@
 #@  
 
 alamo.program                 = mechanics
-alamo.program.mechanics.model = linear.Nimamodel1  #use your model here
+alamo.program.mechanics.model = linear.TransverselyIsotropic  #use your model here
 plot_file		      = tests/UniaxialTension/output
 
 # this is not a time integration, so do
