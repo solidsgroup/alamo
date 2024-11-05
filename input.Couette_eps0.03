@@ -32,8 +32,6 @@ stop_time = 20.0
 gamma = 3.0
 cfl   = 0.4
 mu    = 10.0
-Lfactor = -10.0
-Pfactor = 10.0
 pref = 500.0
 
 ### ETA IC ###
@@ -101,23 +99,23 @@ density.bc.val.xlo = 0.0
 density.bc.val.ylo = 0.0
 density.bc.val.yhi = 0.0
 
-pressure.bc.type.xhi = periodic
-pressure.bc.type.xlo = periodic
-pressure.bc.type.ylo = neumann
-pressure.bc.type.yhi = neumann
-pressure.bc.val.xhi = 0.0
-pressure.bc.val.xlo = 0.0
-pressure.bc.val.ylo = 0.0 
-pressure.bc.val.yhi = 0.0
+energy.bc.type.xhi = periodic
+energy.bc.type.xlo = periodic
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+energy.bc.val.xhi = 0.0
+energy.bc.val.xlo = 0.0
+energy.bc.val.ylo = 0.0 
+energy.bc.val.yhi = 0.0
 
-velocity.bc.type.xlo = periodic periodic
-velocity.bc.type.xhi = periodic periodic
-velocity.bc.type.ylo = neumann neumann
-velocity.bc.type.yhi = neumann neumann
-velocity.bc.val.xlo = 0.0 0.0
-velocity.bc.val.xhi = 0.0 0.0
-velocity.bc.val.ylo = 0.0 0.0
-velocity.bc.val.yhi = 0.0 0.0
+momentum.bc.type.xlo = periodic periodic
+momentum.bc.type.xhi = periodic periodic
+momentum.bc.type.ylo = neumann neumann
+momentum.bc.type.yhi = neumann neumann
+momentum.bc.val.xlo = 0.0 0.0
+momentum.bc.val.xhi = 0.0 0.0
+momentum.bc.val.ylo = 0.0 0.0
+momentum.bc.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
