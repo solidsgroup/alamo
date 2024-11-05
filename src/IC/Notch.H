@@ -17,7 +17,7 @@ namespace IC
 class Notch : public IC
 {
 public:
-    enum Mollifier {Dirac, Gaussian, Cosine};
+    enum Mollifier {Dirac, Erf, Gaussian, Cosine};
 
     Notch (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
     {
@@ -66,9 +66,13 @@ public:
                     if(std::abs((x-nCenter[m]).transpose()*nOrientation[m]) <= 0.5*nLength[m])
                     {
                         Set::Scalar t = std::abs((x-nCenter[m]).transpose()*nNormal[m]) - (nThickness[m]/2.0);
-                        if (moll == Mollifier::Gaussian)
+                        if (moll == Mollifier::Erf)
                             value = 0.5 + 0.5*std::erf(t / eps);
                             // value = std::erf(t/eps);
+                        else if (moll == Mollifier::Gaussian)
+                        {
+                            value = (t >= 0.0) ? 1.0 - std::exp(-0.5*(4.0*t/eps)*(4.0*t/eps)) : 0.0;
+                        }
                         else if (moll == Mollifier::Dirac)
                         {
                             if (t < 0.0) value = 0.0;
@@ -106,9 +110,14 @@ public:
                         if(distLeft <= 0.)
                         {
                             Set::Scalar t = (x-nLeft2).lpNorm<2>() - nRadius[m];
-                            if (moll == Mollifier::Gaussian) 
+                            if (moll == Mollifier::Erf) 
                             {
                                 value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[m]/2.0) / eps );
+                            }
+                            else if (moll == Mollifier::Gaussian)
+                            {
+                                t = ((x-nLeft).lpNorm<2>() - nThickness[m]/2.0);
+                                value = (t >= 0.0) ? 1.0 - std::exp(-0.5*(4.0*t/eps)*(4.0*t/eps)) : 0.0;
                             }
                             else if (moll == Mollifier::Dirac)
                             {
@@ -181,9 +190,14 @@ public:
                         if(distRight >= 0.)
                         {
                             Set::Scalar t = (x-nRight2).lpNorm<2>() - nRadius[m];
-                            if (moll == Mollifier::Gaussian) 
+                            if (moll == Mollifier::Erf) 
                             {
                                 value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[m]/2.0) / eps );
+                            }
+                            else if (moll == Mollifier::Gaussian)
+                            {
+                                t = ((x-nRight).lpNorm<2>() - nThickness[m]/2.0);
+                                value = (t >= 0.0) ? 1.0 - std::exp(-0.5*(4.0*t/eps)*(4.0*t/eps)) : 0.0;
                             }
                             else if (moll == Mollifier::Dirac)
                             {
@@ -358,7 +372,7 @@ public:
         }
         else if (mollifier == "erf" || mollifier == "Erf")
         {
-            value.moll = Mollifier::Gaussian;
+            value.moll = Mollifier::Erf;
             for (int i=0; i<value.nRadius.size(); i++)
                 value.nRadius[i] = 0.5*value.nThickness[i];
         }

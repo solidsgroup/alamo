@@ -415,6 +415,8 @@ public:
                             Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) * 2.0 +
                             Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX);
                     }
+
+                    if (std::isnan(bilap))  Util::Message(INFO, "Bilaplacian is nan at (",i,", ",j,")");
                     
                     Set::Scalar en_cell = energy(i,j,k,0); //Numeric::Interpolate::NodeToCellAverage(energy,i,j,k,0);
 
@@ -424,6 +426,7 @@ public:
                     rhs += df(i,j,k,0);
 
                     Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
+                    if (std::isnan(laplacian))  Util::Message(INFO, "Laplacian is nan at (",i,", ",j,")");
 
                     Set::Scalar Gc = 0.0;
                     Set::Scalar Zeta = 0.0;
@@ -446,9 +449,11 @@ public:
                     rhs += df(i,j,k,1);
 
                     df(i,j,k,2) = 2.0*Zeta*Gc*laplacian * crack.mult_lap;
+                    if (std::isnan(df(i,j,k,2))) Util::Message(INFO, "DF(2) is nan at (",i,",",j,")");
                     rhs -= df(i,j,k,2);
 
                     df(i,j,k,3) = crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
+                    if (std::isnan(df(i,j,k,3))) Util::Message(INFO, "DF(3) is nan at (",i,",",j,")");
                     rhs += df(i,j,k,3);
                    
                     df(i,j,k,4) =                    std::max(0.,rhs - Threshold);
@@ -568,7 +573,7 @@ public:
             amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Matrix grad = Numeric::Gradient(c, i, j, k, DX.data());
+                Set::Vector grad = Numeric::NodeGradientOnCell(c, i, j, k, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
             });
