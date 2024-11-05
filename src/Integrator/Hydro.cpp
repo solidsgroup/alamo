@@ -503,7 +503,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             rho_new(i, j, k) = rho(i, j, k) + 
                 (
-                    eta(i,j,k)*drhof_dt +
+                    drhof_dt +
                     // todo add drhos_dt term
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + small)
                 ) * dt;
@@ -516,7 +516,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             M_new(i, j, k, 0) = M(i, j, k, 0) +
                 ( 
-                    eta(i,j,k)*dMxf_dt + 
+                    dMxf_dt + 
                     // todo add dMs_dt term
                     etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + small)
                 ) * dt;
@@ -530,7 +530,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 
             M_new(i, j, k, 1) = M(i, j, k, 1) +
                 ( 
-                    eta(i,j,k)*dMyf_dt +
+                    dMyf_dt +
                     // todo add dMs_dt term
                     etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+small)
                 )*dt;
@@ -542,7 +542,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 
             E_new(i, j, k) = E(i, j, k) + 
                 ( 
-                    eta(i,j,k)*dEf_dt +
+                    dEf_dt +
                     // todo add dEs_dt term
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+small)
                 ) * dt;
