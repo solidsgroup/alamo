@@ -33,8 +33,8 @@ public:
     virtual ~Hydro()
     {
         delete density_bc;
-        delete velocity_bc;
-        delete pressure_bc;
+        delete momentum_bc;
+        delete energy_bc;
         delete eta_bc;
 
         delete velocity_ic;
@@ -96,8 +96,8 @@ private:
     Set::Field<Set::Scalar> flux_mf;
 
     BC::BC<Set::Scalar>* density_bc = nullptr;
-    BC::BC<Set::Scalar>* velocity_bc = nullptr;
-    BC::BC<Set::Scalar>* pressure_bc = nullptr;
+    BC::BC<Set::Scalar>* momentum_bc = nullptr;
+    BC::BC<Set::Scalar>* energy_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
 
     IC::IC* velocity_ic = nullptr;

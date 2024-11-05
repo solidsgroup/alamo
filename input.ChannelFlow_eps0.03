@@ -32,8 +32,6 @@ stop_time = 1000.0
 gamma = 3.0
 cfl   = 0.4
 mu    = 10.0
-Lfactor = -10.0
-Pfactor = 10.0
 pref = 100.0
 
 ### ETA IC ###

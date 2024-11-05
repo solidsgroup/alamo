@@ -56,8 +56,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("p.bc","--> pressure.bc");
         pp_forbid("v.bc","--> velocity.bc");
         value.density_bc = new BC::Expression(1, pp, "density.bc");
-        value.pressure_bc = new BC::Constant(1, pp, "pressure.bc");
-        value.velocity_bc = new BC::Expression(2, pp, "velocity.bc");
+        pp_forbid("pressure.bc","--> energy.bc");
+        value.energy_bc = new BC::Constant(1, pp, "energy.bc");
+        pp_forbid("velocity.bc","--> momentum.bc");
+        value.momentum_bc = new BC::Expression(2, pp, "momentum.bc");
         value.eta_bc = new BC::Constant(1, pp, "pf.eta.bc");
     }
     // Register FabFields:
@@ -71,15 +73,15 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.density_mf,     value.density_bc, 1, nghost, "density",     true );
         value.RegisterNewFab(value.density_old_mf, value.density_bc, 1, nghost, "density_old", false);
 
-        value.RegisterNewFab(value.energy_mf,     value.pressure_bc, 1, nghost, "energy",      true );
-        value.RegisterNewFab(value.energy_old_mf, value.pressure_bc, 1, nghost, "energy_old" , false);
+        value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true );
+        value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false);
 
-        value.RegisterNewFab(value.momentum_mf,     value.velocity_bc, 2, nghost, "momentum",     true );
-        value.RegisterNewFab(value.momentum_old_mf, value.velocity_bc, 2, nghost, "momentum_old", false);
+        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true );
+        value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false);
  
-        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, 0, "pressure",  true);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, 0, "velocity",  true);
-        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, 0, "vorticity", true);
+        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true);
+        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true);
+        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true);
 
         value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", true);
         value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, 0, "mdot",         true);
@@ -625,7 +627,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, bx);
-            Set::Matrix grad_p = Numeric::Gradient(p, i, j, k, DX, sten);
+            Set::Vector grad_p = Numeric::Gradient(p, i, j, k, 0, DX, sten);
             if (grad_p.lpNorm<2>() * dr * 2 > p_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
         });
     }
@@ -638,7 +640,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, bx);
-            Set::Matrix grad_rho = Numeric::Gradient(rho, i, j, k, DX, sten);
+            Set::Vector grad_rho = Numeric::Gradient(rho, i, j, k, 0, DX, sten);
             if (grad_rho.lpNorm<2>() * dr * 2 > rho_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
         });
     }
