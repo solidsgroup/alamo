@@ -171,14 +171,6 @@ public:
 
 
 
-
-
-
-
-
-
-
-
 // Here 1:
 
 // TODO: write a function to create, fill, and return a modulus tensor (C) 
