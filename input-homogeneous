@@ -11,6 +11,8 @@ amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 10.0
 amr.refinement_restriction = 0.3
 amr.phi_refinement_criterion = 0.9
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
 
 variable_pressure = 1
 
@@ -132,7 +134,7 @@ chamber.p0 = 1
 chamber.gamma = 1.4
 chamber.T0 = 300
 chamber.R = 287
-
+chamber.print_model=1
 ## LASER Variables ########################################################## LASER
 
 laser.ic.type = "constant"

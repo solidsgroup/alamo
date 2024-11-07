@@ -462,10 +462,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
 
-                if (variable_pressure) {
-                     pressure.P = chamber.pressure;
-                     Util::Message(INFO, "pressure.P = ", pressure.P);
-                }
+                // if (variable_pressure) {
+                    //  pressure.P = chamber.pressure;
+                    //  Util::Message(INFO, "pressure.P = ", pressure.P);
+                // }
 
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
                 Set::Scalar zeta_1;
@@ -745,9 +745,9 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             chamber.mdot += mdot(i,j,k,0) * dv; 
             chamber.area += da;
         });
-        Util::Message(INFO, "mdot = ", chamber.mdot);
-        Util::Message(INFO, "Change in mdot = ", chamber.mdot - pre_compute_mdot);
-    }
+        // Util::Message(INFO, "mdot = ", chamber.mdot);
+        // Util::Message(INFO, "Change in mdot = ", chamber.mdot - pre_compute_mdot);
+    }  
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -758,8 +758,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             area += da;
         });
     }
-    // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
-
+    // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)     
 }
 
 } // namespace Integrator

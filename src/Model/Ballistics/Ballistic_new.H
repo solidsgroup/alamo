@@ -49,6 +49,7 @@ public:
 
     // Calculate mass flow rates
     Set::Scalar mdot_in = mdot;
+    std::cout << "mdot_in: " << mdot_in << std::endl;
     Set::Scalar mdot_out = (current_p * At) / sqrt(gamma * R * T0);
 
     // Compute dp/dt
