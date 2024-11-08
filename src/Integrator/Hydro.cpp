@@ -45,6 +45,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp_query_required("gamma", value.gamma); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
+        pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
         pp_query_required("mu", value.mu); // linear viscosity coefficient
         pp_forbid("Lfactor","replaced with mu");
         //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
@@ -300,13 +301,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
-    Set::Scalar df_max = 0.0;
+    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
     
     UpdateEta(lev, time);
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.tilebox();
+        const amrex::Box& bx = mfi.growntilebox();
         amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
@@ -376,7 +377,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
-        Set::Scalar *df_max_handle = &df_max;
+        Set::Scalar *dt_max_handle = &dt_max;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -388,7 +389,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Set::Scalar boundary_energy = 0.5 * (mdot(i, j, k, 0) * mdot(i, j, k, 0) + mdot(i, j, k, 1) * mdot(i, j, k, 1)) / rho_injected(i, j, k);
             Set::Vector u_injected      = Set::Vector(mdot(i, j, k, 0), mdot(i, j, k, 1)) / rho_injected(i, j, k);
-            Set::Vector u_interface     = -etadot(i, j, k)*grad_eta/(grad_eta_mag * grad_eta_mag + small);
+            //Set::Vector u_interface     = -etadot(i, j, k)*grad_eta/(grad_eta_mag * grad_eta_mag + small);
+            Set::Vector u_interface     = Set::Vector::Zero();
 
             Set::Matrix I            = Set::Matrix::Identity();
             Set::Vector u_applied    = u_injected + u_interface /*+ Set::Vector(0.1, 0.0)*/;
@@ -498,6 +500,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             flux(i,j,k) = flux_xhi.mass - flux_xlo.mass;
 
+            Set::Scalar smallmod = small; //(1.0 - eta(i,j,k))*0.001;
+
+
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
                 (flux_ylo.mass - flux_yhi.mass) / DX[1] +
@@ -507,7 +512,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (
                     drhof_dt +
                     // todo add drhos_dt term
-                    etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + small)
+                    etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + smallmod)
                 ) * dt;
                 
             Set::Scalar dMxf_dt =
@@ -520,7 +525,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 ( 
                     dMxf_dt + 
                     // todo add dMs_dt term
-                    etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + small)
+                    etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + smallmod)
                 ) * dt;
                 
 
@@ -534,7 +539,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 ( 
                     dMyf_dt +
                     // todo add dMs_dt term
-                    etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+small)
+                    etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+smallmod)
                 )*dt;
 
             Set::Scalar dEf_dt =
@@ -546,13 +551,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 ( 
                     dEf_dt +
                     // todo add dEs_dt term
-                    etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+small)
+                    etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+smallmod)
                 ) * dt;
 
             //Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
-            *df_max_handle = std::max(*df_max_handle, u.lpNorm<2>() * DX[0] );
+            *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(0)*eta(i,j,k) + small));
+            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(1)*eta(i,j,k) + small)));
+            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
+            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
 
             // Compute vorticity
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
@@ -560,7 +568,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
 
     }
-    this->DynamicTimestep_SyncDrivingForce(lev,df_max);
+    this->DynamicTimestep_SyncTimeStep(lev,dt_max);
 
 }//end Advance
 

@@ -271,20 +271,21 @@ protected:
         Set::Scalar min = NAN;
         Set::Scalar max = NAN;
         // internal variables
-        std::vector<Set::Scalar> df_limit_max;
+        std::vector<Set::Scalar> dt_limit_min;
         std::vector<Set::Scalar> previous_timesteps;
     } dynamictimestep;
-    void DynamicTimestep_SyncDrivingForce(int lev, Set::Scalar df_max)
+    void DynamicTimestep_SyncTimeStep(int lev, Set::Scalar dt_min)
     {
         if (!dynamictimestep.on) return;
-        if (!dynamictimestep.df_limit_max.size())
+        if (!dynamictimestep.dt_limit_min.size())
         {
-            dynamictimestep.df_limit_max.resize(max_level+1,0.0);
+            dynamictimestep.dt_limit_min.resize(max_level+1,
+                                                std::numeric_limits<Set::Scalar>::max());
         }
-        dynamictimestep.df_limit_max[lev] = std::max(df_max,
-                                                     dynamictimestep.df_limit_max[lev]);
-
-        amrex::ParallelDescriptor::ReduceRealMax(dynamictimestep.df_limit_max[lev]);
+        dynamictimestep.dt_limit_min[lev] = std::min(dt_min,
+                                                     dynamictimestep.dt_limit_min[lev]);
+        
+        amrex::ParallelDescriptor::ReduceRealMin(dynamictimestep.dt_limit_min[lev]);
     }
     void DynamicTimestep_Reset()
     {
@@ -294,7 +295,7 @@ protected:
     void DynamicTimestep_Update()
     {
         if (!dynamictimestep.on) return;
-        if (!dynamictimestep.df_limit_max.size()) return;
+        if (!dynamictimestep.dt_limit_min.size()) return;
 
         Set::Scalar final_timestep = NAN;
 
@@ -312,8 +313,8 @@ protected:
             Set::Scalar new_timestep = std::numeric_limits<Set::Scalar>::max();
             for (int lev = 0; lev <= this->max_level; lev++)
             {
-                const Set::Scalar* DX = this->geom[lev].CellSize();
-                Set::Scalar dt_lev = dynamictimestep.cfl * (DX[0]*DX[0]) / dynamictimestep.df_limit_max[lev];
+                //const Set::Scalar* DX = this->geom[lev].CellSize();
+                Set::Scalar dt_lev = dynamictimestep.dt_limit_min[lev];
 
                 Util::Message(INFO,"lev=",lev," ",dt_lev, " (",this->nsubsteps[lev],")");
 
@@ -348,7 +349,7 @@ protected:
         }
         amrex::ParallelDescriptor::Bcast(&final_timestep,1);
         this->SetTimestep(final_timestep);
-        dynamictimestep.df_limit_max.clear();
+        dynamictimestep.dt_limit_min.clear();
     }
 
 

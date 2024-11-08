@@ -7,61 +7,74 @@ plot_file = ./output
 ### MESHING ###
 
 amr.plot_dt = 1.0
-#amr.plot_int = 10
-amr.max_level = 2
+#amr.plot_int = 1000
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
+amr.blocking_factor = 8
 amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 100 30 0
-#amr.abort_on_nan=0
+
+
+amr.max_level = 3
+timestep  = 0.0001
+#amr.n_cell = 256 128
+amr.n_cell = 64 32
+#amr.n_cell = 128 32
+
+# Uncomment to test AMR
+#amr.max_level = 2
+#amr.n_cell = 128 32 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
-geometry.prob_hi = 10.0 3.0 0.0 # [ m ]
+geometry.prob_lo = -12.0 -12.0 0.0 # [ m ] 
+geometry.prob_hi =  36.0  12.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
-stop_time = 70.0
-
-### HYDRO PARAM ###
-
-gamma = 3.0
-cfl   = 0.4
-mu    = 10.0
-pref = 100.0
+stop_time = 10000.0
 
 ### ETA IC ###
-
-eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.05
-eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
 rho_injected.ic.type = expression
 rho_injected.ic.expression.region0 = "100.0"
 
 mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.0"
+mdot.ic.expression.region0 = "10"
 mdot.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.4
+eta.ic.expression.constant.vel_x = 0.0 
+eta.ic.expression.constant.vel_y = 0.0 
+eta.ic.expression.constant.x0    = 0.0 
+eta.ic.expression.constant.R    = 1.5
+#eta.ic.expression.region0        = "0.5*(1 + tanh((sqrt((x-x0-0.1*t)**2 + (y)**2) - 3.0)/eps))"
+eta.ic.expression.region0        = "1.0 - 0.5*(1 + tanh((1.0-abs(x-0.1*t))/eps)) * 0.5*(1 + tanh((5.0-abs(y))/eps))"
+
+### HYDRO PARAM ###
+
+gamma = 1.4
+mu    = 10
+#pref = 1000.0
+pref = 1000.0
+
 density.ic.type = expression
 density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
-velocity.ic.expression.constant.eps = 0.05
-velocity.ic.expression.region0 = "0.01 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+pressure.ic.expression.region0 = "0.0" 
+
+### SOLID ###
 
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"
@@ -71,7 +84,7 @@ solid.momentum.ic.expression.region0 = "0.0"
 solid.momentum.ic.expression.region1 = "0.0"
 
 solid.energy.ic.type = expression
-solid.energy.ic.expression.region0 = "0.0"
+solid.energy.ic.expression.region0 = "0.0" 
 
 ### ETA BC  ###
 
@@ -97,10 +110,10 @@ density.bc.type.ylo = neumann
 density.bc.type.yhi = neumann
 density.bc.val.xhi = 0.0
 density.bc.val.xlo = 0.0
-density.bc.val.ylo = 0.0
+density.bc.val.ylo = 0.0 
 density.bc.val.yhi = 0.0
 
-energy.bc.type.xhi = dirichlet
+energy.bc.type.xhi = neumann
 energy.bc.type.xlo = neumann
 energy.bc.type.ylo = neumann
 energy.bc.type.yhi = neumann
@@ -109,31 +122,28 @@ energy.bc.val.xlo = 0.0
 energy.bc.val.ylo = 0.0 
 energy.bc.val.yhi = 0.0
 
-momentum.bc.type.xlo = dirichlet dirichlet
+momentum.bc.type.xlo = dirichlet neumann
 momentum.bc.type.xhi = neumann neumann
-momentum.bc.type.ylo = neumann neumann
-momentum.bc.type.yhi = neumann neumann
-#momentum.bc.val.xlo = "1.0*(y>0.5)*(y<2.5)" "0.0"
-
-momentum.bc.val.xlo = "1.0 * (0.5*tanh((y - 0.5)/0.05) - 0.5*tanh((y - 2.5)/0.05))" "0.0"
-momentum.bc.val.xhi = "0.0" "0.0"
-momentum.bc.val.ylo = "0.0" "0.0"
-momentum.bc.val.yhi = "0.0" "0.0"
+momentum.bc.type.ylo = neumann dirichlet
+momentum.bc.type.yhi = neumann dirichlet
+momentum.bc.val.xlo = 0.0 0.0
+momentum.bc.val.xhi = 0.0 0.0
+momentum.bc.val.ylo = 0.0 0.0
+momentum.bc.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-r_refinement_criterion   = 1E100
-e_refinement_criterion   = 1E100
-m_refinement_criterion   = 1E100
-eta_refinement_criterion = 0.001
-omega_refinement_criterion = 1E100
-p_refinement_criterion   = 1E100
-rho_refinement_criterion   = 1E100
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.01
+gradu_refinement_criterion = 0.05
 
 #TODO
 
+#amr.abort_on_nan = 0
+
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
-dynamictimestep.cfl = 0.001
-dynamictimestep.max  = 1.0
-dynamictimestep.min  = 1E-8
+dynamictimestep.max  = 0.001
+dynamictimestep.min  = 1E-4
+cfl      = 1.0
+cfl_v   = 1.0
