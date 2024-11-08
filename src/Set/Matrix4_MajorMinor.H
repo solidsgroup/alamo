@@ -2,7 +2,9 @@
 #define SET_MATRIX4_MAJORMINOR_H
 
 #include "Base.H"
+#include "Matrix3.H"
 #include <math.h>
+#include "Set.H"
 
 namespace Set
 {
@@ -171,6 +173,14 @@ public:
 
 
 
+
+
+
+
+
+
+
+
 // Here 1:
 
 // TODO: write a function to create, fill, and return a modulus tensor (C) 
@@ -184,8 +194,9 @@ public:
 
     static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<2, Sym::MajorMinor> ret;
-        Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};  // Initialize all entries to zero
+        Set::Scalar Ctmp[3][3][3][3]; // = {{{{0.0}}}};  // Initialize all entries to zero
         // Populate Ctmp based on the transversely isotropic matrix structure
+        std::cout << "I'm here!" << std::endl;
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 for (int k = 0; k < 3; k++) {
@@ -619,16 +630,6 @@ public:
 
 
 
-
-
-
-
-
-
-
-
-
-
 // Here 2:
     static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<3, Sym::MajorMinor> ret;
@@ -679,8 +680,12 @@ public:
                         for (int i = 0; i < 3; i++)
                             for (int j = 0; j < 3; j++)
                                 for (int k = 0; k < 3; k++)
-                                    for (int l = 0; l < 3; l++)
+                                    for (int l = 0; l < 3; l++) {
                                         ret(p, q, s, t) += R(p, i) * R(s, k) * Ctmp[i][j][k][l] * R(q, j) * R(t, l);
+                                        std::cout << "R_pi: " << R(p,i) << std::endl;
+                                        std::cout << "i: " << i << std::endl;
+                                        std::cout << "p,q,s,t: " << p << " " << q << " " << s << " " << t << ":\t" << ret(p,q, s, t) << std::endl;
+                                    }
                     }
         return ret;
     }

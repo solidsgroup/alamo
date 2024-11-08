@@ -1,130 +1,176 @@
-#@  [2D-serial-1level]
-#@  exe=mechanics
-#@  dim=2  
-#@  nprocs=1
-#@  args=amr.max_level=0
-#@    
-#@  [2D-serial-2levels]
-#@  exe=mechanics
-#@  dim=2  
-#@  nprocs=1
-#@  args=amr.max_level=1
-#@    
-#@  [2D-serial-3levels]
-#@  exe=mechanics
-#@  dim=2  
-#@  nprocs=1
-#@    
-#@  [2D-parallel-3levels]
-#@  exe=mechanics
-#@  dim=2  
-#@  nprocs=4
-#@    
-#@  [3D-serial-3levels]
-#@  exe=mechanics
-#@  dim=3
-#@  nprocs=1
-#@  benchmark-github = 8.29
 #@
-#@  [3D-parallel-3levels]
+#@  [linear-isotropic]
+#@  exe=mechanics
+#@  dim = 3
+#@  check = false
+#@
+#@  [linear-cubic]
+#@  exe=mechanics
+#@  dim = 3
+#@  check-file = reference/linear-cubic.dat
+#@  args = alamo.program.mechanics.model=linear.cubic
+#@  args = model1.C11 = 168.3
+#@  args = model1.C12 = 1.221
+#@  args = model1.C44 = 0.757
+#@  ignore = model1.E model1.nu
+#@  coverage = true
+#@  
+#@  [affine-cubic]
+#@  exe=mechanics
+#@  dim = 3
+#@  check-file = reference/affine-cubic.dat
+#@  args = alamo.program.mechanics.model=affine.cubic
+#@  args = model1.C11 = 168.3
+#@  args = model1.C12 = 1.221
+#@  args = model1.C44 = 0.757
+#@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#@  ignore = model1.E model1.nu
+#@  coverage = true
+#@
+#@
+#@  [affine-hexagonal]
+#@  exe=mechanics
+#@  dim = 3
+#@  check-file = reference/affine-hexagonal.dat
+#@  args = alamo.program.mechanics.model=affine.hexagonal
+#@  args = model1.C11 = 0.597
+#@  args = model1.C12 = 0.262
+#@  args = model1.C13 = 0.217
+#@  args = model1.C33 = 0.617
+#@  args = model1.C44 = 0.164
+#@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#@  ignore = model1.E model1.nu
+#@  coverage = true
+#@
+#@  [j2]
+#@  exe=mechanics
+#@  dim = 3
+#@  check-file = reference/j2.dat
+#@  args = timestep = 0.001
+#@  args = alamo.program.mechanics.model=affine.j2
+#@  args = model1.E=210
+#@  args = model1.nu=0.3
+#@  args = model1.sigma0=0.2
+#@  args = bc.tension_test.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
+#@  benchmark-beaker = 10.42
+#@  benchmark-statler = 7.02
+#@  benchmark-github = 11.09
+#@
+#@  [affine-isotropic]
+#@  exe=mechanics
+#@  dim = 3
+#@  check = false
+#@  args = alamo.program.mechanics.model=affine.isotropic
+#@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#@  args = model1.E=210 
+#@  args = model1.nu=0.3
+#@  coverage=true
+#@
+#@  [neo-hookean]
 #@  exe=mechanics
 #@  dim=3
-#@  nprocs=4
-#@  
+#@  check-file = reference/neo-hookean.dat
+#@  args = timestep=0.01
+#@  args = alamo.program.mechanics.model=finite.neohookean
+#@  args = model1.mu=3.0
+#@  args = model1.kappa=6.5
+#@  args = bc.tension_test.disp=(0,1:0,1)
+#@  args = solver.nriters=10
+#@  ignore = model1.E model1.nu
+#@  benchmark-beaker = 10.73
+#@  benchmark-statler = 8.17
+#@  benchmark-github = 11.35
+#@ 
+#@  [neo-hookean-2d]
+#@  exe=mechanics
+#@  dim=2
+#@  check-file = reference/neo-hookean-2d.dat
+#@  args = timestep=0.01
+#@  args = alamo.program.mechanics.model=finite.neohookean
+#@  args = model1.mu=3.0
+#@  args = model1.kappa=6.5
+#@  args = bc.tension_test.disp=(0,1:0,1)
+#@  args = solver.nriters=10
+#@  ignore = model1.E model1.nu
+#@  coverage = true
+#@
+#@  [pseudolinear-cubic]
+#@  exe=mechanics
+#@  dim = 3
+#@  check-file = reference/pseudolinear-cubic.dat
+#@  args = alamo.program.mechanics.model=finite.pseudolinearcubic
+#@  args = model1.C11=168.3
+#@  args = model1.C12=1.221
+#@  args = model1.C44=0.757
+#@  ignore = model1.E model1.nu
+#@
 
-alamo.program                 = mechanics
-alamo.program.mechanics.model = linear.TransverselyIsotropic
-plot_file		      = tests/Transverse/output
 
-# this is not a time integration, so do
-# exactly one timestep and then quit
-timestep		      = 0.1
-stop_time		      = 0.1
+
+
+
+
+
+
+# Here:
+# TODO: add test block for the transverse model.
+# TODO: add validation data (reference/transverse.dat, e.g.)
+
+#@  [linear-transverse]
+#@  exe=mechanics
+#@  dim = 3
+#@  check-file = reference/transverselyisotropic.dat
+#@  args = alamo.program.mechanics.model=linear.TransverselyIsotropic
+#@  args = model1.C11 = 169.3
+#@  args = model1.C12 = 1.221
+#@  args = model1.C13 = 1
+#@  args = model1.C33 = 160
+#@  args = model1.C44 = 0.757
+#@  ignore = model1.E model1.nu
+#@  coverage=true
+#@
+
+
+
+
+
+
+alamo.program = mechanics
+alamo.program.mechanics.model=linear.TransverselyIsotropic
+
+plot_file		    = tests/Solid/output
+
+type=static
+
+timestep		    = 0.01
+stop_time		    = 1.0
 
 # amr parameters
-amr.plot_int		      = 1
-amr.max_level		      = 2
-amr.n_cell		      = 32 32 32
-amr.blocking_factor	      = 4
-amr.regrid_int		      = 1
-amr.grid_eff		      = 1.0
-amr.cell.all                  = 1
+amr.plot_dt		    = 0.1
+amr.max_level		    = 0
+amr.n_cell		    = 4 4 4
+amr.blocking_factor         = 2
 
-# use an explicit mesh (i.e. no adaptive meshing)
-explicitmesh.on               = 1
-explicitmesh.lo1              = 16 16 16
-explicitmesh.hi1              = 47 47 47
-explicitmesh.lo2              = 48 48 48
-explicitmesh.hi2              = 79 79 79
+amr.thermo.int = 1
+amr.thermo.plot_int = 1
 
 # geometry
-geometry.prob_lo	      = -8 -8 -8 
-geometry.prob_hi	      = 8 8 8
-geometry.is_periodic	      = 0 0 0 # ok
+geometry.prob_lo	    = 0 0 0
+geometry.prob_hi	    = 1 1 1
 
-# elastic moduli
-# model1.planestress = true
-# model1.E = 210 
-# model1.nu = 0.3
-
-model1.C11 = 1.68
-model1.C12 = 1.21
-model1.C13 = 0.75
-model1.C33 = 1.68
-model1.C44 = 1.68
+nmodels = 1
+model1.E=210 
+model1.nu=0.3
+model1.C11 = 169.3
+model1.C12 = 1.221
+model1.C13 = 1
+model1.C33 = 160
+model1.C44 = 0.757
 
 solver.verbose = 3
 solver.nriters = 1
-solver.max_iter = 50
+solver.max_iter = 30 #30
 
-### UNIAXIAL TENSION ###
-bc.type = constant
-
-### --- Faces
-bc.constant.type.xlo = disp trac trac
-bc.constant.type.xhi = disp trac trac
-bc.constant.val.xhi = 0.1 0.0 0.0
-bc.constant.type.ylo = trac disp trac
-bc.constant.type.yhi = trac trac trac
-bc.constant.type.zlo = trac trac disp
-bc.constant.type.zhi = trac trac trac
-
-### --- Edges
-###     XY edges
-bc.constant.type.xloylo = disp trac trac
-bc.constant.type.xloyhi = disp trac trac
-bc.constant.type.xhiylo = disp trac trac
-bc.constant.type.xhiyhi = disp trac trac
-bc.constant.val.xhiylo = 0.1 0.0 0.0
-bc.constant.val.xhiyhi = 0.1 0.0 0.0
-###     ZX edges
-bc.constant.type.zloxlo = disp trac trac
-bc.constant.type.zhixlo = disp trac trac
-bc.constant.type.zloxhi = disp trac trac
-bc.constant.type.zhixhi = disp trac trac
-bc.constant.val.zloxhi = 0.1 0.0 0.0
-bc.constant.val.zhixhi = 0.1 0.0 0.0
-###     YZ edges
-bc.constant.type.ylozlo = trac disp disp
-bc.constant.type.ylozhi = trac disp trac
-bc.constant.type.yhizlo = trac trac disp
-bc.constant.type.yhizhi = trac trac trac
-
-
-### --- Corners
-###     on xmin face
-bc.constant.type.xloylozlo = disp disp disp
-bc.constant.type.xloylozhi = disp disp trac
-bc.constant.type.xloyhizlo = disp trac disp
-bc.constant.type.xloyhizhi = disp trac trac
-###     on xmax face
-bc.constant.type.xhiylozlo = disp disp disp
-bc.constant.val.xhiylozlo = 0.1 0.0 0.0
-bc.constant.type.xhiylozhi = disp disp trac
-bc.constant.val.xhiylozhi = 0.1 0.0 0.0
-bc.constant.type.xhiyhizlo = disp trac disp
-bc.constant.val.xhiyhizlo = 0.1 0.0 0.0
-bc.constant.type.xhiyhizhi = disp trac trac
-bc.constant.val.xhiyhizhi = 0.1 0.0 0.0
-
-
+bc.type = tension_test
+bc.tension_test.type = uniaxial_stress
+bc.tension_test.disp=(0,1:0,0.01)
