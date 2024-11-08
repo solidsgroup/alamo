@@ -45,8 +45,8 @@ public:
     {
         // Default: set equal to one everywhere
         value.m_value.clear();
-        value.m_value.push_back(1.0);
-        pp_queryarr("value",value.m_value); // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
+        // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
+        pp_queryarr_required("value",value.m_value); 
     }
 private:
     std::vector<Set::Scalar> m_value;

@@ -157,7 +157,7 @@ def test(testdir):
 
 
         p = subprocess.check_output('git rev-parse --abbrev-ref HEAD'.split(),stderr=subprocess.PIPE)
-        record['branch'] = p.decode('ascii').replace('\n','')
+        record['branch'] = p.decode('utf-8').replace('\n','')
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -262,10 +262,18 @@ def test(testdir):
                 print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exestr,color.reset))
                 skips += 1
                 continue
+
+            # If we have enabled "skipping," exit noisily. The script will continue but will return a nonzero
+            # exit code.
+            if 'skip' in config[desc].keys():
+                if config[desc]['skip'].lower() in ['true','yes','1']:
+                    print("  ├ {}{} (skip indicated in input){}".format(color.boldyellow,desc,color.reset))
+                    skips += 1
+                    continue
+
             command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
-
         
         # Run the actual test.
         print("  ├ " + desc)
@@ -279,10 +287,10 @@ def test(testdir):
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-            fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))
+            fstdout.write(ansi_escape.sub('',p.stdout.decode('utf-8')))
             fstdout.close()
             fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-            fstderr.write(ansi_escape.sub('',p.stderr.decode('ascii')))
+            fstderr.write(ansi_escape.sub('',p.stderr.decode('utf-8')))
             fstderr.close()
             print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             record['runStatus'] = 'PASS'
@@ -303,8 +311,8 @@ def test(testdir):
             print("[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-            for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             fails += 1
             continue
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
@@ -314,14 +322,14 @@ def test(testdir):
             record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             try:
-                stdoutlines = e.stdout.decode('ascii').split('\n')
+                stdoutlines = e.stdout.decode('utf-8').split('\n')
                 if len(stdoutlines) < 10:
                     for line in stdoutlines: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                 else:
                     for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                     for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
                     for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                #for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+                #for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             except Exception as e1:
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
@@ -360,8 +368,8 @@ def test(testdir):
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 record['checkStatus'] = 'FAIL'
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-                for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+                for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
             except DryRunException as e:
@@ -400,7 +408,7 @@ def test(testdir):
                 record['platform'] = metadata['Platform']
                 record['test-section'] = record['testdir'] + '/' + record['section']
                 p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
-                record['git_commit_date'] = p.stdout.decode('ascii').replace('\n','')
+                record['git_commit_date'] = p.stdout.decode('utf-8').replace('\n','')
             except Exception as e:
                 if not args.permissive:
                     print("Problem getting metadata, here it is:")

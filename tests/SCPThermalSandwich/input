@@ -50,6 +50,7 @@ pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
 eta.ic.type = constant #laminate 
+eta.ic.constant.value = 1.0 #laminate 
 
 ### Constant IC ############################################################ IC
 phi.ic.type = laminate
@@ -80,6 +81,9 @@ pf.eta.bc.val.ylo = 0.0
 pf.eta.bc.val.yhi = 0.0
 pf.eta.bc.val.zlo = 0.0
 pf.eta.bc.val.zhi = 0.0
+
+pf.eta.ic.constant.value = 1.0
+
 
 ## Conditional Variables ################################################## Conditional
 conditional.evolve = 1
