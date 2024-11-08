@@ -157,7 +157,7 @@ protected:
 
     virtual void UpdateModel(int a_step, Set::Scalar a_time) = 0;
 
-    void TimeStepBegin(Set::Scalar a_time, int a_step) override
+    virtual void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         BL_PROFILE("Integrator::Base::Mechanics::TimeStepBegin");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
@@ -235,7 +235,7 @@ protected:
         }
     }
 
-    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
         BL_PROFILE("Integrator::Base::Mechanics::Advance");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
@@ -367,7 +367,7 @@ protected:
             amrex::Array4<MODEL>               const& model = (*model_mf[lev]).array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k));
+                model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
         }
         Util::RealFillBoundary(*model_mf[lev], geom[lev]);
@@ -435,13 +435,13 @@ protected:
         Set::Scalar DXnorm = DX.lpNorm<2>();
         for (amrex::MFIter mfi(*strain_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Box bx = mfi.tilebox();
+            bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Matrix> const& eps = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                auto sten = Numeric::GetStencil(i, j, k, bx);
-                Set::Matrix3 grad = Numeric::Gradient(eps, i, j, k, DX.data(), sten);
+                Set::Matrix3 grad = Numeric::NodeGradientOnCell(eps, i, j, k, DX.data());
                 if (grad.norm() * DXnorm > m_elastic_ref_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });

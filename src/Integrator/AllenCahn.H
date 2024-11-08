@@ -35,6 +35,7 @@
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "Numeric/Stencil.H"
+#include "IC/Random.H"
 
 namespace Integrator
 {
@@ -72,13 +73,13 @@ public:
         pp_query("ch.chempot",value.ch.chempot);
 
         std::string type = "sphere";
-        // Initial condition type ([sphere], constant, expression, bmp)
-        pp_query("alpha.ic.type", type);
+        // Initial condition type ([sphere], constant, expression, bmp, random)
+        pp_query_validate("alpha.ic.type", type, {"sphere","constant","expression","bmp","png","random","psread"});
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
         else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
-        else if (type == "png")        value.ic = new IC::PNG(value.geom, pp, "alpha.ic.png");
+        else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
         else if (type == "psread")     value.ic = new IC::PSRead(value.geom, pp, "alpha.ic.psread");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
@@ -168,17 +169,17 @@ protected:
     IC::IC* ic;                              // Object used to initialize temperature field
 
     struct {
-        Set::Scalar L = 1.0;
-        Set::Scalar eps = 0.1;
-        Set::Scalar grad = 1.0;
-        Set::Scalar chempot = 1.0;
+        Set::Scalar L = NAN;
+        Set::Scalar eps = NAN;
+        Set::Scalar grad = NAN;
+        Set::Scalar chempot = NAN;
     } ch;
 
 private:
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 2;           // Number of ghost cells
 
-    Set::Scalar refinement_threshold = 0.01; // Criterion for cell refinement
+    Set::Scalar refinement_threshold = NAN; // Criterion for cell refinement
 
     BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
 };

@@ -32,7 +32,8 @@ def validate(path,
              reference=None,
              tolerance=1E-8,
              coord = 'x',
-             tight_layout = True):
+             tight_layout = True,
+             filename_suffix=None):
             
     info = readHeader(path)
             

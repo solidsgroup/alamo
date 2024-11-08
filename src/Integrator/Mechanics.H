@@ -137,10 +137,11 @@ public:
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field
-        pp_query("eta_ref_threshold", value.m_eta_ref_threshold);
+        pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
         // Refinement threshold for strain gradient
-        pp_query("ref_threshold", value.m_elastic_ref_threshold);
-
+        pp_query_default("ref_threshold", value.m_elastic_ref_threshold, 0.01);
+        // Explicity impose neumann condition on model at domain boundaries (2d only)
+        pp_query_default("model_neumann_boundary",value.model_neumann_boundary,false);
 
         // Read in IC for eta
         if (nmodels > 1 && pp.contains("ic.type"))
@@ -160,7 +161,7 @@ public:
             // Whether to re-initialize eta when re-gridding occurs.
             // Default is false unless eta ic is set, then default is.
             // true.
-            pp_query("eta.reset_on_regrid", value.eta_reset_on_regrid);
+            pp_query_default("eta.reset_on_regrid", value.eta_reset_on_regrid, true);
         }
 
         // Read in IC for psi
@@ -183,7 +184,7 @@ public:
             // Whether to re-initialize psi when re-gridding occurs.
             // Default is false unless a psi ic is set, then default is
             // true.
-            pp_query("psi.reset_on_regrid", value.psi_reset_on_regrid);
+            pp_query_default("psi.reset_on_regrid", value.psi_reset_on_regrid, true);
         }
 
         // Read in IC for psi
@@ -272,6 +273,40 @@ public:
                         model(i, j, k) += eta(i, j, k, n) * models[n];
                 });
             }
+
+
+            if (model_neumann_boundary)
+            {
+                Util::AssertException(INFO,TEST(AMREX_SPACEDIM==2),"neumann boundary works in 2d only");
+                for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+                {
+                    amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                    amrex::Array4<MODEL> const& model = this->model_mf[lev]->array(mfi);
+                    const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        if      (i==lo.x && j==lo.y)
+                            model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
+                        else if (i==lo.x && j==hi.y)
+                            model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j-1,k));
+                        else if (i==hi.x && j==lo.y)
+                            model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j+1,k));
+                        else if (i==hi.x && j==hi.y)
+                            model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j-1,k));
+
+                        else if (i==lo.x)
+                            model(i,j,k) = model(i+1,j,k);
+                        else if (i==hi.x)
+                            model(i,j,k) = model(i-1,j,k);
+                        else if (j==lo.y)
+                            model(i,j,k) = model(i,j+1,k);
+                        else if (j==hi.y)
+                            model(i,j,k) = model(i,j-1,k);
+                    });
+                }
+            }
+
             Util::RealFillBoundary(*model_mf[lev], geom[lev]);
         }
     }
@@ -322,7 +357,7 @@ public:
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
-    Set::Scalar m_eta_ref_threshold = 0.01;
+    Set::Scalar m_eta_ref_threshold = NAN;
     std::vector<MODEL> models;
     IC::IC* ic_eta = nullptr;
     IC::IC* ic_psi = nullptr;
@@ -331,6 +366,8 @@ protected:
     BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
     bool psi_reset_on_regrid = false;
     bool eta_reset_on_regrid = false;
+
+    bool model_neumann_boundary = false;
 
     Set::Field<Set::Scalar> trac_normal_mf;
 
