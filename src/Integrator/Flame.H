@@ -171,7 +171,7 @@ private:
         // integrated **temporally**
         Set::Scalar mass = NAN; // chamber mass - must be initialized with parmparse
         // determined as a function of time
-        Set::Scalar pressure = NAN; // chamber pressure - must be ininitialized with parmparse
+        Set::Scalar pressure = 0.0; // chamber pressure - must be ininitialized with parmparse
         // parameters
         Set::Scalar rho0 = NAN; // initial chamber density
         Set::Scalar c_star = NAN;

@@ -35,7 +35,7 @@ public:
     {
         // Define constants here
         gamma = 1.4;    // Example value for the specific heat ratio
-        At = 0.1;       // Example value for throat area (m^2)
+        At = 1;       // Example value for throat area (m^2)
         R = 287;        // Specific gas constant for air in J/(kg·K)
         T0 = 300;       // Initial temperature in K
         volume = 1.0;   // Volume in cubic meters
@@ -49,7 +49,7 @@ public:
 
     // Calculate mass flow rates
     Set::Scalar mdot_in = mdot;
-    std::cout << "mdot_in: " << mdot_in << std::endl;
+    
     Set::Scalar mdot_out = (current_p * At) / sqrt(gamma * R * T0);
 
     // Compute dp/dt
@@ -61,6 +61,9 @@ public:
     // Store the updated dp/dt and update chamber pressure
     dpdt.push_back(current_dpdt);
     pressure0 = new_p;
+
+    std::cout << "mdot_in: " << mdot_in << std::endl;
+    std::cout << "mdot_out: " << mdot_out << std::endl;
 }
 
 

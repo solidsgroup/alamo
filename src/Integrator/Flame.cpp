@@ -181,7 +181,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // initial chamber density
         pp_query_required("chamber.rho0",value.chamber.rho0);
         // initial chamber pressure
-        pp_query_required("chamber.pressure0",value.chamber.pressure);
+        pp_query_required("chamber.pressure",value.chamber.pressure);
+        Util::Message(INFO, "chamber.pressure = ", value.chamber.pressure);
         // characteristic flow velocity
         pp_query_required("chamber.c_star",value.chamber.c_star);
         // nozzle throat area
@@ -397,6 +398,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         chamber_area = domain_area - volume;
         Util::Message(INFO, "Mass = ", massflux);
         Util::Message(INFO, "Pressure = ", pressure.P);
+        Util::Message(INFO, "CPressure = ", chamber.pressure);
     }
     if (chamber.on)
     {
@@ -404,19 +406,28 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         {
             chamber.mass = chamber.rho0 * chamber.volume;
         }
-        Model::Ballistics::Ballistic_new ballistic;
-        ballistic.Execute(chamber.mdot, timestep);
-        chamber.pressure = ballistic.pressure0; // Access updated pressure
+        // Model::Ballistics::Ballistic_new ballistic;
+        // ballistic.Execute(chamber.mdot, timestep);
+        // chamber.pressure = ballistic.pressure0; // Access updated pressure
+        // Util::Message(INFO, "Mdot = ", chamber.mdot);
+        // Util::Message(INFO, "Pressure0 = ", chamber.pressure);
+        // pre_compute_mdot = chamber.mdot;
+        //calculate mass flux out of nozzle
+        chamber.c_star = sqrt(chamber.gamma * chamber.R * chamber.T0);
+        Set::Scalar mdot_out = chamber.pressure * chamber.At / chamber.c_star ;
+        // integrate mass conservation equation to get current chamber mass
+        chamber.mass = ((mdot_out - chamber.mdot) *  timestep);
+        //use ideal gas EOS to calculate current chamber pressure
+        chamber.pressure = chamber.mass / (chamber.volume / (chamber.R * chamber.T0));
+        Util::Message(INFO, "At = ", chamber.At);
+        Util::Message(INFO, "gamma = ", chamber.gamma);
+        Util::Message(INFO, "R = ", chamber.R);
+        Util::Message(INFO, "T0 = ", chamber.T0);
+        Util::Message(INFO, "mass = ", chamber.mass);
         Util::Message(INFO, "Mdot = ", chamber.mdot);
-        Util::Message(INFO, "Pressure0 = ", chamber.pressure);
-        pre_compute_mdot = chamber.mdot;
-        // calculate mass flux out of nozzle
-        // Set::Scalar mdot_out = chamber.pressure0 * chamber.At / sqrt(chamber.gamma * chamber.R * chamber.T0);
-        // // integrate mass conservation equation to get current chamber mass
-        // chamber.mass += (mdot_out - chamber.mdot) *  timestep;
-        // use ideal gas EOS to calculate current chamber pressure
-        // chamber.pressure = chamber.mass / (chamber.volume / (chamber.R * chamber.T0));
-
+        Util::Message(INFO, "Mdot_out = ", (chamber.pressure * chamber.At / sqrt(chamber.gamma * chamber.R * chamber.T0)));
+        Util::Message(INFO, "Pressure = ", chamber.pressure);
+        Util::Message(INFO, "c* = ", chamber.c_star);
         // todo: set the actual pressure equal to chamber.pressure if needed.
     }
 }

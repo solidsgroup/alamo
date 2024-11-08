@@ -128,13 +128,12 @@ pressure.c1 = -0.09906
 chamber.on = 1
 chamber.rho0 = 1.5
 chamber.c_star = 1
-chamber.pressure0 = 4
+chamber.pressure = 4.0
 chamber.At = 0.1
 chamber.p0 = 1
 chamber.gamma = 1.4
 chamber.T0 = 300
 chamber.R = 287
-chamber.print_model=1
 ## LASER Variables ########################################################## LASER
 
 laser.ic.type = "constant"
