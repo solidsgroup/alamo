@@ -6,8 +6,8 @@
 #ifndef MODEL_SOLID_LINEAR_TRANSVERSELYISOTROPIC_H_
 #define MODEL_SOLID_LINEAR_TRANSVERSELYISOTROPIC_H_
 
-//#include "Model/Solid/Solid.H"
-#include "Model/Solid/Linear/TransverselyIsotropic.H"
+#include "Model/Solid/Solid.H"
+//#include "Model/Solid/Linear/TransverselyIsotropic.H"
 #include "IO/ParmParse.H"
 
 namespace Model
