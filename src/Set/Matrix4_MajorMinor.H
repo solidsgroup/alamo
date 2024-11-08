@@ -194,7 +194,7 @@ public:
 
     static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<2, Sym::MajorMinor> ret;
-        Set::Scalar Ctmp[3][3][3][3]; // = {{{{0.0}}}};  // Initialize all entries to zero
+        Set::Scalar Ctmp[3][3][3][3]= {{{{0.0}}}};  // Initialize all entries to zero
         // Populate Ctmp based on the transversely isotropic matrix structure
         std::cout << "I'm here!" << std::endl;
         for (int i = 0; i < 3; i++) {
