@@ -63,6 +63,7 @@ pf.eta.bc.val.ylo = 0.0
 pf.eta.bc.val.yhi = 0.0
 pf.eta.bc.val.zlo = 0.0
 pf.eta.bc.val.zhi = 0.0
+pf.eta.ic.constant.value = 1.0
 
 thermal.on = 1
 thermal.bound = 300.0
