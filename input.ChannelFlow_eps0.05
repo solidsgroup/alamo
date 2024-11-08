@@ -2,11 +2,11 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = ./output.ChannelFlow_eps0.05
 
 ### MESHING ###
 
-amr.plot_dt = 1.0
+amr.plot_dt = 0.25
 #amr.plot_int = 10
 amr.max_level = 2
 amr.max_grid_size = 500000
@@ -132,8 +132,9 @@ rho_refinement_criterion   = 1E100
 
 #TODO
 
-dynamictimestep.on = 1
+dynamictimestep.on = 0
 dynamictimestep.verbose = 1
 dynamictimestep.cfl = 0.001
 dynamictimestep.max  = 1.0
 dynamictimestep.min  = 1E-8
+cfl = 0.001

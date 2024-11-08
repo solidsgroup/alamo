@@ -2,7 +2,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = ./output.Couette_eps0.05
 
 ### MESHING ###
 
@@ -13,19 +13,19 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 100 60 0
+amr.n_cell = 4 64 0
 
 ### DIMENSIONS ###
 
 geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
-geometry.prob_hi = 5.0 3.0 0.0 # [ m ]
+geometry.prob_hi = 0.1875 3.0 0.0 # [ m ]
 
 geometry.is_periodic = 1 0 0
 
 ### TIME STEP ###
 
 timestep  = 1.0e-3
-stop_time = 20.0
+stop_time = 30.0
 
 ### HYDRO PARAM ###
 

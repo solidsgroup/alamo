@@ -442,7 +442,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 if (p==r && q==s) Mpqrs += 0.5 * mu;
                 if (p==s && q==r) Mpqrs += 0.5 * mu;
                 if (p==q && r==s) Mpqrs += 0.5 * mu;
-                Ldot0(p) += Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
+                Ldot0(p) += 0.5 * Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
             }
             
             Source(i,j, k, 0) = mdot0;
