@@ -61,9 +61,7 @@ public:
     // Store the updated dp/dt and update chamber pressure
     dpdt.push_back(current_dpdt);
     pressure0 = new_p;
-
-    std::cout << "mdot_in: " << mdot_in << std::endl;
-    std::cout << "mdot_out: " << mdot_out << std::endl;
+    
 }
 
 
