@@ -29,16 +29,16 @@ public:
     {
         std::cout << "Define with phis" << std::endl;
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,phi1,Phi,phi2);
-        std::cout << "Define with phis complete" << std::endl;
+        //std::cout << "Define with phis complete" << std::endl;
     }
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, 
                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
-        std::cout << "Define with R" << std::endl;
+        //std::cout << "Define with R" << std::endl;
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,R);
-        std::cout << "Define with R complete" << std::endl;
+        //std::cout << "Define with R complete" << std::endl;
     }
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
