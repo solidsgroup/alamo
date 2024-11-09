@@ -154,18 +154,22 @@ amr.blocking_factor         = 2
 amr.thermo.int = 1
 amr.thermo.plot_int = 1
 
+
+
+#ignore = model1.E 
+#ignore = model1.nu
 # geometry
 geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 1 1 1
 
-nmodels = 1
-model1.E=210 
-model1.nu=0.3
-model1.C11 = 169.3
-model1.C12 = 1.221
-model1.C13 = 1
-model1.C33 = 160
-model1.C44 = 0.757
+#nmodels = 1
+#model1.E=210 
+#model1.nu=0.3
+#model1.C11 = 169.3
+#model1.C12 = 1.221
+#model1.C13 = 1
+#model1.C33 = 160
+#model1.C44 = 0.757
 
 solver.verbose = 3
 solver.nriters = 1

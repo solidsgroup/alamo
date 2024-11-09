@@ -643,8 +643,10 @@ public:
                             // Diagonal terms in Voigt notation
                             if (i == 0 || i == 1) {
                                 Ctmp[i][j][k][l] = C11; // C11 for (1,1) and (2,2)
+                                std::cout << "C11 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else if (i == 2) {
                                 Ctmp[i][j][k][l] = C33; // C33 for (3,3)
+                                std::cout << "C33 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C11/C33 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
@@ -652,8 +654,10 @@ public:
                             // Off-diagonal terms in Voigt notation
                             if (i < 2 && k < 2 && i != k) {
                                 Ctmp[i][j][k][l] = C12; // C12 for (1,2) and (2,1)
+                                std::cout << "C12 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else if ((i < 2 && k == 2) || (i == 2 && k < 2)) {
                                 Ctmp[i][j][k][l] = C13; // C13 for (1,3), (3,1), (2,3), and (3,2)
+                                std::cout << "C13 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C12/C13 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
@@ -682,9 +686,10 @@ public:
                                 for (int k = 0; k < 3; k++)
                                     for (int l = 0; l < 3; l++) {
                                         ret(p, q, s, t) += R(p, i) * R(s, k) * Ctmp[i][j][k][l] * R(q, j) * R(t, l);
-                                        std::cout << "R_pi: " << R(p,i) << std::endl;
-                                        std::cout << "i: " << i << std::endl;
-                                        std::cout << "p,q,s,t: " << p << " " << q << " " << s << " " << t << ":\t" << ret(p,q, s, t) << std::endl;
+                                         //std::cout << "i: " << i << std::endl;
+                                         //std::cout << "R_pi: " << R(p,i) << std::endl;
+                                         //std::cout << "RP,RS,RQ,RT,Retunvalue: " << R(p,i) << " " << R(s,k) << " " << R(q,j) << " " << R(t,l) << ":\t" << ret(p,q, s, t) << std::endl;
+                                         //std::cout << "p,q,s,t: " << p << " " << q << " " << s << " " << t << ":\t" << ret(p,q, s, t) << std::endl;
                                     }
                     }
         return ret;
