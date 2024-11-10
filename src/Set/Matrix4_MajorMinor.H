@@ -646,7 +646,7 @@ public:
                                 std::cout << "C11 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else if (i == 2) {
                                 Ctmp[i][j][k][l] = C33; // C33 for (3,3)
-                                std::cout << "C33 is: " << Ctmp[i][j][k][l] << std::endl;
+                                //std::cout << "C33 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C11/C33 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
@@ -654,10 +654,10 @@ public:
                             // Off-diagonal terms in Voigt notation
                             if (i < 2 && k < 2 && i != k) {
                                 Ctmp[i][j][k][l] = C12; // C12 for (1,2) and (2,1)
-                                std::cout << "C12 is: " << Ctmp[i][j][k][l] << std::endl;
+                                //std::cout << "C12 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else if ((i < 2 && k == 2) || (i == 2 && k < 2)) {
                                 Ctmp[i][j][k][l] = C13; // C13 for (1,3), (3,1), (2,3), and (3,2)
-                                std::cout << "C13 is: " << Ctmp[i][j][k][l] << std::endl;
+                                //std::cout << "C13 is: " << Ctmp[i][j][k][l] << std::endl;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C12/C13 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
