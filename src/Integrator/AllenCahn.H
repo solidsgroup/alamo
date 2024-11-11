@@ -79,6 +79,7 @@ public:
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
         else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
+        else if (type == "png")        value.ic = new IC::PNG(value.geom, pp, "alpha.ic.png");
         else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
         else if (type == "psread")     value.ic = new IC::PSRead(value.geom, pp, "alpha.ic.psread");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
