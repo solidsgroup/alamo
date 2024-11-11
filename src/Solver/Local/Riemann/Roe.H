@@ -69,26 +69,30 @@ public:
         Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
         Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
 
+        // Ensure no negative densities
+        rho_L = std::max(0.0,rho_L);
+        rho_R = std::max(0.0,rho_R);
+
         // STEP 1: Compute fluid primitives 
-        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L /*+ Mt_L * Mt_L*/) / rho_L;
+        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L /*+ Mt_L * Mt_L*/) / (rho_L+small);
         Set::Scalar ue_L = E_L - ke_L;
         Set::Scalar p_L  = (gamma - 1.0) * ue_L + p_ref;
-        Set::Scalar h_TL = (ke_L + ue_L + p_L) / rho_L;
+        Set::Scalar h_TL = (ke_L + ue_L + p_L) / (rho_L+small);
 
-        Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R /*+ Mt_R * Mt_R*/) / rho_R;
+        Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R /*+ Mt_R * Mt_R*/) / (rho_R+small);
         Set::Scalar ue_R = E_R - ke_R;
         Set::Scalar p_R  = (gamma - 1.0) * ue_R + p_ref;
-        Set::Scalar h_TR = (ke_R + ue_R + p_R) / rho_R;
+        Set::Scalar h_TR = (ke_R + ue_R + p_R) / (rho_R+small);
 
-        Set::Scalar u_L   = Mn_L/rho_L,  u_R   = Mn_R/rho_R;
-        Set::Scalar v_L   = Mt_L/rho_L,  v_R   = Mt_R/rho_R;
+        Set::Scalar u_L   = Mn_L/(rho_L+small),  u_R   = Mn_R/(rho_R+small);
+        Set::Scalar v_L   = Mt_L/(rho_L+small),  v_R   = Mt_R/(rho_R+small);
         
         //
         // STEP 2: Compute Roe-averaged quantities
         // 
         Set::Scalar rho_RL  = std::sqrt(rho_L * rho_R);
-        Set::Scalar u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R));
-        Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R));
+        Set::Scalar u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
+        Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
         Set::Scalar a_RL_sq = std::max(0.0,(gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL));
 
         if ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq))
@@ -135,9 +139,9 @@ public:
         Set::Scalar deltap  = p_R - p_L;
         Set::Scalar deltau  = u_R - u_L;
 
-        Set::Scalar deltav1 = deltarho - deltap / (a_RL_sq);       // 5.54a
-        Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL); // 5.54b
-        Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL); // 5.54c
+        Set::Scalar deltav1 = deltarho - deltap / (a_RL_sq + small);       // 5.54a
+        Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL + small); // 5.54b
+        Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL + small); // 5.54c
 
         //
         // STEP 7: Compute fluxes
@@ -153,6 +157,35 @@ public:
                 ) * cell_eta
             ;
         
+        if (fl.mass != fl.mass)
+        {
+            // u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R));
+            Util::ParallelMessage(INFO,u_RL); // nan
+            Util::ParallelMessage(INFO,rho_L); // 1.15
+            Util::ParallelMessage(INFO,rho_R); // -0.067
+            Util::ParallelMessage(INFO,u_R); // -0.01
+
+
+            Util::ParallelMessage(INFO,lo);
+            Util::ParallelMessage(INFO,hi);
+            Util::ParallelMessage(INFO,solid_lo);
+            Util::ParallelMessage(INFO,solid_hi);
+
+            Util::ParallelMessage(INFO,rho_L);
+            Util::ParallelMessage(INFO,u_L);
+            Util::ParallelMessage(INFO,lambda1); 
+            Util::ParallelMessage(INFO,lambda2); 
+            Util::ParallelMessage(INFO,lambda3); 
+            Util::ParallelMessage(INFO,deltav1); 
+            Util::ParallelMessage(INFO,deltav2); // nan
+            Util::ParallelMessage(INFO,deltav3); // nan
+            Util::ParallelMessage(INFO,rho_RL); // nan
+            Util::ParallelMessage(INFO,a_RL);
+            Util::ParallelMessage(INFO,cell_eta);
+            Util::Exception(INFO);
+        }
+
+
         fl.momentum_normal =
             (
                 rho_L * u_L * u_L + p_L

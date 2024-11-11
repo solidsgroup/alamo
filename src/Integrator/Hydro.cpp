@@ -62,6 +62,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("velocity.bc","--> momentum.bc");
         value.momentum_bc = new BC::Expression(2, pp, "momentum.bc");
         value.eta_bc = new BC::Constant(1, pp, "pf.eta.bc");
+
+        pp_query_default("small",value.small,1E-8); // small regularization value
+
     }
     // Register FabFields:
     {
@@ -293,10 +296,6 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
-
-
-    const Set::Scalar small = 1E-8;
-
     std::swap(eta_old_mf, eta_mf);
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
@@ -488,14 +487,23 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
-            //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), pref, small);
-            flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
+            try
+            {
+                //lo interface fluxes
+                flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), pref, small);
+                flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
 
-            //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, statex_solid, hi_statex_solid, gamma, eta(i, j, k), pref, small);
-            flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
-
+                //hi interface fluxes
+                flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, statex_solid, hi_statex_solid, gamma, eta(i, j, k), pref, small);
+                flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
+            }
+            catch(...)
+            {
+                Util::ParallelMessage(INFO,"lev=",lev);
+                Util::ParallelMessage(INFO,"i=",i,"j=",j);
+                Util::Abort(INFO);
+                
+            }
 
 
             flux(i,j,k) = flux_xhi.mass - flux_xlo.mass;
@@ -514,6 +522,33 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     // todo add drhos_dt term
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + smallmod)
                 ) * dt;
+
+            if (rho_new(i,j,k) != rho_new(i,j,k))
+            {
+                Util::ParallelMessage(INFO,"lev=",lev);
+                Util::ParallelMessage(INFO,"i=",i,"j=",j);
+                Util::ParallelMessage(INFO,"drhof_dt",drhof_dt); // dies
+                Util::ParallelMessage(INFO,"flux_xlo.mass",flux_xlo.mass);
+                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_xhi.mass); // dies, depends on state_xx, hi_statex, statex_solid, hi_statex_solid, gamma, eta, pref, small
+                Util::ParallelMessage(INFO,"flux_ylo.mass",flux_ylo.mass);
+                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_yhi.mass);
+                Util::ParallelMessage(INFO,"eta",eta(i,j,k));
+                Util::ParallelMessage(INFO,"Source",Source(i,j,k,0));
+                Util::ParallelMessage(INFO,"state_x",state_x); // <<<<
+                Util::ParallelMessage(INFO,"state_y",state_y);
+                Util::ParallelMessage(INFO,"statex_solid",statex_solid); // <<<<
+                Util::ParallelMessage(INFO,"statey_solid",statey_solid);
+                Util::ParallelMessage(INFO,"hi_statex",hi_statex); // <<<<
+                Util::ParallelMessage(INFO,"hi_statey",hi_statey);
+                Util::ParallelMessage(INFO,"hi_statex_solid",hi_statex_solid);
+                Util::ParallelMessage(INFO,"hi_statey_solids",hi_statey_solid);
+                Util::ParallelMessage(INFO,"lo_statex",lo_statex);
+                Util::ParallelMessage(INFO,"lo_statey",lo_statey);
+                Util::ParallelMessage(INFO,"lo_statex_solid",lo_statex_solid);
+                Util::ParallelMessage(INFO,"lo_statey_solid",lo_statey_solid);
+                Util::Exception(INFO);
+            }
+
                 
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
