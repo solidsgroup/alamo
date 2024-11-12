@@ -196,11 +196,11 @@ public:
         
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", false);
-        value.RegisterNodalFab(value.crack.c_mid_mf, 1, 2, "crack_mid", false);
         value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
         value.RegisterNodalFab(value.crack.energy_pristine_mf, 1, 2, "energy_pristine", true);
         value.RegisterNodalFab(value.crack.energy_pristine_old_mf, 1, 2, "energy_pristine_old", false);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm),"driving_force_norm");
+        value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         
         // By default the psi variable will be on for fracture simulations
         value.psi_on = true;
@@ -233,8 +233,7 @@ public:
 
         crack.c_mf[lev]->setVal(1.0);
         crack.c_old_mf[lev]->setVal(1.0);
-        crack.c_mid_mf[lev]->setVal(1.0);
-
+        
         // For now, we are setting psi field to 1. This prevents nans.
         // We will modify the psi field later.
         psi_mf[lev]->setVal(1.0);
@@ -246,7 +245,6 @@ public:
                 // This initializes the crack field.
                 crack.ic[i]->Add(lev,crack.c_mf);
                 crack.ic[i]->Add(lev,crack.c_old_mf);
-                crack.ic[i]->Add(lev,crack.c_mid_mf);
             }
         }
 
@@ -381,7 +379,10 @@ public:
         //======================================================================
         for (amrex::MFIter mfi(*crack.c_mf[a_lev], true); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.tilebox();
+            amrex::Box bx = mfi.nodaltilebox();
+            // bx.grow(1);
+            // bx = bx & domain;
+
             amrex::Array4<const Set::Scalar> const& c_old = crack.c_old_mf[a_lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& energy = crack.energy_pristine_mf[a_lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = material.eta_mf[a_lev]->array(mfi);
@@ -421,7 +422,6 @@ public:
                     Set::Scalar en_cell = energy(i,j,k,0); //Numeric::Interpolate::NodeToCellAverage(energy,i,j,k,0);
 
                     // =====================================================================
-                    // Predictor step
                     df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*en_cell*crack.el_mult;
                     rhs += df(i,j,k,0);
 
@@ -464,95 +464,6 @@ public:
                 }
             });
         }
-        // crack.c_mid_mf[a_lev]->FillBoundary();
-
-
-        //======================================================================
-        // Corrector step
-        //======================================================================
-        // for (amrex::MFIter mfi(*crack.c_mf[a_lev], true); mfi.isValid(); ++mfi)
-        // {
-        //     const amrex::Box& bx = mfi.tilebox();
-        //     amrex::Array4<const Set::Scalar> const& c_old = crack.c_old_mf[a_lev]->array(mfi);
-        //     amrex::Array4<const Set::Scalar> const& c_mid = crack.c_mid_mf[a_lev]->array(mfi);
-        //     amrex::Array4<const Set::Scalar> const& energy = crack.energy_pristine_mf[a_lev]->array(mfi);
-        //     amrex::Array4<const Set::Scalar> const& eta = material.eta_mf[a_lev]->array(mfi);
-
-        //     amrex::Array4<Set::Scalar> const& c = crack.c_mf[a_lev]->array(mfi);
-        //     amrex::Array4<Set::Scalar> const& df = crack.driving_force_mf[a_lev]->array(mfi);
-
-        //     amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-        //         #if AMREX_SPACEDIM !=2
-        //         Util::Abort(INFO, "This does not work for 1D or 3D yet.");
-        //         #endif
-
-        //         if      (i == lo.x && j == lo.y) c(i,j,k,0) = c(i+1,j+1,k,0);
-        //         else if (i == lo.x && j == hi.y) c(i,j,k,0) = c(i+1,j-1,k,0);
-        //         else if (i == hi.x && j == lo.y) c(i,j,k,0) = c(i-1,j+1,k,0);
-        //         else if (i == hi.x && j == hi.y) c(i,j,k,0) = c(i-1,j-1,k,0);
-        //         else if (i == lo.x) c(i,j,k) = c(i+1,j,k,0);
-        //         else if (j == lo.y) c(i,j,k) = c(i,j+1,k,0);
-        //         else if (i == hi.x) c(i,j,k) = c(i-1,j,k,0);
-        //         else if (j == hi.y) c(i,j,k) = c(i,j-1,k,0);
-
-        //         // Next, we are doing crack evolution
-        //         else
-        //         {
-        //             Set::Scalar rhs_pred = df(i,j,k,0) + df(i,j,k,1) - df(i,j,k,2) + df(i,j,k,3);
-        //             Set::Scalar rhs = 0.0;
-                
-        //             Set::Scalar bilap = 0.0;
-        //             if (crack.beta > 0.0)
-        //             {
-        //                 bilap = 
-        //                     Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) +
-        //                     Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) * 2.0 +
-        //                     Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX);
-        //             }
-                    
-        //             Set::Scalar en_cell = energy(i,j,k,0); //Numeric::Interpolate::NodeToCellAverage(energy,i,j,k,0);
-
-        //             // df(i,j,k,0) = crack.cracktype[0].Dg_phi(c_mid(i,j,k),0.0)*en_cell*crack.el_mult;
-        //             rhs += crack.cracktype[0].Dg_phi(c_mid(i,j,k),0.0)*en_cell*crack.el_mult;
-
-        //             Set::Scalar laplacian = Numeric::Laplacian(c_mid,i,j,k,0,DX);
-
-        //             Set::Scalar Gc = 0.0;
-        //             Set::Scalar Zeta = 0.0;
-        //             Set::Scalar Threshold = 0.0;
-        //             Set::Scalar Mobility = 0.0;
-        //             Set::Scalar _temp_product = 1.0, _temp_product2 = 1.0;
-                    
-        //             for (int m = 0; m < material.num_mat; m++)
-        //             {
-        //                 Gc += eta(i,j,k,m)*crack.cracktype[m].Gc(c_mid(i,j,k,0));
-        //                 Zeta += eta(i,j,k,m)*crack.cracktype[m].Zeta(c_mid(i,j,k,0));
-        //                 Threshold += eta(i,j,k,m)*crack.cracktype[m].DrivingForceThreshold(c_mid(i,j,k,0));
-        //                 Mobility += eta(i,j,k,m)*crack.cracktype[m].Mobility(c_mid(i,j,k,0));
-        //                 _temp_product *= eta(i,j,k,m);
-        //                 _temp_product2 *= 0.5;
-        //             }
-        //             if (material.num_mat > 1) Gc *= (1.0 - _temp_product*(1.-crack.mult_Gc)/_temp_product2);
-
-        //             // df(i,j,k,1) = Gc*crack.cracktype[0].Dw_phi(c_old(i,j,k,0),0.0)/(4.0*Zeta);
-        //             rhs += Gc*crack.cracktype[0].Dw_phi(c_mid(i,j,k,0),0.0)/(4.0*Zeta);
-
-        //             // df(i,j,k,2) = Zeta*Gc*laplacian * crack.mult_lap;
-        //             rhs -= Zeta*Gc*laplacian * crack.mult_lap;
-
-        //             // df(i,j,k,3) = crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
-        //             rhs += crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
-                   
-        //             // df(i,j,k,4) =                    std::max(0.,rhs_pred - Threshold);
-        //             rhs = std::max(0., 0.5*(rhs + rhs_pred) - Threshold);
-
-        //             c(i,j,k,0) = c_old(i,j,k,0) - a_dt*rhs*Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
-
-        //             if (c (i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
-        //             if (c (i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
-        //         }
-        //     });
-        // }
         crack.c_mf[a_lev]->FillBoundary();
 
         Base::Mechanics<brittle_model>::Advance(a_lev,a_time,a_dt);
@@ -603,9 +514,12 @@ public:
         Set::Vector DX(geom[amrlev].CellSize());
         const Set::Scalar DV = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
         amrex::Array4<const Set::Scalar> const &df = crack.driving_force_mf[amrlev]->array(mfi);
+        amrex::Array4<const Set::Scalar> const &c = crack.c_mf[amrlev]->array(mfi);
+        amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[amrlev]->array(mfi);
         amrex::ParallelFor(a_box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             crack.driving_force_norm += df(i,j,k,4)*DV;
+            crack.crack_l2_err += (c(i,j,k)-c_old(i,j,k))*(c(i,j,k)-c_old(i,j,k))*DV;
         });
 
         Base::Mechanics<brittle_model>::Integrate(amrlev,time,step,mfi,a_box);
@@ -624,7 +538,7 @@ protected:
     struct{
         Set::Field<Set::Scalar> c_mf;
         Set::Field<Set::Scalar> c_old_mf;
-        Set::Field<Set::Scalar> c_mid_mf;
+        // Set::Field<Set::Scalar> c_mid_mf;
         Set::Field<Set::Scalar> energy_pristine_mf;
         Set::Field<Set::Scalar> energy_pristine_old_mf;
         Set::Field<Set::Scalar> driving_force_mf;
@@ -644,6 +558,7 @@ protected:
         Set::Scalar driving_force_norm = 0.0;
         Set::Scalar tol_rel = 1.e-3;
         Set::Scalar tol_abs = 1.e-3;
+        Set::Scalar crack_l2_err = 0.0;
 
         Set::Scalar beta = 0.0;
     } crack;

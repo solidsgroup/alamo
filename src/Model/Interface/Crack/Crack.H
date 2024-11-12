@@ -100,7 +100,7 @@ class Crack
         switch (g2_type)
         {
             case G2WULINEAR:  {
-                                Set::Scalar mu = m_pf_czm_a0 * w_phi(c,0.) / (std::pow(c, 2*m_pf_czm_order));
+                                // Set::Scalar mu = m_pf_czm_a0 * w_phi(c,0.) / (std::pow(c, 2*m_pf_czm_order));
                                 Set::Scalar Dmu = m_pf_czm_a0 * ( (2.*m_pf_czm_order*w_phi(c,0.)) + (c * -1. * Dw_phi(c,0.)) ) / (std::pow(c, 1 + 2*m_pf_czm_order));
                                 return Dmu * g_phi(c,0.) * g_phi(c,0.);
                             }

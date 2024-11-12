@@ -1,9 +1,9 @@
 alamo.program = fracture_pfczm
 
 timestep = 1e-4
-stop_time = 1.e0
+stop_time = 1.e-4
 
-plot_file = output
+plot_file = tests/Fracture2DPFCZM/output
 amr.plot_int = 1000
 amr.max_level = 4
 amr.n_cell = 64 64
@@ -29,7 +29,7 @@ crack.model1.type = pfczm
 crack.model1.pfczm.G_c = 2.7e3          # 2.7 N/mm
 crack.model1.pfczm.f_t = 3.0e7          # 30 MPa
 crack.model1.pfczm.E = 210.0e9          # 210 GPa
-crack.model1.pfczm.zeta = 5.e-3         # 10mm
+crack.model1.pfczm.zeta = 5.e-3         # 1mm
 crack.model1.pfczm.mobility = 1.0e-3
 crack.model1.pfczm.gtype = wu_linear
 crack.model1.pfczm.wtype = wu
@@ -40,10 +40,10 @@ crack.model1.pfczm.threshold = 0.0
 crack.ic.type = notch
 crack.ic.notch.center = -0.5 0.0
 crack.ic.notch.orientation = 1.0 0.0
-crack.ic.notch.thickness = 1.e-3
+crack.ic.notch.thickness = 2.e-2
 crack.ic.notch.length = 5.e-1
-crack.ic.notch.eps = 5.e-2
-crack.ic.notch.mollifier = gauss
+crack.ic.notch.eps = 1.e-2
+crack.ic.notch.mollifier = erf
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
@@ -66,9 +66,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi = 0.0 1.e-4
-bc.constant.val.xloyhi = 0.0 1.e-4
-bc.constant.val.xhiyhi = 0.0 1.e-4
+bc.constant.val.yhi = 0.0 2.e-4
+bc.constant.val.xloyhi = 0.0 2.e-4
+bc.constant.val.xhiyhi = 0.0 2.e-4
 
 ### Mode-II test
 # bc.type = constant
