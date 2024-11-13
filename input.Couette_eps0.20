@@ -25,7 +25,7 @@ geometry.is_periodic = 1 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-3
-stop_time = 40.0
+stop_time = 30.0
 
 ### HYDRO PARAM ###
 
@@ -44,7 +44,7 @@ rho_injected.ic.type = expression
 rho_injected.ic.expression.region0 = "100.0"
 
 mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.01*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
+mdot.ic.expression.region0 = "0.1*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
 #mdot.ic.expression.region0 = "0.0"
 mdot.ic.expression.region1 = "0.0"
 
@@ -66,7 +66,7 @@ solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"
 
 solid.momentum.ic.type = expression
-solid.momentum.ic.expression.region0 = "0.01*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
+solid.momentum.ic.expression.region0 = "0.1*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
 solid.momentum.ic.expression.region1 = "0.0"
 
 solid.energy.ic.type = expression
@@ -124,6 +124,8 @@ e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
-#p_refinement_criterion   = 0.1
+gradu_refinement_criterion   = 0.1
+p_refinement_criterion   = 0.1
+rho_refinement_criterion   = 0.1
 
 #TODO

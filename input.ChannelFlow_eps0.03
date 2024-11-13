@@ -2,18 +2,18 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = ./output.channelflow_eps0.03
 
 ### MESHING ###
 
 amr.plot_dt = 1.0
 #amr.plot_int = 10
-amr.max_level = 1
+amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 800 240 0
+amr.n_cell = 200 60 0
 
 ### DIMENSIONS ###
 
@@ -24,8 +24,8 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-4
-stop_time = 1000.0
+timestep  = 5.0e-4
+stop_time = 70.0
 
 ### HYDRO PARAM ###
 
@@ -56,7 +56,7 @@ density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps = 0.03
-velocity.ic.expression.region0 = "0.01 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+velocity.ic.expression.region0 = "0.001 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
@@ -99,23 +99,24 @@ density.bc.val.xlo = 0.0
 density.bc.val.ylo = 0.0
 density.bc.val.yhi = 0.0
 
-pressure.bc.type.xhi = dirichlet
-pressure.bc.type.xlo = neumann
-pressure.bc.type.ylo = neumann
-pressure.bc.type.yhi = neumann
-pressure.bc.val.xhi = 0.0
-pressure.bc.val.xlo = 0.0
-pressure.bc.val.ylo = 0.0 
-pressure.bc.val.yhi = 0.0
+energy.bc.type.xhi = dirichlet
+energy.bc.type.xlo = neumann
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+energy.bc.val.xhi = 0.0
+energy.bc.val.xlo = 0.0
+energy.bc.val.ylo = 0.0 
+energy.bc.val.yhi = 0.0
 
-velocity.bc.type.xlo = dirichlet dirichlet
-velocity.bc.type.xhi = neumann neumann
-velocity.bc.type.ylo = neumann neumann
-velocity.bc.type.yhi = neumann neumann
-velocity.bc.val.xlo = "0.1*(y>0.5)*(y<2.5)" "0.0"
-velocity.bc.val.xhi = "0.0" "0.0"
-velocity.bc.val.ylo = "0.0" "0.0"
-velocity.bc.val.yhi = "0.0" "0.0"
+momentum.bc.type.xlo = dirichlet dirichlet
+momentum.bc.type.xhi = neumann neumann
+momentum.bc.type.ylo = neumann neumann
+momentum.bc.type.yhi = neumann neumann
+#momentum.bc.val.xlo = "0.1*(y>0.5)*(y<2.5)" "0.0"
+momentum.bc.val.xlo = "0.1 * (0.5*tanh((y - 0.5)/0.03) - 0.5*tanh((y - 2.5)/0.03))" "0.0"
+momentum.bc.val.xhi = "0.0" "0.0"
+momentum.bc.val.ylo = "0.0" "0.0"
+momentum.bc.val.yhi = "0.0" "0.0"
 
 ### HYDRO REFINEMENT CRITERIA ###
 
@@ -124,7 +125,8 @@ e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
-p_refinement_criterion   = 1.0
-rho_refinement_criterion   = 0.0
+gradu_refinement_criterion = 0.1
+p_refinement_criterion   = 0.1
+rho_refinement_criterion   = 0.1
 
 #TODO

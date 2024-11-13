@@ -2,18 +2,18 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output.ChannelFlow_eps0.05
+plot_file = ./output.channelflow_eps0.05
 
 ### MESHING ###
 
-amr.plot_dt = 0.25
+amr.plot_dt = 1.0
 #amr.plot_int = 10
-amr.max_level = 2
+amr.max_level = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 100 30 0
+amr.n_cell = 200 60 0
 #amr.abort_on_nan=0
 
 ### DIMENSIONS ###
@@ -25,7 +25,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 2.0e-3
 stop_time = 70.0
 
 ### HYDRO PARAM ###
@@ -57,7 +57,7 @@ density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps = 0.05
-velocity.ic.expression.region0 = "0.01 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+velocity.ic.expression.region0 = "0.001 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
@@ -113,28 +113,28 @@ momentum.bc.type.xlo = dirichlet dirichlet
 momentum.bc.type.xhi = neumann neumann
 momentum.bc.type.ylo = neumann neumann
 momentum.bc.type.yhi = neumann neumann
-#momentum.bc.val.xlo = "1.0*(y>0.5)*(y<2.5)" "0.0"
+#momentum.bc.val.xlo = "0.1*(y>0.5)*(y<2.5)" "0.0"
 
-momentum.bc.val.xlo = "1.0 * (0.5*tanh((y - 0.5)/0.05) - 0.5*tanh((y - 2.5)/0.05))" "0.0"
+momentum.bc.val.xlo = "0.1 * (0.5*tanh((y - 0.5)/0.05) - 0.5*tanh((y - 2.5)/0.05))" "0.0"
 momentum.bc.val.xhi = "0.0" "0.0"
 momentum.bc.val.ylo = "0.0" "0.0"
 momentum.bc.val.yhi = "0.0" "0.0"
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-r_refinement_criterion   = 1E100
-e_refinement_criterion   = 1E100
-m_refinement_criterion   = 1E100
-eta_refinement_criterion = 0.001
-omega_refinement_criterion = 1E100
-p_refinement_criterion   = 1E100
-rho_refinement_criterion   = 1E100
+r_refinement_criterion   = 0.1
+e_refinement_criterion   = 0.1
+m_refinement_criterion   = 0.1
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.1
+gradu_refinement_criterion = 0.1
+p_refinement_criterion   = 0.1
+rho_refinement_criterion   = 0.1
 
 #TODO
-
-dynamictimestep.on = 0
-dynamictimestep.verbose = 1
-dynamictimestep.cfl = 0.001
-dynamictimestep.max  = 1.0
-dynamictimestep.min  = 1E-8
-cfl = 0.001
+#
+#dynamictimestep.on = 1
+#dynamictimestep.verbose = 1
+#dynamictimestep.cfl = 0.0004
+#dynamictimestep.max  = 1.0
+#dynamictimestep.min  = 0.0

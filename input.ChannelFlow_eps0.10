@@ -2,7 +2,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output.channelflow_eps0.00
+plot_file = ./output.channelflow_eps0.10
 
 ### MESHING ###
 
@@ -10,15 +10,16 @@ amr.plot_dt = 1.0
 #amr.plot_int = 10
 amr.max_level = 1
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
-#amr.regrid_int = 100
+amr.blocking_factor = 1
+amr.regrid_int = 100
 amr.grid_eff = 0.8
 amr.n_cell = 200 60 0
+#amr.abort_on_nan=0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = 0.0 0.5 0.0 # [ m ] 
-geometry.prob_hi = 10.0 2.5 0.0 # [ m ]
+geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
+geometry.prob_hi = 10.0 3.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -37,8 +38,8 @@ pref = 100.0
 ### ETA IC ###
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.05
-eta.ic.expression.region0        = "1.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
 rho_injected.ic.type = expression
 rho_injected.ic.expression.region0 = "100.0"
@@ -55,8 +56,8 @@ density.ic.type = expression
 density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
-velocity.ic.expression.constant.eps = 0.05
-velocity.ic.expression.region0 = "0.01" # * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+velocity.ic.expression.constant.eps = 0.1
+velocity.ic.expression.region0 = "0.001 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
@@ -110,9 +111,11 @@ energy.bc.val.yhi = 0.0
 
 momentum.bc.type.xlo = dirichlet dirichlet
 momentum.bc.type.xhi = neumann neumann
-momentum.bc.type.ylo = dirichlet dirichlet
-momentum.bc.type.yhi = dirichlet dirichlet
-momentum.bc.val.xlo = "0.1" "0.0" #*(y>0.5)*(y<2.5)" "0.0"
+momentum.bc.type.ylo = neumann neumann
+momentum.bc.type.yhi = neumann neumann
+#momentum.bc.val.xlo = "0.1*(y>0.5)*(y<2.5)" "0.0"
+
+momentum.bc.val.xlo = "0.1 * (0.5*tanh((y - 0.5)/0.1) - 0.5*tanh((y - 2.5)/0.1))" "0.0"
 momentum.bc.val.xhi = "0.0" "0.0"
 momentum.bc.val.ylo = "0.0" "0.0"
 momentum.bc.val.yhi = "0.0" "0.0"
@@ -129,3 +132,9 @@ p_refinement_criterion   = 0.1
 rho_refinement_criterion   = 0.1
 
 #TODO
+#
+#dynamictimestep.on = 1
+#dynamictimestep.verbose = 1
+#dynamictimestep.cfl = 0.0004
+#dynamictimestep.max  = 1.0
+#dynamictimestep.min  = 0.0

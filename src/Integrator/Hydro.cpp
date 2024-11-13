@@ -38,10 +38,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
         // vorticity-based refinement
         pp.query_default("omega_refinement_criterion", value.omega_refinement_criterion, 0.01);
-        pp.query_default("gradu_refinement_criterion", value.omega_refinement_criterion, 0.01);
+        pp.query_default("gradu_refinement_criterion", value.gradu_refinement_criterion, 0.01);
         // pressure-based refinement
-        pp.query_default("p_refinement_criterion", value.p_refinement_criterion, 1e20);
-        pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e20);
+        pp.query_default("p_refinement_criterion", value.p_refinement_criterion, 1e100);
+        pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e100);
 
         pp_query_required("gamma", value.gamma); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
@@ -650,7 +650,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     }
 
     // Gradu criterion for refinement
-    for (amrex::MFIter mfi(*vorticity_mf[lev], true); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& v = (*velocity_mf[lev]).array(mfi);
