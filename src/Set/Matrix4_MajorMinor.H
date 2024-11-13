@@ -52,8 +52,6 @@ public:
     void Print (std::ostream& os)
     {
         os.precision(4);
-	
-
     // os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
     // os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
     // os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
@@ -726,7 +724,6 @@ public:
         // Assign the special term for (6,6) in Voigt notation: 0.5 * (C11 - C12)
         Ctmp[0][1][0][1] = 0.5 * (C11 - C12); // C66 for (6,6)
         Ctmp[1][0][1][0] = 0.5 * (C11 - C12); // Symmetric assignment for C66
-	  
         for (int p = 0; p < 3; p++) {
             for (int q = 0; q < 3; q++) {
                 for (int s = 0; s < 3; s++) {
