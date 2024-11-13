@@ -195,12 +195,13 @@ public:
         }
         
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
-        value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", false);
+        value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
         value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
         value.RegisterNodalFab(value.crack.energy_pristine_mf, 1, 2, "energy_pristine", true);
         value.RegisterNodalFab(value.crack.energy_pristine_old_mf, 1, 2, "energy_pristine_old", false);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm),"driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
+        value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
         
         // By default the psi variable will be on for fracture simulations
         value.psi_on = true;
@@ -303,7 +304,7 @@ public:
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         // Deciding whether to do an elastic solve or not
-        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.tol_rel);
+        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",(crack.crack_l2_err/crack.crack_norm));
         if (crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel)
             elastic_do_solve_now = true;
         if (crack.driving_force_norm < crack.tol_abs)
@@ -365,7 +366,9 @@ public:
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt)
     {
         // advance for crack field
-        crack.c_old_mf[a_lev]->FillBoundary();
+        // Util::RealFillBoundary(*crack.c_old_mf[a_lev],geom[a_lev]);
+        crack.c_mf[a_lev]->FillBoundary();
+        // return;
         std::swap (crack.c_old_mf[a_lev], crack.c_mf[a_lev]);
 
         const Set::Scalar* DX = geom[a_lev].CellSize();
@@ -379,7 +382,7 @@ public:
         //======================================================================
         for (amrex::MFIter mfi(*crack.c_mf[a_lev], true); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Box bx = mfi.tilebox();
             // bx.grow(1);
             // bx = bx & domain;
 
@@ -408,16 +411,16 @@ public:
                 else
                 {
                     Set::Scalar rhs = 0.0;
-                    Set::Scalar bilap = 0.0;
+                    // Set::Scalar bilap = 0.0;
                     // if (crack.beta > 0.0)
-                    {
-                        bilap = 
-                            Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) +
-                            Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) * 2.0 +
-                            Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX);
-                    }
+                    // {
+                    //     bilap = 
+                    //         Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) +
+                    //         Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) * 2.0 +
+                    //         Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX);
+                    // }
 
-                    if (std::isnan(bilap))  Util::Message(INFO, "Bilaplacian is nan at (",i,", ",j,")");
+                    // if (std::isnan(bilap))  Util::Message(INFO, "Bilaplacian is nan at (",i,", ",j,")");
                     
                     Set::Scalar en_cell = energy(i,j,k,0); //Numeric::Interpolate::NodeToCellAverage(energy,i,j,k,0);
 
@@ -452,11 +455,11 @@ public:
                     if (std::isnan(df(i,j,k,2))) Util::Message(INFO, "DF(2) is nan at (",i,",",j,")");
                     rhs -= df(i,j,k,2);
 
-                    df(i,j,k,3) = crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
-                    if (std::isnan(df(i,j,k,3))) Util::Message(INFO, "DF(3) is nan at (",i,",",j,")");
-                    rhs += df(i,j,k,3);
+                    // df(i,j,k,3) = crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
+                    // if (std::isnan(df(i,j,k,3))) Util::Message(INFO, "DF(3) is nan at (",i,",",j,")");
+                    // rhs += df(i,j,k,3);
                    
-                    df(i,j,k,4) =                    std::max(0.,rhs - Threshold);
+                    df(i,j,k,4) = std::max(0.,rhs - Threshold);
                     c(i,j,k,0) = c_old(i,j,k,0) - a_dt*df(i,j,k,4)*Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
 
                     if (c (i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
@@ -465,6 +468,7 @@ public:
             });
         }
         crack.c_mf[a_lev]->FillBoundary();
+        crack.driving_force_mf[a_lev]->FillBoundary();
 
         Base::Mechanics<brittle_model>::Advance(a_lev,a_time,a_dt);
     }
@@ -520,6 +524,7 @@ public:
         {
             crack.driving_force_norm += df(i,j,k,4)*DV;
             crack.crack_l2_err += (c(i,j,k)-c_old(i,j,k))*(c(i,j,k)-c_old(i,j,k))*DV;
+            crack.crack_norm += c_old(i,j,k)*c_old(i,j,k)*DV;
         });
 
         Base::Mechanics<brittle_model>::Integrate(amrlev,time,step,mfi,a_box);
@@ -558,7 +563,9 @@ protected:
         Set::Scalar driving_force_norm = 0.0;
         Set::Scalar tol_rel = 1.e-3;
         Set::Scalar tol_abs = 1.e-3;
+        
         Set::Scalar crack_l2_err = 0.0;
+        Set::Scalar crack_norm = 0.0;
 
         Set::Scalar beta = 0.0;
     } crack;

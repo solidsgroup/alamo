@@ -51,6 +51,7 @@ class Crack
             case GSQUAREPM:     return std::pow(c,2.*(std::pow(p,m_d_exponent)));
             case GCUBICM:       return m_d_exponent*(c*c*c - c*c) + 3.*c*c - 2.*c*c*c;
             case GWULINEAR:     {
+                                    if (c < 1.e-5) c = 1.e-5;
                                     double phi = m_pf_czm_a0 * m_pf_czm_order* std::sqrt(w_phi(c,0.));
                                     phi *= std::sqrt(1 - std::pow(c, 2*m_pf_czm_order));
                                     phi /= std::pow(c, m_pf_czm_order+1);
@@ -100,6 +101,7 @@ class Crack
         switch (g2_type)
         {
             case G2WULINEAR:  {
+                                if (c < 1.e-5) c = 1.e-5;
                                 // Set::Scalar mu = m_pf_czm_a0 * w_phi(c,0.) / (std::pow(c, 2*m_pf_czm_order));
                                 Set::Scalar Dmu = m_pf_czm_a0 * ( (2.*m_pf_czm_order*w_phi(c,0.)) + (c * -1. * Dw_phi(c,0.)) ) / (std::pow(c, 1 + 2*m_pf_czm_order));
                                 return Dmu * g_phi(c,0.) * g_phi(c,0.);
