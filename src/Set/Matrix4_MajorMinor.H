@@ -52,6 +52,52 @@ public:
     void Print (std::ostream& os)
     {
         os.precision(4);
+	
+
+	os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
+
+
+	os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
+
+
         for (int k = 0; k < 2; k++)
         {
             for (int i = -1; i < 3; i++)
@@ -75,6 +121,33 @@ public:
                 os<<std::endl;
             }
         }
+
+
+//        os.precision(4);
+//        for (int k = 0; k < 2; k++)
+//        {
+//            for (int i = -1; i < 3; i++)
+//            {
+//                for (int l = 0; l < 2; l++)
+//                {
+//                    if (i==-1)       os << "┌                         ┐ ";
+//                    else if (i == 2) os << "└                         ┘ ";
+//                    else 
+//                    {
+//                        os << "│ ";
+//                        for (int j = 0; j < 2; j++)
+//                        {
+//                            const Set::Scalar &val = (*this)(i,j,k,l);
+//                            os << std::scientific << std::setw(11) << val ; //(fabs(val)>1E-10 ? val : 0);
+//                            os << " "; 
+//                        }
+//                        os << "│ ";
+//                    }
+//                }
+//                os<<std::endl;
+//            }
+//        }
+
     }
 
     Set::Scalar Norm()
@@ -165,70 +238,44 @@ public:
     }
 
 
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Here 1:
-
-// TODO: write a function to create, fill, and return a modulus tensor (C) 
-//       (this is similar to the Cubic function above)
-
-
-
-
-
-
-
+//Transverse PArt1
     static Matrix4<2, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<2, Sym::MajorMinor> ret;
-        Set::Scalar Ctmp[3][3][3][3]= {{{{0.0}}}};  // Initialize all entries to zero
+        Set::Scalar Ctmp[3][3][3][3]= {{{{0.0}}}};  // Initialize all entries to zero       
         // Populate Ctmp based on the transversely isotropic matrix structure
-        std::cout << "I'm here!" << std::endl;
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 for (int k = 0; k < 3; k++) {
                     for (int l = 0; l < 3; l++) {
                         if (i == j && j == k && k == l) {
-                            // Diagonal terms in Voigt notation
                             if (i == 0 || i == 1) {
-                                Ctmp[i][j][k][l] = C11; // C11 for (1,1) and (2,2)
+                                Ctmp[i][j][k][l] = C11;
                             } else if (i == 2) {
-                                Ctmp[i][j][k][l] = C33; // C33 for (3,3)
+                                Ctmp[i][j][k][l] = C33;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C11/C33 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
                         } else if (i == j && k == l) {
-                            // Off-diagonal terms in Voigt notation
                             if (i < 2 && k < 2 && i != k) {
-                                Ctmp[i][j][k][l] = C12; // C12 for (1,2) and (2,1)
+                                Ctmp[i][j][k][l] = C12;
                             } else if ((i < 2 && k == 2) || (i == 2 && k < 2)) {
-                                Ctmp[i][j][k][l] = C13; // C13 for (1,3), (3,1), (2,3), and (3,2)
+                                Ctmp[i][j][k][l] = C13;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C12/C13 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
-                        } else if (i == k && j == l && i != j) {
-                            // Shear terms in Voigt notation
-                            if ((i == 1 && j == 2) || (i == 2 && j == 1)) {
-                                Ctmp[i][j][k][l] = C44; // C44 for (4,4) and (5,5)
+                        } else if ((i == k && j == l) && (i != j)) {
+                            if ((i == 0 && j == 1) || (i == 1 && j == 0) || (i == 1 && j == 2) || (i == 2 && j == 1) || (i == 0 && j == 2) || (i == 2 && j == 0)) {
+                                Ctmp[i][j][k][l] = C44;
                             }
+                        } else {
+                            Ctmp[i][j][k][l] = 0.0;
                         }
                     }
                 }
             }
         }
+
+
 
         // Assign the special term for (6,6) in Voigt notation: 0.5 * (C11 - C12)
         Ctmp[0][1][0][1] = 0.5 * (C11 - C12); // C66 for (6,6)
@@ -257,12 +304,6 @@ public:
     }
 
 
-
-            
-
-
-
-
     static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
         Eigen::Matrix3d R;
@@ -276,35 +317,6 @@ public:
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Transverse(C11,C12,C13,C33,C44,R);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -493,6 +505,51 @@ public:
     }
     void Print (std::ostream& os)
     {
+	os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
+
+
+	os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
+
+	os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
+	os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
+	return;
+
+
         for (int i = 0; i < 21; i++)
             os << "i = " << i << " " << data[i] << std::endl;
         
@@ -626,72 +683,68 @@ public:
 
 
 
-
-
-
-
-// Here 2:
+//Transverse PArt 2
     static Matrix4<3, Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<3, Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};  // Initialize all entries to zero
+
         // Populate Ctmp based on the transversely isotropic matrix structure
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 for (int k = 0; k < 3; k++) {
                     for (int l = 0; l < 3; l++) {
                         if (i == j && j == k && k == l) {
-                            // Diagonal terms in Voigt notation
                             if (i == 0 || i == 1) {
-                                Ctmp[i][j][k][l] = C11; // C11 for (1,1) and (2,2)
-                                std::cout << "C11 is: " << Ctmp[i][j][k][l] << std::endl;
+                                Ctmp[i][j][k][l] = C11;
                             } else if (i == 2) {
-                                Ctmp[i][j][k][l] = C33; // C33 for (3,3)
-                                //std::cout << "C33 is: " << Ctmp[i][j][k][l] << std::endl;
+                                Ctmp[i][j][k][l] = C33;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C11/C33 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
                         } else if (i == j && k == l) {
-                            // Off-diagonal terms in Voigt notation
                             if (i < 2 && k < 2 && i != k) {
-                                Ctmp[i][j][k][l] = C12; // C12 for (1,2) and (2,1)
-                                //std::cout << "C12 is: " << Ctmp[i][j][k][l] << std::endl;
+                                Ctmp[i][j][k][l] = C12;
                             } else if ((i < 2 && k == 2) || (i == 2 && k < 2)) {
-                                Ctmp[i][j][k][l] = C13; // C13 for (1,3), (3,1), (2,3), and (3,2)
-                                //std::cout << "C13 is: " << Ctmp[i][j][k][l] << std::endl;
+                                Ctmp[i][j][k][l] = C13;
                             } else {
                                 Util::Abort(INFO, "Unexpected indices in C12/C13 assignment: i=", i, ", j=", j, ", k=", k, ", l=", l);
                             }
-                        } else if (i == k && j == l && i != j) {
-                            // Shear terms in Voigt notation
-                            if ((i == 1 && j == 2) || (i == 2 && j == 1)) {
-                                Ctmp[i][j][k][l] = C44; // C44 for (4,4) and (5,5)
+                        } else if ((i == k && j == l) && (i != j)) {
+                            if ((i == 0 && j == 1) || (i == 1 && j == 0) || (i == 1 && j == 2) || (i == 2 && j == 1) || (i == 0 && j == 2) || (i == 2 && j == 0)) {
+                                Ctmp[i][j][k][l] = C44;
                             }
+                        } else {
+                            Ctmp[i][j][k][l] = 0.0;
                         }
                     }
                 }
             }
         }
 
+
         // Assign the special term for (6,6) in Voigt notation: 0.5 * (C11 - C12)
         Ctmp[0][1][0][1] = 0.5 * (C11 - C12); // C66 for (6,6)
         Ctmp[1][0][1][0] = 0.5 * (C11 - C12); // Symmetric assignment for C66
-
-        for (int p = 0; p < 3; p++)
-            for (int q = 0; q < 3; q++)
-                for (int s = 0; s < 3; s++)
+	  
+        for (int p = 0; p < 3; p++) {
+            for (int q = 0; q < 3; q++) {
+                for (int s = 0; s < 3; s++) {
                     for (int t = 0; t < 3; t++) {
                         ret(p, q, s, t) = 0.0;
-                        for (int i = 0; i < 3; i++)
-                            for (int j = 0; j < 3; j++)
-                                for (int k = 0; k < 3; k++)
+                        for (int i = 0; i < 3; i++) {
+                            for (int j = 0; j < 3; j++) {
+                                for (int k = 0; k < 3; k++) {
                                     for (int l = 0; l < 3; l++) {
+                                        // Calculate the result
                                         ret(p, q, s, t) += R(p, i) * R(s, k) * Ctmp[i][j][k][l] * R(q, j) * R(t, l);
-                                         //std::cout << "i: " << i << std::endl;
-                                         //std::cout << "R_pi: " << R(p,i) << std::endl;
-                                         //std::cout << "RP,RS,RQ,RT,Retunvalue: " << R(p,i) << " " << R(s,k) << " " << R(q,j) << " " << R(t,l) << ":\t" << ret(p,q, s, t) << std::endl;
-                                         //std::cout << "p,q,s,t: " << p << " " << q << " " << s << " " << t << ":\t" << ret(p,q, s, t) << std::endl;
                                     }
+                                }
+                            }
+                        }
                     }
+                }
+            }
+        }
         return ret;
     }
 
@@ -707,26 +760,6 @@ public:
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Transverse(C11, C12, C13, C33, C44, R);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);

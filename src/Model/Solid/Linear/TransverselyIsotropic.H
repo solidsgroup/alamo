@@ -1,6 +1,6 @@
 //
 // This class implements basic Transvesely Isotropic elasticity .
-// For a discussion on cubic elasticity, please see this link <http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16>_.
+// For a discussion on Transeversely Isotropics, please see this link <http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16>_.
 //
 
 #ifndef MODEL_SOLID_LINEAR_TRANSVERSELYISOTROPIC_H_
@@ -27,18 +27,14 @@ public:
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
-        std::cout << "Define with phis" << std::endl;
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,phi1,Phi,phi2);
-        //std::cout << "Define with phis complete" << std::endl;
     }
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, 
                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
-        //std::cout << "Define with R" << std::endl;
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,R);
-        //std::cout << "Define with R complete" << std::endl;
     }
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
@@ -46,6 +42,7 @@ public:
     }
     Set::Matrix DW(const Set::Matrix & gradu) const override
     {
+        Util::Message(INFO, ddw,gradu);
         return ddw*gradu;
     }
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override

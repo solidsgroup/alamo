@@ -133,12 +133,18 @@
 
 
 
-
+exe=mechanics
 
 alamo.program = mechanics
 alamo.program.mechanics.model=linear.TransverselyIsotropic
+dim=3
+plot_file = tests/Solid/output
 
-plot_file		    = tests/Solid/output
+model1.C11 = 170
+model1.C12 = 1.222
+model1.C13 = 1
+model1.C33 = 160
+model1.C44 = 0.777
 
 type=static
 
@@ -146,18 +152,17 @@ timestep		    = 0.01
 stop_time		    = 1.0
 
 # amr parameters
-amr.plot_dt		    = 0.1
-amr.max_level		    = 0
-amr.n_cell		    = 4 4 4
-amr.blocking_factor         = 2
-
+amr.plot_dt	= 0.1
+amr.max_level = 0
+amr.n_cell = 4 4 4
+amr.blocking_factor = 2
 amr.thermo.int = 1
 amr.thermo.plot_int = 1
 
 
 
-#ignore = model1.E 
-#ignore = model1.nu
+ignore = model1.E 
+ignore = model1.nu
 # geometry
 geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 1 1 1
