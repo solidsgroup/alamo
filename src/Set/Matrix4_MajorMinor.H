@@ -54,48 +54,48 @@ public:
         os.precision(4);
 	
 
-	os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
 
 
-	os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
 
 
         for (int k = 0; k < 2; k++)
@@ -505,49 +505,49 @@ public:
     }
     void Print (std::ostream& os)
     {
-	os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
 
 
-	os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
 
-	os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
-	os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
-	return;
+    // os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
+    // os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
+    return;
 
 
         for (int i = 0; i < 21; i++)

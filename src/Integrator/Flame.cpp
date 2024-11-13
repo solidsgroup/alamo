@@ -715,5 +715,3 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
-
-
