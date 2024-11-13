@@ -98,6 +98,7 @@ public:
     // os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
 
 
+
         for (int k = 0; k < 2; k++)
         {
             for (int i = -1; i < 3; i++)
