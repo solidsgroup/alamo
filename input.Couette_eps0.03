@@ -44,7 +44,7 @@ rho_injected.ic.type = expression
 rho_injected.ic.expression.region0 = "100.0"
 
 mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.01*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
+mdot.ic.expression.region0 = "0.1*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
 #mdot.ic.expression.region0 = "0.0"
 mdot.ic.expression.region1 = "0.0"
 
