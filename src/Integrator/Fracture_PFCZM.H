@@ -304,14 +304,20 @@ public:
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         // Deciding whether to do an elastic solve or not
-        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",(crack.crack_l2_err/crack.crack_norm));
-        if (crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel)
+        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.tol_rel);
+        if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > 100)
+        {
+            crack.crack_prop_iter = 0;
             elastic_do_solve_now = true;
-        if (crack.driving_force_norm < crack.tol_abs)
+        }
+        if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > 100)
+        {
            elastic_do_solve_now = true;
+           crack.crack_prop_iter = 0;
+        }
         
         // This means that the crack field has not converged.
-        if (!elastic_do_solve_now) return;
+        if (!elastic_do_solve_now) {crack.crack_prop_iter++; return;}
 
         // Doing an elastic solve
         Base::Mechanics<brittle_model>::TimeStepBegin(a_time,a_step);
@@ -523,8 +529,6 @@ public:
         amrex::ParallelFor(a_box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             crack.driving_force_norm += df(i,j,k,4)*DV;
-            crack.crack_l2_err += (c(i,j,k)-c_old(i,j,k))*(c(i,j,k)-c_old(i,j,k))*DV;
-            crack.crack_norm += c_old(i,j,k)*c_old(i,j,k)*DV;
         });
 
         Base::Mechanics<brittle_model>::Integrate(amrlev,time,step,mfi,a_box);
@@ -566,6 +570,7 @@ protected:
         
         Set::Scalar crack_l2_err = 0.0;
         Set::Scalar crack_norm = 0.0;
+        Set::Scalar crack_prop_iter = 0;
 
         Set::Scalar beta = 0.0;
     } crack;
