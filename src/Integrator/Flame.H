@@ -155,7 +155,7 @@ private:
     } elastic;
 
     // Integrated variables
-    Set::Scalar volume = 0.0;
+    Set::Scalar volume = 1.0;
     Set::Scalar area = 0.0;
     Set::Scalar chamber_area = 0.0;
     Set::Scalar chamber_pressure = 1.0;
@@ -167,7 +167,7 @@ private:
         // integrated **spatially**
         Set::Scalar mdot = 0.0; // total mass inside chamber
         Set::Scalar area = 0.0; // area of burn surface
-        Set::Scalar volume = 0.0; // chamber volume
+        Set::Scalar volume = 1.0; // chamber volume
         // integrated **temporally**
         Set::Scalar mass = NAN; // chamber mass - must be initialized with parmparse
         // determined as a function of time

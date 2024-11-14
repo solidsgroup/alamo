@@ -394,7 +394,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure) {
         Set::Scalar domain_area = x_len * y_len;
-        chamber_pressure = chamber.pressure;
+        chamber_pressure = pressure.P;
         chamber_area = domain_area - volume;
         Util::Message(INFO, "Mass = ", massflux);
         Util::Message(INFO, "Pressure = ", pressure.P);
@@ -402,47 +402,35 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
     }
     if (chamber.on)
     {
-        // if (chamber.volume <= 0.0) 
-        // {
-        // Util::Message(INFO, "Volume is non-positive, adjust volume calculations");
-        // Exit or adjust volume as needed
-        //}
+        
         if (a_iter)
         {
             chamber.mass = chamber.rho0 * chamber.volume;
         }
-        Model::Ballistics::Ballistic_new ballistic;
-        ballistic.Execute(chamber.mdot, timestep);
-        chamber.pressure = ballistic.pressure0; // Access updated pressure
-        Util::Message(INFO, "Mdot = ", chamber.mdot);
-        Util::Message(INFO, "Pressure0 = ", chamber.pressure);
-        pre_compute_mdot = chamber.mdot;
+
+        // Model::Ballistics::Ballistic_new ballistic;
+        // ballistic.Execute(chamber.mdot, timestep);
+        // chamber.pressure = ballistic.pressure0; // Access updated pressure
+        // Util::Message(INFO, "Mdot = ", chamber.mdot);
+        // Util::Message(INFO, "Pressure0 = ", chamber.pressure);
+        // pre_compute_mdot = chamber.mdot;
         //calculate mass flux out of nozzle
-     //     if (pressure.P < 4.0) 
-     //     {
-     //         pressure.P = timestep * 0.001;
-            
-     //         if (pressure.P > 4.0) 
-     //         {
-     //             pressure.P = 4.0;
-     //         }pressure
-     //         pressure.P = 4.0;
-     //    }
+        // Set::Scalar vol = 1 + chamber.volume;
         // chamber.c_star = sqrt(chamber.gamma * chamber.R * chamber.T0);
         // Set::Scalar mdot_out = chamber.pressure * chamber.At / chamber.c_star ;
         // // integrate mass conservation equation to get current chamber mass
         // chamber.mass += ((chamber.mdot - mdot_out) *  timestep);
         // //use ideal gas EOS to calculate current chamber pressure
-        // chamber.pressure = 4; //chamber.mass / (chamber.area / (chamber.R * chamber.T0));
+        // chamber.pressure = (chamber.mass / (vol / (chamber.R * chamber.T0)));
         // Util::Message(INFO, "At = ", chamber.At);
-        // Util::Message(INFO, "Vol = ", chamber.volume);
+        // Util::Message(INFO, "Vol = ", vol);
         // Util::Message(INFO, "Area = ", chamber.area);
         // Util::Message(INFO, "gamma = ", chamber.gamma);
         // Util::Message(INFO, "R = ", chamber.R);
         // Util::Message(INFO, "T0 = ", chamber.T0);
         // Util::Message(INFO, "mass = ", chamber.mass);
         // Util::Message(INFO, "Mdot = ", chamber.mdot);
-        // Util::Message(INFO, "Mdot_out = ", (chamber.pressure * chamber.At / sqrt(chamber.gamma * chamber.R * chamber.T0)));
+        // Util::Message(INFO, "Mdot_out = ", mdot_out);
         // Util::Message(INFO, "Pressure = ", chamber.pressure);
         // Util::Message(INFO, "c* = ", chamber.c_star);
         // todo: set the actual pressure equal to chamber.pressure if needed.
@@ -490,9 +478,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
 
-                if (variable_pressure) {
-                     pressure.P = chamber.pressure;
-                }
+                // if (variable_pressure) {
+                //      pressure.P = chamber.pressure;
+                // }
 
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
                 Set::Scalar zeta_1;
@@ -771,6 +759,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             // new - chamber model
             chamber.mdot += mdot(i,j,k,0) * dv; 
             chamber.area += da;
+            //chamber.volume += volume;
         });
         //chamber.volume += volume;
         // Util::Message(INFO, "mdot = ", chamber.mdot);
