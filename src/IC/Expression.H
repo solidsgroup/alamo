@@ -49,6 +49,7 @@ private:
     std::vector<amrex::ParserExecutor<4>> f;
     Expression::CoordSys coord = Expression::CoordSys::Cartesian;
 public:
+    static constexpr const char* name = "expression";
     Expression(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
     Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {

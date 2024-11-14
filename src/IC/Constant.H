@@ -18,6 +18,8 @@ namespace IC
 class Constant : public IC
 {
 public:
+    static constexpr const char* name = "constant";
+
     Constant (amrex::Vector<amrex::Geometry> &_geom) :IC::IC(_geom) {}
     Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC::IC(_geom) 
     {pp_queryclass(*this);}

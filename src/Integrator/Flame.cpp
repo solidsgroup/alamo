@@ -53,14 +53,17 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
-        std::string eta_ic_type = "constant";
-        pp_query_validate("eta.ic.type", eta_ic_type, {"laminate", "constant", "expression"}); // Eta initial condition [constant, laminate, expression, bmp]
-        if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
-        else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
-        else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
-        else if (eta_ic_type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
-        else if (eta_ic_type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
-        else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.ic_eta,value.geom);
+
+        // std::string eta_ic_type = "constant";
+        // // Eta initial condition [constant, laminate, expression, bmp]
+        // pp_query_validate("eta.ic.type", eta_ic_type, {"laminate", "constant", "expression"}); 
+        // if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
+        // else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
+        // else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
+        // else if (eta_ic_type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
+        // else if (eta_ic_type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
+        // else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
     }
 
     {
@@ -178,7 +181,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     {
         // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
         // specified using these parameters. 
-        //IO::ParmParse pp("phi.ic");
         std::string phi_ic_type = "packedspheres";
         pp_query_validate("phi.ic.type", phi_ic_type, {"psread", "laminate", "expression", "constant", "bmp", "png"}); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {

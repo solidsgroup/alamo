@@ -544,6 +544,21 @@ public:
         {
             Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
+    }    
+
+    template<typename... IC, typename... Args, typename PTRTYPE>
+    void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
+    {
+        std::string type = "";
+
+        this->query_required(name + ".type", type);
+        
+        bool matched = ((type == IC::name 
+                        ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                        true
+                        : false) || ...);
+        if (!matched)
+            Util::Exception(INFO,type," not a valid type");
     }
 };
 }
