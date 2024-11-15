@@ -53,17 +53,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
         else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
 
-        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.ic_eta,value.geom);
-
-        // std::string eta_ic_type = "constant";
-        // // Eta initial condition [constant, laminate, expression, bmp]
-        // pp_query_validate("eta.ic.type", eta_ic_type, {"laminate", "constant", "expression"}); 
-        // if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
-        // else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
-        // else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
-        // else if (eta_ic_type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
-        // else if (eta_ic_type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
-        // else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
+        //before comment
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.ic_eta,value.geom); // after comment
     }
 
     {
@@ -126,19 +117,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
-            std::string laser_ic_type = "constant";
-            pp_query_validate("laser.ic.type", laser_ic_type, {"expression", "constant"}); // heat laser initial condition type [constant, expression]
-            if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
-            else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
-            else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
+            // laser initial condition
+            pp.select<IC::Constant,IC::Expression>("laser.ic.type",value.ic_laser);
 
-            std::string temp_ic_type;
-            pp_query_validate("temp.ic.type", temp_ic_type,{"default","constant","expression","bmp","png"}); // Temperature initial condition
-            if (temp_ic_type == "constant") value.thermal.ic_temp = new IC::Constant(value.geom, pp, "temp.ic.constant");
-            else if (temp_ic_type == "expression") value.thermal.ic_temp = new IC::Expression(value.geom, pp, "temp.ic.expression");
-            else if (temp_ic_type == "bmp") value.thermal.ic_temp = new IC::BMP(value.geom, pp, "temp.ic.bmp");
-            else if (temp_ic_type == "png") value.thermal.ic_temp = new IC::PNG(value.geom, pp, "temp.ic.png");
-            else if (temp_ic_type == "default") value.thermal.ic_temp = nullptr;
+            // thermal initial condition
+            pp.select<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom);
         }
     }
 

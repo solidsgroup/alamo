@@ -22,7 +22,6 @@ except Exception as e:
     print(e)
 #print(src2url)
 
-
 def geticon(classname):
     if classname.startswith("BC"): return ":fas:`border-top-left;fa-fw` "
     if classname.startswith("IC"): return ":fas:`circle-right;fa-fw` "
@@ -51,12 +50,19 @@ def getdocumentation(filename):
     return ret
 
 def extract(basefilename):
+    
+    
     rets = list()
     class inputdoc: pass
     for filename in [basefilename+".H",basefilename+".cpp"]:
         if not os.path.isfile(filename): continue
         sourcefile = open(filename)
         lines = sourcefile.readlines()
+
+#        lines = clean_cpp_code(lines)
+#        for line in lines:
+#            print(line)
+
         group = None
         parsefn = False
         switch = None
@@ -180,6 +186,28 @@ def extract(basefilename):
             if re.match('^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
                 if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
                 parsefn = True
+
+
+            # Catch definition of a select function:
+
+            #match = re.findall(r'^\s*pp\.select<([^>]+)> \("([^"]+)"',line)
+            #match = re.findall(r'^\s*pp\.select<([^>]+)> \("([^"]+)"',line)
+            match = re.findall(r'pp\.select<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = "select"
+                input["classes"] = match[0][0].replace(' ','').split(',')
+                input["string"] = match[0][1].replace(' ','')
+                input["doc"] = match[0][2]
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                insert(input)
 
             # Catch definition of a switch group
             match =re.findall('^\s*\/\/\s*\[\s*switch\s*(\S*)\s*]\s*(.*)',line)
@@ -305,6 +333,150 @@ the prefixes out.
       - Description
 """
 
+
+
+
+def scrapeInputsSimple(root="../../src/", writeFiles=True):
+
+    srcfiles = set()
+    for dirname, subdirlist, filelist in sorted(os.walk(root)):
+        for f in filelist:
+            if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f.replace(".cpp",""))
+            if f.endswith(".H"): srcfiles.add(dirname+"/"+f.replace(".H",""))
+    srcfiles = list(srcfiles)
+    
+    headerchar = ["=","*","-","~","."]
+    written_headers = []
+    
+    global num_tot, num_doc
+    num_tot = 0
+    num_doc = 0
+
+    data=dict()
+
+    for dirname, subdirlist, filelist in sorted(os.walk(root)):
+        hdrname = dirname.replace(root,"").replace("/","::")
+        depth = len(hdrname.split("::")) 
+    
+        srcfileset = set()
+        for f in filelist:
+            if f.endswith(".cpp"): srcfileset.add(f.replace(".cpp",""))
+            if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
+        srcfilelist = list(srcfileset)
+        
+        for f in sorted(srcfilelist):
+            classname = dirname.replace(root,"").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
+            data[classname] = dict()
+
+            try:
+                data[classname]['inputs'] = extract(dirname+"/"+f)
+            except Exception as e:
+                print("ERROR: problem reading",dirname)
+                raise
+            data[classname]['documentation'] = getdocumentation(dirname+"/"+f)
+
+    def printInputs(classname,indent="",prefix=""):
+        html = ""
+
+        for input in data[classname]["inputs"]:
+            if input["type"] == "group": continue
+            #if "string" in input.keys():
+            id = prefix + input["string"]
+            if (input["type"] == "select"):
+
+                html += indent + '<div class="card">\n'
+                html += indent + '<div class="card-header">\n'
+                
+                html += indent + '<div class="input-group mb-3">\n'
+                html += indent + '  <div class="input-group-prepend">\n'
+                html += indent + '    <label class="input-group-text" for="{}">{}</label>\n'.format(id+".type",id+".type")
+                html += indent + '  </div>\n'
+                html += indent + '  <select class="custom-select" id="{}" name="{}" onchange="showConditionalInputs(\'{}\')">\n'.format(id+".type",id+".type",id)
+                for cls in input["classes"]:
+                    name = cls.split("::")[-1].lower()
+                    html += indent + "<option value='{}'>{}</option>\n".format(name,name)
+                html += "</select>\n"
+                html += indent + '</div>\n'
+
+                html += indent + '</div>\n'
+                html += indent + '<div class="card-body">\n'
+
+                for cls in input["classes"]:
+                    name = cls.split("::")[-1].lower()
+                    html += indent + "<div id='{}' class='collapse'>\n".format(id + "." + name)
+                    html += printInputs(cls,indent+"      ",
+                                        prefix = input["string"] + "." + name + ".")
+                    html += indent + "</div>"
+
+                html += indent + '</div>\n'
+                html += indent + '</div>\n'
+
+            else:
+
+                html += '<div class="input-group mb-3">'
+                html += '  <div class="input-group-prepend">'
+                html += indent + "    <span class='input-group-text'> {} </span>\n".format(id)
+                html += indent + "  </div>\n"
+                html += indent + "  <input type='text' id='{}' name='{}' class='form-control'>\n".format(id,id)
+                html += indent + "</div>"
+                
+
+        return html
+    
+
+
+
+
+
+    html = """
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Form with Nested Sections</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<script>
+    function showConditionalInputs(id) {
+        // Hide all conditional input sections initially
+        options = document.getElementById(id+".type"); //.style.display = "none";
+
+        value = options.value
+        size  = options.length
+
+        for (i=0; i < size; i++) {
+            divname = id + "." + options[i].value;
+            if (options[i].value == value)
+                document.getElementById(divname).style.display="block";
+            else
+                document.getElementById(divname).style.display="none";
+        }
+
+        // Show the section based on the selected eta.ic.type
+        // var selectedType = document.getElementById("pf_eta_ic_type").value;
+
+        //if (selectedType === "laminate") {
+        //    document.getElementById("laminateInputs").style.display = "block";
+        //} 
+        //printf("HI");
+    }
+
+</script>
+
+"""
+    html += "<div class='container mt-5'> <h2 class='mb-4'>Settings Form</h2><form>\n"
+    html += printInputs("Integrator::Flame")
+    html += "</form></div>\n"
+    
+    f = open("index.html",'w')
+    f.write(html)
+    f.close()
+    print(html)
 
 
 
