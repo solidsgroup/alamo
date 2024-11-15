@@ -189,14 +189,30 @@ def extract(basefilename):
 
 
             # Catch definition of a select function:
-
-            #match = re.findall(r'^\s*pp\.select<([^>]+)> \("([^"]+)"',line)
-            #match = re.findall(r'^\s*pp\.select<([^>]+)> \("([^"]+)"',line)
-            match = re.findall(r'pp\.select<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(r'pp\.select<([^>]+)>\s*\("([^"]+)"\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = "select"
                 input["classes"] = match[0][0].replace(' ','').split(',')
+                input["string"] = match[0][1].replace(' ','')
+                print(input["string"],input["classes"])
+                input["doc"] = match[0][2]
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                insert(input)
+
+            # Catch a queryclass 
+            match = re.findall(r'pp\.queryclass<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = "queryclass"
+                input["class"] = match[0][0].replace(' ','') 
                 input["string"] = match[0][1].replace(' ','')
                 input["doc"] = match[0][2]
 
@@ -208,6 +224,7 @@ def extract(basefilename):
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
                 insert(input)
+
 
             # Catch definition of a switch group
             match =re.findall('^\s*\/\/\s*\[\s*switch\s*(\S*)\s*]\s*(.*)',line)
@@ -376,12 +393,19 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
             data[classname]['documentation'] = getdocumentation(dirname+"/"+f)
 
     def printInputs(classname,indent="",prefix=""):
+        
+        print("here",classname)
+        if classname not in data.keys(): return ""
+
         html = ""
 
         for input in data[classname]["inputs"]:
             if input["type"] == "group": continue
             #if "string" in input.keys():
             id = prefix + input["string"]
+
+
+
             if (input["type"] == "select"):
                 html     += indent + """<div class="card mb-3" >\n"""
                 html     += indent + """  <div class="card-header">\n"""
@@ -407,83 +431,33 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
                 html +=     indent + """</div>\n"""
 
 
+            if (input["type"] == "queryclass"):
 
 
+                html     += indent + """<div class="card mb-3" >\n"""
+                html     += indent + """  <div class="card-header">\n"""
+                html     += indent + """    <h5>{}</h5>\n""".format(id)
+                html +=     indent + """    </ul>\n"""
+                html +=     indent + """  </div>\n"""
+                html +=     indent + """  <div class="card-body">\n"""
+                html +=     indent + """    <div class="tab-content">\n"""
 
-#                html += """
-#<div class="card">
-#  <div class="card-header">
-#    <ul class="nav nav-pills card-header-pills">
-#      <li class="nav-item">
-#        <a class="nav-link disabled" href="#">Disabled</a>
-#      </li>
-#      <li class="nav-item"
-#        <div class="dropdown">
-#          <button class="btn btn-secondary dropdown-toggle" type="button" id="{}" data-bs-toggle="dropdown" >
-#<ul class="nav nav-tabs" id="myTab" role="tablist">
-#  <li class="nav-item">
-#    <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" >Home</a>
-#  </li>
-#  <li class="nav-item">
-#    <a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab">Profile</a>
-#  </li>
-#  <li class="nav-item">
-#    <a class="nav-link" id="messages-tab" data-toggle="tab" href="#messages" role="tab">Messages</a>
-#  </li>
-#  <li class="nav-item">
-#    <a class="nav-link" id="settings-tab" data-toggle="tab" href="#settings" role="tab">Settings</a>
-#  </li>
-#</ul>
-#
-#<!-- Tab panes -->
-#<div class="tab-content">
-#  <div class="tab-pane active" id="home" role="tabpanel" >...</div>
-#  <div class="tab-pane" id="profile" role="tabpanel" >...</div>
-#  <div class="tab-pane" id="messages" role="tabpanel" >...</div>
-#  <div class="tab-pane" id="settings" role="tabpanel" >...</div>
-#</div>#            
-#          </button>
-#          <div class="dropdown-menu" >
-#"""
-#                for cls in input["classes"]:
-#                    name = cls.split("::")[-1].lower()
-#                    html += indent + """<a class="dropdown-item" href="#">{}</a>\n""".format(name)
-#
-#                html += """
-#          </div>
-#        </div>
-#      </li>
-#    </ul>
-#
-#  <div class="card-body">
-#
-#
-#""".format(id)
+                cls = input["class"]
+                #
+                cls = cls.split("<")[0] # remove template args for now
+                if not cls in data.keys(): # if it's not an actual classname then
+                    cls = "::".join(classname.split("::")[:-1])+"::"+cls
+                print(cls)
+                name = cls.split("::")[-1].lower()
+                
+                html += printInputs(cls,indent+"      ",
+                                    prefix = input["string"] + "." + name + ".")
 
-#                html += indent     + '    <div class="input-group mb-3">\n'
-#                html += indent     + '      <div class="input-group-prepend">\n'
-#                html += indent     + '        <label class="input-group-text" for="{}">{}</label>\n'.format(id+".type",id+".type")
-#                html += indent     + '      </div>\n'
-#                html += indent     + '      <select class="dropdown-menu" id="{}" name="{}" onchange="showConditionalInputs(\'{}\')">\n'.format(id+".type",id+".type",id)
-#                for cls in input["classes"]:
-#                    name = cls.split("::")[-1].lower()
-#                    html += indent + "        <option value='{}'>{}</option>\n".format(name,name)
-#                html += indent     + "      </select>\n"
-#                html += indent     + '    </div>\n'
-#                html += indent     + '  </div>\n'
-#                html += indent     + '<div class="card-body">\n'
-#
-#                for cls in input["classes"]:
-#                    name = cls.split("::")[-1].lower()
-#                    html += indent + "<div id='{}'>\n".format(id + "." + name)
-#                    html += printInputs(cls,indent+"      ",
-#                                        prefix = input["string"] + "." + name + ".")
-#                    html += indent + "</div>"
-#
-#                    html += """
-#  </div>
-#</div>
-#"""
+                html +=     indent + """    </div>\n"""
+                html +=     indent + """  </div>\n"""
+                html +=     indent + """</div>\n"""
+
+
 
 
             else:
@@ -523,6 +497,7 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
 """
     html += "<div class='container mt-5'> <h2 class='mb-4'>Settings Form</h2><form>\n"
     html += printInputs("Integrator::Flame")
+    #html += printInputs("Integrator::ThermoElastic")
     html += """
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
@@ -565,7 +540,7 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
     f = open("index.html",'w')
     f.write(html)
     f.close()
-    print(html)
+    #print(html)
 
 
     

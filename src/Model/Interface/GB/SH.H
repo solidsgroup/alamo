@@ -35,6 +35,8 @@ namespace GB
 class SH : public GB
 {
 public:
+    static constexpr const char* name = "sh";
+
     SH(){};
     SH(IO::ParmParse &pp){pp_queryclass(*this);};
     SH(IO::ParmParse &pp,std::string name){pp_queryclass(name,*this);};

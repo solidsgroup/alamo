@@ -43,8 +43,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("geometry.x_len", value.x_len, 0.001); // Domain x length
         pp_query_default("geometry.y_len", value.y_len, 0.001); // Domain y length
 
-        value.bc_eta = new BC::Constant(1);
-        pp_queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
+        //value.bc_eta = new BC::Constant(1);
+
+
+        pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, value.ghost_count, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
@@ -98,8 +100,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp_query_default("thermal.modeling_htpb", value.thermal.modeling_htpb, 1.0); // Scaling factor for HTPB thermal conductivity (default = 1.0)
 
 
-            value.bc_temp = new BC::Constant(1);
-            pp_queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
+            //value.bc_temp = new BC::Constant(1);
+            pp.select<BC::Constant>("thermal.temp.bc", value.bc_temp, 1);
+            
             value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, value.ghost_count + 1, "temp", true);
             value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, value.ghost_count + 1, "temp_old", false);
             value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, value.ghost_count + 1, "temps", false);
@@ -118,7 +121,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
             // laser initial condition
-            pp.select<IC::Constant,IC::Expression>("laser.ic.type",value.ic_laser);
+            pp.select<IC::Constant,IC::Expression>("laser.ic.type",value.ic_laser, value.geom);
 
             // thermal initial condition
             pp.select<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom);

@@ -161,34 +161,35 @@ public:
         {
             pp_query_required("anisotropy.beta", value.anisotropy.beta);               // Regularization param 
             pp_query_required("anisotropy.tstart", value.anisotropy.tstart);           // Time to turn on anisotropy
-        value.anisotropy.timestep = value.timestep;
-        pp_query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
-        value.anisotropy.plot_int = value.plot_int;
-        pp_query_default("anisotropy.plot_int", value.anisotropy.plot_int, -1);                // Modify plot_int when turned on
-        value.anisotropy.plot_dt = value.plot_dt;
-        pp_query_default("anisotropy.plot_dt", value.anisotropy.plot_dt, -1.0);                  // Modify plot_dt when turned on
-        pp_query_default("anisotropy.thermo_int", value.anisotropy.thermo_int, -1);            // Modify thermo int when turned on
-        pp_query_default("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int, -1);  // Modify thermo plot int when turned on
-        pp_query_default("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           // Frequency of elastic calculation
-        if (value.anisotropy.on) 
-            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
+            value.anisotropy.timestep = value.timestep;
+            pp_query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
+            value.anisotropy.plot_int = value.plot_int;
+            pp_query_default("anisotropy.plot_int", value.anisotropy.plot_int, -1);                // Modify plot_int when turned on
+            value.anisotropy.plot_dt = value.plot_dt;
+            pp_query_default("anisotropy.plot_dt", value.anisotropy.plot_dt, -1.0);                  // Modify plot_dt when turned on
+            pp_query_default("anisotropy.thermo_int", value.anisotropy.thermo_int, -1);            // Modify thermo int when turned on
+            pp_query_default("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int, -1);  // Modify thermo plot int when turned on
+            pp_query_default("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           // Frequency of elastic calculation
+            if (value.anisotropy.on) 
+                value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
-        // Determine the kind of regularization to use
-        std::map<std::string, RegularizationType> regularization_type;
-        regularization_type["wilmore"] = RegularizationType::Wilmore;
-        regularization_type["k12"] = RegularizationType::K12;
+            // Determine the kind of regularization to use
+            std::map<std::string, RegularizationType> regularization_type;
+            regularization_type["wilmore"] = RegularizationType::Wilmore;
+            regularization_type["k12"] = RegularizationType::K12;
 
             std::string regularization_type_input;
             // Type of regularization to use  
             pp_query_validate("anisotropy.regularization", regularization_type_input,{"k12","wilmore"});    
-        value.regularization = regularization_type[regularization_type_input];
+            value.regularization = regularization_type[regularization_type_input];
 
             // Type of GB to use
+            pp.select<Model::Interface::GB::AbsSin, Model::Interface::GB::Sin, Model::Interface::GB::Read, Model::Interface::GB::SH>("anisotropy",value.boundary); 
             pp_query_validate("anisotropy.gb_type", value.gb_type,{"abssin","sin","read","sh"}); 
-        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
+            if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
+            else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
+            else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
+            else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
             else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
         }
 
