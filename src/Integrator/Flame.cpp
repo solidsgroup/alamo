@@ -121,7 +121,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
             // laser initial condition
-            pp.select<IC::Constant,IC::Expression>("laser.ic.type",value.ic_laser, value.geom);
+            pp.select<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom);
 
             // thermal initial condition
             pp.select<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom);

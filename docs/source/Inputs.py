@@ -195,7 +195,6 @@ def extract(basefilename):
                 input["type"] = "select"
                 input["classes"] = match[0][0].replace(' ','').split(',')
                 input["string"] = match[0][1].replace(' ','')
-                print(input["string"],input["classes"])
                 input["doc"] = match[0][2]
 
                 # Check if previous lines have simple comments. Ignores "///" comments and
@@ -224,6 +223,27 @@ def extract(basefilename):
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
                 insert(input)
+                continue
+
+            # Catch a queryclass with no ID
+            match = re.findall(r'pp\.queryclass<([^>]+)>\s*\([^\)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(r'pp\.queryclass<([^\)_]+)>\s*\([^\)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = "querysubclass"
+                input["class"] = match[0][0].replace(' ','') 
+                input["doc"] = match[0][1]
+                print(match)
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                insert(input)
+            
 
 
             # Catch definition of a switch group
@@ -394,19 +414,17 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
 
     def printInputs(classname,indent="",prefix=""):
         
-        print("here",classname)
         if classname not in data.keys(): return ""
 
         html = ""
 
         for input in data[classname]["inputs"]:
             if input["type"] == "group": continue
-            #if "string" in input.keys():
-            id = prefix + input["string"]
-
 
 
             if (input["type"] == "select"):
+                id = prefix + input["string"]
+
                 html     += indent + """<div class="card mb-3" >\n"""
                 html     += indent + """  <div class="card-header">\n"""
                 html     += indent + """    <h5>{}</h5>\n""".format(id + ".type")
@@ -431,7 +449,8 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
                 html +=     indent + """</div>\n"""
 
 
-            if (input["type"] == "queryclass"):
+            elif (input["type"] == "queryclass"):
+                id = prefix + input["string"]
 
 
                 html     += indent + """<div class="card mb-3" >\n"""
@@ -443,7 +462,6 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
                 html +=     indent + """    <div class="tab-content">\n"""
 
                 cls = input["class"]
-                #
                 cls = cls.split("<")[0] # remove template args for now
                 if not cls in data.keys(): # if it's not an actual classname then
                     cls = "::".join(classname.split("::")[:-1])+"::"+cls
@@ -451,16 +469,25 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
                 name = cls.split("::")[-1].lower()
                 
                 html += printInputs(cls,indent+"      ",
-                                    prefix = input["string"] + "." + name + ".")
+                                    prefix = input["string"] + ".")
 
                 html +=     indent + """    </div>\n"""
                 html +=     indent + """  </div>\n"""
                 html +=     indent + """</div>\n"""
 
+            elif (input["type"] == "querysubclass"):
+                cls = input["class"]
+                cls = cls.split("<")[0] # remove template args for now
+                if not cls in data.keys(): # if it's not an actual classname then
+                    cls = "::".join(classname.split("::")[:-1])+"::"+cls
+                print(cls)
+
+                html += printInputs(cls,indent=indent, prefix=prefix)
 
 
 
             else:
+                id = prefix + input["string"]
 
                 html += '<div class="input-group mb-3">'
                 html += '  <div class="input-group-prepend">'
@@ -496,8 +523,8 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
 
 """
     html += "<div class='container mt-5'> <h2 class='mb-4'>Settings Form</h2><form>\n"
-    html += printInputs("Integrator::Flame")
-    #html += printInputs("Integrator::ThermoElastic")
+    #html += printInputs("Integrator::PhaseFieldMicrostructure")
+    html += printInputs("Integrator::ThermoElastic")
     html += """
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>

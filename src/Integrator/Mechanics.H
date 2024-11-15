@@ -112,6 +112,8 @@ public:
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
+        pp.queryclass<Base::Mechanics<MODEL>>(value);
+
         int nmodels;
         pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
         for (int i = 0; i < nmodels; i++)

@@ -558,7 +558,7 @@ public:
                         true
                         : false) || ...);
         if (!matched)
-            Util::Exception(INFO,type," not a valid type");
+            Util::Exception(INFO,type," not a valid type for ",name);
     }
 };
 }

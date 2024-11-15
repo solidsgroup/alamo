@@ -54,13 +54,11 @@ pf.sigma0=0.075
 anisotropy.on=1
 anisotropy.timestep=0.0005
 anisotropy.tstart= 1.
-anisotropy.gb_type=sin
+anisotropy.type=sin
 anisotropy.sin.sigma0=0.075
 anisotropy.sin.sigma1=0.07
 anisotropy.sin.theta0=45
 anisotropy.beta= 0.00001
-
-elastic.on = 0
 
 lagrange.on = 1
 lagrange.lambda = 2.0

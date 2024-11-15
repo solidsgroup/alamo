@@ -121,7 +121,7 @@ public:
         }
 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
-        pp_queryclass("mechanics",static_cast<Base::Mechanics<model_type>&>(value));
+        pp.queryclass<Base::Mechanics<model_type>>("mechanics",value);
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
 
@@ -184,13 +184,8 @@ public:
             value.regularization = regularization_type[regularization_type_input];
 
             // Type of GB to use
+            pp_forbid("anisotropy.gb_type"," --> anisotropy.type");
             pp.select<Model::Interface::GB::AbsSin, Model::Interface::GB::Sin, Model::Interface::GB::Read, Model::Interface::GB::SH>("anisotropy",value.boundary); 
-            pp_query_validate("anisotropy.gb_type", value.gb_type,{"abssin","sin","read","sh"}); 
-            if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-            else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-            else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-            else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
-            else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
         }
 
         std::string bc_type;
