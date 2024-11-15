@@ -80,7 +80,7 @@ phi.ic.bmp.fit = stretch
 phi.ic.type = bmp
 phi.zeta = 1.13e-5
 phi.zeta_0 = 1.13e-5
-plot_file = output
+plot_file = output1
 
 pressure.P = 4.0
 pressure.a1 = 1.114
@@ -125,5 +125,15 @@ thermal.temp.bc.val.xlo = 0.0
 thermal.temp.bc.val.yhi = 0.0
 thermal.temp.bc.val.ylo = 0.0
 timestep =  1e-5 #0.5e-5
+
+chamber.on = 1
+chamber.rho0 = 1.5
+chamber.c_star = 1
+chamber.pressure = 4.0
+chamber.At = 0.1
+chamber.p0 = 1
+chamber.gamma = 1.4
+chamber.T0 = 300
+chamber.R = 287
 
 #elasticop.small=0.01
