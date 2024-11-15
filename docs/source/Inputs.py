@@ -5,6 +5,7 @@ from os import listdir
 from os.path import isfile, join
 from glob import glob
 
+from docutils.core import publish_string
 
 src2url = {}
 try:
@@ -50,8 +51,6 @@ def getdocumentation(filename):
     return ret
 
 def extract(basefilename):
-    
-    
     rets = list()
     class inputdoc: pass
     for filename in [basefilename+".H",basefilename+".cpp"]:
@@ -441,12 +440,21 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
                 for cls in input["classes"]:
                     name = cls.split("::")[-1].lower()
                     html += indent + """      <div class="tab-pane" id="{}" role="tabpanel">""".format(input["string"] + "." + name)
+
+
+                    html += indent + "<p>"
+                    html += data[cls]["documentation"]
+                    html += indent + "</p>"
+
+
                     html += printInputs(cls,indent+"      ",
                                         prefix = input["string"] + "." + name + ".")
                     html += indent + """      </div>\n"""
                 html +=     indent + """    </div>\n"""
                 html +=     indent + """  </div>\n"""
                 html +=     indent + """</div>\n"""
+
+                html     += indent + """<input type='hidden' name='{}' value='[not completed yet - please enter manually]' >\n""".format(id+".type")
 
 
             elif (input["type"] == "queryclass"):
@@ -486,22 +494,40 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
 
 
 
-            else:
+            elif "validate" in input["type"]:
                 id = prefix + input["string"]
 
                 html += '<div class="input-group mb-3">'
                 html += '  <div class="input-group-prepend">'
                 html += indent + "    <span class='input-group-text'> {} </span>\n".format(id)
                 html += indent + "  </div>\n"
-                html += indent + "  <input type='text' id='{}' name='{}' class='form-control'>\n".format(id,id)
+                html += indent + """  <select class="form-select" id="{}">""".format(id)
+                html += indent + """  <option selected disabled value="">Choose...</option>"""
+                print(input["possibles"].split(','))
+                for option in input["possibles"].replace('"','').split(','):
+                    html += indent + """  <option>{}</option>""".format(option)
+                html += indent + """  </select>"""
+
                 html += indent + "</div>"
                 
+            else:
+                id = prefix + input["string"]
+
+                html += '<div class="input-group mb-3">'
+                html += '  <div class="input-group-prepend">'
+                html += indent + """<span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="{}" data-bs-content="{}">{}</span>""".format(input["file"].split("/")[-1]+":"+str(input["line"])
+                                                                                                                                                                      ,input["doc"],id)
+                #html += indent + "    <a class='input-group-text' data-bs-toggle='popover' data-content='documentation'> {} </a>\n".format(id)
+                html += indent + "  </div>\n"
+                required = ""
+                if 'required' in input["type"]: required="required"
+                placeholder = ""
+                if 'default' in input["type"]: placeholder=input["default"]
+                html += indent + "  <input type='text' id='{}' name='{}' class='form-control' {} placeholder='{}'>\n".format(
+                    id,id,required,placeholder)
+                html += indent + "</div>"
 
         return html
-    
-
-
-
 
 
     html = """
@@ -515,45 +541,185 @@ def scrapeInputsSimple(root="../../src/", writeFiles=True):
     <!-- Bootstrap CSS -->
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <link rel="stylesheet" href="styles.css">
 
 </head>
 <body>
 
 
+<style>
+        .code-container {
+            position: relative;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .variable { color: #007bff; } /* Blue for variables */
+        .string { color: #28a745; }   /* Green for strings */
+        .comment { color: #6c757d; }  /* Grey for comments */
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+</style>
+
+
+
+
+<div class='container mt-5 mb-5'> 
+<h2 class='mb-4'>Settings Form</h2><form  id='form'>
+
 """
-    html += "<div class='container mt-5'> <h2 class='mb-4'>Settings Form</h2><form>\n"
     #html += printInputs("Integrator::PhaseFieldMicrostructure")
-    html += printInputs("Integrator::ThermoElastic")
-    html += """
+    #html += printInputs("Integrator::ThermoElastic")
+    html += printInputs("Integrator::Flame")
+    html += r"""
+</form>
+
+
+<form>
+  <h2 class='mb-4'>Alamo input file</h2><form  id='form'>
+  <div class="form-group">
+    <label for="code-container">The following contains only set values and is updated dynamically.</label>
+    <textarea class="form-control" id="code-container" rows="10"></textarea>
+  </div>
+</form>
+
+
+</div>
+</body>
+
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-<script src="main.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
 <script>
-    function showConditionalInputs(id) {
-        // Hide all conditional input sections initially
-        options = document.getElementById(id+".type"); //.style.display = "none";
 
-        value = options.value
-        size  = options.length
 
-        for (i=0; i < size; i++) {
-            divname = id + "." + options[i].value;
-            if (options[i].value == value)
-                document.getElementById(divname).style.display="block";
-            else
-                document.getElementById(divname).style.display="none";
+
+function updateResult() {
+    // Select all input elements within the form (except the result textbox)
+    const form = document.getElementById('form');
+    const inputs = form.querySelectorAll('input, select');
+    //console.log(inputs);
+
+    // Concatenate the values of all inputs
+    //let concatenatedString = Array.from(inputs)
+    //    .map(input => input.value.trim()) // Get trimmed values
+    //    .join(" ");                      // Concatenate with a space
+
+    var concatenatedString = ""
+    inputs.forEach((input) => {
+      if(input.value.trim() != '')
+          concatenatedString += input.name + " = " + input.value + "\n";
+    });
+
+
+    // Update the result textbox
+    //document.getElementById("result").value = concatenatedString;
+    //console.log(concatenatedString);
+    document.getElementById("code-container").value = concatenatedString;
+}
+
+
+// Add event listeners to all inputs within the form (except the result textbox)
+document.querySelectorAll("input, select").forEach(input => {
+    input.addEventListener("input", updateResult); // Trigger on any input change
+});
+
+
+//    function generateInputFile() {
+//        const form = document.getElementById('form');
+//        const inputs = form.querySelectorAll('input');
+//
+//        inputs.forEach((input) => {
+//            if(input.value.trim() != '')
+//            console.log(input.name + "=" + input.value);
+//        });
+//        console.log(form)
+//        console.log(inputs)
+//        console.log(inputs.size)
+//        for (i=0; i < inputs.length; i++) {
+//           console.log(inputs.entries[i].id);
+//           console.log(inputs.entries[i].value);
+//        }
+//    }
+
+
+  // JavaScript for live validation
+  document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('form');
+    const inputs = form.querySelectorAll('input[required]');
+
+
+    // Initialize all popovers
+    inputs.forEach((input) => {
+      new bootstrap.Popover(input);
+    });
+
+
+    // Validate fields on page load
+    inputs.forEach((input) => {
+      if (input.value.trim() === '') {
+        input.classList.add('is-invalid');
+      }
+    });
+
+    inputs.forEach((input) => {
+      input.addEventListener('input', function () {
+        if (!input.value) {
+          input.classList.add('is-invalid');
+        } 
+        else if (input.value.trim() === '') {
+          input.classList.add('is-invalid');
+        } else {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
         }
+      });
+    });
 
-        // Show the section based on the selected eta.ic.type
-        // var selectedType = document.getElementById("pf_eta_ic_type").value;
+      form.addEventListener('submit', function (event) {
+        let isValid = true;
 
-        //if (selectedType === "laminate") {
-        //    document.getElementById("laminateInputs").style.display = "block";
-        //} 
-        //printf("HI");
-    }
+        inputs.forEach((input) => {
+          if (input.value.trim() === '') {
+            input.classList.add('is-invalid');
+            isValid = false;
+          } else {
+            input.classList.remove('is-invalid');
+          }
+        });
+
+      if (!isValid) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
+
+
+    // Add event listener for all tabs across all containers
+    document.querySelectorAll('.tab-container').forEach(container => {
+        const hiddenInput = container.querySelector('.selectedTab');
+        const tabs = container.querySelectorAll('.nav-tabs .nav-link');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                const activeTabId = event.target.id; // Get the ID of the active tab
+                hiddenInput.value = activeTabId; // Update the hidden input value
+                console.log(activeTabId);
+            });
+        });
+    });
+  });
+
+
+const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
+const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl))
 
 </script>
 

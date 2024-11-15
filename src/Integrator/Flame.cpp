@@ -28,10 +28,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
-        //pp_query("fields_verbose", value.plot_field);
-        pp_query_default("timestep", value.base_time, 1.0e-4);
-        // These are the phase field method parameters
-        // that you use to inform the phase field method.
+        pp_query_default("timestep", value.base_time, 1.0e-4); //Simulation timestep
         pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
         pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
         pp_query_default("pf.gamma", value.pf.gamma, 1.0); // Scaling factor for mobility
@@ -50,13 +47,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, value.ghost_count, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
-        std::string eta_bc_str = "constant";
-        pp_query_validate("pf.eta.ic.type", eta_bc_str, {"constant", "expression"}); // Eta boundary condition [constant, expression]
-        if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
-        else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
+        // phase field initial condition
+        pp.select<IC::Constant,IC::Expression>("pf.eta.ic",value.ic_eta,value.geom); // after comment
 
-        //before comment
-        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.ic_eta,value.geom); // after comment
+        // phase field initial condition
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.ic_eta,value.geom); 
     }
 
     {
@@ -210,14 +205,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
     }
 
-    pp_queryclass("elastic",static_cast<Base::Mechanics<model_type>&>(value));
+    pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
 
     if (value.m_type != Type::Disable)
     {
         value.elastic.Tref = value.thermal.bound;
         pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
-        pp_queryclass("model_ap", value.elastic.model_ap);
-        pp_queryclass("model_htpb", value.elastic.model_htpb);
+        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+        pp_queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);

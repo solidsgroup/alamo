@@ -30,7 +30,7 @@ amr.max_grid_size = 8
 
 #amr.thermo.plot_dt = 0.1
 
-ic.type=perturbed_interface
+ic.type=perturbedinterface
 ic.wave_numbers=4
 ic.wave_amplitudes=0.5
 ic.normal = y
@@ -40,12 +40,13 @@ geometry.prob_lo = 0 -4 0
 geometry.prob_hi = 8 4 8
 geometry.is_periodic= 0 0 0
 
-bc.eta.type.xlo = neumann
-bc.eta.type.xhi = neumann
-bc.eta.type.ylo = dirichlet
-bc.eta.type.yhi = dirichlet
-bc.eta.val.ylo  = 1.0 0.0
-bc.eta.val.yhi  = 0.0 1.0
+bc.eta.type = constant
+bc.eta.constant.type.xlo = neumann
+bc.eta.constant.type.xhi = neumann
+bc.eta.constant.type.ylo = dirichlet
+bc.eta.constant.type.yhi = dirichlet
+bc.eta.constant.val.ylo  = 1.0 0.0
+bc.eta.constant.val.yhi  = 0.0 1.0
 
 pf.number_of_grains = 2
 pf.M = 1.0 

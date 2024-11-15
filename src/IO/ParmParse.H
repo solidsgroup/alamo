@@ -510,14 +510,6 @@ public:
         try
         {
             T::Parse(*value, *this);
-            std::vector<std::string> unused_inputs = GetUnusedInputs();
-            if (unused_inputs.size())
-            {
-                std::stringstream ss;
-                for (unsigned int i=0; i < unused_inputs.size(); i++)
-                    ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,getPrefix(),"The following inputs were specified but not used",ss.str());
-            }
         }
         catch (...)
         {
@@ -531,14 +523,6 @@ public:
         try
         {
             T::Parse(value, *this);
-            std::vector<std::string> unused_inputs = GetUnusedInputs();
-            if (unused_inputs.size())
-            {
-                std::stringstream ss;
-                for (unsigned int i=0; i < unused_inputs.size(); i++)
-                    ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,getPrefix(),"The following inputs were specified but not used",ss.str());
-            }
         }
         catch (...)
         {
