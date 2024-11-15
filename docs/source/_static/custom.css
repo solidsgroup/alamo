@@ -112,7 +112,7 @@ ul.nav-tabs > li {
     margin: 0 !important;
 }
 
-div.card-header h5 {
+.card-title {
     text-decoration: none;
 }
 

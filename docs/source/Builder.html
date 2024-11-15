@@ -1,0 +1,1005 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Form with Nested Sections</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+</head>
+<body>
+<style>
+        .code-container {
+            position: relative;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .variable { color: #007bff; } /* Blue for variables */
+        .string { color: #28a745; }   /* Green for strings */
+        .comment { color: #6c757d; }  /* Grey for comments */
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+</style>
+<div class='container mt-5 mb-5'> 
+<h2 class='mb-4'>Integrator::Flame inputs</h2><form  id='form'>
+
+<div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:31" data-bs-content="Simulation timestep">timestep</span>  </div>
+  <input type='text' id='timestep' name='timestep' class='form-control'  placeholder='1.0e-4'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:32" data-bs-content="Burn width thickness">pf.eps</span>  </div>
+  <input type='text' id='pf.eps' name='pf.eps' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:33" data-bs-content="Interface energy param">pf.kappa</span>  </div>
+  <input type='text' id='pf.kappa' name='pf.kappa' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:34" data-bs-content="Scaling factor for mobility">pf.gamma</span>  </div>
+  <input type='text' id='pf.gamma' name='pf.gamma' class='form-control'  placeholder='1.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:35" data-bs-content="Chemical potential multiplier">pf.lambda</span>  </div>
+  <input type='text' id='pf.lambda' name='pf.lambda' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:36" data-bs-content="Unburned rest energy">pf.w1</span>  </div>
+  <input type='text' id='pf.w1' name='pf.w1' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:37" data-bs-content="Barrier energy">pf.w12</span>  </div>
+  <input type='text' id='pf.w12' name='pf.w12' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:38" data-bs-content="Burned rest energy">pf.w0</span>  </div>
+  <input type='text' id='pf.w0' name='pf.w0' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:39" data-bs-content="number of ghost cells in all fields">amr.ghost_cells</span>  </div>
+  <input type='text' id='amr.ghost_cells' name='amr.ghost_cells' class='form-control'  placeholder='2'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:40" data-bs-content="Domain x length">geometry.x_len</span>  </div>
+  <input type='text' id='geometry.x_len' name='geometry.x_len' class='form-control'  placeholder='0.001'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:41" data-bs-content="Domain y length">geometry.y_len</span>  </div>
+  <input type='text' id='geometry.y_len' name='geometry.y_len' class='form-control'  placeholder='0.001'>
+</div><div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">pf.eta.bc.type</h3>
+    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#pf.eta.bc.constant" role="tab" >constant</a> 
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      <div class="tab-pane" id="pf.eta.bc.constant" role="tabpanel"><p>
+This is the most commonly used standard boundary condition implementation.
+The name "Constant" refers to the invariance of the BC value or character along each face
+of the simulation domain; however, you may cause a change in the value with time by using a
+:ref:`Numeric::Interpolator::Linear` string.
+
+The BC on each face is specified with a :code:`type` string that specifies the nature of 
+the BC, and a :code:`val` that specifies the value.
+By default, all types are Dirichlet and all values are 0.0.
+The complete list of BC types are below:
+
+.. table::
+   :widths: 30 70
+
+   +--------------------------+-----------------------------------------------------------------+
+   | BC Type                  | Description                                                     |
+   +==========================+=================================================================+
+   | :code:`Dirichlet`        | Standard Dirichlet boundary condition                           |
+   +--------------------------+ (https://en.wikipedia.org/wiki/Dirichlet_boundary_condition).   |
+   | :code:`dirichlet`        | Fixes the value of the **function** at the boundary.            |
+   +--------------------------+                                                                 +
+   | :code:`EXT_DIR`          |                                                                 |                        
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`Neumann`          | Standard Neumann boundary condition                             |                        
+   +--------------------------+ (https://en.wikipedia.org/wiki/Neumann_boundary_condition)      +
+   | :code:`neumann`          |                                                                 |                        
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`Periodic`         | Standard periodic boundary condition.                           |
+   +--------------------------+ (https://en.wikipedia.org/wiki/Periodic_boundary_conditions).   |
+   | :code:`periodic`         | **Important**: Ensure that your geometry is specified to be     |                        
+   +--------------------------+ periodic using :code:`geometry.is_periodic`. For instance, if   |
+   | :code:`INT_DIR`          | periodic in x, set to :code:`1 0 0`                             |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`REFLECT_ODD`      | Effectively the same as dirichlet but with value fixed to 0     |
+   +--------------------------+                                                                 +
+   | :code:`reflect_odd`      |                                                                 |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`REFLECT_EVEN`     | Effectively the same as neumann but with value fixed to 0       |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`BOGUS_BC`         | Used for internal operations - not for general use              |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`FOEXTRAP`         | These are BC types inherited from AMReX and not yet implemented |
+   +--------------------------+ in Alamo. If you need BCs of this type, you will need to        +
+   | :code:`HOEXTRAP`         | implement them yourself.                                        |
+   +--------------------------+                                                                 +
+   | :code:`Interior`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`Inflow`           |                                                                 |                       
+   +--------------------------+                                                                 +
+   | :code:`Outflow`          |                                                                 |                        
+   +--------------------------+                                                                 +
+   | :code:`Symmetry`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`SlipWall`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`NoSlipWall`       |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`interior`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`Marshak`          |                                                                 |                        
+   +--------------------------+                                                                 +
+   | :code:`SanchezPomraning` |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`inflow`           |                                                                 |                       
+   +--------------------------+-----------------------------------------------------------------+
+
+The BC values can be specified either as a number (e.g. :code:`1.0`) or using a linear interpolator
+string (e.g. :code:`(0,1:2.3,-0.1)`).
+
+The number of values and types must be either 0 (for defaults), 1 (to set the same for all field components)
+or N (where N=number of field components).
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:242" data-bs-content="BC type on the lower x edge (2d) face (3d)">pf.eta.bc.constant.type.xlo</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.type.xlo' name='pf.eta.bc.constant.type.xlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:247" data-bs-content="BC type on the upper x edge (2d) face (3d)">pf.eta.bc.constant.type.xhi</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.type.xhi' name='pf.eta.bc.constant.type.xhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:252" data-bs-content="BC type on the lower y edge (2d) face (3d)">pf.eta.bc.constant.type.ylo</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.type.ylo' name='pf.eta.bc.constant.type.ylo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:257" data-bs-content="BC type on the upper y edge (2d) face (3d)">pf.eta.bc.constant.type.yhi</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.type.yhi' name='pf.eta.bc.constant.type.yhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:262" data-bs-content="BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)">pf.eta.bc.constant.type.zlo</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.type.zlo' name='pf.eta.bc.constant.type.zlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:269" data-bs-content="BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)">pf.eta.bc.constant.type.zhi</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.type.zhi' name='pf.eta.bc.constant.type.zhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:280" data-bs-content="BC value on the lower x edge (2d) face (3d)">pf.eta.bc.constant.val.xlo</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.val.xlo' name='pf.eta.bc.constant.val.xlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:286" data-bs-content="BC value on the upper x edge (2d) face (3d)">pf.eta.bc.constant.val.xhi</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.val.xhi' name='pf.eta.bc.constant.val.xhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:292" data-bs-content="BC value on the lower y edge (2d) face (3d)">pf.eta.bc.constant.val.ylo</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.val.ylo' name='pf.eta.bc.constant.val.ylo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:298" data-bs-content="BC value on the upper y edge (2d) face (3d)">pf.eta.bc.constant.val.yhi</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.val.yhi' name='pf.eta.bc.constant.val.yhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:303" data-bs-content="BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)">pf.eta.bc.constant.val.zlo</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.val.zlo' name='pf.eta.bc.constant.val.zlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:311" data-bs-content="BC value on the upper z face (processed but ignored in 2d to prevent unused input errors)">pf.eta.bc.constant.val.zhi</span>        </div>
+        <input type='text' id='pf.eta.bc.constant.val.zhi' name='pf.eta.bc.constant.val.zhi' class='form-control'  placeholder=''>
+      </div>      </div>
+    </div>
+  </div>
+</div>
+<input type='hidden' name='pf.eta.bc.type' value='[not completed yet - please enter manually]' >
+<div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">pf.eta.ic.type</h3>
+    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#pf.eta.ic.constant" role="tab" >constant</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#pf.eta.ic.expression" role="tab" >expression</a> 
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      <div class="tab-pane" id="pf.eta.ic.constant" role="tabpanel"><p>
+Basic IC that just sets the entire field to a constant value.
+Works with a single or multiple-component field.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:51" data-bs-content="Array of constant values. The number of values should equal either 1 or N where N is the number of fab components ">pf.eta.ic.constant.value</span>        </div>
+        <input type='text' id='pf.eta.ic.constant.value' name='pf.eta.ic.constant.value' class='form-control' required placeholder=''>
+      </div>      </div>
+      <div class="tab-pane" id="pf.eta.ic.expression" role="tabpanel"><p>
+Initialize a field using a mathematical expression.
+Expressions are imported as strings and are compiled real-time using the
+`AMReX Parser <https://amrex-codes.github.io/amrex/docs_html/Basics.html#parser>`_.
+
+Works for single or multiple-component fields.
+Use the :code:`regionN` (N=0,1,2, etc. up to number of components) to pass expression.
+For example:
+
+.. code-block:: bash
+
+   ic.region0 = "sin(x*y*z)"
+   ic.region1 = "3.0*(x > 0.5 and y > 0.5)"
+
+for a two-component field. It is up to you to make sure your expressions are parsed
+correctly; otherwise you will get undefined behavior.
+
+:bdg-primary-line:`Constants`
+You can add constants to your expressions using the :code:`constant` directive.
+For instance, in the following code
+
+.. code-block:: bash
+
+   psi.ic.type=expression
+   psi.ic.expression.constant.eps = 0.05
+   psi.ic.expression.constant.R   = 0.25
+   psi.ic.expression.region0 = "0.5 + 0.5*tanh((x^2 + y^2 - R)/eps)"
+   
+the constants :code:`eps` and :code:`R` are defined by the user and then used
+in the subsequent expression.
+The variables can have any name made up of characters that is not reserved.
+However, if multiple ICs are used, they must be defined each time for each IC.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Expression.H:145" data-bs-content="coordinate system to use: "cartesian" (for x,y,z,t) and  "polar" (for r, theta, z, t) ">pf.eta.ic.expression.coord</span>        </div>
+        <input type='text' id='pf.eta.ic.expression.coord' name='pf.eta.ic.expression.coord' class='form-control'  placeholder=''>
+      </div>      </div>
+    </div>
+  </div>
+</div>
+<input type='hidden' name='pf.eta.ic.type' value='[not completed yet - please enter manually]' >
+<div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">eta.ic.type</h3>
+    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#eta.ic.laminate" role="tab" >laminate</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#eta.ic.constant" role="tab" >constant</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#eta.ic.expression" role="tab" >expression</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#eta.ic.bmp" role="tab" >bmp</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#eta.ic.png" role="tab" >png</a> 
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      <div class="tab-pane" id="eta.ic.laminate" role="tabpanel"><p>
+Create a single laminate with specified orientation, thickness, and offset.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Laminate.H:85" data-bs-content="How many laminates (MUST be greater than or equal to 1). ">eta.ic.laminate.number_of_inclusions</span>        </div>
+        <input type='text' id='eta.ic.laminate.number_of_inclusions' name='eta.ic.laminate.number_of_inclusions' class='form-control'  placeholder='1'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Laminate.H:125" data-bs-content="Vector normal to the interface of the laminate ">eta.ic.laminate.orientation</span>        </div>
+        <input type='text' id='eta.ic.laminate.orientation' name='eta.ic.laminate.orientation' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Laminate.H:164" data-bs-content="Diffuse thickness ">eta.ic.laminate.eps</span>        </div>
+        <input type='text' id='eta.ic.laminate.eps' name='eta.ic.laminate.eps' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Laminate.H:186" data-bs-content="Type of mollifer to use (options: dirac, [gaussian])">eta.ic.laminate.mollifier</span>        </div>
+        <input type='text' id='eta.ic.laminate.mollifier' name='eta.ic.laminate.mollifier' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Laminate.H:193" data-bs-content="Switch to mode where only one component is used. ">eta.ic.laminate.singlefab</span>        </div>
+        <input type='text' id='eta.ic.laminate.singlefab' name='eta.ic.laminate.singlefab' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Laminate.H:196" data-bs-content="Take the complement of the laminate ">eta.ic.laminate.invert</span>        </div>
+        <input type='text' id='eta.ic.laminate.invert' name='eta.ic.laminate.invert' class='form-control'  placeholder=''>
+      </div>      </div>
+      <div class="tab-pane" id="eta.ic.constant" role="tabpanel"><p>
+Basic IC that just sets the entire field to a constant value.
+Works with a single or multiple-component field.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:51" data-bs-content="Array of constant values. The number of values should equal either 1 or N where N is the number of fab components ">eta.ic.constant.value</span>        </div>
+        <input type='text' id='eta.ic.constant.value' name='eta.ic.constant.value' class='form-control' required placeholder=''>
+      </div>      </div>
+      <div class="tab-pane" id="eta.ic.expression" role="tabpanel"><p>
+Initialize a field using a mathematical expression.
+Expressions are imported as strings and are compiled real-time using the
+`AMReX Parser <https://amrex-codes.github.io/amrex/docs_html/Basics.html#parser>`_.
+
+Works for single or multiple-component fields.
+Use the :code:`regionN` (N=0,1,2, etc. up to number of components) to pass expression.
+For example:
+
+.. code-block:: bash
+
+   ic.region0 = "sin(x*y*z)"
+   ic.region1 = "3.0*(x > 0.5 and y > 0.5)"
+
+for a two-component field. It is up to you to make sure your expressions are parsed
+correctly; otherwise you will get undefined behavior.
+
+:bdg-primary-line:`Constants`
+You can add constants to your expressions using the :code:`constant` directive.
+For instance, in the following code
+
+.. code-block:: bash
+
+   psi.ic.type=expression
+   psi.ic.expression.constant.eps = 0.05
+   psi.ic.expression.constant.R   = 0.25
+   psi.ic.expression.region0 = "0.5 + 0.5*tanh((x^2 + y^2 - R)/eps)"
+   
+the constants :code:`eps` and :code:`R` are defined by the user and then used
+in the subsequent expression.
+The variables can have any name made up of characters that is not reserved.
+However, if multiple ICs are used, they must be defined each time for each IC.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Expression.H:145" data-bs-content="coordinate system to use: "cartesian" (for x,y,z,t) and  "polar" (for r, theta, z, t) ">eta.ic.expression.coord</span>        </div>
+        <input type='text' id='eta.ic.expression.coord' name='eta.ic.expression.coord' class='form-control'  placeholder=''>
+      </div>      </div>
+      <div class="tab-pane" id="eta.ic.bmp" role="tabpanel"><p>
+Initialize a field using a bitmap image. (2D only)
+
+Note that in GIMP, you must select "do not write color space information"
+and "24 bit R8 G8 B8" when exporting the BMP file.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:179" data-bs-content="BMP filename.">eta.ic.bmp.filename</span>        </div>
+        <input type='text' id='eta.ic.bmp.filename' name='eta.ic.bmp.filename' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> eta.ic.bmp.fit </span>
+        </div>
+        <select class="form-select" id="eta.ic.bmp.fit">        <option selected disabled value="">Choose...</option>        <option>stretch</option>        <option>fitheight</option>        <option>fitwidth</option>        <option>coord</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:191" data-bs-content="Location of lower-left corner in the domain">eta.ic.bmp.coord.lo</span>        </div>
+        <input type='text' id='eta.ic.bmp.coord.lo' name='eta.ic.bmp.coord.lo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:192" data-bs-content="Location of upper-right corner in the domain">eta.ic.bmp.coord.hi</span>        </div>
+        <input type='text' id='eta.ic.bmp.coord.hi' name='eta.ic.bmp.coord.hi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> eta.ic.bmp.channel </span>
+        </div>
+        <select class="form-select" id="eta.ic.bmp.channel">        <option selected disabled value="">Choose...</option>        <option>r</option>        <option>g</option>        <option>b</option>        <option>R</option>        <option>G</option>        <option>B</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:206" data-bs-content="Scaling value - minimum">eta.ic.bmp.min</span>        </div>
+        <input type='text' id='eta.ic.bmp.min' name='eta.ic.bmp.min' class='form-control'  placeholder='0.0'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:207" data-bs-content="Scaling value - maximum">eta.ic.bmp.max</span>        </div>
+        <input type='text' id='eta.ic.bmp.max' name='eta.ic.bmp.max' class='form-control'  placeholder='255.0'>
+      </div>      </div>
+      <div class="tab-pane" id="eta.ic.png" role="tabpanel"><p>
+Initialize a field using a PNG image. (2D only)
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:275" data-bs-content="BMP filename.">eta.ic.png.filename</span>        </div>
+        <input type='text' id='eta.ic.png.filename' name='eta.ic.png.filename' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:280" data-bs-content="How to fit. {options: stretch, fitheight, fitwidth}">eta.ic.png.fit</span>        </div>
+        <input type='text' id='eta.ic.png.fit' name='eta.ic.png.fit' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:287" data-bs-content="Lower-left coordinates of image in domain">eta.ic.png.coord.lo</span>        </div>
+        <input type='text' id='eta.ic.png.coord.lo' name='eta.ic.png.coord.lo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:288" data-bs-content="Upper-right coordinates of image in domain">eta.ic.png.coord.hi</span>        </div>
+        <input type='text' id='eta.ic.png.coord.hi' name='eta.ic.png.coord.hi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> eta.ic.png.channel </span>
+        </div>
+        <select class="form-select" id="eta.ic.png.channel">        <option selected disabled value="">Choose...</option>        <option>r</option>        <option>g</option>        <option>b</option>        <option>a</option>        <option>R</option>        <option>G</option>        <option>B</option>        <option>A</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:304" data-bs-content="Scaling value - minimum">eta.ic.png.min</span>        </div>
+        <input type='text' id='eta.ic.png.min' name='eta.ic.png.min' class='form-control'  placeholder='0.0  '>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:305" data-bs-content="Scaling value - maximum">eta.ic.png.max</span>        </div>
+        <input type='text' id='eta.ic.png.max' name='eta.ic.png.max' class='form-control'  placeholder='255.0'>
+      </div>      </div>
+    </div>
+  </div>
+</div>
+<input type='hidden' name='eta.ic.type' value='[not completed yet - please enter manually]' >
+<div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:59" data-bs-content="IO::ParmParse pp("thermal"); Whether to use the Thermal Transport Model">thermal.on</span>  </div>
+  <input type='text' id='thermal.on' name='thermal.on' class='form-control'  placeholder='false'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:60" data-bs-content="Whether to use Neo-hookean Elastic model">elastic.on</span>  </div>
+  <input type='text' id='elastic.on' name='elastic.on' class='form-control'  placeholder='0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:61" data-bs-content="System Initial Temperature">thermal.bound</span>  </div>
+  <input type='text' id='thermal.bound' name='thermal.bound' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:62" data-bs-content="Body force">elastic.traction</span>  </div>
+  <input type='text' id='elastic.traction' name='elastic.traction' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:63" data-bs-content="Phi refinement criteria ">elastic.phirefinement</span>  </div>
+  <input type='text' id='elastic.phirefinement' name='elastic.phirefinement' class='form-control'  placeholder='1'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:68" data-bs-content="AP Density">thermal.rho_ap</span>  </div>
+  <input type='text' id='thermal.rho_ap' name='thermal.rho_ap' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:69" data-bs-content="HTPB Density">thermal.rho_htpb</span>  </div>
+  <input type='text' id='thermal.rho_htpb' name='thermal.rho_htpb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:70" data-bs-content="AP Thermal Conductivity">thermal.k_ap</span>  </div>
+  <input type='text' id='thermal.k_ap' name='thermal.k_ap' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:71" data-bs-content="HTPB Thermal Conductivity">thermal.k_htpb</span>  </div>
+  <input type='text' id='thermal.k_htpb' name='thermal.k_htpb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:72" data-bs-content="AP Specific Heat">thermal.cp_ap</span>  </div>
+  <input type='text' id='thermal.cp_ap' name='thermal.cp_ap' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:73" data-bs-content="HTPB Specific Heat">thermal.cp_htpb</span>  </div>
+  <input type='text' id='thermal.cp_htpb' name='thermal.cp_htpb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:75" data-bs-content="Baseline heat flux">thermal.q0</span>  </div>
+  <input type='text' id='thermal.q0' name='thermal.q0' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:77" data-bs-content="AP Pre-exponential factor for Arrhenius Law">thermal.m_ap</span>  </div>
+  <input type='text' id='thermal.m_ap' name='thermal.m_ap' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:78" data-bs-content="HTPB Pre-exponential factor for Arrhenius Law">thermal.m_htpb</span>  </div>
+  <input type='text' id='thermal.m_htpb' name='thermal.m_htpb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:79" data-bs-content="AP Activation Energy for Arrhenius Law">thermal.E_ap</span>  </div>
+  <input type='text' id='thermal.E_ap' name='thermal.E_ap' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:80" data-bs-content="HTPB Activation Energy for Arrhenius Law">thermal.E_htpb</span>  </div>
+  <input type='text' id='thermal.E_htpb' name='thermal.E_htpb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:82" data-bs-content="Used to change heat flux units">thermal.hc</span>  </div>
+  <input type='text' id='thermal.hc' name='thermal.hc' class='form-control'  placeholder='1.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:83" data-bs-content="Systen AP mass fraction">thermal.massfraction</span>  </div>
+  <input type='text' id='thermal.massfraction' name='thermal.massfraction' class='form-control'  placeholder='0.8'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:84" data-bs-content="AP mass flux reference value ">thermal.mlocal_ap</span>  </div>
+  <input type='text' id='thermal.mlocal_ap' name='thermal.mlocal_ap' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:85" data-bs-content="HTPB mass flux reference value ">thermal.mlocal_htpb</span>  </div>
+  <input type='text' id='thermal.mlocal_htpb' name='thermal.mlocal_htpb' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:86" data-bs-content="AP/HTPB mass flux reference value ">thermal.mlocal_comb</span>  </div>
+  <input type='text' id='thermal.mlocal_comb' name='thermal.mlocal_comb' class='form-control'  placeholder='0.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:88" data-bs-content="Temperature of the Standin Fluid ">thermal.T_fluid</span>  </div>
+  <input type='text' id='thermal.T_fluid' name='thermal.T_fluid' class='form-control'  placeholder='300.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:90" data-bs-content="K; dispersion variables are use to set the outter field properties for the void grain case.">thermal.disperssion1</span>  </div>
+  <input type='text' id='thermal.disperssion1' name='thermal.disperssion1' class='form-control'  placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:91" data-bs-content="rho; dispersion variables are use to set the outter field properties for the void grain case.">thermal.disperssion2</span>  </div>
+  <input type='text' id='thermal.disperssion2' name='thermal.disperssion2' class='form-control'  placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:92" data-bs-content="cp; dispersion variables are use to set the outter field properties for the void grain case.">thermal.disperssion3</span>  </div>
+  <input type='text' id='thermal.disperssion3' name='thermal.disperssion3' class='form-control'  placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:94" data-bs-content="Scaling factor for AP thermal conductivity (default = 1.0)">thermal.modeling_ap</span>  </div>
+  <input type='text' id='thermal.modeling_ap' name='thermal.modeling_ap' class='form-control'  placeholder='1.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:95" data-bs-content="Scaling factor for HTPB thermal conductivity (default = 1.0)">thermal.modeling_htpb</span>  </div>
+  <input type='text' id='thermal.modeling_htpb' name='thermal.modeling_htpb' class='form-control'  placeholder='1.0'>
+</div><div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">thermal.temp.bc.type</h3>
+    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#thermal.temp.bc.constant" role="tab" >constant</a> 
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      <div class="tab-pane" id="thermal.temp.bc.constant" role="tabpanel"><p>
+This is the most commonly used standard boundary condition implementation.
+The name "Constant" refers to the invariance of the BC value or character along each face
+of the simulation domain; however, you may cause a change in the value with time by using a
+:ref:`Numeric::Interpolator::Linear` string.
+
+The BC on each face is specified with a :code:`type` string that specifies the nature of 
+the BC, and a :code:`val` that specifies the value.
+By default, all types are Dirichlet and all values are 0.0.
+The complete list of BC types are below:
+
+.. table::
+   :widths: 30 70
+
+   +--------------------------+-----------------------------------------------------------------+
+   | BC Type                  | Description                                                     |
+   +==========================+=================================================================+
+   | :code:`Dirichlet`        | Standard Dirichlet boundary condition                           |
+   +--------------------------+ (https://en.wikipedia.org/wiki/Dirichlet_boundary_condition).   |
+   | :code:`dirichlet`        | Fixes the value of the **function** at the boundary.            |
+   +--------------------------+                                                                 +
+   | :code:`EXT_DIR`          |                                                                 |                        
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`Neumann`          | Standard Neumann boundary condition                             |                        
+   +--------------------------+ (https://en.wikipedia.org/wiki/Neumann_boundary_condition)      +
+   | :code:`neumann`          |                                                                 |                        
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`Periodic`         | Standard periodic boundary condition.                           |
+   +--------------------------+ (https://en.wikipedia.org/wiki/Periodic_boundary_conditions).   |
+   | :code:`periodic`         | **Important**: Ensure that your geometry is specified to be     |                        
+   +--------------------------+ periodic using :code:`geometry.is_periodic`. For instance, if   |
+   | :code:`INT_DIR`          | periodic in x, set to :code:`1 0 0`                             |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`REFLECT_ODD`      | Effectively the same as dirichlet but with value fixed to 0     |
+   +--------------------------+                                                                 +
+   | :code:`reflect_odd`      |                                                                 |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`REFLECT_EVEN`     | Effectively the same as neumann but with value fixed to 0       |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`BOGUS_BC`         | Used for internal operations - not for general use              |
+   +--------------------------+-----------------------------------------------------------------+
+   | :code:`FOEXTRAP`         | These are BC types inherited from AMReX and not yet implemented |
+   +--------------------------+ in Alamo. If you need BCs of this type, you will need to        +
+   | :code:`HOEXTRAP`         | implement them yourself.                                        |
+   +--------------------------+                                                                 +
+   | :code:`Interior`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`Inflow`           |                                                                 |                       
+   +--------------------------+                                                                 +
+   | :code:`Outflow`          |                                                                 |                        
+   +--------------------------+                                                                 +
+   | :code:`Symmetry`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`SlipWall`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`NoSlipWall`       |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`interior`         |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`Marshak`          |                                                                 |                        
+   +--------------------------+                                                                 +
+   | :code:`SanchezPomraning` |                                                                 |
+   +--------------------------+                                                                 +
+   | :code:`inflow`           |                                                                 |                       
+   +--------------------------+-----------------------------------------------------------------+
+
+The BC values can be specified either as a number (e.g. :code:`1.0`) or using a linear interpolator
+string (e.g. :code:`(0,1:2.3,-0.1)`).
+
+The number of values and types must be either 0 (for defaults), 1 (to set the same for all field components)
+or N (where N=number of field components).
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:242" data-bs-content="BC type on the lower x edge (2d) face (3d)">thermal.temp.bc.constant.type.xlo</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.type.xlo' name='thermal.temp.bc.constant.type.xlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:247" data-bs-content="BC type on the upper x edge (2d) face (3d)">thermal.temp.bc.constant.type.xhi</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.type.xhi' name='thermal.temp.bc.constant.type.xhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:252" data-bs-content="BC type on the lower y edge (2d) face (3d)">thermal.temp.bc.constant.type.ylo</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.type.ylo' name='thermal.temp.bc.constant.type.ylo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:257" data-bs-content="BC type on the upper y edge (2d) face (3d)">thermal.temp.bc.constant.type.yhi</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.type.yhi' name='thermal.temp.bc.constant.type.yhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:262" data-bs-content="BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)">thermal.temp.bc.constant.type.zlo</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.type.zlo' name='thermal.temp.bc.constant.type.zlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:269" data-bs-content="BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)">thermal.temp.bc.constant.type.zhi</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.type.zhi' name='thermal.temp.bc.constant.type.zhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:280" data-bs-content="BC value on the lower x edge (2d) face (3d)">thermal.temp.bc.constant.val.xlo</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.val.xlo' name='thermal.temp.bc.constant.val.xlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:286" data-bs-content="BC value on the upper x edge (2d) face (3d)">thermal.temp.bc.constant.val.xhi</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.val.xhi' name='thermal.temp.bc.constant.val.xhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:292" data-bs-content="BC value on the lower y edge (2d) face (3d)">thermal.temp.bc.constant.val.ylo</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.val.ylo' name='thermal.temp.bc.constant.val.ylo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:298" data-bs-content="BC value on the upper y edge (2d) face (3d)">thermal.temp.bc.constant.val.yhi</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.val.yhi' name='thermal.temp.bc.constant.val.yhi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:303" data-bs-content="BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)">thermal.temp.bc.constant.val.zlo</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.val.zlo' name='thermal.temp.bc.constant.val.zlo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:311" data-bs-content="BC value on the upper z face (processed but ignored in 2d to prevent unused input errors)">thermal.temp.bc.constant.val.zhi</span>        </div>
+        <input type='text' id='thermal.temp.bc.constant.val.zhi' name='thermal.temp.bc.constant.val.zhi' class='form-control'  placeholder=''>
+      </div>      </div>
+    </div>
+  </div>
+</div>
+<input type='hidden' name='thermal.temp.bc.type' value='[not completed yet - please enter manually]' >
+<div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">laser.ic.type</h3>
+    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#laser.ic.constant" role="tab" >constant</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#laser.ic.expression" role="tab" >expression</a> 
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      <div class="tab-pane" id="laser.ic.constant" role="tabpanel"><p>
+Basic IC that just sets the entire field to a constant value.
+Works with a single or multiple-component field.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:51" data-bs-content="Array of constant values. The number of values should equal either 1 or N where N is the number of fab components ">laser.ic.constant.value</span>        </div>
+        <input type='text' id='laser.ic.constant.value' name='laser.ic.constant.value' class='form-control' required placeholder=''>
+      </div>      </div>
+      <div class="tab-pane" id="laser.ic.expression" role="tabpanel"><p>
+Initialize a field using a mathematical expression.
+Expressions are imported as strings and are compiled real-time using the
+`AMReX Parser <https://amrex-codes.github.io/amrex/docs_html/Basics.html#parser>`_.
+
+Works for single or multiple-component fields.
+Use the :code:`regionN` (N=0,1,2, etc. up to number of components) to pass expression.
+For example:
+
+.. code-block:: bash
+
+   ic.region0 = "sin(x*y*z)"
+   ic.region1 = "3.0*(x > 0.5 and y > 0.5)"
+
+for a two-component field. It is up to you to make sure your expressions are parsed
+correctly; otherwise you will get undefined behavior.
+
+:bdg-primary-line:`Constants`
+You can add constants to your expressions using the :code:`constant` directive.
+For instance, in the following code
+
+.. code-block:: bash
+
+   psi.ic.type=expression
+   psi.ic.expression.constant.eps = 0.05
+   psi.ic.expression.constant.R   = 0.25
+   psi.ic.expression.region0 = "0.5 + 0.5*tanh((x^2 + y^2 - R)/eps)"
+   
+the constants :code:`eps` and :code:`R` are defined by the user and then used
+in the subsequent expression.
+The variables can have any name made up of characters that is not reserved.
+However, if multiple ICs are used, they must be defined each time for each IC.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Expression.H:145" data-bs-content="coordinate system to use: "cartesian" (for x,y,z,t) and  "polar" (for r, theta, z, t) ">laser.ic.expression.coord</span>        </div>
+        <input type='text' id='laser.ic.expression.coord' name='laser.ic.expression.coord' class='form-control'  placeholder=''>
+      </div>      </div>
+    </div>
+  </div>
+</div>
+<input type='hidden' name='laser.ic.type' value='[not completed yet - please enter manually]' >
+<div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">temp.ic.type</h3>
+    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#temp.ic.constant" role="tab" >constant</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#temp.ic.expression" role="tab" >expression</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#temp.ic.bmp" role="tab" >bmp</a> 
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#temp.ic.png" role="tab" >png</a> 
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      <div class="tab-pane" id="temp.ic.constant" role="tabpanel"><p>
+Basic IC that just sets the entire field to a constant value.
+Works with a single or multiple-component field.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Constant.H:51" data-bs-content="Array of constant values. The number of values should equal either 1 or N where N is the number of fab components ">temp.ic.constant.value</span>        </div>
+        <input type='text' id='temp.ic.constant.value' name='temp.ic.constant.value' class='form-control' required placeholder=''>
+      </div>      </div>
+      <div class="tab-pane" id="temp.ic.expression" role="tabpanel"><p>
+Initialize a field using a mathematical expression.
+Expressions are imported as strings and are compiled real-time using the
+`AMReX Parser <https://amrex-codes.github.io/amrex/docs_html/Basics.html#parser>`_.
+
+Works for single or multiple-component fields.
+Use the :code:`regionN` (N=0,1,2, etc. up to number of components) to pass expression.
+For example:
+
+.. code-block:: bash
+
+   ic.region0 = "sin(x*y*z)"
+   ic.region1 = "3.0*(x > 0.5 and y > 0.5)"
+
+for a two-component field. It is up to you to make sure your expressions are parsed
+correctly; otherwise you will get undefined behavior.
+
+:bdg-primary-line:`Constants`
+You can add constants to your expressions using the :code:`constant` directive.
+For instance, in the following code
+
+.. code-block:: bash
+
+   psi.ic.type=expression
+   psi.ic.expression.constant.eps = 0.05
+   psi.ic.expression.constant.R   = 0.25
+   psi.ic.expression.region0 = "0.5 + 0.5*tanh((x^2 + y^2 - R)/eps)"
+   
+the constants :code:`eps` and :code:`R` are defined by the user and then used
+in the subsequent expression.
+The variables can have any name made up of characters that is not reserved.
+However, if multiple ICs are used, they must be defined each time for each IC.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Expression.H:145" data-bs-content="coordinate system to use: "cartesian" (for x,y,z,t) and  "polar" (for r, theta, z, t) ">temp.ic.expression.coord</span>        </div>
+        <input type='text' id='temp.ic.expression.coord' name='temp.ic.expression.coord' class='form-control'  placeholder=''>
+      </div>      </div>
+      <div class="tab-pane" id="temp.ic.bmp" role="tabpanel"><p>
+Initialize a field using a bitmap image. (2D only)
+
+Note that in GIMP, you must select "do not write color space information"
+and "24 bit R8 G8 B8" when exporting the BMP file.
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:179" data-bs-content="BMP filename.">temp.ic.bmp.filename</span>        </div>
+        <input type='text' id='temp.ic.bmp.filename' name='temp.ic.bmp.filename' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> temp.ic.bmp.fit </span>
+        </div>
+        <select class="form-select" id="temp.ic.bmp.fit">        <option selected disabled value="">Choose...</option>        <option>stretch</option>        <option>fitheight</option>        <option>fitwidth</option>        <option>coord</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:191" data-bs-content="Location of lower-left corner in the domain">temp.ic.bmp.coord.lo</span>        </div>
+        <input type='text' id='temp.ic.bmp.coord.lo' name='temp.ic.bmp.coord.lo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:192" data-bs-content="Location of upper-right corner in the domain">temp.ic.bmp.coord.hi</span>        </div>
+        <input type='text' id='temp.ic.bmp.coord.hi' name='temp.ic.bmp.coord.hi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> temp.ic.bmp.channel </span>
+        </div>
+        <select class="form-select" id="temp.ic.bmp.channel">        <option selected disabled value="">Choose...</option>        <option>r</option>        <option>g</option>        <option>b</option>        <option>R</option>        <option>G</option>        <option>B</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:206" data-bs-content="Scaling value - minimum">temp.ic.bmp.min</span>        </div>
+        <input type='text' id='temp.ic.bmp.min' name='temp.ic.bmp.min' class='form-control'  placeholder='0.0'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="BMP.H:207" data-bs-content="Scaling value - maximum">temp.ic.bmp.max</span>        </div>
+        <input type='text' id='temp.ic.bmp.max' name='temp.ic.bmp.max' class='form-control'  placeholder='255.0'>
+      </div>      </div>
+      <div class="tab-pane" id="temp.ic.png" role="tabpanel"><p>
+Initialize a field using a PNG image. (2D only)
+
+</p><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:275" data-bs-content="BMP filename.">temp.ic.png.filename</span>        </div>
+        <input type='text' id='temp.ic.png.filename' name='temp.ic.png.filename' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:280" data-bs-content="How to fit. {options: stretch, fitheight, fitwidth}">temp.ic.png.fit</span>        </div>
+        <input type='text' id='temp.ic.png.fit' name='temp.ic.png.fit' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:287" data-bs-content="Lower-left coordinates of image in domain">temp.ic.png.coord.lo</span>        </div>
+        <input type='text' id='temp.ic.png.coord.lo' name='temp.ic.png.coord.lo' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:288" data-bs-content="Upper-right coordinates of image in domain">temp.ic.png.coord.hi</span>        </div>
+        <input type='text' id='temp.ic.png.coord.hi' name='temp.ic.png.coord.hi' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> temp.ic.png.channel </span>
+        </div>
+        <select class="form-select" id="temp.ic.png.channel">        <option selected disabled value="">Choose...</option>        <option>r</option>        <option>g</option>        <option>b</option>        <option>a</option>        <option>R</option>        <option>G</option>        <option>B</option>        <option>A</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:304" data-bs-content="Scaling value - minimum">temp.ic.png.min</span>        </div>
+        <input type='text' id='temp.ic.png.min' name='temp.ic.png.min' class='form-control'  placeholder='0.0  '>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="PNG.H:305" data-bs-content="Scaling value - maximum">temp.ic.png.max</span>        </div>
+        <input type='text' id='temp.ic.png.max' name='temp.ic.png.max' class='form-control'  placeholder='255.0'>
+      </div>      </div>
+    </div>
+  </div>
+</div>
+<input type='hidden' name='temp.ic.type' value='[not completed yet - please enter manually]' >
+<div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:127" data-bs-content="Constant pressure value">pressure.P</span>  </div>
+  <input type='text' id='pressure.P' name='pressure.P' class='form-control'  placeholder='1.0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:130" data-bs-content="Surgate heat flux model paramater - AP">pressure.a1</span>  </div>
+  <input type='text' id='pressure.a1' name='pressure.a1' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:131" data-bs-content="Surgate heat flux model paramater - HTPB">pressure.a2</span>  </div>
+  <input type='text' id='pressure.a2' name='pressure.a2' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:132" data-bs-content="Surgate heat flux model paramater - Total">pressure.a3</span>  </div>
+  <input type='text' id='pressure.a3' name='pressure.a3' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:133" data-bs-content="Surgate heat flux model paramater - AP">pressure.b1</span>  </div>
+  <input type='text' id='pressure.b1' name='pressure.b1' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:134" data-bs-content="Surgate heat flux model paramater - HTPB">pressure.b2</span>  </div>
+  <input type='text' id='pressure.b2' name='pressure.b2' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:135" data-bs-content="Surgate heat flux model paramater - Total">pressure.b3</span>  </div>
+  <input type='text' id='pressure.b3' name='pressure.b3' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:136" data-bs-content="Surgate heat flux model paramater - Total">pressure.c1</span>  </div>
+  <input type='text' id='pressure.c1' name='pressure.c1' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:137" data-bs-content="Whether to include pressure to the arrhenius law">pressure.mob_ap</span>  </div>
+  <input type='text' id='pressure.mob_ap' name='pressure.mob_ap' class='form-control'  placeholder='0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:138" data-bs-content="Whether to use pressure to determined the reference Zeta ">pressure.dependency</span>  </div>
+  <input type='text' id='pressure.dependency' name='pressure.dependency' class='form-control'  placeholder='1'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:139" data-bs-content="Surgate heat flux model paramater - Homogenized">pressure.h1</span>  </div>
+  <input type='text' id='pressure.h1' name='pressure.h1' class='form-control'  placeholder='1.81'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:140" data-bs-content="Surgate heat flux model paramater - Homogenized">pressure.h2</span>  </div>
+  <input type='text' id='pressure.h2' name='pressure.h2' class='form-control'  placeholder='1.34'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:145" data-bs-content="AP power pressure law parameter (r*P^n)">pressure.r_ap</span>  </div>
+  <input type='text' id='pressure.r_ap' name='pressure.r_ap' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:146" data-bs-content="HTPB power pressure law parameter (r*P^n)">pressure.r_htpb</span>  </div>
+  <input type='text' id='pressure.r_htpb' name='pressure.r_htpb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:147" data-bs-content="AP/HTPB power pressure law parameter (r*P^n)">pressure.r_comb</span>  </div>
+  <input type='text' id='pressure.r_comb' name='pressure.r_comb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:148" data-bs-content="AP power pressure law parameter (r*P^n)">pressure.n_ap</span>  </div>
+  <input type='text' id='pressure.n_ap' name='pressure.n_ap' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:149" data-bs-content="HTPB power pressure law parameter (r*P^n)">pressure.n_htpb</span>  </div>
+  <input type='text' id='pressure.n_htpb' name='pressure.n_htpb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:150" data-bs-content="AP/HTPB power pressure law parameter (r*P^n)">pressure.n_comb</span>  </div>
+  <input type='text' id='pressure.n_comb' name='pressure.n_comb' class='form-control' required placeholder=''>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:152" data-bs-content="Whether to compute the pressure evolution">variable_pressure</span>  </div>
+  <input type='text' id='variable_pressure' name='variable_pressure' class='form-control'  placeholder='0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:153" data-bs-content="Whether to initialize Phi with homogenized properties">homogeneousSystem</span>  </div>
+  <input type='text' id='homogeneousSystem' name='homogeneousSystem' class='form-control'  placeholder='0'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:156" data-bs-content="Refinement criterion for eta field   ">amr.refinement_criterion</span>  </div>
+  <input type='text' id='amr.refinement_criterion' name='amr.refinement_criterion' class='form-control'  placeholder='0.001'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:157" data-bs-content="Refinement criterion for temperature field    ">amr.refinement_criterion_temp</span>  </div>
+  <input type='text' id='amr.refinement_criterion_temp' name='amr.refinement_criterion_temp' class='form-control'  placeholder='0.001'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:158" data-bs-content="Eta value to restrict the refinament for the temperature field ">amr.refinament_restriction</span>  </div>
+  <input type='text' id='amr.refinament_restriction' name='amr.refinament_restriction' class='form-control'  placeholder='0.1'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:159" data-bs-content="Refinement criterion for phi field [infinity]">amr.phi_refinement_criterion</span>  </div>
+  <input type='text' id='amr.phi_refinement_criterion' name='amr.phi_refinement_criterion' class='form-control'  placeholder='1.0e100'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:160" data-bs-content="Lowest value of Eta.">small</span>  </div>
+  <input type='text' id='small' name='small' class='form-control'  placeholder='1.0e-8'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend">    <span class='input-group-text'> phi.ic.type </span>
+  </div>
+  <select class="form-select" id="phi.ic.type">  <option selected disabled value="">Choose...</option>  <option>psread</option>  <option> laminate</option>  <option> expression</option>  <option> constant</option>  <option> bmp</option>  <option> png</option>  </select></div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:170" data-bs-content="value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread"); AP/HTPB interface length">phi.ic.psread.eps</span>  </div>
+  <input type='text' id='phi.ic.psread.eps' name='phi.ic.psread.eps' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:171" data-bs-content="Reference interface length for heat integration">phi.zeta_0</span>  </div>
+  <input type='text' id='phi.zeta_0' name='phi.zeta_0' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:176" data-bs-content="value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate"); AP/HTPB interface length">phi.ic.laminate.eps</span>  </div>
+  <input type='text' id='phi.ic.laminate.eps' name='phi.ic.laminate.eps' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:177" data-bs-content="Reference interface length for heat integration">phi.zeta_0</span>  </div>
+  <input type='text' id='phi.zeta_0' name='phi.zeta_0' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:182" data-bs-content="value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression"); Reference interface length for heat integration">phi.zeta_0</span>  </div>
+  <input type='text' id='phi.zeta_0' name='phi.zeta_0' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:183" data-bs-content="AP/HTPB interface length">phi.zeta</span>  </div>
+  <input type='text' id='phi.zeta' name='phi.zeta' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:188" data-bs-content="value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant"); Reference interface length for heat integration">phi.zeta_0</span>  </div>
+  <input type='text' id='phi.zeta_0' name='phi.zeta_0' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:189" data-bs-content="AP/HTPB interface length">phi.zeta</span>  </div>
+  <input type='text' id='phi.zeta' name='phi.zeta' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:194" data-bs-content="value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp"); Reference interface length for heat integration">phi.zeta_0</span>  </div>
+  <input type='text' id='phi.zeta_0' name='phi.zeta_0' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:195" data-bs-content="AP/HTPB interface length">phi.zeta</span>  </div>
+  <input type='text' id='phi.zeta' name='phi.zeta' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:199" data-bs-content="Reference interface length for heat integration">phi.zeta_0</span>  </div>
+  <input type='text' id='phi.zeta_0' name='phi.zeta_0' class='form-control'  placeholder='1.0e-5'>
+</div><div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:200" data-bs-content="AP/HTPB interface length">phi.zeta</span>  </div>
+  <input type='text' id='phi.zeta' name='phi.zeta' class='form-control'  placeholder='1.0e-5'>
+</div><div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">elastic</h3>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+<div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> elastic.type </span>
+        </div>
+        <select class="form-select" id="elastic.type">        <option selected disabled value="">Choose...</option>        <option>disable</option>        <option>static</option>        <option>dynamic</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:55" data-bs-content="Treat mechanics fields as changing in time. [false] You should use this if you care about other physics driven by the output of this integrator. ">elastic.time_evolving</span>        </div>
+        <input type='text' id='elastic.time_evolving' name='elastic.time_evolving' class='form-control'  placeholder='false'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:57" data-bs-content="Include displacement field in output">elastic.plot_disp</span>        </div>
+        <input type='text' id='elastic.plot_disp' name='elastic.plot_disp' class='form-control'  placeholder='true'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:58" data-bs-content="Include right-hand side in output">elastic.plot_rhs</span>        </div>
+        <input type='text' id='elastic.plot_rhs' name='elastic.plot_rhs' class='form-control'  placeholder='true'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:59" data-bs-content="Include :math:`\psi` field in output">elastic.plot_psi</span>        </div>
+        <input type='text' id='elastic.plot_psi' name='elastic.plot_psi' class='form-control'  placeholder='true'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:60" data-bs-content="Include stress in output">elastic.plot_stress</span>        </div>
+        <input type='text' id='elastic.plot_stress' name='elastic.plot_stress' class='form-control'  placeholder='true'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:61" data-bs-content="Include strain in output">elastic.plot_strain</span>        </div>
+        <input type='text' id='elastic.plot_strain' name='elastic.plot_strain' class='form-control'  placeholder='true'>
+      </div>      <div class="card mb-3" >
+        <div class="card-header">
+          <h3 class="card-title mt-3 mb-1">elastic.solver</h3>
+          </ul>
+        </div>
+        <div class="card-body">
+          <div class="tab-content">
+          </div>
+        </div>
+      </div>
+<div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:80" data-bs-content="Dashpot damping (damps velocity)">elastic.viscous.mu_dashpot</span>        </div>
+        <input type='text' id='elastic.viscous.mu_dashpot' name='elastic.viscous.mu_dashpot' class='form-control'  placeholder='0.0'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:82" data-bs-content="Newtonian viscous damping (damps velocity gradient)">elastic.viscous.mu_newton</span>        </div>
+        <input type='text' id='elastic.viscous.mu_newton' name='elastic.viscous.mu_newton' class='form-control'  placeholder='0.0'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> elastic.velocity.ic.type </span>
+        </div>
+        <select class="form-select" id="elastic.velocity.ic.type">        <option selected disabled value="">Choose...</option>        <option>none</option>        <option>expression</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> elastic.bc.type </span>
+        </div>
+        <select class="form-select" id="elastic.bc.type">        <option selected disabled value="">Choose...</option>        <option>constant</option>        <option>tension_test</option>        <option>expression</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:97" data-bs-content="Print out model variables (if enabled by model)">elastic.print_model</span>        </div>
+        <input type='text' id='elastic.print_model' name='elastic.print_model' class='form-control'  placeholder='false'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">          <span class='input-group-text'> elastic.rhs.type </span>
+        </div>
+        <select class="form-select" id="elastic.rhs.type">        <option selected disabled value="">Choose...</option>        <option>none</option>        <option>trig</option>        <option>constant</option>        </select>      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:108" data-bs-content="Timestep interval for elastic solves (default - solve every time) ">elastic.interval</span>        </div>
+        <input type='text' id='elastic.interval' name='elastic.interval' class='form-control'  placeholder='0'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:120" data-bs-content="Maximum multigrid coarsening level (default - none, maximum coarsening) ">elastic.max_coarsening_level</span>        </div>
+        <input type='text' id='elastic.max_coarsening_level' name='elastic.max_coarsening_level' class='form-control'  placeholder='-1'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:123" data-bs-content="Whether to include residual output field ">elastic.print_residual</span>        </div>
+        <input type='text' id='elastic.print_residual' name='elastic.print_residual' class='form-control'  placeholder='false'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:127" data-bs-content="Whether to refine based on elastic solution ">elastic.elastic_ref_threshold</span>        </div>
+        <input type='text' id='elastic.elastic_ref_threshold' name='elastic.elastic_ref_threshold' class='form-control'  placeholder='0.01'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:132" data-bs-content="Set this to true to zero out the displacement before each solve. (This is a temporary fix - we need to figure out why this is needed.) ">elastic.zero_out_displacement</span>        </div>
+        <input type='text' id='elastic.zero_out_displacement' name='elastic.zero_out_displacement' class='form-control'  placeholder='false'>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Mechanics.H:135" data-bs-content="Time to start doing the elastic solve (by default, start immediately) ">elastic.tstart</span>        </div>
+        <input type='text' id='elastic.tstart' name='elastic.tstart' class='form-control'  placeholder='-1.0'>
+      </div>    </div>
+  </div>
+</div>
+<div class="input-group mb-3">  <div class="input-group-prepend"><span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="Flame.cpp:213" data-bs-content="Initial temperature for thermal expansion computation">Tref</span>  </div>
+  <input type='text' id='Tref' name='Tref' class='form-control'  placeholder='300.0'>
+</div><div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">model_ap</h3>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+<div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:147" data-bs-content="Shear modulus">model_ap.shear</span>        </div>
+        <input type='text' id='model_ap.shear' name='model_ap.shear' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:148" data-bs-content="Bulk modulus">model_ap.kappa</span>        </div>
+        <input type='text' id='model_ap.kappa' name='model_ap.kappa' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:151" data-bs-content="Alternative input for shear modulus">model_ap.mu</span>        </div>
+        <input type='text' id='model_ap.mu' name='model_ap.mu' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:152" data-bs-content="Bulk modulus">model_ap.kappa</span>        </div>
+        <input type='text' id='model_ap.kappa' name='model_ap.kappa' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:156" data-bs-content="Shear modulus">model_ap.shear</span>        </div>
+        <input type='text' id='model_ap.shear' name='model_ap.shear' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:157" data-bs-content="Lame parameter">model_ap.lame</span>        </div>
+        <input type='text' id='model_ap.lame' name='model_ap.lame' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:162" data-bs-content="Young's modulus">model_ap.E</span>        </div>
+        <input type='text' id='model_ap.E' name='model_ap.E' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:163" data-bs-content="Poisson's ratio">model_ap.nu</span>        </div>
+        <input type='text' id='model_ap.nu' name='model_ap.nu' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookeanPredeformed.H:64" data-bs-content="Large-deformation eigendeformation (Identity = no deformation)">model_ap.F0</span>        </div>
+        <input type='text' id='model_ap.F0' name='model_ap.F0' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookeanPredeformed.H:70" data-bs-content="Small-deformation eigendeformation (Zero = no deformation)">model_ap.eps0</span>        </div>
+        <input type='text' id='model_ap.eps0' name='model_ap.eps0' class='form-control'  placeholder=''>
+      </div>    </div>
+  </div>
+</div>
+<div class="card mb-3" >
+  <div class="card-header">
+    <h3 class="card-title mt-3 mb-1">model_htpb</h3>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+<div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:147" data-bs-content="Shear modulus">model_htpb.shear</span>        </div>
+        <input type='text' id='model_htpb.shear' name='model_htpb.shear' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:148" data-bs-content="Bulk modulus">model_htpb.kappa</span>        </div>
+        <input type='text' id='model_htpb.kappa' name='model_htpb.kappa' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:151" data-bs-content="Alternative input for shear modulus">model_htpb.mu</span>        </div>
+        <input type='text' id='model_htpb.mu' name='model_htpb.mu' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:152" data-bs-content="Bulk modulus">model_htpb.kappa</span>        </div>
+        <input type='text' id='model_htpb.kappa' name='model_htpb.kappa' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:156" data-bs-content="Shear modulus">model_htpb.shear</span>        </div>
+        <input type='text' id='model_htpb.shear' name='model_htpb.shear' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:157" data-bs-content="Lame parameter">model_htpb.lame</span>        </div>
+        <input type='text' id='model_htpb.lame' name='model_htpb.lame' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:162" data-bs-content="Young's modulus">model_htpb.E</span>        </div>
+        <input type='text' id='model_htpb.E' name='model_htpb.E' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookean.H:163" data-bs-content="Poisson's ratio">model_htpb.nu</span>        </div>
+        <input type='text' id='model_htpb.nu' name='model_htpb.nu' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookeanPredeformed.H:64" data-bs-content="Large-deformation eigendeformation (Identity = no deformation)">model_htpb.F0</span>        </div>
+        <input type='text' id='model_htpb.F0' name='model_htpb.F0' class='form-control'  placeholder=''>
+      </div><div class="input-group mb-3">  <div class="input-group-prepend">      <span type="button" class="input-group-text" data-bs-toggle="popover" data-bs-title="NeoHookeanPredeformed.H:70" data-bs-content="Small-deformation eigendeformation (Zero = no deformation)">model_htpb.eps0</span>        </div>
+        <input type='text' id='model_htpb.eps0' name='model_htpb.eps0' class='form-control'  placeholder=''>
+      </div>    </div>
+  </div>
+</div>
+
+</form>
+<form>
+  <h2 class='mb-4'>Alamo input file</h2><form  id='form'>
+  <div class="form-group">
+    <label for="code-container">The following contains only set values and is updated dynamically.</label>
+    <textarea class="form-control" id="code-container" rows="10"></textarea>
+  </div>
+</form>
+</div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script>
+
+
+// update textbox with input file
+function updateResult() {
+    const form = document.getElementById('form');
+    const inputs = form.querySelectorAll('input, select');
+    var concatenatedString = ""
+    inputs.forEach((input) => {
+      if(input.value.trim() != '')
+          concatenatedString += input.name + " = " + input.value + "\n";
+    });
+    document.getElementById("code-container").value = concatenatedString;
+}
+
+
+// Add event listeners to all inputs within the form (except the result textbox)
+document.querySelectorAll("input, select").forEach(input => {
+    input.addEventListener("input", updateResult); // Trigger on any input change
+});
+
+
+// JavaScript for live validation
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('form');
+    const req_inputs = form.querySelectorAll('input[required]');
+    const all_inputs = form.querySelectorAll('input');
+
+
+    // Initialize all popovers
+    all_inputs.forEach((input) => {
+        new bootstrap.Popover(input);
+    });
+
+
+    // Validate fields on page load
+    req_inputs.forEach((input) => {
+        if (input.value.trim() === '') {
+            input.classList.add('is-invalid');
+        }
+    });
+
+    req_inputs.forEach((input) => {
+        input.addEventListener('input', function () {
+            if (!input.value) {
+                input.classList.add('is-invalid');
+            } 
+            else if (input.value.trim() === '') {
+                input.classList.add('is-invalid');
+            } else {
+                input.classList.remove('is-invalid');
+            }
+        });
+    });
+
+    all_inputs.forEach((input) => {
+        input.addEventListener('input', function () {
+            if (!input.value) {
+                input.classList.remove('is-valid');
+            } 
+            else if (input.value.trim() === '') {
+                input.classList.remove('is-valid');
+            } else {
+                input.classList.add('is-valid');
+            }
+        });
+    });
+
+
+    form.addEventListener('submit', function (event) {
+        let isValid = true;
+
+        inputs.forEach((input) => {
+            if (input.value.trim() === '') {
+                input.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                input.classList.remove('is-invalid');
+            }
+        });
+
+        if (!isValid) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    });
+
+
+    // Add event listener for all tabs across all containers
+    document.querySelectorAll('.tab-container').forEach(container => {
+        const hiddenInput = container.querySelector('.selectedTab');
+        const tabs = container.querySelectorAll('.nav-tabs .nav-link');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                const activeTabId = event.target.id; // Get the ID of the active tab
+                hiddenInput.value = activeTabId; // Update the hidden input value
+                console.log(activeTabId);
+            });
+        });
+    });
+});
+
+
+const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
+const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl))
+
+</script>
+

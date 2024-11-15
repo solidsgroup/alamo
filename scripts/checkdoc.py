@@ -4,5 +4,8 @@ me = os.path.dirname(__file__)
 sys.path.insert(0,me+"/../docs/source/")
 import Inputs
 
-Inputs.scrapeInputsSimple(root=me+"/../src/",writeFiles=False)
+docs, total = Inputs.scrapeInputs(root=me+"/../src/",writeFiles=False)
+
+if docs < total:
+    raise Exception("Documentation is missing from inputs.")
 
