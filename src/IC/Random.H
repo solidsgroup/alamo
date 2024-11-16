@@ -15,6 +15,8 @@ namespace IC
 class Random : public IC
 {
 public:
+    static constexpr const char* name = "random";
+
     Random (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult) :
         IC(_geom), mult(a_mult)
     {}

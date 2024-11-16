@@ -16,6 +16,7 @@ namespace IC
 class Laminate: public IC
 {
 public:
+    static constexpr const char* name = "laminate";
     enum Mollifier { Dirac, Gaussian };
 
     Laminate(amrex::Vector<amrex::Geometry>& _geom): IC(_geom) {}

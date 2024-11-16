@@ -121,7 +121,7 @@ public:
         }
 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
-        pp_queryclass("mechanics",static_cast<Base::Mechanics<model_type>&>(value));
+        pp.queryclass<Base::Mechanics<model_type>>("mechanics",value);
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
 
@@ -159,59 +159,48 @@ public:
         pp_query_default("anisotropy.on", value.anisotropy.on,false);              // Turn on
         if (value.anisotropy.on)
         {
-            pp_query_required("anisotropy.beta", value.anisotropy.beta);               // Regularization param 
-            pp_query_required("anisotropy.tstart", value.anisotropy.tstart);           // Time to turn on anisotropy
-        value.anisotropy.timestep = value.timestep;
-        pp_query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
-        value.anisotropy.plot_int = value.plot_int;
-        pp_query_default("anisotropy.plot_int", value.anisotropy.plot_int, -1);                // Modify plot_int when turned on
-        value.anisotropy.plot_dt = value.plot_dt;
-        pp_query_default("anisotropy.plot_dt", value.anisotropy.plot_dt, -1.0);                  // Modify plot_dt when turned on
-        pp_query_default("anisotropy.thermo_int", value.anisotropy.thermo_int, -1);            // Modify thermo int when turned on
-        pp_query_default("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int, -1);  // Modify thermo plot int when turned on
-        pp_query_default("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           // Frequency of elastic calculation
-        if (value.anisotropy.on) 
-            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
+            // Regularization para m
+            pp_query_required("anisotropy.beta", value.anisotropy.beta);
+            // Time to turn on anisotropy
+            pp_query_required("anisotropy.tstart", value.anisotropy.tstart);
+            value.anisotropy.timestep = value.timestep;
+            // Modify timestep when turned on
+            pp_query_required("anisotropy.timestep", value.anisotropy.timestep);
+            value.anisotropy.plot_int = value.plot_int;
+            // Modify plot_int when turned on
+            pp_query_default("anisotropy.plot_int", value.anisotropy.plot_int, -1);
+            value.anisotropy.plot_dt = value.plot_dt;
+            // Modify plot_dt when turned on
+            pp_query_default("anisotropy.plot_dt", value.anisotropy.plot_dt, -1.0);
+            // Modify thermo int when turned on
+            pp_query_default("anisotropy.thermo_int", value.anisotropy.thermo_int, -1);
+            // Modify thermo plot int when turned on
+            pp_query_default("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int, -1);
+            // Frequency of elastic calculation
+            pp_query_default("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           
+            if (value.anisotropy.on) 
+                value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
-        // Determine the kind of regularization to use
-        std::map<std::string, RegularizationType> regularization_type;
-        regularization_type["wilmore"] = RegularizationType::Wilmore;
-        regularization_type["k12"] = RegularizationType::K12;
+            // Determine the kind of regularization to use
+            std::map<std::string, RegularizationType> regularization_type;
+            regularization_type["wilmore"] = RegularizationType::Wilmore;
+            regularization_type["k12"] = RegularizationType::K12;
 
             std::string regularization_type_input;
             // Type of regularization to use  
             pp_query_validate("anisotropy.regularization", regularization_type_input,{"k12","wilmore"});    
-        value.regularization = regularization_type[regularization_type_input];
+            value.regularization = regularization_type[regularization_type_input];
 
             // Type of GB to use
-            pp_query_validate("anisotropy.gb_type", value.gb_type,{"abssin","sin","read","sh"}); 
-        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
-            else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
+            pp_forbid("anisotropy.gb_type"," --> anisotropy.type");
+            pp.select<Model::Interface::GB::AbsSin, Model::Interface::GB::Sin, Model::Interface::GB::Read, Model::Interface::GB::SH>("anisotropy",value.boundary); 
         }
 
-        std::string bc_type;
-        // Type of boundary condition to use for eta
-        pp_query_validate("bc.eta.type",bc_type,{"constant","step"});  
-        if (bc_type == "constant")  value.mybc = new BC::Constant(value.number_of_grains,pp,"bc.eta");
-        else if (bc_type == "step") value.mybc = new BC::Step(pp,"bc.eta");
+        // Boundary condition for eta
+        pp.select<BC::Constant,BC::Step>("bc.eta",value.mybc,value.number_of_grains);
 
-        std::string ic_type;
-        // Initial condition to use for eta
-        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse"});  
-        // [switch ic.type] Initial conditions for Etas
-        if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
-        else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");
-        else if (ic_type == "tabulated_interface") value.ic = new IC::TabulatedInterface(value.geom,pp,"ic");
-        else if (ic_type == "voronoi")             value.ic = new IC::Voronoi(value.geom, pp, "ic.voronoi");
-        else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
-        else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
-        else if (ic_type == "ellipse")             value.ic = new IC::Ellipse(value.geom,pp,"ic.ellipse");
-        else if (ic_type == "random")              value.ic = new IC::Random(value.geom,pp,"ic.random");
-        else Util::Abort(INFO, "No valid initial condition specified");
-        // [end switch]
+        // Initial condition for the order parameter eta
+        pp.select<IC::Constant,IC::PerturbedInterface,IC::Voronoi,IC::Expression,IC::Sphere,IC::Ellipse,IC::Random>("ic",value.ic,value.geom);
 
         // Anisotropic mobility
         pp_query_default("anisotropic_kinetics.on",value.anisotropic_kinetics.on, 0);
@@ -243,7 +232,6 @@ public:
         value.RegisterIntegratedVariable(&value.gbenergy, "gbenergy");
         value.RegisterIntegratedVariable(&value.realgbenergy, "realgbenergy");
         value.RegisterIntegratedVariable(&value.regenergy, "regenergy");
-
 
     }
 

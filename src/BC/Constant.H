@@ -103,6 +103,8 @@ class Constant
 #endif
 
 public:
+    static constexpr const char* name = "constant";
+
     //Constant (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
     Constant(int a_ncomp) : m_ncomp(a_ncomp) {};
     Constant(int a_ncomp, IO::ParmParse& pp, std::string name) : m_ncomp(a_ncomp)

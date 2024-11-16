@@ -111,7 +111,12 @@ public:
     // Mechanics inputs. See also :ref:`Integrator::Base::Mechanics`
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
+        Util::Message(INFO);
         Base::Mechanics<MODEL>::Parse(value, pp);
+        Util::Message(INFO);
+        pp.queryclass<Base::Mechanics<MODEL>>(value);
+        Util::Message(INFO);
+
         int nmodels;
         pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
         for (int i = 0; i < nmodels; i++)
@@ -202,7 +207,8 @@ public:
                 value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
             }
         }
-        
+        Util::Message(INFO);
+
     }
 
     void Initialize(int lev) override
