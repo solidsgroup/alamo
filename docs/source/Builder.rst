@@ -15,7 +15,7 @@
 This is an Alamo input file builder for the **Integrator::Flame** method.
 Enter values for the Alamo parameters, and an input file is generated at the bottom of this page.
 Required parameters are indicated with red inputs.
-Default valuers are indicated with placeholder values, and will not be included in the input unless
+Default values are indicated with placeholder values, and will not be included in the input unless
 you put it in specifically.
 
 .. warning::

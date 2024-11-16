@@ -82,6 +82,7 @@ pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
+pf.eta.ic.type = constant
 pf.eta.ic.constant.value = 1.0
 
 
