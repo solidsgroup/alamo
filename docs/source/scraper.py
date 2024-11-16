@@ -3,7 +3,6 @@ import re
 from os import listdir
 from os.path import isfile, join
 from glob import glob
-from docutils.core import publish_string
 
 def getdocumentation(filename):
     sourcefile = open(filename+".H")
