@@ -31,10 +31,10 @@ amr.max_grid_size = 8
 #amr.thermo.plot_dt = 0.1
 
 ic.type=perturbedinterface
-ic.wave_numbers=4
-ic.wave_amplitudes=0.5
-ic.normal = y
-ic.mollifier = dirac
+ic.perturbedinterface.wave_numbers=4
+ic.perturbedinterface.wave_amplitudes=0.5
+ic.perturbedinterface.normal = y
+ic.perturbedinterface.mollifier = dirac
 
 geometry.prob_lo = 0 -4 0
 geometry.prob_hi = 8 4 8
