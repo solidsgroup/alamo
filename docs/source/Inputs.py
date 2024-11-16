@@ -5,8 +5,6 @@ from os import listdir
 from os.path import isfile, join
 from glob import glob
 
-from docutils.core import publish_string
-
 from scraper import getdocumentation, geticon, extract, scrapeInputs
 
 src2url = {}
