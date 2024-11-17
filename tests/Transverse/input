@@ -116,15 +116,15 @@ dim=3
 plot_file = tests/Solid/output
 
 model1.C11 = 170
-model1.C12 = 1.222
-model1.C13 = 1
+model1.C12 = 80
+model1.C13 = 65
 model1.C33 = 160
-model1.C44 = 0.877
+model1.C44 = 45
 #@ ignore = model1.E model1.nu
 
 type=static
 
-timestep		    = 0.01
+timestep		    = 0.001
 stop_time		    = 1.0
 
 # amr parameters
