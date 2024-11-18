@@ -478,9 +478,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
 
-                // if (variable_pressure) {
-                //      pressure.P = chamber.pressure;
-                // }
+                if (variable_pressure) {
+                     pressure.P = chamber.pressure;
+                }
 
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
                 Set::Scalar zeta_1;
