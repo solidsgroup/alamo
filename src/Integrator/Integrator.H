@@ -178,7 +178,7 @@ protected:
     virtual void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time,
         int ngrow) = 0;
 
-    /// \fn    TimeStepComplete
+    /// \fn    TimeStepBegin
     /// \brief Run another system calculation (e.g. implicit solve) before integration step
     ///
     /// This function is called at the beginning of every timestep. This function can be used
@@ -186,7 +186,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    TimeStepComplete
     /// \brief Run another system calculation (e.g. implicit solve) after integration step
@@ -196,7 +196,7 @@ protected:
     ///
     /// Overriding is optional; the default is to do nothing.
     ///
-    virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
+    virtual void TimeStepComplete(Set::Scalar /*time*/, int /*iter*/) {};
 
     /// \fn    Integrate
     /// \brief Perform an integration to compute integrated quantities
@@ -346,9 +346,9 @@ protected:
     // KEEP TRACK OF ALL INTEGRATED VARIABLES
     struct {
         int interval = -1;
-        Set::Scalar dt = -1.0;
+        Set::Scalar dt = NAN;
         int plot_int = -1;
-        Set::Scalar plot_dt = -1.0;
+        Set::Scalar plot_dt = NAN;
         int number = 0;
         std::vector<Set::Scalar*> vars;
         std::vector<std::string> names;
@@ -356,8 +356,8 @@ protected:
     } thermo;
 
     // REGRIDDING
-    int regrid_int = 2;       ///< Determine how often to regrid (default: 2)
-    int base_regrid_int = 0; ///< Determine how often to regrid based on coarse level only (default: 0)
+    int regrid_int = -1;       ///< Determine how often to regrid (default: 2)
+    int base_regrid_int = -1; ///< Determine how often to regrid based on coarse level only (default: 0)
 
     std::string restart_file_cell = "";
     std::string restart_file_node = "";
@@ -370,6 +370,8 @@ protected:
 protected:
     int plot_int = -1;               ///< How frequently to dump plot file (default: never)
     Set::Scalar plot_dt = -1.0;
+
+    int abort_on_nan = true;
 };
 
 

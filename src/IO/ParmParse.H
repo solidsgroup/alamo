@@ -89,6 +89,7 @@
 
 #include <filesystem>
 #include <exception>
+#include <list>
 
 #include "Util/Util.H"
 #include "Set/Set.H"
@@ -100,8 +101,10 @@
 #define pp_query_validate(...) pp.query_validate(__VA_ARGS__,INFO)
 #define pp_query_file(...) pp.query_file(__VA_ARGS__,INFO)
 #define pp_queryarr(...) pp.queryarr(__VA_ARGS__,INFO)
+#define pp_queryarr_required(...) pp.queryarr_required(__VA_ARGS__,INFO)
 #define pp_query(...) pp.query(__VA_ARGS__)
 #define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
+#define pp_forbid(...) pp.forbid(__VA_ARGS__,INFO)
 
 
 namespace IO
@@ -127,10 +130,43 @@ private:
 public:
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {Define();} ;
     ParmParse() : amrex::ParmParse::ParmParse() {Define();} ;
-    std::string getPrefix() const {return amrex::ParmParse::getPrefix();};
+    std::string getPrefix() const {return m_prefix;};
     void ignore(std::string name)
     {
         (void)amrex::ParmParse::contains(name.c_str());
+    }
+
+    void forbid(std::string name, std::string explanation,
+                std::string file = "", std::string func = "", int line = -1)
+    {
+        if (amrex::ParmParse::contains(full(name).c_str()))
+        {
+            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," forbidden: ", explanation);
+        }
+        std::set<std::string> subs = amrex::ParmParse::getEntries(full(name));
+        if (subs.size())
+        {
+            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," forbidden: ", explanation);
+        }
+    }
+
+    bool contains(std::string name)
+    {
+        if (amrex::ParmParse::contains(name.c_str()))
+            return true;
+        if (amrex::ParmParse::contains(full(name).c_str()))
+            return true;
+        {
+            std::set<std::string> subs = amrex::ParmParse::getEntries(name.c_str());
+            if (subs.size())
+                return true;
+        }
+        {
+            std::set<std::string> subs = amrex::ParmParse::getEntries(full(name).c_str());
+            if (subs.size())
+                return true;
+        }
+        return false;
     }
 
     template<typename T> 
@@ -154,6 +190,37 @@ public:
         }
         return query(name.c_str(),value);
     } 
+
+    int query_validate( std::string name, int & value, std::vector<int> possibleintvals,
+                        std::string file = "", std::string func = "", int line = -1)
+    {
+        // First value is accepted by default...
+
+        // set default value
+        value = possibleintvals[0];
+
+        // get the read value (if it exists)
+        int retval = query(name.c_str(),value);
+
+        // check to make sure the read value matches one of the inpus
+        bool ok = false;
+        for (unsigned int i = 0; i < possibleintvals.size(); i++)
+        {
+            if (value == possibleintvals[i]) ok = true;
+        }
+
+        if (ok) return retval;
+
+        std::stringstream ss;
+        ss << possibleintvals[0];
+        for (unsigned int i = 1; i < possibleintvals.size(); i++)
+            ss << "," << possibleintvals[i];
+
+        Util::ParmParseException(INFO,file,func,line,full(name),"' expected [", ss.str(), "] but got ", value);
+
+        return -1;
+    }
+
 
     int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault,
                         std::string file = "", std::string func = "", int line = -1)
@@ -220,29 +287,37 @@ public:
     int query_file( std::string name, std::string & value, bool copyfile, bool checkfile,
                     std::string file = "", std::string func = "query_file", int line = -1)
     {
-        if (!contains(name.c_str()))
+        try
         {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," must be specified");
+            if (!contains(name.c_str()))
+            {
+                Util::ParmParseException(INFO,file,func,line,full(name),full(name)," must be specified");
+            }
+
+            int retval = query(name.c_str(),value);
+
+            if (amrex::ParallelDescriptor::IOProcessor())
+            {
+                if ( checkfile && ! std::filesystem::exists(value))
+                {
+                    Util::ParmParseException(INFO,file,func,line,full(name),full(name)," does not exist");
+                }
+                if ( checkfile && !std::filesystem::is_regular_file(value))
+                {
+                    Util::ParmParseException(INFO,file,func,line,full(name),full(name)," is not a regular file");
+                }
+                if ( copyfile )
+                {
+                    Util::CopyFileToOutputDir(value, true, full(name));
+                }
+            }
+            return retval;
         }
-
-        int retval = query(name.c_str(),value);
-
-        if ( checkfile && ! std::filesystem::exists(value))
+        catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," does not exist");
+            Util::ParmParseException(INFO,file,func,line,full(name));
         }
-
-        if ( checkfile && !std::filesystem::is_regular_file(value))
-        {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," is not a regular file");
-        }
-
-        if ( copyfile )
-        {
-            Util::CopyFileToOutputDir(value, true);
-        }
-
-        return retval;
+        return -1;
     }
     int query_file( std::string name, std::string & value, bool copyfile, 
                     std::string file = "", std::string func = "query_file", int line = -1)
@@ -311,30 +386,53 @@ public:
         }    
         return 0;
     }
+    template<typename T>
+    int queryarr_required(   std::string name, std::vector<T> & value,
+                    std::string file, std::string func, int line)
+    {
+        if (!contains(name.c_str()))
+        {
+            Util::ParmParseException(INFO,file,func,line,full(name),"required value for ",full(name)," missing");
+        }        
+        return queryarr(name,value,file,func,line);
+    }
 
     int AnyUnusedInputs()
     {
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table->begin(), End = m_table->end(); li != End; ++li)
+        for (auto li = m_table->begin(), End = m_table->end(); li != End; ++li)
         {
-            if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
+            if (!li->second.m_count && li->first.rfind(getPrefix()+".",0) != std::string::npos)
             {
-                Util::Warning(INFO,li->m_name);
+                Util::Warning(INFO,li->first);
                 cnt++;
             }
         }
         return cnt;
     }
 
+    std::vector<std::string> GetUnusedInputs()
+    {
+        std::vector<std::string> ret;
+        for (auto li = m_table->begin(), End = m_table->end(); li != End; ++li)
+        {
+            if (!li->second.m_count && li->first.rfind(getPrefix()+".",0) != std::string::npos)
+            {
+                ret.push_back(li->first);
+            }
+        }
+        return ret;
+    }
+
     static int AllUnusedInputs()
     {
         ParmParse pp;
         int cnt = 0;
-        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table->begin(), End = pp.m_table->end(); li != End; ++li)
+        for (auto li = pp.m_table->begin(), End = pp.m_table->end(); li != End; ++li)
         {
-            if (!li->m_queried)
+            if (!li->second.m_count)
             {
-                Util::Warning(INFO,li->m_name);
+                Util::Warning(INFO,li->first);
                 cnt++;
             }
         }
@@ -357,41 +455,53 @@ public:
     void queryclass(std::string name, T * value,
                     std::string file = "", std::string func = "", int line = -1)
     {
+        auto old_prefix = m_prefix;
         try
         {
-            this->pushPrefix(name);
+            if (old_prefix.empty()) m_prefix = name;
+            else m_prefix.append(".").append(name);
             T::Parse(*value, *this);
-            if (AnyUnusedInputs())
+            std::vector<std::string> unused_inputs = GetUnusedInputs();
+            if (unused_inputs.size())
             {
-                Util::ParmParseException(INFO,file,func,line,full(name),"Above inputs specified but not used");
+                std::stringstream ss;
+                for (unsigned int i=0; i < unused_inputs.size(); i++)
+                    ss << "\n\t" << unused_inputs[i];
+                Util::ParmParseException(INFO,file,func,line,name,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
         {
-            this->popPrefix();
+            m_prefix = old_prefix;
             Util::ParmParseException(INFO,file,func,line,full(name));
         }
-        this->popPrefix();
+        m_prefix = old_prefix;
     }
     template<class T>
     void queryclass(std::string name, T & value,
                     std::string file = "", std::string func = "", int line = __LINE__)
     {
+        auto old_prefix = m_prefix;
         try
         {
-            this->pushPrefix(name);
+            if (old_prefix.empty()) m_prefix = name;
+            else m_prefix.append(".").append(name);
             T::Parse(value, *this);
-            if (AnyUnusedInputs())
+            std::vector<std::string> unused_inputs = GetUnusedInputs();
+            if (unused_inputs.size())
             {
-                Util::ParmParseException(INFO,file,func,line,full(name),"Above inputs specified but not used");
+                std::stringstream ss;
+                for (unsigned int i=0; i < unused_inputs.size(); i++)
+                    ss << "\n\t" << unused_inputs[i];
+                Util::ParmParseException(INFO,file,func,line,name,"The following inputs were specified but not used",ss.str());
             }
         }
         catch (...)
         {
-            this->popPrefix();
+            m_prefix = old_prefix;
             Util::ParmParseException(INFO,file,func,line,full(name));
         }
-        this->popPrefix();
+        m_prefix = old_prefix;
     }
     template<class T>
     void queryclass(T * value,
@@ -400,14 +510,10 @@ public:
         try
         {
             T::Parse(*value, *this);
-            if (AnyUnusedInputs())
-            {
-                Util::ParmParseException(INFO,file,func,line,"Above inputs specified but not used");
-            }
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line);
+            Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
     }
     template<class T>
@@ -417,15 +523,26 @@ public:
         try
         {
             T::Parse(value, *this);
-            if (AnyUnusedInputs())
-            {
-                Util::ParmParseException(INFO,file,func,line,"Above inputs specified but not used");
-            }
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,file,func,line);
+            Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
+    }    
+
+    template<typename... IC, typename... Args, typename PTRTYPE>
+    void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
+    {
+        std::string type = "";
+
+        this->query_required(name + ".type", type);
+        
+        bool matched = ((type == IC::name 
+                        ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                        true
+                        : false) || ...);
+        if (!matched)
+            Util::Exception(INFO,type," not a valid type for ",name);
     }
 };
 }

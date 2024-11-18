@@ -106,7 +106,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     driving_force(i, j, k, m) += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
                 //
-                // SYNTHETIC DRIVING FORCE
+                // LAGRANGE MULTIPLIER
                 //
                 if (lagrange.on && m == 0 && time > lagrange.tstart)
                 {
@@ -114,6 +114,17 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                         driving_force_threshold(i, j, k, m) += lagrange.lambda * (volume - lagrange.vol0);
                     else
                         driving_force(i, j, k, m) += lagrange.lambda * (volume - lagrange.vol0);
+                }
+
+                //
+                // SYNTHETIC DRIVING FORCE
+                //
+                if (sdf.on && time > sdf.tstart)
+                {
+                    if (pf.threshold.sdf)
+                        driving_force_threshold(i, j, k, m) += sdf.val[m](time);
+                    else
+                        driving_force(i, j, k, m) += sdf.val[m](time);
                 }
             }
         });
@@ -129,12 +140,10 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
             {
                 for (int m = 0; m < number_of_grains; m++)
                 {
-                    Set::Scalar etasum = 0.0;
                     Set::Matrix F0avg = Set::Matrix::Zero();
 
                     for (int n = 0; n < number_of_grains; n++)
                     {
-                        etasum += eta(i, j, k, n);
                         F0avg += eta(i, j, k, n) * mechanics.model[n].F0;
                     }
 
@@ -267,7 +276,6 @@ void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_mf);
-    ic->Initialize(lev, eta_mf);
 }
 
 template<class model_type>
@@ -326,7 +334,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
                 std::vector<Set::Scalar> etas(number_of_grains);
                 for (int n = 0; n < number_of_grains; n++)
                     etas[n] = Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n);
-                model(i, j, k) = model_type::Combine(mechanics.model, etas);
+                model(i, j, k) = model_type::Combine(mechanics.model, etas, 1);
             });
         }
 

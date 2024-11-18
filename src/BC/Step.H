@@ -23,9 +23,12 @@ class Step
     : public BC<Set::Scalar>
 {
 public:
+    static constexpr const char* name = "step";
+
     Step() {}
-    Step(IO::ParmParse& pp, std::string name)
+    Step(int ngrains, IO::ParmParse& pp, std::string name)
     {
+        Util::AssertException(INFO,TEST(ngrains==2));
         pp_queryclass(name, *this);
     }
 

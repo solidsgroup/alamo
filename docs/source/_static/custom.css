@@ -84,5 +84,45 @@ h7 {font-size:xx-small!important;text-decoration: underline;}
 
 
 .wy-nav-content {
-   //max-width: none; // uncomment to make full-width (but this doesn't look as good)
+   //max-width: none; // uncomment to make full-width (but this does not look as good)
+}
+
+
+ul.current {
+    padding:0px!important;
+}
+
+a.reference.internal{
+    text-decoration:none;!important;
+
+}
+
+ul.nav-tabs {
+    margin-bottom: 0 !important; /* Remove margin below the tabs */
+    padding-bottom: 0 !important; /* Remove padding below the tabs */
+}
+
+ul.nav-tabs > li {
+    list-style: none !important; /* Force no bullets */
+}
+
+/* Remove padding/margin to avoid extra spacing */
+ul.nav-tabs > li {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.card-title {
+    text-decoration: none;
+}
+
+/* Adjust the card header to eliminate extra space */
+.card-header {
+    padding-top: 0 !important; /* Adjust padding above */
+    padding-bottom: 0 !important; /* Adjust padding below */
+    margin-bottom: 0 !important; /* Remove margin below header */
+}
+
+li.toctree-l1 ul {
+    padding: 0px !important;
 }

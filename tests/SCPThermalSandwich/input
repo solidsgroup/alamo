@@ -50,6 +50,7 @@ pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
 eta.ic.type = constant #laminate 
+eta.ic.constant.value = 1.0 #laminate 
 
 ### Constant IC ############################################################ IC
 phi.ic.type = laminate
@@ -67,19 +68,23 @@ pf.w1 = 1.0
 pf.w12 = 2.0
 pf.w0 = 0.0
 
-pf.eta.bc.type.xlo = dirichlet
-pf.eta.bc.type.xhi = dirichlet
-pf.eta.bc.type.ylo = periodic
-pf.eta.bc.type.yhi = periodic
-pf.eta.bc.type.zlo = periodic
-pf.eta.bc.type.zhi = periodic
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = periodic
+pf.eta.bc.constant.type.yhi = periodic
+pf.eta.bc.constant.type.zlo = periodic
+pf.eta.bc.constant.type.zhi = periodic
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
 
-pf.eta.bc.val.xlo = 0.0
-pf.eta.bc.val.xhi = 1.0
-pf.eta.bc.val.ylo = 0.0
-pf.eta.bc.val.yhi = 0.0
-pf.eta.bc.val.zlo = 0.0
-pf.eta.bc.val.zhi = 0.0
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value = 1.0
+
 
 ## Conditional Variables ################################################## Conditional
 conditional.evolve = 1
@@ -106,18 +111,22 @@ thermal.k_htpb = 0.13 # 0.283[W/mK]
 thermal.cp_ap = 1297.9 #[J/kgK]
 thermal.cp_htpb = 2418.29 #[J/kgK]
 
-thermal.temp.bc.type.xlo = neumann
-thermal.temp.bc.type.xhi = neumann
-thermal.temp.bc.type.ylo = neumann
-thermal.temp.bc.type.yhi = neumann
-termal.temp.bc.type.zlo = neumann
-thermal.temp.bc.type.zhi = neumann
-thermal.temp.bc.val.xlo = 0.0
-thermal.temp.bc.val.xhi = 0.0
-thermal.temp.bc.val.ylo = 0.0 
-thermal.temp.bc.val.yhi = 0.0
-thermal.temp.bc.val.zlo = 0.0 
-thermal.temp.bc.val.zhi = 0.0
+temp.ic.type = constant
+temp.ic.constant.value = 300.0
+
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = neumann
+thermal.temp.bc.constant.type.xhi = neumann
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = neumann
+thermal.temp.bc.constant.type.zlo = neumann
+thermal.temp.bc.constant.type.zhi = neumann
+thermal.temp.bc.constant.val.xlo = 0.0
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0 
+thermal.temp.bc.constant.val.yhi = 0.0
+thermal.temp.bc.constant.val.zlo = 0.0 
+thermal.temp.bc.constant.val.zhi = 0.0
 
 thermal.hc = 1.0e7
 
@@ -144,5 +153,5 @@ pressure.c1 = -0.09906
 
 elastic.type = disable
 
-laser.ic.type = "constant"
+laser.ic.type = constant
 laser.ic.constant.value = 1.0e6

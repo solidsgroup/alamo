@@ -247,13 +247,10 @@ protected:
                 amrex::Array4<const Set::Scalar>                const &mat = material.material_mf[ilev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                            Set::Scalar matsum = 0.0;
                                             brittle_fracture_model_type_test modelsum(0.0,0.0);
                                             for (int p = 0; p < number_of_materials; p++)
                                             {
                                                 modelsum += mat(i,j,k,p)*material.brittlemodeltype[p];
-                                                matsum += mat(i,j,k,p);
-
                                             }
                                             model(i,j,k) = /*(1./matsum) * */modelsum ;
                                         });

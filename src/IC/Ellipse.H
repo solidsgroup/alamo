@@ -21,6 +21,8 @@ namespace IC
 class Ellipse : public IC
 {
 public:
+    static constexpr const char* name = "ellipse";
+
     enum Mollifier {Dirac, Gaussian};
 
     Ellipse (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}

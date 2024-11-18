@@ -74,12 +74,14 @@ rhs.trig.ni = 1 1 1
 rhs.dim = 1
 rhs.alpha = 1
 
+# laplacian coefficient
+model.alpha = 1
+
 solver.verbose = 3
 solver.nriters = 1
 solver.max_iter = 20
 
 ### UNIAXIAL TENSION ###
-elastic.bc.type = constant
-
+bc.type = constant
 
 

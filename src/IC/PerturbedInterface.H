@@ -27,6 +27,8 @@ namespace IC
 class PerturbedInterface : public IC
 {
 public:
+    static constexpr const char* name = "perturbedinterface";
+
     enum Mollifier {Dirac, Gaussian};
     PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
         IC(_geom)
