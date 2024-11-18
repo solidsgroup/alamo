@@ -122,3 +122,7 @@ ul.nav-tabs > li {
     padding-bottom: 0 !important; /* Adjust padding below */
     margin-bottom: 0 !important; /* Remove margin below header */
 }
+
+li.toctree-l1 ul {
+    padding: 0px !important;
+}
