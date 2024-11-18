@@ -13,6 +13,7 @@ namespace Elastic
 class TensionTest : public Constant
 {
 public:
+    static constexpr const char* name = "tensiontest";
 
     TensionTest(): Constant()
     {};

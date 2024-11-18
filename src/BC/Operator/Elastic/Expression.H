@@ -17,6 +17,8 @@ namespace Elastic
 class Expression : public Elastic
 {
 public:
+    static constexpr const char* name = "expression";
+
     //static constexpr const char* const Elastic::strings[];
     #if AMREX_SPACEDIM==2
     static const constexpr char * const facestr[] = {

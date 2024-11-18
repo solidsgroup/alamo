@@ -14,19 +14,20 @@ def printInputs(classname,indent="",prefix=""):
             html     += indent + """<div class="card mb-3" >\n"""
             html     += indent + """  <div class="card-header">\n"""
             html     += indent + """    <h3 class="card-title mt-3 mb-1">{}</h3>\n""".format(id + ".type")
-            html     += indent + """    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">\n"""
+            html     += indent + """    <ul class="nav nav-tabs card-header-tabs" data-group="{}" role="tablist">\n""".format(id + "-tab")
             for cls in input["classes"]:
                 name = cls.split("::")[-1].lower()
                 html += indent + """      <li class="nav-item">\n"""
-                html += indent + """        <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#{}" role="tab" >{}</a> \n""".format(input["string"] + "." + name, name)
+                html += indent + """        <a class="nav-link" id="{}" data-bs-toggle="tab" href="#{}" role="tab" >{}</a> \n""".format(name, input["string"] + "." + name + "-div", name)
                 html += indent + """      </li>\n"""
             html +=     indent + """    </ul>\n"""
+            html +=     indent + """    <input type="hidden" id="{}" name="{}" value="">\n""".format(id+"-id",id+".type")
             html +=     indent + """  </div>\n"""
             html +=     indent + """  <div class="card-body">\n"""
             html +=     indent + """    <div class="tab-content">\n"""
             for cls in input["classes"]:
                 name = cls.split("::")[-1].lower()
-                html += indent + """      <div class="tab-pane" id="{}" role="tabpanel">""".format(input["string"] + "." + name)
+                html += indent + """      <div class="tab-pane" id="{}" role="tabpanel">""".format(input["string"] + "." + name + "-div")
                 html += indent + "<p>"
                 html += data[cls]["documentation"]
                 html += indent + "</p>"
@@ -36,7 +37,7 @@ def printInputs(classname,indent="",prefix=""):
             html +=     indent + """    </div>\n"""
             html +=     indent + """  </div>\n"""
             html +=     indent + """</div>\n"""
-            html     += indent + """<input type='hidden' name='{}' value='[not completed yet - please enter manually]' >\n""".format(id+".type")
+            #html     += indent + """<input type='hidden' name='{}' value='[not completed yet - please enter manually]' >\n""".format(id+".type")
         elif (input["type"] == "queryclass"):
             id = prefix + input["string"]
             html     += indent + """<div class="card mb-3" >\n"""
@@ -70,7 +71,7 @@ def printInputs(classname,indent="",prefix=""):
             html += '  <div class="input-group-prepend">'
             html += indent + "    <span class='input-group-text'> {} </span>\n".format(id)
             html += indent + "  </div>\n"
-            html += indent + """  <select class="form-select" id="{}">""".format(id)
+            html += indent + """  <select class="form-select" id="{}"  name="{}">""".format(id,id)
             html += indent + """  <option selected disabled value="">Choose...</option>"""
             print(input["possibles"].split(','))
             for option in input["possibles"].replace('"','').split(','):
@@ -153,7 +154,7 @@ html += r"""
 function updateResult() {
     const form = document.getElementById('form');
     const inputs = form.querySelectorAll('input, select');
-    var concatenatedString = ""
+    var concatenatedString = "alamo.program = flame\n"
     inputs.forEach((input) => {
       if(input.value.trim() != '')
           concatenatedString += input.name + " = " + input.value + "\n";
@@ -170,10 +171,35 @@ document.querySelectorAll("input, select").forEach(input => {
 
 // JavaScript for live validation
 document.addEventListener('DOMContentLoaded', function () {
+
+
+    // set hidden variables when tabs are selected
+    document.body.addEventListener('shown.bs.tab', function (event) {
+        // Get the tab group based on data-group attribute
+        const tabGroup = event.target.closest('ul[data-group]');
+        if (tabGroup) {
+            const groupName = tabGroup.getAttribute('data-group');
+            console.log(groupName);
+            const activeTabId = event.target.getAttribute('id');
+            console.log(activeTabId);
+            console.log("this",groupName.replace("-tab",".type"))
+            // Update the hidden input corresponding to this tab group
+            //const hiddenInput = document.querySelector(`input[name="activeTab${groupName.charAt(0).toUpperCase() + groupName.slice(1)}"]`);
+            const hiddenInput = document.getElementById(groupName.replace("-tab","-id"));
+            console.log(hiddenInput);
+            if (hiddenInput) {
+                console.log(hiddenInput.value);
+                hiddenInput.value = activeTabId;
+                console.log(hiddenInput.name,"=",hiddenInput.value);
+                updateResult();
+            }
+        }
+    });
+
+
     const form = document.getElementById('form');
     const req_inputs = form.querySelectorAll('input[required]');
     const all_inputs = form.querySelectorAll('input');
-
 
     // Initialize all popovers
     all_inputs.forEach((input) => {

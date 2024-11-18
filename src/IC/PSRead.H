@@ -21,6 +21,8 @@ namespace IC
 class PSRead : public IC
 {
 public:
+    static constexpr const char* name = "psread";
+
     enum Type
     {
         Partition,
