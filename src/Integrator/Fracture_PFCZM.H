@@ -197,8 +197,8 @@ public:
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
         value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_mf, 1, 2, "energy_pristine", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_old_mf, 1, 2, "energy_pristine_old", false);
+        value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", true);
+        value.RegisterNodalFab(value.crack.energy_pristine_old_mf, 3, 2, "energy_pristine_old", false);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm),"driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
@@ -341,6 +341,11 @@ public:
                 {
                     // Perform eigenvalue decomposition of strain
                     Set::Matrix eps = strain(i,j,k);
+
+                    // We can also do a volumetric deviatoric decomposition.
+                    Set::Matrix eps_sph = (1.0/3.0) * eps.trace() * Set::Matrix::Identity();
+                    Set::Matrix eps_dev = eps - eps_sph;
+
                     Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(eps);
                     Set::Vector eValues = eigensolver.eigenvalues();
                     Set::Matrix eVectors = eigensolver.eigenvectors();
@@ -356,10 +361,21 @@ public:
                     }
 
                     for (int n = 0; n < material.num_mat; n++)
-                        energy(i,j,k) += eta(i,j,k,n)*material.models[n].W(eps_p);
+                    {
+                        // computing energy based on Miehe
+                        energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].W(eps_p);
+
+                        // computing energy from volumetric portion.
+                        if (eps.trace() >= 0) energy(i,j,k,1) += eta(i,j,k,n)*material.models[n].W(eps_sph);
+                        
+                        // compute energy from deviatoric portion
+                        energy(i,j,k,2) += eta(i,j,k,n) * material.models[n].W(eps_dev);
+                    }
                     
-                    // Only update energy if it is increasing.
-                    if (energy(i,j,k) < energy_old(i,j,k)) energy(i,j,k) = energy_old(i,j,k);
+                    // Only update energy if it is increasing. (H^+ according to Miehe)
+                    if (energy(i,j,k,0) < energy_old(i,j,k,0)) energy(i,j,k,0) = energy_old(i,j,k,0);
+                    if (energy(i,j,k,1) < energy_old(i,j,k,1)) energy(i,j,k,1) = energy_old(i,j,k,1);
+                    if (energy(i,j,k,2) < energy_old(i,j,k,2)) energy(i,j,k,2) = energy_old(i,j,k,2);
                 });
             }
             Util::RealFillBoundary(*crack.energy_pristine_mf[lev],geom[lev]);
@@ -428,12 +444,6 @@ public:
 
                     // if (std::isnan(bilap))  Util::Message(INFO, "Bilaplacian is nan at (",i,", ",j,")");
                     
-                    Set::Scalar en_cell = energy(i,j,k,0); //Numeric::Interpolate::NodeToCellAverage(energy,i,j,k,0);
-
-                    // =====================================================================
-                    df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*en_cell*crack.el_mult;
-                    rhs += df(i,j,k,0);
-
                     Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
                     if (std::isnan(laplacian))  Util::Message(INFO, "Laplacian is nan at (",i,", ",j,")");
 
@@ -454,14 +464,27 @@ public:
                     }
                     if (material.num_mat > 1) Gc *= (1.0 - _temp_product*(1.-crack.mult_Gc)/_temp_product2);
 
-                    df(i,j,k,1) = Gc*crack.cracktype[0].Dw_phi(c_old(i,j,k,0),0.0)/(Zeta);
+                    // =====================================================================
+                    Set::Scalar en_cell = energy(i,j,k,0);
+                    if (! crack.cracktype[0].mixed_mode())
+                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*en_cell*crack.el_mult / Gc;
+                    else 
+                    {
+                        Set::Scalar GcI = crack.cracktype[0].GcI(0);
+                        Set::Scalar GcII = crack.cracktype[0].GcII(0);
+                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*crack.el_mult*((energy(i,j,k,1)/GcI) + (energy(i,j,k,2)/GcII));
+                        df(i,j,k,0) *= crack.cracktype[0].correction_eta();
+                    }
+                    rhs += df(i,j,k,0);
+
+                    df(i,j,k,1) = crack.cracktype[0].Dw_phi(c_old(i,j,k,0),0.0)/(Zeta);
                     rhs += df(i,j,k,1);
 
-                    df(i,j,k,2) = 2.0*Zeta*Gc*laplacian * crack.mult_lap;
+                    df(i,j,k,2) = 2.0*Zeta*laplacian * crack.mult_lap;
                     if (std::isnan(df(i,j,k,2))) Util::Message(INFO, "DF(2) is nan at (",i,",",j,")");
                     rhs -= df(i,j,k,2);
 
-                    // df(i,j,k,3) = crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
+                    // df(i,j,k,3) = crack.beta*(0.5*Zeta*Zeta*Zeta)*bilap;
                     // if (std::isnan(df(i,j,k,3))) Util::Message(INFO, "DF(3) is nan at (",i,",",j,")");
                     // rhs += df(i,j,k,3);
                    

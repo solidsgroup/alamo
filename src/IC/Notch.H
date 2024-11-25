@@ -335,7 +335,7 @@ public:
         else
         {
             for (int i=0; i<value.nThickness.size(); i++)
-                if(value.nThickness[i] <= 0.) value.nThickness[i] = 0.01;
+                if(value.nThickness[i] < 0.) value.nThickness[i] = 0.01;
         }
         
         if(value.nLength.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of length and centers");
