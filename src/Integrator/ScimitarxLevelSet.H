@@ -17,6 +17,7 @@
 #include "Integrator/Integrator.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
+#include "BC/IntBC.H"
 #include "IC/IC.H"
 #include "IC/SphereLS.H"
 #include "IC/Constant.H"
@@ -44,6 +45,7 @@ public:
     {
         delete ls_ic;
         delete ls_bc;
+	delete nbmask_bc;
     }
 
     // The Parse function initializes the HeatConduction object using
@@ -77,17 +79,20 @@ public:
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
         std::string bc_type;
-        // Select BC object for temperature
+        // Select BC object for levelset
         pp_query_validate("ls.bc.type",bc_type,{"constant","expression"});
         if (bc_type == "expression")      value.ls_bc = new BC::Expression(1, pp, "ls.bc.expression");
         else if (bc_type == "constant")   value.ls_bc = new BC::Constant(1, pp, "ls.bc");
 
-        // Register the temperature and old temperature fields.
-        // temp_mf and temp_old_mf are defined near the bottom of this Header file.
+        // Select BC object for narrowband mask
+        pp_query_validate("nbmask.bc.type",bc_type,{"constant"});
+        if (bc_type == "constant")   value.nbmask_bc = new BC::NothingInt(1, pp, "nbmask.bc");
+
+        // Register the levelset and old levelset fields.
         value.RegisterNewFab(value.ls_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS", true);
         value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
         value.RegisterNewFab(value.lsflux_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LSFlux", false);
-        value.RegisterNewFab(value.interface_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "ILabel", false);
+        value.RegisterNewFab(value.iNarrowBandMask_mf, value.nbmask_bc, value.number_of_components, value.number_of_ghost_cells, "NBand", false);
 
     }
 
@@ -103,7 +108,8 @@ void Initialize(int lev)
     {
         const amrex::Box& bx = mfi.tilebox();
         Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> interface_patch = interface_mf.Patch(lev, mfi);
+        Set::Patch<Set::IntScalar> nbmask_patch = iNarrowBandMask_mf.Patch(lev, mfi);
+
 
         const Set::Scalar narrow_band_width = 6.0 * geom[lev].CellSize()[0];
         const Set::Scalar inner_tube = -narrow_band_width;
@@ -114,15 +120,15 @@ void Initialize(int lev)
         {
             if (std::abs(ls(i, j, k)) <= geom[lev].CellSize()[0])
             {
-                interface_patch(i, j, k) = 0.0; // Cells closest to the interface (considered zero level set)
+                nbmask_patch(i, j, k) = 0; // Cells closest to the interface (considered zero level set)
             }
             else if (ls(i, j, k) > inner_tube && ls(i, j, k) < outer_tube)
             {
-                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 1.0 : -1.0; // Narrow band cells
+                nbmask_patch(i, j, k) = (ls(i, j, k) > 0) ? 1 : -1; // Narrow band cells
             }
             else
             {
-                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 2.0 : -2.0; // Cells outside the narrow band
+                nbmask_patch(i, j, k) = (ls(i, j, k) > 0) ? 2 : -2; // Cells outside the narrow band
             }
         });
     }
@@ -137,10 +143,10 @@ void Initialize(int lev)
     	    // Advect the level set field
                Advect(lev, dt);
 
-	    // Reinitialize the level set function
-	     /* if(current_timestep % 5 == 0) {
+	     //Reinitialize the level set function
+	     if(current_timestep % 5 == 0) {
                Reinitialize(lev);
-	      }*/
+	      }
 
             // Update the narrow band
                UpdateNarrowBand(lev);
@@ -187,7 +193,7 @@ void Initialize(int lev)
         {
             Set::Scalar ls_xm = (i > 0) ? ls_old(i - 1, j, k) : ls_old(i, j, k);
             Set::Scalar ls_xp = ls_old(i, j, k);
-            Set::Scalar vel_x = -2.0;
+            Set::Scalar vel_x = 0.0;
             Set::Scalar flux_x = (vel_x > 0.0) ? vel_x * ls_xm : vel_x * ls_xp;
 
             Set::Scalar ls_ym = (j > 0) ? ls_old(i, j - 1, k) : ls_old(i, j, k);
@@ -219,23 +225,23 @@ void Initialize(int lev)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
-            Set::Patch<Set::Scalar> interface_patch = interface_mf.Patch(lev, mfi);
+            Set::Patch<Set::IntScalar> nbmask_patch = iNarrowBandMask_mf.Patch(lev, mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                      // Set initial condition based on the interface_patch values
-            if (interface_patch(i, j, k) == 0.0)
+            if (nbmask_patch(i, j, k) == 0)
             {
                 ls(i, j, k) = 0.0; // Interface cells set to 0
             }
-            else if (interface_patch(i, j, k) == -1.0 || interface_patch(i, j, k) == 1.0)
+            else if (nbmask_patch(i, j, k) == -1 || nbmask_patch(i, j, k) == 1)
             {
-                ls(i, j, k) = (interface_patch(i, j, k) == -1.0) ? inner_tube : outer_tube; // Narrow band cells set to inner_tube or outer_tube
+                ls(i, j, k) = (nbmask_patch(i, j, k) == -1) ? inner_tube : outer_tube; // Narrow band cells set to inner_tube or outer_tube
             }
-            else if (interface_patch(i, j, k) == -2.0 || interface_patch(i, j, k) == 2.0)
+            else if (nbmask_patch(i, j, k) == -2 || nbmask_patch(i, j, k) == 2)
             {
                 // Cells outside the narrow band maintain their signed distance value
-                ls(i, j, k) = (interface_patch(i, j, k) == -2.0) ? inner_tube : outer_tube;
+                ls(i, j, k) = (nbmask_patch(i, j, k) == -2) ? inner_tube : outer_tube;
             }
 
             });
@@ -290,7 +296,7 @@ void Initialize(int lev)
         {
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
-            Set::Patch<Set::Scalar> interface_patch = interface_mf.Patch(lev, mfi);
+            Set::Patch<Set::IntScalar> nbmask_patch = iNarrowBandMask_mf.Patch(lev, mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -303,15 +309,15 @@ void Initialize(int lev)
             
 	    if (std::abs(ls(i, j, k)) <= geom[lev].CellSize()[0])
             {
-                interface_patch(i, j, k) = 0.0; // Interface cells (closest to zero level set)
+                nbmask_patch(i, j, k) = 0; // Interface cells (closest to zero level set)
             }
             else if (ls(i, j, k) > inner_tube && ls(i, j, k) < outer_tube)
             {
-                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 1.0 : -1.0; // Narrow band cells
+                nbmask_patch(i, j, k) = (ls(i, j, k) > 0) ? 1 : -1; // Narrow band cells
             }
             else
             {
-                interface_patch(i, j, k) = (ls(i, j, k) > 0) ? 2.0 : -2.0; // Outside narrow band
+                nbmask_patch(i, j, k) = (ls(i, j, k) > 0) ? 2 : -2; // Outside narrow band
             }
 
     	    });
@@ -349,10 +355,11 @@ void Initialize(int lev)
     }
 
 protected:
-    Set::Field<Set::Scalar> ls_mf;         // Levelset field variable (current timestep)
-    Set::Field<Set::Scalar> ls_old_mf;     // Levelset field variable (previous timestep)
-    Set::Field<Set::Scalar> lsflux_mf;     // Levelset flux field variable 
-    Set::Field<Set::Scalar> interface_mf;    // Variable for Interface Labeling
+    Set::Field<Set::Scalar>    ls_mf;                 // Levelset field variable (current timestep)
+    Set::Field<Set::Scalar>    ls_old_mf;             // Levelset field variable (previous timestep)
+    Set::Field<Set::Scalar>    lsflux_mf;             // Levelset flux field variable 
+    Set::Field<Set::Scalar>    interface_mf;          // Variable for Interface Labeling
+    Set::Field<Set::IntScalar> iNarrowBandMask_mf;     // Narrow Band Mask
 
 private:
 
@@ -364,6 +371,12 @@ private:
     const int number_of_components = 1;      // Number of components
     const int number_of_ghost_cells = 2;     // Number of ghost cells
 
+    static constexpr int NarrowBand_Innertube   = -3; // InnerTube
+    static constexpr int NarrowBand_Outertube   =  3; // OuterTube
+    static constexpr int NarrowBand_InsideLS    = -2; // Inside the Levelset
+    static constexpr int NarrowBand_OutsideLS   =  2; // Outside the Levelset
+    static constexpr int NarrowBand_ZeroLS      =  1; // Closest to the Levelset
+
 
     Set::Scalar alpha = NAN;                 // Thermal diffusivity
     Set::Scalar refinement_threshold = NAN ; // Criterion for cell refinement
@@ -374,6 +387,7 @@ private:
 
     IC::IC* ls_ic = nullptr;                    // Object used to initialize temperature field
     BC::BC<Set::Scalar>* ls_bc = nullptr;       // Object used to update temp field boundary ghost cells
+    BC::BC<Set::IntScalar>* nbmask_bc = nullptr; // Object used to update narrowband mask ghost cells 
 };
 } // namespace Integrator
 #endif

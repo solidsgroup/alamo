@@ -29,7 +29,7 @@ stop_time = 32.0
 
 # AMR parameters
 amr.plot_int = 5
-amr.max_level = 1
+amr.max_level = 2
 amr.n_cell = 48 24 24
 amr.blocking_factor = 1
 amr.regrid_int = 10
@@ -64,6 +64,17 @@ ls.bc.val.ylo  = 0.0
 ls.bc.val.zhi  = 0.0
 ls.bc.val.zlo  = 0.0
 
-
+nbmask.bc.type.xhi = neumann
+nbmask.bc.type.xlo = neumann
+nbmask.bc.type.yhi = neumann
+nbmask.bc.type.ylo = neumann
+nbmask.bc.type.zhi = neumann
+nbmask.bc.type.zlo = neumann
+nbmask.bc.val.xhi  = 0
+nbmask.bc.val.xlo  = 0
+nbmask.bc.val.yhi  = 0
+nbmask.bc.val.ylo  = 0
+nbmask.bc.val.zhi  = 0
+nbmask.bc.val.zlo  = 0
 
 

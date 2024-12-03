@@ -6,22 +6,25 @@
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
 
-namespace BC
-{
-class Nothing
-    : public BC<Set::Scalar>
-{
+namespace BC {
 
+class Nothing : public BC<Set::Scalar> {
 public:
-    Nothing () {};
-    virtual void FillBoundary (amrex::BaseFab<Set::Scalar>&,
-                    const amrex::Box &,
-                    int, int, int,
-                    amrex::Real,
-                    Orientation /*face*/ = Orientation::All,
-                    const amrex::Mask * /*mask*/ = nullptr) override {};
+    Nothing() = default;
 
-    virtual amrex::BCRec GetBCRec() override {return amrex::BCRec();}
+    void FillBoundary(amrex::BaseFab<Set::Scalar>&,
+                      const amrex::Box&,
+                      int, int, int,
+                      amrex::Real,
+                      Orientation /*face*/ = Orientation::All,
+                      const amrex::Mask* /*mask*/ = nullptr) override {}
+
+    amrex::BCRec GetBCRec() override {
+        return amrex::BCRec();
+    }
 };
-}
+
+
+} // namespace BC
+
 #endif

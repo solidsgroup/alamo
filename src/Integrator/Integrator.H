@@ -63,6 +63,7 @@
 #include "Set/Set.H"
 #include "BC/BC.H"
 #include "BC/Nothing.H"
+#include "BC/IntBC.H"
 #include "IO/WriteMetaData.H"
 #include "BaseField.H"
 
@@ -220,13 +221,13 @@ protected:
     virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
     {}
 
-
-
-
     /// \fn    RegisterNewFab
     /// \brief Register a field variable for AMR with this class 
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout);
+    // Explicit overloads for Set::IntScalar
+    void RegisterNewFab(Set::Field<Set::IntScalar>& new_fab, BC::BC<Set::IntScalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
+    void RegisterNewFab(Set::Field<Set::IntScalar>& new_fab, int ncomp, std::string name, bool writeout);
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout);
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
     template<class T>
@@ -317,10 +318,12 @@ protected:
     struct {
         int number_of_fabs = 0;
         std::vector<Set::Field<Set::Scalar>*> fab_array;
+        std::vector<Set::Field<Set::IntScalar>*> fab_array_int;
         std::vector<int> ncomp_array;
         std::vector<int> nghost_array;
         std::vector<std::string> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
+        std::vector<BC::BC<Set::IntScalar>*> physbc_array_int;
         std::vector<bool> writeout_array;
         bool any = true;
         bool all = false;
@@ -329,10 +332,12 @@ protected:
     struct {
         int number_of_fabs = 0;
         std::vector<Set::Field<Set::Scalar>*> fab_array;
+        std::vector<Set::Field<Set::IntScalar>*> fab_array_int;
         std::vector<int> ncomp_array;
         std::vector<int> nghost_array;
         std::vector<std::string> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
+        std::vector<BC::BC<Set::IntScalar>*> physbc_array_int;
         std::vector<bool> writeout_array;
         bool any = true;
         bool all = false;
@@ -342,6 +347,7 @@ protected:
     std::vector<BaseField*> m_basefields_cell;
 
     BC::Nothing bcnothing;
+    BC::NothingInt bcnothing_int;
 
     // KEEP TRACK OF ALL INTEGRATED VARIABLES
     struct {
@@ -420,6 +426,55 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Sca
     node.number_of_fabs++;
 }
 
+template <>
+ALAMO_SINGLE_DEFINITION
+void Integrator::AddField<Set::IntScalar, Set::Hypercube::Cell>(
+    Set::Field<Set::IntScalar>& new_field,
+    BC::BC<Set::IntScalar>* new_bc,
+    int ncomp,
+    int nghost,
+    std::string name,
+    bool writeout,
+    bool /*evolving*/)
+{
+    int nlevs_max = maxLevel() + 1;
+    new_field.resize(nlevs_max);
+    cell.fab_array_int.push_back(&new_field);
+    if (new_bc != nullptr)
+        cell.physbc_array_int.push_back(new_bc);
+    else
+        cell.physbc_array_int.push_back(&bcnothing_int);
+    cell.ncomp_array.push_back(ncomp);
+    cell.nghost_array.push_back(nghost);
+    cell.name_array.push_back(name);
+    cell.writeout_array.push_back(writeout);
+    cell.number_of_fabs++;
+}
+
+template <>
+ALAMO_SINGLE_DEFINITION
+void Integrator::AddField<Set::IntScalar, Set::Hypercube::Node>(
+    Set::Field<Set::IntScalar>& new_field,
+    BC::BC<Set::IntScalar>* new_bc,
+    int ncomp,
+    int nghost,
+    std::string name,
+    bool writeout,
+    bool /*evolving*/)
+{
+    BL_PROFILE("Integrator::RegisterNodalFab");
+    Util::Assert(INFO, TEST(new_bc == nullptr));
+    int nlevs_max = maxLevel() + 1;
+    new_field.resize(nlevs_max);
+    node.fab_array_int.push_back(&new_field);
+    node.physbc_array_int.push_back(&bcnothing_int);
+    node.ncomp_array.push_back(ncomp);
+    node.nghost_array.push_back(nghost);
+    node.name_array.push_back(name);
+    node.writeout_array.push_back(writeout);
+    node.number_of_fabs++;
+}
+
 template<class T, int d>
 ALAMO_SINGLE_DEFINITION
 void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving)
@@ -454,8 +509,6 @@ void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp
         Util::Abort(INFO, "Only node and cell based fields can be added at this time");
     }
 }
-
-
 
 template<class T>
 ALAMO_SINGLE_DEFINITION

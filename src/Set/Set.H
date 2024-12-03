@@ -23,6 +23,7 @@
 #include "Util/Util.H"
 
 #include "Set/Base.H"
+#include <AMReX_iMultiFab.H>
 /// \brief A collection of data types and symmetry-reduced data structures
 
 namespace Set
@@ -269,6 +270,40 @@ public:
     amrex::Array4<Set::Scalar> empty;
 };
 
+template <>
+class Field<Set::IntScalar> : public amrex::Vector<std::unique_ptr<amrex::iMultiFab>>
+{
+public:
+    Field() {}
+    Field(int size) : amrex::Vector<std::unique_ptr<amrex::iMultiFab>>(size) {}
+
+    void Define(int a_levs, const amrex::Vector<amrex::BoxArray>& a_grids, const amrex::Vector<amrex::DistributionMapping>& a_dmap, int a_ncomp, int a_nghost)
+    {
+        Util::Assert(INFO, TEST(a_levs == a_grids.size()));
+        Util::Assert(INFO, TEST(a_levs == a_dmap.size()));
+        this->resize(a_levs);
+        for (int lev = 0; lev < a_levs; ++lev)
+        {
+            (*this)[lev].reset(new amrex::iMultiFab(a_grids[lev], a_dmap[lev], a_ncomp, a_nghost));
+        }
+    }
+
+    void Define(int a_lev, const amrex::BoxArray& a_grid, const amrex::DistributionMapping& a_dmap, int a_ncomp, int a_nghost)
+    {
+        Util::Assert(INFO, TEST(a_lev < this->size()));
+        (*this)[a_lev].reset(new amrex::iMultiFab(a_grid, a_dmap, a_ncomp, a_nghost));
+    }
+
+    amrex::Array4<Set::IntScalar> Patch(int lev, amrex::MFIter& mfi) const &
+    {
+        if (this->size())
+            return (*(*this)[lev]).array(mfi);
+        else
+            return empty;
+    }
+
+    amrex::Array4<Set::IntScalar> empty;
+};
 
 }
 

@@ -300,6 +300,16 @@ Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::str
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
     AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true);
 }
+void 
+Integrator::RegisterNewFab(Set::Field<Set::IntScalar>& new_fab, BC::BC<Set::IntScalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
+{
+    AddField<Set::IntScalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+}
+void 
+Integrator::RegisterNewFab(Set::Field<Set::IntScalar>& new_fab, int ncomp, std::string name, bool writeout)
+{
+    AddField<Set::IntScalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true);
+}
 void
 Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
 {

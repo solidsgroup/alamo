@@ -23,6 +23,7 @@ using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using Matrix3d = Eigen::Matrix3d;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
+using IntScalar = int;
 
 AMREX_FORCE_INLINE
 Set::Matrix reduce(const Set::Matrix3d &in)
