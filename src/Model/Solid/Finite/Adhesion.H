@@ -4,7 +4,6 @@
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
 #include <cmath>         // For std::pow and std::exp
-#include <Eigen/Dense>   // For Eigen::Matrix3d
 
 namespace Model {
 namespace Solid {
