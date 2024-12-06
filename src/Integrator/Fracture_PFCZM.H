@@ -197,8 +197,8 @@ public:
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
         value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_old_mf, 3, 2, "energy_pristine_old", false);
+        value.RegisterNodalFab(value.crack.energy_pristine_mf, 2, 2, "energy_pristine", true);
+        value.RegisterNodalFab(value.crack.energy_pristine_old_mf, 2, 2, "energy_pristine_old", false);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm),"driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
@@ -360,22 +360,25 @@ public:
                         else eps_n += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                     }
 
+                    Set::Matrix eps_n_dev = eps_n - (1.0/3.0)*eps_n.trace()*Set::Matrix::Identity();
+
                     for (int n = 0; n < material.num_mat; n++)
                     {
                         // computing energy based on Miehe
                         energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].W(eps_p);
 
                         // computing energy from volumetric portion.
-                        if (eps.trace() >= 0) energy(i,j,k,1) += eta(i,j,k,n)*material.models[n].W(eps_sph);
+                        // if (eps.trace() >= 0) energy(i,j,k,1) += eta(i,j,k,n)*material.models[n].W(eps_sph);
+                        // else energy(i,j,k,1) = 0.0;
                         
                         // compute energy from deviatoric portion
-                        energy(i,j,k,2) += eta(i,j,k,n) * material.models[n].W(eps_dev);
+                        energy(i,j,k,1) += eta(i,j,k,n) * material.models[n].W(eps_n_dev);
                     }
                     
                     // Only update energy if it is increasing. (H^+ according to Miehe)
                     if (energy(i,j,k,0) < energy_old(i,j,k,0)) energy(i,j,k,0) = energy_old(i,j,k,0);
                     if (energy(i,j,k,1) < energy_old(i,j,k,1)) energy(i,j,k,1) = energy_old(i,j,k,1);
-                    if (energy(i,j,k,2) < energy_old(i,j,k,2)) energy(i,j,k,2) = energy_old(i,j,k,2);
+                    // if (energy(i,j,k,2) < energy_old(i,j,k,2)) energy(i,j,k,2) = energy_old(i,j,k,2);
                 });
             }
             Util::RealFillBoundary(*crack.energy_pristine_mf[lev],geom[lev]);
@@ -472,8 +475,15 @@ public:
                     {
                         Set::Scalar GcI = crack.cracktype[0].GcI(0);
                         Set::Scalar GcII = crack.cracktype[0].GcII(0);
-                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*crack.el_mult*((energy(i,j,k,1)/GcI) + (energy(i,j,k,2)/GcII));
-                        df(i,j,k,0) *= crack.cracktype[0].correction_eta();
+                        Set::Scalar Gc_eff = crack.cracktype[0].Gc(energy(i,j,k,0)/(energy(i,j,k,0)+energy(i,j,k,1)));
+                        
+                        Set::Scalar correction_eta = (energy(i,j,k,0) + energy(i,j,k,1))*GcI*GcII;
+                        correction_eta /= (Gc_eff * ((energy(i,j,k,1) * GcI) + (energy(i,j,k,0) * GcII)));
+
+                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*crack.el_mult*((energy(i,j,k,0)/GcI) + (energy(i,j,k,1)/GcII));
+                        // df(i,j,k,0) *= correction_eta; //crack.cracktype[0].correction_eta();
+
+                        // df(i,j,k,0) = (energy(i,j,k,0) + energy(i,j,k,1))/Gc_eff;
                     }
                     rhs += df(i,j,k,0);
 
