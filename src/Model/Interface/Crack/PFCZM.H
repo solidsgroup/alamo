@@ -32,8 +32,10 @@ public:
     // added functions for mixed mode
     Set::Scalar GcI (Set::Scalar /*theta*/) {return _Gc/c_alpha; }
     Set::Scalar GcII (Set::Scalar /*theta*/) {return _GcII/c_alpha; }
-    Set::Scalar correction_eta() {return _correction_eta; }
+    
     bool mixed_mode() { return _mixed_mode; }
+    Set::Scalar Cohesion() {return cohesion;}
+    Set::Scalar FrictionAngle() {return friction_angle;}
 
     Set::Scalar DGc (Set::Scalar /*theta*/) { return 0.0; }
     Set::Scalar DDGc (Set::Scalar /*theta*/) { return 0.0; }
@@ -53,7 +55,8 @@ private:
     bool _mixed_mode = false;
     Set::Scalar _GcII = 1.0e3;
     Set::Scalar mode_exponent = 2.5;
-    Set::Scalar _correction_eta = 1.0;
+    Set::Scalar cohesion = 1.0;
+    Set::Scalar friction_angle = 0.0;
 
 public:
     static void Parse(PFCZM & value, IO::ParmParse & pp)
@@ -81,7 +84,8 @@ public:
         {
             pp.query("G_c2", value._GcII);
             pp.query("mode_exponent", value.mode_exponent);
-            pp.query("correction_eta", value._correction_eta);
+            pp.query("cohesion", value.cohesion);
+            pp.query("friction_angle", value.friction_angle);
         }
 
         

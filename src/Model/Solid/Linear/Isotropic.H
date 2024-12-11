@@ -76,6 +76,7 @@ public:
     void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
     {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
+        ddw_inv = ddw.Inverse();
     }
 
     Set::Scalar W(const Set::Matrix & gradu) const override
@@ -95,8 +96,26 @@ public:
         out << ddw;
     }
 
+    Set::Scalar W2(const Set::Matrix & stress)
+    {
+        return ( 0.5 * stress.transpose() * (ddw_inv * stress) ).trace();
+    }
+    Set::Matrix DW2(const Set::Matrix & stress) 
+    {
+        return ddw_inv * stress;
+    }
+    Set::Scalar Wvol(const Set::Scalar eps_tr)
+    {
+        return 0.5*ddw.Lambda()*eps_tr*eps_tr;
+    }
+    Set::Scalar Wdev(const Set::Matrix eps)
+    {
+        return ddw.Mu()*std::max((eps*eps).trace(),0.0);
+    }
+
 public:
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw;
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw_inv;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:
@@ -149,7 +168,7 @@ public:
     }
 
     #define OP_CLASS Isotropic
-    #define OP_VARS X(ddw)
+    #define OP_VARS X(ddw) X(ddw_inv)
     #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"

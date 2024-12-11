@@ -197,8 +197,8 @@ public:
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
         value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_mf, 2, 2, "energy_pristine", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_old_mf, 2, 2, "energy_pristine_old", false);
+        value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", true);
+        value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", false);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm),"driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
@@ -253,6 +253,9 @@ public:
         material.eta_mf[lev]->setVal(1.0);
         if (material.is_ic) material.ic->Initialize(lev,material.eta_mf);
         else material.eta_mf[lev]->setVal(1.0);
+
+        // set history variable to zero
+        crack.history_var_mf[lev] -> setVal(0.0);
     }
 
     virtual void UpdateModel(int a_step, Set::Scalar /*a_time*/) override
@@ -305,12 +308,12 @@ public:
     {
         // Deciding whether to do an elastic solve or not
         Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.tol_rel);
-        if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > 100)
+        if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > 500)
         {
             crack.crack_prop_iter = 0;
             elastic_do_solve_now = true;
         }
-        if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > 100)
+        if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > 500)
         {
            elastic_do_solve_now = true;
            crack.crack_prop_iter = 0;
@@ -325,63 +328,176 @@ public:
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
-            std::swap(crack.energy_pristine_mf[lev],crack.energy_pristine_old_mf[lev]);
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
+            Set::Vector DX(geom[lev].CellSize());
 
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
                 amrex::Array4<Set::Scalar>     const &eta   = material.eta_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar>     const &c     = crack.c_mf[lev]->array(mfi);
+                amrex::Array4<Set::Matrix>     const &stress  = stress_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix>     const &strain  = strain_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>     const &energy  = crack.energy_pristine_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar>     const &energy_old  = crack.energy_pristine_old_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar>     const &history_var  = crack.history_var_mf[lev]->array(mfi);
                 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
                 {
+                    //==========================================================
+                    // The formulation below uses decomposition of stress
+                    // Set::Matrix sig = stress(i,j,k);
+                    // Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(sig);
+                    // Set::Vector eValues = eigensolver.eigenvalues();
+                    // Set::Matrix eVectors = eigensolver.eigenvectors();
+
+                    // Set::Matrix sig_p = Set::Matrix::Zero();
+                    // Set::Matrix sig_n = Set::Matrix::Zero();
+
+                    // for (int n = 0; n < AMREX_SPACEDIM; n++)
+                    // {
+                    //     if (eValues(n) > 0.0) sig_p += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
+                    //     else sig_n += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
+                    // }
+
+                    // Set::Matrix sig_n_dev = sig_n - (1.0/3.0)*sig_n.trace()*Set::Matrix::Identity();
+
+                    // for (int n = 0; n < material.num_mat; n++)
+                    // {
+                    //     // computing energy based on tensile stress
+                    //     energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].W2(sig_p);
+
+                    //     // compute energy from deviatoric portion
+                    //     energy(i,j,k,1) += eta(i,j,k,n) * material.models[n].W2(sig_n_dev);
+                    // }
+                    
+                    // // Only update energy if it is increasing. (H^+ according to Miehe)
+                    // if (energy(i,j,k,0) < energy_old(i,j,k,0)) energy(i,j,k,0) = energy_old(i,j,k,0);
+                    // if (energy(i,j,k,1) < energy_old(i,j,k,1)) energy(i,j,k,1) = energy_old(i,j,k,1);
+
+                    //==========================================================
+                    // The formulation below uses Miehe's decomposition of strain
                     // Perform eigenvalue decomposition of strain
                     Set::Matrix eps = strain(i,j,k);
+                    Set::Matrix sig = stress(i,j,k);
+                    energy(i,j,k,0) = 0.0;
+                    energy(i,j,k,1) = 0.0;
+                    energy(i,j,k,2) = 0.0;
 
-                    // We can also do a volumetric deviatoric decomposition.
-                    Set::Matrix eps_sph = (1.0/3.0) * eps.trace() * Set::Matrix::Identity();
-                    Set::Matrix eps_dev = eps - eps_sph;
-
+                    // perform eigenvalue decomposition of strain tensor.
                     Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(eps);
                     Set::Vector eValues = eigensolver.eigenvalues();
                     Set::Matrix eVectors = eigensolver.eigenvectors();
 
-                    // Reconstruct positive and negative counterparts of strain
-                    Set::Matrix eps_p = Set::Matrix::Zero();
-                    Set::Matrix eps_n = Set::Matrix::Zero();
-
-                    for (int n = 0; n<AMREX_SPACEDIM; n++)
+                    if (!crack.cracktype[0].mixed_mode())
                     {
-                        if(eValues(n) > 0.0) eps_p += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
-                        else eps_n += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
-                    }
-
-                    Set::Matrix eps_n_dev = eps_n - (1.0/3.0)*eps_n.trace()*Set::Matrix::Identity();
-
-                    for (int n = 0; n < material.num_mat; n++)
-                    {
-                        // computing energy based on Miehe
-                        energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].W(eps_p);
-
-                        // computing energy from volumetric portion.
-                        // if (eps.trace() >= 0) energy(i,j,k,1) += eta(i,j,k,n)*material.models[n].W(eps_sph);
-                        // else energy(i,j,k,1) = 0.0;
+                        // Reconstruct positive and negative counterparts of strain
+                        Set::Matrix eps_p = Set::Matrix::Zero();
+                        Set::Matrix eps_n = Set::Matrix::Zero();
                         
-                        // compute energy from deviatoric portion
-                        energy(i,j,k,1) += eta(i,j,k,n) * material.models[n].W(eps_n_dev);
+                        for (int n = 0; n<AMREX_SPACEDIM; n++)
+                        {
+                            if(eValues(n) > 0.0) eps_p += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
+                            else eps_n += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
+                        }
+
+                        for (int n = 0; n < material.num_mat; n++)
+                        {
+                            energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].W(eps_p);
+                            // computing energy based on Miehe 
+                            // energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].Wvol(std::max(0.0,eps.trace()));
+                            // energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].Wdev(eps_p);
+                        }
+
+                        if (energy(i,j,k,0) > history_var(i,j,k,0)) history_var(i,j,k,0) = energy(i,j,k,0);
                     }
-                    
-                    // Only update energy if it is increasing. (H^+ according to Miehe)
-                    if (energy(i,j,k,0) < energy_old(i,j,k,0)) energy(i,j,k,0) = energy_old(i,j,k,0);
-                    if (energy(i,j,k,1) < energy_old(i,j,k,1)) energy(i,j,k,1) = energy_old(i,j,k,1);
-                    // if (energy(i,j,k,2) < energy_old(i,j,k,2)) energy(i,j,k,2) = energy_old(i,j,k,2);
+                    else
+                    {
+                        // Let's get the H1 portion
+                        for (int n=0; n < material.num_mat; n++)
+                            energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].Wvol(std::max(0.0,eps.trace()));
+
+                        // Let's get the portion of H2 that comes from deviatoric portion of positive strain
+                        for (int n=0; n < material.num_mat; n++)
+                        {
+                            Set::Scalar strain_dev_pos = 0.0;
+                            for (int p =0; p < AMREX_SPACEDIM; p++) 
+                                strain_dev_pos += std::max(0.0, eValues(n) - (1.0/3.0)*eps.trace())*std::max(0.0, eValues(n) - (1.0/3.0)*eps.trace());
+                            
+                            energy(i,j,k,1) += eta(i,j,k,n) * material.models[n].DDW(Set::Matrix::Zero()).Mu()*strain_dev_pos;
+                        }
+                        
+                        // Now we get the portion of H2 that comes from compression shear.
+                        // get the trace of the negative component
+                        Set::Scalar eps_neg_trace = 0.0;
+                        for (int n=0; n<AMREX_SPACEDIM; n++) { eps_neg_trace += std::min(eValues(n),0.0); }
+                        // get the corresponding principal stresses.
+                        Set::Vector principal_stress = Set::Vector::Zero();
+                        for (int n=0; n<AMREX_SPACEDIM; n++)
+                        {
+                            if (eValues(n) >= 0.0) continue;
+                            for (int p=0; p<material.num_mat; p++)
+                            {
+                                principal_stress(n) += eta(i,j,k,p) * (material.models[p].DDW(Set::Matrix::Zero()).Lambda()
+                                        * eps_neg_trace + 2.0*material.models[p].DDW(Set::Matrix::Zero()).Mu()*std::min(eValues(n),0.0));
+                            }
+                        }
+                        for (int n = 0; n < material.num_mat; n++)
+                        {
+                            Set::Scalar cohesion = crack.cracktype[n].Cohesion();
+                            Set::Scalar friction_angle = crack.cracktype[n].FrictionAngle();
+
+                            // compute energy from compression-shear contributions.
+                            for (int p = 0; p < AMREX_SPACEDIM-1; p++)
+                            {
+                                for (int q = p+1; q < AMREX_SPACEDIM; q++)
+                                {
+                                    Set::Scalar temp = std::abs((principal_stress(q) - principal_stress(p)))/(2.0 * std::cos(friction_angle));
+                                    temp += (principal_stress(q) + principal_stress(p)) * 0.5 * std::tan(friction_angle);
+                                    temp -= cohesion;
+                                    temp = std::max(0., temp);
+                                    temp = temp*temp;
+                                    energy(i,j,k,1) += eta(i,j,k,n) * temp / (2.0 * material.models[n].DDW(Set::Matrix::Zero()).Mu());
+                                }
+                            }
+                        }
+
+                        // Now let's take care of the stick/slip stuff
+                        
+                        Set::Scalar fuzz = 1.e-3;
+                        // find vector normal and tangential to the crack.
+                        // Set::Vector gradC = Numeric::Gradient(c, i, j, k, DX.data());
+                        Set::Vector gradC = Numeric::NodeGradientOnCell(c, i, j, k, DX.data());
+                        Set::Vector normal = Set::Vector::Zero();
+                        Set::Vector tangent = Set::Vector::Zero();
+
+                        if (gradC.lpNorm<2>() > fuzz) 
+                        {
+                            normal = gradC / gradC.lpNorm<2>();
+                            tangent(0) = -normal(1); tangent(1) = normal(0);
+                        }
+                        
+                        Set::Matrix n_o_n = normal * normal.transpose();
+                        Set::Matrix m_o_m = tangent * tangent.transpose();
+                        Set::Matrix n_o_m = normal * tangent.transpose();
+                        Set::Matrix m_o_n = tangent * normal.transpose();
+                        Set::Scalar sig_nn = (sig * n_o_n.transpose()).trace();
+                        Set::Scalar tau_nm = 0.5*((sig*n_o_m.transpose()).trace() + (sig*m_o_n.transpose()).trace());
+                        Set::Scalar sign = std::abs(tau_nm) > 0.0 ? tau_nm / std::abs(tau_nm) : 0.0;
+                        Set::Matrix tau_f = -sig_nn * std::tan(crack.cracktype[0].FrictionAngle()) * sign * (n_o_m + m_o_n);
+
+                        // finally include the contribution of tau_f in the problem.
+                        energy(i,j,k,1) += (tau_f * eps.transpose()).trace();
+
+                        // Now we can do the history variable
+                        if (energy(i,j,k,0) > history_var(i,j,k,0)) history_var(i,j,k,0) = energy(i,j,k,0);
+                        if (energy(i,j,k,1) > history_var(i,j,k,1)) history_var(i,j,k,1) = energy(i,j,k,1);
+                    }
+                    //=====================================================================
                 });
             }
             Util::RealFillBoundary(*crack.energy_pristine_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*crack.history_var_mf[lev],geom[lev]);
         }
 
         integrate_variables_before_advance = false;
@@ -412,7 +528,7 @@ public:
             // bx = bx & domain;
 
             amrex::Array4<const Set::Scalar> const& c_old = crack.c_old_mf[a_lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const& energy = crack.energy_pristine_mf[a_lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& energy = crack.history_var_mf[a_lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = material.eta_mf[a_lev]->array(mfi);
 
             amrex::Array4<Set::Scalar> const& c = crack.c_mf[a_lev]->array(mfi);
@@ -470,20 +586,15 @@ public:
                     // =====================================================================
                     Set::Scalar en_cell = energy(i,j,k,0);
                     if (! crack.cracktype[0].mixed_mode())
-                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*en_cell*crack.el_mult / Gc;
+                    {
+                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*(energy(i,j,k,0)+energy(i,j,k,1))*crack.el_mult / Gc;
+                    }
                     else 
                     {
                         Set::Scalar GcI = crack.cracktype[0].GcI(0);
                         Set::Scalar GcII = crack.cracktype[0].GcII(0);
-                        Set::Scalar Gc_eff = crack.cracktype[0].Gc(energy(i,j,k,0)/(energy(i,j,k,0)+energy(i,j,k,1)));
                         
-                        Set::Scalar correction_eta = (energy(i,j,k,0) + energy(i,j,k,1))*GcI*GcII;
-                        correction_eta /= (Gc_eff * ((energy(i,j,k,1) * GcI) + (energy(i,j,k,0) * GcII)));
-
-                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*crack.el_mult*((energy(i,j,k,0)/GcI) + (energy(i,j,k,1)/GcII));
-                        // df(i,j,k,0) *= correction_eta; //crack.cracktype[0].correction_eta();
-
-                        // df(i,j,k,0) = (energy(i,j,k,0) + energy(i,j,k,1))/Gc_eff;
+                        df(i,j,k,0) = crack.cracktype[0].Dg2_phi(c_old(i,j,k))*crack.el_mult*((energy(i,j,k,0)/GcI) + ((energy(i,j,k,1)+energy(i,j,k,2))/GcII));
                     }
                     rhs += df(i,j,k,0);
 
@@ -580,9 +691,8 @@ protected:
     struct{
         Set::Field<Set::Scalar> c_mf;
         Set::Field<Set::Scalar> c_old_mf;
-        // Set::Field<Set::Scalar> c_mid_mf;
         Set::Field<Set::Scalar> energy_pristine_mf;
-        Set::Field<Set::Scalar> energy_pristine_old_mf;
+        Set::Field<Set::Scalar> history_var_mf;
         Set::Field<Set::Scalar> driving_force_mf;
         std::vector<pfczm_crack_type> cracktype;
 
