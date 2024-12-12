@@ -156,9 +156,10 @@ public:
 
         // Crack related parsing
         pp.query("crack.refinement_threshold",value.crack.refinement_threshold); // mesh refinement criteria
-        pp.query("crack.beta", value.crack.beta);   // constant multiplier for fourth orther model with bilaplacian
+        pp.query("crack.df.beta", value.crack.beta);   // constant multiplier for fourth orther model with bilaplacian
         pp.query("crack.df.tol_rel",value.crack.tol_rel); // relative tolerance for convergence of driving force
         pp.query("crack.df.tol_abs",value.crack.tol_abs);   // absolute tolerance for convergence of driving force
+        pp.query("crack.df.max_iter",value.crack.max_iter);
         pp.query("crack.df.mult_Gc", value.crack.mult_Gc);  // constant multiplier for controlling fracture energy of interface
         pp.query("crack.df.mult_lap", value.crack.mult_lap);    // constant multiplier for second order model with laplacian
         pp.query("crack.df.el_mult", value.crack.el_mult);  // unit conversion multiplier between elastic problem and crack problem
@@ -308,12 +309,12 @@ public:
     {
         // Deciding whether to do an elastic solve or not
         Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.tol_rel);
-        if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > 500)
+        if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > crack.max_iter)
         {
             crack.crack_prop_iter = 0;
             elastic_do_solve_now = true;
         }
-        if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > 500)
+        if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > crack.max_iter)
         {
            elastic_do_solve_now = true;
            crack.crack_prop_iter = 0;
@@ -552,14 +553,14 @@ public:
                 else
                 {
                     Set::Scalar rhs = 0.0;
-                    // Set::Scalar bilap = 0.0;
-                    // if (crack.beta > 0.0)
-                    // {
-                    //     bilap = 
-                    //         Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) +
-                    //         Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) * 2.0 +
-                    //         Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX);
-                    // }
+                    Set::Scalar bilap = 0.0;
+                    if (crack.beta > 0.0)
+                    {
+                        bilap = 
+                            Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) +
+                            Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) * 2.0 +
+                            Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX);
+                    }
 
                     // if (std::isnan(bilap))  Util::Message(INFO, "Bilaplacian is nan at (",i,", ",j,")");
                     
@@ -605,9 +606,9 @@ public:
                     if (std::isnan(df(i,j,k,2))) Util::Message(INFO, "DF(2) is nan at (",i,",",j,")");
                     rhs -= df(i,j,k,2);
 
-                    // df(i,j,k,3) = crack.beta*(0.5*Zeta*Zeta*Zeta)*bilap;
-                    // if (std::isnan(df(i,j,k,3))) Util::Message(INFO, "DF(3) is nan at (",i,",",j,")");
-                    // rhs += df(i,j,k,3);
+                    df(i,j,k,3) = crack.beta*(0.5*Zeta*Zeta*Zeta)*bilap;
+                    if (std::isnan(df(i,j,k,3))) Util::Message(INFO, "DF(3) is nan at (",i,",",j,")");
+                    rhs += df(i,j,k,3);
                    
                     df(i,j,k,4) = std::max(0.,rhs - Threshold);
                     c(i,j,k,0) = c_old(i,j,k,0) - a_dt*df(i,j,k,4)*Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
@@ -710,6 +711,7 @@ protected:
         Set::Scalar driving_force_norm = 0.0;
         Set::Scalar tol_rel = 1.e-3;
         Set::Scalar tol_abs = 1.e-3;
+        Set::Scalar max_iter = 500;
         
         Set::Scalar crack_l2_err = 0.0;
         Set::Scalar crack_norm = 0.0;
