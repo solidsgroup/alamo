@@ -24,6 +24,7 @@ public:
     {
         pp.queryclass("allencahn",static_cast<AllenCahn*>(&value));
         pp.queryclass("hydro",static_cast<Hydro*>(&value));
+        pp.query_default("tstart",value.tstart,0.0);
 
     }
 
@@ -84,7 +85,7 @@ protected:
     }
 
     int invert = false;
-    Set::Scalar tstart = 1.0;
+    Set::Scalar tstart = NAN;
     bool hydro_initialized = false;
 };
 } // namespace Integrator

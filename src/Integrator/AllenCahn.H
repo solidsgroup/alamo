@@ -105,7 +105,7 @@ protected:
     }
 
     // Integrate the Allen Cahn equation
-    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
         std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
 
@@ -127,6 +127,10 @@ protected:
                 // Gradient
                 Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
                 driving_force -= ch.eps * ch.grad * alpha_lap;
+
+                if (driving_force > 0 && time > 5.0) driving_force = 0.0;
+                //else if (driving_force < 0 && time<5.0) driving_force = 0.0;
+
                 // Update
                 alpha_new(i, j, k) =
                     alpha(i, j, k) - ch.L * dt * driving_force;
