@@ -13,7 +13,7 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 50 30 0
+amr.n_cell = 64 64 0
 
 # Uncomment to test AMR
 amr.max_level = 2
@@ -21,8 +21,8 @@ amr.max_level = 2
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = 0.0 -1.0 0.0 # [ m ] 
-geometry.prob_hi = 5.0  2.0 0.0 # [ m ]
+geometry.prob_lo = -1.0 -1.0 0.0 # [ m ] 
+geometry.prob_hi = 1.0  1.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -51,7 +51,7 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "0.5*tanh((4.0-x)/eps) + 0.5"
+eta.ic.expression.region0        = "1.0"
 
 ### HYDRO PARAM ###
 
@@ -61,10 +61,10 @@ mu    = 10.0
 pref = 1.0
 
 density.ic.type = expression
-density.ic.expression.region0 = "100.0"
+density.ic.expression.region0 = "100.0 + 100.0 * (x^2 + y^2 < 0.1)"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "1.0" #"1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
+velocity.ic.expression.region0 = "0.0" #"1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
