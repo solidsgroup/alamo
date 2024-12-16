@@ -54,6 +54,7 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
     MODELTEST(Model::Solid::Linear::TransverselyIsotropic);
+    //MODELTEST(Model::Solid::Linear::Adhesion);
 
     Util::Test::Message("Set::Matrix4");
     {
