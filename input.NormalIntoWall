@@ -28,7 +28,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-2
+timestep  = 1.0e-3
 stop_time = 10000.0
 
 ### ETA IC ###
@@ -55,13 +55,13 @@ eta.ic.expression.region0        = "0.5*tanh((4.0-x)/eps) + 0.5"
 
 ### HYDRO PARAM ###
 
-gamma = 1.2
+gamma = 1.4
 cfl   = 0.4
-mu    = 10.0
-pref = 1.0
+mu    = 0.5
+pref = 100.0
 
 density.ic.type = expression
-density.ic.expression.region0 = "100.0"
+density.ic.expression.region0 = "1.225"
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
@@ -73,7 +73,7 @@ pressure.ic.expression.region0 = "0.0"
 ### SOLID ###
 
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "100.0"
+solid.density.ic.expression.region0 = "1.225"
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.0"
@@ -136,8 +136,3 @@ eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
 
 #TODO
-
-momentum.bc.type.xlo = neumann neumann
-momentum.bc.type.xhi = neumann neumann
-momentum.bc.type.ylo = neumann neumann
-momentum.bc.type.yhi = neumann neumann
