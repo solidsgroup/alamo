@@ -42,7 +42,6 @@ public:
     }
     Set::Matrix DW(const Set::Matrix & gradu) const override
     {
-        Util::Message(INFO, ddw,gradu);
         return ddw*gradu;
     }
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
