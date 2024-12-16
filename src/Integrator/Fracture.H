@@ -230,7 +230,7 @@ protected:
         // if(iter%elastic.interval != 0) return;
         
         Util::Message(INFO);
-        Util::Warning(INFO,"DegradeModulus is no longer implemented");
+        Util::Abort(INFO,"DegradeModulus is no longer implemented");
         // for (int p = 0; p < number_of_materials; p++)
         //     material.brittlemodeltype[p].DegradeModulus(0.0);
         
@@ -283,7 +283,7 @@ protected:
                                             // _temp = std::max(crack.scaleModulusMax, _temp);
                                             // _temp = std::max(crack.scaleModulusMax, crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax));
 
-                                            Util::Warning(INFO,"DegradeModulus is no longer available");
+                                            Util::Abort(INFO,"DegradeModulus is no longer available");
                                             //model(i,j,k).DegradeModulus(1-_temp);
                                         });
             }

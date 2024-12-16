@@ -21,7 +21,6 @@
 #include "Model/Solid/Affine/J2.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
-
 #include "Integrator/Mechanics.H"
 #include "Model/Solid/Finite/CrystalPlastic.H"
 

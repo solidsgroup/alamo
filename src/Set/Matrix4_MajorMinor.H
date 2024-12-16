@@ -52,51 +52,6 @@ public:
     void Print (std::ostream& os)
     {
         os.precision(4);
-    // os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
-
-
-    // os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
-
-
-
         for (int k = 0; k < 2; k++)
         {
             for (int i = -1; i < 3; i++)
@@ -120,33 +75,6 @@ public:
                 os<<std::endl;
             }
         }
-
-
-//        os.precision(4);
-//        for (int k = 0; k < 2; k++)
-//        {
-//            for (int i = -1; i < 3; i++)
-//            {
-//                for (int l = 0; l < 2; l++)
-//                {
-//                    if (i==-1)       os << "┌                         ┐ ";
-//                    else if (i == 2) os << "└                         ┘ ";
-//                    else 
-//                    {
-//                        os << "│ ";
-//                        for (int j = 0; j < 2; j++)
-//                        {
-//                            const Set::Scalar &val = (*this)(i,j,k,l);
-//                            os << std::scientific << std::setw(11) << val ; //(fabs(val)>1E-10 ? val : 0);
-//                            os << " "; 
-//                        }
-//                        os << "│ ";
-//                    }
-//                }
-//                os<<std::endl;
-//            }
-//        }
-
     }
 
     Set::Scalar Norm()
@@ -205,7 +133,6 @@ public:
                         else if (i==j && k==l) Ctmp[i][j][k][l] = C12;
                         else Ctmp[i][j][k][l] = 0.0;
                     }
-
         for(int p = 0; p < 2; p++) 
             for(int q = 0; q < 2; q++) 
                 for(int s = 0; s < 2; s++) 
@@ -510,51 +437,6 @@ public:
     }
     void Print (std::ostream& os)
     {
-    // os << std::scientific << std::setw(11) << (*this)(0,0,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,0,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(1,1,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,1,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(2,2,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,2,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(1,2,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(1,2,0,1) << "\n";
-
-
-    // os << std::scientific << std::setw(11) << (*this)(2,0,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(2,0,0,1) << "\n";
-
-    // os << std::scientific << std::setw(11) << (*this)(0,1,0,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,1,1) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,2,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,1,2) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,2,0) << "\t";
-    // os << std::scientific << std::setw(11) << (*this)(0,1,0,1) << "\n";
-    return;
-
-
         for (int i = 0; i < 21; i++)
             os << "i = " << i << " " << data[i] << std::endl;
         
@@ -642,7 +524,8 @@ public:
         for (int i = 0 ; i < 21; i++) ret.data[i] = 0.0;
         return ret;
     }
-    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
         Set::Matrix4<3,Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3];
@@ -671,7 +554,8 @@ public:
                     }                
         return ret;
     }
-    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
         Eigen::Matrix3d R;
         R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
