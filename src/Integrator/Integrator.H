@@ -63,7 +63,7 @@
 #include "Set/Set.H"
 #include "BC/BC.H"
 #include "BC/Nothing.H"
-#include "BC/IntBC.H"
+#include "BC/NothingInt.H"
 #include "IO/WriteMetaData.H"
 #include "BaseField.H"
 
@@ -225,11 +225,15 @@ protected:
     /// \brief Register a field variable for AMR with this class 
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout);
-    // Explicit overloads for Set::IntScalar
+    // Explicit overloads for Set::IntScalar for Cell Fabs
     void RegisterNewFab(Set::Field<Set::IntScalar>& new_fab, BC::BC<Set::IntScalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
     void RegisterNewFab(Set::Field<Set::IntScalar>& new_fab, int ncomp, std::string name, bool writeout);
+    // \Register a NodalFab 
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout);
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
+    // Explicit overloads for Set::IntScalar for Nodal Fabs
+    void RegisterNodalFab(Set::Field<Set::IntScalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout);
+    void RegisterNodalFab(Set::Field<Set::IntScalar>& new_fab, BC::BC<Set::IntScalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
     template<class T>
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
     template<class T>
@@ -250,6 +254,11 @@ protected:
             m_basefields_cell[i]->SetFinestLevel(finest_level);
         for (unsigned int i = 0; i < m_basefields.size(); i++)
             m_basefields[i]->SetFinestLevel(finest_level);
+       // for iMultiFab cells and nodes 
+        for (unsigned int i = 0; i < cell.intfab_array.size(); i++)
+            cell.intfab_array[i]->finest_level = a_finestlevel;
+        for (unsigned int i = 0; i < node.intfab_array.size(); i++)
+            node.intfab_array[i]->finest_level = a_finestlevel;
     }
 
     void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive=true);
@@ -281,9 +290,18 @@ private:
         amrex::MultiFab& destination_multifab,
         BC::BC<Set::Scalar>& physbc,
         int icomp);
+
+    // for iMultiFab objects
+    void FillPatch(int lev, amrex::Real time,
+        amrex::Vector<std::unique_ptr<amrex::iMultiFab>>& source_imf,
+        amrex::iMultiFab& destination_imultifab,
+        BC::BC<Set::IntScalar>& physbc,
+        int icomp);
+
     long CountCells(int lev);
     void TimeStep(int lev, amrex::Real time, int iteration);
     void FillCoarsePatch(int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar>& physbc, int icomp, int ncomp);
+    void FillCoarsePatch(int lev, amrex::Real time, Set::Field<Set::IntScalar>& mf, BC::BC<Set::IntScalar>& physbc, int icomp, int ncomp);
     void GetData(const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
     std::vector<std::string> PlotFileName(int lev, std::string prefix = "") const;
@@ -317,13 +335,14 @@ protected:
 protected:
     struct {
         int number_of_fabs = 0;
+        int number_of_intfabs = 0;
         std::vector<Set::Field<Set::Scalar>*> fab_array;
-        std::vector<Set::Field<Set::IntScalar>*> fab_array_int;
+        std::vector<Set::Field<Set::IntScalar>*> intfab_array;
         std::vector<int> ncomp_array;
         std::vector<int> nghost_array;
         std::vector<std::string> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
-        std::vector<BC::BC<Set::IntScalar>*> physbc_array_int;
+        std::vector<BC::BC<Set::IntScalar>*> intphysbc_array;
         std::vector<bool> writeout_array;
         bool any = true;
         bool all = false;
@@ -331,13 +350,14 @@ protected:
 
     struct {
         int number_of_fabs = 0;
+        int number_of_intfabs = 0;
         std::vector<Set::Field<Set::Scalar>*> fab_array;
-        std::vector<Set::Field<Set::IntScalar>*> fab_array_int;
+        std::vector<Set::Field<Set::IntScalar>*> intfab_array;
         std::vector<int> ncomp_array;
         std::vector<int> nghost_array;
         std::vector<std::string> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
-        std::vector<BC::BC<Set::IntScalar>*> physbc_array_int;
+        std::vector<BC::BC<Set::IntScalar>*> intphysbc_array;
         std::vector<bool> writeout_array;
         bool any = true;
         bool all = false;
@@ -439,16 +459,16 @@ void Integrator::AddField<Set::IntScalar, Set::Hypercube::Cell>(
 {
     int nlevs_max = maxLevel() + 1;
     new_field.resize(nlevs_max);
-    cell.fab_array_int.push_back(&new_field);
+    cell.intfab_array.push_back(&new_field);
     if (new_bc != nullptr)
-        cell.physbc_array_int.push_back(new_bc);
+        cell.intphysbc_array.push_back(new_bc);
     else
-        cell.physbc_array_int.push_back(&bcnothing_int);
+        cell.intphysbc_array.push_back(&bcnothing_int);
     cell.ncomp_array.push_back(ncomp);
     cell.nghost_array.push_back(nghost);
     cell.name_array.push_back(name);
     cell.writeout_array.push_back(writeout);
-    cell.number_of_fabs++;
+    cell.number_of_intfabs++;
 }
 
 template <>
@@ -466,13 +486,13 @@ void Integrator::AddField<Set::IntScalar, Set::Hypercube::Node>(
     Util::Assert(INFO, TEST(new_bc == nullptr));
     int nlevs_max = maxLevel() + 1;
     new_field.resize(nlevs_max);
-    node.fab_array_int.push_back(&new_field);
-    node.physbc_array_int.push_back(&bcnothing_int);
+    node.intfab_array.push_back(&new_field);
+    node.intphysbc_array.push_back(&bcnothing_int);
     node.ncomp_array.push_back(ncomp);
     node.nghost_array.push_back(nghost);
     node.name_array.push_back(name);
     node.writeout_array.push_back(writeout);
-    node.number_of_fabs++;
+    node.number_of_intfabs++;
 }
 
 template<class T, int d>

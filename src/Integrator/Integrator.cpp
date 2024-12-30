@@ -184,6 +184,18 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
         FillCoarsePatch(lev, time, *cell.fab_array[n], *cell.physbc_array[n], 0, ncomp);
     }
 
+    for (int n = 0; n < cell.number_of_intfabs; n++)
+    {
+        const int ncomp = (*cell.intfab_array[n])[lev - 1]->nComp();
+        const int nghost = (*cell.intfab_array[n])[lev - 1]->nGrow();
+
+        (*cell.intfab_array[n])[lev].reset(new amrex::iMultiFab(cgrids, dm, ncomp, nghost));
+
+        (*cell.intfab_array[n])[lev]->setVal(0);
+
+        FillCoarsePatch(lev, time, *cell.intfab_array[n], *cell.intphysbc_array[n], 0, ncomp);
+    }
+
     amrex::BoxArray ngrids = cgrids;
     ngrids.convert(amrex::IntVect::TheNodeVector());
 
@@ -196,6 +208,17 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
         (*node.fab_array[n])[lev]->setVal(0.0);
 
         FillCoarsePatch(lev, time, *node.fab_array[n], *node.physbc_array[n], 0, ncomp);
+    }
+
+    for (int n = 0; n < node.number_of_intfabs; n++)
+    {
+        const int ncomp = (*node.intfab_array[n])[lev - 1]->nComp();
+        const int nghost = (*node.intfab_array[n])[lev - 1]->nGrow();
+
+        (*node.intfab_array[n])[lev].reset(new amrex::iMultiFab(ngrids, dm, ncomp, nghost));
+        (*node.intfab_array[n])[lev]->setVal(0);
+
+        FillCoarsePatch(lev, time, *node.intfab_array[n], *node.intphysbc_array[n], 0, ncomp);
     }
 
     for (unsigned int n = 0; n < m_basefields.size(); n++)
@@ -235,6 +258,18 @@ Integrator::RemakeLevel(int lev,       ///<[in] AMR Level
         std::swap(new_state, *(*cell.fab_array[n])[lev]);
     }
 
+    for (int n = 0; n < cell.number_of_intfabs; n++)
+    {
+        const int ncomp = (*cell.intfab_array[n])[lev]->nComp();
+        const int nghost = (*cell.intfab_array[n])[lev]->nGrow();
+
+        amrex::iMultiFab new_state(cgrids, dm, ncomp, nghost);
+
+        new_state.setVal(0);
+        FillPatch(lev, time, *cell.intfab_array[n], new_state, *cell.intphysbc_array[n], 0);
+        std::swap(new_state, *(*cell.intfab_array[n])[lev]);
+    }
+
     amrex::BoxArray ngrids = cgrids;
     ngrids.convert(amrex::IntVect::TheNodeVector());
 
@@ -248,6 +283,18 @@ Integrator::RemakeLevel(int lev,       ///<[in] AMR Level
         new_state.setVal(0.0);
         FillPatch(lev, time, *node.fab_array[n], new_state, *node.physbc_array[n], 0);
         std::swap(new_state, *(*node.fab_array[n])[lev]);
+    }
+
+    for (int n = 0; n < node.number_of_intfabs; n++)
+    {
+        const int ncomp = (*node.intfab_array[n])[lev]->nComp();
+        const int nghost = (*node.intfab_array[n])[lev]->nGrow();
+
+        amrex::iMultiFab new_state(ngrids, dm, ncomp, nghost);
+
+        new_state.setVal(0);
+        FillPatch(lev, time, *node.intfab_array[n], new_state, *node.intphysbc_array[n], 0);
+        std::swap(new_state, *(*node.intfab_array[n])[lev]);
     }
 
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
@@ -274,9 +321,17 @@ Integrator::ClearLevel(int lev)
     {
         (*cell.fab_array[n])[lev].reset(nullptr);
     }
+    for (int n = 0; n < cell.number_of_intfabs; n++)
+    {
+        (*cell.intfab_array[n])[lev].reset(nullptr);
+    }
     for (int n = 0; n < node.number_of_fabs; n++)
     {
         (*node.fab_array[n])[lev].reset(nullptr);
+    }
+    for (int n = 0; n < node.number_of_intfabs; n++)
+    {
+        (*node.intfab_array[n])[lev].reset(nullptr);
     }
 }
 
@@ -407,6 +462,15 @@ Integrator::FillPatch(int lev, amrex::Real time,
     }
 }
 
+
+void  // Empty Constructor for iMultiFab object
+Integrator::FillPatch(int lev, amrex::Real time,
+    amrex::Vector<std::unique_ptr<amrex::iMultiFab>>& source_mf,
+    amrex::iMultiFab& destination_mf,
+    BC::BC<Set::IntScalar>& physbc, int icomp)
+{
+}    
+
 /// \fn    Integrator::FillCoarsePatch
 /// \brief Fill a fab at current level with the data from one level up
 ///
@@ -440,6 +504,17 @@ Integrator::FillCoarsePatch(int lev, ///<[in] AMR level
         physbc, 0,
         refRatio(lev - 1),
         mapper, bcs, 0);
+}
+
+
+void
+Integrator::FillCoarsePatch(int lev, ///<[in] AMR level
+    amrex::Real time, ///<[in] Simulatinon time
+    Set::Field<Set::IntScalar>& mf, ///<[in] Fab to fill
+    BC::BC<Set::IntScalar>& physbc, ///<[in] BC object applying to Fab
+    int icomp, ///<[in] start component
+    int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
+{
 }
 
 void
@@ -669,12 +744,23 @@ Integrator::MakeNewLevelFromScratch(int lev, amrex::Real t, const amrex::BoxArra
         (*cell.fab_array[n])[lev]->setVal(0.0);
     }
 
+    for (int n = 0; n < cell.number_of_intfabs; n++)
+    {
+        (*cell.intfab_array[n])[lev].reset(new amrex::iMultiFab(cgrids, dm, cell.ncomp_array[n], cell.nghost_array[n]));
+        (*cell.intfab_array[n])[lev]->setVal(0);
+    }
+
     amrex::BoxArray ngrids = cgrids;
     ngrids.convert(amrex::IntVect::TheNodeVector());
     for (int n = 0; n < node.number_of_fabs; n++)
     {
         (*node.fab_array[n])[lev].reset(new amrex::MultiFab(ngrids, dm, node.ncomp_array[n], node.nghost_array[n]));
         (*node.fab_array[n])[lev]->setVal(0.0);
+    }
+    for (int n = 0; n < node.number_of_intfabs; n++)
+    {
+        (*node.intfab_array[n])[lev].reset(new amrex::iMultiFab(ngrids, dm, node.ncomp_array[n], node.nghost_array[n]));
+        (*node.intfab_array[n])[lev]->setVal(0);
     }
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
     {
@@ -696,6 +782,11 @@ Integrator::MakeNewLevelFromScratch(int lev, amrex::Real t, const amrex::BoxArra
         cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev], 0, 0, t, 0);
     }
 
+    for (int n = 0; n < cell.number_of_intfabs; n++)
+    {
+        cell.intphysbc_array[n]->define(geom[lev]);
+        cell.intphysbc_array[n]->FillBoundary(*(*cell.intfab_array[n])[lev], 0, 0, t, 0);
+    }
     //for (int n = 0 ; n < node.number_of_fabs; n++)
     //{
     //    bcnothing->define(geom[lev]);

@@ -294,6 +294,13 @@ public:
         (*this)[a_lev].reset(new amrex::iMultiFab(a_grid, a_dmap, a_ncomp, a_nghost));
     }
 
+    int finest_level = 0;
+
+    void Copy(int /*a_lev*/, amrex::iMultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) const
+    {Util::Abort(INFO,"This should never get called");}
+    int NComp() const
+    {Util::Abort(INFO,"This should never be called");return -1;}
+
     amrex::Array4<Set::IntScalar> Patch(int lev, amrex::MFIter& mfi) const &
     {
         if (this->size())

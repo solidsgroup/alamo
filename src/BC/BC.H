@@ -109,6 +109,32 @@ public:
     }
 
 
+    // Specialization for amrex::iMultiFab (Integer-valued)
+    template <class Q = T>
+    typename std::enable_if<std::is_same<Q, int>::value>::type
+    FillBoundary(amrex::iMultiFab& mf,
+                 int dcomp, int ncomp,
+                 amrex::Real time, int /*bccomp*/)
+    {
+        mf.FillBoundary(m_geom.periodicity());
+        for (amrex::MFIter mfi(mf, true); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& box = mfi.tilebox();
+            amrex::BaseFab<Q>& in = mf[mfi];
+            FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
+        }
+    }
+
+    template <class Q = T>
+    typename std::enable_if<std::is_same<Q, int>::value>::type
+    operator()(amrex::iMultiFab& mf,
+               int dcomp, int ncomp, amrex::IntVect const& /*nghost*/,
+               amrex::Real time, int bccomp)
+    {
+        FillBoundary(mf, dcomp, ncomp, time, bccomp);
+    }
+
+
     virtual amrex::BCRec GetBCRec() = 0;
 
     virtual amrex::Array<int, AMREX_SPACEDIM> IsPeriodic()

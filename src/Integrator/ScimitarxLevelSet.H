@@ -17,7 +17,7 @@
 #include "Integrator/Integrator.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
-#include "BC/IntBC.H"
+#include "BC/ConstantInt.H"
 #include "IC/IC.H"
 #include "IC/SphereLS.H"
 #include "IC/Constant.H"
@@ -86,7 +86,8 @@ public:
 
         // Select BC object for narrowband mask
         pp_query_validate("nbmask.bc.type",bc_type,{"constant"});
-        if (bc_type == "constant")   value.nbmask_bc = new BC::NothingInt(1, pp, "nbmask.bc");
+        if (bc_type == "constant")  value.nbmask_bc = new BC::ConstantInt(1, pp, "nbmask.bc");
+        //value.nbmask_bc = 0;
 
         // Register the levelset and old levelset fields.
         value.RegisterNewFab(value.ls_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS", true);
