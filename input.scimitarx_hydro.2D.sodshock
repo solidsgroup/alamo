@@ -1,0 +1,60 @@
+# Simulation output
+plot_file = output_sod_2d
+
+# Simulation length
+timestep = 0.0001
+stop_time = 0.0010
+
+# AMR parameters
+amr.plot_int = 1
+amr.max_level = 0
+amr.n_cell = 128 40 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.blocking_factor = 1
+amr.regrid_int = -1  # No regridding for uniform grid
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 0.3125 1  # Set height proportionally to match reduced y-cells
+geometry.is_periodic = 0 0 0
+
+#SolverType
+SolverType = SolveCompressibleEuler
+
+# Initial conditions
+# Q Vector = [Density, Uvelocity, VVelocity, WVelocity, Pressure]
+ic.pvec.type = sodshock
+ic.pvec.sodshock.left.density = 1.0
+ic.pvec.sodshock.right.density = 0.125
+ic.pvec.sodshock.left.uvelocity = 0.0
+ic.pvec.sodshock.right.uvelocity = 0.0
+ic.pvec.sodshock.left.vvelocity = 0.0
+ic.pvec.sodshock.right.vvelocity = 0.0
+ic.pvec.sodshock.left.wvelocity = 0.0
+ic.pvec.sodshock.right.wvelocity = 0.0
+
+# Pressure
+ic.pressure.type = sodshock
+ic.pressure.sodshock.left = 1.0
+ic.pressure.sodshock.right = 0.1
+
+# Shock position
+shock.xpos = 0.5
+shock.ypos = 0.0
+shock.zpos = 0.0
+
+# Boundary conditions
+bc.pressure.type.xhi = neumann
+bc.pressure.type.xlo = neumann
+bc.pressure.type.yhi = neumann
+bc.pressure.type.ylo = neumann
+bc.pressure.type.zhi = neumann
+bc.pressure.type.zlo = neumann
+
+bc.pressure.val.xhi = 0.0
+bc.pressure.val.xlo = 0.0
+bc.pressure.val.yhi = 0.0
+bc.pressure.val.ylo = 0.0
+bc.pressure.val.zhi = 0.0
+bc.pressure.val.zlo = 0.0
+

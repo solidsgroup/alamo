@@ -108,8 +108,12 @@ public:
             // Cache toInt results for clarity
             const int dens_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::DENS);
             const int uvel_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::UVEL);
+#if AMREX_SPACEDIM >= 2
             const int vvel_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::VVEL);
+#endif
+#if AMREX_SPACEDIM == 3
             const int wvel_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::WVEL);
+#endif
             const int ie_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::IE);
 
             result.NVAR_MAX = index;

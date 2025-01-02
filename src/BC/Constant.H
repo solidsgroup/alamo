@@ -240,7 +240,12 @@ public:
 
         std::vector<std::string> str;
         pp_queryarr("type.xlo", str);  // BC type on the lower x edge (2d) face (3d)
-        for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Exception(INFO, "Invalid BC: ", str[i]);
+        for (unsigned int i = 0; i < str.size(); i++) { 
+            if (!bcmap.count(str[i])) {
+            Util::Message(INFO, "DEBUG: Valid BC Type", str[i], "mapped to ",bcmap[str[i]]);
+            Util::Exception(INFO, "Invalid BC: ", str[i]);
+            } 
+        }
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
