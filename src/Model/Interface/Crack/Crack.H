@@ -51,11 +51,19 @@ class Crack
             case GSQUAREPM:     return std::pow(c,2.*(std::pow(p,m_d_exponent)));
             case GCUBICM:       return m_d_exponent*(c*c*c - c*c) + 3.*c*c - 2.*c*c*c;
             case GWULINEAR:     {
-                                    if (c < 1.e-5) c = 1.e-5;
-                                    double phi = m_pf_czm_a0 * m_pf_czm_order* std::sqrt(w_phi(c,0.));
-                                    phi *= std::sqrt(1 - std::pow(c, 2*m_pf_czm_order));
-                                    phi /= std::pow(c, m_pf_czm_order+1);
-                                    return 1.0 / (1.0 + phi);
+                                    // this is for a linear softening curve for the CZM model
+                                    // Obtain from Wu 2018 CMAME
+                                    // w(c) = c^p / (c^p + Q(c))
+                                    // where, Q(c) = a1 (1-c) + a1 a2 (1-c)^2 + a1 a2 a3 (1-c)^3
+                                    // for linear law with p=2, a1 = 4 * l_w / (pi * b)
+                                    // a2 = -1/2, a3 = 0
+                                    Set::Scalar d = 1.0-c;
+                                    return (c*c) / (c*c +   ((2.0 * m_pf_czm_a0 * d) - (m_pf_czm_a0 * d * d)));
+                                    // if (c < 1.e-5) c = 1.e-5;
+                                    // double phi = m_pf_czm_a0 * m_pf_czm_order* std::sqrt(w_phi(c,0.));
+                                    // phi *= std::sqrt(1 - std::pow(c, 2*m_pf_czm_order));
+                                    // phi /= std::pow(c, m_pf_czm_order+1);
+                                    // return 1.0 / (1.0 + phi);
                                 }
             default:            return c*c;
         }
@@ -89,7 +97,21 @@ class Crack
             case GSQUAREP:        return 2.*p*std::pow(c,2*p -1.);
             case GSQUAREPM:        return 2.*std::pow(p,m_d_exponent)*(std::pow(c, 2*std::pow(p,m_d_exponent)-1));
             case GCUBICM:        return m_d_exponent*(3.*c*c - 2.*c) + 6.*c - 6.*c*c;
-            case GWULINEAR:      Util::Abort(INFO, "We don't need the derivative of degradation function for this case.");
+            case GWULINEAR:      {
+                                    // Derivative of c^2 / (c^2 + Q(c))
+                                    // 2c / (c^2 + Q(c)) - c^2 (2c + Q'(c)) / (c^2+Q(c))^2
+                                    // ( 2c (c^2 + Q(c)) - c^2 (2c + Q'(c)) ) / (c^2 + Q(c))^2
+                                    // ( 2c Q(c) - c^2 Q'(c) ) / (c^2 + Q(c))^2
+                                    // Q(d) = a1 d + a1 a2 d^2 + a1 a2 a3 d^3
+                                    // In this case, a = 2*a0, a2 = -0.5, a3 = 0
+                                    // Q(d) = 2 a0 d - a0 d^2
+                                    // Q'(d) = 2 a0 - 2 a0 d
+                                    // Q'(c) - -Q'(d) = -2 a0 + 2 a0 d
+                                    Set::Scalar d = 1.0 -c;
+                                    Set::Scalar dQ_c = (-2.0*m_pf_czm_a0) + (2.0*m_pf_czm_a0*d);
+                                    Set::Scalar Q_c = (2.0*m_pf_czm_a0*d) - (m_pf_czm_a0*d*d);
+                                    return (2.0*c*Q_c - c*c*dQ_c) / ((c*c + Q_c)*(c*c + Q_c));
+                                }
 
             default:             return 2*c;
         }
