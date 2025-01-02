@@ -35,21 +35,33 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 value.solverType = it->second;
 
                 ScimitarX::variableIndex = setIndex.computeAndAssignVariableIndices(value.solverType);
-                int number_of_components = ScimitarX::variableIndex.NVAR_MAX;
+                value.number_of_components = ScimitarX::variableIndex.NVAR_MAX;
+               
+                std::cout << "DEBUG: ScimitarX::variableIndex.NVAR_MAX = " 
+                << ScimitarX::variableIndex.NVAR_MAX << std::endl;
+
+                std::cout << "DEBUG: Variable indices:" << std::endl;
+                for (const auto& [variable, index] : ScimitarX::variableIndex.variableIndexMap) {
+                std::cout << "  Variable: " << variable << ", Index: " << index << std::endl;
+                }
 
                 // Call the setupBoundaryConditions function
                 IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, ScimitarX::variableIndex);
 
-                // Example: Print consolidated boundary conditions
                 std::string result;
                 if (bc_pp.query("bc.pvec.type.xlo", result)) {
-                    std::cout << "Boundary condition (type.xlo): " << result << std::endl;
-                }
-                if (bc_pp.query("bc.pvec.val.xlo", result)) {
-                    std::cout << "Boundary condition (val.xlo): " << result << std::endl;
+                std::cout << "DEBUG: Queried type.xlo from bc_pp: " << result << std::endl;
+                } else {
+                std::cerr << "ERROR: Missing bc.pvec.type.xlo in bc_pp" << std::endl;
                 }
 
-                value.bc_PVec = new BC::Constant(number_of_components, pp, "bc.pvec");
+                if (bc_pp.query("bc.pvec.val.xlo", result)) {
+                std::cout << "DEBUG: Queried val.xlo from bc_pp: " << result << std::endl;
+                } else {
+                std::cerr << "ERROR: Missing bc.pvec.val.xlo in bc_pp" << std::endl;
+                }   
+
+                value.bc_PVec = new BC::Constant(value.number_of_components, pp, "bc.pvec");
                 value.bc_Pressure = new BC::Constant(1, pp, "bc.pressure");
             } else {
                 Util::Abort(__FILE__, __func__, __LINE__, "Invalid SolverType: " + solverTypeStr);
@@ -72,8 +84,8 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
 #endif
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
-        value.RegisterNewFab(value.PVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true); 
-        value.RegisterNewFab(value.Pressure_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "Pressure", true);
+        value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true); 
+        value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true);
     }
     // Initial Conditions
     {
@@ -177,47 +189,38 @@ IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Ut
 
     IO::ParmParse bc_pp;
 
+    // Define sides based on AMREX_SPACEDIM
 #if AMREX_SPACEDIM == 1
     const std::vector<std::string> sides = {"xlo", "xhi"};
 #elif AMREX_SPACEDIM == 2
     const std::vector<std::string> sides = {"xlo", "xhi", "ylo", "yhi"};
 #elif AMREX_SPACEDIM == 3
     const std::vector<std::string> sides = {"xlo", "xhi", "ylo", "yhi", "zlo", "zhi"};
-#else
-#error "Unsupported AMREX_SPACEDIM"
 #endif
 
     for (const std::string& side : sides) {
-        std::string type_combined, val_combined;
-
         for (int i = 0; i < n_components; ++i) {
             std::string type_key = "bc.pvec." + component_names[i] + ".type." + side;
             std::string val_key = "bc.pvec." + component_names[i] + ".val." + side;
 
-            std::string type_value;
-            if (pp.query(type_key.c_str(), type_value)) {
-                type_combined += type_value + " ";
-            } else {
-                type_combined += "neumann ";
-            }
+            std::string type_value = "neumann"; // Default
+            std::string value_str = "0.0";     // Default
 
-            std::string value_str;
-            if (pp.query(val_key.c_str(), value_str)) {
-                val_combined += value_str + " ";
-            } else {
-                val_combined += "0.0 ";
-            }
+            pp.query_default(type_key.c_str(), type_value, "neumann");
+            pp.query_default(val_key.c_str(), value_str, "0.0");
+
+            // Add individual entries directly to bc_pp
+            std::string bc_type_key = "bc.pvec.type." + side;
+            std::string bc_val_key = "bc.pvec.val." + side;
+
+            bc_pp.addarr(bc_type_key.c_str(), {type_value});
+            bc_pp.addarr(bc_val_key.c_str(), {value_str});
         }
-
-        type_combined = type_combined.substr(0, type_combined.size() - 1);
-        val_combined = val_combined.substr(0, val_combined.size() - 1);
-
-        bc_pp.add(("bc.pvec.type." + side).c_str(), type_combined);
-        bc_pp.add(("bc.pvec.val." + side).c_str(), val_combined);
     }
 
     return bc_pp;
 }
+
 
 } // namespace Integrator
 
