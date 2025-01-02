@@ -24,14 +24,14 @@ SolverType = SolveCompressibleEuler
 # Initial conditions
 # Q Vector = [Density, Uvelocity, VVelocity, WVelocity, Pressure]
 ic.pvec.type = sodshock
-ic.pvec.sodshock.left.density = 1.0
-ic.pvec.sodshock.right.density = 0.125
-ic.pvec.sodshock.left.uvelocity = 0.0
-ic.pvec.sodshock.right.uvelocity = 0.0
-ic.pvec.sodshock.left.vvelocity = 0.0
-ic.pvec.sodshock.right.vvelocity = 0.0
-ic.pvec.sodshock.left.wvelocity = 0.0
-ic.pvec.sodshock.right.wvelocity = 0.0
+ic.pvec.sodshock.left.DENS = 1.0
+ic.pvec.sodshock.right.DENS = 0.125
+ic.pvec.sodshock.left.UVEL = 0.0
+ic.pvec.sodshock.right.UVEL = 0.0
+ic.pvec.sodshock.left.VVEL = 0.0
+ic.pvec.sodshock.right.VVEL = 0.0
+ic.pvec.sodshock.left.WVEL = 0.0
+ic.pvec.sodshock.right.WVEL = 0.0
 
 # Pressure
 ic.pressure.type = sodshock
