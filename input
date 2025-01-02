@@ -23,27 +23,55 @@ heat.alpha = 1.0
 heat.refinement_threshold = 0.01
 
 # Specify initial conditions
-ic.type = sphere
-ic.sphere.center = 0.5 0.5 0.5
-ic.sphere.radius = 0.25
-ic.sphere.inside = 0.0
+shock.xpos = 0.5
+shock.ypos = 0.0
+shock.zpos = 0.0
 
+# Q Vector = [Density, Uvelocity, VVelocity, WVelocity, IE]
+qvec.ic.type = sodshock
+qvec.ic.sodshock.left.density = 0.5
+qvec.ic.sodshock.right.density = 0.5
+qvec.ic.sodshock.left.uvelocity = 0.5
+qvec.ic.sodshock.right.uvelocity = 0.5
+qvec.ic.sodshock.left.vvelocity = 0.5
+qvec.ic.sodshock.right.vvelocity = 0.5
+qvec.ic.sodshock.left.wvelocity = 0.5
+qvec.ic.sodshock.right.wvelocity = 0.5
+
+#Pressure
+pressure.ic.type = sodshock
+pressure.ic.sodshock.left = 0.5
+pressure.ic.sodshock.right = 0.5
 
 
 # Boundary conditions
-bc.temp.type.xhi = dirichlet
-bc.temp.type.xlo = dirichlet
-bc.temp.type.yhi = dirichlet
-bc.temp.type.ylo = dirichlet
-bc.temp.type.zhi = dirichlet
-bc.temp.type.zlo = dirichlet
-bc.temp.val.xhi  = 0.0
-bc.temp.val.xlo  = 1.0
-bc.temp.val.yhi  = 0.0
-bc.temp.val.ylo  = 1.0
-bc.temp.val.zhi  = 0.0
-bc.temp.val.zlo  = 1.0
+qvec.bc.type.xhi = dirichlet
+qvec.bc.type.xlo = dirichlet
+qvec.bc.type.yhi = dirichlet
+qvec.bc.type.ylo = dirichlet
+qvec.bc.type.zhi = dirichlet
+qvec.bc.type.zlo = dirichlet
+
+qvec.bc.val.xhi  = 0.0
+qvec.bc.val.xlo  = 1.0
+qvec.bc.val.yhi  = 0.0
+qvec.bc.val.ylo  = 1.0
+qvec.bc.val.zhi  = 0.0
+qvec.bc.val.zlo  = 1.0
 
 
+pressure.bc.type.xhi = dirichlet
+pressure.bc.type.xlo = dirichlet
+pressure.bc.type.yhi = dirichlet
+pressure.bc.type.ylo = dirichlet
+pressure.bc.type.zhi = dirichlet
+pressure.bc.type.zlo = dirichlet
+
+pressure.bc.val.xhi  = 0.0
+pressure.bc.val.xlo  = 1.0
+pressure.bc.val.yhi  = 0.0
+pressure.bc.val.ylo  = 1.0
+pressure.bc.val.zhi  = 0.0
+pressure.bc.val.zlo  = 1.0
 
 

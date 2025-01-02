@@ -36,7 +36,7 @@ public:
         delete bc_Pressure;
 
         delete ic_PVec;
-        delete ic_Pressure;
+        delete ic_Pressure; 
 
     }
 
@@ -45,7 +45,7 @@ public:
     }
 
     
-   static IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, Util::SolverType solverType, Util::ScimitarX_SetIndex::VariableIndicesResult variableIndicesResult);
+   static IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, Util::ScimitarX_SetIndex::VariableIndicesResult variableIndicesResult);
 protected:
 
     void Initialize(int lev) override;

@@ -1,0 +1,74 @@
+
+plot_file     = output
+
+# Simulation length
+timestep = 0.0001
+stop_time = 0.05
+
+# AMR parameters
+amr.plot_int = 10
+amr.max_level = 3
+amr.n_cell = 8 8 8
+amr.blocking_factor = 1
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 1
+geometry.is_periodic= 0 0 0
+
+
+# Specify initial conditions
+shock.xpos = 0.5
+shock.ypos = 0.0
+shock.zpos = 0.0
+
+# Q Vector = [Density, Uvelocity, VVelocity, WVelocity, IE]
+ic.pvec.type = sodshock
+ic.pvec.sodshock.left.density = 0.5
+ic.pvec.sodshock.right.density = 0.5
+ic.pvec.sodshock.left.uvelocity = 0.5
+ic.pvec.sodshock.right.uvelocity = 0.5
+ic.pvec.sodshock.left.vvelocity = 0.5
+ic.pvec.sodshock.right.vvelocity = 0.5
+ic.pvec.sodshock.left.wvelocity = 0.5
+ic.pvec.sodshock.right.wvelocity = 0.5
+
+#Pressure
+ic.pressure.type = sodshock
+ic.pressure.sodshock.left = 0.5
+ic.pressure.sodshock.right = 0.5
+
+
+# Boundary conditions
+#bc.pvec.DENS.type.xhi = dirichlet
+#bc.pvec.DENS.type.xlo = dirichlet
+#bc.pvec.DENS.type.yhi = dirichlet
+#bc.pvec.DENS.type.ylo = dirichlet
+#bc.pvec.DENS.type.zhi = dirichlet
+#bc.pvec.DENS.type.zlo = dirichlet
+
+#bc.pvec.DENS.val.xhi  = 0.0
+#bc.pvec.DENS.val.xlo  = 1.0
+#bc.pvec.DENS.val.yhi  = 0.0
+#bc.pvec.DENS.val.ylo  = 1.0
+#bc.pvec.DENS.val.zhi  = 0.0
+#bc.pvec.DENS.val.zlo  = 1.0
+
+
+bc.pressure.type.xhi = neumann
+bc.pressure.type.xlo = neumann
+bc.pressure.type.yhi = neumann
+bc.pressure.type.ylo = neumann
+bc.pressure.type.zhi = neumann
+bc.pressure.type.zlo = neumann
+
+bc.pressure.val.xhi  = 0.0
+bc.pressure.val.xlo  = 0.0
+bc.pressure.val.yhi  = 0.0
+bc.pressure.val.ylo  = 0.0
+bc.pressure.val.zhi  = 0.0
+bc.pressure.val.zlo  = 0.0
+
+
