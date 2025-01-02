@@ -1,11 +1,9 @@
 #include "IO/ParmParse.H"
 #include "Integrator/ScimitarX.H"
 #include "Util/ScimitarX_SetIndex.H"
-#include "Util/ScimitarX_Constants.H"
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "BC/Constant.H"
-#include "IC/IC.H"
 #include "IC/SodShock.H"
 #include "Numeric/Stencil.H"
 
@@ -20,13 +18,15 @@ ScimitarX::ScimitarX(IO::ParmParse& pp) : ScimitarX()
 void
 ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
 {
-    BL_PROFILE("Integrator::ScimitarX::Parse()"){
+    BL_PROFILE("Integrator::ScimitarX::Parse()")
+    {
 
     Util::ScimitarX_SetIndex& setIndex = Util::ScimitarX_SetIndex::getInstance();
 
     std::string solverTypeStr;
 
-    if (pp.query("SolverType", solverTypeStr)) {
+    if (pp.query("SolverType", solverTypeStr)) 
+    {
         auto it = Util::stringToSolverType.find(solverTypeStr);
         if (it != Util::stringToSolverType.end()) {
             Util::SolverType solverType = it->second;
@@ -35,7 +35,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
             int number_of_components = variableIndicesResult.NVAR_MAX;
 
             // Call the setupBoundaryConditions function
-            IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, solverType, variableIndicesResult);
+            IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, variableIndicesResult);
 
             // Example: Print consolidated boundary conditions
             std::string result;
@@ -54,29 +54,36 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     }
 
     }
-
+    
     // Register New Fabs
-    value.RegisterNewFab(value.QVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
-    value.RegisterNewFab(value.QVec_old_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
+    {
+        value.RegisterNewFab(value.QVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
+        value.RegisterNewFab(value.QVec_old_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
 
 #if AMREX_SPACEDIM >= 1
-    value.RegisterNewFab(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
+        value.RegisterNewFab(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
 #endif
 #if AMREX_SPACEDIM >= 2
-    value.RegisterNewFab(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
+        value.RegisterNewFab(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
 #endif
 #if AMREX_SPACEDIM == 3
-    value.RegisterNewFab(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
+        value.RegisterNewFab(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
 #endif
-    value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
-    value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true);
-    value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true);
-
+        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
+        value.RegisterNewFab(value.PVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true); 
+        value.RegisterNewFab(value.Pressure_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "Pressure", true);
+    }
+    // Initial Conditions
+    {
     std::string type = "constant";
     pp.query("ic.pvec.type", type);
 
     if (type == "sodshock") {
-        value.ic_PVec = new IC::SodShock(value.geom, pp, "ic.pvec.sodshock", setIndex.computeAndAssignVariableIndices(Util::SolverType::SolveCompressibleEuler));
+
+        Util::ScimitarX_SetIndex& setIndex = Util::ScimitarX_SetIndex::getInstance();
+        auto variableIndicesResult = setIndex.computeAndAssignVariableIndices(Util::SolverType::SolveCompressibleEuler);
+       value.ic_PVec = new IC::SodShock(value.geom, pp, "ic.pvec.sodshock", variableIndicesResult);
+
     } else {
         Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pvec.type: " + type);
     }
@@ -87,10 +94,14 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     } else {
         Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pressure.type: " + type);
     }
+    } 
 }
 
 void ScimitarX::Initialize(int lev)
 {
+
+//   PVec_mf[lev]->setVal(0.0);     
+//    Pressure_mf[lev]->setVal(0.0);     
     ic_PVec->Initialize(lev, PVec_mf);
     ic_Pressure->Initialize(lev, Pressure_mf);
 
@@ -113,8 +124,8 @@ void ScimitarX::Advance(int lev, Set::Scalar /*time*/, Set::Scalar /*dt*/)
     for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
 
-        amrex::Array4<const Set::Scalar> const& QVec_old = (*QVec_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& QVec = (*QVec_mf[lev]).array(mfi);
+       amrex::Array4<const Set::Scalar> const& QVec_old = (*QVec_old_mf[lev]).array(mfi);
+       amrex::Array4<Set::Scalar> const& QVec     = (*QVec_mf[lev]).array(mfi);
 
         for (int n = 0; n < number_of_components; ++n) {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -128,23 +139,7 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
 {
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
-    Set::Scalar local_max_grad = 0.0;
-
-    for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<Set::Scalar> const& pressure = (*Pressure_mf[lev]).array(mfi);
-
-        amrex::ParallelFor(bx, [=, &local_max_grad] AMREX_GPU_HOST_DEVICE(int i, int j, int k) {
-            Set::Vector grad = Numeric::Gradient(pressure, i, j, k, 0, DX);
-            Set::Scalar grad_magnitude = grad.lpNorm<2>();
-
-            amrex::Gpu::Atomic::Max(&local_max_grad, grad_magnitude);
-        });
-    }
-
-    amrex::ParallelDescriptor::ReduceRealMax(local_max_grad);
-    Set::Scalar max_grad = local_max_grad;
-    refinement_threshold = 0.1 * max_grad;
+    Set::Scalar refinement_threshold = 10.0; // Set refinement threshold to 10
 
     for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
@@ -161,10 +156,18 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
         });
     }
 
-    amrex::Print() << "Maximum gradient at level " << lev << ": " << max_grad << "\n";
+    amrex::Print() << "Refinement threshold set to: " << refinement_threshold << "\n"; 
 }
 
-IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, Util::SolverType solverType, Util::ScimitarX_SetIndex::VariableIndicesResult variableIndicesResult)
+
+    void TimeStepBegin(Set::Scalar a_time, int a_iter){};
+    void TimeStepComplete(Set::Scalar time, int lev) {};
+
+    void Regrid(int lev, Set::Scalar time){};
+
+
+
+IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, Util::ScimitarX_SetIndex::VariableIndicesResult variableIndicesResult)
 {
     int n_components = variableIndicesResult.NVAR_MAX;
     std::vector<std::string> component_names(n_components);
