@@ -107,14 +107,14 @@ density.bc.type.xhi = neumann
 density.bc.type.xlo = neumann
 density.bc.type.ylo = neumann
 density.bc.type.yhi = neumann
-pressure.bc.type.xhi = neumann
-pressure.bc.type.xlo = neumann
-pressure.bc.type.ylo = neumann
-pressure.bc.type.yhi = neumann
-velocity.bc.type.xhi = neumann neumann
-velocity.bc.type.xlo = neumann neumann
-velocity.bc.type.ylo = neumann neumann
-velocity.bc.type.yhi = neumann neumann
+energy.bc.type.xhi = neumann
+energy.bc.type.xlo = neumann
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+momentum.bc.type.xhi = neumann neumann
+momentum.bc.type.xlo = neumann neumann
+momentum.bc.type.ylo = neumann neumann
+momentum.bc.type.yhi = neumann neumann
 
 ### HYDRO REFINEMENT CRITERIA ###
 

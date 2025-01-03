@@ -340,7 +340,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // p(i,j,k)   = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) * (eta(i, j, k) + small));
             // p(i,j,k)   = (etaE_fluid*etarho_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) * (eta(i, j, k) + small));
             // p(i,j,k)   = (etaE_fluid*etarho_fluid / (eta(i, j, k) + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta(i, j, k) + small));
-            p(i,j,k)   = (etaE_fluid*etarho_fluid / (eta(i, j, k) + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta(i, j, k) + small))-pref;
+            p(i,j,k)   = (etaE_fluid / (eta(i, j, k) + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta(i, j, k) + small))-pref;
             // p(i,j,k)   = (etaE_fluid * etarho_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small) *eta(i, j, k) )*((gamma - 1.0) / (eta(i, j, k) + small));
         });
     }
