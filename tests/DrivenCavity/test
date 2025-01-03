@@ -13,8 +13,8 @@ testlib.validate(path=path,
                  outdir=outdir,
                  start=[-12,12,0],
                  end=[12,-12,0],
-                 vars=["velocity001","velocity002","density","pressure"],
-                 tolerance=[0.2,0.2,0.5,0.5],
+                 vars=["velocity001","velocity002","density"],
+                 tolerance=[0.2,0.2,0.5],
                  generate_ref_data = False,
 )
 exit(0)

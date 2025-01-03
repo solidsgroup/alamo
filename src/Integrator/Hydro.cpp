@@ -38,9 +38,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
         // vorticity-based refinement
         pp.query_default("omega_refinement_criterion", value.omega_refinement_criterion, 0.01);
+        // velocity gradient-based refinement
         pp.query_default("gradu_refinement_criterion", value.gradu_refinement_criterion, 0.01);
         // pressure-based refinement
         pp.query_default("p_refinement_criterion", value.p_refinement_criterion, 1e100);
+        // density-based refinement
         pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e100);
 
         pp_query_required("gamma", value.gamma); // gamma for gamma law

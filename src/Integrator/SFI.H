@@ -24,6 +24,7 @@ public:
     {
         pp.queryclass("allencahn",static_cast<AllenCahn*>(&value));
         pp.queryclass("hydro",static_cast<Hydro*>(&value));
+        // time to activate hydro integrator
         pp.query_default("tstart",value.tstart,0.0);
 
     }

@@ -91,13 +91,19 @@ Integrator::Integrator() : amrex::AmrCore()
     }
     {
         IO::ParmParse pp("dynamictimestep");
+        // activate dynamic CFL-based timestep
         pp_query("on",dynamictimestep.on);
         if (dynamictimestep.on)
         {
+            // how much information to print
             pp_query_validate("verbose",dynamictimestep.verbose,{0,1});
+            // number of previous timesteps for rolling average
             pp_query_default("nprevious",dynamictimestep.nprevious,5);
+            // dynamic teimstep CFL condition
             pp_query_default("cfl",dynamictimestep.cfl,1.0);
+            // minimum timestep size allowed shen stepping dynamically
             pp_query_default("min",dynamictimestep.min,timestep);
+            // maximum timestep size allowed shen stepping dynamically
             pp_query_default("max",dynamictimestep.max,timestep);
 
             Util::AssertException(INFO,TEST(dynamictimestep.max >= dynamictimestep.min));
