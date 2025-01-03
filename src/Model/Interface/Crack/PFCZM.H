@@ -99,6 +99,14 @@ public:
             value._GcI_bar = value._Gc/(value.k1*value.k1);
             value._GcII_bar = value._GcI_bar * youngs * chi * chi / mu ;
             fracture_strength = tensile_strength * value.k1;
+
+            Util::Message(INFO, "Chi = ", chi);
+            Util::Message(INFO, "mu = ", mu);
+            Util::Message(INFO, "k1 = ", value.k1);
+            Util::Message(INFO, "beta_bar = ", value._beta_bar);
+            Util::Message(INFO, "GcI_bar = ", value._GcI_bar);
+            Util::Message(INFO, "GcII_bar = ", value._GcII_bar);
+            Util::Message(INFO, "f_t = ", fracture_strength);
         }
         else
         {

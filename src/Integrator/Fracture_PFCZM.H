@@ -430,27 +430,35 @@ public:
 
                         // Now we can determine the new angle of propagation based on principal stresses.
                         Set::Scalar mohr_center = 0.5 * (sig1 + sig2);
-                        Set::Scalar mohr_radius = 0.5 * (sig1 - sig2);
+                        Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
                         Set::Scalar chi = crack.cracktype[0].chi();
                         Set::Scalar beta = mohr_center >=0 ? 1.0 : crack.cracktype[0].beta_bar();
                         Set::Scalar theta = 0.0;
 
-                        if (mohr_radius >= 0 && chi*chi <= (mohr_radius/sig1)) 
-                            { theta = 0.5 * std::acos(mohr_center * chi * chi / (mohr_radius * (1. - chi*chi))); }
-                        else if (mohr_radius >= 0 && chi*chi >= (mohr_radius/sig1)) 
-                            { theta = 0.0; }
-                        else if (mohr_radius < 0 && sig1 > 0 && chi*chi < (mohr_radius/sig1)) 
-                            { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); }
-                        else if (mohr_radius < 0 && sig1 > 0 && chi*chi >= (mohr_radius/sig1)) 
-                            { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); }
-                        else if (sig1 < 0)
-                            { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); }
+                        Set::Scalar temp = (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi));
+                        if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp);
+                        else theta = 0.0;
+
+                        // if (mohr_center >= 0 && chi*chi <= (mohr_radius/sig1)) 
+                        //     { theta = 0.5 * std::acos(mohr_center * chi * chi / (mohr_radius * (1. - chi*chi))); 
+                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 1 nan"); }
+                        // else if (mohr_center >= 0 && chi*chi >= (mohr_radius/sig1)) 
+                        //     { theta = 0.0; }
+                        // else if (mohr_center < 0 && sig1 > 0 && chi*chi < (mohr_radius/sig1)) 
+                        //     { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); 
+                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 3 nan"); }
+                        // else if (mohr_center < 0 && sig1 > 0 && chi*chi >= (mohr_radius/sig1)) 
+                        //     { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); 
+                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 4 nan"); }
+                        // else if (sig1 < 0)
+                        //     { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); 
+                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 5 nan ", (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi))); 
+                        //     }
 
                         // Now we compute the new normal and tangent vector
                         Set::Vector normal = Set::Vector::Zero();
                         Set::Vector tangent = Set::Vector::Zero();
-                        normal(0) = 1.0; normal(1) = std::tan(theta_0+theta);
-                        normal = normal / normal.lpNorm<2>();
+                        normal(0) = std::cos(theta_0+theta); normal(1) = std::sin(theta_0+theta);
                         tangent(0) = -normal(1); tangent(1) = normal(0);
 
                         // Next we compute some useful standard tensors
@@ -462,6 +470,10 @@ public:
                         Set::Scalar sig_mm = (sig * m_o_m.transpose()).trace();
                         Set::Scalar tau_nm = 0.5*((sig*n_o_m.transpose()).trace() + (sig*m_o_n.transpose()).trace());
 
+                        // Let's make sure things are compressive.
+                        // sig_nn = (sig_nn >= 0) ? sig_nn : 0.0;
+                        // sig_mm = (sig_mm >= 0) ? sig_mm : 0.0;
+                        
                         // Now we find psi_1 and psi_2
                         Set::Scalar psi_1 = 0.5 * sig_nn * sig_nn / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
                         psi_1 += 0.5 * sig_mm * sig_mm / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
@@ -472,6 +484,18 @@ public:
                         // Next, we compute the energy
                         energy(i,j,k,0) = beta * psi_1 / crack.cracktype[0].GcI_bar();
                         energy(i,j,k,1) = psi_2 / crack.cracktype[0].GcII_bar();
+
+                        // Debugging
+                        // if (std::isnan(energy(i,j,k,0)) || std::isnan(energy(i,j,k,1)))
+                        // {
+                        //     Util::Message(INFO, "Nans observed in energy 0");
+                        //     Util::Message(INFO, "beta = ", beta);
+                        //     Util::Message(INFO, "psi_1 = ", psi_1);
+                        //     Util::Message(INFO, "psi_2 = ", psi_2);
+                        //     Util::Message(INFO, "thetas = ", theta_0, " ", theta);
+                        //     Util::Message(INFO, "sig = ", sig_nn, " ", sig_mm, " ", tau_nm);
+                        //     Util::Abort(INFO);
+                        // }
 
                         // Now let's do the history variable
                         if (energy(i,j,k,0) + energy(i,j,k,1) > history_var(i,j,k,0) + history_var(i,j,k,1))
