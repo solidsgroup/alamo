@@ -1,30 +1,48 @@
+#@
+#@ [eps0.20]
+#@ exe=hydro
+#@ dim=2
+#@ check-file = reference/eps0.20.dat
+#@
+#@ [eps0.10]
+#@ exe=hydro
+#@ dim=2
+#@ args = eta.ic.expression.constant.eps=0.1
+#@ check-file = reference/eps0.10.dat
+#@
+#@ [eps0.05]
+#@ exe=hydro
+#@ dim=2
+#@ args = eta.ic.expression.constant.eps=0.05
+#@ args = amr.max_level=2
+#@ check-file = reference/eps0.05.dat
+#@
+
+
 alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output.Couette_eps0.03
+plot_file = ./tests/FlowCouette/output
 
 ### MESHING ###
 
 amr.plot_dt = 0.5
-#amr.plot_int = 10
-amr.max_level = 3
+amr.max_level = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
-amr.regrid_int = 100
+#amr.regrid_int = 100
 amr.grid_eff = 0.8
 amr.n_cell = 4 64 0
 
 ### DIMENSIONS ###
-
 geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
 geometry.prob_hi = 0.1875 3.0 0.0 # [ m ]
-
 geometry.is_periodic = 1 0 0
 
 ### TIME STEP ###
 
-timestep  = 5e-4
+timestep  = 1.0e-3
 stop_time = 30.0
 
 ### HYDRO PARAM ###
@@ -37,15 +55,13 @@ pref = 100.0
 ### ETA IC ###
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.03
+eta.ic.expression.constant.eps   = 0.20
 eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
-
 rho_injected.ic.type = expression
 rho_injected.ic.expression.region0 = "100.0"
 
 mdot.ic.type = expression
 mdot.ic.expression.region0 = "0.1*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
-#mdot.ic.expression.region0 = "0.0"
 mdot.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
@@ -124,7 +140,7 @@ e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
-gradu_refinement_criterion = 0.1
+gradu_refinement_criterion   = 0.1
 p_refinement_criterion   = 0.1
 rho_refinement_criterion   = 0.1
 
