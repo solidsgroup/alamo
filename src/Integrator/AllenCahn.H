@@ -61,16 +61,16 @@ public:
     static void Parse(AllenCahn& value, IO::ParmParse& pp)
     {
         // Criterion for mesh refinement [0.01]
-        pp_query("refinement_threshold", value.refinement_threshold);
+        pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp_query("ch.L",value.ch.L);
+        pp_query_default("ch.L",value.ch.L, 1.0);
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp_query("ch.eps",value.ch.eps);
+        pp_query_default("ch.eps",value.ch.eps, 0.1);
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp_query("ch.grad",value.ch.grad);
+        pp_query_default("ch.grad",value.ch.grad, 1.0);
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp_query("ch.chempot",value.ch.chempot);
+        pp_query_default("ch.chempot",value.ch.chempot, 1.0);
 
         std::string type = "sphere";
         // Initial condition type ([sphere], constant, expression, bmp, random)
