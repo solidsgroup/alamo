@@ -1,19 +1,24 @@
+#@ [normal-into-wall]
+#@ exe=hydro
+#@ dim=2
+#@ check-file = reference/normalintowall.dat
+
+
 alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = ./tests/FlowViscous1D/output/
 
 ### MESHING ###
 
 #amr.plot_dt = 1.0
-amr.plot_int = 1
-amr.max_level = 0
+amr.plot_int = 100
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
-#amr.regrid_int = 100
+amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 50 30 0
+amr.n_cell = 64 8 0
 
 # Uncomment to test AMR
 amr.max_level = 2
@@ -21,15 +26,15 @@ amr.max_level = 2
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = 0.0 -1.0 0.0 # [ m ] 
-geometry.prob_hi = 5.0  2.0 0.0 # [ m ]
+geometry.prob_lo = 0.0  0.0 0.0 # [ m ] 
+geometry.prob_hi = 5.0  0.625 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
-stop_time = 10000.0
+timestep  = 0.5e-3
+stop_time = 0.5
 
 ### ETA IC ###
 

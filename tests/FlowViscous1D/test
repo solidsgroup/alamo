@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+import sys
+sys.path.insert(0,"../../scripts")
+import testlib
+import glob
+
+outdir = sys.argv[1]
+reference = sys.argv[2]
+
+path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+
+testlib.validate(path=path,
+                 outdir=outdir,
+                 reference=reference,
+                 start=[0.0, 0.3125],
+                 end  =[5.0, 0.3125],
+                 coord = 'x',
+                 vars=["eta", "momentum001","density","energy"],
+                 tolerance=[1E-8, 0.001,0.001,0.001],
+                 generate_ref_data = False,
+                 tight_layout=False,
+)
+exit(0)
+
+
+
+
+
