@@ -113,23 +113,23 @@ density.bc.val.xlo = 0.0
 density.bc.val.ylo = 0.0 
 density.bc.val.yhi = 0.0
 
-pressure.bc.type.xhi = neumann
-pressure.bc.type.xlo = neumann
-pressure.bc.type.ylo = neumann
-pressure.bc.type.yhi = neumann
-pressure.bc.val.xhi = 0.0
-pressure.bc.val.xlo = 0.0
-pressure.bc.val.ylo = 0.0 
-pressure.bc.val.yhi = 0.0
+energy.bc.type.xhi = neumann
+energy.bc.type.xlo = neumann
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+energy.bc.val.xhi = 0.0
+energy.bc.val.xlo = 0.0
+energy.bc.val.ylo = 0.0 
+energy.bc.val.yhi = 0.0
 
-velocity.bc.type.xhi = neumann neumann
-velocity.bc.type.xlo = neumann neumann
-velocity.bc.type.ylo = neumann neumann
-velocity.bc.type.yhi = neumann neumann
-velocity.bc.val.xhi = 0.0 0.0
-velocity.bc.val.xlo = 0.0 0.0
-velocity.bc.val.ylo = 0.0 0.0
-velocity.bc.val.yhi = 0.0 0.0
+momentum.bc.type.xhi = neumann neumann
+momentum.bc.type.xlo = neumann neumann
+momentum.bc.type.ylo = neumann neumann
+momentum.bc.type.yhi = neumann neumann
+momentum.bc.val.xhi = 0.0 0.0
+momentum.bc.val.xlo = 0.0 0.0
+momentum.bc.val.ylo = 0.0 0.0
+momentum.bc.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
