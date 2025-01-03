@@ -13,6 +13,8 @@ namespace IC
 class Sphere: public IC
 {
 public:
+    static constexpr const char* name = "sphere";
+
     /// Sphere is also used for a cylindrical case, but switching from the default type to the desired orientation.
     /// For instance, XY refers to a cylinder with the circular faces in the XY plane.
     enum Type

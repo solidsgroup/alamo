@@ -510,14 +510,6 @@ public:
         try
         {
             T::Parse(*value, *this);
-            std::vector<std::string> unused_inputs = GetUnusedInputs();
-            if (unused_inputs.size())
-            {
-                std::stringstream ss;
-                for (unsigned int i=0; i < unused_inputs.size(); i++)
-                    ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,getPrefix(),"The following inputs were specified but not used",ss.str());
-            }
         }
         catch (...)
         {
@@ -531,19 +523,26 @@ public:
         try
         {
             T::Parse(value, *this);
-            std::vector<std::string> unused_inputs = GetUnusedInputs();
-            if (unused_inputs.size())
-            {
-                std::stringstream ss;
-                for (unsigned int i=0; i < unused_inputs.size(); i++)
-                    ss << "\n\t" << unused_inputs[i];
-                Util::ParmParseException(INFO,file,func,line,getPrefix(),"The following inputs were specified but not used",ss.str());
-            }
         }
         catch (...)
         {
             Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
+    }    
+
+    template<typename... IC, typename... Args, typename PTRTYPE>
+    void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
+    {
+        std::string type = "";
+
+        this->query_required(name + ".type", type);
+        
+        bool matched = ((type == IC::name 
+                        ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                        true
+                        : false) || ...);
+        if (!matched)
+            Util::Exception(INFO,type," not a valid type for ",name);
     }
 };
 }

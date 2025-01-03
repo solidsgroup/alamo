@@ -82,7 +82,6 @@ solver.nriters = 1
 solver.max_iter = 20
 
 ### UNIAXIAL TENSION ###
-elastic.bc.type = constant
-
+bc.type = constant
 
 

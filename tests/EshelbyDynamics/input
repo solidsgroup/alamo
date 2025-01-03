@@ -62,3 +62,5 @@ ref_threshold = 1000000000
 
 viscous.mu_dashpot = 0.1
 viscous.mu_newton  = 1.0
+
+bc.type = constant

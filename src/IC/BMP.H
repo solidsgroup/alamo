@@ -20,6 +20,8 @@ namespace IC
 class BMP : public IC
 {
 public:
+    static constexpr const char* name = "bmp";
+
     //enum Type {XYZ, XY, YZ, XZ};
     enum Fit {Stretch,FitWidth,FitHeight,Coord};
     enum Channel {R=0, G=1, B=2};

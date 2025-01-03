@@ -80,6 +80,8 @@ el.ic.ellipse.a   = 3.0 3.0 3.0  # ellipse radii
 el.ic.ellipse.x0  = 0 0 0 # location of ellipse center
 el.ic.ellipse.eps = 0.8 # diffuse boundary
 
+el.bc.type = constant
+
 # elastic moduli
 el.nmodels = 2
 el.model1.E = 210 
@@ -93,3 +95,4 @@ el.solver.nriters = 1
 
 el.ref_threshold = 5E-5
 el.eta_ref_threshold = 5E-5
+

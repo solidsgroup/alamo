@@ -47,3 +47,4 @@ solver.nriters = 1000
 solver.nrtolerance = 1E-6
 solver.max_iter = 20
 
+bc.type = constant
