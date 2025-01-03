@@ -8,7 +8,7 @@
 alamo.program = hydro
 
 ### OUTPUT ###
-plot_file = ./output
+plot_file = tests/FlowInviscidDiffuse1D/output
 
 ### MESHING ###
 amr.plot_int = 10

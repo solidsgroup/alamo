@@ -8,7 +8,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = tests/DrivenCavity/output
+plot_file = tests/FlowDrivenCavity/output
 
 ### MESHING ###
 

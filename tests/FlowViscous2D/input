@@ -85,7 +85,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./tests/ViscousHydro2D/output
+plot_file = ./tests/FlowViscous2D/output
 
 ### MESHING ###
 

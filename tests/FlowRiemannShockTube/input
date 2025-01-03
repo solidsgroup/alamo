@@ -7,7 +7,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./tests/RiemannShockTube/output
+plot_file = ./tests/FlowRiemannShockTube/output
 
 ### MESHING ###
 

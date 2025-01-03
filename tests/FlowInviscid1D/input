@@ -46,7 +46,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./tests/InviscidHydro1D/output
+plot_file = ./tests/FlowInviscid1D/output
 
 ### MESHING ###
 
