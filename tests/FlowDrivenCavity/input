@@ -98,6 +98,6 @@ omega_refinement_criterion = 10.55
 
 solid.momentum.ic.constant.value = 0.0
 solid.energy.ic.constant.value = 0.0
-rho_injected.ic.constant.value = 1.0
+m0.ic.constant.value = 1.0
 u0.ic.constant.value = 0.0
 

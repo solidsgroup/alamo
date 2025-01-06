@@ -36,13 +36,6 @@ stop_time = 2.5
 
 Ldot_0 = 0.0
 
-rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "0.0"
-
-vInjected.ic.type = expression
-vInjected.ic.expression.region0 = "0.0"
-vInjected.ic.expression.region1 = "0.0"
-
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
@@ -83,7 +76,7 @@ solid.velocity.constant.value=1.0
 solid.momentum.ic.constant.value=1.0
 solid.energy.ic.constant.value=1.0
 solid.density.ic.constant.value=1.0
-rho_injected.ic.constant.value=1.0 # todo - remove or rename
+m0.ic.constant.value=1.0 # todo - remove or rename
 u0.ic.constant.value=0.0 
 
 ### ETA BC  ###

@@ -42,14 +42,7 @@ stop_time = 0.01
 
 #Ldot_0 = 0.0
 
-rhoInterface.ic.type = expression
-rhoInterface.ic.expression.region0 = "10.0"
-
-vInjected.ic.type = expression
-vInjected.ic.expression.region0 = "0.005"
-vInjected.ic.expression.region1 = "0.0"
-
-rho_injected.ic.constant.value = 1.0 # todo - remove
+m0.ic.constant.value = 0.0 
 u0.ic.constant.value = 0.0 
 
 q.ic.type = constant

@@ -38,8 +38,7 @@ stop_time = 0.5
 
 ### ETA IC ###
 
-rho_injected.ic.type = expression
-rho_injected.ic.expression.region0 = "100.0"
+m0.ic.constant.value = "0.0"
 
 u0.ic.type = expression
 u0.ic.expression.region0 = "0.0"

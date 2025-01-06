@@ -89,10 +89,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true);
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true);
 
-        value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", true);
-        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",         true);
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",            true);
-        value.RegisterNewFab(value.flux_mf,         &value.bc_nothing, 1, 0, "flux",            true);
+        value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, 1, 0, "m0",  true);
+        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true);
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true);
+        //value.RegisterNewFab(value.flux_mf,         &value.bc_nothing, 1, 0, "flux",true);
 
         value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true);
         value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
@@ -167,15 +167,18 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         // injected density initial condition type
-        pp_query_validate("rho_injected.ic.type", type, {"constant","expression"});
-        if (type == "constant") value.ic_rho_injected = new IC::Constant(value.geom, pp, "rho_injected.ic.constant");
-        else if (type == "expression") value.ic_rho_injected = new IC::Expression(value.geom, pp, "rho_injected.ic.expression");
-        else Util::Abort(INFO, "Invalid rho_injected.ic: ", type);
+        pp_forbid("rho_injected.ic.type","no longer using rho_injected use m0 instead");
+        // diffuse boundary prescribed mass flux 
+        pp_query_validate("m0.ic.type", type, {"constant","expression"});
+        if (type == "constant") value.ic_m0 = new IC::Constant(value.geom, pp, "m0.ic.constant");
+        else if (type == "expression") value.ic_m0 = new IC::Expression(value.geom, pp, "m0.ic.expression");
+        else Util::Abort(INFO, "Invalid m0.ic: ", type);
     }
     {
         std::string type = "constant";
         // mass flux initial condition
         pp.forbid("mdot.ic.type", "replace mdot with u0");
+        // diffuse boundary prescribed velocity
         pp.query("u0.ic.type", type);
         if (type == "constant") value.ic_u0 = new IC::Constant(value.geom, pp, "u0.ic.constant");
         else if (type == "expression") value.ic_u0 = new IC::Expression(value.geom, pp, "u0.ic.expression");
@@ -200,7 +203,7 @@ void Hydro::Initialize(int lev)
     eta_ic           ->Initialize(lev, eta_old_mf, 0.0);
     etadot_mf[lev]   ->setVal(0.0);
 
-    flux_mf[lev]   ->setVal(0.0);
+    //flux_mf[lev]   ->setVal(0.0);
 
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
@@ -213,7 +216,7 @@ void Hydro::Initialize(int lev)
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
     solid.energy_ic  ->Initialize(lev, solid.energy_mf, 0.0);
 
-    ic_rho_injected  ->Initialize(lev, rho_injected_mf, 0.0);
+    ic_m0            ->Initialize(lev, m0_mf, 0.0);
     ic_u0            ->Initialize(lev, u0_mf,    0.0);
     ic_q             ->Initialize(lev, q_mf,            0.0);
 
@@ -369,14 +372,14 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::Array4<Set::Scalar> const& omega   = (*vorticity_mf[lev]).array(mfi);
 
-        amrex::Array4<Set::Scalar> const& flux   = (*flux_mf[lev]).array(mfi);
+        //amrex::Array4<Set::Scalar> const& flux   = (*flux_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& eta    = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& v          = (*velocity_mf[lev]).array(mfi);
 
-        amrex::Array4<const Set::Scalar> const& rho_injected = (*rho_injected_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& m0         = (*m0_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& q            = (*q_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& _u0         = (*u0_mf[lev]).array(mfi);
 
@@ -431,7 +434,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
             //Set::Vector Ldot0 = rho(i, j, k) * (u*u.transpose() - u_applied*u_applied.transpose())*grad_eta;
 
-            Set::Scalar mdot0 = 0.0; //-prescribed_boundary_flux.mass * grad_eta_mag;
+            Set::Scalar mdot0 = -m0(i,j,k) * grad_eta_mag;
             //Set::Vector Pdot0 = rho(i,j,k)*(u_applied - u)*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
             Set::Vector Pdot0 = Set::Vector::Zero(); //- Pfactor*(u.dot(grad_eta)) * grad_eta/(grad_eta_mag + small); //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
             Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
@@ -514,7 +517,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             }
 
 
-            flux(i,j,k) = flux_xhi.mass - flux_xlo.mass;
+            //flux(i,j,k) = flux_xhi.mass - flux_xlo.mass;
 
             Set::Scalar smallmod = small; //(1.0 - eta(i,j,k))*0.001;
 
