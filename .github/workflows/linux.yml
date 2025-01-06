@@ -53,7 +53,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --timeout=200 --no-backspace
   test-3d-20-04:
     name: 3D g++ Build & Test (20.04)
     runs-on: ubuntu-20.04
@@ -66,7 +66,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github --timeout=200 --no-backspace
   test-2d-22-04:
     name: 2D g++ Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -79,7 +79,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
   test-3d-22-04:
     name: 3D g++ Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -92,7 +92,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace
   test-2d-22-04-clang:
     name: 2D Clang Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -107,4 +107,4 @@ jobs:
     - name: make
       run: make
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace

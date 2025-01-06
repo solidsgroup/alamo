@@ -31,7 +31,7 @@ jobs:
       run: make
     - name: regression tests with coverage (2d + 3d)
       continue-on-error: true
-      run: scripts/runtests.py --serial --timeout=50 --permit-timeout --coverage
+      run: scripts/runtests.py --serial --timeout=50 --permit-timeout --coverage --no-backspace
     - name: generate coverage report
       run: make cov-report
     - name: generate documentation

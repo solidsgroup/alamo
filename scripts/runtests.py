@@ -93,6 +93,7 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
+parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -296,7 +297,13 @@ def test(testdir):
         # Run the actual test.
         print("  ├ " + desc)
         if args.cmd: print("  ├      " + command)
-        print("  │      Running test............................................[----]",end="",flush=True)
+        bs = "\b\b\b\b\b\b"
+        if args.no_backspace:
+            print("  │      Running test............................................",end="")
+            bs = ""
+        else:
+            print("  │      Running test............................................[----]",end="",flush=True)
+            
         # Spawn the process and wait for it to finish before continuing.
         try:
             if args.dryrun: raise DryRunException()
@@ -317,7 +324,8 @@ def test(testdir):
                         metadata = readMetadata(metadatafile)
                         metadatafile.close()
                         status = int(metadata["Status"].split('(')[1].split('%')[0])
-                        print(f"\b\b\b\b\b\b[{status:3d}%]",end="",flush=True)
+                        if not args.no_backspace:
+                            print(bs + f"[{status:3d}%]",end="",flush=True)
                     except Exception as e:
                         True #do nothing
                     time.sleep(1)
@@ -340,7 +348,7 @@ def test(testdir):
             fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
             fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
             fstderr.close()
-            print("\b\b\b\b\b\b[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            print(bs+"[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             record['runStatus'] = 'PASS'
             if dobenchmark:
                 if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
@@ -356,7 +364,7 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.CalledProcessError as e:
-            print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
+            print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
@@ -366,7 +374,7 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
-            print("\b\b\b\b\b\b[{}TIME{}]".format(color.red,color.reset))
+            print(bs+"[{}TIME{}]".format(color.red,color.reset))
             record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             try:
@@ -389,7 +397,7 @@ def test(testdir):
             
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
-            print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
+            print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
             fails += 1
