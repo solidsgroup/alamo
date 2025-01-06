@@ -41,7 +41,7 @@ public:
         delete pressure_ic;
 
         delete ic_rho_injected;
-        delete ic_mdot;
+        delete ic_u0;
         delete ic_q;
 
         delete eta_ic;
@@ -90,7 +90,7 @@ private:
     Set::Field<Set::Scalar> vorticity_mf;
 
     Set::Field<Set::Scalar> rho_injected_mf;
-    Set::Field<Set::Scalar> mdot_mf;
+    Set::Field<Set::Scalar> u0_mf;
     Set::Field<Set::Scalar> q_mf;
     Set::Field<Set::Scalar> Source_mf;
     Set::Field<Set::Scalar> flux_mf;
@@ -105,7 +105,7 @@ private:
     IC::IC* density_ic  = nullptr;
 
     IC::IC* ic_rho_injected = nullptr;
-    IC::IC* ic_mdot = nullptr;
+    IC::IC* ic_u0 = nullptr;
     IC::IC* ic_q = nullptr;
 
     IC::IC* eta_ic = nullptr;

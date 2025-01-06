@@ -41,9 +41,9 @@ stop_time = 0.5
 rho_injected.ic.type = expression
 rho_injected.ic.expression.region0 = "100.0"
 
-mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.0"
-mdot.ic.expression.region1 = "0.0"
+u0.ic.type = expression
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"

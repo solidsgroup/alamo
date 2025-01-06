@@ -90,7 +90,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true);
 
         value.RegisterNewFab(value.rho_injected_mf, &value.bc_nothing, 1, 0, "rho_injected", true);
-        value.RegisterNewFab(value.mdot_mf,         &value.bc_nothing, 2, 0, "mdot",         true);
+        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",         true);
         value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",            true);
         value.RegisterNewFab(value.flux_mf,         &value.bc_nothing, 1, 0, "flux",            true);
 
@@ -175,10 +175,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     {
         std::string type = "constant";
         // mass flux initial condition
-        pp.query("mdot.ic.type", type);
-        if (type == "constant") value.ic_mdot = new IC::Constant(value.geom, pp, "mdot.ic.constant");
-        else if (type == "expression") value.ic_mdot = new IC::Expression(value.geom, pp, "mdot.ic.expression");
-        else Util::Abort(INFO, "Invalid mdot.ic: ", type);
+        pp.forbid("mdot.ic.type", "replace mdot with u0");
+        pp.query("u0.ic.type", type);
+        if (type == "constant") value.ic_u0 = new IC::Constant(value.geom, pp, "u0.ic.constant");
+        else if (type == "expression") value.ic_u0 = new IC::Expression(value.geom, pp, "u0.ic.expression");
+        else Util::Abort(INFO, "Invalid u0.ic: ", type);
     }
     {
         std::string type = "constant";
@@ -213,7 +214,7 @@ void Hydro::Initialize(int lev)
     solid.energy_ic  ->Initialize(lev, solid.energy_mf, 0.0);
 
     ic_rho_injected  ->Initialize(lev, rho_injected_mf, 0.0);
-    ic_mdot          ->Initialize(lev, mdot_mf,    0.0);
+    ic_u0            ->Initialize(lev, u0_mf,    0.0);
     ic_q             ->Initialize(lev, q_mf,            0.0);
 
     Source_mf[lev]   ->setVal(0.0);
@@ -377,7 +378,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::Array4<const Set::Scalar> const& rho_injected = (*rho_injected_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& q            = (*q_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& mdot         = (*mdot_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& _u0         = (*u0_mf[lev]).array(mfi);
 
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
@@ -392,14 +393,15 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix hess_eta     = Numeric::Hessian(eta, i, j, k, 0, DX);
             Set::Scalar lap_eta      = Numeric::Laplacian(eta, i, j, k, 0, DX);
 
-            Set::Scalar boundary_energy = 0.5 * (mdot(i, j, k, 0) * mdot(i, j, k, 0) + mdot(i, j, k, 1) * mdot(i, j, k, 1)) / rho_injected(i, j, k);
-            Set::Vector u_injected      = Set::Vector(mdot(i, j, k, 0), mdot(i, j, k, 1)) / rho_injected(i, j, k);
+            //Set::Scalar boundary_energy = 0.5 * (u0(i, j, k, 0) * u0(i, j, k, 0) + u0(i, j, k, 1) * u0(i, j, k, 1)) / rho_injected(i, j, k);
+            //Set::Vector u_injected      = Set::Vector(u0(i, j, k, 0), u0(i, j, k, 1)) / rho_injected(i, j, k);
             //Set::Vector u_interface     = -etadot(i, j, k)*grad_eta/(grad_eta_mag * grad_eta_mag + small);
             Set::Vector u_interface     = Set::Vector::Zero();
 
             Set::Matrix I            = Set::Matrix::Identity();
-            Set::Vector u_applied    = u_injected + u_interface /*+ Set::Vector(0.1, 0.0)*/;
+            //Set::Vector u_applied    = u_injected + u_interface /*+ Set::Vector(0.1, 0.0)*/;
             Set::Vector u            = Set::Vector(v(i, j, k, 0), v(i, j, k, 1));
+            Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
             //Set::Matrix gradu        = Numeric::Gradient(v, i, j, k, DX);
 
 
@@ -414,11 +416,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Boundary flux
             //states of solid/fluid boundary cells, eta = 1.0
-            Solver::Local::Riemann::Roe::State solid_state(rho_solid(i,j,k), M_solid(i,j,k,0), M_solid(i,j,k,1), E_solid(i,j,k), eta(i,j,k));
+            //Solver::Local::Riemann::Roe::State solid_state(rho_solid(i,j,k), M_solid(i,j,k,0), M_solid(i,j,k,1), E_solid(i,j,k), eta(i,j,k));
             //Solver::Local::Riemann::Roe::State boundary_state(rho_injected(i, j, k), mdot(i, j, k, 0), mdot(i, j, k, 1), boundary_energy, 1.0);
-            Solver::Local::Riemann::Roe::State boundary_state(0.0,0.0,0.0,0.0, 1.0);
-            Solver::Local::Riemann::Roe::State empty_state(small, 0.0, 0.0, 0.0, 1.0);
-            Solver::Local::Riemann::Roe::State current_state(rho(i,j,k), M(i,j,k,0), M(i,j,k,1), E(i,j,k), eta(i,j,k));
+            //Solver::Local::Riemann::Roe::State boundary_state(0.0,0.0,0.0,0.0, 1.0);
+            // Solver::Local::Riemann::Roe::State empty_state(small, 0.0, 0.0, 0.0, 1.0);
+            //Solver::Local::Riemann::Roe::State current_state(rho(i,j,k), M(i,j,k,0), M(i,j,k,1), E(i,j,k), eta(i,j,k));
 
             //Solver::Local::Riemann::Roe::Flux prescribed_boundary_flux = Solver::Local::Riemann::Roe::Solve(boundary_state, boundary_state, empty_state, empty_state, gamma, 1.0, 0.0, small);
             //Solver::Local::Riemann::Roe::Flux prescribed_boundary_flux = Solver::Local::Riemann::Roe::Solve(current_state, boundary_state, solid_state, solid_state, gamma, eta(i,j,k), pref, small);
@@ -447,7 +449,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 if (p==r && q==s) Mpqrs += 0.5 * mu;
                 if (p==s && q==r) Mpqrs += 0.5 * mu;
                 if (p==q && r==s) Mpqrs += 0.5 * mu;
-                Ldot0(p) += 0.5 * Mpqrs * (v(i, j, k, r) - u_applied(r)) * hess_eta(q, s);
+                Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
             }
             
             Source(i,j, k, 0) = mdot0;

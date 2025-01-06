@@ -84,7 +84,7 @@ solid.momentum.ic.constant.value=1.0
 solid.energy.ic.constant.value=1.0
 solid.density.ic.constant.value=1.0
 rho_injected.ic.constant.value=1.0 # todo - remove or rename
-mdot.ic.constant.value=1.0 # todo - remove or rename
+u0.ic.constant.value=0.0 
 
 ### ETA BC  ###
 
