@@ -9,6 +9,7 @@ import socket
 import time
 import re
 import pathlib
+import threading
 
 from sympy import capture
 
@@ -47,6 +48,23 @@ class MultiOrderedDict(OrderedDict):
         else:
             super().__setitem__(key, value)
 
+#
+# Convert metadata file to dictionary
+#
+def readMetadata(metadatafile):
+    metadata = dict()
+    for line in metadatafile.readlines():
+        if line.startswith('#'): continue;
+        if '::' in line:
+            ### skip these for now ...
+            continue
+            #line = re.sub(r'\([^)]*\)', '',line)
+            #line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+        if len(line.split(' = ')) != 2: continue;
+        col = line.split(' = ')[0]#.replace('.','_')
+        val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
+        metadata[col] = val
+    return metadata
 
 #
 # Provide some simple command line arguments for filtering the types of 
@@ -278,21 +296,51 @@ def test(testdir):
         # Run the actual test.
         print("  ├ " + desc)
         if args.cmd: print("  ├      " + command)
-        print("  │      Running test............................................",end="",flush=True)
+        print("  │      Running test............................................[----]",end="",flush=True)
         # Spawn the process and wait for it to finish before continuing.
         try:
             if args.dryrun: raise DryRunException()
             timeStarted = time.time()
-            p = subprocess.run(command.split(),capture_output=True,check=True,timeout=timeout)
+
+            #
+            # This is a thread that periodically checks the metadata file to determine
+            # progress of the alamo run. It scans the metadata file for the alamo-computed
+            # progress and prints out the current progress to the terminal.
+            #
+            def check_progress(proc,none):
+                n = 0.0
+                while True:
+                    if proc.poll() is not None:
+                        break
+                    try: 
+                        metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
+                        metadata = readMetadata(metadatafile)
+                        metadatafile.close()
+                        status = int(metadata["Status"].split('(')[1].split('%')[0])
+                        print(f"\b\b\b\b\b\b[{status:3d}%]",end="",flush=True)
+                    except Exception as e:
+                        True #do nothing
+                    time.sleep(1)
+
+            # Start the run
+            proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+            # Start the check_progress thread
+            monitor_thread = threading.Thread(target=check_progress, args=(proc,""))
+            monitor_thread.start()
+
+            # Now, wait for test to complete or error out
+            stdout, stderr = proc.communicate(timeout=timeout)
+
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-            fstdout.write(ansi_escape.sub('',p.stdout.decode('utf-8')))
+            fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
             fstdout.close()
             fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-            fstderr.write(ansi_escape.sub('',p.stderr.decode('utf-8')))
+            fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
             fstderr.close()
-            print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            print("\b\b\b\b\b\b[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             record['runStatus'] = 'PASS'
             if dobenchmark:
                 if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
@@ -308,7 +356,7 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.CalledProcessError as e:
-            print("[{}FAIL{}]".format(color.red,color.reset))
+            print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
@@ -318,7 +366,7 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
-            print("[{}TIMEOUT{}]".format(color.red,color.reset))
+            print("\b\b\b\b\b\b[{}TIME{}]".format(color.red,color.reset))
             record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             try:
@@ -336,12 +384,12 @@ def test(testdir):
             timeouts += 1
             continue
         except DryRunException as e:
-            print("[----]")
+            print("")
             record['runStatus'] = '----'
             
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
-            print("[{}FAIL{}]".format(color.red,color.reset))
+            print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
             fails += 1
@@ -391,18 +439,7 @@ def test(testdir):
         if args.post:
             try:
                 metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
-                metadata = dict()
-                for line in metadatafile.readlines():
-                    if line.startswith('#'): continue;
-                    if '::' in line:
-                        ### skip these for now ...
-                        continue
-                        #line = re.sub(r'\([^)]*\)', '',line)
-                        #line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
-                    if len(line.split(' = ')) != 2: continue;
-                    col = line.split(' = ')[0]#.replace('.','_')
-                    val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
-                    metadata[col] = val
+                metadata = readMetadata(metadatafile)
                 metadatafile.close()
                 record['git_commit_hash'] = metadata['Git_commit_hash']
                 record['platform'] = metadata['Platform']
