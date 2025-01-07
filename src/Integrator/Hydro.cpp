@@ -319,7 +319,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Patch<const Set::Scalar> rho       = density_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M         = momentum_old_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E         = energy_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> E         = energy_old_mf.Patch(lev,mfi); // total energy (internal energy + kinetic energy) per unit volume
+                                                                                // E/rho = e + 0.5*v^2
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
