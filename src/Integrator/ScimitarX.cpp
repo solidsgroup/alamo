@@ -4,7 +4,9 @@
 #include "BC/Nothing.H"
 #include "BC/Constant.H"
 #include "IC/SodShock.H"
+#include "Model/Fluid/Fluid.H"
 #include "Numeric/Stencil.H"
+#include "Numeric/TimeStepper.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 
@@ -14,7 +16,8 @@ namespace Integrator
 // Define the static member variable
 Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;
 
-ScimitarX::ScimitarX(IO::ParmParse& pp) : ScimitarX()
+
+ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 {
     pp.queryclass(*this);
 }
@@ -105,6 +108,50 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pressure.type: " + type);
         }
     } 
+
+    { 
+    // Access the maps from the FeatureMaps singleton
+    auto& fluxReconstructionMap = getFeatureMaps().getFluxReconstructionMap();
+    auto& fluxSchemeMap = getFeatureMaps().getFluxSchemeMap();
+    auto& timeSteppingSchemeMap = getFeatureMaps().getTimeSteppingSchemeMap();
+
+    // Flux Reconstruction parsing
+    std::string fluxReconstructionStr;
+    if (pp.query("FluxReconstruction", fluxReconstructionStr)) {
+        auto it = fluxReconstructionMap.find(fluxReconstructionStr);
+        if (it != fluxReconstructionMap.end()) {
+            value.reconstruction_method = it->second;
+        } else {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxReconstruction value: " + fluxReconstructionStr);
+        }
+    }
+
+    // Flux Scheme parsing
+    std::string fluxSchemeStr;
+    if (pp.query("FluxScheme", fluxSchemeStr)) {
+        auto it = fluxSchemeMap.find(fluxSchemeStr);
+        if (it != fluxSchemeMap.end()) {
+            value.flux_scheme = it->second;
+        } else {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxScheme value: " + fluxSchemeStr);
+        }
+    }
+
+    // Time-Stepping Scheme parsing
+    std::string timeSteppingSchemeStr;
+    if (pp.query("TimeSteppingScheme", timeSteppingSchemeStr)) {
+        auto it = timeSteppingSchemeMap.find(timeSteppingSchemeStr);
+        if (it != timeSteppingSchemeMap.end()) {
+            value.temporal_scheme = it->second;
+        } else {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid TimeSteppingScheme value: " + timeSteppingSchemeStr);
+        }
+    }
+
+    }
+    // Read CFL number and initial time step
+    pp.query_required("cflNumber", value.cflNumber);
+    
 }
 
 void ScimitarX::Initialize(int lev)
@@ -124,23 +171,6 @@ void ScimitarX::Initialize(int lev)
     Source_mf[lev]->setVal(0.0);
 }
 
-void ScimitarX::Advance(int lev, Set::Scalar /*time*/, Set::Scalar /*dt*/)
-{
-    std::swap(*QVec_mf[lev], *QVec_old_mf[lev]);
-
-    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
-
-        amrex::Array4<const Set::Scalar> const& QVec_old = (*QVec_old_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& QVec     = (*QVec_mf[lev]).array(mfi);
-
-        for (int n = 0; n < number_of_components; ++n) {
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                QVec(i, j, k, n) = QVec_old(i, j, k, n);
-            });
-        }
-    }
-}
 
 void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
 {
@@ -163,20 +193,108 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
         });
     }
 
-    amrex::Print() << "Refinement threshold set to: " << refinement_threshold << "\n"; 
+        Util::Message(INFO, "Refinement threshold set to", refinement_threshold);
 }
 
-void ScimitarX::TimeStepBegin(Set::Scalar a_time, int a_iter) {
-    // Placeholder implementation
+
+void ScimitarX::TimeStepBegin(Set::Scalar time, int lev) {
+    if (lev == 0) {  // Ensure only done at the coarsest level
+        ComputeAndSetNewTimeStep();  // Compute dt based on global `minDt`
+    }
+    Util::Message(INFO, "Starting time step at time: " + std::to_string(time));
 }
+
 
 void ScimitarX::TimeStepComplete(Set::Scalar time, int lev) {
-    // Placeholder implementation
+    
 }
 
 void ScimitarX::Regrid(int lev, Set::Scalar time) {
-    // Placeholder implementation
+
 }
+
+void ScimitarX::ComputeAndSetNewTimeStep() {
+    // Compute the minimum time step over the entire domain using GetTimeStep
+    Set::Scalar finest_dt = GetTimeStep();  // GetTimeStep already accounts for the CFL number
+
+    // Start with the finest level time step
+    Set::Scalar coarsest_dt = finest_dt;
+
+    // Adjust the time step for the coarsest level by multiplying back the refinement ratios
+    for (int lev = finest_level; lev > 0; --lev) {
+        // `refRatio(lev - 1)` returns an IntVect. Assume isotropic refinement for simplicity.
+        int refinement_factor = refRatio(lev - 1)[0];  // Assuming refinement is isotropic (same value in all directions)
+
+        coarsest_dt *= refinement_factor;  // Scale the time step conservatively for refinement
+    }
+
+    // Set the coarsest-level time step for all levels
+    SetTimestep(coarsest_dt);
+
+    Util::Message(INFO, "New coarsest-level timestep set: " + std::to_string(coarsest_dt));
+}
+
+// Function to compute the time step size based on CFL condition
+Set::Scalar ScimitarX::GetTimeStep() {
+    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value
+
+    for (int lev = 0; lev <= maxLevel(); ++lev) {  // Use maxLevel() from the base class
+        const Set::Scalar* dx = geom[lev].CellSize();  // Access the geometry at level `lev`
+
+        for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            const amrex::Box& bx = mfi.tilebox();  // Iterate over tiles in the multifab
+            auto const& qArr = QVec_mf.Patch(lev, mfi);
+
+            Set::Scalar minDt_local = std::numeric_limits<Set::Scalar>::max();  // Thread-local minDt
+
+            amrex::ParallelFor(bx, [=, &minDt_local](int i, int j, int k) noexcept {
+                Set::Scalar rho = qArr(i, j, k, variableIndex.DENS);
+                Set::Scalar u = qArr(i, j, k, variableIndex.UVEL) / rho;
+                Set::Scalar v = qArr(i, j, k, variableIndex.VVEL) / rho;
+#if (AMREX_SPACEDIM == 3)
+                Set::Scalar w = qArr(i, j, k, variableIndex.WVEL) / rho;
+#else
+                Set::Scalar w = 0.0;
+#endif
+                Set::Scalar ie = qArr(i, j, k, variableIndex.IE) / rho;
+                Set::Scalar gamma = 1.4;
+                Set::Scalar p = Model::Fluid::Fluid().ComputePressureFromDensityAndInternalEnergy(rho, ie, gamma);
+                Set::Scalar c = Model::Fluid::Fluid().ComputeWaveSpeed(rho, p, gamma);
+
+                // Compute the maximum characteristic speed
+                Set::Scalar maxSpeed = std::abs(u) + c;
+#if (AMREX_SPACEDIM >= 2)
+                maxSpeed = std::max(maxSpeed, std::abs(v) + c);
+#endif
+#if (AMREX_SPACEDIM == 3)
+                maxSpeed = std::max(maxSpeed, std::abs(w) + c);
+#endif
+
+                // Compute local timestep for this cell
+                Set::Scalar dtLocal = dx[0] / maxSpeed;
+#if (AMREX_SPACEDIM >= 2)
+                dtLocal = std::min(dtLocal, dx[1] / maxSpeed);
+#endif
+#if (AMREX_SPACEDIM == 3)
+                dtLocal = std::min(dtLocal, dx[2] / maxSpeed);
+#endif
+
+                // Track the local minimum
+                if (dtLocal < minDt_local) {
+                    minDt_local = dtLocal;
+                }
+            });
+
+            // Update the global minDt
+            minDt = std::min(minDt, minDt_local);
+        }
+    }
+
+    // Reduce across processes to find the global minimum timestep
+    amrex::ParallelDescriptor::ReduceRealMin(minDt);
+    return ScimitarX::cflNumber * minDt;  // Return CFL-adjusted time step for the finest level
+}
+
 
 IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Util::ScimitarX_Util::getVariableIndex& variableIndex)
 {

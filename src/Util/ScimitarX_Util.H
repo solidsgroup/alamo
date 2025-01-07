@@ -48,12 +48,6 @@ public:
         int IE = -1;                         // Index for Internal Energy
     };
 
-    static constexpr double rkCoefficients[4][3] = {
-        {Constants::one, Constants::zeroval, Constants::one},
-        {Constants::half, Constants::half, Constants::half},
-        {Constants::threefourth, Constants::fourth, Constants::fourth},
-        {Constants::third, Constants::twothird, Constants::twothird}
-    };
 };
 }
 
