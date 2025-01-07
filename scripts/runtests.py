@@ -339,6 +339,8 @@ def test(testdir):
 
             # Now, wait for test to complete or error out
             stdout, stderr = proc.communicate(timeout=timeout)
+            retcode = proc.returncode
+            if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
 
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
