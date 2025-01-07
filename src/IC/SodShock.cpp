@@ -3,8 +3,11 @@
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
+#include "Model/Fluid/Fluid.H"
 
 namespace IC {
+
+using namespace Model::Fluid;
 
 SodShock::SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
                    const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
@@ -36,9 +39,13 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 #endif
         int ie_idx = requires_variable_indices ? variable_indices->IE : -1;
 
+        Model::Fluid::Fluid fluid_model;  // Create an instance of the Fluid model
+
         for (int n = 0; n < ncomp; ++n) {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+
+                Set::Scalar gamma = 1.4;
 
                 if (mf_name == "ic.pvec.sodshock") {
                     if (x(0) < shock_xpos) {
@@ -50,7 +57,8 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 #if AMREX_SPACEDIM == 3
                         else if (n == wvel_idx) phi(i, j, k, n) = w_left;
 #endif
-                        else if (n == ie_idx) phi(i, j, k, n) = 0.0;
+                        else if (n == ie_idx)
+                            phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(rho_left, p_left, gamma);
                     } else {
                         if (n == dens_idx) phi(i, j, k, n) = rho_right;
                         else if (n == uvel_idx) phi(i, j, k, n) = u_right;
@@ -60,7 +68,8 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 #if AMREX_SPACEDIM == 3
                         else if (n == wvel_idx) phi(i, j, k, n) = w_right;
 #endif
-                        else if (n == ie_idx) phi(i, j, k, n) = 0.0;
+                        else if (n == ie_idx)
+                            phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(rho_right, p_right, gamma);
                     }
                 } else if (mf_name == "ic.pressure.sodshock") {
                     phi(i, j, k, n) = (x(0) < shock_xpos) ? p_left : p_right;
@@ -73,10 +82,9 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 }
 
 void SodShock::initialize(IO::ParmParse& pp, const std::string& name) {
-    // Extract type from the passed name
     std::string type = "sodshock";
     pp.query(name.c_str(), type);
-    mf_name = name; // Keep full name for accurate matching
+    mf_name = name;
 
     Util::Message(INFO, "DEBUG: Initializing SodShock with mf_name = " + mf_name);
 
@@ -84,22 +92,22 @@ void SodShock::initialize(IO::ParmParse& pp, const std::string& name) {
         Util::Abort(INFO, "Unknown type in input: " + type);
     }
 
-    // Parse variables based on mf_name
     if (mf_name == "ic.pvec.sodshock") {
-        pp.query((name + ".left.DENS").c_str(), rho_left);
-        pp.query((name + ".right.DENS").c_str(), rho_right);
-        pp.query((name + ".left.UVEL").c_str(), u_left);
-        pp.query((name + ".right.UVEL").c_str(), u_right);
+        pp.query("ic.pvec.sodshock.left.DENS", rho_left);
+        pp.query("ic.pvec.sodshock.right.DENS", rho_right);
+        pp.query("ic.pvec.sodshock.left.UVEL", u_left);
+        pp.query("ic.pvec.sodshock.right.UVEL", u_right);
 #if AMREX_SPACEDIM >= 2
-        pp.query((name + ".left.VVEL").c_str(), v_left);
-        pp.query((name + ".right.VVEL").c_str(), v_right);
+        pp.query("ic.pvec.sodshock.left.VVEL", v_left);
+        pp.query("ic.pvec.sodshock.right.VVEL", v_right);
 #endif
 #if AMREX_SPACEDIM == 3
-        pp.query((name + ".left.WVEL").c_str(), w_left);
-        pp.query((name + ".right.WVEL").c_str(), w_right);
+        pp.query("ic.pvec.sodshock.left.WVEL", w_left);
+        pp.query("ic.pvec.sodshock.right.WVEL", w_right);
 #endif
+        pp.query("ic.pressure.sodshock.left", p_left);
+        pp.query("ic.pressure.sodshock.right", p_right);
 
-        // Debug parsed values
         Util::Message(INFO, "DEBUG: Parsed ic.pvec.sodshock values:");
         Util::Message(INFO, "  rho_left = " + std::to_string(rho_left));
         Util::Message(INFO, "  rho_right = " + std::to_string(rho_right));
@@ -111,26 +119,22 @@ void SodShock::initialize(IO::ParmParse& pp, const std::string& name) {
         Util::Message(INFO, "  w_left = " + std::to_string(w_left) + ", w_right = " + std::to_string(w_right));
 #endif
     } else if (mf_name == "ic.pressure.sodshock") {
-        pp.query((name + ".left").c_str(), p_left);
-        pp.query((name + ".right").c_str(), p_right);
+        pp.query("ic.pressure.sodshock.left", p_left);
+        pp.query("ic.pressure.sodshock.right", p_right);
 
-        // Debug parsed values
         Util::Message(INFO, "DEBUG: Parsed ic.pressure.sodshock values:");
         Util::Message(INFO, "  p_left = " + std::to_string(p_left));
         Util::Message(INFO, "  p_right = " + std::to_string(p_right));
     }
 
-    // Parse shock positions
     pp.query("shock.xpos", shock_xpos);
     pp.query("shock.ypos", shock_ypos);
     pp.query("shock.zpos", shock_zpos);
 
-    // Debug shock positions
     Util::Message(INFO, "DEBUG: Shock position: xpos = " + std::to_string(shock_xpos) +
                          ", ypos = " + std::to_string(shock_ypos) +
                          ", zpos = " + std::to_string(shock_zpos));
 }
 
-} // namespace IC
-
+}  // namespace IC
 
