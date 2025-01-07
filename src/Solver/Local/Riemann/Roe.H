@@ -74,10 +74,10 @@ public:
         rho_R = std::max(0.0,rho_R);
 
         // STEP 1: Compute fluid primitives 
-        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L /*+ Mt_L * Mt_L*/) / (rho_L+small);
-        Set::Scalar ue_L = E_L - ke_L;
-        Set::Scalar p_L  = (gamma - 1.0) * ue_L + p_ref;
-        Set::Scalar h_TL = (ke_L + ue_L + p_L) / (rho_L+small);
+        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L /*+ Mt_L * Mt_L*/) / (rho_L+small); // KE per unit volume
+        Set::Scalar ue_L = E_L - ke_L;                                            // IE per unit volume
+        Set::Scalar p_L  = (gamma - 1.0) * ue_L + p_ref;                          // pressure
+        Set::Scalar h_TL = (ke_L + ue_L + p_L) / (rho_L+small);                   // specific stagnation enthalpy (per unit mass)
 
         Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R /*+ Mt_R * Mt_R*/) / (rho_R+small);
         Set::Scalar ue_R = E_R - ke_R;
