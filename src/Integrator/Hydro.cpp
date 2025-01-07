@@ -332,7 +332,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         {
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
 
-            Set::Scalar etarho_fluid  = (rho(i,j,k) - (1.-eta(i,j,k)) * rho_solid(i,j,k));
+            Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta(i,j,k)) * rho_solid(i,j,k);
             Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta(i,j,k)) * E_solid(i,j,k);
 
             Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta(i,j,k)) * M_solid(i,j,k,0),
@@ -343,6 +343,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
 
+            //v(i,j,k,0) = M(i,j,k,0) / rho(i,j,k);
+            //v(i,j,k,1) = M(i,j,k,1) / rho(i,j,k);
+
             // p(i,j,k)   = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) * (eta(i, j, k) + small));
             // p(i,j,k)   = (etaE_fluid*etarho_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) * (eta(i, j, k) + small));
             // p(i,j,k)   = (etaE_fluid*etarho_fluid / (eta(i, j, k) + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta(i, j, k) + small));
@@ -351,13 +354,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
     }
 
+    //Util::RealFillBoundary(*velocity_mf[lev], geom[lev]);
+    //Util::RealFillBoundary(*pressure_mf[lev], geom[lev]);
+
     const Set::Scalar* DX = geom[lev].CellSize();
     //amrex::Box domain = geom[lev].Domain();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
-
+        
         amrex::Array4<const Set::Scalar> const& rho = (*density_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& E   = (*energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& M   = (*momentum_old_mf[lev]).array(mfi);
@@ -390,6 +396,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
@@ -410,6 +418,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Set::Matrix gradM   = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho = Numeric::Gradient(rho,i,j,k,0,DX);
+            Set::Matrix hess_rho = Numeric::Hessian(rho,i,j,k,0,DX, sten);
             Set::Matrix gradu   = (gradM - u*gradrho.transpose()) / rho(i,j,k);
             Set::Scalar divu    = gradu.trace();
 
@@ -441,18 +450,33 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
 
 
-            Set::Vector Ldot0 = Set::Vector::Zero();
 
+            Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
+            Set::Matrix3 hess_u = Set::Matrix3::Zero();
+            for (int p = 0; p < 2; p++)
+            for (int q = 0; q < 2; q++)
+            for (int r = 0; r < 2; r++)
+            {
+                hess_u(r,p,q) =
+                    (hess_M(r,p,q) - gradu(r,q)*gradrho(p) - gradu(r,p)*gradrho(q) - u(r)*hess_rho(p,q))
+                    / rho(i,j,k);
+            }
+
+
+            Set::Vector Ldot0 = Set::Vector::Zero();
+            Set::Vector div_tau = Set::Vector::Zero();
             for (int p = 0; p<2; p++)
             for (int q = 0; q<2; q++)
             for (int r = 0; r<2; r++)
             for (int s = 0; s<2; s++)
             {
                 Set::Scalar Mpqrs = 0.0;
+                if (p==q && r==s) Mpqrs += 0.5 * mu;
                 if (p==r && q==s) Mpqrs += 0.5 * mu;
                 if (p==s && q==r) Mpqrs += 0.5 * mu;
-                if (p==q && r==s) Mpqrs += 0.5 * mu;
+
                 Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+                div_tau(p) += Mpqrs * hess_u(q,r,s);
             }
             
             Source(i,j, k, 0) = mdot0;
@@ -468,6 +492,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar lap_ux = (lapMx - laprho*u(0) - 2.0*gradrho(0)*gradu(0,0)) / rho(i,j,k);
             Set::Scalar lap_uy = (lapMy - laprho*u(1) - 2.0*gradrho(1)*gradu(1,1)) / rho(i,j,k);
             
+            lap_ux = Numeric::Laplacian(v,i,j,k,0,DX,sten);
+            lap_uy = Numeric::Laplacian(v,i,j,k,1,DX,sten);
+
+
             // Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
             // Set::Scalar lap_uy = Numeric::Laplacian(v, i, j, k, 1, DX);
             //Set::Scalar div_u  = Numeric::Divergence(v, i, j, k, 2, DX); // currently causes error!
@@ -564,7 +592,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
-                (mu * (lap_ux * eta(i, j, k))) +
+                div_tau(0) * eta(i,j,k) +
+                //(mu * (lap_ux * eta(i, j, k))) +
                 Source(i, j, k, 1);
 
             M_new(i, j, k, 0) = M(i, j, k, 0) +
@@ -578,7 +607,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar dMyf_dt =
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
-                (mu * (lap_uy * eta(i, j, k))) +
+                div_tau(1) * eta(i,j,k) + 
+                //(mu * (lap_uy * eta(i, j, k))) +
                 Source(i, j, k, 2);
                 
             M_new(i, j, k, 1) = M(i, j, k, 1) +
