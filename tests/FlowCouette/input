@@ -42,15 +42,15 @@ geometry.is_periodic = 1 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
-stop_time = 30.0
+timestep  = 2e-3
+stop_time = 60.0
 
 ### HYDRO PARAM ###
 
 gamma = 3.0
 cfl   = 0.4
 mu    = 10.0
-pref = 100.0
+pref = 1000.0
 
 ### ETA IC ###
 

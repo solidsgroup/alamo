@@ -358,7 +358,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //Util::RealFillBoundary(*pressure_mf[lev], geom[lev]);
 
     const Set::Scalar* DX = geom[lev].CellSize();
-    //amrex::Box domain = geom[lev].Domain();
+    amrex::Box domain = geom[lev].Domain();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
@@ -396,7 +396,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            auto sten = Numeric::GetStencil(i, j, k, bx);
+            auto sten = Numeric::GetStencil(i, j, k, domain);
 
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -418,7 +418,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Set::Matrix gradM   = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho = Numeric::Gradient(rho,i,j,k,0,DX);
-            Set::Matrix hess_rho = Numeric::Hessian(rho,i,j,k,0,DX, sten);
+            Set::Matrix hess_rho = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu   = (gradM - u*gradrho.transpose()) / rho(i,j,k);
             Set::Scalar divu    = gradu.trace();
 
@@ -472,11 +472,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             {
                 Set::Scalar Mpqrs = 0.0;
                 if (p==q && r==s) Mpqrs += 0.5 * mu;
-                if (p==r && q==s) Mpqrs += 0.5 * mu;
-                if (p==s && q==r) Mpqrs += 0.5 * mu;
+                //if (p==r && q==s) Mpqrs += 0.5 * mu;
+                //if (p==s && q==r) Mpqrs += 0.5 * mu;
+                Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
 
-                Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                div_tau(p) += Mpqrs * hess_u(q,r,s);
+                //Mpqrs = 0.0;
+                //if (p==q && q==r && r==s) Mpqrs += mu;
+                div_tau(p) += 0.5*Mpqrs * hess_u(q,r,s);
             }
             
             Source(i,j, k, 0) = mdot0;
@@ -492,8 +494,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar lap_ux = (lapMx - laprho*u(0) - 2.0*gradrho(0)*gradu(0,0)) / rho(i,j,k);
             Set::Scalar lap_uy = (lapMy - laprho*u(1) - 2.0*gradrho(1)*gradu(1,1)) / rho(i,j,k);
             
-            lap_ux = Numeric::Laplacian(v,i,j,k,0,DX,sten);
-            lap_uy = Numeric::Laplacian(v,i,j,k,1,DX,sten);
+            //lap_ux = Numeric::Laplacian(v,i,j,k,0,DX,sten);
+            //lap_uy = Numeric::Laplacian(v,i,j,k,1,DX,sten);
 
 
             // Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
