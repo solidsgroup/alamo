@@ -49,10 +49,10 @@ q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.025
+eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "0.5*tanh((2.0-x)/eps) + 0.5   +    0.5*tanh((x-4)/eps) + 0.5"
+eta.ic.expression.region0        = "0.5*tanh((2.0-x)/eps) + 0.5   +    0.5*tanh((x-3.0)/eps) + 0.5"
 
 ### HYDRO PARAM ###
 
@@ -112,19 +112,19 @@ density.bc.val.ylo = 0.0
 density.bc.val.yhi = 0.0
 
 energy.bc.type.xhi = neumann
-energy.bc.type.xlo = dirichlet
+energy.bc.type.xlo = neumann
 energy.bc.type.ylo = neumann
 energy.bc.type.yhi = neumann
 energy.bc.val.xhi = 0.0
-energy.bc.val.xlo = 10.0
+energy.bc.val.xlo = 0.0
 energy.bc.val.ylo = 0.0 
 energy.bc.val.yhi = 0.0
 
-momentum.bc.type.xlo = neumann neumann
+momentum.bc.type.xlo = dirichlet neumann
 momentum.bc.type.xhi = neumann neumann
 momentum.bc.type.ylo = neumann neumann
 momentum.bc.type.yhi = neumann neumann
-momentum.bc.val.xlo = 0.0 0.0
+momentum.bc.val.xlo = 1.0 0.0
 momentum.bc.val.xhi = 0.0 0.0
 momentum.bc.val.ylo = 0.0 0.0
 momentum.bc.val.yhi = 0.0 0.0
@@ -137,6 +137,7 @@ m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
 
-small=0.0
+small=1E-16
+cutoff=0.1
 
 #TODO

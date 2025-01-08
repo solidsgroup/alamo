@@ -66,6 +66,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.eta_bc = new BC::Constant(1, pp, "pf.eta.bc");
 
         pp_query_default("small",value.small,1E-8); // small regularization value
+        pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
 
     }
     // Register FabFields:
@@ -344,9 +345,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
 
-            //v(i,j,k,0) = M(i,j,k,0) / rho(i,j,k);
-            //v(i,j,k,1) = M(i,j,k,1) / rho(i,j,k);
-
             // p(i,j,k)   = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) * (eta(i, j, k) + small));
             // p(i,j,k)   = (etaE_fluid*etarho_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) * (eta(i, j, k) + small));
             // p(i,j,k)   = (etaE_fluid*etarho_fluid / (eta(i, j, k) + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta(i, j, k) + small));
@@ -354,9 +352,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // p(i,j,k)   = (etaE_fluid * etarho_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small) *eta(i, j, k) )*((gamma - 1.0) / (eta(i, j, k) + small));
         });
     }
-
-    //Util::RealFillBoundary(*velocity_mf[lev], geom[lev]);
-    //Util::RealFillBoundary(*pressure_mf[lev], geom[lev]);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
@@ -427,25 +422,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix T            = 0.5 * mu * (gradu + gradu.transpose());    
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
 
-            //Boundary flux
-            //states of solid/fluid boundary cells, eta = 1.0
-            //Solver::Local::Riemann::Roe::State solid_state(rho_solid(i,j,k), M_solid(i,j,k,0), M_solid(i,j,k,1), E_solid(i,j,k), eta(i,j,k));
-            //Solver::Local::Riemann::Roe::State boundary_state(rho_injected(i, j, k), mdot(i, j, k, 0), mdot(i, j, k, 1), boundary_energy, 1.0);
-            //Solver::Local::Riemann::Roe::State boundary_state(0.0,0.0,0.0,0.0, 1.0);
-            // Solver::Local::Riemann::Roe::State empty_state(small, 0.0, 0.0, 0.0, 1.0);
-            //Solver::Local::Riemann::Roe::State current_state(rho(i,j,k), M(i,j,k,0), M(i,j,k,1), E(i,j,k), eta(i,j,k));
-
-            //Solver::Local::Riemann::Roe::Flux prescribed_boundary_flux = Solver::Local::Riemann::Roe::Solve(boundary_state, boundary_state, empty_state, empty_state, gamma, 1.0, 0.0, small);
-            //Solver::Local::Riemann::Roe::Flux prescribed_boundary_flux = Solver::Local::Riemann::Roe::Solve(current_state, boundary_state, solid_state, solid_state, gamma, eta(i,j,k), pref, small);
-
-            //Active Source Terms
-            // Set::Scalar mdot0 = -1000.*grad_eta.dot(u); //-prescribed_boundary_flux.mass * grad_eta_mag;
-            // Set::Vector Pdot0 = Set::Vector::Zero();; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
-            // Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
-            //Set::Vector Ldot0 = rho(i, j, k) * (u*u.transpose() - u_applied*u_applied.transpose())*grad_eta;
 
             Set::Scalar mdot0 = -m0(i,j,k) * grad_eta_mag;
-            //Set::Vector Pdot0 = rho(i,j,k)*(u_applied - u)*grad_eta_mag; //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
             Set::Vector Pdot0 = Set::Vector::Zero(); //- Pfactor*(u.dot(grad_eta)) * grad_eta/(grad_eta_mag + small); //-Set::Vector(prescribed_boundary_flux.momentum_normal * grad_eta(0), prescribed_boundary_flux.momentum_tangent * grad_eta(1)) - T*grad_eta;
             Set::Scalar qdot0 = 0.0; //-prescribed_boundary_flux.energy * grad_eta_mag - (T*u).dot(grad_eta) + q0.dot(grad_eta); 
 
@@ -472,14 +450,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             for (int s = 0; s<2; s++)
             {
                 Set::Scalar Mpqrs = 0.0;
-                if (p==q && r==s) Mpqrs += 0.5 * mu;
-                //if (p==r && q==s) Mpqrs += 0.5 * mu;
+                if (p==r && q==s) Mpqrs += 0.5 * mu;
                 //if (p==s && q==r) Mpqrs += 0.5 * mu;
-                Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+                //if (p==q && r==s) Mpqrs += 0.5 * mu;
 
-                //Mpqrs = 0.0;
-                //if (p==q && q==r && r==s) Mpqrs += mu;
-                div_tau(p) += 0.5*Mpqrs * hess_u(q,r,s);
+                Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+                div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
             }
             
             Source(i,j, k, 0) = mdot0;
@@ -561,7 +537,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             rho_new(i, j, k) = rho(i, j, k) + 
                 (
                     drhof_dt +
-                    // todo add drhos_dt term
+                    // todo add drhos_dt term if want time-evolving rhos
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + smallmod)
                 ) * dt;
 
@@ -602,10 +578,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             M_new(i, j, k, 0) = M(i, j, k, 0) +
                 ( 
                     dMxf_dt + 
-                    // todo add dMs_dt term
+                    // todo add dMs_dt term if want time-evolving Ms
                     etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + smallmod)
                 ) * dt;
-                
 
             Set::Scalar dMyf_dt =
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
@@ -617,7 +592,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             M_new(i, j, k, 1) = M(i, j, k, 1) +
                 ( 
                     dMyf_dt +
-                    // todo add dMs_dt term
+                    // todo add dMs_dt term if want time-evolving Ms
                     etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+smallmod)
                 )*dt;
 
@@ -629,9 +604,19 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             E_new(i, j, k) = E(i, j, k) + 
                 ( 
                     dEf_dt +
-                    // todo add dEs_dt term
+                    // todo add dEs_dt term if want time-evolving Es
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+smallmod)
                 ) * dt;
+
+
+            if (eta(i,j,k) < cutoff)
+            {
+                rho_new(i,j,k,0) = rho_solid(i,j,k,0);
+                M_new(i,j,k,0)   = M_solid(i,j,k,0);
+                M_new(i,j,k,1)   = M_solid(i,j,k,1);
+                E_new(i,j,k,0)   = E_solid(i,j,k,0);
+            }
+
 
             //Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);

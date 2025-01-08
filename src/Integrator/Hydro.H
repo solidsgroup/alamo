@@ -124,6 +124,7 @@ private:
     Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN, Lfactor=NAN, Pfactor=NAN, pref=NAN;
 
     Set::Scalar small=NAN;
+    Set::Scalar cutoff=NAN;
 };
 }
 

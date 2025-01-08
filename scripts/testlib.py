@@ -1,5 +1,7 @@
 import numpy, yt, pylab, os, pandas, sys, math
 
+yt.set_log_level(50) # disable logging
+
 def integrate(x,y):
     ret = 0
     for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
@@ -20,6 +22,9 @@ def readHeader(path):
     ret["geom_hi"] = [float(x) for x in f.readline().replace('\n','').split()]
     return ret
 
+def warning(msg):
+    print(msg, file=sys.stderr)
+ 
 
 def validate(path, 
              outdir,

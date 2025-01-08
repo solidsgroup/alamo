@@ -130,6 +130,7 @@ def test(testdir):
     skips = 0
     tests = 0
     checks = 0
+    warnings = 0
     fasters = 0
     slowers = 0
     timeouts = 0
@@ -410,7 +411,6 @@ def test(testdir):
         # script to determine if the run was successful.
         # The exception handling is basically the same as for the above test.
         if check:
-            print("  │      Checking result.........................................",end="",flush=True)
             try:
                 if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
@@ -418,10 +418,26 @@ def test(testdir):
                     cmd.append(config[desc]['check-file'])
                 if args.cmd: 
                     print("  ├      " + ' '.join(cmd))
-                p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
-                checks += 1
-                print("[{}PASS{}]".format(color.boldgreen,color.reset))
-                record['checkStatus'] = 'PASS'
+
+                print("  │      Checking result.........................................",end="",flush=True)
+                proc = subprocess.Popen(cmd,cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+                stdout, stderr = proc.communicate()
+                retcode = proc.returncode
+                if retcode == 0:
+                    if (stderr):
+                        print("[{}WARN{}]".format(color.boldyellow,color.reset)) 
+                        for line in stderr.decode('utf-8').split('\n')[:-1]: print("  │      {}STDERR: {}{}".format(
+                                color.boldyellow,line,color.reset))
+                        record['checkStatus'] = 'WARN'
+                        warnings += 1
+                    else:
+                        print("[{}PASS{}]".format(color.boldgreen,color.reset)) 
+                        record['checkStatus'] = 'PASS'
+                    checks += 1
+                else:
+                    raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
+
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 record['checkStatus'] = 'FAIL'
@@ -495,11 +511,12 @@ def test(testdir):
     sums = []
     if tests: sums.append("{}{} tests run{}".format(color.blue,tests,color.reset))
     if checks: sums.append("{}{} checks passed{}".format(color.green,checks,color.reset))
+    if warnings: sums.append("{}{} warnings{}".format(color.boldyellow,checks,color.reset))
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
     print(summary + ", ".join(sums))
-    return fails, checks, tests, skips, fasters, slowers, timeouts, records
+    return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
@@ -512,6 +529,7 @@ class stats:
     fails = 0   # Number of failed runs - script errors if this is nonzero
     skips = 0   # Number of tests that were unexpectedly skipped - script errors if this is nonzero
     checks = 0  # Number of successfully passed checks
+    warnings = 0
     tests = 0   # Number of successful checks
     fasters = 0
     slowers = 0
@@ -524,10 +542,11 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s, fa, sl, to, re = test(testdir)
+    f, c, w, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
+    stats.warnings += w
     stats.skips += s
     stats.fasters += fa
     stats.slowers += sl
@@ -540,6 +559,7 @@ print("{}{} tests run{}".format(color.blue,stats.tests,color.reset))
 print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.reset))
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))
+if stats.warnings: print("{}{} warnings{}".format(color.boldyellow,stats.warnings,color.reset))
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
