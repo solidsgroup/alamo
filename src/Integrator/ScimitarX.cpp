@@ -7,6 +7,7 @@
 #include "Model/Fluid/Fluid.H"
 #include "Numeric/Stencil.H"
 #include "Numeric/TimeStepper.H"
+#include "Numeric/FluxHandler.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 
@@ -19,6 +20,10 @@ Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;
 
 ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 {
+
+    fluxHandler = new Numeric::FluxHandler<ScimitarX>();
+    timeStepper = new Numeric::TimeStepper<ScimitarX>();
+
     pp.queryclass(*this);
 }
 
@@ -74,19 +79,19 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     
     // Register New Fabs
     {
-        value.RegisterNewFab(value.QVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
-        value.RegisterNewFab(value.QVec_old_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
+        value.RegisterNewFab(value.QVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
+        value.RegisterNewFab(value.QVec_old_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
 
 #if AMREX_SPACEDIM >= 1
-        value.RegisterNewFab(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
+        value.RegisterNewFab(value.XFlux_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
 #endif
 #if AMREX_SPACEDIM >= 2
-        value.RegisterNewFab(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
+        value.RegisterNewFab(value.YFlux_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
 #endif
 #if AMREX_SPACEDIM == 3
-        value.RegisterNewFab(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
+        value.RegisterNewFab(value.ZFlux_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
 #endif
-        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
+//        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
         value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true); 
         value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true);
     }
@@ -159,16 +164,8 @@ void ScimitarX::Initialize(int lev)
     ic_PVec->Initialize(lev, PVec_mf);
     ic_Pressure->Initialize(lev, Pressure_mf);
 
-    QVec_mf[lev]->setVal(0.0);
-    QVec_old_mf[lev]->setVal(0.0);
-    XFlux_mf[lev]->setVal(0.0);
-#if AMREX_SPACEDIM >= 2
-    YFlux_mf[lev]->setVal(0.0);
-#endif
-#if AMREX_SPACEDIM == 3
-    ZFlux_mf[lev]->setVal(0.0);
-#endif
-    Source_mf[lev]->setVal(0.0);
+    ScimitarX::GetFluxVectors<SolverType::SolveCompressibleEuler>(lev);
+    amrex::MultiFab::Copy(*QVec_old_mf[lev], *QVec_mf[lev], 0, 0, number_of_components, QVec_old_mf[lev]->nGrow());
 }
 
 
@@ -213,6 +210,22 @@ void ScimitarX::Regrid(int lev, Set::Scalar time) {
 
 }
 
+void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
+        
+Util::Message(INFO, "Number of Components " + std::to_string(number_of_components));
+        
+        ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], *bc_PVec, 0);    
+        ApplyPatch(lev, time, QVec_old_mf, *QVec_old_mf[lev], *bc_PVec, 0);    
+        ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);    
+        ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev], *bc_PVec, 0);    
+        ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], *bc_PVec, 0);    
+#if (AMREX_SPACEDIM == 3)
+        ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], *bc_PVec, 0);    
+#endif
+    
+        ApplyPatch(lev, time, Pressure_mf, *Pressure_mf[lev], *bc_Pressure, 0);    
+}
+
 void ScimitarX::ComputeAndSetNewTimeStep() {
     // Compute the minimum time step over the entire domain using GetTimeStep
     Set::Scalar finest_dt = GetTimeStep();  // GetTimeStep already accounts for the CFL number
@@ -236,29 +249,30 @@ void ScimitarX::ComputeAndSetNewTimeStep() {
 
 // Function to compute the time step size based on CFL condition
 Set::Scalar ScimitarX::GetTimeStep() {
-    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value
+    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value       
 
     for (int lev = 0; lev <= maxLevel(); ++lev) {  // Use maxLevel() from the base class
         const Set::Scalar* dx = geom[lev].CellSize();  // Access the geometry at level `lev`
 
-        for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.tilebox();  // Iterate over tiles in the multifab
-            auto const& qArr = QVec_mf.Patch(lev, mfi);
+            auto const& pArr = PVec_mf.Patch(lev, mfi);
+            auto const& pressure = Pressure_mf.Patch(lev, mfi);
 
             Set::Scalar minDt_local = std::numeric_limits<Set::Scalar>::max();  // Thread-local minDt
 
             amrex::ParallelFor(bx, [=, &minDt_local](int i, int j, int k) noexcept {
-                Set::Scalar rho = qArr(i, j, k, variableIndex.DENS);
-                Set::Scalar u = qArr(i, j, k, variableIndex.UVEL) / rho;
-                Set::Scalar v = qArr(i, j, k, variableIndex.VVEL) / rho;
+                Set::Scalar rho = pArr(i, j, k, variableIndex.DENS);
+                Set::Scalar u = pArr(i, j, k, variableIndex.UVEL);
+                Set::Scalar v = pArr(i, j, k, variableIndex.VVEL);
 #if (AMREX_SPACEDIM == 3)
-                Set::Scalar w = qArr(i, j, k, variableIndex.WVEL) / rho;
+                Set::Scalar w = pArr(i, j, k, variableIndex.WVEL);
 #else
                 Set::Scalar w = 0.0;
 #endif
-                Set::Scalar ie = qArr(i, j, k, variableIndex.IE) / rho;
+                Set::Scalar ie = pArr(i, j, k, variableIndex.IE);
                 Set::Scalar gamma = 1.4;
-                Set::Scalar p = Model::Fluid::Fluid().ComputePressureFromDensityAndInternalEnergy(rho, ie, gamma);
+                Set::Scalar p = pressure(i, j, k);
                 Set::Scalar c = Model::Fluid::Fluid().ComputeWaveSpeed(rho, p, gamma);
 
                 // Compute the maximum characteristic speed

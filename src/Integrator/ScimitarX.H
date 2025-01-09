@@ -286,22 +286,37 @@ protected:
     switch (temporal_scheme) {
         case TimeSteppingScheme::ForwardEuler: {
             Util::Message(INFO, "TimeSteppingScheme: Forward Euler");
+
             fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
             fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
 
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
+
+            int numStages = timeStepper->GetNumberOfStages();
             // One-stage loop for Forward Euler
-            for (int stage = 0; stage < 1; ++stage) {
+            for (int stage = 0; stage < numStages; ++stage) {
                 // 1. Get the flux vectors for this solver type
                 GetFluxVectors<SolverType::SolveCompressibleEuler>(lev);
+
+                ApplyBoundaryConditions(lev, time);
 
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
+                ApplyBoundaryConditions(lev, time);
+
                 // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
 
+                ApplyBoundaryConditions(lev, time);
+
                 // 4. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+
+                ApplyBoundaryConditions(lev, time);
+
+                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
+                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
             }
             break;
         }
@@ -311,12 +326,20 @@ protected:
             fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
             fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
 
-            const int stages = 3;  // RK3 has three stages
-            for (int stage = 0; stage < stages; ++stage) {
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
+
+            int numStages = timeStepper->GetNumberOfStages();
+
+            for (int stage = 0; stage < numStages; ++stage) {
                 GetFluxVectors<SolverType::SolveCompressibleEuler>(lev);
+                ApplyBoundaryConditions(lev, time);
                 fluxHandler->ConstructFluxes(lev, this);
+                ApplyBoundaryConditions(lev, time);
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
+                ApplyBoundaryConditions(lev, time);
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+                ApplyBoundaryConditions(lev, time);
+                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
             }
             break;
         }
@@ -332,14 +355,20 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     Set::Scalar GetTimeStep();
     void ComputeAndSetNewTimeStep();
-    void GetFluxVectors();
-    void UpdateSolutions();
+    void GetFluxVectors(int lev);
+    void UpdateSolutions(int lev);
+    void ApplyBoundaryConditions(int lev, Set::Scalar time);
 
 protected:
 // Template function to specialize GetFluxVectors based on SolverType
 template <SolverType solverType>
 void GetFluxVectors(int lev) {
     Util::Message(INFO, "Starting GetFluxVectors for SolverType-specific computation");
+
+       Util::ScimitarX_Util::Debug debug;
+
+        //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
+        debug.SetTargetDebugLocationIndices(50, 0, 0);
 
     for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.validbox();
@@ -350,6 +379,7 @@ void GetFluxVectors(int lev) {
 #if (AMREX_SPACEDIM == 3)
         auto const& zflux_arr = ZFlux_mf.Patch(lev, mfi);
 #endif
+        auto const& pressure_arr = Pressure_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             Set::Scalar rho = p_arr(i, j, k, variableIndex.DENS);
@@ -368,6 +398,8 @@ void GetFluxVectors(int lev) {
                                              );
             Set::Scalar tot_int_energy = ie + kinetic_energy;
 
+            debug.DebugValuesIfTarget(i, j, k, rho, "density", "GetFluxVector", false);
+
             // Set Q vector components (solver-type-specific handling can go here)
             q_arr(i, j, k, variableIndex.DENS) = rho;
             q_arr(i, j, k, variableIndex.UVEL) = rho * u;
@@ -379,22 +411,22 @@ void GetFluxVectors(int lev) {
 
             // Compute fluxes in x-direction
             xflux_arr(i, j, k, variableIndex.DENS) = rho * u;
-            xflux_arr(i, j, k, variableIndex.UVEL) = rho * u * u + p_arr(i, j, k);
+            xflux_arr(i, j, k, variableIndex.UVEL) = rho * u * u + pressure_arr(i, j, k);
             xflux_arr(i, j, k, variableIndex.VVEL) = rho * u * v;
 #if (AMREX_SPACEDIM == 3)
             xflux_arr(i, j, k, variableIndex.WVEL) = rho * u * w;
 #endif
-            xflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + p_arr(i, j, k)) * u;
+            xflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + pressure_arr(i, j, k)) * u;
 
 #if (AMREX_SPACEDIM >= 2)
             // Compute fluxes in y-direction
             yflux_arr(i, j, k, variableIndex.DENS) = rho * v;
             yflux_arr(i, j, k, variableIndex.UVEL) = rho * v * u;
-            yflux_arr(i, j, k, variableIndex.VVEL) = rho * v * v + p_arr(i, j, k);
+            yflux_arr(i, j, k, variableIndex.VVEL) = rho * v * v + pressure_arr(i, j, k);
 #if (AMREX_SPACEDIM == 3)
             yflux_arr(i, j, k, variableIndex.WVEL) = rho * v * w;
 #endif
-            yflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + p_arr(i, j, k)) * v;
+            yflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + pressure_arr(i, j, k)) * v;
 #endif
 
 #if (AMREX_SPACEDIM == 3)
@@ -402,8 +434,8 @@ void GetFluxVectors(int lev) {
             zflux_arr(i, j, k, variableIndex.DENS) = rho * w;
             zflux_arr(i, j, k, variableIndex.UVEL) = rho * w * u;
             zflux_arr(i, j, k, variableIndex.VVEL) = rho * w * v;
-            zflux_arr(i, j, k, variableIndex.WVEL) = rho * w * w + p_arr(i, j, k);
-            zflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + p_arr(i, j, k)) * w;
+            zflux_arr(i, j, k, variableIndex.WVEL) = rho * w * w + pressure_arr(i, j, k);
+            zflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + pressure_arr(i, j, k)) * w;
 #endif
         });
     }
@@ -416,6 +448,10 @@ void GetFluxVectors(int lev) {
     void UpdateSolutions(int lev) {
         // Access geometry at the specified level
         const Set::Scalar* DX = geom[lev].CellSize();
+        Util::ScimitarX_Util::Debug debug;
+
+        //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
+        debug.SetTargetDebugLocationIndices(50, 0, 0);
 
         for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
@@ -424,15 +460,18 @@ void GetFluxVectors(int lev) {
             auto const& p_arr = PVec_mf.Patch(lev, mfi);  // Primitive variables array (PVec)
             auto const& pressure_arr = Pressure_mf.Patch(lev, mfi);  // Pressure array
 
+
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 // Extract conservative variables from QVec
                 Set::Scalar rho = q_arr(i, j, k, variableIndex.DENS);      // Density
+
+                debug.DebugValuesIfTarget(i, j, k, rho, "density", "UpdateSolutions", false);
+                debug.CheckNaNAndAbort(i, j, k, rho, "Density", "UpdateSolutions", true);
+
                 Set::Scalar u = q_arr(i, j, k, variableIndex.UVEL) / rho;  // Velocity in x-direction
                 Set::Scalar v = q_arr(i, j, k, variableIndex.VVEL) / rho;  // Velocity in y-direction
 #if (AMREX_SPACEDIM == 3)
                 Set::Scalar w = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
-#else
-                Set::Scalar w = 0.0;
 #endif
                 Set::Scalar total_energy = q_arr(i, j, k, variableIndex.IE) / rho;  // Total specific energy
 
@@ -462,6 +501,13 @@ void GetFluxVectors(int lev) {
                 // Also update internal energy explicitly if needed
                 p_arr(i, j, k, variableIndex.IE) = internal_energy;
             });
+
+           //Apply Boundary Condition 
+
+           //PVec_mf[lev]->FillBoundary();
+            //Pressure_mf[lev]->FillBoundary();
+           // Util::RealFillBoundary(*PVec_mf[lev],geom[lev]);
+           // Util::RealFillBoundary(*Pressure_mf[lev],geom[lev]); 
         }
     }
 
@@ -471,9 +517,12 @@ protected:
     Set::Field<Set::Scalar> XFlux_mf;         // X-dir Flux Vector holding all the field variables (current timestep)
     Set::Field<Set::Scalar> YFlux_mf;         // Y-dir Flux Vector holding all the field variables (current timestep)
     Set::Field<Set::Scalar> ZFlux_mf;         // Z-dir Flux Vector holding all the field variables (current timestep)
-    Set::Field<Set::Scalar> Source_mf;         // Source term Vector for all the field variables (current timestep)
+//    Set::Field<Set::Scalar> Source_mf;         // Source term Vector for all the field variables (current timestep)
     Set::Field<Set::Scalar> PVec_mf;      // Primitive Vector holding all the field variables in primitive form (current timestep)
     Set::Field<Set::Scalar> Pressure_mf;  // Multifab for pressure variable
+
+    int number_of_components;            // Number of components
+    int number_of_ghost_cells = 2;           // Number of ghost cells
 
     Numeric::FluxHandler<ScimitarX>* fluxHandler = nullptr;  // Flux handler instance
     Numeric::TimeStepper<ScimitarX>* timeStepper = nullptr;  // Time stepper instance
@@ -488,14 +537,21 @@ protected:
     friend class Numeric::FluxHandler;    
 
     template <typename T>
+    friend class Numeric::FirstOrderReconstruction;
+
+    template <typename T>
+    friend class Numeric::LocalLaxFriedrichsMethod;
+
+    template <typename T>
+    friend class Numeric::TimeSteppingScheme;
+
+    template <typename T>
     friend class Numeric::EulerForwardScheme;
 
     template <typename T>
     friend class Numeric::RK3Scheme;    
 
 private:
-    int number_of_components;            // Number of components
-    int number_of_ghost_cells = 4;           // Number of ghost cells
 
     Set::Scalar refinement_threshold;
 

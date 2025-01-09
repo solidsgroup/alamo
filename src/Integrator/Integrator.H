@@ -75,39 +75,45 @@ class Integrator
 {
 public:
 
-    /// This is the constructor for the intetgrator class, which reads timestep information,
-    /// simulation output and AMR, initialized time substep, and creates a new directory.
+    /// \function Integrator
+    /// \brief Constructor
+    ///
+    /// Does the following things:
+    ///    - Read in simulation TIME(STEP) information
+    ///    - Read in simulation output and AMR information
+    ///    - Initalize timestep substep information
+    ///    - Create a clean directory
+    /// For derived classes this **must** be called for the derived constructor. For instance: `code`
+    /// ```cpp
+    /// class MyDerivedClass : Integrator
+    /// {
+    ///    MyDerivedClass() : Integrator() { ... }
+    ///    ...
+    /// }
+    /// ```
     Integrator();
 
-    /// Virtual destructure; make sure delete any pointers that you create here.
     virtual ~Integrator();
 
-    /// Front-end method to initialize simulation on all levels
+    /// \fn    FrontData
+    /// \brief Front-end method to initialize simulation
     void InitData();
 
-    /// Read in output from previous simulation and start simulation at that point -
-    /// Not currently tested
     void Restart(std::string restartfile, bool a_node = false);
 
-    /// Front-end method to start simulation
+    /// \fn    Evolve
+    /// \brief Front-end method to start simulation
     void Evolve();
 
-    /// Simple setter to set filename
     void SetFilename(std::string _plot_file) { plot_file = _plot_file; };
-
-    /// Simple getter to get filename
     std::string GetFilename() { return plot_file; };
 
-    /// This overrides an AMReX method just to allow for explicit meshing when
-    /// desired.
     void regrid(int lbase, Set::Scalar time, bool initial = false) override
     {
         if (!explicitmesh.on)
             AmrCore::regrid(lbase, time, initial);
     }
 
-    /// This creates a new levels that have not previously been
-    /// used.
     void InitFromScratch(Set::Scalar time)
     {
         if (!explicitmesh.on) AmrCore::InitFromScratch(time);
@@ -141,76 +147,107 @@ public:
 
 protected:
 
-    /// You must override this function to inherit this class;
-    /// this function is called before the simulation begins, and is where
+    /// \fn    Initialize
+    /// \brief Apply initial conditions
+    ///
+    /// You **must** override this function to inherit this class.
+    /// This function is called before the simulation begins, and is where
     /// initial conditions should be applied.
     virtual void Initialize(int lev ///<[in] AMR Level
     ) = 0;
 
-    /// You must override this function to inherit this class;
+    /// \fn    Advance
+    /// \brief Perform computation
+    ///
+    /// You **must** override this function to inherit this class.
     /// Advance is called every time(sub)step, and implements the evolution of 
     /// the system in time.
+    /// 
     virtual void Advance(int lev,          ///<[in] AMR Level
         amrex::Real time, ///< [in] System time
         amrex::Real dt    ///< [in] Timestep for this level
     ) = 0;
 
-    /// You must override this function to inherit this class;
+    /// \fn    TagCellsForRefinement
+    /// \brief Tag cells where mesh refinement is needed
+    ///
+    /// You **must** override this function to inherit this class.
     /// Advance is called every time(sub)step, and implements the evolution of 
     /// the system in time.
+    /// 
     virtual void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time,
         int ngrow) = 0;
 
-    /// This optional function is  called at the beginning of every timestep, and can be used
+    /// \fn    TimeStepBegin
+    /// \brief Run another system calculation (e.g. implicit solve) before integration step
+    ///
+    /// This function is called at the beginning of every timestep. This function can be used
     /// to complete additional global solves, e.g. a MLMG implicit solve.
+    ///
+    /// Overriding is optional; the default is to do nothing.
+    ///
     virtual void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) {};
 
-    /// This optional function is called at the end of every timestep, and can be used
+    /// \fn    TimeStepComplete
+    /// \brief Run another system calculation (e.g. implicit solve) after integration step
+    ///
+    /// This function is called at the end of every timestep. This function can be used
     /// to complete additional global solves, e.g. a MLMG implicit solve.
+    ///
+    /// Overriding is optional; the default is to do nothing.
+    ///
     virtual void TimeStepComplete(Set::Scalar /*time*/, int /*iter*/) {};
 
+    /// \fn    Integrate
+    /// \brief Perform an integration to compute integrated quantities
+    ///
     /// This is a function that is called by `Integrator` to update the variables registered in
-    /// RegisterIntegratedVariable; you can override this to do your integration.
-    virtual void Integrate( int /*amrlev*/,
-                            Set::Scalar /*time*/,
-                            int /*iter*/,
-                            const amrex::MFIter&/*mfi*/,
-                            const amrex::Box&/*box*/
-        )
+    /// RegisterIntegratedVariable.
+    /// The following variables are used:
+    ///   -  amrlev: current amr level
+    ///   -  time: current simulation time
+    ///   -  iter: current simulation iteration
+    ///   -  mfi:  current MFIter object (used to get FArrayBox from MultiFab)
+    ///   -  box:  Use this box (not mfi.tilebox). This box covers only cells on this level that are
+    ///            not also on a finer level.
+    virtual void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*iter*/,
+        const amrex::MFIter&/*mfi*/, const amrex::Box&/*box*/)
     {
         if (thermo.number > 0)
             Util::Warning(INFO, "integrated variables registered, but no integration implemented!");
     }
 
-    /// An optionally overridable method to trigger behavior whenver a regrid occurs.
     virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
     {}
 
+    //ApplyPatch for updating BC within the derived class Advance function
+    void ApplyPatch(int lev, amrex::Real time,
+        amrex::Vector<std::unique_ptr<amrex::MultiFab>>& source_mf,
+        amrex::MultiFab& destination_multifab,
+        BC::BC<Set::Scalar>& physbc,
+        int icomp){
 
-    /// Add a new cell-based scalar field.
+        FillPatch(lev, time, source_mf, destination_multifab, physbc, icomp);
+    }
+
+
+    /// \fn    RegisterNewFab
+    /// \brief Register a field variable for AMR with this class 
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
-    /// Add a new cell-based scalar field (with additional arguments).
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout,std::vector<std::string> suffix = {});
-    /// Add a new node-based scalar field
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
-    /// Add a new node-based scalar field (wtih additional arguments)
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
     template<class T>
-    /// Add a templated nodal field
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
     template<class T>
-    /// Add a templated nodal field (additional arguments)
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true);
     template<class T>
-    /// Add a templated nodal field (additional arguments)
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving = true);
 
-    /// Add a field with arbitrary type (templated with T) and grid location (templated with d).
     template<class T, int d>
     void AddField(  Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost,
                     std::string, bool writeout, bool evolving, std::vector<std::string> suffix = {});
 
-    /// Utility to ensure that all fields know what the finest level is
     void SetFinestLevel(const int a_finestlevel)
     {
         for (unsigned int i = 0; i < cell.fab_array.size(); i++)
@@ -223,21 +260,12 @@ protected:
             m_basefields[i]->SetFinestLevel(finest_level);
     }
 
-    /// Register a variable to be integrated over the spatial domain using
-    /// the Integrate function.
     void RegisterIntegratedVariable(Set::Scalar* integrated_variable, std::string name, bool extensive=true);
 
-    /// Utility to set the coarse-grid timestep
     void SetTimestep(Set::Scalar _timestep);
-    
-    /// Utility to set the frequency (in timesteps) of plotfile dumping
     void SetPlotInt(int plot_int);
-    
-    /// Utility to set the frequency (in timesteps) of thermo data calculation
     void SetThermoInt(int a_thermo_int) { thermo.interval = a_thermo_int; }
-    /// Utility to set the frequency (in timesteps) of thermo data writing to file
     void SetThermoPlotInt(int a_thermo_plot_int) { thermo.plot_int = a_thermo_plot_int; }
-    /// Utility to set the global stop time.
     void SetStopTime(Set::Scalar a_stop_time) { stop_time = a_stop_time; }
 
 
@@ -254,7 +282,7 @@ protected:
         // internal variables
         std::vector<Set::Scalar> dt_limit_min;
         std::vector<Set::Scalar> previous_timesteps;
-    } dynamictimestep; /// Params for the dynamic timestp
+    } dynamictimestep;
     void DynamicTimestep_SyncTimeStep(int lev, Set::Scalar dt_min)
     {
         if (!dynamictimestep.on) return;
@@ -351,15 +379,12 @@ private:
     virtual void ErrorEst(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
 
-    /// This is the function that is responsible for updating patch data.
     void FillPatch(int lev, amrex::Real time,
         amrex::Vector<std::unique_ptr<amrex::MultiFab>>& source_mf,
         amrex::MultiFab& destination_multifab,
         BC::BC<Set::Scalar>& physbc,
         int icomp);
-    /// Simple utility to count cells 
     long CountCells(int lev);
-    /// Timestep marching
     void TimeStep(int lev, amrex::Real time, int iteration);
     void FillCoarsePatch(int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar>& physbc, int icomp, int ncomp);
     void GetData(const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
