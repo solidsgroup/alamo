@@ -296,24 +296,16 @@ protected:
             // One-stage loop for Forward Euler
             for (int stage = 0; stage < numStages; ++stage) {
                 // 1. Get the flux vectors for this solver type
-                GetFluxVectors<SolverType::SolveCompressibleEuler>(lev);
-
-                ApplyBoundaryConditions(lev, time);
+                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
 
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                ApplyBoundaryConditions(lev, time);
-
                 // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
 
-                ApplyBoundaryConditions(lev, time);
-
                 // 4. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
-
-                ApplyBoundaryConditions(lev, time);
 
                 // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
                 std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
@@ -331,7 +323,7 @@ protected:
             int numStages = timeStepper->GetNumberOfStages();
 
             for (int stage = 0; stage < numStages; ++stage) {
-                GetFluxVectors<SolverType::SolveCompressibleEuler>(lev);
+                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
                 ApplyBoundaryConditions(lev, time);
                 fluxHandler->ConstructFluxes(lev, this);
                 ApplyBoundaryConditions(lev, time);
@@ -355,20 +347,20 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     Set::Scalar GetTimeStep();
     void ComputeAndSetNewTimeStep();
-    void GetFluxVectors(int lev);
+    void ComputeConservedVariables(int lev);
     void UpdateSolutions(int lev);
     void ApplyBoundaryConditions(int lev, Set::Scalar time);
 
 protected:
 // Template function to specialize GetFluxVectors based on SolverType
 template <SolverType solverType>
-void GetFluxVectors(int lev) {
+void ComputeConservedVariables(int lev) {
     Util::Message(INFO, "Starting GetFluxVectors for SolverType-specific computation");
 
        Util::ScimitarX_Util::Debug debug;
 
         //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        debug.SetTargetDebugLocationIndices(50, 0, 0);
+        debug.SetTargetDebugLocationIndices(101, 0, 0);
 
     for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.validbox();
@@ -409,34 +401,6 @@ void GetFluxVectors(int lev) {
 #endif
             q_arr(i, j, k, variableIndex.IE) = rho * tot_int_energy;
 
-            // Compute fluxes in x-direction
-            xflux_arr(i, j, k, variableIndex.DENS) = rho * u;
-            xflux_arr(i, j, k, variableIndex.UVEL) = rho * u * u + pressure_arr(i, j, k);
-            xflux_arr(i, j, k, variableIndex.VVEL) = rho * u * v;
-#if (AMREX_SPACEDIM == 3)
-            xflux_arr(i, j, k, variableIndex.WVEL) = rho * u * w;
-#endif
-            xflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + pressure_arr(i, j, k)) * u;
-
-#if (AMREX_SPACEDIM >= 2)
-            // Compute fluxes in y-direction
-            yflux_arr(i, j, k, variableIndex.DENS) = rho * v;
-            yflux_arr(i, j, k, variableIndex.UVEL) = rho * v * u;
-            yflux_arr(i, j, k, variableIndex.VVEL) = rho * v * v + pressure_arr(i, j, k);
-#if (AMREX_SPACEDIM == 3)
-            yflux_arr(i, j, k, variableIndex.WVEL) = rho * v * w;
-#endif
-            yflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + pressure_arr(i, j, k)) * v;
-#endif
-
-#if (AMREX_SPACEDIM == 3)
-            // Compute fluxes in z-direction (3D only)
-            zflux_arr(i, j, k, variableIndex.DENS) = rho * w;
-            zflux_arr(i, j, k, variableIndex.UVEL) = rho * w * u;
-            zflux_arr(i, j, k, variableIndex.VVEL) = rho * w * v;
-            zflux_arr(i, j, k, variableIndex.WVEL) = rho * w * w + pressure_arr(i, j, k);
-            zflux_arr(i, j, k, variableIndex.IE) = (rho * tot_int_energy + pressure_arr(i, j, k)) * w;
-#endif
         });
     }
 
@@ -451,7 +415,7 @@ void GetFluxVectors(int lev) {
         Util::ScimitarX_Util::Debug debug;
 
         //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        debug.SetTargetDebugLocationIndices(50, 0, 0);
+        debug.SetTargetDebugLocationIndices(51, 0, 0);
 
         for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
