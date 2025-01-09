@@ -145,6 +145,8 @@ public:
         }
     }
 
+    static bool isFaceCentered(const amrex::IndexType& ixType, int dir);  // logic to check if multifab is face centered
+
 protected:
 
     /// \fn    Initialize
@@ -237,6 +239,30 @@ protected:
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout,std::vector<std::string> suffix = {});
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
     void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    
+    template<int Direction>
+    void RegisterFaceFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {}) {
+        static_assert(Direction >= 0 && Direction <= 2, "Invalid face direction: must be 0 (X), 1 (Y), or 2 (Z)");
+    
+        int nlevs_max = maxLevel() + 1;  // Maximum number of AMR levels
+    
+        // **Resize the Field to hold MultiFabs for all levels**
+        new_fab.resize(nlevs_max);  // This ensures `new_fab[a_lev]` exists for all `a_lev < nlevs_max`
+
+        // Convert the BoxArray to face-centered based on `Direction`
+        for (int lev = 0; lev < maxLevel() + 1; ++lev) {
+            amrex::BoxArray face_ba = grids[lev];
+            amrex::IntVect face_type = amrex::IntVect::TheZeroVector();  // `{0, 0, 0}` (cell-centered by default)
+            face_type[Direction] = 1;  // Set face-centered in `Direction`
+            face_ba.convert(face_type);  // Convert to face-centered BoxArray
+            // Define MultiFab for this level with face-centered BoxArray
+            new_fab.Define(lev, face_ba, dmap[lev], ncomp, nghost);
+        }
+    
+        // Add the face-centered field with the provided BC object
+        AddField<Set::Scalar, Set::Hypercube::Face>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+    }
+
     template<class T>
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
     template<class T>
@@ -254,6 +280,8 @@ protected:
             cell.fab_array[i]->finest_level = a_finestlevel;
         for (unsigned int i = 0; i < node.fab_array.size(); i++)
             node.fab_array[i]->finest_level = a_finestlevel;
+        for (unsigned int i = 0; i < face.fab_array.size(); i++)
+            face.fab_array[i]->finest_level = a_finestlevel;
         for (unsigned int i = 0; i < m_basefields_cell.size(); i++)
             m_basefields_cell[i]->SetFinestLevel(finest_level);
         for (unsigned int i = 0; i < m_basefields.size(); i++)
@@ -442,6 +470,18 @@ protected:
         bool all = false;
     } cell;
 
+    struct {
+        int number_of_fabs = 0;
+        std::vector<Set::Field<Set::Scalar>*> fab_array;
+        std::vector<int> ncomp_array;
+        std::vector<int> nghost_array;
+        std::vector<std::string> name_array;
+        std::vector<BC::BC<Set::Scalar>*> physbc_array;
+        std::vector<bool> writeout_array;
+        bool any = true;
+        bool all = false;
+    } face;
+
     std::vector<BaseField*> m_basefields;
     std::vector<BaseField*> m_basefields_cell;
 
@@ -556,6 +596,29 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
                 names.push_back(name + suffix[j]);
     }
     node.name_array.push_back(names);
+}
+
+
+template<>
+ALAMO_SINGLE_DEFINITION
+void Integrator::AddField<Set::Scalar, Set::Hypercube::Face>(Set::Field<Set::Scalar>& new_field,
+    BC::BC<Set::Scalar>* new_bc,
+    int ncomp,
+    int nghost,
+    std::string name,
+    bool writeout,
+    bool /*evolving*/)
+{
+    int nlevs_max = maxLevel() + 1;
+    new_field.resize(nlevs_max);
+    face.fab_array.push_back(&new_field);
+    if (new_bc != nullptr) face.physbc_array.push_back(new_bc);
+    else                   face.physbc_array.push_back(&bcnothing);
+    face.ncomp_array.push_back(ncomp);
+    face.nghost_array.push_back(nghost);
+    face.name_array.push_back(name);
+    face.writeout_array.push_back(writeout);
+    face.number_of_fabs++;
 }
 
 template<class T, int d>

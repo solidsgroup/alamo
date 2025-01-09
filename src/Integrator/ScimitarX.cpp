@@ -82,18 +82,17 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.QVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
         value.RegisterNewFab(value.QVec_old_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
 
-#if AMREX_SPACEDIM >= 1
-        value.RegisterNewFab(value.XFlux_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
-#endif
+        value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
 #if AMREX_SPACEDIM >= 2
-        value.RegisterNewFab(value.YFlux_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
+        value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
 #endif
 #if AMREX_SPACEDIM == 3
-        value.RegisterNewFab(value.ZFlux_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
+        value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
 #endif
 //        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
         value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true); 
         value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true);
+
     }
     // Initial Conditions
     {
@@ -164,7 +163,7 @@ void ScimitarX::Initialize(int lev)
     ic_PVec->Initialize(lev, PVec_mf);
     ic_Pressure->Initialize(lev, Pressure_mf);
 
-    ScimitarX::GetFluxVectors<SolverType::SolveCompressibleEuler>(lev);
+    ScimitarX::ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
     amrex::MultiFab::Copy(*QVec_old_mf[lev], *QVec_mf[lev], 0, 0, number_of_components, QVec_old_mf[lev]->nGrow());
 }
 
@@ -216,13 +215,7 @@ Util::Message(INFO, "Number of Components " + std::to_string(number_of_component
         
         ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], *bc_PVec, 0);    
         ApplyPatch(lev, time, QVec_old_mf, *QVec_old_mf[lev], *bc_PVec, 0);    
-        ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);    
-        ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev], *bc_PVec, 0);    
-        ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], *bc_PVec, 0);    
-#if (AMREX_SPACEDIM == 3)
-        ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], *bc_PVec, 0);    
-#endif
-    
+        ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);        
         ApplyPatch(lev, time, Pressure_mf, *Pressure_mf[lev], *bc_Pressure, 0);    
 }
 
@@ -272,7 +265,7 @@ Set::Scalar ScimitarX::GetTimeStep() {
 #endif
                 Set::Scalar ie = pArr(i, j, k, variableIndex.IE);
                 Set::Scalar gamma = 1.4;
-                Set::Scalar p = pressure(i, j, k);
+                Set::Scalar p = std::max(pressure(i, j, k),1e-6);
                 Set::Scalar c = Model::Fluid::Fluid().ComputeWaveSpeed(rho, p, gamma);
 
                 // Compute the maximum characteristic speed
