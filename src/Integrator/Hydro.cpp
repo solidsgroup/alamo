@@ -67,6 +67,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
+        pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
 
     }
     // Register FabFields:
@@ -452,7 +453,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar Mpqrs = 0.0;
                 if (p==r && q==s) Mpqrs += 0.5 * mu;
                 //if (p==s && q==r) Mpqrs += 0.5 * mu;
-                //if (p==q && r==s) Mpqrs += 0.5 * mu;
+                //if (p==q && r==s) Mpqrs -= 0.5 * mu;
 
                 Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
                 div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
@@ -462,6 +463,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
             Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
+
+            // Lagrange terms to enforce no-penetration
+            Source(i,j,k,1) -= lagrange*u.dot(grad_eta)*grad_eta(0);
+            Source(i,j,k,2) -= lagrange*u.dot(grad_eta)*grad_eta(1);
+
 
             //Viscous Terms
             Set::Scalar lapMx  = Numeric::Laplacian(M, i, j, k, 0, DX);

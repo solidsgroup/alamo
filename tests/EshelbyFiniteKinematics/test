@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import numpy, yt, pylab, os, pandas, sys, math
 
+yt.set_log_level(50) # disable logging
+
 outdir = sys.argv[1]
 
 generate_ref_data = False  # Change to True if you need to generate new reference data

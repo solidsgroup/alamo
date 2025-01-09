@@ -125,6 +125,7 @@ private:
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
+    Set::Scalar lagrange=NAN;
 };
 }
 
