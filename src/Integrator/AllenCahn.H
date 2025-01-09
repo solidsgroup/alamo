@@ -71,8 +71,8 @@ public:
         pp_query_default("ch.grad",value.ch.grad, 1.0);
         // Value for :math:`\lambda` (Chemical potential coefficient)
         pp_query_default("ch.chempot",value.ch.chempot, 1.0);
-        // Activate this to force growth only
-        pp_query_validate("ch.direction",value.ch.direction, {-1,0,1});
+        // Force directional growth: 0=no growth, 1=only positive, -1=only negative
+        pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
 
         std::string type = "sphere";
         // Initial condition type ([sphere], constant, expression, bmp, random)
