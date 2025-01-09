@@ -84,19 +84,18 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true );
         value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false);
 
-        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true );
+        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true , {"x","y"});
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false);
  
         value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true);
+        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, {"x","y"});
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true);
 
         value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, 1, 0, "m0",  true);
-        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true);
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true);
-        //value.RegisterNewFab(value.flux_mf,         &value.bc_nothing, 1, 0, "flux",true);
+        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, {"x","y"});
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, {"x","y"});
 
-        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true);
+        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true, {"x","y"});
         value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
         value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true);
 

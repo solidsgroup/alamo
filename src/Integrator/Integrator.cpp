@@ -311,28 +311,28 @@ Integrator::ClearLevel(int lev)
 
 
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true, suffix);
 }
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true, suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true,suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true,suffix);
 }
 
 
@@ -623,18 +623,18 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             {
                 for (int j = 0; j < node.number_of_fabs; j++)
                 {
-                    if (tmp_name_array[i] == node.name_array[j])
+                    if (tmp_name_array[i] == node.name_array[i][j])
                     {
                         match = true;
-                        Util::Message(INFO, "Initializing ", node.name_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
+                        Util::Message(INFO, "Initializing ", node.name_array[i][j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
                         amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, 0, 1, total_nghost);
                     }
                     for (int k = 0; k < node.ncomp_array[j]; k++)
                     {
-                        if (tmp_name_array[i] == amrex::Concatenate(node.name_array[j], k + 1, 3))
+                        if (tmp_name_array[i] == node.name_array[j][k])
                         {
                             match = true;
-                            Util::Message(INFO, "Initializing ", node.name_array[j], "[", k, "]; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
+                            Util::Message(INFO, "Initializing ", node.name_array[j][k], "; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, total_nghost);
                         }
                     }
@@ -646,10 +646,10 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                 for (int j = 0; j < cell.number_of_fabs; j++)
                     for (int k = 0; k < cell.ncomp_array[j]; k++)
                     {
-                        if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j], k + 1, 3))
+                        if (tmp_name_array[i] == cell.name_array[j][k])
                         {
                             match = true;
-                            Util::Message(INFO, "Initializing ", cell.name_array[j], "[", k, "]; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
+                            Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, cell.nghost_array[j]);
                         }
                     }
@@ -765,20 +765,20 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         if (!cell.writeout_array[i]) continue;
         ccomponents += cell.ncomp_array[i];
         if (cell.ncomp_array[i] > 1)
-            for (int j = 1; j <= cell.ncomp_array[i]; j++)
-                cnames.push_back(amrex::Concatenate(cell.name_array[i], j, 3));
+            for (int j = 0; j < cell.ncomp_array[i]; j++)
+                cnames.push_back(cell.name_array[i][j]);
         else
-            cnames.push_back(cell.name_array[i]);
+            cnames.push_back(cell.name_array[i][0]);
     }
     for (int i = 0; i < node.number_of_fabs; i++)
     {
         if (!node.writeout_array[i]) continue;
         ncomponents += node.ncomp_array[i];
         if (node.ncomp_array[i] > 1)
-            for (int j = 1; j <= node.ncomp_array[i]; j++)
-                nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
+            for (int j = 0; j < node.ncomp_array[i]; j++)
+                nnames.push_back(node.name_array[i][j]);
         else
-            nnames.push_back(node.name_array[i]);
+            nnames.push_back(node.name_array[i][0]);
     }
     for (unsigned int i = 0; i < m_basefields_cell.size(); i++)
     {

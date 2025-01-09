@@ -225,10 +225,10 @@ protected:
 
     /// \fn    RegisterNewFab
     /// \brief Register a field variable for AMR with this class 
-    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
-    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout);
-    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout);
-    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout);
+    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
     template<class T>
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
     template<class T>
@@ -237,7 +237,8 @@ protected:
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool writeout, std::string a_name, bool evolving = true);
 
     template<class T, int d>
-    void AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string, bool writeout, bool evolving);
+    void AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost,
+                  std::string, bool writeout, bool evolving, std::vector<std::string> suffix = {});
 
     void SetFinestLevel(const int a_finestlevel)
     {
@@ -414,7 +415,7 @@ protected:
         std::vector<Set::Field<Set::Scalar>*> fab_array;
         std::vector<int> ncomp_array;
         std::vector<int> nghost_array;
-        std::vector<std::string> name_array;
+        std::vector<std::vector<std::string>> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
         std::vector<bool> writeout_array;
         bool any = true;
@@ -426,7 +427,7 @@ protected:
         std::vector<Set::Field<Set::Scalar>*> fab_array;
         std::vector<int> ncomp_array;
         std::vector<int> nghost_array;
-        std::vector<std::string> name_array;
+        std::vector<std::vector<std::string>> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
         std::vector<bool> writeout_array;
         bool any = true;
@@ -472,13 +473,15 @@ protected:
 
 template<>
 ALAMO_SINGLE_DEFINITION
-void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<Set::Scalar>& new_field,
+void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>
+(   Set::Field<Set::Scalar>& new_field,
     BC::BC<Set::Scalar>* new_bc,
     int ncomp,
     int nghost,
     std::string name,
     bool writeout,
-    bool /*evolving*/)
+    bool /*evolving*/,
+    std::vector<std::string> suffix)
 {
     int nlevs_max = maxLevel() + 1;
     new_field.resize(nlevs_max);
@@ -487,20 +490,37 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<Set::Sca
     else                   cell.physbc_array.push_back(&bcnothing);
     cell.ncomp_array.push_back(ncomp);
     cell.nghost_array.push_back(nghost);
-    cell.name_array.push_back(name);
+    //cell.name_array.push_back(name);
     cell.writeout_array.push_back(writeout);
     cell.number_of_fabs++;
+
+    Util::Assert(INFO,TEST((int)suffix.size() == 0 || (int)suffix.size() == ncomp));
+    std::vector<std::string> names;
+    if (ncomp == 1)
+        names.push_back(name);
+    else
+    {
+        if (suffix.size() == 0)
+            for (int j = 0; j < ncomp; j++)
+                names.push_back(amrex::Concatenate(name,j+1,3));
+        else
+            for (int j = 0; j < ncomp; j++)
+                names.push_back(name + suffix[j]);
+    }
+    cell.name_array.push_back(names);
 }
 
 template<>
 ALAMO_SINGLE_DEFINITION
-void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Scalar>& new_field,
+void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
+(   Set::Field<Set::Scalar>& new_field,
     BC::BC<Set::Scalar>* new_bc,
     int ncomp,
     int nghost,
     std::string name,
     bool writeout,
-    bool /*evolving*/)
+    bool /*evolving*/,
+    std::vector<std::string> suffix)
 {
     BL_PROFILE("Integrator::RegisterNodalFab");
     Util::Assert(INFO, TEST(new_bc == nullptr));
@@ -510,14 +530,32 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Sca
     node.physbc_array.push_back(&bcnothing);
     node.ncomp_array.push_back(ncomp);
     node.nghost_array.push_back(nghost);
-    node.name_array.push_back(name);
+    //node.name_array.push_back(name);
     node.writeout_array.push_back(writeout);
     node.number_of_fabs++;
+
+    Util::Assert(INFO,TEST((int)suffix.size() == 0 || (int)suffix.size() == ncomp));
+    std::vector<std::string> names;
+    if (ncomp == 1)
+        names.push_back(name);
+    else
+    {
+        if (suffix.size() == 0)
+            for (int j = 0; j < ncomp; j++)
+                names.push_back(amrex::Concatenate(name,j+1,3));
+        else
+            for (int j = 0; j < ncomp; j++)
+                names.push_back(name + suffix[j]);
+    }
+    node.name_array.push_back(names);
 }
 
 template<class T, int d>
 ALAMO_SINGLE_DEFINITION
-void Integrator::AddField(Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving)
+void Integrator::AddField
+(   Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp,
+    int nghost, std::string name, bool writeout, bool evolving,
+    std::vector<std::string> /*suffix*/)
 {
     if (d == Set::Hypercube::Node)
     {

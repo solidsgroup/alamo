@@ -25,7 +25,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 2.0e-3
 stop_time = 70.0
 
 ### HYDRO PARAM ###
@@ -41,12 +41,8 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.1
 eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
-rho_injected.ic.type = expression
-rho_injected.ic.expression.region0 = "100.0"
-
-mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.0"
-mdot.ic.expression.region1 = "0.0"
+m0.ic.constant.value = 0.0
+u0.ic.constant.value = 0.0
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
@@ -133,8 +129,8 @@ rho_refinement_criterion   = 0.1
 
 #TODO
 #
-#dynamictimestep.on = 1
-#dynamictimestep.verbose = 1
-#dynamictimestep.cfl = 0.0004
-#dynamictimestep.max  = 1.0
-#dynamictimestep.min  = 0.0
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.cfl = 0.01
+dynamictimestep.max  = 2e-3
+dynamictimestep.min  = 1E-8

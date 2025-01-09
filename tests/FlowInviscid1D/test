@@ -10,12 +10,12 @@ datfile = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 if "-x" in checkfile:
     start = [-3,0]
     end   = [4,0]
-    vars = ["eta","density","velocity001","pressure"]
+    vars = ["eta","density","velocityx","pressure"]
     coord = 'x'
 elif "-y" in checkfile:
     start = [0,-3]
     end   = [0,4]
-    vars = ["eta","density","velocity002","pressure"]
+    vars = ["eta","density","velocityx","pressure"]
     coord = 'y'
 
 testlib.validate(path=datfile,
