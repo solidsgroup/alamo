@@ -39,7 +39,8 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 #endif
         int ie_idx = requires_variable_indices ? variable_indices->IE : -1;
 
-        Model::Fluid::Fluid fluid_model;  // Create an instance of the Fluid model
+        Model::Fluid::Fluid fluid_model;   // Create an instance of the Fluid model
+        Util::ScimitarX_Util::Debug debug; // Create an instance of debug 
 
         for (int n = 0; n < ncomp; ++n) {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -57,8 +58,14 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 #if AMREX_SPACEDIM == 3
                         else if (n == wvel_idx) phi(i, j, k, n) = w_left;
 #endif
-                        else if (n == ie_idx)
+                        else if (n == ie_idx){
                             phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(rho_left, p_left, gamma);
+                            if (phi(i, j, k, n) == 0.0) { 
+                            // Debug left state
+                            debug.DebugComputeInternalEnergyFromDensityAndPressure(i, j, k, lev, p_left, rho_left, gamma, true, "print", "Left State");
+                                }
+                            }
+
                     } else {
                         if (n == dens_idx) phi(i, j, k, n) = rho_right;
                         else if (n == uvel_idx) phi(i, j, k, n) = u_right;
@@ -68,8 +75,13 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 #if AMREX_SPACEDIM == 3
                         else if (n == wvel_idx) phi(i, j, k, n) = w_right;
 #endif
-                        else if (n == ie_idx)
+                        else if (n == ie_idx){
                             phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(rho_right, p_right, gamma);
+                            if (phi(i, j, k, n) == 0.0) { 
+                            // Debug right state
+                            debug.DebugComputeInternalEnergyFromDensityAndPressure(i, j, k, lev, p_left, rho_left, gamma, true, "print", "Left State");
+                            }
+                        }
                     }
                 } else if (mf_name == "ic.pressure.sodshock") {
                     phi(i, j, k, n) = (x(0) < shock_xpos) ? p_left : p_right;

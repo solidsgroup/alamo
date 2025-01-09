@@ -220,7 +220,15 @@ protected:
     virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
     {}
 
+    //ApplyPatch for updating BC within the derived class Advance function
+    void ApplyPatch(int lev, amrex::Real time,
+        amrex::Vector<std::unique_ptr<amrex::MultiFab>>& source_mf,
+        amrex::MultiFab& destination_multifab,
+        BC::BC<Set::Scalar>& physbc,
+        int icomp){
 
+        FillPatch(lev, time, source_mf, destination_multifab, physbc, icomp);
+    }
 
 
     /// \fn    RegisterNewFab

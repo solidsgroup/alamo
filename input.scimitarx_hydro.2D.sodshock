@@ -3,23 +3,36 @@ plot_file = output_sod_2d
 
 # Simulation length
 timestep = 0.0001
-stop_time = 0.0010
+stop_time = 0.1
+max_step = 10
 
 # AMR parameters
-amr.plot_int = 1
+amr.plot_int = 3
 amr.max_level = 0
-amr.n_cell = 128 40 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.n_cell = 100 50 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 1
 amr.regrid_int = -1  # No regridding for uniform grid
 amr.grid_eff = 1.0
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1 0.3125 1  # Set height proportionally to match reduced y-cells
+geometry.prob_hi = 1 0.5 1  # Set height proportionally to match reduced y-cells
 geometry.is_periodic = 0 0 0
 
 #SolverType
 SolverType = SolveCompressibleEuler
+
+#cflNumber
+cflNumber = 0.5
+
+#TimeSteppingScheme
+TimeSteppingScheme = ForwardEuler
+
+#FluxMethod
+FluxScheme = LocalLaxFriedrichs
+
+#FluxReconstruction
+FluxReconstruction = FirstOrder
 
 # Initial conditions
 # Q Vector = [Density, Uvelocity, VVelocity, WVelocity, Pressure]
