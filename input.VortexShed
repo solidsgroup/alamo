@@ -17,17 +17,14 @@ amr.grid_eff = 0.8
 amr.max_level = 4
 timestep  = 0.0001
 #amr.n_cell = 256 128
-amr.n_cell = 64 32
+amr.n_cell = 128 32
 #amr.n_cell = 128 32
 
-# Uncomment to test AMR
-#amr.max_level = 2
-#amr.n_cell = 128 32 0
 
 ### DIMENSIONS ###
 
 geometry.prob_lo = -12.0 -12.0 0.0 # [ m ] 
-geometry.prob_hi =  36.0  12.0 0.0 # [ m ]
+geometry.prob_hi =  84.0  12.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -37,12 +34,12 @@ stop_time = 10000.0
 
 ### ETA IC ###
 
-rho_injected.ic.type = expression
-rho_injected.ic.expression.region0 = "100.0"
+m0.ic.type = constant
+m0.ic.constant.value = 0.0
 
-mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.0"
-mdot.ic.expression.region1 = "0.0"
+u0.ic.type = expression
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
@@ -146,3 +143,8 @@ dynamictimestep.verbose = 1
 dynamictimestep.cfl = 0.01
 dynamictimestep.max  = 1.0
 dynamictimestep.min  = 0.0
+
+
+small=1E-8
+cutoff=0.01
+lagrange=2000.0
