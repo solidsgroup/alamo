@@ -71,6 +71,8 @@ public:
         pp_query_default("ch.grad",value.ch.grad, 1.0);
         // Value for :math:`\lambda` (Chemical potential coefficient)
         pp_query_default("ch.chempot",value.ch.chempot, 1.0);
+        // Activate this to force growth only
+        pp_query_validate("ch.direction",value.ch.direction, {-1,0,1});
 
         std::string type = "sphere";
         // Initial condition type ([sphere], constant, expression, bmp, random)
@@ -127,6 +129,12 @@ protected:
                 // Gradient
                 Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
                 driving_force -= ch.eps * ch.grad * alpha_lap;
+
+                if (ch.direction == 1)
+                    driving_force = std::min(0.0, driving_force);
+                else if (ch.direction == -1)
+                    driving_force = std::max(0.0, driving_force);
+
                 // Update
                 alpha_new(i, j, k) =
                     alpha(i, j, k) - ch.L * dt * driving_force;
@@ -174,6 +182,7 @@ protected:
         Set::Scalar eps = NAN;
         Set::Scalar grad = NAN;
         Set::Scalar chempot = NAN;
+        int direction = 0;
     } ch;
 
 private:
