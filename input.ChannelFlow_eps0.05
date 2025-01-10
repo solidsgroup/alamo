@@ -41,12 +41,12 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
-rho_injected.ic.type = expression
-rho_injected.ic.expression.region0 = "100.0"
+m0.ic.type = expression
+m0.ic.expression.region0 = "0.0"
 
-mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.0"
-mdot.ic.expression.region1 = "0.0"
+u0.ic.type = expression
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
@@ -138,3 +138,8 @@ rho_refinement_criterion   = 0.1
 #dynamictimestep.cfl = 0.0004
 #dynamictimestep.max  = 1.0
 #dynamictimestep.min  = 0.0
+
+small=0.0
+cutoff=1E-8
+lagrange=5000
+timestep  = 0.1e-3

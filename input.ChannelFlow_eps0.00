@@ -40,12 +40,11 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.region0        = "1.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
-rho_injected.ic.type = expression
-rho_injected.ic.expression.region0 = "100.0"
+m0.ic.constant.value = 0.0
 
-mdot.ic.type = expression
-mdot.ic.expression.region0 = "0.0"
-mdot.ic.expression.region1 = "0.0"
+u0.ic.type = expression
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
@@ -56,7 +55,7 @@ density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps = 0.05
-velocity.ic.expression.region0 = "0.01" # * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+velocity.ic.expression.region0 = "0.001" # * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
