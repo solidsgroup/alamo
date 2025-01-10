@@ -7,9 +7,9 @@ amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 3
 timestep  = 1e-2
-amr.n_cell = 64 16
-geometry.prob_lo = -24.0 -6.0 0.0 # [ m ] 
-geometry.prob_hi =  24.0  6.0 0.0 # [ m ]
+amr.n_cell = 64 64
+geometry.prob_lo = -24.0 -24.0 0.0 # [ m ] 
+geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
 geometry.is_periodic = 0 0 0
 stop_time = 1000.0
 
@@ -66,6 +66,7 @@ allencahn.ch.L = 10.0
 allencahn.ch.eps = 0.2
 allencahn.ch.grad = 0.01
 allencahn.ch.chempot = 0.01
+allencahn.ch.direction = 0
 
 
 
@@ -113,11 +114,11 @@ hydro.pf.eta.bc.val.zlo = 0.0
 hydro.pf.eta.bc.val.zhi = 0.0
 ### HYDRO BC ###
 hydro.density.bc.type.xhi = neumann
-hydro.density.bc.type.xlo = neumann
+hydro.density.bc.type.xlo = dirichlet
 hydro.density.bc.type.ylo = neumann
 hydro.density.bc.type.yhi = neumann
 hydro.density.bc.val.xhi = 0.0
-hydro.density.bc.val.xlo = 0.0
+hydro.density.bc.val.xlo = 42.0
 hydro.density.bc.val.ylo = 0.0 
 hydro.density.bc.val.yhi = 0.0
 hydro.energy.bc.type.xhi = neumann

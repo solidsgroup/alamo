@@ -49,6 +49,7 @@ protected:
                 Hydro::Mix(lev);
             }
             hydro_initialized=true;
+	    ch.direction = 1;
         }
         AllenCahn::TimeStepBegin(a_time, a_step);
         if (hydro_initialized) Hydro::TimeStepBegin(a_time, a_step);
