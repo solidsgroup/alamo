@@ -3,8 +3,8 @@ alamo.program.mechanics.model = linear.cubic
 plot_file		    = tests/void2/output
 
 
-timestep		    = 0.001
-stop_time		    = 1.0
+timestep		    = 0.01
+stop_time		    = 2.0
 
 # amr parameters
 amr.plot_int		    = 1
@@ -112,22 +112,22 @@ elastic.interval = 10
 #spall.elastic_mult = -2.0
 #spall.small = 0.1
 
+eta_ref_threshold = 0.005
+spall.M = 1.0
+spall.kappa = -0.0005
+spall.po = 2.0
+spall.cp = 15.0
+spall.elastic_mult = -1.5
+spall.small = 0.1
+
+
 #eta_ref_threshold = 0.005
 #spall.M = 1.0
 #spall.kappa = -0.0005
 #spall.po = 6.0
-#spall.cp = 20.0
-#spall.elastic_mult = -1.0
+#spall.cp = 10.0
+#spall.elastic_mult = -2.0
 #spall.small = 0.1
-
-
-eta_ref_threshold = 0.005
-spall.M = 1.0
-spall.kappa = -0.0005
-spall.po = 4.0
-spall.cp = 17.0
-spall.elastic_mult = -1.50
-spall.small = 0.1
 
 nucleation.kb = 1.0
 nucleation.T = 300

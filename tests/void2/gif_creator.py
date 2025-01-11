@@ -5,7 +5,7 @@ import imageio
 base_dir = "/home/thoopul/alamo/tests/void2"
 
 # Loop through each folder starting with "output"
-output_dirs = [os.path.join(base_dir, d) for d in os.listdir(base_dir) if d.startswith("output")]
+output_dirs = [os.path.join(base_dir, d) for d in os.listdir(base_dir) if d.startswith("output_1")]
 
 for output_dir in output_dirs:
     print(f"Processing directory: {output_dir}")

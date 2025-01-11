@@ -601,7 +601,7 @@ public:
         }
         
          {
-             for (amrex::MFIter mfi(*euler_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+             for (amrex::MFIter mfi(*model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
           {
                 amrex::Box bx = mfi.nodaltilebox();
                 amrex::Array4<char> const& tags = a_tags.array(mfi);
