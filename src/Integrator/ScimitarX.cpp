@@ -54,7 +54,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 }
 
                 // Call the setupBoundaryConditions function
-                IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, ScimitarX::variableIndex);
+               /* IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, ScimitarX::variableIndex);
 
                 std::string result;
                 if (bc_pp.query("bc.pvec.type.xlo", result)) {
@@ -67,7 +67,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 std::cout << "DEBUG: Queried val.xlo from bc_pp: " << result << std::endl;
                 } else {
                 std::cerr << "ERROR: Missing bc.pvec.val.xlo in bc_pp" << std::endl;
-                }   
+                } */  
 
                 value.bc_PVec = new BC::Constant(value.number_of_components, pp, "bc.pvec");
                 value.bc_Pressure = new BC::Constant(1, pp, "bc.pressure");
@@ -79,8 +79,8 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     
     // Register New Fabs
     {
-        value.RegisterNewFab(value.QVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
-        value.RegisterNewFab(value.QVec_old_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
+        value.RegisterNewFab(value.QVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
+        value.RegisterNewFab(value.QVec_old_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
 
         value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
 #if AMREX_SPACEDIM >= 2
@@ -164,7 +164,7 @@ void ScimitarX::Initialize(int lev)
     ic_Pressure->Initialize(lev, Pressure_mf);
 
     ScimitarX::ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
-    amrex::MultiFab::Copy(*QVec_old_mf[lev], *QVec_mf[lev], 0, 0, number_of_components, QVec_old_mf[lev]->nGrow());
+    std::swap(*QVec_old_mf[lev], *QVec_mf[lev]); 
 }
 
 
@@ -174,7 +174,8 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
     Set::Scalar refinement_threshold = 10.0; // Set refinement threshold to 10
 
-    for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    //for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*Pressure_mf[lev], false); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<Set::Scalar> const& pressure = (*Pressure_mf[lev]).array(mfi);
@@ -194,10 +195,10 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
 
 
 void ScimitarX::TimeStepBegin(Set::Scalar time, int lev) {
-    if (lev == 0) {  // Ensure only done at the coarsest level
-        ComputeAndSetNewTimeStep();  // Compute dt based on global `minDt`
-    }
-    Util::Message(INFO, "Starting time step at time: " + std::to_string(time));
+
+    Set::Scalar Coarsest_dt = 0.0;
+    Coarsest_dt = ComputeAndSetNewTimeStep();  // Compute dt based on global `minDt`
+    Util::Message(INFO, "Starting time step at time: ", Coarsest_dt);
 }
 
 
@@ -213,31 +214,44 @@ void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
         
 Util::Message(INFO, "Number of Components " + std::to_string(number_of_components));
         
-        ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], *bc_PVec, 0);    
-        ApplyPatch(lev, time, QVec_old_mf, *QVec_old_mf[lev], *bc_PVec, 0);    
-        ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);        
-        ApplyPatch(lev, time, Pressure_mf, *Pressure_mf[lev], *bc_Pressure, 0);    
+       // ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], *bc_PVec, 0);    
+       // ApplyPatch(lev, time, QVec_old_mf, *QVec_old_mf[lev], *bc_PVec, 0);    
+        Integrator::ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);        
+        Integrator:: ApplyPatch(lev, time, Pressure_mf, *Pressure_mf[lev], *bc_Pressure, 0); 
+        Integrator::ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], bc_nothing, 0);        
+        Integrator::ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev],bc_nothing, 0);        
+        Integrator::ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], bc_nothing, 0);
+#if AMREX_SPACEDIM == 3        
+        Integrator::ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], bc_nothing, 0);        
+#endif
+        // Fill ghost cells before computing fluxes
+        //bc_PVec->FillBoundary(*PVec_mf[lev], 0, number_of_components, time); 
+        //bc_Pressure->FillBoundary(*Pressure_mf[lev], 0, number_of_components, time); 
+
+     // PVec_mf[lev]->FillBoundary();
+     // Pressure_mf[lev]->FillBoundary();   
 }
 
-void ScimitarX::ComputeAndSetNewTimeStep() {
+Set::Scalar ScimitarX::ComputeAndSetNewTimeStep() {
     // Compute the minimum time step over the entire domain using GetTimeStep
-    Set::Scalar finest_dt = GetTimeStep();  // GetTimeStep already accounts for the CFL number
+    Set::Scalar coarsest_dt = GetTimeStep();  // GetTimeStep already accounts for the CFL number
 
     // Start with the finest level time step
-    Set::Scalar coarsest_dt = finest_dt;
+    //Set::Scalar coarsest_dt = finest_dt;
 
     // Adjust the time step for the coarsest level by multiplying back the refinement ratios
-    for (int lev = finest_level; lev > 0; --lev) {
+    /*for (int lev = finest_level; lev > 0; --lev) {
         // `refRatio(lev - 1)` returns an IntVect. Assume isotropic refinement for simplicity.
         int refinement_factor = refRatio(lev - 1)[0];  // Assuming refinement is isotropic (same value in all directions)
 
         coarsest_dt *= refinement_factor;  // Scale the time step conservatively for refinement
-    }
+    }*/
 
     // Set the coarsest-level time step for all levels
-    SetTimestep(coarsest_dt);
+    Integrator::SetTimestep(coarsest_dt);
 
-    Util::Message(INFO, "New coarsest-level timestep set: " + std::to_string(coarsest_dt));
+    Util::Message(INFO, "New coarsest-level timestep set: ",coarsest_dt);
+    return coarsest_dt;
 }
 
 // Function to compute the time step size based on CFL condition
@@ -247,7 +261,8 @@ Set::Scalar ScimitarX::GetTimeStep() {
     for (int lev = 0; lev <= maxLevel(); ++lev) {  // Use maxLevel() from the base class
         const Set::Scalar* dx = geom[lev].CellSize();  // Access the geometry at level `lev`
 
-        for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        //for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(*PVec_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.tilebox();  // Iterate over tiles in the multifab
             auto const& pArr = PVec_mf.Patch(lev, mfi);
             auto const& pressure = Pressure_mf.Patch(lev, mfi);
@@ -260,8 +275,6 @@ Set::Scalar ScimitarX::GetTimeStep() {
                 Set::Scalar v = pArr(i, j, k, variableIndex.VVEL);
 #if (AMREX_SPACEDIM == 3)
                 Set::Scalar w = pArr(i, j, k, variableIndex.WVEL);
-#else
-                Set::Scalar w = 0.0;
 #endif
                 Set::Scalar ie = pArr(i, j, k, variableIndex.IE);
                 Set::Scalar gamma = 1.4;
