@@ -11,8 +11,27 @@
 #include "Numeric/Stencil.H"                                
 #include <memory>
 #include <cmath>
+#include <algorithm>
 
 namespace Numeric {
+
+// ClampIndices: Clamps indices to valid bounds (branch-free logic)
+AMREX_GPU_DEVICE
+inline void ClampIndices(int indices[3], const int lower_bounds[3], const int upper_bounds[3]) {
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        indices[d] = lower_bounds[d] + std::min(std::max(indices[d] - lower_bounds[d], 0), upper_bounds[d] - lower_bounds[d]);
+    }
+}
+
+// ShiftAndClampIndices: Shifts and clamps indices (branch-free logic)
+AMREX_GPU_DEVICE
+inline void ShiftAndClampIndices(int indices[3], const int offsets[3],
+                                 const int lower_bounds[3], const int upper_bounds[3], int direction) {
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        int shifted_index = indices[d] + (d == direction ? offsets[d] : 0);
+        indices[d] = lower_bounds[d] + std::min(std::max(shifted_index - lower_bounds[d], 0), upper_bounds[d] - lower_bounds[d]);
+    }
+}
 
 // Base class for flux reconstruction
 template <typename IntegratorDerivedClass>
@@ -61,21 +80,20 @@ public:
 
         Util::Message(INFO, "Constructing fluxes for level " + std::to_string(lev));
 
-        // Create temporary QL and QR stencils for the level
-        amrex::MultiFab QL_stencil(solver->grids[lev], solver->dmap[lev], solver->number_of_components, solver->number_of_ghost_cells);
-        amrex::MultiFab QR_stencil(solver->grids[lev], solver->dmap[lev], solver->number_of_components, solver->number_of_ghost_cells);
+   for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+        amrex::BoxArray face_ba = solver->grids[lev];
+        amrex::IntVect face_type = amrex::IntVect::TheZeroVector();  // `{0, 0, 0}`
+        face_type[dir] = 1;  // Make it face-centered in `dir`
+        face_ba.convert(face_type);
 
-        reconstruction->ReconstructFlux(Xdir, lev, solver, QL_stencil, QR_stencil);
-        flux_method->ComputeFlux(Xdir, lev, solver, QL_stencil, QR_stencil);
+        // Create temporary QL and QR MultiFabs at face-centered positions
+        amrex::MultiFab QL_stencil(face_ba, solver->dmap[lev], solver->number_of_components, solver->number_of_ghost_cells);
+        amrex::MultiFab QR_stencil(face_ba, solver->dmap[lev], solver->number_of_components, solver->number_of_ghost_cells);
 
-#if (AMREX_SPACEDIM >= 2)
-        reconstruction->ReconstructFlux(Ydir, lev, solver, QL_stencil, QR_stencil);
-        flux_method->ComputeFlux(Ydir, lev, solver, QL_stencil, QR_stencil);
-#endif
-#if (AMREX_SPACEDIM == 3)
-        reconstruction->ReconstructFlux(Zdir, lev, solver, QL_stencil, QR_stencil);
-        flux_method->ComputeFlux(Zdir, lev, solver, QL_stencil, QR_stencil);
-#endif
+        reconstruction->ReconstructFlux(dir, lev, solver, QL_stencil, QR_stencil);
+        flux_method->ComputeFlux(dir, lev, solver, QL_stencil, QR_stencil);
+    }
+
     }
 
 private:
@@ -88,83 +106,166 @@ private:
 template <typename IntegratorDerivedClass>
 class FirstOrderReconstruction : public FluxReconstruction<IntegratorDerivedClass> {
 public:
-    void ReconstructFlux(int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
-        Util::Message(INFO, "Performing first-order upwind flux reconstruction for direction: " + std::to_string(direction));
-        Util::ScimitarX_Util::Debug debug;
+// ReconstructFlux: First-order upwind flux reconstruction with branch-free framework
+void ReconstructFlux(int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
+    Util::Message(INFO, "Performing first-order upwind flux reconstruction for direction: " + std::to_string(direction));
+    Util::ScimitarX_Util::Debug debug;
+    debug.SetTargetDebugLocationIndices(101, 0, 0);  // Debug target location
+    //debug.SetTargetDebugLocation(0.49, 0.12, 0.0, solver->geom[lev]);  // Debug target location
+    const int nghosts = solver->number_of_ghost_cells; 
+// Loop through face-centered indices for flux reconstruction
+//for (amrex::MFIter mfi(QL_stencil, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+    const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
-        Model::Fluid::Fluid fluid_model;
+    auto const& QL_arr = QL_stencil.array(mfi);  // Left reconstructed state
+    auto const& QR_arr = QR_stencil.array(mfi);  // Right reconstructed state
+    auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);  // Conservative variables
 
-        debug.SetTargetDebugLocationIndices(50, 0, 0);  // Debug target location
+    const int num_components = solver->number_of_components;  // Number of components (e.g., rho, u, v, E)
 
-        const amrex::Box& domain_box = solver->geom[lev].Domain();  // Get physical domain for boundary detection
+    // Define velocity components based on direction
+    int velocity_component[3] = {
+        solver->variableIndex.UVEL,  // X-direction -> UVEL
+        solver->variableIndex.VVEL,  // Y-direction -> VVEL
+        solver->variableIndex.WVEL   // Z-direction -> WVEL
+    };
 
-        // **Direction to velocity component mapping**
-        int velocity_component[3] = {
-            solver->variableIndex.UVEL,  // X-direction -> UVEL
-            solver->variableIndex.VVEL,  // Y-direction -> VVEL
-            solver->variableIndex.WVEL   // Z-direction -> WVEL
-        };
+    amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
+   // Construct index arrays with correct number of components
+    int index[3];
+    int left_index[3];
+    int right_index[3];
+    int lower_bounds[3];
+    int upper_bounds[3];
 
+#if AMREX_SPACEDIM == 2
+    index[0] = iface; index[1] = jface; index[2] = 0;
+    left_index[0] = iface; left_index[1] = jface; left_index[2] = 0;
+    right_index[0] = iface; right_index[1] = jface; right_index[2] = 0;
 
-        for (amrex::MFIter mfi(*solver->QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.validbox();  // Get the valid computational box for this patch
-            auto const& QL_arr = QL_stencil.array(mfi);  // Left reconstructed state
-            auto const& QR_arr = QR_stencil.array(mfi);  // Right reconstructed state
-            auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);  // Access primitive variables
-            auto const& pressure_arr = solver->Pressure_mf.Patch(lev, mfi);  // Access pressure field
+    lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = 0;
+    upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1; upper_bounds[2] = 0;
+#else
+    index[0] = iface; index[1] = jface; index[2] = kface;
+    left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+    right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+    lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+    upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1; upper_bounds[2] = face_bx_with_ghosts.bigEnd(2)-1;
+#endif
+
+    // Clamp the main index
+    ClampIndices(index, lower_bounds, upper_bounds);
+
+    // Shift and clamp for left and right indices
+    int left_offset[3] = {0, 0, 0};
+    int right_offset[3] = {0, 0, 0};
+    left_offset[direction] = -1;  // Shift left
+    right_offset[direction] = 1;  // Shift right
+
+    ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+    ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
     
-                Set::Scalar vel[3] = {0.0, 0.0, 0.0};  
+    //debug.DebugIndicesAndBounds(iface, jface, kface, index, left_index, right_index, lower_bounds, upper_bounds, "QL and QR Construction");
 
-                // **Primitive variables**
-                Set::Scalar rho = p_arr(i, j, k, solver->variableIndex.DENS);  // Density
-                            vel[0] = p_arr(i, j, k, velocity_component[direction]);  // Primary velocity
-                            vel[1] = (AMREX_SPACEDIM >= 2) ? p_arr(i, j, k, velocity_component[(direction + 1) % AMREX_SPACEDIM]) : 0.0;  // First transverse velocity
-                            vel[2] = (AMREX_SPACEDIM == 3) ? p_arr(i, j, k, velocity_component[(direction + 2) % AMREX_SPACEDIM]) : 0.0;  // Second transverse velocity
-                Set::Scalar p = pressure_arr(i, j, k);  // Pressure
-                Set::Scalar gamma = 1.4;  // Ratio of specific heats
 
-                // **Compute speed of sound and characteristic wave speed**
-                Set::Scalar c = fluid_model.ComputeWaveSpeed(rho, p, gamma);  // Speed of sound
-                Set::Scalar lambda = (vel[0] >= 0) ? (vel[0] + c) : (vel[0] - c);  // Characteristic velocity
-                int wave_sign = (lambda > 0) ? 1 : -1;  // Determine wave direction
+        const Set::Scalar alpha = 200.0;
+       // Compute normal velocity and sigma for upwinding
+        const Set::Scalar vel = p_arr(index[0], index[1], index[2], velocity_component[direction]);  // Normal velocity
+        //const Set::Scalar sigma = 0.5 * (1.0 + copysign(1.0, vel));  // 1 if vel > 0, 0 if vel <= 0
+        const Set::Scalar sigma = 0.5 * (1.0 + tanh(alpha*vel));  // 1 if vel > 0, 0 if vel <= 0
 
-                // Determine offsets for left and right states
-                int offset_i = (direction == FluxHandler<IntegratorDerivedClass>::Xdir) ? wave_sign : 0;
-                int offset_j = (direction == FluxHandler<IntegratorDerivedClass>::Ydir) ? wave_sign : 0;
-                int offset_k = (direction == FluxHandler<IntegratorDerivedClass>::Zdir) ? wave_sign : 0;
+        for (int n = 0; n < num_components; ++n) {
+            // Branch-free computation of QL and QR
+            const Set::Scalar QL = sigma * p_arr(index[0], index[1], index[2], n) + (1.0 - sigma) * p_arr(left_index[0], left_index[1], left_index[2], n);
+            const Set::Scalar QR = sigma * p_arr(right_index[0], right_index[1], right_index[2], n) + (1.0 - sigma)*p_arr(index[0], index[1], index[2],n);  // Since we are using first-order upwinding
 
-                // **Get stencil type (Lo, Hi, Central) for each direction**
-                std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::GetStencil(i, j, k, domain_box);
+            // Assign values to the stencil arrays
+            QL_arr(index[0], index[1], index[2], n) = QL;
+            QR_arr(index[0], index[1], index[2], n) = QR;
 
-                debug.DebugValuesIfTarget(i, j, k, rho, "Density", "Reconstruction Step", false);
-
-                for (int n = 0; n < solver->number_of_components; ++n) {
-                    if (stencil[direction] == Numeric::StencilType::Lo) {
-                        // Near lower boundary (backward difference for left state)
-                        QL_arr(i, j, k, n) = p_arr(i, j, k, n);  // Zero-gradient (Neumann) or inflow value
-                        QR_arr(i, j, k, n) = p_arr(i + offset_i, j + offset_j, k + offset_k, n);  // Use neighbor on the "right"
-                    } else if (stencil[direction] == Numeric::StencilType::Hi) {
-                        // Near upper boundary (forward difference for right state)
-                        QL_arr(i, j, k, n) = p_arr(i - offset_i, j - offset_j, k - offset_k, n);  // Use neighbor on the "left"
-                        QR_arr(i, j, k, n) = p_arr(i, j, k, n);  // Zero-gradient (Neumann) or outflow value
-                    } else {
-                        // Interior point (Upwind reconstruction based on wave direction)
-                        QL_arr(i, j, k, n) = (wave_sign > 0) ? p_arr(i, j, k, n) : p_arr(i - offset_i, j - offset_j, k - offset_k, n);
-                        QR_arr(i, j, k, n) = (wave_sign > 0) ? p_arr(i + offset_i, j + offset_j, k + offset_k, n) : p_arr(i, j, k, n);
-                    }
-
-                    // **Debug output for QL and QR arrays**
-                    debug.DebugValuesIfTarget(i, j, k, QL_arr(i, j, k, n), "QL_arr", "Upwind QL", false, n);
-                    debug.DebugValuesIfTarget(i, j, k, QR_arr(i, j, k, n), "QR_arr", "Upwind QR", false, n);
-                }
-            });
+            // Debugging output
+            debug.DebugValuesIfTarget(iface, jface, kface, QL, "QL_arr", "Reconstructed Left State", false, n);
+            debug.DebugValuesIfTarget(iface, jface, kface, QR, "QR_arr", "Reconstructed Right State", false, n);
         }
-    }
-};
+    });
+}
 
+// Enforce Neumann Boundary Conditions for QL and QR (Branch-Free)
+//for (amrex::MFIter mfi(QL_stencil, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+    const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction);
+    auto const& QL_arr = QL_stencil.array(mfi);  // Left reconstructed state
+    auto const& QR_arr = QR_stencil.array(mfi);  // Right reconstructed state
+
+    const int num_components = solver->number_of_components;  // Number of components (e.g., rho, u, v, E)
+
+    amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+        
+   // Construct index arrays with correct number of components
+    int index[3];
+    int left_index[3];
+    int right_index[3];
+    int lower_bounds[3];
+    int upper_bounds[3];
+
+#if AMREX_SPACEDIM == 2
+    index[0] = iface; index[1] = jface; index[2] = 0;
+    left_index[0] = iface; left_index[1] = jface; left_index[2] = 0;
+    right_index[0] = iface; right_index[1] = jface; right_index[2] = 0;
+
+    lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = 0;
+    upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1; upper_bounds[2] = 0;
+#else
+    index[0] = iface; index[1] = jface; index[2] = kface;
+    left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+    right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+
+    lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+    upper_bounds[0] = face_bx_with_ghosts_box.bigEnd(0) - 1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1; upper_bounds[2] = face_bx_with_ghosts.bigEnd(2) - 1;
+#endif
+
+    // Clamp the main index
+    ClampIndices(index, lower_bounds, upper_bounds);
+
+    // Shift and clamp for left and right indices
+    int left_offset[3] = {0, 0, 0};
+    int right_offset[3] = {0, 0, 0};
+    left_offset[direction] = -1;  // Shift left
+    right_offset[direction] = 1;  // Shift right
+
+    ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+    ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+
+        // Determine weights for enforcing boundary conditions in a branch-free manner
+        Set::Scalar is_lo = (index[direction] == lower_bounds[direction]) ? 1.0 : 0.0;
+        Set::Scalar is_hi = (index[direction] == upper_bounds[direction]) ? 1.0 : 0.0;
+
+        for (int n = 0; n < num_components; ++n) {
+            Set::Scalar QL = QL_arr(index[0], index[1], index[2], n);
+            Set::Scalar QR = QR_arr(index[0], index[1], index[2], n);
+
+            // **Branch-free Neumann condition enforcement:**
+            QL = is_lo * QR_arr(right_index[0], right_index[1], right_index[2], n) + (1.0 - is_lo) * QL;
+            QR = is_hi * QL_arr(left_index[0], left_index[1], left_index[2], n) + (1.0 - is_hi) * QR;
+
+            // **Assign values back:**
+            QL_arr(index[0], index[1], index[2], n) = QL;
+            QR_arr(index[0], index[1], index[2], n) = QR;
+
+            // Debugging output for validation
+            debug.DebugValuesIfTarget(iface, jface, kface, QL, "QL_arr", "Boundary-Corrected Left State", false, n);
+            debug.DebugValuesIfTarget(iface, jface, kface, QR, "QR_arr", "Boundary-Corrected Right State", false, n);
+        }
+    });
+}
+    
+
+}
+
+};
 
 // Local Lax-Friedrichs flux method
 template <typename IntegratorDerivedClass>
@@ -175,15 +276,26 @@ public:
 
         const Set::Scalar gamma = 1.4;  // Ratio of specific heats
         Util::ScimitarX_Util::Debug debug;
-        debug.SetTargetDebugLocationIndices(50, 0, 0);  // Debug target location
+        debug.SetTargetDebugLocationIndices(101, 0, 0);  // Debug target location
+        //debug.SetTargetDebugLocation(0.49, 0.12, 0.0,solver->geom[lev]);  // Debug target location
 
-        for (amrex::MFIter mfi(*solver->QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.validbox();
+        const int nghosts = solver->number_of_ghost_cells;
+
+        //for (amrex::MFIter mfi(QL_stencil, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts); //Includes two ghost layers
+
             auto const& flux_arr = (direction == FluxHandler<IntegratorDerivedClass>::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
                                    (direction == FluxHandler<IntegratorDerivedClass>::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
                                    solver->ZFlux_mf.Patch(lev, mfi);
             auto const& QL_arr = QL_stencil.array(mfi);
             auto const& QR_arr = QR_stencil.array(mfi);
+
+            // **Direction to velocity and energy mapping**
+            int normal = direction;                 // Normal velocity component
+            int trans1 = (direction + 1) % AMREX_SPACEDIM;  // First transverse velocity
+            int trans2 = (direction + 2) % AMREX_SPACEDIM;  // Second transverse velocity (3D only)
 
             // **Direction to velocity mapping**
             int velocity_component[3] = {
@@ -192,66 +304,243 @@ public:
                 solver->variableIndex.WVEL   // Z-direction -> WVEL
             };
 
+        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                // **Left state (QL) primitive variables**
-                Set::Scalar rho_L = QL_arr(i, j, k, solver->variableIndex.DENS);  // Density
-                Set::Scalar vel_L[3] = {0.0, 0.0, 0.0};  // Velocity array for left state
-                vel_L[0] = QL_arr(i, j, k, velocity_component[direction]);  // Primary velocity
-                vel_L[1] = (AMREX_SPACEDIM >= 2) ? QL_arr(i, j, k, velocity_component[(direction + 1) % AMREX_SPACEDIM]) : 0.0;  // Transverse 1
-                vel_L[2] = (AMREX_SPACEDIM == 3) ? QL_arr(i, j, k, velocity_component[(direction + 2) % AMREX_SPACEDIM]) : 0.0;  // Transverse 2
-                Set::Scalar e_L = QL_arr(i, j, k, solver->variableIndex.IE);  // Specific internal energy
-                Set::Scalar KE_L = 0.5 * (vel_L[0] * vel_L[0] + vel_L[1] * vel_L[1] + vel_L[2] * vel_L[2]);  // Kinetic energy
-                Set::Scalar E_L = e_L + KE_L;  // Total energy
-                Set::Scalar pressure_L = (gamma - 1.0) * (e_L);  // Pressure
 
-                // **Right state (QR) primitive variables**
-                Set::Scalar rho_R = QR_arr(i, j, k, solver->variableIndex.DENS);  // Density
-                Set::Scalar vel_R[3] = {0.0, 0.0, 0.0};  // Velocity array for right state
-                vel_R[0] = QR_arr(i, j, k, velocity_component[direction]);  // Primary velocity
-                vel_R[1] = (AMREX_SPACEDIM >= 2) ? QR_arr(i, j, k, velocity_component[(direction + 1) % AMREX_SPACEDIM]) : 0.0;  // Transverse 1
-                vel_R[2] = (AMREX_SPACEDIM == 3) ? QR_arr(i, j, k, velocity_component[(direction + 2) % AMREX_SPACEDIM]) : 0.0;  // Transverse 2
-                Set::Scalar e_R = QR_arr(i, j, k, solver->variableIndex.IE);  // Specific internal energy
-                Set::Scalar KE_R = 0.5 * (vel_R[0] * vel_R[0] + vel_R[1] * vel_R[1] + vel_R[2] * vel_R[2]);  // Kinetic energy
-                Set::Scalar E_R = e_R + KE_R;  // Total energy
-                Set::Scalar pressure_R = (gamma - 1.0) * (e_R);  // Pressure
+           // Construct index arrays with correct number of components
+            int index[3];
+            int left_index[3];
+            int right_index[3];
+            int lower_bounds[3];
+            int upper_bounds[3];
+        
+#if AMREX_SPACEDIM == 2
+            index[0] = iface; index[1] = jface; index[2] = 0;
+            left_index[0] = iface; left_index[1] = jface; left_index[2] = 0;
+            right_index[0] = iface; right_index[1] = jface; right_index[2] = 0;
 
-                // **Speed of sound**
-                Set::Scalar c_L = std::sqrt(gamma * std::max(pressure_L, 1e-6) / rho_L);  // Left speed of sound
-                Set::Scalar c_R = std::sqrt(gamma * std::max(pressure_R, 1e-6) / rho_R);  // Right speed of sound
+            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = 0;
+            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1; upper_bounds[2] = 0;
+#else
+            index[0] = iface; index[1] = jface; index[2] = kface;
+            left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+            right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
 
-                // **Maximum wave speed (lambda_max)**
-                Set::Scalar lambda_max = std::max(std::abs(vel_L[0]) + c_L, std::abs(vel_R[0]) + c_R);
+            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1; upper_bounds[2] = face_bx_with_ghosts.bigEnd(2);
+#endif
 
-                // **Fluxes (F_L and F_R)**
-                Set::Scalar F_L[5], F_R[5];
-                F_L[0] = rho_L * vel_L[0];                                 // Mass flux
-                F_R[0] = rho_R * vel_R[0];
-                F_L[1] = rho_L * vel_L[0] * vel_L[0] + pressure_L;         // Primary momentum flux
-                F_R[1] = rho_R * vel_R[0] * vel_R[0] + pressure_R;
-                F_L[2] = rho_L * vel_L[0] * vel_L[1];                      // Cross-momentum flux 1
-                F_R[2] = rho_R * vel_R[0] * vel_R[1];
-                F_L[3] = (AMREX_SPACEDIM == 3) ? rho_L * vel_L[0] * vel_L[2] : 0.0;  // Cross-momentum flux 2 (3D only)
-                F_R[3] = (AMREX_SPACEDIM == 3) ? rho_R * vel_R[0] * vel_R[2] : 0.0;
-                F_L[4] = (rho_L * E_L + pressure_L) * vel_L[0];            // Energy flux
-                F_R[4] = (rho_R * E_R + pressure_R) * vel_R[0];
+            // Clamp the main index
+            ClampIndices(index, lower_bounds, upper_bounds);
+                
+            // Shift and clamp for left and right indices
+            int left_offset[3] = {0, 0, 0};
+            int right_offset[3] = {0, 0, 0};
+            left_offset[direction] = 0;  // No Left offset. For Flux left has the same indices as the cell center indices.
+            right_offset[direction] = 1;  // Shift right
 
-                // **Local Lax-Friedrichs flux calculation**
-                for (int n = 0; n < solver->number_of_components; ++n) {
-                    flux_arr(i, j, k, n) = 0.5 * (F_L[n] + F_R[n]) - 0.5 * lambda_max * (QR_arr(i, j, k, n) - QL_arr(i, j, k, n));
-                }
+            ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+            ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
 
-                // Debug
-                debug.DebugLocalLaxFriedrichsFlux(i, j, k,
+            // **Left and right primitive variables (QL and QR)**
+            Set::Scalar rho_L = QL_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.DENS);
+            Set::Scalar rho_R = QR_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.DENS);
+
+            rho_L = std::max(rho_L, 1e-8);  // Avoid zero density
+            rho_R = std::max(rho_R, 1e-8);  // Avoid zero density
+        
+            Set::Scalar e_L = std::max(QL_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE), 1e-8);
+            Set::Scalar e_R = std::max(QR_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE), 1e-8);
+        
+            Set::Scalar pressure_L = (gamma - 1.0) * e_L;
+            Set::Scalar pressure_R = (gamma - 1.0) * e_R;
+        
+            Set::Scalar vel_L[3] = {0.0, 0.0, 0.0};
+            Set::Scalar vel_R[3] = {0.0, 0.0, 0.0};
+
+            vel_L[normal] = QL_arr(left_index[0], left_index[1], left_index[2], velocity_component[normal]);
+            vel_R[normal] = QR_arr(right_index[0], right_index[1], right_index[2], velocity_component[normal]);
+        
+#if AMREX_SPACEDIM >= 2    
+                vel_L[trans1] = QL_arr(left_index[0], left_index[1], left_index[2], velocity_component[trans1]);
+                vel_R[trans1] = QR_arr(right_index[0], right_index[1], right_index[2], velocity_component[trans1]);
+#endif
+#if AMREX_SPACEDIM == 3    
+                vel_L[trans2] = QL_arr(left_index[0], left_index[1], left_index[2], velocity_component[trans2]);
+                vel_R[trans2] = QR_arr(right_index[0], right_index[1], right_index[2], velocity_component[trans2]);
+#endif            
+        
+
+            // **Compute Kinetic Energy for Left and Right States**
+            Set::Scalar KE_L = 0.5 * (vel_L[0] * vel_L[0] + vel_L[1] * vel_L[1] + vel_L[2] * vel_L[2]);  // Kinetic energy for left state
+            Set::Scalar KE_R = 0.5 * (vel_R[0] * vel_R[0] + vel_R[1] * vel_R[1] + vel_R[2] * vel_R[2]);  // Kinetic energy for right state
+
+            // **Total Energy (E = e + KE)**
+            Set::Scalar E_L = e_L + KE_L;  // Total energy for left state
+            Set::Scalar E_R = e_R + KE_R;  // Total energy for right state
+
+            // **Speed of sound**
+            Set::Scalar c_L = std::sqrt(gamma * std::max(pressure_L, 1e-8) / rho_L);
+            Set::Scalar c_R = std::sqrt(gamma * std::max(pressure_R, 1e-8) / rho_R);
+        
+            // **Maximum wave speed (lambda_max)**
+            Set::Scalar lambda_max = std::max(std::abs(vel_L[normal]) + c_L, std::abs(vel_R[normal]) + c_R);
+        
+
+                debug.CheckNegativePressureAndAbort(iface, jface, kface, pressure_L, "Pressure Field Left", "LLF Step", true);
+                debug.CheckNegativePressureAndAbort(iface, jface, kface, pressure_R, "Pressure Field Right", "LLF Step", true);
+
+
+            // **Flux arrays**
+            int num_components = solver->number_of_components;
+            std::vector<Set::Scalar> F_L(num_components, 0.0);
+            std::vector<Set::Scalar> F_R(num_components, 0.0);
+        
+            F_L[solver->variableIndex.DENS] = rho_L * vel_L[direction];  // Mass flux
+            F_R[solver->variableIndex.DENS] = rho_R * vel_R[direction];
+        
+            F_L[solver->variableIndex.UVEL + normal] = rho_L * vel_L[normal] * vel_L[normal] + pressure_L;
+            F_R[solver->variableIndex.UVEL + normal] = rho_R * vel_R[normal] * vel_R[normal] + pressure_R;
+
+#if AMREX_SPACEDIM >= 2
+                F_L[solver->variableIndex.UVEL + trans1] = rho_L * vel_L[normal] * vel_L[trans1];
+                F_R[solver->variableIndex.UVEL + trans1] = rho_R * vel_R[normal] * vel_R[trans1];
+#endif
+#if AMREX_SPACEDIM == 3
+                F_L[solver->variableIndex.UVEL + trans2] = rho_L * vel_L[normal] * vel_L[trans2];
+                F_R[solver->variableIndex.UVEL + trans2] = rho_R * vel_R[normal] * vel_R[trans2];
+#endif
+                    
+            F_L[solver->variableIndex.IE] = (rho_L * E_L + pressure_L) * vel_L[normal];
+            F_R[solver->variableIndex.IE] = (rho_R * E_R + pressure_R) * vel_R[normal];
+        
+
+            // **Conservative state vectors (left and right)**
+            std::vector<Set::Scalar> QL_cons(num_components, 0.0);
+            std::vector<Set::Scalar> QR_cons(num_components, 0.0);
+            
+            // **Convert primitive variables to conservative variables**
+            QL_cons[solver->variableIndex.DENS] = rho_L;  // Density
+            QR_cons[solver->variableIndex.DENS] = rho_R;
+            
+            QL_cons[solver->variableIndex.UVEL + normal] = rho_L * vel_L[normal];  // Momentum in normal direction
+            QR_cons[solver->variableIndex.UVEL + normal] = rho_R * vel_R[normal];
+            
+            #if AMREX_SPACEDIM >= 2
+            QL_cons[solver->variableIndex.UVEL + trans1] = rho_L * vel_L[trans1];  // Momentum in first transverse direction
+            QR_cons[solver->variableIndex.UVEL + trans1] = rho_R * vel_R[trans1];
+            #endif
+            
+            #if AMREX_SPACEDIM == 3
+            QL_cons[solver->variableIndex.UVEL + trans2] = rho_L * vel_L[trans2];  // Momentum in second transverse direction
+            QR_cons[solver->variableIndex.UVEL + trans2] = rho_R * vel_R[trans2];
+            #endif
+            
+            QL_cons[solver->variableIndex.IE] = rho_L * E_L;  // Total energy
+            QR_cons[solver->variableIndex.IE] = rho_R * E_R;
+            
+
+            // **Local Lax-Friedrichs flux calculation**
+            for (int n = 0; n < num_components; ++n) {
+             //   flux_arr(index[0], index[1], index[2], n) =  0.5 * (F_L[n] + F_R[n]) 
+             //                         - 0.5 * lambda_max * (QR_arr(right_index[0], right_index[1], right_index[2], n) - QL_arr(left_index[0], left_index[1], left_index[2], n));
+
+                flux_arr(index[0], index[1], index[2], n) =  0.5 * (F_L[n] + F_R[n]) - 0.5 * lambda_max * (QR_cons[n] - QL_cons[n]);
+
+            //debug.DebugValuesIfTarget(iface, jface, kface, flux_arr(index[0], index[1], index[2], n), "flux_arr", "Constructed Flux", false, n);
+            //debug.DebugValuesIfTarget(iface, jface, kface, QL_arr(index[0], index[1], index[2], n), "QL_arr", "Constructed Flux", false, n);
+            //debug.DebugValuesIfTarget(iface, jface, kface, QL_arr(index[0], index[1], index[2], n), "QR_arr", "Constructed Flux", false, n);
+            }
+        
+            // Debug check for NaNs
+               // Debug
+                debug.DebugLocalLaxFriedrichsFlux(iface, jface, kface,num_components,
                                                   rho_L, vel_L[0], vel_L[1], vel_L[2], e_L, pressure_L,
                                                   rho_R, vel_R[0], vel_R[1], vel_R[2], e_R, pressure_R,
                                                   c_L, c_R, lambda_max,
-                                                  F_L, F_R,
+                                                  F_L.data(), F_R.data(),
                                                   "ComputeFlux", true);
-                debug.CheckNaNAndAbort(i, j, k, lambda_max, "Lambda Max", "wave speed", true);
-            });
+
+            debug.CheckNaNAndAbort(iface, jface, kface, lambda_max, "Lambda Max", "wave speed", true);
+        });
+        
+        
         }
 
+
+        // Apply Neumann Boundary Conditions for Flux Array (Branch-Free)
+        //for (amrex::MFIter mfi(QL_stencil, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction);
+            auto const& flux_arr = (direction == FluxHandler<IntegratorDerivedClass>::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
+                                   (direction == FluxHandler<IntegratorDerivedClass>::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                   solver->ZFlux_mf.Patch(lev, mfi);
+        
+            int num_components = solver->number_of_components;
+        
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+               // Construct index arrays with correct number of components
+                int index[3];
+                int left_index[3];
+                int right_index[3];
+                int lower_bounds[3];
+                int upper_bounds[3];
+            
+#if AMREX_SPACEDIM == 2
+                index[0] = iface; index[1] = jface; index[2] = 0;
+                left_index[0] = iface; left_index[1] = jface; left_index[2] = 0;
+                right_index[0] = iface; right_index[1] = jface; right_index[2] = 0;
+            
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = 0;
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1; upper_bounds[2] = 0;
+#else
+                index[0] = iface; index[1] = jface; index[2] = kface;
+                left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+                right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+            
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1; upper_bounds[2] = face_bx_with_ghosts.bigEnd(2) - 1;
+#endif
+
+                // Clamp the main index
+                ClampIndices(index, lower_bounds, upper_bounds);
+            
+                // Shift and clamp for left and right indices
+                int left_offset[3] = {0, 0, 0};
+                int right_offset[3] = {0, 0, 0};
+                left_offset[direction] = -1;  // Shift left
+                right_offset[direction] = 1;  // Shift right
+            
+                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+
+                if (index[0]==0 && index[1]==10 ){    
+                Util::Message(INFO, "Left index " + std::to_string(left_index[direction]));
+                Util::Message(INFO, "Right index " + std::to_string(right_index[direction]));
+                }  
+
+                for (int n = 0; n < num_components; ++n) {
+                    // Fetch left and right fluxes
+                    Set::Scalar left_flux = flux_arr(left_index[0], left_index[1], left_index[2], n);
+                    Set::Scalar right_flux = flux_arr(right_index[0], right_index[1], right_index[2], n);
+                    Set::Scalar interior_flux = flux_arr(index[0], index[1], index[2], n);
+        
+                    // Branch-free Neumann boundary correction
+                    const Set::Scalar is_lo = (index[direction] == lower_bounds[direction]) ? 1.0 : 0.0;
+                    const Set::Scalar is_hi = (index[direction] == upper_bounds[direction]) ? 1.0 : 0.0;
+        
+                    // Apply corrections: Neumann condition (zero-gradient)
+                    flux_arr(index[0], index[1], index[2], n) = is_lo * right_flux + is_hi * left_flux + (1.0 - is_lo - is_hi) * interior_flux;
+        
+                    // Optionally debug boundary corrections
+                    debug.DebugValuesIfTarget(iface, jface, kface, left_flux, "left_flux", "Corrected Neumann Flux", false, n);
+                    debug.DebugValuesIfTarget(iface, jface, kface, left_flux, "right_flux", "Corrected Neumann Flux", false, n);
+                    debug.DebugValuesIfTarget(iface, jface, kface, flux_arr(index[0], index[1], index[2], n), "right_flux", "Corrected Neumann Flux", false, n);
+                }
+            });
+        }
+        
+        
         Util::Message(INFO, "Local Lax-Friedrichs flux computed for direction: " + std::to_string(direction));
     }
 };

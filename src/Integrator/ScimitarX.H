@@ -275,17 +275,19 @@ protected:
     }
 
     // Ensure that the fluxHandler and timeStepper are properly initialized
-    if (!fluxHandler) {
+   /* if (!fluxHandler) {
         Util::Abort(__FILE__, __func__, __LINE__, "FluxHandler is not initialized.");
     }
     if (!timeStepper) {
         Util::Abort(__FILE__, __func__, __LINE__, "TimeStepper is not initialized.");
-    }
+    }*/
 
     // Determine the time-stepping scheme
     switch (temporal_scheme) {
         case TimeSteppingScheme::ForwardEuler: {
             Util::Message(INFO, "TimeSteppingScheme: Forward Euler");
+           
+            Util::ScimitarX_Util::Debug debug; 
 
             fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
             fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
@@ -295,17 +297,30 @@ protected:
             int numStages = timeStepper->GetNumberOfStages();
             // One-stage loop for Forward Euler
             for (int stage = 0; stage < numStages; ++stage) {
-                // 1. Get the flux vectors for this solver type
+                
+
+                //debug.DebugGhostCellsAndBoundary(*Pressure_mf[lev], geom[lev], lev, "Pressure", "Ghost Cell Debug", true);
+
+                // 1. Compute Conserved Variables
                 ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
 
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
+                ApplyBoundaryConditions(lev, time);
+                
                 // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
 
                 // 4. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+
+                //Util::Message(INFO, "Before Applying Boundary Condition");
+
+                //ApplyBoundaryConditions(lev, time);
+
+                //Util::Message(INFO, "After Applying Boundary Condition");
+                //debug.DebugGhostCellsAndBoundary(*Pressure_mf[lev], geom[lev], lev, "QVec", "Ghost Cell Debug", true);
 
                 // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
                 std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
@@ -324,11 +339,8 @@ protected:
 
             for (int stage = 0; stage < numStages; ++stage) {
                 ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
-                ApplyBoundaryConditions(lev, time);
                 fluxHandler->ConstructFluxes(lev, this);
-                ApplyBoundaryConditions(lev, time);
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
-                ApplyBoundaryConditions(lev, time);
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
                 ApplyBoundaryConditions(lev, time);
                 std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
@@ -346,7 +358,7 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
     Set::Scalar GetTimeStep();
-    void ComputeAndSetNewTimeStep();
+    Set::Scalar ComputeAndSetNewTimeStep();
     void ComputeConservedVariables(int lev);
     void UpdateSolutions(int lev);
     void ApplyBoundaryConditions(int lev, Set::Scalar time);
@@ -360,48 +372,47 @@ void ComputeConservedVariables(int lev) {
        Util::ScimitarX_Util::Debug debug;
 
         //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        debug.SetTargetDebugLocationIndices(101, 0, 0);
+        debug.SetTargetDebugLocationIndices(48, -2, 0);
 
-    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.validbox();
         auto const& p_arr = PVec_mf.Patch(lev, mfi);
         auto const& q_arr = QVec_mf.Patch(lev, mfi);
-        auto const& xflux_arr = XFlux_mf.Patch(lev, mfi);
-        auto const& yflux_arr = YFlux_mf.Patch(lev, mfi);
-#if (AMREX_SPACEDIM == 3)
-        auto const& zflux_arr = ZFlux_mf.Patch(lev, mfi);
-#endif
         auto const& pressure_arr = Pressure_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             Set::Scalar rho = p_arr(i, j, k, variableIndex.DENS);
-            Set::Scalar u = p_arr(i, j, k, variableIndex.UVEL);
-            Set::Scalar v = p_arr(i, j, k, variableIndex.VVEL);
+            Set::Scalar uvel = p_arr(i, j, k, variableIndex.UVEL);
+            Set::Scalar vvel = p_arr(i, j, k, variableIndex.VVEL);
 #if (AMREX_SPACEDIM == 3)
-            Set::Scalar w = p_arr(i, j, k, variableIndex.WVEL);
+            Set::Scalar wvel = p_arr(i, j, k, variableIndex.WVEL);
 #endif
             Set::Scalar ie = p_arr(i, j, k, variableIndex.IE);
 
             // Total internal energy
-            Set::Scalar kinetic_energy = 0.5 * (u * u + v * v
+            Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
 #if (AMREX_SPACEDIM == 3)
-                                             + w * w
+                                             + wvel * wvel
 #endif
                                              );
             Set::Scalar tot_int_energy = ie + kinetic_energy;
 
-            debug.DebugValuesIfTarget(i, j, k, rho, "density", "GetFluxVector", false);
+            debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "ComputeConservedVariables", false);
+            debug.DebugValuesIfTarget(i, j, k, vvel, "v-velocity", "ComputeConservedVariables", false);
 
             // Set Q vector components (solver-type-specific handling can go here)
             q_arr(i, j, k, variableIndex.DENS) = rho;
-            q_arr(i, j, k, variableIndex.UVEL) = rho * u;
-            q_arr(i, j, k, variableIndex.VVEL) = rho * v;
+            q_arr(i, j, k, variableIndex.UVEL) = rho * uvel;
+            q_arr(i, j, k, variableIndex.VVEL) = rho * vvel;
 #if (AMREX_SPACEDIM == 3)
-            q_arr(i, j, k, variableIndex.WVEL) = rho * w;
+            q_arr(i, j, k, variableIndex.WVEL) = rho * wvel;
 #endif
             q_arr(i, j, k, variableIndex.IE) = rho * tot_int_energy;
 
         });
+    
+    
     }
 
     Util::Message(INFO, "Flux Vectors computed successfully for SolverType-specific routine");
@@ -415,9 +426,10 @@ void ComputeConservedVariables(int lev) {
         Util::ScimitarX_Util::Debug debug;
 
         //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        debug.SetTargetDebugLocationIndices(51, 0, 0);
+        debug.SetTargetDebugLocationIndices(48, -2, 0);
 
-        for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
 
             auto const& q_arr = QVec_mf.Patch(lev, mfi);  // Conservative variables array (QVec)
@@ -429,25 +441,27 @@ void ComputeConservedVariables(int lev) {
                 // Extract conservative variables from QVec
                 Set::Scalar rho = q_arr(i, j, k, variableIndex.DENS);      // Density
 
-                debug.DebugValuesIfTarget(i, j, k, rho, "density", "UpdateSolutions", false);
-                debug.CheckNaNAndAbort(i, j, k, rho, "Density", "UpdateSolutions", true);
+                //debug.CheckNaNAndAbort(i, j, k, rho, "Density", "UpdateSolutions", true);
 
-                Set::Scalar u = q_arr(i, j, k, variableIndex.UVEL) / rho;  // Velocity in x-direction
-                Set::Scalar v = q_arr(i, j, k, variableIndex.VVEL) / rho;  // Velocity in y-direction
+                Set::Scalar uvel = q_arr(i, j, k, variableIndex.UVEL) / rho;  // Velocity in x-direction
+                Set::Scalar vvel = q_arr(i, j, k, variableIndex.VVEL) / rho;  // Velocity in y-direction
 #if (AMREX_SPACEDIM == 3)
-                Set::Scalar w = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
+                Set::Scalar wvel = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
 #endif
-                Set::Scalar total_energy = q_arr(i, j, k, variableIndex.IE) / rho;  // Total specific energy
+
+                debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "UpdateSolutions", false);
+
+                Set::Scalar total_energy = q_arr(i, j, k, variableIndex.IE);  // Total specific energy
 
                 // Compute kinetic energy
-                Set::Scalar kinetic_energy = 0.5 * (u * u + v * v
+                Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
 #if (AMREX_SPACEDIM == 3)
-                                                + w * w
+                                                + wvel * wvel
 #endif
                                                 );
 
                 // Compute internal energy
-                Set::Scalar internal_energy = total_energy - kinetic_energy;
+                Set::Scalar internal_energy = (total_energy - rho*kinetic_energy)/rho;
 
                 // Assume ideal gas law: p = (gamma - 1) * rho * internal_energy
                 const Set::Scalar gamma = 1.4;  // Ideal gas constant for air (can be adjusted)
@@ -455,23 +469,20 @@ void ComputeConservedVariables(int lev) {
 
                 // Update the primitive variables array (PVec)
                 p_arr(i, j, k, variableIndex.DENS) = rho;
-                p_arr(i, j, k, variableIndex.UVEL) = u;
-                p_arr(i, j, k, variableIndex.VVEL) = v;
+                p_arr(i, j, k, variableIndex.UVEL) = uvel;
+                p_arr(i, j, k, variableIndex.VVEL) = vvel;
 #if (AMREX_SPACEDIM == 3)
-                p_arr(i, j, k, variableIndex.WVEL) = w;
+                p_arr(i, j, k, variableIndex.WVEL) = wvel;
 #endif
                 pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
 
                 // Also update internal energy explicitly if needed
                 p_arr(i, j, k, variableIndex.IE) = internal_energy;
+
+                debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal energy", "GetFluxVector", false);
+
             });
 
-           //Apply Boundary Condition 
-
-           //PVec_mf[lev]->FillBoundary();
-            //Pressure_mf[lev]->FillBoundary();
-           // Util::RealFillBoundary(*PVec_mf[lev],geom[lev]);
-           // Util::RealFillBoundary(*Pressure_mf[lev],geom[lev]); 
         }
     }
 
@@ -486,7 +497,7 @@ protected:
     Set::Field<Set::Scalar> Pressure_mf;  // Multifab for pressure variable
 
     int number_of_components;            // Number of components
-    int number_of_ghost_cells = 2;           // Number of ghost cells
+    int number_of_ghost_cells = 1;           // Number of ghost cells
 
     Numeric::FluxHandler<ScimitarX>* fluxHandler = nullptr;  // Flux handler instance
     Numeric::TimeStepper<ScimitarX>* timeStepper = nullptr;  // Time stepper instance

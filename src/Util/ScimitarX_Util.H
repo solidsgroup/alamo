@@ -88,41 +88,44 @@ public:
         }
 
         // Inline debug function that checks the current cell's value
-
-        static void DebugValuesIfTarget(int i, int j, int k, const Set::Scalar& value, const std::string& field_name,
-                                const std::string& context, bool abort_if_nan, int component = -1) {
-    
+        template <typename T>
+        static void DebugValuesIfTarget(int i, int j, int k, const T& value, const std::string& field_name,
+                                        const std::string& context, bool abort_if_nan, int component = -1) {
             if (IsTargetLocation(i, j, k)) {
-            // Build debug message
-            std::string debug_message = "Debug at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                    ") in context '" + context + "' for field '" + field_name + "'";
+                // Build debug message
+                std::string debug_message = "Debug at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                            ") in context '" + context + "' for field '" + field_name + "'";
         
-            // Add component information if applicable
-            if (component >= 0) {
-            debug_message += " (Component: " + std::to_string(component) + ")";
-            }
-
-            debug_message += " = " + std::to_string(value);
-
-            // Print debug message
-            Util::Message(INFO, debug_message);
-
-                // Check for NaN or invalid value
-                if (std::isnan(value) || std::isinf(value)) {
-                    std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                        ") for field '" + field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
+                // Add component information if applicable
                 if (component >= 0) {
-                    error_message += " (Component: " + std::to_string(component) + ")";
+                    debug_message += " (Component: " + std::to_string(component) + ")";
                 }
-
+        
+                // Append the value
+                debug_message += " = " + std::to_string(value);
+        
+                // Print debug message
+                Util::Message(INFO, debug_message);
+        
+                // Check for NaN or invalid value (only for floating-point types)
+                if constexpr (std::is_floating_point<T>::value) {
+                    if (std::isnan(value) || std::isinf(value)) {
+                        std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                                    ") for field '" + field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
+                        if (component >= 0) {
+                            error_message += " (Component: " + std::to_string(component) + ")";
+                        }
+        
                         if (abort_if_nan) {
                             Util::Abort(INFO, error_message);
-                        } else{
+                        } else {
                             Util::Warning(INFO, error_message);
-                        }       
+                        }
                     }
                 }
-        }           
+            }
+        }
+
 
     static void CheckNaNAndAbort(int i, int j, int k, const Set::Scalar& value, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
         // Check if the value is NaN or Inf
@@ -190,7 +193,7 @@ public:
                 }  
             }
             
-            static void DebugLocalLaxFriedrichsFlux(int i, int j, int k,
+            static void DebugLocalLaxFriedrichsFlux(int i, int j, int k, Set::Scalar number_of_components,
                                                     Set::Scalar rho_L, Set::Scalar u_L, Set::Scalar v_L, Set::Scalar w_L, Set::Scalar e_L, Set::Scalar pressure_L,
                                                     Set::Scalar rho_R, Set::Scalar u_R, Set::Scalar v_R, Set::Scalar w_R, Set::Scalar e_R, Set::Scalar pressure_R,
                                                     Set::Scalar c_L, Set::Scalar c_R, Set::Scalar lambda_max,
@@ -214,7 +217,7 @@ public:
             
                 // Print fluxes
                 Util::Message(INFO, "  Flux Components (F_L, F_R):");
-                for (int n = 0; n < 5; ++n) {
+                for (int n = 0; n < number_of_components; ++n) {
                     Util::Message(INFO, "    Flux component " + std::to_string(n) +
                                            ": F_L[" + std::to_string(n) + "] = " + std::to_string(flux_L[n]) +
                                            ", F_R[" + std::to_string(n) + "] = " + std::to_string(flux_R[n]));
@@ -233,7 +236,7 @@ public:
                 }
             
                 // Check for NaN or Inf in the fluxes
-                for (int n = 0; n < 5; ++n) {
+                for (int n = 0; n < number_of_components; ++n) {
                     if (std::isnan(flux_L[n]) || std::isinf(flux_L[n]) || std::isnan(flux_R[n]) || std::isinf(flux_R[n])) {
                         std::string error_message = "Invalid flux component detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
                                                     std::to_string(k) + ") in context '" + context + "'. Flux component " + std::to_string(n);
@@ -340,6 +343,90 @@ public:
 
 // Sweep and debug the lower boundary
 //Util::ScimitarX_Util::Debug::DebugSweepBoundaryInDirection(*QVec_mf[lev], geom[lev], lev, "QVec", "Boundary Sweep Debug", "lo", true);
+
+static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int lev, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
+    const amrex::Box& domain = geom.Domain();  // Physical domain without ghost cells
+
+    for (amrex::MFIter mfi(mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.growntilebox();  // Tile box including ghost cells
+        auto const& arr = mf.array(mfi);  // Access the MultiFab array
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            bool is_ghost = (i < domain.smallEnd(0) || i > domain.bigEnd(0) ||
+                             j < domain.smallEnd(1) || j > domain.bigEnd(1) ||
+                             (AMREX_SPACEDIM == 3 && (k < domain.smallEnd(2) || k > domain.bigEnd(2))));
+
+            bool is_boundary = !is_ghost &&  // Must be inside the domain
+                               (i == domain.smallEnd(0) || i == domain.bigEnd(0) ||
+                                j == domain.smallEnd(1) || j == domain.bigEnd(1) ||
+                                (AMREX_SPACEDIM == 3 && (k == domain.smallEnd(2) || k == domain.bigEnd(2))));
+
+            amrex::Real value = arr(i, j, k);
+
+            if (is_ghost) {
+                Util::Message(INFO, "Debug (Ghost Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
+                                       (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
+                                       field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
+            }
+            else if (is_boundary) {
+                Util::Message(INFO, "Debug (Boundary Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
+                                       (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
+                                       field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
+            }
+
+            // Check for NaN or Inf values
+            if (std::isnan(value) || std::isinf(value)) {
+                std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " +
+                                            std::to_string(j) + ", " + (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") +
+                                            ") for field '" + field_name + "' in context '" + context +
+                                            "'. Value = " + std::to_string(value);
+                if (abort_if_nan) {
+                    Util::Abort(INFO, error_message);
+                } else {
+                    Util::Warning(INFO, error_message);
+                }
+            }
+        });
+    }
+
+    Util::Message(INFO, "Completed debug of ghost and boundary cells for field: " + field_name);
+}
+
+static void CheckNegativePressureAndAbort(int i, int j, int k, const Set::Scalar& pressure, const std::string& field_name, const std::string& context, bool abort_if_negative = true) {
+    // Check if the pressure value is negative
+    if (pressure < 0.0) {
+        std::string error_message = "Negative pressure detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                    ") for field '" + field_name + "' in context '" + context + "'. Pressure = " + std::to_string(pressure);
+
+        if (abort_if_negative) {
+            Util::Abort(INFO, error_message);  // Abort with the error message if pressure is negative
+        } else {
+            Util::Warning(INFO, error_message);  // Print a warning instead of aborting
+        }
+    }
+}
+
+static void DebugIndicesAndBounds(int i, int j, int k,
+                                  const int index[3], const int left_index[3], const int right_index[3],
+                                  const int lower_bounds[3], const int upper_bounds[3],
+                                  const std::string& context) {
+    std::ostringstream message;
+    message << "=== Debug Indices and Bounds in Context: " << context << " ===\n";
+    message << "Cell Center Indices (i, j, k): (" << i << ", " << j << ", " << k << ")\n";
+
+    message << "Index: (" << index[0] << ", " << index[1] << ", " << index[2] << ")\n";
+    message << "Left Index: (" << left_index[0] << ", " << left_index[1] << ", " << left_index[2] << ")\n";
+    message << "Right Index: (" << right_index[0] << ", " << right_index[1] << ", " << right_index[2] << ")\n";
+
+    message << "Lower Bounds: (" << lower_bounds[0] << ", " << lower_bounds[1] << ", " << lower_bounds[2] << ")\n";
+    message << "Upper Bounds: (" << upper_bounds[0] << ", " << upper_bounds[1] << ", " << upper_bounds[2] << ")\n";
+
+    message << "==========================================\n";
+
+    Util::Message(INFO, message.str());  // Print debug message to the log
+}
+
+
 
     };
 
