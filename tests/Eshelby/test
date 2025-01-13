@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import numpy, yt, pylab, os, sys, math
 
+yt.set_log_level(50) # disable logging
+
 tolerance = 0.1 # This is a pretty large error, but we're comparing against somewhat sloppy data
 E    = 210
 nu   = 0.3
