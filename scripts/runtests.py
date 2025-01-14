@@ -365,7 +365,8 @@ def test(testdir):
 
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
-        # we will continue with running other tests. (Script will return an error)
+        # we will continue with running other tests. (Script will return an error unless permit-timout
+        # has been enabled - usually for profiling)
         except subprocess.CalledProcessError as e:
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
@@ -377,6 +378,7 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
+            proc.kill()
             print(bs+"[{}TIME{}]".format(color.red,color.reset))
             record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
@@ -388,7 +390,6 @@ def test(testdir):
                     for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                     for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
                     for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                #for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             except Exception as e1:
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
