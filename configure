@@ -179,7 +179,7 @@ if args.buildamrex and not args.amrex:
                             cmd="git clone https://github.com/AMReX-Codes/amrex.git",
                             message="Cloning AMReX [default branch] -- This may take a while",
                             cwd="ext/")
-    else:
+    elif not args.offline:
         shellmessage("AMReX-Update",cmd="git -C ext/amrex fetch --all")
         #p = subprocess.Popen("".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
