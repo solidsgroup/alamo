@@ -10,7 +10,7 @@ namespace IC {
 using namespace Model::Fluid;
 
 SodShock::SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-                   const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
+                    const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
     : IC(_geom), variable_indices(&precomputed_indices), requires_variable_indices(true) {
     initialize(pp, name);
 }
@@ -144,9 +144,8 @@ void SodShock::initialize(IO::ParmParse& pp, const std::string& name) {
     pp.query("shock.zpos", shock_zpos);
 
     Util::Message(INFO, "DEBUG: Shock position: xpos = " + std::to_string(shock_xpos) +
-                         ", ypos = " + std::to_string(shock_ypos) +
-                         ", zpos = " + std::to_string(shock_zpos));
+                        ", ypos = " + std::to_string(shock_ypos) +
+                        ", zpos = " + std::to_string(shock_zpos));
 }
 
 }  // namespace IC
-

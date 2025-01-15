@@ -18,8 +18,8 @@ namespace Numeric {
 // Helper function to compute face indices for a control volume's flux calculation
 AMREX_GPU_DEVICE
 inline void GetFaceIndices(int i, int j, int k, amrex::IntVect& west_face, amrex::IntVect& east_face,
-                           amrex::IntVect& south_face, amrex::IntVect& north_face,
-                           amrex::IntVect& bottom_face, amrex::IntVect& top_face) {
+                            amrex::IntVect& south_face, amrex::IntVect& north_face,
+                            amrex::IntVect& bottom_face, amrex::IntVect& top_face) {
     // West and east face indices for the x-direction
     west_face = amrex::IntVect(AMREX_D_DECL(i, j, k));
     east_face = amrex::IntVect(AMREX_D_DECL(i + 1, j, k));
@@ -106,9 +106,9 @@ public:
             // Parallel loop over cells in the valid box
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 for (int n = 0; n < solver->number_of_components; ++n) {
-                   // **Get Face Indices for the Control Volume**
-                   // amrex::IntVect west_face, east_face, south_face, north_face, bottom_face, top_face;
-                   // GetFaceIndices(i, j, k, west_face, east_face, south_face, north_face, bottom_face, top_face);
+                    // **Get Face Indices for the Control Volume**
+                    // amrex::IntVect west_face, east_face, south_face, north_face, bottom_face, top_face;
+                    // GetFaceIndices(i, j, k, west_face, east_face, south_face, north_face, bottom_face, top_face);
 
                     // **Flux Divergence Computation**
                     Set::Scalar flux_div = 0.0;
@@ -129,10 +129,10 @@ public:
                     q_arr(i, j, k, n) = q_old - dt * flux_div;
 
                     //Debug output
-                   /* debug.DebugEulerForwardStep(i, j, k, xflux_arr(i,j,k,n), xflux_arr(i-1,j,k,n),
+                    /* debug.DebugEulerForwardStep(i, j, k, xflux_arr(i,j,k,n), xflux_arr(i-1,j,k,n),
                                                 yflux_arr(i,j,k,n), yflux_arr(i,j-1,k,n),
-                                                 0.0,
-                                                 0.0,
+                                                0.0,
+                                                0.0,
                                                 q_old, dt, "Euler Forward Substep", true); */               
                 }
             });
@@ -220,4 +220,3 @@ public:
 }  // namespace Numeric
 
 #endif  // NUMERIC_TIMESTEPPER_H_
-

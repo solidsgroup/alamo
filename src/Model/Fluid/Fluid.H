@@ -57,4 +57,3 @@ public:
 }  // namespace Model
 
 #endif  // MODEL_FLUID_H_
-

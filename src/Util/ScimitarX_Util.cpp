@@ -9,9 +9,9 @@
 namespace Util
 {
     void ScimitarX_Util::Debug::DebugComputeInternalEnergyFromDensityAndPressure(int i, int j, int k, int lev,
-                                                                             Set::Scalar pressure, Set::Scalar density, Set::Scalar gamma,
-                                                                             bool abort_on_checkpoint, const std::string& mode,
-                                                                             const std::string& context) {
+                                                                            Set::Scalar pressure, Set::Scalar density, Set::Scalar gamma,
+                                                                            bool abort_on_checkpoint, const std::string& mode,
+                                                                            const std::string& context) {
     std::ostringstream message;
     message << "Debugging ComputeInternalEnergyFromDensityAndPressure (" << context << ") at cell: (" 
             << i << ", " << j << ", " << k << ") at level " << lev << "\n";

@@ -254,7 +254,7 @@ protected:
     }
     // Function to advance hyperbolic balance equations without stiff terms
     void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt) {
-       // Util::Message(INFO, "Starting AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
+        // Util::Message(INFO, "Starting AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
 
     // Determine the solver type and handle different governing equations
     /*switch (solverType) {
@@ -275,7 +275,7 @@ protected:
     }*/
 
     // Ensure that the fluxHandler and timeStepper are properly initialized
-   /* if (!fluxHandler) {
+    /* if (!fluxHandler) {
         Util::Abort(__FILE__, __func__, __LINE__, "FluxHandler is not initialized.");
     }
     if (!timeStepper) {
@@ -352,7 +352,7 @@ protected:
             Util::Abort(__FILE__, __func__, __LINE__, "Unknown TimeSteppingScheme.");
     }
 
-       // Util::Message(INFO, "Completed AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
+        // Util::Message(INFO, "Completed AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
@@ -369,7 +369,7 @@ template <SolverType solverType>
 void ComputeConservedVariables(int lev) {
     //Util::Message(INFO, "Starting GetFluxVectors for SolverType-specific computation");
 
-       //Util::ScimitarX_Util::Debug debug;
+        //Util::ScimitarX_Util::Debug debug;
 
         //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
         //debug.SetTargetDebugLocationIndices(48, -2, 0);
@@ -393,9 +393,9 @@ void ComputeConservedVariables(int lev) {
             // Total internal energy
             Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
 #if (AMREX_SPACEDIM == 3)
-                                             + wvel * wvel
+                                            + wvel * wvel
 #endif
-                                             );
+                                            );
             Set::Scalar tot_int_energy = ie + kinetic_energy;
 
             //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "ComputeConservedVariables", false);
@@ -553,4 +553,3 @@ private:
 
 } // namespace Integrator
 #endif
-

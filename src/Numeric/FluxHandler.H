@@ -26,7 +26,7 @@ inline void ClampIndices(int indices[3], const int lower_bounds[3], const int up
 // ShiftAndClampIndices: Shifts and clamps indices (branch-free logic)
 AMREX_GPU_DEVICE
 inline void ShiftAndClampIndices(int indices[3], const int offsets[3],
-                                 const int lower_bounds[3], const int upper_bounds[3], int direction) {
+                                const int lower_bounds[3], const int upper_bounds[3], int direction) {
     for (int d = 0; d < AMREX_SPACEDIM; ++d) {
         int shifted_index = indices[d] + (d == direction ? offsets[d] : 0);
         indices[d] = lower_bounds[d] + std::min(std::max(shifted_index - lower_bounds[d], 0), upper_bounds[d] - lower_bounds[d]);
@@ -40,8 +40,8 @@ public:
     virtual ~FluxReconstruction() = default;
 
     /**
-     * @brief Perform flux reconstruction for the specified direction.
-     */
+    * @brief Perform flux reconstruction for the specified direction.
+    */
     virtual void ReconstructFlux(int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const = 0;
 };
 
@@ -52,8 +52,8 @@ public:
     virtual ~FluxMethod() = default;
 
     /**
-     * @brief Compute the flux for the specified direction.
-     */
+    * @brief Compute the flux for the specified direction.
+    */
     virtual void ComputeFlux(int direction, int lev, IntegratorDerivedClass* solver, const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil) const = 0;
 };
 
@@ -78,9 +78,9 @@ public:
             amrex::Abort("FluxHandler: Reconstruction or flux method is not set.");
         }
 
-      //  Util::Message(INFO, "Constructing fluxes for level " + std::to_string(lev));
+    //  Util::Message(INFO, "Constructing fluxes for level " + std::to_string(lev));
 
-   for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
         amrex::BoxArray face_ba = solver->grids[lev];
         amrex::IntVect face_type = amrex::IntVect::TheZeroVector();  // `{0, 0, 0}`
         face_type[dir] = 1;  // Make it face-centered in `dir`
@@ -133,7 +133,7 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
 
     amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
-   // Construct index arrays with correct number of components
+    // Construct index arrays with correct number of components
     int index[3];
     int left_index[3];
     int right_index[3];
@@ -213,8 +213,8 @@ public:
             const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts); //Includes two ghost layers
 
             auto const& flux_arr = (direction == FluxHandler<IntegratorDerivedClass>::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
-                                   (direction == FluxHandler<IntegratorDerivedClass>::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
-                                   solver->ZFlux_mf.Patch(lev, mfi);
+                                    (direction == FluxHandler<IntegratorDerivedClass>::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                    solver->ZFlux_mf.Patch(lev, mfi);
             auto const& QL_arr = QL_stencil.array(mfi);
             auto const& QR_arr = QR_stencil.array(mfi);
 
@@ -234,10 +234,10 @@ public:
         amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
 
-           // Construct index arrays with correct number of components
+            // Construct index arrays with correct number of components
             int index[3];
-           // int left_index[3];
-           // int right_index[3];
+            // int left_index[3];
+            // int right_index[3];
             int lower_bounds[3];
             int upper_bounds[3];
         
@@ -374,13 +374,13 @@ public:
             }
         
             // Debug check for NaNs
-               // Debug
+                // Debug
                 /*debug.DebugLocalLaxFriedrichsFlux(iface, jface, kface,num_components,
-                                                  rho_L, vel_L[0], vel_L[1], vel_L[2], e_L, pressure_L,
-                                                  rho_R, vel_R[0], vel_R[1], vel_R[2], e_R, pressure_R,
-                                                  c_L, c_R, lambda_max,
-                                                  F_L.data(), F_R.data(),
-                                                  "ComputeFlux", true);
+                                                rho_L, vel_L[0], vel_L[1], vel_L[2], e_L, pressure_L,
+                                                rho_R, vel_R[0], vel_R[1], vel_R[2], e_R, pressure_R,
+                                                c_L, c_R, lambda_max,
+                                                F_L.data(), F_R.data(),
+                                                "ComputeFlux", true);
 
             debug.CheckNaNAndAbort(iface, jface, kface, lambda_max, "Lambda Max", "wave speed", true);*/
         });
@@ -395,4 +395,3 @@ public:
 }  // namespace Numeric
 
 #endif  // NUMERIC_FLUXHANDLER_H
-

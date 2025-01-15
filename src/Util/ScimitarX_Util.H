@@ -65,9 +65,9 @@ public:
         target_location = geom.CellIndex(pos.data());  // Use .getVect() to pass the internal pointer
 
         Util::Message(INFO, "Target debug location set to: (" +
-                           std::to_string(target_location[0]) + ", " +
-                           std::to_string(target_location[1]) + ", " +
-                           (AMREX_SPACEDIM == 3 ? std::to_string(target_location[2]) : "N/A") + ")");
+                            std::to_string(target_location[0]) + ", " +
+                            std::to_string(target_location[1]) + ", " +
+                            (AMREX_SPACEDIM == 3 ? std::to_string(target_location[2]) : "N/A") + ")");
         }
 
         static void SetTargetDebugLocationIndices(int i, int j, int k) {
@@ -75,9 +75,9 @@ public:
         target_location = amrex::IntVect(AMREX_D_DECL(i, j, k));  // Create IntVect with (i, j, k)
 
         Util::Message(INFO, "Target debug location set using indices: (" +
-                           std::to_string(target_location[0]) + ", " +
-                           std::to_string(target_location[1]) + ", " +
-                           (AMREX_SPACEDIM == 3 ? std::to_string(target_location[2]) : "N/A") + ")");
+                            std::to_string(target_location[0]) + ", " +
+                            std::to_string(target_location[1]) + ", " +
+                            (AMREX_SPACEDIM == 3 ? std::to_string(target_location[2]) : "N/A") + ")");
         }
 
         static bool IsTargetLocation(int i, int j, int k) {
@@ -143,15 +143,15 @@ public:
 
         // API to debug internal energy computation
         static void DebugComputeInternalEnergyFromDensityAndPressure(int i, int j, int k, int lev,
-                                                                     Set::Scalar pressure, Set::Scalar density, Set::Scalar gamma,
-                                                                     bool abort_on_checkpoint, const std::string& mode = "check",
-                                                                     const std::string& context = "Unknown");
+                                                                    Set::Scalar pressure, Set::Scalar density, Set::Scalar gamma,
+                                                                    bool abort_on_checkpoint, const std::string& mode = "check",
+                                                                    const std::string& context = "Unknown");
         static void DebugEulerForwardStep(int i, int j, int k,
-                                  Set::Scalar xflux_right, Set::Scalar xflux_left,
-                                  Set::Scalar yflux_top, Set::Scalar yflux_bottom,
-                                  Set::Scalar zflux_front, Set::Scalar zflux_back,
-                                  Set::Scalar q_old, Set::Scalar dt,
-                                  const std::string& context, bool abort_if_nan = true) {
+                                Set::Scalar xflux_right, Set::Scalar xflux_left,
+                                Set::Scalar yflux_top, Set::Scalar yflux_bottom,
+                                Set::Scalar zflux_front, Set::Scalar zflux_back,
+                                Set::Scalar q_old, Set::Scalar dt,
+                                const std::string& context, bool abort_if_nan = true) {
 
             if (IsTargetLocation(i, j, k)) {
                 // Compute the flux divergence
@@ -206,12 +206,12 @@ public:
                 Util::Message(INFO, "Index: (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + ")");
                 Util::Message(INFO, "  Left State (QL):");
                 Util::Message(INFO, "    rho_L = " + std::to_string(rho_L) + ", u_L = " + std::to_string(u_L) + ", v_L = " + std::to_string(v_L) +
-                                         ", w_L = " + std::to_string(w_L) + ", e_L = " + std::to_string(e_L) +
-                                         ", pressure_L = " + std::to_string(pressure_L));
+                                        ", w_L = " + std::to_string(w_L) + ", e_L = " + std::to_string(e_L) +
+                                        ", pressure_L = " + std::to_string(pressure_L));
                 Util::Message(INFO, "  Right State (QR):");
                 Util::Message(INFO, "    rho_R = " + std::to_string(rho_R) + ", u_R = " + std::to_string(u_R) + ", v_R = " + std::to_string(v_R) +
-                                         ", w_R = " + std::to_string(w_R) + ", e_R = " + std::to_string(e_R) +
-                                         ", pressure_R = " + std::to_string(pressure_R));
+                                        ", w_R = " + std::to_string(w_R) + ", e_R = " + std::to_string(e_R) +
+                                        ", pressure_R = " + std::to_string(pressure_R));
                 Util::Message(INFO, "  Wave Speeds:");
                 Util::Message(INFO, "    c_L = " + std::to_string(c_L) + ", c_R = " + std::to_string(c_R) + ", lambda_max = " + std::to_string(lambda_max));
             
@@ -219,8 +219,8 @@ public:
                 Util::Message(INFO, "  Flux Components (F_L, F_R):");
                 for (int n = 0; n < number_of_components; ++n) {
                     Util::Message(INFO, "    Flux component " + std::to_string(n) +
-                                           ": F_L[" + std::to_string(n) + "] = " + std::to_string(flux_L[n]) +
-                                           ", F_R[" + std::to_string(n) + "] = " + std::to_string(flux_R[n]));
+                                            ": F_L[" + std::to_string(n) + "] = " + std::to_string(flux_L[n]) +
+                                            ", F_R[" + std::to_string(n) + "] = " + std::to_string(flux_R[n]));
                 }
             
                 // Check for NaN or Inf in lambda_max and fluxes
@@ -261,11 +261,11 @@ static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::G
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             bool is_ghost = (i < domain.smallEnd(0) || i > domain.bigEnd(0) ||
-                             j < domain.smallEnd(1) || j > domain.bigEnd(1) ||
-                             (AMREX_SPACEDIM == 3 && (k < domain.smallEnd(2) || k > domain.bigEnd(2))));
+                            j < domain.smallEnd(1) || j > domain.bigEnd(1) ||
+                            (AMREX_SPACEDIM == 3 && (k < domain.smallEnd(2) || k > domain.bigEnd(2))));
 
             bool is_boundary = !is_ghost &&  // Must be inside the domain
-                               (i == domain.smallEnd(0) || i == domain.bigEnd(0) ||
+                                (i == domain.smallEnd(0) || i == domain.bigEnd(0) ||
                                 j == domain.smallEnd(1) || j == domain.bigEnd(1) ||
                                 (AMREX_SPACEDIM == 3 && (k == domain.smallEnd(2) || k == domain.bigEnd(2))));
 
@@ -273,13 +273,13 @@ static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::G
 
             if (is_ghost) {
                 Util::Message(INFO, "Debug (Ghost Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                       (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
-                                       field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
+                                        (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
+                                        field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
             }
             else if (is_boundary) {
                 Util::Message(INFO, "Debug (Boundary Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                       (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
-                                       field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
+                                        (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
+                                        field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
             }
 
             // Check for NaN or Inf values
@@ -315,9 +315,9 @@ static void CheckNegativePressureAndAbort(int i, int j, int k, const Set::Scalar
 }
 
 static void DebugIndicesAndBounds(int i, int j, int k,
-                                  const int index[3], const int left_index[3], const int right_index[3],
-                                  const int lower_bounds[3], const int upper_bounds[3],
-                                  const std::string& context) {
+                                const int index[3], const int left_index[3], const int right_index[3],
+                                const int lower_bounds[3], const int upper_bounds[3],
+                                const std::string& context) {
     std::ostringstream message;
     message << "=== Debug Indices and Bounds in Context: " << context << " ===\n";
     message << "Cell Center Indices (i, j, k): (" << i << ", " << j << ", " << k << ")\n";
@@ -341,4 +341,3 @@ static void DebugIndicesAndBounds(int i, int j, int k,
 }
 
 #endif // UTIL_SCIMITARX_UTIL_H
-
