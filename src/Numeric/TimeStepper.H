@@ -86,8 +86,8 @@ public:
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
         }
 
-        Util::ScimitarX_Util::Debug debug;
-        debug.SetTargetDebugLocationIndices(101, 0, 0);
+        //Util::ScimitarX_Util::Debug debug;
+        //debug.SetTargetDebugLocationIndices(101, 0, 0);
         //debug.SetTargetDebugLocation(0.49, 0.12, 0.0, solver->geom[lev]);
 
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
@@ -129,11 +129,11 @@ public:
                     q_arr(i, j, k, n) = q_old - dt * flux_div;
 
                     //Debug output
-                    debug.DebugEulerForwardStep(i, j, k, xflux_arr(i,j,k,n), xflux_arr(i-1,j,k,n),
+                   /* debug.DebugEulerForwardStep(i, j, k, xflux_arr(i,j,k,n), xflux_arr(i-1,j,k,n),
                                                 yflux_arr(i,j,k,n), yflux_arr(i,j-1,k,n),
                                                  0.0,
                                                  0.0,
-                                                q_old, dt, "Euler Forward Substep", true);                
+                                                q_old, dt, "Euler Forward Substep", true); */               
                 }
             });
         }

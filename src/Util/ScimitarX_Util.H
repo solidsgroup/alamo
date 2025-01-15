@@ -251,98 +251,6 @@ public:
             }
 
 
-    //Probe ghost cell given target boundary indices
-    static void DebugTargetBoundaryAndGhostCell(int i, int j, int k, int lev, const amrex::MultiFab& mf, const amrex::Geometry& geom, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
-        // Set target indices (boundary cell)
-        SetTargetDebugLocationIndices(i, j, k);
-
-        amrex::IntVect domain_lo = geom.Domain().smallEnd();  // Lower boundary
-        amrex::IntVect domain_hi = geom.Domain().bigEnd();    // Upper boundary
-
-        // Calculate ghost cell indices based on boundary
-        int ghost_i = (i == domain_lo[0]) ? i - 1 : (i == domain_hi[0] ? i + 1 : i);
-        int ghost_j = (j == domain_lo[1]) ? j - 1 : (j == domain_hi[1] ? j + 1 : j);
-        int ghost_k = (k == domain_lo[2]) ? k - 1 : (k == domain_hi[2] ? k + 1 : k);
-
-        // Check if this ghost cell is the target
-        if (IsTargetLocation(ghost_i, ghost_j, ghost_k)) {
-            auto const& arr = mf.array(lev);
-            amrex::Real value = arr(ghost_i, ghost_j, ghost_k);
-
-            // Debug message
-            Util::Message(INFO, "Debug (Ghost Cell) for boundary cell (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                   ") at ghost location (" + std::to_string(ghost_i) + ", " + std::to_string(ghost_j) + ", " +
-                                   (AMREX_SPACEDIM == 3 ? std::to_string(ghost_k) : "N/A") + ") for field '" + field_name +
-                                   "' in context '" + context + "'. Value: " + std::to_string(value));
-
-            // Check for NaN/Inf values
-            if (std::isnan(value) || std::isinf(value)) {
-                std::string error_message = "Invalid value detected at ghost cell (" + std::to_string(ghost_i) + ", " + std::to_string(ghost_j) +
-                                            ", " + (AMREX_SPACEDIM == 3 ? std::to_string(ghost_k) : "N/A") + ") for field '" +
-                                            field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
-                if (abort_if_nan) {
-                    Util::Abort(INFO, error_message);
-                } else {
-                    Util::Warning(INFO, error_message);
-                }
-            }
-        }
-    }
-
-    //Sweep entire boundary direction and debug variable values
-    static void DebugSweepBoundaryInDirection(const amrex::MultiFab& mf, const amrex::Geometry& geom, int lev, const std::string& field_name, const std::string& context, const std::string& direction, bool abort_if_nan = true) {
-        const amrex::Box& domain = geom.Domain();  // Computational domain
-        int num_components = mf.nComp();           // Number of components
-
-        bool sweep_lo = (direction == "lo");
-        bool sweep_hi = (direction == "hi");
-
-        for (amrex::MFIter mfi(mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.growntilebox();
-            auto const& arr = mf.array(mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                bool is_boundary_x = (sweep_lo && i == domain.smallEnd(0)) || (sweep_hi && i == domain.bigEnd(0));
-                bool is_boundary_y = (sweep_lo && j == domain.smallEnd(1)) || (sweep_hi && j == domain.bigEnd(1));
-                bool is_boundary_z = AMREX_SPACEDIM == 3 && ((sweep_lo && k == domain.smallEnd(2)) || (sweep_hi && k == domain.bigEnd(2)));
-
-                if (is_boundary_x || is_boundary_y || is_boundary_z) {
-                    if (IsTargetLocation(i, j, k)) {
-                        for (int n = 0; n < num_components; ++n) {
-                            amrex::Real value = arr(i, j, k, n);
-                            Util::Message(INFO, "Debug (Boundary Sweep) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                                   (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") Component " +
-                                                   std::to_string(n) + ": " + std::to_string(value));
-
-                            if (std::isnan(value) || std::isinf(value)) {
-                                std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                                            (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
-                                                            field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
-                                if (abort_if_nan) {
-                                    Util::Abort(INFO, error_message);
-                                } else {
-                                    Util::Warning(INFO, error_message);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        Util::Message(INFO, "Completed boundary sweep in direction '" + direction + "' for field: " + field_name);
-    }            
-
-// Set the target indices for boundary cell
-//Util::ScimitarX_Util::Debug::SetDebugTargetLocationIndices(0, 0, 0);
-
-// Debug ghost cell corresponding to (0, 0, 0)
-//Util::ScimitarX_Util::Debug::DebugTargetBoundaryAndGhostCell(0, 0, 0, lev, *QVec_mf[lev], geom[lev], "QVec", "Boundary Ghost Cell Debug", true);
-// Set a new target location
-//Util::ScimitarX_Util::Debug::SetTargetIndices(0, domain_lo[1], domain_lo[2]);
-
-// Sweep and debug the lower boundary
-//Util::ScimitarX_Util::Debug::DebugSweepBoundaryInDirection(*QVec_mf[lev], geom[lev], lev, "QVec", "Boundary Sweep Debug", "lo", true);
 
 static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int lev, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
     const amrex::Box& domain = geom.Domain();  // Physical domain without ghost cells
@@ -425,8 +333,6 @@ static void DebugIndicesAndBounds(int i, int j, int k,
 
     Util::Message(INFO, message.str());  // Print debug message to the log
 }
-
-
 
     };
 

@@ -196,14 +196,12 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
 
 void ScimitarX::TimeStepBegin(Set::Scalar time, int lev) {
 
-    Set::Scalar Coarsest_dt = 0.0;
-    Coarsest_dt = ComputeAndSetNewTimeStep();  // Compute dt based on global `minDt`
-    Util::Message(INFO, "Starting time step at time: ", Coarsest_dt);
 }
 
 
 void ScimitarX::TimeStepComplete(Set::Scalar time, int lev) {
-    
+     
+        ComputeAndSetNewTimeStep(); // Compute dt based on global `minDt`
 }
 
 void ScimitarX::Regrid(int lev, Set::Scalar time) {
@@ -212,46 +210,37 @@ void ScimitarX::Regrid(int lev, Set::Scalar time) {
 
 void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
         
-Util::Message(INFO, "Number of Components " + std::to_string(number_of_components));
-        
-       // ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], *bc_PVec, 0);    
-       // ApplyPatch(lev, time, QVec_old_mf, *QVec_old_mf[lev], *bc_PVec, 0);    
         Integrator::ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);        
         Integrator:: ApplyPatch(lev, time, Pressure_mf, *Pressure_mf[lev], *bc_Pressure, 0); 
+        
         Integrator::ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], bc_nothing, 0);        
+        
         Integrator::ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev],bc_nothing, 0);        
         Integrator::ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], bc_nothing, 0);
 #if AMREX_SPACEDIM == 3        
         Integrator::ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], bc_nothing, 0);        
 #endif
-        // Fill ghost cells before computing fluxes
-        //bc_PVec->FillBoundary(*PVec_mf[lev], 0, number_of_components, time); 
-        //bc_Pressure->FillBoundary(*Pressure_mf[lev], 0, number_of_components, time); 
 
-     // PVec_mf[lev]->FillBoundary();
-     // Pressure_mf[lev]->FillBoundary();   
 }
 
-Set::Scalar ScimitarX::ComputeAndSetNewTimeStep() {
+void ScimitarX::ComputeAndSetNewTimeStep() {
     // Compute the minimum time step over the entire domain using GetTimeStep
-    Set::Scalar coarsest_dt = GetTimeStep();  // GetTimeStep already accounts for the CFL number
+    Set::Scalar finest_dt = GetTimeStep();  // GetTimeStep already accounts for the CFL number
 
     // Start with the finest level time step
-    //Set::Scalar coarsest_dt = finest_dt;
+    Set::Scalar coarsest_dt = finest_dt;
 
     // Adjust the time step for the coarsest level by multiplying back the refinement ratios
-    /*for (int lev = finest_level; lev > 0; --lev) {
+    for (int lev = finest_level; lev > 0; --lev) {
         // `refRatio(lev - 1)` returns an IntVect. Assume isotropic refinement for simplicity.
         int refinement_factor = refRatio(lev - 1)[0];  // Assuming refinement is isotropic (same value in all directions)
 
         coarsest_dt *= refinement_factor;  // Scale the time step conservatively for refinement
-    }*/
+    }
 
     // Set the coarsest-level time step for all levels
     Integrator::SetTimestep(coarsest_dt);
 
-    Util::Message(INFO, "New coarsest-level timestep set: ",coarsest_dt);
-    return coarsest_dt;
 }
 
 // Function to compute the time step size based on CFL condition
