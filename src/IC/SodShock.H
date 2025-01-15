@@ -12,7 +12,7 @@ class SodShock : public IC {
 public:
     // Constructor requiring variable indices
     SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-             const Util::ScimitarX_Util::getVariableIndex& precomputed_indices);
+            const Util::ScimitarX_Util::getVariableIndex& precomputed_indices);
 
     // Constructor for pressure (no variable indices required)
     SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name);
@@ -54,4 +54,3 @@ private:
 } // namespace IC
 
 #endif // IC_SODSHOCK_H_
-

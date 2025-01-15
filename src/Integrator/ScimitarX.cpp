@@ -54,7 +54,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 }
 
                 // Call the setupBoundaryConditions function
-               /* IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, ScimitarX::variableIndex);
+                /* IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, ScimitarX::variableIndex);
 
                 std::string result;
                 if (bc_pp.query("bc.pvec.type.xlo", result)) {
@@ -350,4 +350,3 @@ IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Ut
 
 
 } // namespace Integrator
-
