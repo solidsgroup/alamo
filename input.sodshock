@@ -3,8 +3,8 @@ plot_file = output_sod_2d
 
 # Simulation length
 timestep = 0.001
-stop_time = 0.1
-max_step = 100
+stop_time = 0.2
+max_step = 500
 
 # AMR parameters
 amr.plot_int = 5
@@ -36,7 +36,7 @@ FluxScheme = LocalLaxFriedrichs
 FluxReconstruction = FirstOrder
 
 # Initial conditions
-# Q Vector = [Density, Uvelocity, VVelocity, WVelocity, Pressure]
+# Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
 ic.pvec.type = sodshock
 ic.pvec.sodshock.left.DENS = 1.0
 ic.pvec.sodshock.right.DENS = 0.125
@@ -44,8 +44,6 @@ ic.pvec.sodshock.left.UVEL = 0.0
 ic.pvec.sodshock.right.UVEL = 0.0
 ic.pvec.sodshock.left.VVEL = 0.0
 ic.pvec.sodshock.right.VVEL = 0.0
-ic.pvec.sodshock.left.WVEL = 0.0
-ic.pvec.sodshock.right.WVEL = 0.0
 
 # Pressure
 ic.pressure.type = sodshock
@@ -57,7 +55,7 @@ shock.xpos = 0.5
 shock.ypos = 0.0
 shock.zpos = 0.0
 
-# Boundary conditions
+# Boundary conditions for 2D [Density, UVel, VVel, WVel, IE]
 bc.pvec.type.xhi = neumann neumann neumann neumann
 bc.pvec.type.xlo = neumann neumann neumann neumann
 bc.pvec.type.yhi = neumann neumann neumann neumann
@@ -72,6 +70,7 @@ bc.pvec.val.ylo = 0.0 0.0 0.0 0.0
 bc.pvec.val.zhi = 0.0 0.0 0.0 0.0
 bc.pvec.val.zlo = 0.0 0.0 0.0 0.0 
 
+#Boundary conditions for Pressure
 bc.pressure.type.xhi = neumann
 bc.pressure.type.xlo = neumann
 bc.pressure.type.yhi = neumann
