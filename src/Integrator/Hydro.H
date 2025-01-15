@@ -19,6 +19,8 @@
 #include "IC/Laminate.H"
 #include "IC/Expression.H"
 
+#include "Solver/Local/Riemann/Roe.H"
+
 #if AMREX_SPACEDIM==2
 
 namespace Integrator
@@ -46,6 +48,8 @@ public:
 
         delete eta_ic;
         delete etadot_ic;
+
+        delete roesolver;
     }
 
 protected:
@@ -126,6 +130,9 @@ private:
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
+
+    Solver::Local::Riemann::Roe *roesolver = nullptr;
+
 };
 }
 

@@ -10,8 +10,8 @@ plot_file = ./output.HeatedPlate
 amr.plot_int = 10000
 amr.max_level = 2
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
-amr.regrid_int = 10
+amr.blocking_factor = 4
+amr.regrid_int = 100
 amr.grid_eff = 0.8
 amr.n_cell = 64 64 0
 
@@ -42,7 +42,7 @@ u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
-q.ic.expression.region1 = "0.01*x*((1.0 - tanh(10*(x-5.0))*tanh(10*(x-5.0))) + (1.0 - tanh(10*(x-2.5))*tanh(10*(x-2.5))) + (1.0 - tanh(10*(x-7.5))*tanh(10*(x-7.5))))"
+q.ic.expression.region1 = "0.001*x*((1.0 - tanh(10*(x-5.0))*tanh(10*(x-5.0))) + (1.0 - tanh(10*(x-2.5))*tanh(10*(x-2.5))) + (1.0 - tanh(10*(x-7.5))*tanh(10*(x-7.5))))"
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.1
@@ -55,7 +55,8 @@ eta.ic.expression.region0     = "0.5*tanh((y+0.5)/eps)+0.5" #"1.0-(-0.5*tanh((y+
 
 gamma = 1.4
 cfl   = 0.4
-mu    = 0.01
+mu    = 0.1
+pref = 100
 
 Ldot_active = 0.0
 
@@ -68,7 +69,7 @@ energy.ic.constant.value = 0
 
 solid.momentum.ic.constant.value = 0 0
 solid.density.ic.constant.value = 100
-solid.energy.ic.constant.value = 5
+solid.energy.ic.constant.value = 5.6
 
 
 velocity.ic.type = expression
@@ -134,6 +135,7 @@ e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
+rho_refinement_criterion = 0.5
 
 #TODO
 
@@ -142,6 +144,6 @@ small = 1E-6
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
-dynamictimestep.cfl = 0.001
-dynamictimestep.max  = 0.005
+cfl = 0.001
+dynamictimestep.max  = 0.1
 dynamictimestep.min  = 0.0

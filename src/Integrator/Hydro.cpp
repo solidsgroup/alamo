@@ -101,98 +101,53 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true);
     }
-    {
-        std::string type = "constant";
-        // eta initial condition
-        pp_query_validate("eta.ic.type", type, {"constant","laminate","expression","bmp","png"});
-        if (type == "constant") value.eta_ic = new IC::Constant(value.geom, pp, "eta.ic.constant");
-        else if (type == "laminate") value.eta_ic = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
-        else if (type == "expression") value.eta_ic = new IC::Expression(value.geom, pp, "eta.ic.expression");
-        else if (type == "bmp") value.eta_ic = new IC::BMP(value.geom, pp, "eta.ic.bmp");
-        else if (type == "png") value.eta_ic = new IC::PNG(value.geom, pp, "eta.ic.png");
-        else Util::Abort(INFO, "Invalid eta.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
-        // velocity initial condition
-        pp_query_validate("velocity.ic.type", type,{"constant","expression"});
-        if (type == "constant") value.velocity_ic = new IC::Constant(value.geom, pp, "velocity.ic.constant");
-        else if (type == "expression") value.velocity_ic = new IC::Expression(value.geom, pp, "velocity.ic.expression");
-    }
-    {
-        std::string type = "constant";
-        pp_forbid("Pressure.ic", "--> pressure.ic");
-        // solid pressure IC type
-        pp_query_validate("pressure.ic.type", type, {"constant","expression"});
-        if (type == "constant") value.pressure_ic = new IC::Constant(value.geom, pp, "pressure.ic.constant");
-        else if (type == "expression") value.pressure_ic = new IC::Expression(value.geom, pp, "pressure.ic.expression");
-        else Util::Abort(INFO, "Invalid Pressure.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        pp_forbid("SolidMomentum.ic", "--> solid.momentum.ic");
-        // solid momentum IC type
-        pp_query_validate("solid.momentum.ic.type", type, {"constant","expression"});
-        if (type == "constant") value.solid.momentum_ic = new IC::Constant(value.geom, pp, "solid.momentum.ic.constant");
-        else if (type == "expression") value.solid.momentum_ic = new IC::Expression(value.geom, pp, "solid.momentum.ic.expression");
-        else Util::Abort(INFO, "Invalid solid.momentum.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        pp_forbid("SolidDensity.ic.type", "--> solid.density.ic.type");
-        // solid density IC type
-        pp_query_validate("solid.density.ic.type", type, {"constant","expression"});
-        if (type == "constant") value.solid.density_ic = new IC::Constant(value.geom, pp, "solid.density.ic.constant");
-        else if (type == "expression") value.solid.density_ic = new IC::Expression(value.geom, pp, "solid.density.ic.expression");
-        else Util::Abort(INFO, "Invalid solid.density.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        pp_forbid("SolidEnergy.ic.type", "--> solid.energy.ic.type");
-        // solid energy IC type
-        pp_query_validate("solid.energy.ic.type", type, {"constant","expression"});
-        if (type == "constant") value.solid.energy_ic = new IC::Constant(value.geom, pp, "solid.energy.ic.constant");
-        else if (type == "expression") value.solid.energy_ic = new IC::Expression(value.geom, pp, "solid.energy.ic.expression");
-        else Util::Abort(INFO, "Invalid solid.energy.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        pp_forbid("Density.ic.type", "--> density.ic.type");
-        // density initial condition type
-        pp_query_validate("density.ic.type", type, {"constant","expression"});
-        if (type == "constant") value.density_ic = new IC::Constant(value.geom, pp, "density.ic.constant");
-        else if (type == "expression") value.density_ic = new IC::Expression(value.geom, pp, "density.ic.expression");
-        else Util::Abort(INFO, "Invalid density.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        // injected density initial condition type
-        pp_forbid("rho_injected.ic.type","no longer using rho_injected use m0 instead");
-        // diffuse boundary prescribed mass flux 
-        pp_query_validate("m0.ic.type", type, {"constant","expression"});
-        if (type == "constant") value.ic_m0 = new IC::Constant(value.geom, pp, "m0.ic.constant");
-        else if (type == "expression") value.ic_m0 = new IC::Expression(value.geom, pp, "m0.ic.expression");
-        else Util::Abort(INFO, "Invalid m0.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        // mass flux initial condition
-        pp.forbid("mdot.ic.type", "replace mdot with u0");
-        // diffuse boundary prescribed velocity
-        pp.query("u0.ic.type", type);
-        if (type == "constant") value.ic_u0 = new IC::Constant(value.geom, pp, "u0.ic.constant");
-        else if (type == "expression") value.ic_u0 = new IC::Expression(value.geom, pp, "u0.ic.expression");
-        else Util::Abort(INFO, "Invalid u0.ic: ", type);
-    }
-    {
-        std::string type = "constant";
-        // injected heat initial condition
-        pp.query("q.ic.type", type);
-        if (type == "constant") value.ic_q = new IC::Constant(value.geom, pp, "q.ic.constant");
-        else if (type == "expression") value.ic_q = new IC::Expression(value.geom, pp, "q.ic.expression");
-        else Util::Abort(INFO, "Invalid q.ic: ", type);
-    }
+
+    pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
+    pp_forbid("Pressure.ic", "--> pressure.ic");
+    pp_forbid("SolidMomentum.ic", "--> solid.momentum.ic");
+    pp_forbid("SolidDensity.ic.type", "--> solid.density.ic.type");
+    pp_forbid("SolidEnergy.ic.type", "--> solid.energy.ic.type");
+    pp_forbid("Density.ic.type", "--> density.ic.type");
+    pp_forbid("rho_injected.ic.type","no longer using rho_injected use m0 instead");
+    pp.forbid("mdot.ic.type", "replace mdot with u0");
+
+
+    // ORDER PARAMETER
+
+    // eta initial condition
+    pp.select_default<IC::Constant,IC::Laminate,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.eta_ic,value.geom);
+
+    // PRIMITIVE FIELD INITIAL CONDITIONS
+
+    // velocity initial condition
+    pp.select_default<IC::Constant,IC::Expression>("velocity.ic",value.velocity_ic,value.geom);
+    // solid pressure initial condition
+    pp.select_default<IC::Constant,IC::Expression>("pressure.ic",value.pressure_ic,value.geom);
+    // density initial condition type
+    pp.select_default<IC::Constant,IC::Expression>("density.ic",value.density_ic,value.geom);
+
+
+    // SOLID FIELDS
+
+    // solid momentum initial condition
+    pp.select_default<IC::Constant,IC::Expression>("solid.momentum.ic",value.solid.momentum_ic,value.geom);
+    // solid density initial condition
+    pp.select_default<IC::Constant,IC::Expression>("solid.density.ic",value.solid.density_ic,value.geom);
+    // solid energy initial condition
+    pp.select_default<IC::Constant,IC::Expression>("solid.energy.ic",value.solid.energy_ic,value.geom);
+
+
+    // DIFFUSE BOUNDARY SOURCES
+
+    // diffuse boundary prescribed mass flux 
+    pp.select_default<IC::Constant,IC::Expression>("m0.ic",value.ic_m0,value.geom);
+    // diffuse boundary prescribed velocity
+    pp.select_default<IC::Constant,IC::Expression>("u0.ic",value.ic_u0,value.geom);
+    // diffuse boundary prescribed heat flux 
+    pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
+
+    // Riemann solver
+    pp.select_default<Solver::Local::Riemann::Roe>("solver",value.roesolver);
 }
 
 
@@ -433,30 +388,30 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
-            for (int q = 0; q < 2; q++)
-            for (int r = 0; r < 2; r++)
-            {
-                hess_u(r,p,q) =
-                    (hess_M(r,p,q) - gradu(r,q)*gradrho(p) - gradu(r,p)*gradrho(q) - u(r)*hess_rho(p,q))
-                    / rho(i,j,k);
-            }
+                for (int q = 0; q < 2; q++)
+                    for (int r = 0; r < 2; r++)
+                    {
+                        hess_u(r,p,q) =
+                            (hess_M(r,p,q) - gradu(r,q)*gradrho(p) - gradu(r,p)*gradrho(q) - u(r)*hess_rho(p,q))
+                            / rho(i,j,k);
+                    }
 
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
             for (int p = 0; p<2; p++)
-            for (int q = 0; q<2; q++)
-            for (int r = 0; r<2; r++)
-            for (int s = 0; s<2; s++)
-            {
-                Set::Scalar Mpqrs = 0.0;
-                if (p==r && q==s) Mpqrs += 0.5 * mu;
-                //if (p==s && q==r) Mpqrs += 0.5 * mu;
-                //if (p==q && r==s) Mpqrs -= 0.5 * mu;
+                for (int q = 0; q<2; q++)
+                    for (int r = 0; r<2; r++)
+                        for (int s = 0; s<2; s++)
+                        {
+                            Set::Scalar Mpqrs = 0.0;
+                            if (p==r && q==s) Mpqrs += 0.5 * mu;
+                            //if (p==s && q==r) Mpqrs += 0.5 * mu;
+                            //if (p==q && r==s) Mpqrs -= 0.5 * mu;
 
-                Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
-            }
+                            Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+                            div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
+                        }
             
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
@@ -489,43 +444,59 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //Godunov flux
             //states of total fields
-            Solver::Local::Riemann::Roe::State   state_x(rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::Roe::State   state_y(rho(i, j, k), M(i, j, k, 1), M(i, j, k, 0), E(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::State state_xlo(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k));
+            Solver::Local::Riemann::State state_x  (rho(i    , j, k), M(i    , j, k, 0), M(i    , j, k, 1), E(i    , j, k), eta(i    , j, k));
+            Solver::Local::Riemann::State state_xhi(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k));
 
-            Solver::Local::Riemann::Roe::State lo_statex(rho(i - 1, j, k), M(i - 1, j, k, 0), M(i - 1, j, k, 1), E(i - 1, j, k), eta(i - 1, j, k));
-            Solver::Local::Riemann::Roe::State hi_statex(rho(i + 1, j, k), M(i + 1, j, k, 0), M(i + 1, j, k, 1), E(i + 1, j, k), eta(i + 1, j, k));
-
-            Solver::Local::Riemann::Roe::State lo_statey(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k));
-            Solver::Local::Riemann::Roe::State hi_statey(rho(i, j + 1, k), M(i, j + 1, k, 1), M(i, j + 1, k, 0), E(i, j + 1, k), eta(i, j + 1, k));
+            Solver::Local::Riemann::State state_ylo(rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k));
+            Solver::Local::Riemann::State state_y  (rho(i, j    , k), M(i, j    , k, 1), M(i, j    , k, 0), E(i, j    , k), eta(i, j    , k));
+            Solver::Local::Riemann::State state_yhi(rho(i, j + 1, k), M(i, j + 1, k, 1), M(i, j + 1, k, 0), E(i, j + 1, k), eta(i, j + 1, k));
             
             //states of solid fields
-            Solver::Local::Riemann::Roe::State    statex_solid(rho_solid(i, j, k), M_solid(i, j, k, 0), M_solid(i, j, k, 1), E_solid(i, j, k), eta(i, j, k));
-            Solver::Local::Riemann::Roe::State    statey_solid(rho_solid(i, j, k), M_solid(i, j, k, 1), M_solid(i, j, k, 0), E_solid(i, j, k), eta(i, j, k));
+            Solver::Local::Riemann::State state_xlo_solid(rho_solid(i - 1, j, k), M_solid(i - 1, j, k, 0), M_solid(i - 1, j, k, 1), E_solid(i - 1, j, k), eta(i - 1, j, k));
+            Solver::Local::Riemann::State state_x_solid  (rho_solid(i    , j, k), M_solid(i    , j, k, 0), M_solid(i    , j, k, 1), E_solid(i    , j, k), eta(i    , j, k));
+            Solver::Local::Riemann::State state_xhi_solid(rho_solid(i + 1, j, k), M_solid(i + 1, j, k, 0), M_solid(i + 1, j, k, 1), E_solid(i + 1, j, k), eta(i + 1, j, k));
 
-            Solver::Local::Riemann::Roe::State lo_statex_solid(rho_solid(i - 1, j, k), M_solid(i - 1, j, k, 0), M_solid(i - 1, j, k, 1), E_solid(i - 1, j, k), eta(i - 1, j, k));
-            Solver::Local::Riemann::Roe::State hi_statex_solid(rho_solid(i + 1, j, k), M_solid(i + 1, j, k, 0), M_solid(i + 1, j, k, 1), E_solid(i + 1, j, k), eta(i + 1, j, k));
+            Solver::Local::Riemann::State state_ylo_solid(rho_solid(i, j - 1, k), M_solid(i, j - 1, k, 1), M_solid(i, j - 1, k, 0), E_solid(i, j - 1, k), eta(i, j - 1, k));
+            Solver::Local::Riemann::State state_y_solid  (rho_solid(i, j    , k), M_solid(i, j    , k, 1), M_solid(i, j    , k, 0), E_solid(i, j    , k), eta(i, j    , k));
+            Solver::Local::Riemann::State state_yhi_solid(rho_solid(i, j + 1, k), M_solid(i, j + 1, k, 1), M_solid(i, j + 1, k, 0), E_solid(i, j + 1, k), eta(i, j + 1, k));
+            
+            Set::Scalar eta_xlo = eta(i-1,j,k);
+            Set::Scalar eta_x   = eta(i,j,k);
+            Set::Scalar eta_xhi = eta(i+1,j,k);
 
-            Solver::Local::Riemann::Roe::State lo_statey_solid(rho_solid(i, j - 1, k), M_solid(i, j - 1, k, 1), M_solid(i, j - 1, k, 0), E_solid(i, j - 1, k), eta(i, j - 1, k));
-            Solver::Local::Riemann::Roe::State hi_statey_solid(rho_solid(i, j + 1, k), M_solid(i, j + 1, k, 1), M_solid(i, j + 1, k, 0), E_solid(i, j + 1, k), eta(i, j + 1, k));
+            Solver::Local::Riemann::State state_xlo_fluid = (state_xlo - (1.0 - eta_xlo)*state_xlo_solid) / (eta_xlo + small);
+            Solver::Local::Riemann::State state_x_fluid   = (state_x   - (1.0 - eta_x  )*state_x_solid  ) / (eta_x + small);
+            Solver::Local::Riemann::State state_xhi_fluid = (state_xhi - (1.0 - eta(i+1,j,k))*state_xhi_solid) / (eta(i+1,j,k) + small);
 
-            Solver::Local::Riemann::Roe::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
+            Set::Scalar eta_ylo = eta(i,j-1,k);
+            Set::Scalar eta_y   = eta(i,j,k);
+            Set::Scalar eta_yhi = eta(i,j+1,k);
+            
+            Solver::Local::Riemann::State state_ylo_fluid = (state_ylo - (1.0 - eta_ylo)*state_ylo_solid) / (eta_ylo + small);
+            Solver::Local::Riemann::State state_y_fluid =   (state_y   - (1.0 - eta_y  )*state_y_solid  ) / (eta_y   + small);
+            Solver::Local::Riemann::State state_yhi_fluid = (state_yhi - (1.0 - eta_yhi)*state_yhi_solid) / (eta_yhi + small);
+
+            Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
             try
             {
                 //lo interface fluxes
-                flux_xlo = Solver::Local::Riemann::Roe::Solve(lo_statex, state_x, lo_statex_solid, statex_solid, gamma, eta(i, j, k), pref, small);
-                flux_ylo = Solver::Local::Riemann::Roe::Solve(lo_statey, state_y, lo_statey_solid, statey_solid, gamma, eta(i, j, k), pref, small);
+                // flux_xlo = roesolver->Solve(state_xlo_fluid, state_x_fluid, state_xlo_solid, state_x_solid, gamma, eta(i, j, k), pref, small);
+                // flux_ylo = roesolver->Solve(state_ylo_fluid, state_y_fluid, state_ylo_solid, state_y_solid, gamma, eta(i, j, k), pref, small);
+
+                flux_xlo = roesolver->Solve(state_xlo, state_x, state_xlo_solid, state_x_solid, state_xlo_fluid, state_x_fluid, gamma, eta(i, j, k), pref, small);
+                flux_ylo = roesolver->Solve(state_ylo, state_y, state_ylo_solid, state_y_solid, state_ylo_fluid, state_y_fluid, gamma, eta(i, j, k), pref, small);
 
                 //hi interface fluxes
-                flux_xhi = Solver::Local::Riemann::Roe::Solve(state_x, hi_statex, statex_solid, hi_statex_solid, gamma, eta(i, j, k), pref, small);
-                flux_yhi = Solver::Local::Riemann::Roe::Solve(state_y, hi_statey, statey_solid, hi_statey_solid, gamma, eta(i, j, k), pref, small);
+                flux_xhi = roesolver->Solve(state_x, state_xhi, state_x_solid, state_xhi_solid, state_x_fluid, state_xhi_fluid, gamma, eta(i, j, k), pref, small);
+                flux_yhi = roesolver->Solve(state_y, state_yhi, state_y_solid, state_yhi_solid, state_y_fluid, state_yhi_fluid, gamma, eta(i, j, k), pref, small);
             }
             catch(...)
             {
                 Util::ParallelMessage(INFO,"lev=",lev);
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::Abort(INFO);
-                
             }
 
 
@@ -544,7 +515,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     drhof_dt +
                     // todo add drhos_dt term if want time-evolving rhos
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + smallmod)
-                ) * dt;
+                    ) * dt;
 
             if (rho_new(i,j,k) != rho_new(i,j,k))
             {
@@ -552,23 +523,23 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::ParallelMessage(INFO,"drhof_dt",drhof_dt); // dies
                 Util::ParallelMessage(INFO,"flux_xlo.mass",flux_xlo.mass);
-                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_xhi.mass); // dies, depends on state_xx, hi_statex, statex_solid, hi_statex_solid, gamma, eta, pref, small
+                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
                 Util::ParallelMessage(INFO,"flux_ylo.mass",flux_ylo.mass);
                 Util::ParallelMessage(INFO,"flux_xhi.mass",flux_yhi.mass);
                 Util::ParallelMessage(INFO,"eta",eta(i,j,k));
                 Util::ParallelMessage(INFO,"Source",Source(i,j,k,0));
                 Util::ParallelMessage(INFO,"state_x",state_x); // <<<<
                 Util::ParallelMessage(INFO,"state_y",state_y);
-                Util::ParallelMessage(INFO,"statex_solid",statex_solid); // <<<<
-                Util::ParallelMessage(INFO,"statey_solid",statey_solid);
-                Util::ParallelMessage(INFO,"hi_statex",hi_statex); // <<<<
-                Util::ParallelMessage(INFO,"hi_statey",hi_statey);
-                Util::ParallelMessage(INFO,"hi_statex_solid",hi_statex_solid);
-                Util::ParallelMessage(INFO,"hi_statey_solids",hi_statey_solid);
-                Util::ParallelMessage(INFO,"lo_statex",lo_statex);
-                Util::ParallelMessage(INFO,"lo_statey",lo_statey);
-                Util::ParallelMessage(INFO,"lo_statex_solid",lo_statex_solid);
-                Util::ParallelMessage(INFO,"lo_statey_solid",lo_statey_solid);
+                Util::ParallelMessage(INFO,"state_x_solid",state_x_solid); // <<<<
+                Util::ParallelMessage(INFO,"state_y_solid",state_y_solid);
+                Util::ParallelMessage(INFO,"state_xhi",state_xhi); // <<<<
+                Util::ParallelMessage(INFO,"state_yhi",state_yhi);
+                Util::ParallelMessage(INFO,"state_xhi_solid",state_xhi_solid);
+                Util::ParallelMessage(INFO,"state_yhi_solids",state_yhi_solid);
+                Util::ParallelMessage(INFO,"state_xlo",state_xlo);
+                Util::ParallelMessage(INFO,"state_ylo",state_ylo);
+                Util::ParallelMessage(INFO,"state_xlo_solid",state_xlo_solid);
+                Util::ParallelMessage(INFO,"state_ylo_solid",state_ylo_solid);
                 Util::Exception(INFO);
             }
 
@@ -585,7 +556,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     dMxf_dt + 
                     // todo add dMs_dt term if want time-evolving Ms
                     etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + smallmod)
-                ) * dt;
+                    ) * dt;
 
             Set::Scalar dMyf_dt =
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
@@ -599,7 +570,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     dMyf_dt +
                     // todo add dMs_dt term if want time-evolving Ms
                     etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+smallmod)
-                )*dt;
+                    )*dt;
 
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
@@ -611,7 +582,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     dEf_dt +
                     // todo add dEs_dt term if want time-evolving Es
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+smallmod)
-                ) * dt;
+                    ) * dt;
 
 
             if (eta(i,j,k) < cutoff)
