@@ -260,7 +260,7 @@ protected:
         }
     
         // Add the face-centered field with the provided BC object
-        AddField<Set::Scalar, Set::Hypercube::Face>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+        AddField<Set::Scalar, Set::Hypercube::Face>(new_fab, new_bc, ncomp, nghost, name, writeout, true,{});
     }
 
     template<class T>
@@ -601,13 +601,14 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
 
 template<>
 ALAMO_SINGLE_DEFINITION
-void Integrator::AddField<Set::Scalar, Set::Hypercube::Face>(Set::Field<Set::Scalar>& new_field,
+void Integrator::AddField<Set::Scalar,static_cast<int>(Set::Hypercube::Face)>(Set::Field<Set::Scalar>& new_field,
     BC::BC<Set::Scalar>* new_bc,
     int ncomp,
     int nghost,
     std::string name,
     bool writeout,
-    bool /*evolving*/)
+    bool /*evolving*/,
+    std::vector<std::string> /*suffix*/)
 {
     int nlevs_max = maxLevel() + 1;
     new_field.resize(nlevs_max);
