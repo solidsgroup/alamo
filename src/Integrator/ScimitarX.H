@@ -245,19 +245,19 @@ protected:
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int lev) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override {
-        Util::Message(INFO, "Starting ScimitarX::Advance for level: " + std::to_string(lev));
+        //Util::Message(INFO, "Starting ScimitarX::Advance for level: " + std::to_string(lev));
 
         // Advance the solution without stiff source terms
         AdvanceInTimeWithoutStiffTerms(lev, time, dt);
 
-        Util::Message(INFO, "Completed ScimitarX::Advance for level: " + std::to_string(lev));
+        //Util::Message(INFO, "Completed ScimitarX::Advance for level: " + std::to_string(lev));
     }
     // Function to advance hyperbolic balance equations without stiff terms
     void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt) {
-        Util::Message(INFO, "Starting AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
+       // Util::Message(INFO, "Starting AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
 
     // Determine the solver type and handle different governing equations
-    switch (solverType) {
+    /*switch (solverType) {
         case SolverType::SolveCompressibleEuler: {
             Util::Message(INFO, "SolverType: Compressible Euler");
             break;
@@ -272,7 +272,7 @@ protected:
         }
         default:
             Util::Abort(__FILE__, __func__, __LINE__, "Unknown SolverType.");
-    }
+    }*/
 
     // Ensure that the fluxHandler and timeStepper are properly initialized
    /* if (!fluxHandler) {
@@ -285,9 +285,9 @@ protected:
     // Determine the time-stepping scheme
     switch (temporal_scheme) {
         case TimeSteppingScheme::ForwardEuler: {
-            Util::Message(INFO, "TimeSteppingScheme: Forward Euler");
+            //Util::Message(INFO, "TimeSteppingScheme: Forward Euler");
            
-            Util::ScimitarX_Util::Debug debug; 
+            //Util::ScimitarX_Util::Debug debug; 
 
             fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
             fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
@@ -307,7 +307,7 @@ protected:
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                ApplyBoundaryConditions(lev, time);
+                //ApplyBoundaryConditions(lev, time);
                 
                 // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
@@ -329,7 +329,7 @@ protected:
         }
 
         case TimeSteppingScheme::RK3: {
-            Util::Message(INFO, "TimeSteppingScheme: RK3");
+            //Util::Message(INFO, "TimeSteppingScheme: RK3");
             fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
             fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
 
@@ -342,7 +342,7 @@ protected:
                 fluxHandler->ConstructFluxes(lev, this);
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
-                ApplyBoundaryConditions(lev, time);
+                //ApplyBoundaryConditions(lev, time);
                 std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
             }
             break;
@@ -352,13 +352,13 @@ protected:
             Util::Abort(__FILE__, __func__, __LINE__, "Unknown TimeSteppingScheme.");
     }
 
-        Util::Message(INFO, "Completed AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
+       // Util::Message(INFO, "Completed AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
     Set::Scalar GetTimeStep();
-    Set::Scalar ComputeAndSetNewTimeStep();
+    void ComputeAndSetNewTimeStep();
     void ComputeConservedVariables(int lev);
     void UpdateSolutions(int lev);
     void ApplyBoundaryConditions(int lev, Set::Scalar time);
@@ -367,12 +367,12 @@ protected:
 // Template function to specialize GetFluxVectors based on SolverType
 template <SolverType solverType>
 void ComputeConservedVariables(int lev) {
-    Util::Message(INFO, "Starting GetFluxVectors for SolverType-specific computation");
+    //Util::Message(INFO, "Starting GetFluxVectors for SolverType-specific computation");
 
-       Util::ScimitarX_Util::Debug debug;
+       //Util::ScimitarX_Util::Debug debug;
 
         //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        debug.SetTargetDebugLocationIndices(48, -2, 0);
+        //debug.SetTargetDebugLocationIndices(48, -2, 0);
 
     //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
     for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
@@ -398,8 +398,8 @@ void ComputeConservedVariables(int lev) {
                                              );
             Set::Scalar tot_int_energy = ie + kinetic_energy;
 
-            debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "ComputeConservedVariables", false);
-            debug.DebugValuesIfTarget(i, j, k, vvel, "v-velocity", "ComputeConservedVariables", false);
+            //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "ComputeConservedVariables", false);
+            //debug.DebugValuesIfTarget(i, j, k, vvel, "v-velocity", "ComputeConservedVariables", false);
 
             // Set Q vector components (solver-type-specific handling can go here)
             q_arr(i, j, k, variableIndex.DENS) = rho;
@@ -415,18 +415,16 @@ void ComputeConservedVariables(int lev) {
     
     }
 
-    Util::Message(INFO, "Flux Vectors computed successfully for SolverType-specific routine");
+    //Util::Message(INFO, "Flux Vectors computed successfully for SolverType-specific routine");
 }
 
     // Template function for updating conservative variables to primitive variables
     template <SolverType solverType>
     void UpdateSolutions(int lev) {
-        // Access geometry at the specified level
-        const Set::Scalar* DX = geom[lev].CellSize();
-        Util::ScimitarX_Util::Debug debug;
+        //Util::ScimitarX_Util::Debug debug;
 
         //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        debug.SetTargetDebugLocationIndices(48, -2, 0);
+        //debug.SetTargetDebugLocationIndices(48, -2, 0);
 
         //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
@@ -449,7 +447,7 @@ void ComputeConservedVariables(int lev) {
                 Set::Scalar wvel = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
 #endif
 
-                debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "UpdateSolutions", false);
+                //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "UpdateSolutions", false);
 
                 Set::Scalar total_energy = q_arr(i, j, k, variableIndex.IE);  // Total specific energy
 
@@ -479,7 +477,7 @@ void ComputeConservedVariables(int lev) {
                 // Also update internal energy explicitly if needed
                 p_arr(i, j, k, variableIndex.IE) = internal_energy;
 
-                debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal energy", "GetFluxVector", false);
+                //debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal energy", "GetFluxVector", false);
 
             });
 
