@@ -44,29 +44,34 @@ public:
         
     }
 
-    Flux Solve(State lo, State hi, State solid_lo, State solid_hi,State fluid_lo, State fluid_hi, Set::Scalar gamma, Set::Scalar cell_eta, Set::Scalar p_ref, Set::Scalar small)
+    Flux Solve(State lo, State hi, /*, State solid_lo, State solid_hi,State fluid_lo, State fluid_hi,*/ Set::Scalar gamma, Set::Scalar cell_eta, Set::Scalar p_ref, Set::Scalar small)
     {
         // STEP 0: Compute fluid fields 
-        Set::Scalar rho_L = (lo.rho       - (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small),  rho_R = (hi.rho       - (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small);
-        Set::Scalar Mn_L  = (lo.M_normal  - (1.0 - lo.eta) * solid_lo.M_normal) /(lo.eta + small),  Mn_R  = (hi.M_normal  - (1.0 - hi.eta) * solid_hi.M_normal) /(hi.eta + small);
-        Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
-        Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
+        // Set::Scalar rho_L = (lo.rho       - (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small),  rho_R = (hi.rho       - (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small);
+        // Set::Scalar Mn_L  = (lo.M_normal  - (1.0 - lo.eta) * solid_lo.M_normal) /(lo.eta + small),  Mn_R  = (hi.M_normal  - (1.0 - hi.eta) * solid_hi.M_normal) /(hi.eta + small);
+        // Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
+        // Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
         
-        {
-            Set::Scalar _rho_L = fluid_lo.rho       ,  _rho_R = fluid_hi.rho;
-            Set::Scalar _Mn_L  = fluid_lo.M_normal  ,  _Mn_R  = fluid_hi.M_normal  ;
-            Set::Scalar _Mt_L  = fluid_lo.M_tangent ,  _Mt_R  = fluid_hi.M_tangent ;
-            Set::Scalar _E_L   = fluid_lo.E         ,  _E_R   = fluid_hi.E         ;
-            Util::Assert(INFO,TEST(fabs(rho_L - _rho_L) < 1E-6),"\n",lo,"\n", fluid_lo);
-            Util::Assert(INFO,TEST(fabs(rho_R - _rho_R) < 1E-6),rho_R,"\n",hi,"\n", fluid_hi,"\n",solid_hi);
-            Util::Assert(INFO,TEST(fabs(Mn_L  - _Mn_L) < 1E-8),lo," -- ", fluid_lo);
-            Util::Assert(INFO,TEST(fabs(Mn_R  - _Mn_R) < 1E-8),hi," -- ", fluid_hi);
-            Util::Assert(INFO,TEST(fabs(Mt_L  - _Mt_L) < 1E-8),lo," -- ", fluid_lo);
-            Util::Assert(INFO,TEST(fabs(Mt_R  - _Mt_R) < 1E-8),hi," -- ", fluid_hi);
-            Util::Assert(INFO,TEST(fabs(E_L - _E_L) < 1E-8),lo," -- ", fluid_lo);
-            Util::Assert(INFO,TEST(fabs(E_R - _E_R) < 1E-8),hi," -- ", fluid_hi);
+        Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
+        Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
+        Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
+        Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
 
-        }
+        // {
+        //     Set::Scalar _rho_L = fluid_lo.rho       ,  _rho_R = fluid_hi.rho;
+        //     Set::Scalar _Mn_L  = fluid_lo.M_normal  ,  _Mn_R  = fluid_hi.M_normal  ;
+        //     Set::Scalar _Mt_L  = fluid_lo.M_tangent ,  _Mt_R  = fluid_hi.M_tangent ;
+        //     Set::Scalar _E_L   = fluid_lo.E         ,  _E_R   = fluid_hi.E         ;
+        //     Util::Assert(INFO,TEST(fabs(rho_L - _rho_L) < 1E-8),"\n",lo,"\n", fluid_lo);
+        //     Util::Assert(INFO,TEST(fabs(rho_R - _rho_R) < 1E-8),rho_R,"\n",hi,"\n", fluid_hi,"\n",solid_hi);
+        //     Util::Assert(INFO,TEST(fabs(Mn_L  - _Mn_L) < 1E-8),lo," -- ", fluid_lo);
+        //     Util::Assert(INFO,TEST(fabs(Mn_R  - _Mn_R) < 1E-8),hi," -- ", fluid_hi);
+        //     Util::Assert(INFO,TEST(fabs(Mt_L  - _Mt_L) < 1E-8),lo," -- ", fluid_lo);
+        //     Util::Assert(INFO,TEST(fabs(Mt_R  - _Mt_R) < 1E-8),hi," -- ", fluid_hi);
+        //     Util::Assert(INFO,TEST(fabs(E_L - _E_L) < 1E-8),lo," -- ", fluid_lo);
+        //     Util::Assert(INFO,TEST(fabs(E_R - _E_R) < 1E-8),hi," -- ", fluid_hi);
+
+        // }
 
 
         // Ensure no negative densities

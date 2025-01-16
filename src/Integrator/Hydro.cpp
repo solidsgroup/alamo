@@ -461,21 +461,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Solver::Local::Riemann::State state_y_solid  (rho_solid(i, j    , k), M_solid(i, j    , k, 1), M_solid(i, j    , k, 0), E_solid(i, j    , k), eta(i, j    , k));
             Solver::Local::Riemann::State state_yhi_solid(rho_solid(i, j + 1, k), M_solid(i, j + 1, k, 1), M_solid(i, j + 1, k, 0), E_solid(i, j + 1, k), eta(i, j + 1, k));
             
-            Set::Scalar eta_xlo = eta(i-1,j,k);
-            Set::Scalar eta_x   = eta(i,j,k);
-            Set::Scalar eta_xhi = eta(i+1,j,k);
-
-            Solver::Local::Riemann::State state_xlo_fluid = (state_xlo - (1.0 - eta_xlo)*state_xlo_solid) / (eta_xlo + small);
-            Solver::Local::Riemann::State state_x_fluid   = (state_x   - (1.0 - eta_x  )*state_x_solid  ) / (eta_x + small);
+            Solver::Local::Riemann::State state_xlo_fluid = (state_xlo - (1.0 - eta(i-1,j,k))*state_xlo_solid) / (eta(i-1,j,k) + small);
+            Solver::Local::Riemann::State state_x_fluid   = (state_x   - (1.0 - eta(i,j,k)  )*state_x_solid  ) / (eta(i,j,k)   + small);
             Solver::Local::Riemann::State state_xhi_fluid = (state_xhi - (1.0 - eta(i+1,j,k))*state_xhi_solid) / (eta(i+1,j,k) + small);
 
-            Set::Scalar eta_ylo = eta(i,j-1,k);
-            Set::Scalar eta_y   = eta(i,j,k);
-            Set::Scalar eta_yhi = eta(i,j+1,k);
-            
-            Solver::Local::Riemann::State state_ylo_fluid = (state_ylo - (1.0 - eta_ylo)*state_ylo_solid) / (eta_ylo + small);
-            Solver::Local::Riemann::State state_y_fluid =   (state_y   - (1.0 - eta_y  )*state_y_solid  ) / (eta_y   + small);
-            Solver::Local::Riemann::State state_yhi_fluid = (state_yhi - (1.0 - eta_yhi)*state_yhi_solid) / (eta_yhi + small);
+            Solver::Local::Riemann::State state_ylo_fluid = (state_ylo - (1.0 - eta(i,j-1,k))*state_ylo_solid) / (eta(i,j-1,k) + small);
+            Solver::Local::Riemann::State state_y_fluid =   (state_y   - (1.0 - eta(i,j,k)  )*state_y_solid  ) / (eta(i,j,k)   + small);
+            Solver::Local::Riemann::State state_yhi_fluid = (state_yhi - (1.0 - eta(i,j+1,k))*state_yhi_solid) / (eta(i,j+1,k) + small);
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
@@ -485,12 +477,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // flux_xlo = roesolver->Solve(state_xlo_fluid, state_x_fluid, state_xlo_solid, state_x_solid, gamma, eta(i, j, k), pref, small);
                 // flux_ylo = roesolver->Solve(state_ylo_fluid, state_y_fluid, state_ylo_solid, state_y_solid, gamma, eta(i, j, k), pref, small);
 
-                flux_xlo = roesolver->Solve(state_xlo, state_x, state_xlo_solid, state_x_solid, state_xlo_fluid, state_x_fluid, gamma, eta(i, j, k), pref, small);
-                flux_ylo = roesolver->Solve(state_ylo, state_y, state_ylo_solid, state_y_solid, state_ylo_fluid, state_y_fluid, gamma, eta(i, j, k), pref, small);
+                flux_xlo = roesolver->Solve(state_xlo_fluid, state_x_fluid, gamma, eta(i, j, k), pref, small);
+                flux_ylo = roesolver->Solve(state_ylo_fluid, state_y_fluid, gamma, eta(i, j, k), pref, small);
 
                 //hi interface fluxes
-                flux_xhi = roesolver->Solve(state_x, state_xhi, state_x_solid, state_xhi_solid, state_x_fluid, state_xhi_fluid, gamma, eta(i, j, k), pref, small);
-                flux_yhi = roesolver->Solve(state_y, state_yhi, state_y_solid, state_yhi_solid, state_y_fluid, state_yhi_fluid, gamma, eta(i, j, k), pref, small);
+                flux_xhi = roesolver->Solve(state_x_fluid, state_xhi_fluid, gamma, eta(i, j, k), pref, small);
+                flux_yhi = roesolver->Solve(state_y_fluid, state_yhi_fluid, gamma, eta(i, j, k), pref, small);
             }
             catch(...)
             {
