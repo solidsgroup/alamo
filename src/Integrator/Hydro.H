@@ -124,8 +124,8 @@ private:
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-    Set::Scalar r_refinement_criterion=NAN, e_refinement_criterion=NAN, m_refinement_criterion=NAN, eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
-    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN, Lfactor=NAN, Pfactor=NAN, pref=NAN;
+    Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
+    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  pref=NAN;
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;

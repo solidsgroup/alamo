@@ -39,40 +39,20 @@ public:
         pp_queryclass(*this);
     }
 
+    int verbose = 0;
+
     static void Parse(Roe & value, IO::ParmParse & pp)
     {
-        
+        // enable to dump diagnostic data if the roe solver fails
+        pp.query_default("verbose",value.verbose,1);
     }
 
-    Flux Solve(State lo, State hi, /*, State solid_lo, State solid_hi,State fluid_lo, State fluid_hi,*/ Set::Scalar gamma, Set::Scalar cell_eta, Set::Scalar p_ref, Set::Scalar small)
+    Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small)
     {
-        // STEP 0: Compute fluid fields 
-        // Set::Scalar rho_L = (lo.rho       - (1.0 - lo.eta) * solid_lo.rho)      /(lo.eta + small),  rho_R = (hi.rho       - (1.0 - hi.eta) * solid_hi.rho)      /(hi.eta + small);
-        // Set::Scalar Mn_L  = (lo.M_normal  - (1.0 - lo.eta) * solid_lo.M_normal) /(lo.eta + small),  Mn_R  = (hi.M_normal  - (1.0 - hi.eta) * solid_hi.M_normal) /(hi.eta + small);
-        // Set::Scalar Mt_L  = (lo.M_tangent - (1.0 - lo.eta) * solid_lo.M_tangent)/(lo.eta + small),  Mt_R  = (hi.M_tangent - (1.0 - hi.eta) * solid_hi.M_tangent)/(hi.eta + small);
-        // Set::Scalar E_L   = (lo.E         - (1.0 - lo.eta) * solid_lo.E)        /(lo.eta + small),  E_R   = (hi.E         - (1.0 - hi.eta) * solid_hi.E)        /(hi.eta + small);
-        
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
         Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
-
-        // {
-        //     Set::Scalar _rho_L = fluid_lo.rho       ,  _rho_R = fluid_hi.rho;
-        //     Set::Scalar _Mn_L  = fluid_lo.M_normal  ,  _Mn_R  = fluid_hi.M_normal  ;
-        //     Set::Scalar _Mt_L  = fluid_lo.M_tangent ,  _Mt_R  = fluid_hi.M_tangent ;
-        //     Set::Scalar _E_L   = fluid_lo.E         ,  _E_R   = fluid_hi.E         ;
-        //     Util::Assert(INFO,TEST(fabs(rho_L - _rho_L) < 1E-8),"\n",lo,"\n", fluid_lo);
-        //     Util::Assert(INFO,TEST(fabs(rho_R - _rho_R) < 1E-8),rho_R,"\n",hi,"\n", fluid_hi,"\n",solid_hi);
-        //     Util::Assert(INFO,TEST(fabs(Mn_L  - _Mn_L) < 1E-8),lo," -- ", fluid_lo);
-        //     Util::Assert(INFO,TEST(fabs(Mn_R  - _Mn_R) < 1E-8),hi," -- ", fluid_hi);
-        //     Util::Assert(INFO,TEST(fabs(Mt_L  - _Mt_L) < 1E-8),lo," -- ", fluid_lo);
-        //     Util::Assert(INFO,TEST(fabs(Mt_R  - _Mt_R) < 1E-8),hi," -- ", fluid_hi);
-        //     Util::Assert(INFO,TEST(fabs(E_L - _E_L) < 1E-8),lo," -- ", fluid_lo);
-        //     Util::Assert(INFO,TEST(fabs(E_R - _E_R) < 1E-8),hi," -- ", fluid_hi);
-
-        // }
-
 
         // Ensure no negative densities
         rho_L = std::max(0.0,rho_L);
@@ -100,15 +80,9 @@ public:
         Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
         Set::Scalar a_RL_sq = std::max(0.0,(gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL));
 
-        if ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq))
+        if (verbose && ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq)))
         {   
             Util::Message(INFO, "sound speed ", a_RL_sq);
-            Util::Message(INFO, lo.eta, " ", hi.eta);
-
-            //Util::Message(INFO, "solid rho ", solid_lo.rho, " ",       solid_hi.rho);
-            //Util::Message(INFO, "solid Mn ", solid_lo.M_normal, " ",  solid_hi.M_normal);
-            //Util::Message(INFO, "solid Mt ", solid_lo.M_tangent, " ", solid_hi.M_tangent);
-            //Util::Message(INFO, "solid E ", solid_lo.E, " ",         solid_hi.E);
 
             Util::Message(INFO, "mixed rho ", lo.rho, " ", hi.rho);
             Util::Message(INFO, "mixed Mn ", lo.M_normal, " ", hi.M_normal);
@@ -159,34 +133,30 @@ public:
                 + (std::min(0.0,lambda1)*deltav1
                 + (0.5*rho_RL/(a_RL))*( std::min(0.0,lambda2)*deltav2 -
                                         std::min(0.0,lambda3)*deltav3)) 
-                ) * cell_eta
+                )
             ;
         
         if (fl.mass != fl.mass)
         {
-            // u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R));
-            Util::ParallelMessage(INFO,u_RL); // nan
-            Util::ParallelMessage(INFO,rho_L); // 1.15
-            Util::ParallelMessage(INFO,rho_R); // -0.067
-            Util::ParallelMessage(INFO,u_R); // -0.01
-
-
-            Util::ParallelMessage(INFO,lo);
-            Util::ParallelMessage(INFO,hi);
-            // Util::ParallelMessage(INFO,solid_lo);
-            // Util::ParallelMessage(INFO,solid_hi);
-
-            Util::ParallelMessage(INFO,rho_L);
-            Util::ParallelMessage(INFO,u_L);
-            Util::ParallelMessage(INFO,lambda1); 
-            Util::ParallelMessage(INFO,lambda2); 
-            Util::ParallelMessage(INFO,lambda3); 
-            Util::ParallelMessage(INFO,deltav1); 
-            Util::ParallelMessage(INFO,deltav2); // nan
-            Util::ParallelMessage(INFO,deltav3); // nan
-            Util::ParallelMessage(INFO,rho_RL); // nan
-            Util::ParallelMessage(INFO,a_RL);
-            Util::ParallelMessage(INFO,cell_eta);
+            if (verbose)
+            {
+                Util::ParallelMessage(INFO,u_RL); 
+                Util::ParallelMessage(INFO,rho_L);
+                Util::ParallelMessage(INFO,rho_R);
+                Util::ParallelMessage(INFO,u_R);
+                Util::ParallelMessage(INFO,lo);
+                Util::ParallelMessage(INFO,hi);
+                Util::ParallelMessage(INFO,rho_L);
+                Util::ParallelMessage(INFO,u_L);
+                Util::ParallelMessage(INFO,lambda1); 
+                Util::ParallelMessage(INFO,lambda2); 
+                Util::ParallelMessage(INFO,lambda3); 
+                Util::ParallelMessage(INFO,deltav1); 
+                Util::ParallelMessage(INFO,deltav2);
+                Util::ParallelMessage(INFO,deltav3);
+                Util::ParallelMessage(INFO,rho_RL); 
+                Util::ParallelMessage(INFO,a_RL);
+            }
             Util::Exception(INFO);
         }
 
@@ -197,7 +167,7 @@ public:
                 + (u_RL*std::min(0.0,lambda1)*deltav1
                 + (0.5*rho_RL/(a_RL))*( lambda2*std::min(0.0,lambda2)*deltav2 -
                                         lambda3*std::min(0.0,lambda3)*deltav3)) 
-                ) * cell_eta
+                ) 
             ;
         
         fl.energy =
@@ -206,13 +176,13 @@ public:
                 + (0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
                 + (0.5*rho_RL/(a_RL))*( (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
                                         (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
-                ) * cell_eta
+                ) 
             ;
 
         //
         // (Update the tangential momentum flux)
         //
-        fl.momentum_tangent = 0.5 * (rho_L * u_L * v_L + rho_R * u_R * v_R) * cell_eta;
+        fl.momentum_tangent = 0.5 * (rho_L * u_L * v_L + rho_R * u_R * v_R);
 
         return fl;
     }
@@ -220,122 +190,115 @@ public:
 
     static int Test()
     {
-        // Roe solver;
+        Roe solver;
         
 
-        // int failed = 0;
+        int failed = 0;
 
-        // const State solid(1.0, 0.0, 0.0, 0.0, 1.0);
-        // const State leftsol(1.0, 0.0, 0.0, 0.0, 1.0);
-        // const State rightsol(1.0, 0.0, 0.0, 0.0, 1.0);
-        // const Set::Scalar gamma = 1.4;
-        // const Set::Scalar pref = 10.0;
-        // const Set::Scalar small = 1E-10;
-        // const Set::Scalar cell_eta = 1.0;
+        Set::Scalar gamma = 1.4;
+        Set::Scalar pref = 10.0;
+        Set::Scalar small = 1E-10;
 
-        // // Test 1: Tangential Velocity Difference - No Normal Flux
-        // try {
-        //     State left  (1.0, 1.0, 0.0, 1.0, 1.0);
-        //     State center(1.0, 1.0, 1.0, 1.0, 1.0);
-        //     State right (1.0, 1.0, 2.0, 1.0, 1.0);
-        //     Flux fluxlo = solver.Solve(center, right, solid, solid, gamma, cell_eta, pref, small);
-        //     Flux fluxhi = solver.Solve(left, center,  solid, solid, gamma, cell_eta, pref, small);
+        // Test 1: Tangential Velocity Difference - No Normal Flux
+        try {
+            State left  (1.0, 1.0, 0.0, 1.0);
+            State center(1.0, 1.0, 1.0, 1.0);
+            State right (1.0, 1.0, 2.0, 1.0);
+            Flux fluxlo = solver.Solve(center, right, gamma, pref, small);
+            Flux fluxhi = solver.Solve(left, center,  gamma, pref, small);
 
-        //     if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
-        //         || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
-        //         || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
-        //         Util::Warning(INFO,   "left:    ",left);
-        //         Util::Warning(INFO,   "center:  ",center);
-        //         Util::Warning(INFO,   "right:   ",right);
-        //         Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
-        //         Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
-        //         Util::Exception(INFO, "Tangential velocity difference incorrectly affecting normal flux.");
-        //     }
-        //     Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",0);
-        // } catch ( std::_Nested_exception<std::runtime_error> &e)
-        // {
-        //     failed++;
-        //     Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",1);
-        // }
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
+                || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
+                || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
+                Util::Warning(INFO,   "left:    ",left);
+                Util::Warning(INFO,   "center:  ",center);
+                Util::Warning(INFO,   "right:   ",right);
+                Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
+                Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
+                Util::Exception(INFO, "Tangential velocity difference incorrectly affecting normal flux.");
+            }
+            Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",0);
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",1);
+        }
 
-        // // Test 2: Pure Transverse Velocity Difference
-        // try {
-        //     State left  (1.0, 0.0, 0.0, 1.0, 1.0);
-        //     State center(1.0, 0.0, 1.0, 1.0, 1.0);
-        //     State right (1.0, 0.0, 2.0, 1.0, 1.0);
-        //     Flux fluxlo = solver.Solve(left, center, leftsol, rightsol, gamma, cell_eta, pref, small);
-        //     Flux fluxhi = solver.Solve(center, right, leftsol, rightsol, gamma, cell_eta, pref, small);
+        // Test 2: Pure Transverse Velocity Difference
+        try {
+            State left  (1.0, 0.0, 0.0, 1.0);
+            State center(1.0, 0.0, 1.0, 1.0);
+            State right (1.0, 0.0, 2.0, 1.0);
+            Flux fluxlo = solver.Solve(left, center,  gamma, pref, small);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
+                || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
+                || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
+                Util::Warning(INFO,   "left:  ",left);
+                Util::Warning(INFO,   "center: ",center);
+                Util::Warning(INFO,   "right: ",right);
+                Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
+                Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
+                Util::Exception(INFO, "Pure transverse velocity difference affecting normal flux.");
+            }
+            Util::Test::SubMessage("Test 2: Pure transverse velocity difference",0);
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Test::SubMessage("Test 2: Pure transverse velocity difference",1);
+        }
 
-        //     if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
-        //         || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
-        //         || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
-        //         Util::Warning(INFO,   "left:  ",left);
-        //         Util::Warning(INFO,   "center: ",center);
-        //         Util::Warning(INFO,   "right: ",right);
-        //         Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
-        //         Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
-        //         Util::Exception(INFO, "Pure transverse velocity difference affecting normal flux.");
-        //     }
-        //     Util::Test::SubMessage("Test 2: Pure transverse velocity difference",0);
-        // } catch ( std::_Nested_exception<std::runtime_error> &e)
-        // {
-        //     failed++;
-        //     Util::Test::SubMessage("Test 2: Pure transverse velocity difference",1);
-        // }
+        // Test 3: Symmetry Test (no flux across identical states)
+        try {
+            State left(1.0, 0.0, 0.0, 1.0);
+            State center(1.0, 0.0, 0.0, 1.0);
+            State right(1.0, 0.0, 0.0, 1.0);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
+            Flux fluxlo = solver.Solve(left, center, gamma, pref, small);
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 // no change in mass flux
+                || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 // no change in momentum flux
+                || fabs(fluxhi.momentum_tangent) > 1E-10 // zero tangent flux
+                || fabs(fluxlo.momentum_tangent) > 1E-10 // zero tangent flux
+                || fabs(fluxhi.energy-fluxlo.energy) > 1E-10 // no change in energy flux
+                ) {
+                Util::Warning(INFO,   "left:  ",left);
+                Util::Warning(INFO,   "right: ",right);
+                Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
+                Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
+                Util::Exception(INFO, "Symmetric states should result in zero flux.");
+            }
+            Util::Test::SubMessage("Test 3: Constant states induces no flux difference",0);
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Test::SubMessage("Test 3: Constant states induces no flux difference",1);
+        }
 
-        // // Test 3: Symmetry Test (no flux across identical states)
-        // try {
-        //     State left(1.0, 0.0, 0.0, 1.0, 1.0);
-        //     State center(1.0, 0.0, 0.0, 1.0, 1.0);
-        //     State right(1.0, 0.0, 0.0, 1.0, 1.0);
-        //     Flux fluxhi = solver.Solve(center, right, solid, solid, gamma, cell_eta, pref, small);
-        //     Flux fluxlo = solver.Solve(left, center, solid, solid, gamma, cell_eta, pref, small);
+        // Test 4: Uniform Flow Test (no flux across uniform flow)
+        try {
+            State left (1.0, 1.0, 0.5, 1.0);
+            State center(1.0, 1.0, 0.5, 1.0);
+            State right (1.0, 1.0, 0.5, 1.0);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
+            Flux fluxlo = solver.Solve(left, center, gamma, pref, small);
+            if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 ||
+                fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 ||
+                fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
+                Util::Warning(INFO,   "left:   ",left);
+                Util::Warning(INFO,   "center: ",center);
+                Util::Warning(INFO,   "right:  ",right);
+                Util::Warning(INFO,   "Fluxlo: ",fluxlo);
+                Util::Warning(INFO,   "Fluxhi: ",fluxhi);
+                Util::Exception(INFO, "Uniform flow should result in no flux.");
+            }
+            Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",0);
+        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        {
+            failed++;
+            Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",1);
+        }
 
-        //     if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 // no change in mass flux
-        //         || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 // no change in momentum flux
-        //         || fabs(fluxhi.momentum_tangent) > 1E-10 // zero tangent flux
-        //         || fabs(fluxlo.momentum_tangent) > 1E-10 // zero tangent flux
-        //         || fabs(fluxhi.energy-fluxlo.energy) > 1E-10 // no change in energy flux
-        //         ) {
-        //         Util::Warning(INFO,   "left:  ",left);
-        //         Util::Warning(INFO,   "right: ",right);
-        //         Util::Warning(INFO,   "Fluxhi:  ",fluxhi);
-        //         Util::Warning(INFO,   "Fluxlo:  ",fluxlo);
-        //         Util::Exception(INFO, "Symmetric states should result in zero flux.");
-        //     }
-        //     Util::Test::SubMessage("Test 3: Constant states induces no flux difference",0);
-        // } catch ( std::_Nested_exception<std::runtime_error> &e)
-        // {
-        //     failed++;
-        //     Util::Test::SubMessage("Test 3: Constant states induces no flux difference",1);
-        // }
-
-        // // Test 4: Uniform Flow Test (no flux across uniform flow)
-        // try {
-        //     State left (1.0, 1.0, 0.5, 1.0, 1.0);
-        //     State center(1.0, 1.0, 0.5, 1.0, 1.0);
-        //     State right (1.0, 1.0, 0.5, 1.0, 1.0);
-        //     Flux fluxhi = solver.Solve(center, right, leftsol, rightsol, gamma, cell_eta, pref, small);
-        //     Flux fluxlo = solver.Solve(left, center, leftsol, rightsol, gamma, cell_eta, pref, small);
-
-        //     if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 ||
-        //         fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 ||
-        //         fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
-        //         Util::Warning(INFO,   "left:   ",left);
-        //         Util::Warning(INFO,   "center: ",center);
-        //         Util::Warning(INFO,   "right:  ",right);
-        //         Util::Warning(INFO,   "Fluxlo: ",fluxlo);
-        //         Util::Warning(INFO,   "Fluxhi: ",fluxhi);
-        //         Util::Exception(INFO, "Uniform flow should result in no flux.");
-        //     }
-        //     Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",0);
-        // } catch ( std::_Nested_exception<std::runtime_error> &e)
-        // {
-        //     failed++;
-        //     Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",1);
-        // }
-
-        // return failed;
+        return failed;
     }
 };
 }
