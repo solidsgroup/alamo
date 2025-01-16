@@ -309,7 +309,7 @@ public:
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         // Deciding whether to do an elastic solve or not
-        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.tol_rel);
+        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.driving_force_reference_prev, " ", crack.tol_rel);
         if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > crack.max_iter)
         {
             crack.crack_prop_iter = 0;
@@ -320,12 +320,21 @@ public:
            elastic_do_solve_now = true;
            crack.crack_prop_iter = 0;
         }
+        if (increase_load_step)
+        {
+            Util::Message(INFO, "Load step = ", loadstep+1);
+            elastic_do_solve_now = true;
+            crack.crack_prop_iter = 0;
+            increase_load_step = false;
+            if (loadstep > 0) set_initial_df_once = true; 
+            loadstep ++;
+        }
         
         // This means that the crack field has not converged.
         if (!elastic_do_solve_now) {crack.crack_prop_iter++; return;}
 
         // Doing an elastic solve
-        Base::Mechanics<brittle_model>::TimeStepBegin(a_time,a_step);
+        Base::Mechanics<brittle_model>::TimeStepBegin((double)loadstep,a_step);
 
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
@@ -436,24 +445,28 @@ public:
                         Set::Scalar theta = 0.0;
 
                         Set::Scalar temp = (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi));
-                        if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp);
-                        else theta = 0.0;
+                        // if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp);
+                        // else theta = 0.0;
 
-                        // if (mohr_center >= 0 && chi*chi <= (mohr_radius/sig1)) 
-                        //     { theta = 0.5 * std::acos(mohr_center * chi * chi / (mohr_radius * (1. - chi*chi))); 
-                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 1 nan"); }
-                        // else if (mohr_center >= 0 && chi*chi >= (mohr_radius/sig1)) 
-                        //     { theta = 0.0; }
-                        // else if (mohr_center < 0 && sig1 > 0 && chi*chi < (mohr_radius/sig1)) 
-                        //     { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); 
-                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 3 nan"); }
-                        // else if (mohr_center < 0 && sig1 > 0 && chi*chi >= (mohr_radius/sig1)) 
-                        //     { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); 
-                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 4 nan"); }
-                        // else if (sig1 < 0)
-                        //     { theta = 0.5 * std::acos( (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi)) ); 
-                        //       if (std::isnan(theta)) Util::Message(INFO, "Case 5 nan ", (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi))); 
-                        //     }
+                        if (mohr_center >= 0 && chi*chi <= (mohr_radius/sig1)) 
+                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
+                              else theta = 0.0; }
+                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 1 nan"); }
+                        else if (mohr_center >= 0 && chi*chi >= (mohr_radius/sig1)) 
+                            { theta = 0.0; }
+                        else if (mohr_center < 0 && sig1 > 0 && chi*chi < (mohr_radius/sig1)) 
+                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
+                              else theta = 0.0; }
+                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 3 nan"); }
+                        else if (mohr_center < 0 && sig1 > 0 && chi*chi >= (mohr_radius/sig1)) 
+                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
+                              else theta = 0.0; }
+                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 4 nan"); }
+                        else if (sig1 < 0)
+                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
+                              else theta = 0.0; }
+                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 5 nan ", (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi))); 
+                            // }
 
                         // Now we compute the new normal and tangent vector
                         Set::Vector normal = Set::Vector::Zero();
@@ -498,6 +511,9 @@ public:
                         // }
 
                         // Now let's do the history variable
+                        // if (energy(i,j,k,0) > history_var(i,j,k,0)) history_var(i,j,k,0) = energy(i,j,k,0);
+                        // if (energy(i,j,k,1) > history_var(i,j,k,1)) history_var(i,j,k,1) = energy(i,j,k,1);
+
                         if (energy(i,j,k,0) + energy(i,j,k,1) > history_var(i,j,k,0) + history_var(i,j,k,1))
                         {
                             history_var(i,j,k,0) = energy(i,j,k,0);
@@ -690,6 +706,20 @@ public:
     {
         if (elastic_do_solve_now)
             crack.driving_force_reference = crack.driving_force_norm;
+
+        if (set_initial_df_once)
+        {
+            Util::Message(INFO, "First setting the reference value");
+            crack.driving_force_reference_prev = crack.driving_force_reference;
+            set_initial_df_once = false;
+        }
+            
+        if (crack.driving_force_reference / crack.driving_force_reference_prev < crack.tol_rel)
+        {
+            increase_load_step = true;
+            crack.driving_force_reference_prev = crack.driving_force_reference;
+        }
+        
         elastic_do_solve_now = false;
     }
     
@@ -715,6 +745,7 @@ protected:
         Set::Scalar el_mult = 1.0;
 
         Set::Scalar driving_force_reference = 1.0;
+        Set::Scalar driving_force_reference_prev = 1.0;
         Set::Scalar driving_force_norm = 0.0;
         Set::Scalar tol_rel = 1.e-3;
         Set::Scalar tol_abs = 1.e-3;
@@ -736,6 +767,10 @@ protected:
     } material;
 
     bool elastic_do_solve_now = true;
+    bool increase_load_step = true;
+    bool set_initial_df_once = true;
+    int loadstep = 0;
+
     BC::BC<Set::Scalar> *bc_psi = nullptr;
 
     using Base::Mechanics<brittle_model>::m_type;

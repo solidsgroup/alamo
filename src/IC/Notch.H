@@ -17,7 +17,7 @@ namespace IC
 class Notch : public IC
 {
 public:
-    enum Mollifier {Dirac, Erf, Gaussian, Cosine};
+    enum Mollifier {Dirac, Erf, Gaussian, Cosine, Linear};
 
     Notch (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
     {
@@ -73,6 +73,10 @@ public:
                         {
                             value = (t >= 0.0) ? 1.0 - std::exp(-0.5*(4.0*t/eps)*(4.0*t/eps)) : 0.0;
                         }
+                        else if (moll == Mollifier::Linear)
+                        {
+                            value = (t > eps) ? 1.0 : t/eps;
+                        }
                         else if (moll == Mollifier::Dirac)
                         {
                             if (t < 0.0) value = 0.0;
@@ -118,6 +122,11 @@ public:
                             {
                                 t = ((x-nLeft).lpNorm<2>() - nThickness[m]/2.0);
                                 value = (t >= 0.0) ? 1.0 - std::exp(-0.5*(4.0*t/eps)*(4.0*t/eps)) : 0.0;
+                            }
+                            else if (moll == Mollifier::Linear)
+                            {
+                                t = ((x-nLeft).lpNorm<2>() - nThickness[m]/2.0);
+                                value = (t >= 0.0) ? ((t > eps) ? 1.0 : t/eps) : 0.0;
                             }
                             else if (moll == Mollifier::Dirac)
                             {
@@ -198,6 +207,11 @@ public:
                             {
                                 t = ((x-nRight).lpNorm<2>() - nThickness[m]/2.0);
                                 value = (t >= 0.0) ? 1.0 - std::exp(-0.5*(4.0*t/eps)*(4.0*t/eps)) : 0.0;
+                            }
+                            else if (moll == Mollifier::Linear)
+                            {
+                                t = ((x-nRight).lpNorm<2>() - nThickness[m]/2.0);
+                                value = (t >= 0.0) ? ((t > eps) ? 1.0 : t/eps) : 0.0;
                             }
                             else if (moll == Mollifier::Dirac)
                             {
@@ -335,7 +349,7 @@ public:
         else
         {
             for (int i=0; i<value.nThickness.size(); i++)
-                if(value.nThickness[i] < 0.) value.nThickness[i] = 0.01;
+                if(value.nThickness[i] < 0.) value.nThickness[i] = 0.0;
         }
         
         if(value.nLength.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of length and centers");
@@ -367,6 +381,12 @@ public:
         else if (mollifier == "gauss" || mollifier == "Gauss")
         {
             value.moll = Mollifier::Gaussian;
+            for (int i=0; i<value.nRadius.size(); i++)
+                value.nRadius[i] = 0.5*value.nThickness[i];
+        }
+        else if (mollifier == "linear" || mollifier == "Linear")
+        {
+            value.moll = Mollifier::Linear;
             for (int i=0; i<value.nRadius.size(); i++)
                 value.nRadius[i] = 0.5*value.nThickness[i];
         }

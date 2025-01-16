@@ -1,11 +1,11 @@
 alamo.program = fracture_pfczm
 
 timestep = 1e-4
-stop_time = 1.e-4
+stop_time = 1.e0
 
 plot_file = tests/Fracture2DPFCZM/output
-amr.plot_int = 1000
-amr.max_level = 4
+amr.plot_int = 100
+amr.max_level = 6
 amr.n_cell = 64 64
 amr.blocking_factor = 16
 amr.regrid_int = 10
@@ -17,7 +17,7 @@ geometry.prob_hi = 0.5 0.5
 geometry.is_periodic = 0 0
 
 crack.refinement_threshold = 0.01
-crack.df.tol_rel = 0.001
+crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
 
 crack.df.mult_Gc = 1.0
@@ -27,23 +27,24 @@ crack.df.el_mult = 1.e11
 
 crack.model1.type = pfczm
 crack.model1.pfczm.G_c = 2.7e3          # 2.7 N/mm
-crack.model1.pfczm.f_t = 3.0e7          # 30 MPa
+crack.model1.pfczm.fracture_strength = 30.e7          # 30 MPa
 crack.model1.pfczm.E = 210.0e9          # 210 GPa
-crack.model1.pfczm.zeta = 5.e-3         # 1mm
-crack.model1.pfczm.mobility = 1.0e-3
+crack.model1.pfczm.zeta = 1.e-3         # 1mm
+crack.model1.pfczm.mobility = 1.0e-1
 crack.model1.pfczm.gtype = wu_linear
 crack.model1.pfczm.wtype = wu
-crack.model1.pfczm.g2type = wu_linear
-crack.model1.pfczm.threshold = 0.0
+# crack.model1.pfczm.g2type = wu_linear
+crack.model1.pfczm.threshold = 0.0 
 
 
 crack.ic.type = notch
 crack.ic.notch.center = -0.5 0.0
 crack.ic.notch.orientation = 1.0 0.0
-crack.ic.notch.thickness = 2.e-2
-crack.ic.notch.length = 5.e-1
-crack.ic.notch.eps = 1.e-2
-crack.ic.notch.mollifier = erf
+crack.ic.notch.thickness = 0.0
+crack.ic.notch.length = 3.e-1
+crack.ic.notch.thickness = 1.e-3
+crack.ic.notch.eps = 8.e-3
+crack.ic.notch.mollifier = linear
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
@@ -66,9 +67,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi = 0.0 2.e-4
-bc.constant.val.xloyhi = 0.0 2.e-4
-bc.constant.val.xhiyhi = 0.0 2.e-4
+bc.constant.val.yhi = 0.0 (0,10:3.e-4,5.e-4)
+bc.constant.val.xloyhi = 0.0 (0,10:3.e-4,5.e-4) #3.e-4
+bc.constant.val.xhiyhi = 0.0 (0,10:3.e-4,5.e-4) #3.e-4
 
 ### Mode-II test
 # bc.type = constant
@@ -80,9 +81,9 @@ bc.constant.val.xhiyhi = 0.0 2.e-4
 # bc.constant.type.xhi    = trac disp
 # bc.constant.type.xhiylo = disp disp
 # bc.constant.type.xhiyhi = disp disp
-# bc.constant.val.yhi     = 6.e-5 0.0
-# bc.constant.val.xloyhi  = 6.e-5 0.0
-# bc.constant.val.xhiyhi  = 6.e-5 0.0
+# bc.constant.val.yhi     = 3.e-4 0.0
+# bc.constant.val.xloyhi  = 3.e-4 0.0
+# bc.constant.val.xhiyhi  = 3.e-4 0.0
 
 
 

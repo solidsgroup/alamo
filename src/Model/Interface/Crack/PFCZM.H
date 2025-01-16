@@ -85,28 +85,43 @@ public:
         {
             pp.query("E", youngs);
             pp.query("nu", nu);
-            pp.query("tensile_strength", tensile_strength);
-            pp.query("shear_strength", shear_strength);
+            pp.query("fracture_strength", fracture_strength);
+            pp.query("chi", value._chi);
             pp.query("compressive_strength", compressive_strength);
+            value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
 
-            Set::Scalar chi = shear_strength/tensile_strength;
+            tensile_strength = fracture_strength / value.k1;
+            shear_strength = value._chi * tensile_strength;
+            value._beta_bar = (1.0 / (value._chi * value._chi)) - (compressive_strength * compressive_strength / (4.0 * value._chi * value._chi * shear_strength * shear_strength));
+
+            
+
+            // pp.query("tensile_strength", tensile_strength);
+            // pp.query("shear_strength", shear_strength);
+            // pp.query("compressive_strength", compressive_strength);
+            // Set::Scalar chi = shear_strength/tensile_strength;
+
             Set::Scalar mu = 0.5 * youngs / (1. + nu);
 
-            value._chi = chi;
-            value.k1 = ( chi < 1/std::sqrt(2) ) ? ( 2 * chi * std::sqrt(1.0 - chi*chi) ) : 1.0;
-            value._beta_bar = (1.0 / (chi*chi)) - ((compressive_strength*compressive_strength)/(4.0*chi*chi*shear_strength*shear_strength));
+            // value._chi = chi;
+            // value.k1 = ( chi < 1/std::sqrt(2) ) ? ( 2 * chi * std::sqrt(1.0 - chi*chi) ) : 1.0;
+            // value._beta_bar = (1.0 / (chi*chi)) - ((compressive_strength*compressive_strength)/(4.0*chi*chi*shear_strength*shear_strength));
             
             value._GcI_bar = value._Gc/(value.k1*value.k1);
-            value._GcII_bar = value._GcI_bar * youngs * chi * chi / mu ;
+            value._GcII_bar = value._GcI_bar * youngs * value._chi * value._chi / mu ;
             fracture_strength = tensile_strength * value.k1;
 
-            Util::Message(INFO, "Chi = ", chi);
+            Util::Message(INFO, "Chi = ", value._chi);
             Util::Message(INFO, "mu = ", mu);
             Util::Message(INFO, "k1 = ", value.k1);
             Util::Message(INFO, "beta_bar = ", value._beta_bar);
             Util::Message(INFO, "GcI_bar = ", value._GcI_bar);
             Util::Message(INFO, "GcII_bar = ", value._GcII_bar);
             Util::Message(INFO, "f_t = ", fracture_strength);
+            Util::Message(INFO, "f_c = ", compressive_strength);
+            Util::Message(INFO, "sig_t = ", tensile_strength);
+            Util::Message(INFO, "tau_s = ", shear_strength);
+
         }
         else
         {
