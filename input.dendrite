@@ -1,88 +1,56 @@
-#@
-#@
-#@
-#@ args = amr.n_cell = 64 8
-#@ args = geometry.prob_lo = -24.0 -3 
-#@ args = geometry.prob_hi =  24.0  3 
-#@ args = amr.blocking_factor = 2
+# Simulation length
+timestep = 2E-4
+stop_time = 10.0
 
-
-
-
-alamo.program = allencahn
-plot_file = ./output.allencahn
-amr.plot_dt = 0.1
-amr.max_grid_size = 500000
+# AMR parameters
+amr.plot_dt = 0.01
+amr.max_level = 2
+amr.n_cell = 128 64 64
 amr.blocking_factor = 4
-amr.regrid_int = 100
-amr.grid_eff = 0.7
-amr.max_level = 3
-timestep  = 1e-2
-amr.n_cell = 64 64
-geometry.prob_lo = -24.0 -24.0 0.0 # [ m ] 
-geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
-geometry.is_periodic = 0 0 0
-stop_time = 1000.0
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = -6.0 0 0
+geometry.prob_hi = 6.0 6.0 6.0
+geometry.is_periodic= 0 0 0
+
+alamo.program = dendrite
+plot_file = ./output.dendrite
 
 
-allencahn.ch.direction = 1
-allencahn.ch.direction_tstart = 10.0
-tstart = 10.0
-
-#alamo.program = allencahn
-
-### OUTPUT ###
-
-#plot_file = tests/AllenCahn/output
-
-### MESHING ###
-#amr.plot_int = 1
-#amr.plot_int = 1000
-#amr.max_level = 2
-#amr.max_grid_size = 500000
-#amr.blocking_factor = 2
-#amr.grid_eff = 0.8
-#amr.n_cell = 96 64 0
-#geometry.prob_lo = -1.5 -1.0 0.0 # [ m ] 
-#geometry.prob_hi =  1.5  1.0 0.0 # [ m ]
+#amr.n_cell = 64 64
+#geometry.prob_lo = -24.0 -24.0 0.0 # [ m ] 
+#geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
 #geometry.is_periodic = 0 0 0
-#timestep  = 0.01
-#stop_time = 100.0
-allencahn.alpha.bc.type.xlo = neumann
-allencahn.alpha.bc.type.xhi = neumann
-allencahn.alpha.bc.type.ylo = neumann
-allencahn.alpha.bc.type.yhi = neumann
-allencahn.alpha.bc.val.xlo = 0.0
-allencahn.alpha.bc.val.xhi = 0.0
-allencahn.alpha.bc.val.ylo = 0.0
-allencahn.alpha.bc.val.yhi = 0.0
-allencahn.alpha.ic.type = png
-allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
-allencahn.alpha.ic.png.fit = coord
-allencahn.alpha.ic.png.coord.lo = -38 -38
-allencahn.alpha.ic.png.coord.hi = 38 38
-allencahn.alpha.ic.png.max = 0
-allencahn.alpha.ic.png.min = 255
-
-allencahn.refinement_threshold = 0.1
+#stop_time = 1000.0
 
 
-#allencahn.alpha.ic.type = expression
-#allencahn.alpha.ic.expression.region0 = "0.5 * (1 + tanh((sqrt(x^2+y^2) - 1.0)/0.1))"
-#allencahn.alpha.ic.type = psread
-#allencahn.alpha.ic.psread.eps = 0.2
-#allencahn.alpha.ic.psread.filename = 2d.xyzr
-#allencahn.alpha.ic.psread.mult = 10.0
-#allencahn.alpha.ic.psread.x0 = -20.0 0
-#allencahn.alpha.ic.psread.invert = 1
-allencahn.ch.L = 10.0
-allencahn.ch.eps = 0.2
-allencahn.ch.grad = 0.01
-allencahn.ch.chempot = 0.01
-allencahn.ch.direction = 0
+tstart = 000.1
+invert = 1
 
-
-
+dendrite.ic.phi.region0  = "(x-1.0)^2 + (y-1.0)^2 + z^2 < 0.1"
+dendrite.ic.temp.constant.DeltaT = 0.25
+dendrite.ic.temp.region0 = "-DeltaT*(x^2 + y^2 + z^2 > 0.1)"
+dendrite.tau = 3E-4
+dendrite.diffusion = 1.0
+dendrite.eps = 1E-2
+dendrite.alpha = 0.9
+dendrite.gamma = 55.0
+dendrite.delta = 0.5
+dendrite.theta = 15.0
+dendrite.bc.temp.type.xhi = neumann
+dendrite.bc.temp.type.xlo = neumann
+dendrite.bc.temp.type.yhi = neumann
+dendrite.bc.temp.type.ylo = neumann
+dendrite.bc.temp.type.zhi = neumann
+dendrite.bc.temp.type.zlo = neumann
+dendrite.bc.phi.type.xhi = neumann
+dendrite.bc.phi.type.xlo = neumann
+dendrite.bc.phi.type.yhi = neumann
+dendrite.bc.phi.type.ylo = neumann
+dendrite.bc.phi.type.zhi = neumann
+dendrite.bc.phi.type.zlo = neumann
 
 
 
@@ -97,7 +65,7 @@ allencahn.ch.direction = 0
 #hydro.deltapInterface.ic.expression.region0 = "0.0"
 ### HYDRO PARAM ###
 hydro.gamma = 1.4
-hydro.mu    = 5.0
+hydro.mu    = 2.0
 hydro.pref    = 10000
 #hydro.rho_solid = 30.0 #kg/m^3
 #hydro.rho_fluid = 20.0 #kg/m^3
@@ -131,7 +99,7 @@ hydro.density.bc.type.xlo = dirichlet
 hydro.density.bc.type.ylo = neumann
 hydro.density.bc.type.yhi = neumann
 hydro.density.bc.val.xhi = 0.0
-hydro.density.bc.val.xlo = 42.0
+hydro.density.bc.val.xlo = 1.0
 hydro.density.bc.val.ylo = 0.0 
 hydro.density.bc.val.yhi = 0.0
 hydro.energy.bc.type.xhi = neumann
@@ -139,7 +107,7 @@ hydro.energy.bc.type.xlo = dirichlet #neumann
 hydro.energy.bc.type.ylo = neumann
 hydro.energy.bc.type.yhi = neumann
 hydro.energy.bc.val.xhi = 0.0
-hydro.energy.bc.val.xlo = 1000.0 #0.0
+hydro.energy.bc.val.xlo = 1.0 #0.0
 hydro.energy.bc.val.ylo = 0.0 
 hydro.energy.bc.val.yhi = 0.0
 hydro.momentum.bc.type.xhi = neumann neumann
@@ -168,8 +136,8 @@ hydro.u0.ic.constant.value = 0.0
 hydro.q.ic.constant.value = 0.0
 
 hydro.small=1E-8
-hydro.cutoff=0.2
-hydro.lagrange=2000.0
+hydro.cutoff=0.01
+hydro.lagrange=1000.0
 
 #hydro.Lfactor=-10
 #hydro.Pfactor=10
@@ -180,17 +148,8 @@ amr.abort_on_nan = 0
 
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
-dynamictimestep.max  = 0.01
-dynamictimestep.min  = 1E-4
-#dynamictimestep.cfl = 0.005
+dynamictimestep.max  = 2E-4
+dynamictimestep.min  = 1E-8
 hydro.cfl   = 10.0
-hydro.cfl_v   = 10.0
+hydro.cfl_v   = 1.0
 #hydro.small=1E-4
-
-
-
-
-amr.n_cell = 64 8
-geometry.prob_lo = -24.0 -3 
-geometry.prob_hi =  24.0  3 
-amr.blocking_factor = 2

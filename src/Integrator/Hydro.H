@@ -6,7 +6,6 @@
 #include <memory>
 
 #include "Integrator/Integrator.H"
-#include "Integrator/AllenCahn.H"
 #include "IO/ParmParse.H"
 
 #include "BC/BC.H"
@@ -25,7 +24,7 @@
 
 namespace Integrator
 {
-class Hydro : virtual public AllenCahn, virtual public Integrator
+class Hydro : virtual public Integrator
 {
 public:
 

@@ -3,18 +3,16 @@
 #ifndef INTEGRATOR_SFI_H
 #define INTEGRATOR_SFI_H
 
-#include "Integrator/AllenCahn.H"
-#include "Integrator/Hydro.H"
-
 namespace Integrator
 {
+template<class PF>
 class SFI : 
-    virtual public AllenCahn,
+    virtual public PF,
     virtual public Hydro
 {
 public:
     SFI():
-        AllenCahn(),
+        PF(),
         Hydro()
     {
     }
@@ -22,10 +20,12 @@ public:
     {Parse(*this,pp);}
     static void Parse(SFI &value, IO::ParmParse &pp)
     {
-        pp.queryclass("allencahn",static_cast<AllenCahn*>(&value));
-        pp.queryclass("hydro",static_cast<Hydro*>(&value));
+        pp.queryclass<PF>(PF::name,&value);
+        pp.queryclass<Hydro>("hydro",&value);
+
         // time to activate hydro integrator
         pp.query_default("tstart",value.tstart,0.0);
+        pp.query_default("invert",value.invert,false);
 
     }
 
@@ -33,9 +33,7 @@ public:
 protected:
     void Initialize(int lev) override
     {
-        AllenCahn::Initialize(lev);
-        AllenCahn::ic->Initialize(lev,eta_mf,0.0);
-        AllenCahn::ic->Initialize(lev,eta_old_mf,0.0);
+        PF::Initialize(lev);
         Hydro::Initialize(lev);
     }
 
@@ -49,21 +47,20 @@ protected:
                 Hydro::Mix(lev);
             }
             hydro_initialized=true;
-            ch.direction = 1;
         }
-        AllenCahn::TimeStepBegin(a_time, a_step);
+        PF::TimeStepBegin(a_time, a_step);
         if (hydro_initialized) Hydro::TimeStepBegin(a_time, a_step);
     }
 
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
-        AllenCahn::Advance(a_lev, a_time, a_dt);
+        PF::Advance(a_lev, a_time, a_dt);
         if (hydro_initialized) Hydro::Advance(a_lev, a_time, a_dt);
     }
 
     void TagCellsForRefinement(int a_lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
     {
-        AllenCahn::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
+        PF::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
         if (hydro_initialized) Hydro::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
     }
 
@@ -72,14 +69,22 @@ protected:
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.growntilebox();
-            amrex::Array4<Set::Scalar> const& eta_old = (*eta_old_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const& alpha_old = (*alpha_old_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const& alpha_new = (*alpha_mf[lev]).array(mfi);
+            Set::Patch<Set::Scalar> eta_old          = Hydro::eta_old_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> eta_new          = Hydro::eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> pf_eta_old = PF::eta_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> pf_eta_new = PF::eta_mf.Patch(lev,mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                eta_new(i,j,k) = alpha_new(i,j,k);
-                eta_old(i,j,k) = alpha_old(i,j,k);
+                if (invert)
+                {
+                    eta_new(i,j,k) = 1.0 - pf_eta_new(i,j,k);
+                    eta_old(i,j,k) = 1.0 - pf_eta_old(i,j,k);
+                }
+                else
+                {
+                    eta_new(i,j,k) = pf_eta_new(i,j,k);
+                    eta_old(i,j,k) = pf_eta_old(i,j,k);
+                }
             });
         }
         Util::RealFillBoundary(*eta_mf[lev], geom[lev]);

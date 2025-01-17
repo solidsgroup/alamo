@@ -29,6 +29,8 @@ namespace Integrator
 class Dendrite : virtual public Integrator
 {
 public:
+    static constexpr const char* name = "dendrite";
+
     // Empty constructor
     Dendrite() : Integrator()
     {}
@@ -44,9 +46,16 @@ public:
         pp_query_required("alpha", value.alpha); // Pre-multiplier of "m" barrier height
         pp_query_required("delta", value.delta); // Anisotropy factor
         pp_query_required("gamma", value.gamma); // Anisotropic temperature coupling factor
+        pp_query_default("diffusion", value.diffusion,1.0); // Thermal constant
 
         pp_query_required("eps", value.eps); // Diffuse boundary width
         pp_query_required("tau", value.tau); // Diffusive timescale
+
+        pp_query_default("theta", value.theta, 0.0); // Orientation about z axis (Deg)
+
+        Eigen::Matrix3d R3d;
+        R3d = Eigen::AngleAxisd(value.theta*Set::Constant::Pi/180.0,  Eigen::Vector3d::UnitZ());
+        value.R = Set::reduce(R3d);
 
         // Refinement criteria for temperature
         pp_query_default("heat.refinement_threshold", value.refinement_threshold_temp, 0.01);
@@ -109,6 +118,8 @@ protected:
 
                 Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
 
+                gradphi = R * gradphi;
+
                 // 
                 // Calculate anisotropy function
                 // [ equation 2.12 in reference]
@@ -140,7 +151,7 @@ protected:
                 // [ equation 2.11 in the reference ]
                 //
                 Set::Scalar laptemp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-                temp_new(i, j, k) = temp(i, j, k) + dt * (laptemp + Dphi);
+                temp_new(i, j, k) = temp(i, j, k) + dt * (diffusion*laptemp + Dphi);
             });
         }
     }
@@ -185,15 +196,20 @@ protected:
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> phi_old_mf;
 
+    Set::Field<Set::Scalar> &eta_mf = phi_mf;
+    Set::Field<Set::Scalar> &eta_old_mf = phi_old_mf;
+
 private:
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 1;           // Number of ghost cells
 
-
     // calculation of m
-    Set::Scalar alpha, delta, gamma;
+    Set::Scalar alpha, delta, gamma, diffusion=NAN;
     // evolution of p
     Set::Scalar eps, tau;
+    // orientation
+    Set::Scalar theta = NAN;
+    Set::Matrix R = Set::Matrix::Identity();
 
     Set::Scalar refinement_threshold_temp = NAN; // Criterion for cell refinement
     Set::Scalar refinement_threshold_phi = NAN; // Criterion for cell refinement

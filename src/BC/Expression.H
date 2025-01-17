@@ -189,15 +189,12 @@ public:
             "zlo","zhi",
             "zhixlo","zloxlo","zhixhi","zloxhi","ylozlo","ylozhi","yhizlo","yhizhi",
             "xloylozlo","xloylozhi","xloyhizlo","xloyhizhi","xhiylozlo","xhiylozhi","xhiyhizlo","xhiyhizhi"};
-        Util::Message(INFO,"size ",ignore_in_2d.size());
         for (unsigned int n = 0; n < ignore_in_2d.size(); n++)
         {
             std::string querystr = std::string("val.") + ignore_in_2d[n];
             pp.ignore(querystr);
-            Util::Message(INFO,"ignoring ",querystr);
             querystr = std::string("type.") + ignore_in_2d[n];
             pp.ignore(querystr);
-            Util::Message(INFO,"ignoring ",querystr);
         }
 #endif
         

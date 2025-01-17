@@ -183,8 +183,6 @@ void Hydro::Initialize(int lev)
 
 void Hydro::Mix(int lev)
 {
-    Util::Message(INFO, eta_mf[lev]->nComp());
-
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();

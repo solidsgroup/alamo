@@ -6,7 +6,9 @@
 #include "IO/ParmParse.H"
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
-#include "AMReX_ParmParse.H"
+#include "Integrator/Dendrite.H"
+#include "Integrator/AllenCahn.H"
+#include "Integrator/Hydro.H"
 
 #if AMREX_SPACEDIM==2
 #include "Integrator/SFI.H"
@@ -19,12 +21,18 @@ int main (int argc, char* argv[])
     #if AMREX_SPACEDIM==2
     IO::ParmParse pp;
     std::string program;
-    pp.query("alamo.program",program);
+    pp.query_default("alamo.program",program,"allencahn");
     srand(2);
 
-    Integrator::SFI integrator(pp);
-    integrator.InitData();
-    integrator.Evolve();
+    Integrator::Integrator *integrator = nullptr;
+    if (program == "allencahn")     integrator = new Integrator::SFI<Integrator::AllenCahn>(pp);
+    else if (program == "dendrite") integrator = new Integrator::SFI<Integrator::Dendrite>(pp);
+    else Util::Abort(INFO,"Invalid program ",program);
+    
+    integrator->InitData();
+    integrator->Evolve();
+
+    delete integrator;
     #else
 
     Util::Abort(INFO,"This integrator works in 2D only");
