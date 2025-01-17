@@ -25,6 +25,7 @@ public:
 
         // time to activate hydro integrator
         pp.query_default("tstart",value.tstart,0.0);
+        // If true, set hydro_eta to 1-pf_eta
         pp.query_default("invert",value.invert,false);
 
     }
