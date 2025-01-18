@@ -7,14 +7,12 @@
 #include "AMReX_Geometry.H"
 #include "AMReX_MultiFab.H"
 #include "AMReX_Array4.H"
-#include <string>
 #include "IC/IC.H"
-#include "IC/SodShock.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 #include "Model/Fluid/Fluid.H"
-
+#include <string>
 
 namespace IC {
 
@@ -49,22 +47,22 @@ public:
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Vector x = Set::Position(i, j, k, geom[lev], type);
 
-                    if (mf_name == "ic.pvec.riemann2d") {
-                        if (x(0) < shock_xpos && x(1) < shock_ypos) {
+                    if (getMfName() == "ic.pvec.riemann2d") {
+                        if (x(0) < getShockXPos() && x(1) < getShockYPos()) {
                             assignQuadrantValues(phi, i, j, k, n, 3);
-                        } else if (x(0) >= shock_xpos && x(1) < shock_ypos) {
+                        } else if (x(0) >= getShockXPos() && x(1) < getShockYPos()) {
                             assignQuadrantValues(phi, i, j, k, n, 4);
-                        } else if (x(0) < shock_xpos && x(1) >= shock_ypos) {
+                        } else if (x(0) < getShockXPos() && x(1) >= getShockYPos()) {
                             assignQuadrantValues(phi, i, j, k, n, 1);
                         } else {
                             assignQuadrantValues(phi, i, j, k, n, 2);
                         }
-                    } else if (mf_name == "ic.pressure.riemann2d") {
-                        phi(i, j, k, n) = (x(0) < shock_xpos && x(1) < shock_ypos) ? q3_pressure :
-                                          (x(0) >= shock_xpos && x(1) < shock_ypos) ? q4_pressure :
-                                          (x(0) < shock_xpos && x(1) >= shock_ypos) ? q1_pressure : q2_pressure;
+                    } else if (getMfName() == "ic.pressure.riemann2d") {
+                        phi(i, j, k, n) = (x(0) < getShockXPos() && x(1) < getShockYPos()) ? q3_pressure :
+                                          (x(0) >= getShockXPos() && x(1) < getShockYPos()) ? q4_pressure :
+                                          (x(0) < getShockXPos() && x(1) >= getShockYPos()) ? q1_pressure : q2_pressure;
                     } else {
-                        Util::Abort(INFO, "Unknown MultiFab name: " + mf_name);
+                        Util::Abort(INFO, "Unknown MultiFab name: " + getMfName());
                     }
                 });
             }
@@ -73,46 +71,46 @@ public:
 
 private:
     void initialize(IO::ParmParse& pp, const std::string& name) {
-        mf_name = name;
+        setMfName(name);
 
-        if (mf_name == "ic.pvec.riemann2d") {
-            pp.query("ic.pvec.q1.DENS", q1_density);
-            pp.query("ic.pvec.q2.DENS", q2_density);
-            pp.query("ic.pvec.q3.DENS", q3_density);
-            pp.query("ic.pvec.q4.DENS", q4_density);
+        if (getMfName() == "ic.pvec.riemann2d") {
+            pp.query("ic.pvec.riemann2d.q1.DENS", q1_density);
+            pp.query("ic.pvec.riemann2d.q2.DENS", q2_density);
+            pp.query("ic.pvec.riemann2d.q3.DENS", q3_density);
+            pp.query("ic.pvec.riemann2d.q4.DENS", q4_density);
 
-            pp.query("ic.pvec.q1.UVEL", q1_velocity[0]);
-            pp.query("ic.pvec.q2.UVEL", q2_velocity[0]);
-            pp.query("ic.pvec.q3.UVEL", q3_velocity[0]);
-            pp.query("ic.pvec.q4.UVEL", q4_velocity[0]);
+            pp.query("ic.pvec.riemann2d.q1.UVEL", q1_velocity[0]);
+            pp.query("ic.pvec.riemann2d.q2.UVEL", q2_velocity[0]);
+            pp.query("ic.pvec.riemann2d.q3.UVEL", q3_velocity[0]);
+            pp.query("ic.pvec.riemann2d.q4.UVEL", q4_velocity[0]);
 
-            pp.query("ic.pvec.q1.VVEL", q1_velocity[1]);
-            pp.query("ic.pvec.q2.VVEL", q2_velocity[1]);
-            pp.query("ic.pvec.q3.VVEL", q3_velocity[1]);
-            pp.query("ic.pvec.q4.VVEL", q4_velocity[1]);
+            pp.query("ic.pvec.riemann2d.q1.VVEL", q1_velocity[1]);
+            pp.query("ic.pvec.riemann2d.q2.VVEL", q2_velocity[1]);
+            pp.query("ic.pvec.riemann2d.q3.VVEL", q3_velocity[1]);
+            pp.query("ic.pvec.riemann2d.q4.VVEL", q4_velocity[1]);
 
-            pp.query("ic.pressure.q1", q1_pressure);
-            pp.query("ic.pressure.q2", q2_pressure);
-            pp.query("ic.pressure.q3", q3_pressure);
-            pp.query("ic.pressure.q4", q4_pressure);
-        } else if (mf_name == "ic.pressure.riemann2d") {
-            pp.query("ic.pressure.q1", q1_pressure);
-            pp.query("ic.pressure.q2", q2_pressure);
-            pp.query("ic.pressure.q3", q3_pressure);
-            pp.query("ic.pressure.q4", q4_pressure);
+            pp.query("ic.pvec.riemann2d.q1", q1_pressure);
+            pp.query("ic.pvec.riemann2d.q2", q2_pressure);
+            pp.query("ic.pvec.riemann2d.q3", q3_pressure);
+            pp.query("ic.pvec.riemann2d.q4", q4_pressure);
+        } else if (getMfName() == "ic.pressure.riemann2d") {
+            pp.query("ic.pressure.riemann2d.q1", q1_pressure);
+            pp.query("ic.pressure.riemann2d.q2", q2_pressure);
+            pp.query("ic.pressure.riemann2d.q3", q3_pressure);
+            pp.query("ic.pressure.riemann2d.q4", q4_pressure);
         }
 
         pp.query("shock.xpos", shock_xpos);
         pp.query("shock.ypos", shock_ypos);
 
-        Util::Message(INFO, "Initialized Riemann2D with shock positions: x=" + std::to_string(shock_xpos) + ", y=" + std::to_string(shock_ypos));
+        Util::Message(INFO, "Initialized Riemann2D with shock positions: x=" + std::to_string(getShockXPos()) + ", y=" + std::to_string(getShockYPos()));
     }
 
     void assignQuadrantValues(amrex::Array4<Set::Scalar> const& phi, int i, int j, int k, int n, int quadrant) const {
 
         Model::Fluid::Fluid fluid_model;   // Create an instance of the Fluid model
-          
-        Set::Scalar gamma = 1.4
+
+        Set::Scalar gamma = 1.4;
 
         switch (quadrant) {
             case 1:
@@ -137,7 +135,7 @@ private:
                 phi(i, j, k, n) = (n == variable_indices->DENS) ? q4_density :
                                    (n == variable_indices->UVEL) ? q4_velocity[0] :
                                    (n == variable_indices->VVEL) ? q4_velocity[1] :
-                                   (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q4_density, q4_density, gamma) : 0.0;
+                                   (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q4_density, q4_pressure, gamma) : 0.0;
                 break;
         }
     }
@@ -157,6 +155,16 @@ private:
     Set::Vector q2_velocity = {0.0, 0.0};
     Set::Vector q3_velocity = {0.0, 0.0};
     Set::Vector q4_velocity = {0.0, 0.0};
+
+protected:
+    using SodShock::shock_xpos;
+    using SodShock::shock_ypos;
+    using SodShock::mf_name;
+
+    const std::string& getMfName() const { return mf_name; }
+    Set::Scalar getShockXPos() const { return shock_xpos; }
+    Set::Scalar getShockYPos() const { return shock_ypos; }
+    void setMfName(const std::string& name) { mf_name = name; }
 };
 
 } // namespace IC
