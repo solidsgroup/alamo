@@ -20,7 +20,7 @@ public:
     // Add field variables or pressure
     virtual void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar time);
 
-private:
+protected:
     // Initialize the SodShock properties
     void initialize(IO::ParmParse& pp, const std::string& name);
 
@@ -31,6 +31,12 @@ private:
     const Util::ScimitarX_Util::getVariableIndex* variable_indices;
     bool requires_variable_indices;
 
+    // Shock position
+    Set::Scalar shock_xpos = 0.5; // Shock position in x-direction
+    Set::Scalar shock_ypos = 0.0; // Shock position in y-direction
+    Set::Scalar shock_zpos = 0.0; // Shock position in z-direction
+
+private:
     // QVec initialization variables
     Set::Scalar rho_left = 1.0;  // Left density
     Set::Scalar rho_right = 0.125; // Right density
@@ -45,10 +51,6 @@ private:
     Set::Scalar p_left = 1.0;     // Left pressure
     Set::Scalar p_right = 0.1;    // Right pressure
 
-    // Shock position
-    Set::Scalar shock_xpos = 0.5; // Shock position in x-direction
-    Set::Scalar shock_ypos = 0.0; // Shock position in y-direction
-    Set::Scalar shock_zpos = 0.0; // Shock position in z-direction
 };
 
 } // namespace IC

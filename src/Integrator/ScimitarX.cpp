@@ -4,7 +4,7 @@
 #include "BC/Nothing.H"
 #include "BC/Constant.H"
 #include "IC/SodShock.H"
-#include "IC/Reimann2D.H"
+#include "IC/Riemann2D.H"
 #include "Model/Fluid/Fluid.H"
 #include "Numeric/Stencil.H"
 #include "Numeric/TimeStepper.H"
@@ -102,26 +102,17 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
 
         if (type == "sodshock") {
             value.ic_PVec = new IC::SodShock(value.geom, pp, "ic.pvec.sodshock", ScimitarX::variableIndex);
-        } else {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pvec.type: " + type);
-        }
-
-        if (type == "reimann2d") {
-            value.ic_PVec = new IC::Reimann2D(value.geom, pp, "ic.pvec.reimann2d", ScimitarX::variableIndex);
+        } else if (type == "riemann2d") {
+            value.ic_PVec = new IC::Riemann2D(value.geom, pp, "ic.pvec.riemann2d", ScimitarX::variableIndex);
         } else {
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pvec.type: " + type);
         }
 
         pp.query("ic.pressure.type", type);
-
         if (type == "sodshock") {
             value.ic_Pressure = new IC::SodShock(value.geom, pp, "ic.pressure.sodshock");
-        } else {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pressure.type: " + type);
-        }
-
-        if (type == "reimann2d") {
-            value.ic_Pressure = new IC::Reimann2D(value.geom, pp, "ic.pressure.reimann2d");
+        } else if (type == "riemann2d") {
+            value.ic_Pressure = new IC::Riemann2D(value.geom, pp, "ic.pressure.riemann2d");
         } else {
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pressure.type: " + type);
         }
