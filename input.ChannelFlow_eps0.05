@@ -8,7 +8,7 @@ plot_file = ./output.channelflow_eps0.05
 
 amr.plot_dt = 1.0
 #amr.plot_int = 10
-amr.max_level = 1
+amr.max_level = 2
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
@@ -25,7 +25,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 2.0e-3
+timestep  = 5.0e-4
 stop_time = 70.0
 
 ### HYDRO PARAM ###
@@ -34,6 +34,10 @@ gamma = 3.0
 cfl   = 0.4
 mu    = 10.0
 pref = 100.0
+
+small = 1E-8
+cutoff = 1E-8
+lagrange = 5000
 
 ### ETA IC ###
 
@@ -138,8 +142,3 @@ rho_refinement_criterion   = 0.1
 #dynamictimestep.cfl = 0.0004
 #dynamictimestep.max  = 1.0
 #dynamictimestep.min  = 0.0
-
-small=0.0
-cutoff=1E-8
-lagrange=5000
-timestep  = 0.1e-3
