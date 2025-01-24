@@ -147,6 +147,7 @@ public:
         // Read in IC for eta
         if (nmodels > 1 && pp.contains("ic.type"))
         {
+            // Select the initial condition for eta
             pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead>("ic",value.ic_eta,value.geom);
 
             value.eta_reset_on_regrid = true;
@@ -159,6 +160,7 @@ public:
         // Read in IC for psi
         if (pp.contains("psi.ic.type"))
         {
+            // Select initial condition for psi field
             pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead,IC::PNG>("psi.ic",value.ic_psi,value.geom);
 
             value.bc_psi = new BC::Nothing();
@@ -172,9 +174,9 @@ public:
             pp_query_default("psi.reset_on_regrid", value.psi_reset_on_regrid, true);
         }
 
-        // Read in IC for psi
         if (pp.contains("trac_normal.ic.type"))
         {
+            // Read in IC for the "normal traction" field (applied at diffuse boundaries)
             pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom);
 
             if (value.ic_trac_normal)

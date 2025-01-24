@@ -89,7 +89,7 @@ def printInputs(classname,indent="",prefix=""):
             required = ""
             if 'required' in input["type"]: required="required"
             placeholder = ""
-            if 'default' in input["type"]: placeholder=input["default"]
+            if input["type"] in ["query_default","queryarr_default"]: placeholder=input["default"]
             html += indent + "  <input type='text' id='{}' name='{}' class='form-control' {} placeholder='{}'>\n".format(
                 id,id,required,placeholder)
             html += indent + "</div>"

@@ -86,6 +86,7 @@ public:
             if (velocity_ic_str == "expression") value.velocity_ic = new IC::Expression(value.geom, pp,"velocity.ic.expression");
         }
 
+        // Select the mechanical boundary conditions
         pp.select<BC::Operator::Elastic::Constant,BC::Operator::Elastic::TensionTest,BC::Operator::Elastic::Expression>("bc",value.bc);
 
         pp_query_default("print_model", value.m_print_model, false); // Print out model variables (if enabled by model)

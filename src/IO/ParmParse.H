@@ -530,6 +530,13 @@ public:
         }
     }    
 
+    //
+    // Variadic template parsing operator to assign a pointer to
+    // one of a set of possible class objects, then call that method's
+    // Parse function.
+    //
+    // This requires that a "type" be specified and will error if not.
+    //
     template<typename... IC, typename... Args, typename PTRTYPE>
     void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
     {
@@ -541,6 +548,31 @@ public:
                         ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
                         true
                         : false) || ...);
+        if (!matched)
+            Util::Exception(INFO,type," not a valid type for ",name);
+    }
+
+    //
+    // Identical to the above, except sets the type automatically to the
+    // firs specified 
+    //
+    template<typename FirstIC, typename... IC, typename... Args, typename PTRTYPE>
+    void select_default (std::string name, PTRTYPE *& ic_eta, Args&&... args)
+    {
+        std::string type = "";
+
+        this->query_default(name + ".type", type, FirstIC::name);
+
+        bool matched =
+            ((  type == FirstIC::name 
+                ? (ic_eta = new FirstIC(std::forward<Args>(args)..., (*this), name + "." + std::string(FirstIC::name))),
+                true : false))
+            || 
+            ((  type == IC::name 
+                ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                true : false) || ...);
+
+
         if (!matched)
             Util::Exception(INFO,type," not a valid type for ",name);
     }

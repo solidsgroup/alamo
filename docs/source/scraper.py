@@ -165,13 +165,15 @@ def extract(basefilename):
 
 
             # Catch definition of a select function:
-            match = re.findall(r'pp\.select<([^>]+)>\s*\("([^"]+)"\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(r'pp\.(select[_default]*)<([^>]+)>\s*\("([^"]+)"\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
-                input["type"] = "select"
-                input["classes"] = match[0][0].replace(' ','').split(',')
-                input["string"] = match[0][1].replace(' ','')
-                input["doc"] = match[0][2]
+                input["type"] = match[0][0]
+                input["classes"] = match[0][1].replace(' ','').split(',')
+                input["string"] = match[0][2].replace(' ','')
+                input["doc"] = match[0][3]
+                input["file"] = filename
+                input["line"] = i+1
 
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
