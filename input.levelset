@@ -1,0 +1,62 @@
+# Simulation output
+plot_file = output_levelset_sphere
+
+# Simulation length
+timestep = 1.0
+stop_time = 1.0
+
+# AMR parameters
+amr.plot_int = 1
+amr.max_level = 1
+amr.n_cell = 24 24 24
+amr.blocking_factor = 1
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 1
+geometry.is_periodic= 0 0 0
+
+#TimeSteppingScheme
+TimeSteppingScheme = ForwardEuler
+
+#FluxMethod
+FluxScheme = LocalLaxFriedrichs
+
+#FluxReconstruction
+FluxReconstruction = FirstOrder
+
+# Initial conditions
+ls.ic.type = spherels
+ic.spherels.center = 0.5 0.5 0.5
+ic.spherels.radius = 0.25
+ic.spherels.type   = "xyz"
+
+# Boundary conditions
+ls.bc.type.xhi = neumann
+ls.bc.type.xlo = neumann
+ls.bc.type.yhi = neumann
+ls.bc.type.ylo = neumann
+ls.bc.type.zhi = neumann
+ls.bc.type.zlo = neumann
+ls.bc.val.xhi  = 0.0
+ls.bc.val.xlo  = 0.0
+ls.bc.val.yhi  = 0.0
+ls.bc.val.ylo  = 0.0
+ls.bc.val.zhi  = 0.0
+ls.bc.val.zlo  = 0.0
+
+
+nbmask.bc.type.xhi = neumann
+nbmask.bc.type.xlo = neumann
+nbmask.bc.type.yhi = neumann
+nbmask.bc.type.ylo = neumann
+nbmask.bc.type.zhi = neumann
+nbmask.bc.type.zlo = neumann
+nbmask.bc.val.xhi  = 0
+nbmask.bc.val.xlo  = 0
+nbmask.bc.val.yhi  = 0
+nbmask.bc.val.ylo  = 0
+nbmask.bc.val.zhi  = 0
+nbmask.bc.val.zlo  = 0
