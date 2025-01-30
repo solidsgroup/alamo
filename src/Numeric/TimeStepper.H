@@ -21,17 +21,17 @@ inline void GetFaceIndices(int i, int j, int k, amrex::IntVect& west_face, amrex
                             amrex::IntVect& south_face, amrex::IntVect& north_face,
                             amrex::IntVect& bottom_face, amrex::IntVect& top_face) {
     // West and east face indices for the x-direction
-    west_face = amrex::IntVect(AMREX_D_DECL(i - 1, j, k));
-    east_face = amrex::IntVect(AMREX_D_DECL(i, j, k));
+    west_face = amrex::IntVect(AMREX_D_DECL(i, j, k));
+    east_face = amrex::IntVect(AMREX_D_DECL(i + 1, j, k));
 
     // South and north face indices for the y-direction
-    south_face = amrex::IntVect(AMREX_D_DECL(i, j - 1, k));
-    north_face = amrex::IntVect(AMREX_D_DECL(i, j, k));
+    south_face = amrex::IntVect(AMREX_D_DECL(i, j, k));
+    north_face = amrex::IntVect(AMREX_D_DECL(i, j + 1, k));
 
 #if (AMREX_SPACEDIM == 3)
     // Bottom and top face indices for the z-direction
-    bottom_face = amrex::IntVect(AMREX_D_DECL(i, j, k - 1));
-    top_face = amrex::IntVect(AMREX_D_DECL(i, j, k));
+    bottom_face = amrex::IntVect(AMREX_D_DECL(i, j, k));
+    top_face = amrex::IntVect(AMREX_D_DECL(i, j, k + 1));
 #else
     bottom_face = amrex::IntVect(AMREX_D_DECL(0, 0, 0));  // Placeholder for 2D
     top_face = amrex::IntVect(AMREX_D_DECL(0, 0, 0));     // Placeholder for 2D
@@ -107,8 +107,8 @@ public:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 for (int n = 0; n < solver->number_of_components; ++n) {
                     // **Get Face Indices for the Control Volume**
-                    //amrex::IntVect west_face, east_face, south_face, north_face, bottom_face, top_face;
-                    //GetFaceIndices(i, j, k, west_face, east_face, south_face, north_face, bottom_face, top_face);
+                    // amrex::IntVect west_face, east_face, south_face, north_face, bottom_face, top_face;
+                    // GetFaceIndices(i, j, k, west_face, east_face, south_face, north_face, bottom_face, top_face);
 
                     // **Flux Divergence Computation**
                     Set::Scalar flux_div = 0.0;
@@ -121,7 +121,7 @@ public:
 
 #if (AMREX_SPACEDIM == 3)
                     // Z-direction flux divergence
-                    flux_div += (zflux_arr(i,j,k) - zflux_arr(i,j,k-1)) / DX[2];
+                    flux_div += (zflux_arr(i, j, k, n) - zflux_arr(i, j, k-1, n)) / DX[2];
 #endif
 
                     // Update conserved variable using Euler Forward step
