@@ -1,0 +1,143 @@
+#ifndef MODEL_SOLID_FINITE_ADHESION_H_
+#define MODEL_SOLID_FINITE_ADHESION_H_
+
+#include "IO/ParmParse.H"
+#include "Model/Solid/Solid.H"
+#include <cmath> // For std::pow and std::exp
+#include </usr/include/eigen3/Eigen/Dense> // For Eigen::Matrix3d
+#include <array> // For std::array to represent fourth-order tensors
+#include "Set/Set.H"
+
+
+
+namespace Set {
+
+// Outer product for two 3x3 matrices producing a 3x3x3x3 tensor
+inline std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3> 
+Outer(const Eigen::Matrix3d& A, const Eigen::Matrix3d& B) {
+    std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3> result = {};
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            for (int k = 0; k < 3; ++k)
+                for (int l = 0; l < 3; ++l)
+                    result[i][j][k][l] = A(i, j) * B(k, l);
+    return result;
+}
+
+// Derivative of inverse transpose: d(F^-T) / dF
+
+inline std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3> 
+Derivative(const Eigen::Matrix3d& FinvT) {
+    std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3> result = {};
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            for (int k = 0; k < 3; ++k)
+                for (int l = 0; l < 3; ++l)
+                    result[i][j][k][l] = -FinvT(i, j) * FinvT(k, l);
+    return result;
+}
+
+} // namespace Set
+
+namespace Model {
+namespace Solid {
+namespace Finite {
+
+class Adhesion : public Solid<Set::Sym::Major> {
+public:
+    Adhesion() {};
+    Adhesion(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
+    virtual ~Adhesion() {};
+
+    // Static methods for Zero and Random initialization
+    static Adhesion Zero() {
+        Adhesion adhesion;
+       adhesion.d = 1;
+        adhesion.mu = 1;
+        adhesion.kappa = 10;
+        adhesion.zeta = 0.1;
+        adhesion.n = 2;
+        return adhesion;
+    }
+
+    static Adhesion Random() {
+        Adhesion adhesion;
+        adhesion.d = static_cast<Set::Scalar>(std::rand()) / RAND_MAX;
+        adhesion.mu = static_cast<Set::Scalar>(std::rand()) / RAND_MAX;
+        adhesion.kappa = static_cast<Set::Scalar>(std::rand()) / RAND_MAX;
+        adhesion.zeta = static_cast<Set::Scalar>(std::rand()) / RAND_MAX;
+        adhesion.n = static_cast<Set::Scalar>(std::rand()) / RAND_MAX;
+        return adhesion;
+    }
+
+    // Potential Energy Function W(F)
+    Set::Scalar W(const Set::Matrix& a_F) const override {
+        Eigen::Matrix3d F = a_F;
+        Set::Scalar J = F.determinant();
+        Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
+        Set::Scalar w = 0.0;
+
+
+        w += d * (0.5 * mu * ((F * F.transpose()).trace() - 3.0) / J23 	+ 0.5 * K * (J - 1.0) * (J - 1.0)); // Shear + compressive term
+        w += xi / std::pow(J, n); // Adhesion term
+
+
+
+
+
+        return w;
+    }
+
+    // First Derivative: DW(F)
+    Set::Matrix DW(const Set::Matrix& a_F) const override {
+        Eigen::Matrix3d F = a_F;
+        Set::Scalar J = F.determinant();
+        Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
+        Eigen::Matrix3d FinvT = F.inverse().transpose();
+
+        Eigen::Matrix3d dw = d * mu * (F / J23 - (F * F.transpose()).trace() * FinvT / (3.0 * J23))
+                            + kappa * (J - 1.0) * J * FinvT
+                            - zeta * n / std::pow(J, n + 1) * FinvT;
+
+        return dw;
+    }
+
+    // Second Derivative: DDW(F)
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& a_F) const override {
+        Eigen::Matrix3d F = a_F;
+        Set::Scalar J = F.determinant();
+        Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
+        Eigen::Matrix3d FinvT = F.inverse().transpose();
+
+        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw;
+        // Fill the tensor using similar logic as before.
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                for (int k = 0; k < 3; ++k)
+                    for (int l = 0; l < 3; ++l) {
+                        ddw(i, j, k, l) = -((F * F.transpose()).trace() * FinvT(i, j) * FinvT(k, l) / (3.0 * J23)
+                                            + kappa * J * J * FinvT(i, j) * FinvT(k, l)
+                                            + zeta * n * (n * std::pow(J, -n - 2) * FinvT(i, j) * FinvT(k, l)));
+                    }
+
+        return ddw;
+    }
+
+    virtual void Print(std::ostream& out) const override {
+        out << "d = " << d << ", mu = " << mu 
+            << ", kappa = " << kappa << ", zeta = " << zeta 
+            << ", n = " << n;
+    }
+
+public:
+    Set::Scalar d = 1, mu = 1, kappa = 10, zeta = 0.1, n = 2;
+};
+
+} // namespace Finite
+} // namespace Solid
+} // namespace Model
+
+#endif
+
+
+
