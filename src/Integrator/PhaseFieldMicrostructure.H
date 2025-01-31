@@ -191,8 +191,8 @@ public:
             pp_query_validate("anisotropy.regularization", regularization_type_input,{"k12","wilmore"});    
             value.regularization = regularization_type[regularization_type_input];
 
-            // Type of GB to use
             pp_forbid("anisotropy.gb_type"," --> anisotropy.type");
+            // Type of GB to use
             pp.select<Model::Interface::GB::AbsSin, Model::Interface::GB::Sin, Model::Interface::GB::Read, Model::Interface::GB::SH>("anisotropy",value.boundary); 
         }
 

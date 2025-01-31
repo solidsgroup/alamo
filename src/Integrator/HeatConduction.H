@@ -78,24 +78,11 @@ public:
         //    definition of the variable.*
         pp_query_default("heat.refinement_threshold", value.refinement_threshold, 0.01);
 
-        std::string type;
-
         // Initial condition type.
-        //   *This is an example of type validation:
-        //    the input variable must be one of the three provided values, 
-        //    and will error if not. The default selection is the first
-        //    argument.*
-        pp_query_validate("ic.type", type, {"constant", "sphere","expression"});
-        if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "ic.sphere");
-        else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "ic.constant");
-        else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "ic.expression");
-        else  Util::Abort(INFO, "Invalid ic.type ", type);
+        pp.select_default<IC::Constant,IC::Sphere,IC::Expression>("ic",value.ic,value.geom);
 
-        std::string bc_type;
         // Select BC object for temperature
-        pp_query_validate("bc.temp.type",bc_type,{"constant","expression"});
-        if (bc_type == "expression")      value.bc = new BC::Expression(1, pp, "bc.temp.expression");
-        else if (bc_type == "constant")   value.bc = new BC::Constant(1, pp, "bc.temp");
+        pp.select_default<BC::Constant,BC::Expression>("bc.temp",value.bc,1);
 
         // Register the temperature and old temperature fields.
         // temp_mf and temp_old_mf are defined near the bottom of this Header file.
