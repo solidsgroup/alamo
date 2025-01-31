@@ -17,9 +17,11 @@ public:
         XY
     };
 
-    ZalesakLS(amrex::Vector<amrex::Geometry>& _geom);
-    ZalesakLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp);
-    ZalesakLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name);
+    ZalesakLS(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {} ;
+    ZalesakLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp) : IC(_geom)
+    {pp_queryclass(*this);}
+    ZalesakLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
+    {pp_queryclass(name,*this);}
     ZalesakLS(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center,
               Set::Scalar _slot_width = -1, Set::Scalar _slot_length = -1, Type _type = Type::XYZ);
 
