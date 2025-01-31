@@ -1,12 +1,13 @@
-#include "IC/ZalesakLS.H"
+#include "IC/LS/Zalesak.H"
 
 #include <cmath>
 #include "IC/IC.H"
 #include "Util/Util.H"
 
 namespace IC {
+namespace LS {
 
-void ZalesakLS::Define(Set::Scalar a_radius, Set::Vector a_center, Set::Scalar a_slot_width, Set::Scalar a_slot_length, Type a_type) {
+void Zalesak::Define(Set::Scalar a_radius, Set::Vector a_center, Set::Scalar a_slot_width, Set::Scalar a_slot_length, Type a_type) {
     radius = a_radius;
     center = a_center;
     type = a_type;
@@ -14,7 +15,7 @@ void ZalesakLS::Define(Set::Scalar a_radius, Set::Vector a_center, Set::Scalar a
     slot_length = (a_slot_length > 0) ? a_slot_length : 0.6 * radius;
 }
 
-void ZalesakLS::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
+void Zalesak::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
     bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
     const Set::Scalar* DX = geom[lev].CellSize();
     
@@ -50,7 +51,7 @@ void ZalesakLS::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scala
     }
 }
 
-void ZalesakLS::Parse(ZalesakLS& value, IO::ParmParse& pp) {
+void Zalesak::Parse(Zalesak& value, IO::ParmParse& pp) {
     pp_query("radius", value.radius);
     pp_queryarr("center", value.center);
     pp_query("slot_width", value.slot_width);
@@ -63,4 +64,5 @@ void ZalesakLS::Parse(ZalesakLS& value, IO::ParmParse& pp) {
     if (type == "xyz") value.type = Type::XYZ;
 }
 
+} // namespace LS
 } // namespace IC

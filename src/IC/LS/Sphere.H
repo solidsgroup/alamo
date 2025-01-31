@@ -1,5 +1,5 @@
-#ifndef IC_SPHERELS_H
-#define IC_SPHERELS_H
+#ifndef IC_LS_SPHERE_H
+#define IC_LS_SPHERE_H
 
 #include <cmath>
 #include "IC/IC.H"
@@ -7,16 +7,17 @@
 #include "Util/Util.H"
 
 namespace IC {
+namespace LS {
 
-class SphereLS : public IC {
+class Sphere : public IC {
 public:
     enum Type { XYZ, YZ, ZX, XY };
 
     // Constructors
-    explicit SphereLS(amrex::Vector<amrex::Geometry>& _geom);
-    SphereLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp);
-    SphereLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const std::string& name);
-    SphereLS(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type = Type::XYZ);
+    explicit Sphere(amrex::Vector<amrex::Geometry>& _geom);
+    Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp);
+    Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const std::string& name);
+    Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type = Type::XYZ);
 
     // Define sphere/cylinder properties
     void Define(Set::Scalar a_radius, Set::Vector a_center, Type a_type);
@@ -25,7 +26,7 @@ public:
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar);
 
     // Parse function to set parameters from input
-    static void Parse(SphereLS& value, IO::ParmParse& pp);
+    static void Parse(Sphere& value, IO::ParmParse& pp);
 
 private:
     Set::Scalar radius = 1.0;
@@ -42,6 +43,7 @@ private:
     AMREX_GPU_HOST_DEVICE inline Set::Scalar computeLevelSetValue(Set::Scalar distance, Set::Scalar Narrow_Band_Width, Set::Scalar InnerTube, Set::Scalar OuterTube) const;
 };
 
+} // namespace LS
 } // namespace IC
 
 #endif // IC_SPHERELS_H
