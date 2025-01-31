@@ -14,8 +14,8 @@
 #include "BC/Expression.H"
 
 // IC
-#include "IC/SphereLS.H"
-#include "IC/ZalesakLS.H"
+#include "IC/LS/Sphere.H"
+#include "IC/LS/Zalesak.H"
 
 // Numeric
 #include "Util/Util.H"
@@ -56,8 +56,8 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     
     // Validate the initial condition type is a correct string
     pp_query_validate("ls.ic.type", ic_type, {"constant", "spherels","zalesakls","expression"});
-    if (ic_type == "spherels")        value.ls_ic = new IC::SphereLS(value.geom, pp, "ic.spherels");
-    else if (ic_type == "zalesakls")  value.ls_ic = new IC::ZalesakLS(value.geom, pp, "ic.zalesakls");
+    if (ic_type == "spherels")        value.ls_ic = new IC::LS::Sphere(value.geom, pp, "ic.spherels");
+    else if (ic_type == "zalesakls")  value.ls_ic = new IC::LS::Zalesak(value.geom, pp, "ic.zalesakls");
     }
 
 

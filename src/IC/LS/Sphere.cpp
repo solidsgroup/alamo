@@ -1,34 +1,35 @@
-#include "IC/SphereLS.H"
+#include "IC/LS/Sphere.H"
 
 #include <cmath>
 #include "IC/IC.H"
 #include "Util/Util.H"
 
 namespace IC {
+namespace LS {
 
 // Constructors
-SphereLS::SphereLS(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
+Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
 
-SphereLS::SphereLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp) : IC(_geom) {
+Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp) : IC(_geom) {
     pp_queryclass(*this);
 }
 
-SphereLS::SphereLS(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const std::string& name) : IC(_geom) {
+Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const std::string& name) : IC(_geom) {
     pp_queryclass(name, *this);
 }
 
-SphereLS::SphereLS(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type)
+Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type)
     : IC(_geom), radius(_radius), center(_center), type(_type) {}
 
 // Define sphere/cylinder properties
-void SphereLS::Define(Set::Scalar a_radius, Set::Vector a_center, Type a_type) {
+void Sphere::Define(Set::Scalar a_radius, Set::Vector a_center, Type a_type) {
     radius = a_radius;
     center = a_center;
     type = a_type;
 }
 
 // Add the level set field
-void SphereLS::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
+void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
     bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
     const Set::Scalar* DX = geom[lev].CellSize();
     const Set::Scalar Narrow_Band_Width = 6.0 * DX[0];
@@ -49,7 +50,7 @@ void SphereLS::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar
 }
 
 // Parse function to set parameters from input
-void SphereLS::Parse(SphereLS& value, IO::ParmParse& pp) {
+void Sphere::Parse(Sphere& value, IO::ParmParse& pp) {
     pp_query("radius", value.radius);
     pp_queryarr("center", value.center);
     std::string type_str;
@@ -62,7 +63,7 @@ void SphereLS::Parse(SphereLS& value, IO::ParmParse& pp) {
 }
 
 // Compute physical coordinates of the grid cell
-AMREX_GPU_HOST_DEVICE inline Set::Vector SphereLS::computeCoordinates(int i, int j, int k, int lev, bool cellcentered) const {
+AMREX_GPU_HOST_DEVICE inline Set::Vector Sphere::computeCoordinates(int i, int j, int k, int lev, bool cellcentered) const {
     Set::Vector coords;
     const auto& DX = geom[lev].CellSize();
     const auto& prob_lo = geom[lev].ProbLo();
@@ -80,7 +81,7 @@ AMREX_GPU_HOST_DEVICE inline Set::Vector SphereLS::computeCoordinates(int i, int
 }
 
 // Compute rsq based on type
-Set::Scalar SphereLS::computeRSquared(const Set::Vector& coords, Type type, const Set::Vector& center) const {
+Set::Scalar Sphere::computeRSquared(const Set::Vector& coords, Type type, const Set::Vector& center) const {
     switch (type) {
     case Type::XYZ:
         return AMREX_D_TERM((coords(0) - center(0)) * (coords(0) - center(0)),
@@ -105,11 +106,12 @@ Set::Scalar SphereLS::computeRSquared(const Set::Vector& coords, Type type, cons
 }
 
 // Compute level set value
-AMREX_GPU_HOST_DEVICE inline Set::Scalar SphereLS::computeLevelSetValue(Set::Scalar distance, Set::Scalar Narrow_Band_Width, Set::Scalar InnerTube, Set::Scalar OuterTube) const {
+AMREX_GPU_HOST_DEVICE inline Set::Scalar Sphere::computeLevelSetValue(Set::Scalar distance, Set::Scalar Narrow_Band_Width, Set::Scalar InnerTube, Set::Scalar OuterTube) const {
     if (std::abs(distance) <= Narrow_Band_Width) return distance;
     if (distance < -Narrow_Band_Width) return InnerTube;
     if (distance > Narrow_Band_Width) return OuterTube;
     return NAN;
 }
 
+} // namespace LS
 } // namespace IC
