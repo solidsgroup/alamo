@@ -1,5 +1,5 @@
-#ifndef INTEGRATOR_NarrowBandLevelset_H // Include guards
-#define INTEGRATOR_NarrowBandLevelset_H // 
+#ifndef INTEGRATOR_NARROWBANDLEVELSET_H // Include guards
+#define INTEGRATOR_NARROWBANDLEVELSET_H // 
 
 // Standard library includes
 #include <iostream>
@@ -28,8 +28,9 @@ class NarrowBandLevelset : virtual public Integrator
 public:
 
     // Constructors
-    NarrowBandLevelset(); // Default constructor
+    NarrowBandLevelset() {}; // Default constructor
     NarrowBandLevelset(IO::ParmParse& pp); // Constructor that triggers parse
+    static void Parse(NarrowBandLevelset& value, IO::ParmParse& pp);
 
     // Destructor
     virtual ~NarrowBandLevelset()
@@ -68,9 +69,8 @@ private:
     IC::IC* ls_ic = nullptr;                     // Object used to initialize levelset field
     BC::BC<Set::Scalar>* ls_bc = nullptr;        // Object used to update temp field boundary ghost cells
     
-    // Functions
-    static void Parse(NarrowBandLevelset& value, IO::ParmParse& pp);
 
+    // Functions
 }; //NarrowBandLevelset Class
 
 } // namespace Integrator
