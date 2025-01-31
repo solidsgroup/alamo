@@ -40,9 +40,6 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     
     // Select BC object for levelset
     pp.select<BC::Constant,BC::Expression>("ls.bc",value.ls_bc,1);
-    // pp_query_validate("ls.bc.type",bc_type,{"constant","expression"});
-    // if (bc_type == "expression")      value.ls_bc = new BC::Expression(1, pp, "ls.bc.expression");
-    // else if (bc_type == "constant")   value.ls_bc = new BC::Constant(1, pp, "ls.bc");
     }
 
     {    
@@ -55,10 +52,11 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     { // Query the levelset initial conditions
     std::string ic_type;
     
-    // Validate the initial condition type is a correct string
-    pp_query_validate("ls.ic.type", ic_type, {"constant", "spherels","zalesakls","expression"});
-    if (ic_type == "spherels")        value.ls_ic = new IC::LS::Sphere(value.geom, pp, "ic.spherels");
-    else if (ic_type == "zalesakls")  value.ls_ic = new IC::LS::Zalesak(value.geom, pp, "ic.zalesakls");
+    // Validate the LS initial condition type
+    pp.select<IC::Constant,IC::Expression,IC::LS::Sphere,IC::LS::Zalesak>("ls.ic",value.ls_ic,value.geom);
+    // pp_query_validate("ls.ic.type", ic_type, {"constant", "spherels","zalesakls","expression"});
+    // if (ic_type == "spherels")        value.ls_ic = new IC::LS::Sphere(value.geom, pp, "ic.spherels");
+    // else if (ic_type == "zalesakls")  value.ls_ic = new IC::LS::Zalesak(value.geom, pp, "ic.zalesakls");
     }
 
 

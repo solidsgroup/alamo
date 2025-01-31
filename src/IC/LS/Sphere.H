@@ -11,6 +11,8 @@ namespace LS {
 
 class Sphere : public IC {
 public:
+    static constexpr const char* name = "sphere";
+
     enum Type { XYZ, YZ, ZX, XY };
 
     // Constructors
