@@ -11,6 +11,8 @@ namespace LS {
 
 class Zalesak : public IC {
 public:
+    static constexpr const char* name = "zalesak";
+
     enum Type {
         XYZ,
         YZ,
