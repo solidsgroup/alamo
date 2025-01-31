@@ -39,9 +39,10 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     std::string bc_type;
     
     // Select BC object for levelset
-    pp_query_validate("ls.bc.type",bc_type,{"constant","expression"});
-    if (bc_type == "expression")      value.ls_bc = new BC::Expression(1, pp, "ls.bc.expression");
-    else if (bc_type == "constant")   value.ls_bc = new BC::Constant(1, pp, "ls.bc");
+    pp.select<BC::Constant,BC::Expression>("ls.bc",value.ls_bc,1);
+    // pp_query_validate("ls.bc.type",bc_type,{"constant","expression"});
+    // if (bc_type == "expression")      value.ls_bc = new BC::Expression(1, pp, "ls.bc.expression");
+    // else if (bc_type == "constant")   value.ls_bc = new BC::Constant(1, pp, "ls.bc");
     }
 
     {    
