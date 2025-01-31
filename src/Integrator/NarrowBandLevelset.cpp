@@ -1,3 +1,9 @@
+// Standard library includes
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+
+// Alamo Includes
 #include "IO/ParmParse.H"
 #include "Integrator/NarrowBandLevelset.H"
 
@@ -5,6 +11,7 @@
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "BC/Constant.H"
+#include "BC/Expression.H"
 
 // IC
 #include "IC/SphereLS.H"
@@ -19,38 +26,40 @@ namespace Integrator
 // Define constructor functions
 // Empty constructor
 
-NarrowBandLevelset::NarrowBandLevelset() 
-    : Integrator(), number_of_ghost_cells(2) 
-{}
     
 // Constructor that triggers Parse
-NarrowBandLevelset::NarrowBandLevelset(IO::ParmParse& pp)
-    : NarrowBandLevelset() // Call default constructor
+NarrowBandLevelset::NarrowBandLevelset(IO::ParmParse& pp):NarrowBandLevelset() // Call default constructor
 {
-    Parse(*this, pp); // Call the static Parse function
+    pp.queryclass(*this); // Call the static Parse function
 }
 
 // Define Parse function
-void Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
-    // Query the levelset initial conditions
-    std::string ic_type
-    
-    // Validate the initial condition type is a correct string
-    pp_query_validate("ls.ic.type", ic_type, {"constant", "spherels","zalesakls","expression"});
-    if (ic_type == "spherels")        value.ls_ic = new IC::SphereLS(value.geom, pp, "ic.spherels");
-    else if (ic_type == "zalesakls")  value.ls_ic = new IC::ZalesakLS(value.geom, pp, "ic.zalesakls");
-    
-    // Query the boundary conditions
+void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
+    { // Query the boundary conditions
     std::string bc_type;
     
     // Select BC object for levelset
     pp_query_validate("ls.bc.type",bc_type,{"constant","expression"});
     if (bc_type == "expression")      value.ls_bc = new BC::Expression(1, pp, "ls.bc.expression");
     else if (bc_type == "constant")   value.ls_bc = new BC::Constant(1, pp, "ls.bc");
+    }
 
+    {    
     // Register the levelset and old levelset fields
     value.RegisterNewFab(value.ls_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS", true);
     value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
+
+    }
+
+    { // Query the levelset initial conditions
+    std::string ic_type;
+    
+    // Validate the initial condition type is a correct string
+    pp_query_validate("ls.ic.type", ic_type, {"constant", "spherels","zalesakls","expression"});
+    if (ic_type == "spherels")        value.ls_ic = new IC::SphereLS(value.geom, pp, "ic.spherels");
+    else if (ic_type == "zalesakls")  value.ls_ic = new IC::ZalesakLS(value.geom, pp, "ic.zalesakls");
+    }
+
 
 }
 
@@ -58,7 +67,7 @@ void Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
 void NarrowBandLevelset::Initialize(int lev){
     ls_ic->Initialize(lev, ls_mf);
 
-    // Iterate over all the patches on this level
+/*    // Iterate over all the patches on this level
     for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
@@ -86,7 +95,7 @@ void NarrowBandLevelset::Initialize(int lev){
                 nbmask_patch(i, j, k) = (ls(i, j, k) > 0) ? 2 : -2; // Cells outside the narrow band
             }
         });
-    }
+    }*/
 }
 
 void NarrowBandLevelset::TimeStepBegin(Set::Scalar time, int lev) {
