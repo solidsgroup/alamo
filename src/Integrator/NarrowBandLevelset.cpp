@@ -106,7 +106,7 @@ void NarrowBandLevelset::TimeStepComplete(Set::Scalar time, int lev) {
      
 }
 
-void Advance(int lev, Set::Scalar time, Set::Scalar dt) {
+void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
 
 }
 
