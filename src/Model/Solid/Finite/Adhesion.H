@@ -62,9 +62,9 @@ public:
 
     static Adhesion Random() {
         Adhesion adhesion;
-        adhesion.d = 1;//Util::Random();
-        adhesion.mu = 0;//Util::Random();
-        adhesion.kappa = 1;//Util::Random();
+        adhesion.d = 1; //Util::Random();
+        adhesion.mu = 0; //Util::Random();
+        adhesion.kappa = 1; //Util::Random();
         adhesion.zeta =1; //Util::Random();
         adhesion.n =2; //Util::Random();
         return adhesion;
@@ -86,7 +86,7 @@ public:
         Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
         Set::Scalar w = 0.0;
 
-        w += d * (0.5 * mu * ((F * F.transpose()).trace() - 3.0) / J23 
+        w += d * (0.5 * mu * ((F.transpose()*F).trace() - 0) / J23 
                   + 0.5 * kappa * (J - 1.0) * (J - 1.0));
         w += zeta / std::pow(J, n);
         return w;
@@ -101,7 +101,7 @@ public:
         Eigen::Matrix3d FinvT = F.inverse().transpose();
 
         Eigen::Matrix3d dw = d * mu * ( F / J23 
-                          - (1.0 / 3.0) * ((F * F.transpose()).trace() - 3.0) * J * FinvT / J53)
+                          - (1.0 / 3.0) * ((F.transpose()*F).trace() - 0) * FinvT / J23)
                           + d * kappa * (J - 1.0) * J * FinvT
                           - zeta * n * std::pow(J, -n) * FinvT;
 
@@ -113,10 +113,8 @@ public:
         Eigen::Matrix3d F = a_F;
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
-        Set::Scalar J49 = std::pow(fabs(J), 4.0 / 9.0);
-        Set::Scalar J53 = std::pow(fabs(J), 5.0 / 3.0);
-        Set::Scalar J83 = std::pow(fabs(J), 8.0 / 3.0);
         Eigen::Matrix3d FinvT = F.inverse().transpose();
+        Set::Scalar trace_FT_F = (F.transpose() * F).trace(); // Compute tr(FF^T )
 
         auto Deriv = ::Set::Derivative(FinvT);
 
@@ -126,42 +124,32 @@ public:
             for (int j = 0; j < 3; ++j) {
                 for (int k = 0; k < 3; ++k) {
                     for (int l = 0; l < 3; ++l) {
+                        ddw(i, j, k, l) = 0.0;
+
+                        Set::Scalar t1 = 0.0, t2 = 0.0, t3=0;
                         // Shear-related term (mu)
-                        Set::Scalar t0 = 0.0;
-                        Set::Scalar ms = 0.0;
-                        Set::Scalar t1 = 0.0;
-                        Set::Scalar t11 = 0.0;
-
-                        if (i == k && j == l) {
-                            t0 = 1.0 / J23;  // Identity term contribution
-                        }
-
-                        t0 -= (2.0 / 3.0) * F(i, j) * FinvT(k, l) / J23;
-
-                        // Compute the derivative of the second term in the formula
-                        ms -= (1.0 / 3.0) * FinvT(k, j) * FinvT(i, l) * ((F * F.transpose()).trace() - 3) 
-                            - (2.0 / 3.0) * F(i, j) * FinvT(i, j);
-
-                        // Compute the final term that accounts for J^-2/3 scaling
-                        t1 += (ms - (2.0 / 3.0) * FinvT(k, l) * FinvT(i, j) * ((F * F.transpose()).trace() - 3)) / (J23 * J23);
+                        //(F * F.transpose()).trace() - 3
 
 
-                        // **Fixed Parentheses Here**
-                        t11 = t0 + t1;
+                        if (i == k && j == l) t1 += 1.0;
+                        
+                        t1 -=(2. /3. )*F(i,j)*FinvT(k,l);
+                        
+                        t1 +=F(k,l)*(-2/3)*FinvT(i,j);
 
+                        t1 +=(1/3)*((F.transpose()*F).trace() -0)*((2/3)*FinvT(k,l)*FinvT(i,j)+FinvT(k,j)*FinvT(i,l));
+                        
+          
                         // Bulk-related term (kappa)
-                        Set::Scalar t2 = 0.0;
                         t2 += (2 * J * J * FinvT(k, l) - J * FinvT(k, l)) * FinvT(i, j) + (J - (J * J)) * (FinvT(k, j) * FinvT(i, l));
 
-                        
-                        
+                                              
 
                         // Adhesion-related term (zeta)
-                        Set::Scalar t3 = 0.0;
                         t3 += std::pow(n, 2) * std::pow(J, -n ) * FinvT(k,l) * FinvT(i,j) + n * std::pow(J, -n ) * FinvT(k, j ) * FinvT(i,l);
 
                         // Combine terms
-                        ddw(i, j, k, l) = d * mu * t11 + d * kappa * t2 +zeta* t3;
+                        ddw(i, j, k, l) = d * mu * t1/J23 + d * kappa * t2 +zeta* t3;
                     }
                 }
             }
