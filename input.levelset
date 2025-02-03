@@ -28,10 +28,16 @@ FluxScheme = LocalLaxFriedrichs
 FluxReconstruction = FirstOrder
 
 # Initial conditions
-ls.ic.type = spherels
-ic.spherels.center = 0.5 0.5 0.5
-ic.spherels.radius = 0.25
-ic.spherels.type   = "xyz"
+ls.ic.type = sphere
+ls.ic.sphere.center = 0.5 0.5 0.5
+ls.ic.sphere.radius = 0.25
+ls.ic.sphere.type   = "xyz"
+
+#ls.ic.zalesak.center = 0.5 0.5 0.5
+#ls.ic.zalesak.radius = 0.25
+#ls.ic.zalesak.slot_length = 0.01
+#ls.ic.zalesak.slot_width = 0.06
+#ls.ic.zalesak.type   = "xyz"
 
 # Boundary conditions
 ls.bc.type.xhi = neumann
@@ -46,17 +52,3 @@ ls.bc.val.yhi  = 0.0
 ls.bc.val.ylo  = 0.0
 ls.bc.val.zhi  = 0.0
 ls.bc.val.zlo  = 0.0
-
-
-nbmask.bc.type.xhi = neumann
-nbmask.bc.type.xlo = neumann
-nbmask.bc.type.yhi = neumann
-nbmask.bc.type.ylo = neumann
-nbmask.bc.type.zhi = neumann
-nbmask.bc.type.zlo = neumann
-nbmask.bc.val.xhi  = 0
-nbmask.bc.val.xlo  = 0
-nbmask.bc.val.yhi  = 0
-nbmask.bc.val.ylo  = 0
-nbmask.bc.val.zhi  = 0
-nbmask.bc.val.zlo  = 0

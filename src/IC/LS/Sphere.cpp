@@ -21,13 +21,6 @@ Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const s
 Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type)
     : IC(_geom), radius(_radius), center(_center), type(_type) {}
 
-// Define sphere/cylinder properties
-void Sphere::Define(Set::Scalar a_radius, Set::Vector a_center, Type a_type) {
-    radius = a_radius;
-    center = a_center;
-    type = a_type;
-}
-
 // Add the level set field
 void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
     bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));

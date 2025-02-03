@@ -21,9 +21,6 @@ public:
     Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const std::string& name);
     Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type = Type::XYZ);
 
-    // Define sphere/cylinder properties
-    void Define(Set::Scalar a_radius, Set::Vector a_center, Type a_type);
-
     // Add the level set field
     void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar);
 
