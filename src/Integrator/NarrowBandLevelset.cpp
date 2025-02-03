@@ -25,76 +25,38 @@ namespace Integrator
 
 // Define constructor functions
 // Empty constructor
-
+NarrowBandLevelset::NarrowBandLevelset(int a_nghost) 
+    : Integrator(), 
+    number_of_ghost_cells(a_nghost) 
+{}
     
 // Constructor that triggers Parse
-NarrowBandLevelset::NarrowBandLevelset(IO::ParmParse& pp):NarrowBandLevelset() // Call default constructor
+NarrowBandLevelset::NarrowBandLevelset(IO::ParmParse& pp) : NarrowBandLevelset() // Call default constructor
 {
     pp.queryclass(*this); // Call the static Parse function
 }
 
 // Define Parse function
 void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
-    { // Query the boundary conditions
-    std::string bc_type;
+    {// Define initial and boundary conditions
     
-    // Select BC object for levelset
-    pp.select<BC::Constant,BC::Expression>("ls.bc",value.ls_bc,1);
+    // Query the IC assuming either LS::Sphere or LS::Zalesak
+    pp.select<IC::LS::Sphere,IC::LS::Zalesak>("ls.ic",value.ls_ic,value.geom);
+    
+    // Assume Neumann BC
+    value.ls_bc = new BC::Constant(1, pp, "ls.bc");
     }
-
-    {    
-    // Register the levelset and old levelset fields
+    
+    {// Define levelset multifab objects - only old and new domain levelset fields
     value.RegisterNewFab(value.ls_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS", true);
     value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
-
     }
-
-    { // Query the levelset initial conditions
-    std::string ic_type;
-    
-    // Validate the LS initial condition type
-    pp.select<IC::Constant,IC::Expression,IC::LS::Sphere,IC::LS::Zalesak>("ls.ic",value.ls_ic,value.geom);
-    // pp_query_validate("ls.ic.type", ic_type, {"constant", "spherels","zalesakls","expression"});
-    // if (ic_type == "spherels")        value.ls_ic = new IC::LS::Sphere(value.geom, pp, "ic.spherels");
-    // else if (ic_type == "zalesakls")  value.ls_ic = new IC::LS::Zalesak(value.geom, pp, "ic.zalesakls");
-    }
-
 
 }
 
 // Define required override functions
 void NarrowBandLevelset::Initialize(int lev){
-    ls_ic->Initialize(lev, ls_mf);
-
-/*    // Iterate over all the patches on this level
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> nbmask_patch = iNarrowBandMask_mf.Patch(lev, mfi);
-
-
-        const Set::Scalar narrow_band_width = 6.0 * geom[lev].CellSize()[0];
-        const Set::Scalar inner_tube = -narrow_band_width;
-        const Set::Scalar outer_tube = narrow_band_width;
-
-        // Update interface_mf to reflect the level set initialization
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            if (std::abs(ls(i, j, k)) <= geom[lev].CellSize()[0])
-            {
-                nbmask_patch(i, j, k) = 0; // Cells closest to the interface (considered zero level set)
-            }
-            else if (ls(i, j, k) > inner_tube && ls(i, j, k) < outer_tube)
-            {
-                nbmask_patch(i, j, k) = (ls(i, j, k) > 0) ? 1 : -1; // Narrow band cells
-            }
-            else
-            {
-                nbmask_patch(i, j, k) = (ls(i, j, k) > 0) ? 2 : -2; // Cells outside the narrow band
-            }
-        });
-    }*/
+    ls_ic->Initialize(lev, ls_old_mf);
 }
 
 void NarrowBandLevelset::TimeStepBegin(Set::Scalar time, int lev) {
@@ -109,6 +71,45 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
 
 }
 
+void Reinitialize(int lev)
+{
+    const Set::Scalar reinit_tolerance = 1e-3; // Tolerance for stopping criteria
+    const int max_iterations = 50;             // Maximum number of reinitialization iterations
+    const Set::Scalar epsilon = 1e-6;          // Small value to prevent division by zero
+
+    for (int iter = 0; iter < max_iterations; ++iter)
+    {
+        bool converged = true;
+
+        // Iterate over all the patches on this level
+        for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
+
+            amrex::ParallelFor(bx, [=, &converged] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                // Calculate the gradient magnitude |∇phi|
+                Set::Vector grad = Numeric::Gradient(ls, i, j, k, 0, geom[lev].CellSize());
+                Set::Scalar grad_mag = std::max(grad.lpNorm<2>(), epsilon);  // Prevent division by zero
+
+                // Update the level set function phi using a smoothed sign function
+                Set::Scalar sign_phi = ls(i, j, k) / std::sqrt(ls(i, j, k) * ls(i, j, k) + epsilon);
+                Set::Scalar phi_new = ls(i, j, k) - sign_phi * (grad_mag - 1.0);
+                
+                if (std::abs(phi_new - ls(i, j, k)) > reinit_tolerance)
+                    converged = false;
+
+                ls(i, j, k) = phi_new;
+            });
+        }
+
+        // Stop reinitialization if converged
+        if (converged)
+            break;
+    }
+}
+    
 void NarrowBandLevelset::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
 {
 

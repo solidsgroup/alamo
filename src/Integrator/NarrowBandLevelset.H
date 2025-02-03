@@ -28,7 +28,7 @@ class NarrowBandLevelset : virtual public Integrator
 public:
 
     // Constructors
-    NarrowBandLevelset() {}; // Default constructor
+    NarrowBandLevelset(int a_nghost = 2); // Default constructor
     NarrowBandLevelset(IO::ParmParse& pp); // Constructor that triggers parse
     static void Parse(NarrowBandLevelset& value, IO::ParmParse& pp);
 
@@ -44,13 +44,16 @@ protected:
     Set::Field<Set::Scalar>    ls_mf;                 // Levelset field variable (current timestep)
     Set::Field<Set::Scalar>    ls_old_mf;             // Levelset field variable (previous timestep)
 
-    // Solver setup and control functions
+    // Solver setup and control functions (override)
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int lev) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
+    
+    // Additional functions
+    void Reinitialize(int lev)
 
 // Declare private functions such as Parse 
 private:

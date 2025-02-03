@@ -26,13 +26,13 @@ void Zalesak::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             Set::Scalar x, y, z;
             if (cellcentered) {
-                x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
-                y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-                z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];
+                x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * DX[0];
+                y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * DX[1];
+                z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * DX[2];
             } else {
-                x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];
-                y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];
-                z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];
+                x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * DX[0];
+                y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * DX[1];
+                z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * DX[2];
             }
 
             Set::Scalar rsq = (type == Type::XYZ) ? (x - center(0)) * (x - center(0)) + (y - center(1)) * (y - center(1)) + (z - center(2)) * (z - center(2))
