@@ -18,6 +18,7 @@
 #include "IC/LS/Zalesak.H"
 
 // Numeric
+#include "Numeric/Stencil.H"
 #include "Util/Util.H"
 
 namespace Integrator
@@ -44,7 +45,7 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     pp.select<IC::LS::Sphere,IC::LS::Zalesak>("ls.ic",value.ls_ic,value.geom);
     
     // Assume Neumann BC
-    value.ls_bc = new BC::Constant(1, pp, "ls.bc");
+    value.ls_bc = new BC::Constant(value.number_of_components, pp, "ls.bc");
     }
     
     {// Define levelset multifab objects - only old and new domain levelset fields
@@ -57,6 +58,7 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
 // Define required override functions
 void NarrowBandLevelset::Initialize(int lev){
     ls_ic->Initialize(lev, ls_old_mf);
+    std::swap(*ls_mf[lev], *ls_old_mf[lev]);
 }
 
 void NarrowBandLevelset::TimeStepBegin(Set::Scalar time, int lev) {
@@ -67,11 +69,41 @@ void NarrowBandLevelset::TimeStepComplete(Set::Scalar time, int lev) {
      
 }
 
-void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
-
+void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) 
+{
+    // Advance time step
+    current_timestep++;
+    
+    // Advect
+    Advect(lev, dt);
+    
+    //Reinitialize the level set function
+    if(current_timestep % 1 == 0) {
+        Reinitialize(lev);
+    }
 }
 
-void Reinitialize(int lev)
+void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
+{
+    // Swap the old ls fab and the new ls fab so we use
+    // the new one.
+    std::swap(*ls_mf[lev], *ls_old_mf[lev]);
+    
+    // Compute the flux here
+
+    // Iterate over all of the patches on this level
+    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        // Get the box (index dimensions) for this patch
+        const amrex::Box& bx = mfi.tilebox();
+
+        // Get an array-accessible handle to the data on this patch.
+        Set::Patch<const Set::Scalar>  ls_old = ls_old_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>        ls     = ls_mf.Patch(lev,mfi);
+    }
+}
+
+void NarrowBandLevelset::Reinitialize(int lev)
 {
     const Set::Scalar reinit_tolerance = 1e-3; // Tolerance for stopping criteria
     const int max_iterations = 50;             // Maximum number of reinitialization iterations

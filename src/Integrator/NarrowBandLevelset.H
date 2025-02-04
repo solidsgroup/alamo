@@ -53,7 +53,8 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     
     // Additional functions
-    void Reinitialize(int lev)
+    void Advect(int lev, Set::Scalar dt);
+    void Reinitialize(int lev);
 
 // Declare private functions such as Parse 
 private:
