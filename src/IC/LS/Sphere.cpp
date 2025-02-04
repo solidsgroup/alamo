@@ -49,9 +49,9 @@ void Sphere::Parse(Sphere& value, IO::ParmParse& pp) {
     std::string type_str;
     pp_query("type", type_str);
 
-    if (type_str == "yz") value.type = Type::YZ;
-    else if (type_str == "zx") value.type = Type::ZX;
-    else if (type_str == "xy") value.type = Type::XY;
+    if (type_str == "yz" || type_str == "zy") value.type = Type::YZ;
+    else if (type_str == "zx" || type_str == "xz") value.type = Type::ZX;
+    else if (type_str == "xy" || type_str == "yx") value.type = Type::XY;
     else value.type = Type::XYZ;
 }
 

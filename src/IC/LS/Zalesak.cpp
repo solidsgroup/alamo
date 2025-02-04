@@ -58,10 +58,10 @@ void Zalesak::Parse(Zalesak& value, IO::ParmParse& pp) {
     pp_query("slot_length", value.slot_length);
     std::string type;
     pp_query("type", type);
-    if (type == "yz") value.type = Type::YZ;
-    if (type == "zx") value.type = Type::ZX;
-    if (type == "xy") value.type = Type::XY;
-    if (type == "xyz") value.type = Type::XYZ;
+    if (type == "yz" || type == "zy")      value.type = Type::YZ;
+    else if (type == "zx" || type == "xz") value.type = Type::ZX;
+    else if (type == "xy" || type == "yx") value.type = Type::XY;
+    else                                   value.type = Type::XYZ;
 }
 
 } // namespace LS
