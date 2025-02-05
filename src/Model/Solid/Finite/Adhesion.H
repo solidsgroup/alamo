@@ -46,38 +46,79 @@ Adhesion() {};
 Adhesion(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
 virtual ~Adhesion() {};
 
+
 public:
-Set::Scalar d = NAN, mu = NAN, kappa = NAN, zeta = NAN, n = NAN;
+/**
+ * @brief Material parameter for adhesion behavior.
+ * Controls the overall strength of adhesion forces.
+ */
+Set::Scalar d = NAN;
 
-// Static methods for Zero and Random initialization
+/**
+ * @brief Shear modulus for the adhesion model.
+ * Governs resistance to shear deformation.
+ */
+Set::Scalar mu = NAN;
+
+/**
+ * @brief Bulk modulus for the adhesion model.
+ * Governs resistance to volumetric deformation.
+ */
+Set::Scalar kappa = NAN;
+
+/**
+ * @brief Adhesion parameter influencing energy dissipation.
+ * Affects how adhesion strength decays with deformation.
+ */
+Set::Scalar zeta = NAN;
+
+/**
+ * @brief Exponent controlling adhesion decay rate.
+ * Defines sensitivity of adhesion force to volume changes.
+ */
+Set::Scalar n = NAN;
+
+/**
+ * @brief Creates an Adhesion object with all parameters initialized to zero.
+ * @return An Adhesion object with zeroed parameters.
+ */
 static Adhesion Zero() {
-Adhesion adhesion;
-adhesion.d = 0;
-adhesion.mu = 0;
-adhesion.kappa = 0;
-adhesion.zeta = 0;
-adhesion.n = 0;
-return adhesion;
+    Adhesion adhesion;
+    adhesion.d = 0;
+    adhesion.mu = 0;
+    adhesion.kappa = 0;
+    adhesion.zeta = 0;
+    adhesion.n = 0;
+    return adhesion;
 }
 
+/**
+ * @brief Creates an Adhesion object with randomized parameters.
+ * @return An Adhesion object with parameters randomly initialized.
+ */
 static Adhesion Random() {
-Adhesion adhesion;
-adhesion.d =Util::Random();
-adhesion.mu = Util::Random();
-adhesion.kappa = Util::Random();
-adhesion.zeta =Util::Random();
-adhesion.n =Util::Random();
-return adhesion;
+    Adhesion adhesion;
+    adhesion.d = Util::Random();
+    adhesion.mu = Util::Random();
+    adhesion.kappa = Util::Random();
+    adhesion.zeta = Util::Random();
+    adhesion.n = Util::Random();
+    return adhesion;
 }
 
-// Parsing method
+/**
+ * @brief Parses adhesion parameters from an input object.
+ * @param value Reference to an Adhesion object to store parsed values.
+ * @param pp Input parameter parser object.
+ */
 static void Parse(Adhesion& value, IO::ParmParse& pp) {
-pp.query("d", value.d);
-pp.query("mu", value.mu);
-pp.query("kappa", value.kappa);
-pp.query("zeta", value.zeta);
-pp.query("n", value.n);
+    pp.query("d", value.d);
+    pp.query("mu", value.mu);
+    pp.query("kappa", value.kappa);
+    pp.query("zeta", value.zeta);
+    pp.query("n", value.n);
 }
+
 
 // Potential Energy Function W(F)
 Set::Scalar W(const Set::Matrix& a_F) const override {
