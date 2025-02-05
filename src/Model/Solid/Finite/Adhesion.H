@@ -93,13 +93,12 @@ Set::Scalar W(const Set::Matrix& a_F) const override {
 Set::Scalar J = F.determinant();
 Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
 Set::Scalar w = 0.0;
-
+//All terms of w
 w += d * (0.5 * mu * ((F.transpose()*F).trace() - 3) / J23 
 + 0.5 * kappa * (J - 1.0) * (J - 1.0));
 w += zeta / std::pow(J, n);
 
-//w +=0.5 *d* mu * ((F * F.transpose()).trace() / J23 - 3.) + 0.5 * kappa * (J - 1.0) * (J - 1.0);
-//
+
 return w;
 }
 
@@ -119,13 +118,8 @@ Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
 Set::Scalar J53 = std::pow(fabs(J), 5.0 / 3.0);
 Eigen::Matrix3d FinvT = F.inverse().transpose();
 
-Eigen::Matrix3d dw = d * mu * ( F / J23 
- - (1.0 / 3.0) * ((F.transpose()*F).trace() - 3) * FinvT / J23)
- + d * kappa * (J - 1.0) * J * FinvT
-- zeta * n * std::pow(J, -n) * FinvT;
+Eigen::Matrix3d dw = d * mu * ( F / J23  - (1.0 / 3.0) * ((F.transpose()*F).trace() - 3) * FinvT / J23) + d * kappa * (J - 1.0) * J * FinvT- zeta * n * std::pow(J, -n) * FinvT;
 
-// Eigen::Matrix3d dw = Eigen::Matrix3d::Zero();
-// dw += mu * (F / J23 - (F * F.transpose()).trace() * FinvT / (3. * J23))
 
 #if AMREX_SPACEDIM==2
         Set::Matrix r_dw;

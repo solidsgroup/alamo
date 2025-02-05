@@ -27,6 +27,9 @@ data = load("{}/thermo.dat".format(outdir))
 sig_diff = numpy.interp(data['time'], ref['time'], ref['trac_xhi_x']) - data['trac_xhi_x']
 sig_norm = numpy.sqrt(integrate(ref['time'],ref['trac_xhi_x']*ref['trac_xhi_x']))
 
+print(f"time {integrate(data['time'],sig_diff**2)}")
+print(f"sig_diff {sig_diff}")
+print(f"sig_norm {sig_norm}")
 error = numpy.sqrt(integrate(data['time'],sig_diff**2)) / sig_norm
 
 
