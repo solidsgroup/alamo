@@ -1,6 +1,6 @@
 Tref = 300
 alamo.program = flame
-plot_file = output_4
+plot_file = output_4_1
 amr.plot_int = 10
 amr.max_level = 7
 amr.blocking_factor = 4
@@ -126,7 +126,7 @@ elastic.bc.constant.type.xloylo = disp disp
 elastic.bc.constant.type.ylo = disp disp
 elastic.bc.type = constant
 elastic.interval = 10
-elastic.on = 1
+elastic.on = 0
 #elastic.phirefinement = 100
 elastic.print_model = 1
 elastic.solver.fixed_iter = 100

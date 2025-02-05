@@ -1062,8 +1062,10 @@ Integrator::IntegrateVariables(amrex::Real time, int step)
         // Sum up across all processors
         for (int i = 0; i < thermo.number; i++)
         {
-            if (thermo.extensives[i])
-                amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
+	    if (i == 6) Util::ParallelMessage(INFO,thermo.names[i]," ",*thermo.vars[i], " ", thermo.extensives[i]);
+	    if (thermo.extensives[i])
+	      amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
+	    if (i == 6) Util::ParallelMessage(INFO,thermo.names[i]," ",*thermo.vars[i]);
         }
     }
     if (amrex::ParallelDescriptor::IOProcessor() &&

@@ -17,7 +17,7 @@ public:
     {
         // Initialize constants and initial values
         DefineConstants();
-        pressure0=4;
+        pressure0=4.0;
         dpdt.push_back(0.0);  // Initialize dp/dt as zero
     }
 
@@ -35,9 +35,9 @@ public:
     {
         // Define constants here
         gamma = 1.4;    // Example value for the specific heat ratio
-        At = 1;       // Example value for throat area (m^2)
-        R = 287;        // Specific gas constant for air in J/(kg·K)
-        T0 = 300;       // Initial temperature in K
+        At = 1.0;       // Example value for throat area (m^2)
+        R = 287.0;        // Specific gas constant for air in J/(kg·K)
+        T0 = 300.0;       // Initial temperature in K
         volume = 1.0;   // Volume in cubic meters
     }
 
@@ -66,12 +66,12 @@ public:
 
 
     // Class members for chamber properties
-    Set::Scalar pressure0;  // Chamber pressure
-    Set::Scalar At;         // Throat area
-    Set::Scalar gamma;      // Specific heat ratio
-    Set::Scalar R;          // Gas constant
-    Set::Scalar T0;         // Initial temperature
-    Set::Scalar volume;     // Chamber volume
+    Set::Scalar pressure0=NAN;  // Chamber pressure
+    Set::Scalar At=NAN;         // Throat area
+    Set::Scalar gamma=NAN;      // Specific heat ratio
+    Set::Scalar R=NAN;          // Gas constant
+    Set::Scalar T0=NAN;         // Initial temperature
+    Set::Scalar volume=NAN;     // Chamber volume
 
     std::vector<Set::Scalar> dpdt;  // dp/dt vector to store rate of change of pressure over time
 };

@@ -411,8 +411,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         Model::Ballistics::Ballistic_new ballistic;
         ballistic.Execute(chamber.mdot, timestep);
         chamber.pressure = ballistic.pressure0; // Access updated pressure
-        Util::Message(INFO, "Mdot = ", chamber.mdot);
-        Util::Message(INFO, "Pressure0 = ", chamber.pressure);
+        Util::ParallelMessage(INFO, "Mdot = ", chamber.mdot);
+        Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
         pre_compute_mdot = chamber.mdot;
         //calculate mass flux out of nozzle
         // Set::Scalar vol = 1 + chamber.volume;
@@ -557,7 +557,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     if (isnan(heatflux(i, j, k))) {
                         Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
                         Util::Abort(INFO);
-                    }timestep;
+                    }
+                });
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
@@ -601,10 +603,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                         Util::Abort(INFO);
                     }
                 });
-            }); // MFi For loop 
+            } // MFi For loop 
 
         } // thermal IF
-        }
         else
         {
             std::swap(eta_old_mf[lev], eta_mf[lev]);
