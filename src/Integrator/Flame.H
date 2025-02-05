@@ -149,7 +149,7 @@ private:
     struct {
         int on = 0;
         Set::Scalar Tref = NAN;
-        model_type model_ap, model_htpb;
+        model_type model_ap, model_htpb, model_void;
         Set::Scalar traction = NAN;
         int phirefinement = NAN;
     } elastic;

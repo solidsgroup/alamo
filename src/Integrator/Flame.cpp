@@ -182,7 +182,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_required("chamber.rho0",value.chamber.rho0);
         // initial chamber pressure
         pp_query_required("chamber.pressure",value.chamber.pressure);
-        Util::Message(INFO, "chamber.pressure = ", value.chamber.pressure);
+        //Util::Message(INFO, "chamber.pressure = ", value.chamber.pressure);
         // characteristic flow velocity
         pp_query_required("chamber.c_star",value.chamber.c_star);
         // nozzle throat area
@@ -258,6 +258,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
         pp_queryclass("model_ap", value.elastic.model_ap);
         pp_queryclass("model_htpb", value.elastic.model_htpb);
+        pp_queryclass("model_void", value.elastic.model_void);
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
@@ -338,25 +339,56 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             if (elastic.on)
             {
                 amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                if (homogeneousSystem)
                 {
-                    //auto sten = Numeric::GetStencil(i, j, k, bx);
-                    Set::Scalar phi_avg = phi(i, j, k, 0);
-                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                    rhs(i, j, k) = elastic.traction * grad_eta;
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        //auto sten = Numeric::GetStencil(i, j, k, bx);
+                        Set::Scalar phi_avg = phi(i, j, k, 0);
+                        Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
+                        Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+                        rhs(i, j, k) = elastic.traction * grad_eta;
 
-                    model_type model_ap = elastic.model_ap;
-                    model_ap.F0 -= Set::Matrix::Identity();
-                    model_ap.F0 *= (temp_avg - elastic.Tref);
-                    model_ap.F0 += Set::Matrix::Identity();
-                    model_type model_htpb = elastic.model_htpb;
-                    model_htpb.F0 -= Set::Matrix::Identity();
-                    model_htpb.F0 *= (temp_avg - elastic.Tref);
-                    model_htpb.F0 += Set::Matrix::Identity();
+                        model_type model_ap = elastic.model_ap;
+                        model_ap.F0 -= Set::Matrix::Identity();
+                        model_ap.F0 *= (temp_avg - elastic.Tref);
+                        model_ap.F0 += Set::Matrix::Identity();
+                        model_type model_htpb = elastic.model_htpb;
+                        model_htpb.F0 -= Set::Matrix::Identity();
+                        model_htpb.F0 *= (temp_avg - elastic.Tref);
+                        model_htpb.F0 += Set::Matrix::Identity();
+                        model_type model_void = elastic.model_void;
+                        model_void.F0 -= Set::Matrix::Identity();
+                        model_void.F0 *= (temp_avg - elastic.Tref);
+                        model_void.F0 += Set::Matrix::Identity();
 
-                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
-                });
+                        model(i, j, k) = (model_ap * thermal.massfraction 
+                                        + model_htpb * (1. - thermal.massfraction)) * phi_avg 
+                                        + model_void * (1. - phi_avg);
+                    });
+                }
+                else
+                {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        //auto sten = Numeric::GetStencil(i, j, k, bx);
+                        Set::Scalar phi_avg = phi(i, j, k, 0);
+                        Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
+                        Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+                        rhs(i, j, k) = elastic.traction * grad_eta;
+
+                        model_type model_ap = elastic.model_ap;
+                        model_ap.F0 -= Set::Matrix::Identity();
+                        model_ap.F0 *= (temp_avg - elastic.Tref);
+                        model_ap.F0 += Set::Matrix::Identity();
+                        model_type model_htpb = elastic.model_htpb;
+                        model_htpb.F0 -= Set::Matrix::Identity();
+                        model_htpb.F0 *= (temp_avg - elastic.Tref);
+                        model_htpb.F0 += Set::Matrix::Identity();
+
+                        model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    });
+                }
             }
             else
             {
@@ -396,9 +428,9 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         Set::Scalar domain_area = x_len * y_len;
         chamber_pressure = pressure.P;
         chamber_area = domain_area - volume;
-        Util::Message(INFO, "Mass = ", massflux);
-        Util::Message(INFO, "Pressure = ", pressure.P);
-        Util::Message(INFO, "CPressure = ", chamber.pressure);
+        //Util::Message(INFO, "Mass = ", massflux);
+        //Util::Message(INFO, "Pressure = ", pressure.P);
+        //Util::Message(INFO, "CPressure = ", chamber.pressure);
     }
     if (chamber.on)
     {
@@ -411,8 +443,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         Model::Ballistics::Ballistic_new ballistic;
         ballistic.Execute(chamber.mdot, timestep);
         chamber.pressure = ballistic.pressure0; // Access updated pressure
-        Util::ParallelMessage(INFO, "Mdot = ", chamber.mdot);
-        Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
+        //Util::ParallelMessage(INFO, "Mdot = ", chamber.mdot);
+        //Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
         pre_compute_mdot = chamber.mdot;
         //calculate mass flux out of nozzle
         // Set::Scalar vol = 1 + chamber.volume;
