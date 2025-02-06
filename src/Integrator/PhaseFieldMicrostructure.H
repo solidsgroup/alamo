@@ -19,7 +19,6 @@
 #include "BC/BC.H"
 #include "BC/Constant.H"
 #include "BC/Operator/Elastic/Constant.H"
-#include "BC/Step.H"
 #include "IC/Constant.H"
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
@@ -197,7 +196,7 @@ public:
         }
 
         // Boundary condition for eta
-        pp.select<BC::Constant,BC::Step>("bc.eta",value.mybc,value.number_of_grains);
+        pp.select<BC::Constant>("bc.eta",value.mybc,value.number_of_grains);
 
         // Initial condition for the order parameter eta
         pp.select<IC::Constant,IC::PerturbedInterface,IC::Voronoi,IC::Expression,IC::Sphere,IC::Ellipse,IC::Random>("ic",value.ic,value.geom);
