@@ -165,3 +165,55 @@ li.toctree-l1 ul {
 }
 
 /* =========================================== */
+
+
+
+/* Improve section headers to match ReadTheDocs theme */
+h1 {
+    background-color: #2980b9; /* ReadTheDocs primary blue */
+    color: white !important;
+    padding: 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+h2 {
+    background-color: #3498db; /* Slightly lighter blue */
+    color: white !important;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+h3 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h4 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h5 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+/* Add space between sections */
+section {
+    margin-bottom: 35px;
+    padding-top: 20px;
+}
+
+/* Horizontal line styling */
+hr {
+    border: 1px solid #e1e4e5; /* Light gray, matching ReadTheDocs dividers */
+    margin: 20px 0;
+}
