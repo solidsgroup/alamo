@@ -205,6 +205,13 @@ h5 {
     color: #2c3e50; /* ReadTheDocs dark gray text */
 }
 
+h6 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
 /* Add space between sections */
 section {
     margin-bottom: 35px;
