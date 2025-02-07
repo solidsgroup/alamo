@@ -123,18 +123,56 @@ public:
         Set::Scalar deltav3 = deltau   - deltap / (rho_RL * a_RL + small); // 5.54c
 
         //
+        // STEP 5: Compute the right eigenvectors
+        //
+        Set::Scalar r10 = 1.0;
+        Set::Scalar r11 = u_RL;
+        Set::Scalar r12 = 0.5*u_RL*u_RL;
+        Set::Scalar r20 = 0.5*rho_RL/a_RL;
+        Set::Scalar r21 = 0.5*rho_RL/a_RL * ( u_RL + a_RL );
+        Set::Scalar r22 = 0.5*rho_RL/a_RL * ( h_RL + a_RL*u_RL );
+        Set::Scalar r30 = -0.5*rho_RL/a_RL;
+        Set::Scalar r31 = -0.5*rho_RL/a_RL * ( u_RL - a_RL );
+        Set::Scalar r32 = -0.5*rho_RL/a_RL * ( h_RL - a_RL*u_RL );
+
+        //
+        // STEP 6: Compute solution - not needed since fluxes will be computed in STEP 7
+        //
+
+        //
+        // ROE ENTROPY FIX (not included in cited paper)
+        //  Eq. 4.3.67 in "Computational Fluid Dynamics for Engineers and Scientists" by Sreenivas Jayanti
+        //
+        Set::Scalar a_L = std::sqrt(gamma * p_L / rho_L); // sound speed
+        Set::Scalar a_R = std::sqrt(gamma * p_R / rho_R);
+        Set::Scalar lambda1_L = u_L;         Set::Scalar lambda1_R = u_R; // eigenvalues
+        Set::Scalar lambda2_L = u_L + a_L;   Set::Scalar lambda2_R = u_R + a_R;
+        Set::Scalar lambda3_L = u_L - a_L;   Set::Scalar lambda3_R = u_R - a_R;
+        Set::Scalar fix1 = std::max(0.0, std::max(lambda1 - lambda1_L, lambda1_R - lambda1));
+        Set::Scalar fix2 = std::max(0.0, std::max(lambda2 - lambda2_L, lambda2_R - lambda2));
+        Set::Scalar fix3 = std::max(0.0, std::max(lambda3 - lambda3_L, lambda3_R - lambda3));
+        if ( lambda1 < fix1 ) lambda1 = fix1;
+        if ( lambda2 < fix2 ) lambda2 = fix2;
+        if ( lambda3 < fix3 ) lambda3 = fix3;
+
+        //
         // STEP 7: Compute fluxes
         //
         Flux fl;
         
-        fl.mass =
-            (
-                rho_L * u_L 
-                + (std::min(0.0,lambda1)*deltav1
-                + (0.5*rho_RL/(a_RL))*( std::min(0.0,lambda2)*deltav2 -
-                                        std::min(0.0,lambda3)*deltav3)) 
-                )
-            ;
+        //fl.mass =
+        //    (
+        //        rho_L * u_L 
+        //        + (std::min(0.0,lambda1)*deltav1
+        //        + (0.5*rho_RL/(a_RL))*( std::min(0.0,lambda2)*deltav2 -
+        //                                std::min(0.0,lambda3)*deltav3)) 
+        //        )
+        //    ;
+        fl.mass = (0.5*(rho_L*u_L + rho_R*u_R) - 0.5*(
+                        r10*fabs(lambda1)*deltav1 +
+                        r20*fabs(lambda2)*deltav2 +
+                        r30*fabs(lambda3)*deltav3)
+                  );
         
         if (fl.mass != fl.mass)
         {
@@ -161,23 +199,33 @@ public:
         }
 
 
-        fl.momentum_normal =
-            (
-                rho_L * u_L * u_L + p_L
-                + (u_RL*std::min(0.0,lambda1)*deltav1
-                + (0.5*rho_RL/(a_RL))*( lambda2*std::min(0.0,lambda2)*deltav2 -
-                                        lambda3*std::min(0.0,lambda3)*deltav3)) 
-                ) 
-            ;
-        
-        fl.energy =
-            (
-                ke_L * u_L + (p_L + ue_L) * u_L
-                + (0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
-                + (0.5*rho_RL/(a_RL))*( (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
-                                        (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
-                ) 
-            ;
+        //fl.momentum_normal =
+        //    (
+        //        rho_L * u_L * u_L + p_L
+        //        + (u_RL*std::min(0.0,lambda1)*deltav1
+        //        + (0.5*rho_RL/(a_RL))*( lambda2*std::min(0.0,lambda2)*deltav2 -
+        //                                lambda3*std::min(0.0,lambda3)*deltav3)) 
+        //        ) 
+        //    ;
+        fl.momentum_normal = ( 0.5*(rho_L*u_L*u_L + p_L + rho_R*u_R*u_R + p_R) - 0.5*(
+                                    r11*fabs(lambda1)*deltav1 +
+                                    r21*fabs(lambda2)*deltav2 +
+                                    r31*fabs(lambda3)*deltav3)
+                             );
+
+        //fl.energy =
+        //    (
+        //        ke_L * u_L + (p_L + ue_L) * u_L
+        //        + (0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
+        //        + (0.5*rho_RL/(a_RL))*( (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
+        //                                (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
+        //        ) 
+        //    ;
+        fl.energy = ( 0.5*(u_L*(ke_L + p_L + ue_L) + u_R*(ke_R + p_R + ue_R)) - 0.5*(
+                           r12*fabs(lambda1)*deltav1 +
+                           r22*fabs(lambda2)*deltav2 +
+                           r32*fabs(lambda3)*deltav3)
+                    );
 
         //
         // (Update the tangential momentum flux)
