@@ -56,11 +56,8 @@ public:
         // Read in IC for psi
         if (pp.contains("psi.ic.type"))
         {
-            std::string type;
-            pp_query_validate("psi.ic.type", type, {"ellipse", "constant"}); // Read IC type for the eta field
-            if (type == "ellipse") value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
-            else if (type == "constant") value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
-            else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);
+            // Initial condition for psi field
+            pp.select<IC::Ellipse,IC::Constant>("psi.ic",value.ic_psi,value.geom);
 
             value.bc_psi = new BC::Constant(1, pp, "psi.bc");
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);

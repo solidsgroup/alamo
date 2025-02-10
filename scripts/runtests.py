@@ -93,7 +93,6 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
-parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -365,7 +364,8 @@ def test(testdir):
 
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
-        # we will continue with running other tests. (Script will return an error)
+        # we will continue with running other tests. (Script will return an error unless permit-timout
+        # has been enabled - usually for profiling)
         except subprocess.CalledProcessError as e:
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
@@ -388,7 +388,6 @@ def test(testdir):
                     for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                     for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
                     for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                #for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             except Exception as e1:
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))

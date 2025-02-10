@@ -78,17 +78,8 @@ public:
         // Time to start forcing directional growth
         pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
 
-        std::string type = "sphere";
-        // Initial condition type ([sphere], constant, expression, bmp, random)
-        pp_query_validate("alpha.ic.type", type, {"sphere","constant","expression","bmp","png","random","psread"});
-        if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
-        else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
-        else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
-        else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
-        else if (type == "png")        value.ic = new IC::PNG(value.geom, pp, "alpha.ic.png");
-        else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
-        else if (type == "psread")     value.ic = new IC::PSRead(value.geom, pp, "alpha.ic.psread");
-        else  Util::Abort(INFO, "Invalid ic.type ", type);
+        // Set the initial condition for the alpha field
+        pp.select_default<IC::Sphere,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::Random,IC::PSRead>("alpha.ic",value.ic,value.geom);
 
         // Use a constant BC object for temperature
         value.bc = new BC::Constant(1);

@@ -89,10 +89,10 @@ private:
     Set::Scalar small = NAN;
     Set::Scalar base_time = NAN;
     IC::IC* ic_eta = nullptr;
-    int ghost_count = NAN;
-    int homogeneousSystem = NAN;
+    int ghost_count = -1;
+    int homogeneousSystem = -1;
     bool plot_field = true;
-    int variable_pressure = NAN;
+    int variable_pressure = -1;
 
     struct {
         Set::Scalar gamma = NAN;
@@ -150,7 +150,7 @@ private:
         Set::Scalar Tref = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
-        int phirefinement = NAN;
+        int phirefinement = -1;
     } elastic;
 
     // Integrated variables

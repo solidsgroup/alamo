@@ -14,6 +14,7 @@
 #include "Operator/Operator.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
+#include "IC/Trig.H"
 
 namespace Integrator
 {
@@ -86,17 +87,19 @@ public:
             if (velocity_ic_str == "expression") value.velocity_ic = new IC::Expression(value.geom, pp,"velocity.ic.expression");
         }
 
+        // Select the mechanical boundary conditions
         pp.select<BC::Operator::Elastic::Constant,BC::Operator::Elastic::TensionTest,BC::Operator::Elastic::Expression>("bc",value.bc);
 
         pp_query_default("print_model", value.m_print_model, false); // Print out model variables (if enabled by model)
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
 
-        // Read in IC for RHS
-        std::string rhstype;
-        pp_query_validate("rhs.type", rhstype,{"none","trig","constant"}); // Initializer for RHS
-        if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
-        else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
+        // This if is here because the code currently allows for no
+        // body force to be defined, in which case value.ic_rhs is set to
+        // a nullptr. This should eventually be fixed - this is a stopgap.
+        if (pp.contains("rhs.type"))
+            // initial condition for right hand side (body force) 
+            pp.select<IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,value.geom);
 
         // Timestep interval for elastic solves (default - solve every time)
         pp_query_default("interval", value.m_interval, 0);

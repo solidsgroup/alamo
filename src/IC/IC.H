@@ -1,3 +1,12 @@
+//
+// Initial condition (IC) objects are used to set fields to specified values,
+// through mathematical expressions, images, etc.
+// They are often used as initial conditions, but may be used generally to
+// incorporate static or time-dependent values.
+// All IC methods inherit from the base IC class, and are implemented by
+// overriding the "Add" method.
+// (Initialize uses Add after setting the field to zero.)
+//
 #ifndef IC_IC_H_
 #define IC_IC_H_
 

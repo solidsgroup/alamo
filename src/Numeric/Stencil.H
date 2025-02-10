@@ -746,7 +746,7 @@ CellGradientOnNode(const amrex::Array4<const Set::Scalar>& f,
 
 
 template<class T>
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 std::array<T, AMREX_SPACEDIM>
 CellGradientOnNode(const amrex::Array4<const T>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -769,7 +769,7 @@ CellGradientOnNode(const amrex::Array4<const T>& f,
 
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 Gradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -793,7 +793,7 @@ Gradient(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 Gradient(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -815,7 +815,7 @@ Gradient(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 std::pair<Set::Vector,Set::Matrix>
 GradientSplit(  const amrex::Array4<const Set::Vector>& f,
                 const int& i, const int& j, const int& k,
@@ -845,7 +845,7 @@ GradientSplit(  const amrex::Array4<const Set::Vector>& f,
 }
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -865,7 +865,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
 NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -885,8 +885,7 @@ NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 Gradient(const amrex::Array4<const Set::Matrix>& f,
     const int& i, const int& j, const int& k,

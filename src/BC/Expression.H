@@ -20,6 +20,8 @@ namespace BC
 class Expression
     : public BC<Set::Scalar>
 {
+public:
+    static constexpr const char* name = "expression";
 
     //static constexpr const char* const Elastic::strings[];
     #if AMREX_SPACEDIM==2

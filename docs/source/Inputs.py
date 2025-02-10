@@ -228,10 +228,18 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 if (input["type"] in ["query","queryarr","query_validate",
                                       "query_default","queryarr_default",
                                       "query_required","queryarr_required",
-                                      "query_file"]):
+                                      "query_file", "select", "select_default"]):
                     global num_tot, num_doc
                     if input["parsefn"]: prefix = ["[prefix]"] + prefix
                     num_tot += 1
+
+                    # update the selects to derive the "type" that they should be
+                    # and set the name to "type"
+                    if input["type"] in ["select","select_default"]:
+                        input['possibles'] = [str(cl).split('::')[-1].lower() for cl in input["classes"]]
+                        input["string"] += ".type"
+                        
+                        
 
 
                     if writeFiles:
@@ -254,7 +262,7 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                         if writeFiles:
                             docfile.write(      "      - {}\n".format(input['doc'].replace('\n','\n        ')))
                             docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
-                            if "_default" in input["type"]:
+                            if input["type"] in ["query_default","queryarr_default"]:
                                 docfile.write(      "      - :bdg-success-line:`{}`".format(input['default'].strip()))
                                 docfilesearch.write("      - :bdg-success-line:`{}`".format(input['default'].strip()))
                             if "_required" in input["type"]:
@@ -267,6 +275,15 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                                 things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
                                 string = ":bdg-success-line:`{}` ".format(things[0])
                                 string += " ".join([":bdg-primary-line:`{}`".format(t) for t in things[1:]]) 
+                                docfile.write      (      "      - {}".format(string))
+                                docfilesearch.write(      "      - {}".format(string))
+                            if input["type"] in ["select","select_default"]:
+                                things = input['possibles']
+                                if input["type"] == "select_default":
+                                    string = ":bdg-success-line:`{}` ".format(things[0])
+                                    string += " ".join([":bdg-primary-line:`{}`".format(t) for t in things[1:]])
+                                elif input["type"] == "select":
+                                    string = " ".join([":bdg-primary-line:`{}`".format(t) for t in things])
                                 docfile.write      (      "      - {}".format(string))
                                 docfilesearch.write(      "      - {}".format(string))
                                 
