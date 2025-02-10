@@ -93,6 +93,7 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
+parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:

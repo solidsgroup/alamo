@@ -172,7 +172,7 @@ public:
                         r10*fabs(lambda1)*deltav1 +
                         r20*fabs(lambda2)*deltav2 +
                         r30*fabs(lambda3)*deltav3)
-                  );
+            );
         
         if (fl.mass != fl.mass)
         {
@@ -211,7 +211,7 @@ public:
                                     r11*fabs(lambda1)*deltav1 +
                                     r21*fabs(lambda2)*deltav2 +
                                     r31*fabs(lambda3)*deltav3)
-                             );
+            );
 
         //fl.energy =
         //    (
@@ -221,11 +221,12 @@ public:
         //                                (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
         //        ) 
         //    ;
-        fl.energy = ( 0.5*(u_L*(ke_L + p_L + ue_L) + u_R*(ke_R + p_R + ue_R)) - 0.5*(
-                           r12*fabs(lambda1)*deltav1 +
-                           r22*fabs(lambda2)*deltav2 +
-                           r32*fabs(lambda3)*deltav3)
-                    );
+        fl.energy = (   0.5*(u_L*(ke_L + p_L + ue_L) + u_R*(ke_R + p_R + ue_R)) - 0.5*
+                        (
+                            r12*fabs(lambda1)*deltav1 +
+                            r22*fabs(lambda2)*deltav2 +
+                            r32*fabs(lambda3)*deltav3)
+            );
 
         //
         // (Update the tangential momentum flux)
