@@ -37,7 +37,7 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 
 CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
 
-LINKER_FLAGS += -Bsymbolic-functions
+LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
 
 #CXX_COMPILE_FLAGS += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 #LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
