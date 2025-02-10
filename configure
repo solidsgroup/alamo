@@ -88,7 +88,10 @@ parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
-parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
+## TODO ## - change default back to "AMReX-Codes" before merge
+parser.add_argument('--build-amrex-fork', dest="amrexfork",action='store_true',default="bsrunnels", help='Download and build AMReX automatically')
+## TODO ## - change default back to None before merge
+parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="template-interp", help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--build-amrex-tag',dest="buildamrextag",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
@@ -172,11 +175,11 @@ if args.buildamrex and not args.amrex:
             raise Exception(error("Cannot download AMReX and no version currently exists!"))
         if args.buildamrexbranch:
             shellmessage("AMReX-Clone",
-                            cmd = "git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch,
+                            cmd = "git clone https://github.com/{}/amrex.git --branch ".format(args.amrexfork) + args.buildamrexbranch,
                             message="Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",
                             cwd="ext/")
         else: shellmessage("AMReX-Clone", 
-                            cmd="git clone https://github.com/AMReX-Codes/amrex.git",
+                            cmd="git clone https://github.com/{}/amrex.git".format(args.amrexfork),
                             message="Cloning AMReX [default branch] -- This may take a while",
                             cwd="ext/")
     elif not args.offline:
