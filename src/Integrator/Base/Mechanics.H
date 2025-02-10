@@ -95,9 +95,8 @@ public:
 
         // Read in IC for RHS
         std::string rhstype;
-        pp_query_validate("rhs.type", rhstype,{"none","trig","constant"}); // Initializer for RHS
-        if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
-        else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
+        pp_query_validate("rhs.type", rhstype,{"none","constant"}); // Initializer for RHS
+        if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
 
         // Timestep interval for elastic solves (default - solve every time)
         pp_query_default("interval", value.m_interval, 0);
