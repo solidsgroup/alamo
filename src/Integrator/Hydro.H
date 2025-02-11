@@ -129,6 +129,7 @@ private:
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
+    int roefix = 0;
 
     Solver::Local::Riemann::Roe *roesolver = nullptr;
 

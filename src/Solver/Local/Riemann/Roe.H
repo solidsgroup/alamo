@@ -47,7 +47,7 @@ public:
         pp.query_default("verbose",value.verbose,1);
     }
 
-    Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small)
+    Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small, int roefix)
     {
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
@@ -125,15 +125,15 @@ public:
         //
         // STEP 5: Compute the right eigenvectors
         //
-        Set::Scalar r10 = 1.0;
-        Set::Scalar r11 = u_RL;
-        Set::Scalar r12 = 0.5*u_RL*u_RL;
-        Set::Scalar r20 = 0.5*rho_RL/a_RL;
-        Set::Scalar r21 = 0.5*rho_RL/a_RL * ( u_RL + a_RL );
-        Set::Scalar r22 = 0.5*rho_RL/a_RL * ( h_RL + a_RL*u_RL );
-        Set::Scalar r30 = -0.5*rho_RL/a_RL;
-        Set::Scalar r31 = -0.5*rho_RL/a_RL * ( u_RL - a_RL );
-        Set::Scalar r32 = -0.5*rho_RL/a_RL * ( h_RL - a_RL*u_RL );
+        Set::Scalar r11 = 1.0;
+        Set::Scalar r12 = u_RL;
+        Set::Scalar r13 = 0.5*u_RL*u_RL;
+        Set::Scalar r21 = 0.5*rho_RL/a_RL;
+        Set::Scalar r22 = 0.5*rho_RL/a_RL * ( u_RL + a_RL );
+        Set::Scalar r23 = 0.5*rho_RL/a_RL * ( h_RL + a_RL*u_RL );
+        Set::Scalar r31 = -0.5*rho_RL/a_RL;
+        Set::Scalar r32 = -0.5*rho_RL/a_RL * ( u_RL - a_RL );
+        Set::Scalar r33 = -0.5*rho_RL/a_RL * ( h_RL - a_RL*u_RL );
 
         //
         // STEP 6: Compute solution - not needed since fluxes will be computed in STEP 7
@@ -141,19 +141,30 @@ public:
 
         //
         // ROE ENTROPY FIX (not included in cited paper)
-        //  Eq. 4.3.67 in "Computational Fluid Dynamics for Engineers and Scientists" by Sreenivas Jayanti
         //
-        Set::Scalar a_L = std::sqrt(gamma * p_L / (rho_L + small)); // sound speed
-        Set::Scalar a_R = std::sqrt(gamma * p_R / (rho_R + small));
-        Set::Scalar lambda1_L = u_L;         Set::Scalar lambda1_R = u_R; // eigenvalues
-        Set::Scalar lambda2_L = u_L + a_L;   Set::Scalar lambda2_R = u_R + a_R;
-        Set::Scalar lambda3_L = u_L - a_L;   Set::Scalar lambda3_R = u_R - a_R;
-        Set::Scalar fix1 = std::max(0.0, std::max(lambda1 - lambda1_L, lambda1_R - lambda1));
-        Set::Scalar fix2 = std::max(0.0, std::max(lambda2 - lambda2_L, lambda2_R - lambda2));
-        Set::Scalar fix3 = std::max(0.0, std::max(lambda3 - lambda3_L, lambda3_R - lambda3));
-        if ( lambda1 < fix1 ) lambda1 = fix1;
-        if ( lambda2 < fix2 ) lambda2 = fix2;
-        if ( lambda3 < fix3 ) lambda3 = fix3;
+        if (roefix == 1) {
+            Util::ParallelMessage(INFO,"Entropy fix is still experimental and needs to be investigated further");
+            //  Eq. 4.3.67 in "Computational Fluid Dynamics for Engineers and Scientists" by Sreenivas Jayanti
+            //Set::Scalar a_L = std::sqrt(gamma * p_L / (rho_L + small)); // sound speed
+            //Set::Scalar a_R = std::sqrt(gamma * p_R / (rho_R + small));
+            //Set::Scalar lambda1_L = u_L;         Set::Scalar lambda1_R = u_R; // eigenvalues
+            //Set::Scalar lambda2_L = u_L + a_L;   Set::Scalar lambda2_R = u_R + a_R;
+            //Set::Scalar lambda3_L = u_L - a_L;   Set::Scalar lambda3_R = u_R - a_R;
+            //Set::Scalar fix1 = std::max(0.0, std::max(lambda1 - lambda1_L, lambda1_R - lambda1));
+            //Set::Scalar fix2 = std::max(0.0, std::max(lambda2 - lambda2_L, lambda2_R - lambda2));
+            //Set::Scalar fix3 = std::max(0.0, std::max(lambda3 - lambda3_L, lambda3_R - lambda3));
+            //if ( lambda1 < fix1 ) lambda1 = fix1;
+            //if ( lambda2 < fix2 ) lambda2 = fix2;
+            //if ( lambda3 < fix3 ) lambda3 = fix3;
+
+            // chimeracfd method https://chimeracfd.com/programming/gryphon/fluxroe.html
+            lambda1 = fabs(lambda1);
+            lambda2 = fabs(lambda2);
+            lambda3 = fabs(lambda3);
+            if ( lambda1 < deltau ) lambda1 = 0.5*(lambda1*lambda1 + deltau*deltau)/deltau;
+            if ( lambda2 < deltau ) lambda2 = 0.5*(lambda2*lambda2 + deltau*deltau)/deltau;
+            if ( lambda3 < deltau ) lambda3 = 0.5*(lambda3*lambda3 + deltau*deltau)/deltau;
+        }
 
         //
         // STEP 7: Compute fluxes
@@ -169,9 +180,9 @@ public:
         //        )
         //    ;
         fl.mass = (0.5*(rho_L*u_L + rho_R*u_R) - 0.5*(
-                        r10*fabs(lambda1)*deltav1 +
-                        r20*fabs(lambda2)*deltav2 +
-                        r30*fabs(lambda3)*deltav3)
+                        r11*fabs(lambda1)*deltav1 +
+                        r21*fabs(lambda2)*deltav2 +
+                        r31*fabs(lambda3)*deltav3)
             );
         
         if (fl.mass != fl.mass)
@@ -209,9 +220,9 @@ public:
         //        ) 
         //    ;
         fl.momentum_normal = ( 0.5*(rho_L*u_L*u_L + p_L + rho_R*u_R*u_R + p_R) - 0.5*(
-                                    r11*fabs(lambda1)*deltav1 +
-                                    r21*fabs(lambda2)*deltav2 +
-                                    r31*fabs(lambda3)*deltav3)
+                                    r12*fabs(lambda1)*deltav1 +
+                                    r22*fabs(lambda2)*deltav2 +
+                                    r32*fabs(lambda3)*deltav3)
             );
 
         //fl.energy =
@@ -224,9 +235,9 @@ public:
         //    ;
         fl.energy = (   0.5*(u_L*(ke_L + p_L + ue_L) + u_R*(ke_R + p_R + ue_R)) - 0.5*
                         (
-                            r12*fabs(lambda1)*deltav1 +
-                            r22*fabs(lambda2)*deltav2 +
-                            r32*fabs(lambda3)*deltav3)
+                            r13*fabs(lambda1)*deltav1 +
+                            r23*fabs(lambda2)*deltav2 +
+                            r33*fabs(lambda3)*deltav3)
             );
 
         //
@@ -248,14 +259,15 @@ public:
         Set::Scalar gamma = 1.4;
         Set::Scalar pref = 10.0;
         Set::Scalar small = 1E-10;
+        int roefix = 0;
 
         // Test 1: Tangential Velocity Difference - No Normal Flux
         try {
             State left  (1.0, 1.0, 0.0, 1.0);
             State center(1.0, 1.0, 1.0, 1.0);
             State right (1.0, 1.0, 2.0, 1.0);
-            Flux fluxlo = solver.Solve(center, right, gamma, pref, small);
-            Flux fluxhi = solver.Solve(left, center,  gamma, pref, small);
+            Flux fluxlo = solver.Solve(center, right, gamma, pref, small, roefix);
+            Flux fluxhi = solver.Solve(left, center,  gamma, pref, small, roefix);
 
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
                 || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
@@ -279,8 +291,8 @@ public:
             State left  (1.0, 0.0, 0.0, 1.0);
             State center(1.0, 0.0, 1.0, 1.0);
             State right (1.0, 0.0, 2.0, 1.0);
-            Flux fluxlo = solver.Solve(left, center,  gamma, pref, small);
-            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
+            Flux fluxlo = solver.Solve(left, center,  gamma, pref, small, roefix);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small, roefix);
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
                 || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
                 || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
@@ -303,8 +315,8 @@ public:
             State left(1.0, 0.0, 0.0, 1.0);
             State center(1.0, 0.0, 0.0, 1.0);
             State right(1.0, 0.0, 0.0, 1.0);
-            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
-            Flux fluxlo = solver.Solve(left, center, gamma, pref, small);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small, roefix);
+            Flux fluxlo = solver.Solve(left, center, gamma, pref, small, roefix);
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 // no change in mass flux
                 || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 // no change in momentum flux
                 || fabs(fluxhi.momentum_tangent) > 1E-10 // zero tangent flux
@@ -329,8 +341,8 @@ public:
             State left (1.0, 1.0, 0.5, 1.0);
             State center(1.0, 1.0, 0.5, 1.0);
             State right (1.0, 1.0, 0.5, 1.0);
-            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
-            Flux fluxlo = solver.Solve(left, center, gamma, pref, small);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small, roefix);
+            Flux fluxlo = solver.Solve(left, center, gamma, pref, small, roefix);
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 ||
                 fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 ||
                 fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
