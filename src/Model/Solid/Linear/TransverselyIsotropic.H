@@ -109,9 +109,10 @@ public:
         }
 
         Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
-        pp_query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:\phi_1
-        pp_query_default("Phi", Phi, 0.0);  // Bunge Euler angle :math:\Phi
-        pp_query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:\phi_2
+	Set::Scalar small = 1e-8;
+        pp_query_default("phi1",phi1,small);  // Bunge Euler angle :math:\phi_1
+        pp_query_default("Phi", Phi, small);  // Bunge Euler angle :math:\Phi
+        pp_query_default("phi2",phi2,small);  // Bunge Euler angle :math:\phi_2
         value.Define(C11,C12,C13,C33,C44,phi1,Phi,phi2);
     }
 
