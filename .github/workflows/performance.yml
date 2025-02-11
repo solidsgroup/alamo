@@ -2,7 +2,7 @@ name: Performance
 
 on:
   push:
-    branches: ["development", "master","candidate","candidate-performance"]
+    branches: ["development", "master","candidate-performance"]
 
 permissions:
   contents: read

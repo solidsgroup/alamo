@@ -6,6 +6,8 @@
 #include "Util/Util.H"
 #include "Set/Set.H"
 #include "Numeric/Interpolator/NodeBilinear.H"
+#include "Numeric/Interpolator/CellBilinear.H"
+//#include "Numeric/Interpolator/CellConservativeLinear.H"
 
 namespace Integrator
 {
@@ -115,20 +117,21 @@ public:
                                         mapper, bcs, 0);
 
             }
+            else if (destination_mf.boxArray().ixType() == amrex::IndexType::TheCellType())
+            {
+                Numeric::Interpolator::CellBilinear<T> *mapper
+                    = new Numeric::Interpolator::CellBilinear<T>();
+            
+                amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
+                                        0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
+                                        physbc, 0,
+                                        physbc, 0,
+                                        m_refRatio[lev-1],
+                                        mapper, bcs, 0);
+            }
             else
             {
                 Util::Abort(INFO,"This implementation is not yet complete.");
-                /*
-                Numeric::Interpolator::CellBilinear<T> *mapper 
-                    = new Numeric::Interpolator::CellBilinear<T>();
-                m_bc->define(m_geom[lev]);
-                amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
-                                        0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
-                                        *m_bc, 0,
-                                        *m_bc, 0,
-                                        m_refRatio[lev-1],
-                                        mapper, bcs, 0);
-                */
             }
         }
 
@@ -167,13 +170,16 @@ public:
         else if (m_gridtype == Set::Hypercube::Cell)
         {
             Util::Abort(INFO,"This implementation is not yet complete");
-            /*
+
             amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
             cmf.push_back(m_field[lev-1].get());
             amrex::Vector<amrex::Real> ctime;
             ctime.push_back(time);
             m_bc->define(m_geom[lev]);
-            Numeric::Interpolator::CellBilinear<T> *mapper = new Numeric::Interpolator::CellBilinear<T>();
+            // Numeric::Interpolator::CellConservativeLinear<T> *mapper
+            //     = new Numeric::Interpolator::CellConservativeLinear<T>();
+            Numeric::Interpolator::CellBilinear<T> *mapper
+                = new Numeric::Interpolator::CellBilinear<T>();
             amrex::Vector<amrex::BCRec> bcs(ncomp, m_bc->GetBCRec());
             amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
                                         m_geom[lev-1], m_geom[lev],
@@ -181,7 +187,6 @@ public:
                                         *m_bc, 0,
                                         m_refRatio[lev-1],
                                         mapper, bcs, 0);
-            */
         }
         else
             Util::Abort(INFO,"Invalid grid");
@@ -280,8 +285,8 @@ public:
         if (m_gridtype == Set::Hypercube::Node)
             amrex::average_down_nodal(*m_field[lev+1],*m_field[lev],refRatio);
         else if (m_gridtype == Set::Hypercube::Cell)
-            Util::Abort(INFO,"This is not yet working");
-            //amrex::average_down(*m_field[lev+1],*m_field[lev],0,m_ncomp,refRatio);
+            //Util::Abort(INFO,"This is not yet working");
+            amrex::average_down      (*m_field[lev+1],*m_field[lev],0,m_ncomp,refRatio);
             //amrex::average_down(*m_field[lev+1],*m_field[lev],0,m_ncomp,refRatio);
         else
             Util::Abort(INFO,"Incorrect grid");

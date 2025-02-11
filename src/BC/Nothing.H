@@ -8,13 +8,14 @@
 
 namespace BC
 {
+template<class T = Set::Scalar>
 class Nothing
-    : public BC<Set::Scalar>
+    : public BC<T>
 {
 
 public:
     Nothing () {};
-    virtual void FillBoundary (amrex::BaseFab<Set::Scalar>&,
+    virtual void FillBoundary (amrex::BaseFab<T>&,
                     const amrex::Box &,
                     int, int, int,
                     amrex::Real,

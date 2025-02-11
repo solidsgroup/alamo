@@ -87,19 +87,19 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true , {"x","y"});
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false);
  
-        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, {"x","y"});
-        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true);
+        value.AddField<Set::Scalar,Set::Hypercube::Cell>(value.pressure_mf, &value.bcn, 1,nghost, "pressure",  true, false);
+        value.AddField<Set::Vector,Set::Hypercube::Cell>(value.velocity_mf, &value.bcn_vec,1,nghost,"velocity",  true, false);
+        value.RegisterNewFab(value.vorticity_mf, new BC::Nothing<Set::Scalar>, 1, nghost, "vorticity", true);
 
-        value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, 1, 0, "m0",  true);
-        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, {"x","y"});
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, {"x","y"});
+        value.RegisterNewFab(value.m0_mf,&value.bcn, 1, 0, "m0",  true);
+        value.RegisterNewFab(value.u0_mf,&value.bcn, 2, 0, "u0",  true, {"x","y"});
+        value.RegisterNewFab(value.q_mf, &value.bcn, 2, 0, "q",   true, {"x","y"});
 
         value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true, {"x","y"});
         value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
         value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true);
 
-        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true);
+        value.RegisterNewFab(value.Source_mf, &value.bcn, 4, 0, "Source", true);
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
@@ -189,7 +189,7 @@ void Hydro::Mix(int lev)
 
         Set::Patch<const Set::Scalar> eta       = eta_mf.Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> v         = velocity_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Vector> v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho       = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho_old   = density_old_mf.Patch(lev,mfi);
@@ -207,13 +207,13 @@ void Hydro::Mix(int lev)
             rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
 
-            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
-            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta(i, j, k)  +  M_solid(i, j, k, 1)*(1.0-eta(i, j, k));
+            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k)(0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
+            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k)(1))*eta(i, j, k)  +  M_solid(i, j, k, 1)*(1.0-eta(i, j, k));
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
             E(i, j, k) =
-                (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k) + p(i, j, k) / (gamma - 1.0)) * eta(i, j, k) 
+                (0.5 * (v(i, j, k)(0) * v(i, j, k)(0) + v(i, j, k)(1) * v(i, j, k)(1)) * rho(i, j, k) + p(i, j, k) / (gamma - 1.0)) * eta(i, j, k) 
                 + 
                 E_solid(i, j, k) * (1.0 - eta(i, j, k));
             E_old(i, j, k) = E(i, j, k);
@@ -280,7 +280,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
-        Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Vector>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -295,8 +295,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             //THESE ARE FLUID VELOCITY AND PRESSURE
 
-            v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
-            v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
+            v(i,j,k)(0) = etaM_fluid(0) / (etarho_fluid + small);
+            v(i,j,k)(1) = etaM_fluid(1) / (etarho_fluid + small);
 
             p(i,j,k)   = (etaE_fluid / (eta(i, j, k) + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta(i, j, k) + small))-pref;
         });
@@ -325,7 +325,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Patch<const Set::Scalar> eta       = eta_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Vector> velocity  = velocity_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -344,7 +344,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
             Set::Matrix hess_eta     = Numeric::Hessian(eta, i, j, k, 0, DX);
 
-            Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
+            Set::Vector u            = velocity(i,j,k); //Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
             Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
 
             Set::Matrix gradM   = Numeric::Gradient(M, i, j, k, DX);
@@ -594,7 +594,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const& v = (*velocity_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Vector> const& v = (*velocity_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, bx);

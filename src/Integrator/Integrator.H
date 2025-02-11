@@ -240,6 +240,9 @@ protected:
     void AddField(  Set::Field<T>& new_field, BC::BC<T>* new_bc, int ncomp, int nghost,
                     std::string, bool writeout, bool evolving, std::vector<std::string> suffix = {});
 
+    template<class T, int d>
+    void AddField(Set::Field<T>& new_field, std::string name, bool writeout, bool evolving );
+
     void SetFinestLevel(const int a_finestlevel)
     {
         for (unsigned int i = 0; i < cell.fab_array.size(); i++)
@@ -437,7 +440,7 @@ protected:
     std::vector<BaseField*> m_basefields;
     std::vector<BaseField*> m_basefields_cell;
 
-    BC::Nothing bcnothing;
+    //BC::Nothing bcnothing;
 
     // KEEP TRACK OF ALL INTEGRATED VARIABLES
     struct {
@@ -487,7 +490,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>
     new_field.resize(nlevs_max);
     cell.fab_array.push_back(&new_field);
     if (new_bc != nullptr) cell.physbc_array.push_back(new_bc);
-    else                   cell.physbc_array.push_back(&bcnothing);
+    else                   cell.physbc_array.push_back(new BC::Nothing<Set::Scalar>);
     cell.ncomp_array.push_back(ncomp);
     cell.nghost_array.push_back(nghost);
     //cell.name_array.push_back(name);
@@ -527,7 +530,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
     int nlevs_max = maxLevel() + 1;
     new_field.resize(nlevs_max);
     node.fab_array.push_back(&new_field);
-    node.physbc_array.push_back(&bcnothing);
+    node.physbc_array.push_back(new BC::Nothing<Set::Scalar>);
     node.ncomp_array.push_back(ncomp);
     node.nghost_array.push_back(nghost);
     //node.name_array.push_back(name);
@@ -579,7 +582,7 @@ void Integrator::AddField
         m_basefields_cell.back()->setName(name);
         m_basefields_cell.back()->evolving = evolving;
         if (new_bc) m_basefields_cell.back()->setBC(new_bc);
-        else m_basefields_cell.back()->setBC(&bcnothing);
+        else m_basefields_cell.back()->setBC(new BC::Nothing<T>);
         m_basefields_cell.back()->m_gridtype = Set::Hypercube::Cell;
     }
     else
@@ -588,6 +591,17 @@ void Integrator::AddField
     }
 }
 
+//
+// Convenience function for fields that have a single component,
+// no ghost nodes/cells, and (therefore) no boundary condition.
+//
+template<class T, int d>
+ALAMO_SINGLE_DEFINITION
+void Integrator::AddField(
+    Set::Field<T>& new_field, std::string name, bool writeout, bool evolving )
+{
+    AddField<T,d>(new_field,new BC::Nothing<T>, 1, 0, name, writeout, evolving);
+}
 
 
 template<class T>

@@ -72,7 +72,7 @@ private:
     Set::Field<Set::Scalar> momentum_mf;
     Set::Field<Set::Scalar> momentum_old_mf;
 
-    Set::Field<Set::Scalar> velocity_mf;
+    Set::Field<Set::Vector> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
 
     struct {
@@ -114,7 +114,8 @@ private:
     IC::IC* eta_ic = nullptr;
     IC::IC* etadot_ic = nullptr;
 
-    BC::Nothing bc_nothing;
+    BC::Nothing<Set::Scalar> bcn;
+    BC::Nothing<Set::Vector> bcn_vec;
 
     BC::Constant neumann_bc_1 = BC::Constant::ZeroNeumann(1);
     BC::Constant neumann_bc_D = BC::Constant::ZeroNeumann(AMREX_SPACEDIM);

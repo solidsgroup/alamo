@@ -91,7 +91,7 @@ parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',defau
 ## TODO ## - change default back to "AMReX-Codes" before merge
 parser.add_argument('--build-amrex-fork', dest="amrexfork",action='store_true',default="bsrunnels", help='Download and build AMReX automatically')
 ## TODO ## - change default back to None before merge
-parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="template-interp", help='AMReX Branch (You probably don\'t need to change this!)' )
+parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="template-interp-tmp", help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--build-amrex-tag',dest="buildamrextag",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
