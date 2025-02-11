@@ -169,8 +169,6 @@ public:
         }
         else if (m_gridtype == Set::Hypercube::Cell)
         {
-            Util::Abort(INFO,"This implementation is not yet complete");
-
             amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
             cmf.push_back(m_field[lev-1].get());
             amrex::Vector<amrex::Real> ctime;

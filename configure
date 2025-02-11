@@ -237,7 +237,7 @@ if args.buildamrex and not args.amrex:
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    f2.write("ext/amrex/"+postfix_amrex+":\n")
+    f2.write("ext/amrex/"+postfix_amrex+": .FORCE\n")
     f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
     f2.write("\tmake -C ext/amrex install\n")
         
