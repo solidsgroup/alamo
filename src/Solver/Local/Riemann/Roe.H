@@ -143,8 +143,8 @@ public:
         // ROE ENTROPY FIX (not included in cited paper)
         //  Eq. 4.3.67 in "Computational Fluid Dynamics for Engineers and Scientists" by Sreenivas Jayanti
         //
-        Set::Scalar a_L = std::sqrt(gamma * p_L / rho_L); // sound speed
-        Set::Scalar a_R = std::sqrt(gamma * p_R / rho_R);
+        Set::Scalar a_L = std::sqrt(gamma * p_L / (rho_L + small)); // sound speed
+        Set::Scalar a_R = std::sqrt(gamma * p_R / (rho_R + small));
         Set::Scalar lambda1_L = u_L;         Set::Scalar lambda1_R = u_R; // eigenvalues
         Set::Scalar lambda2_L = u_L + a_L;   Set::Scalar lambda2_R = u_R + a_R;
         Set::Scalar lambda3_L = u_L - a_L;   Set::Scalar lambda3_R = u_R - a_R;
@@ -178,22 +178,23 @@ public:
         {
             if (verbose)
             {
-                Util::ParallelMessage(INFO,u_RL); 
-                Util::ParallelMessage(INFO,rho_L);
-                Util::ParallelMessage(INFO,rho_R);
-                Util::ParallelMessage(INFO,u_R);
-                Util::ParallelMessage(INFO,lo);
-                Util::ParallelMessage(INFO,hi);
-                Util::ParallelMessage(INFO,rho_L);
-                Util::ParallelMessage(INFO,u_L);
-                Util::ParallelMessage(INFO,lambda1); 
-                Util::ParallelMessage(INFO,lambda2); 
-                Util::ParallelMessage(INFO,lambda3); 
-                Util::ParallelMessage(INFO,deltav1); 
-                Util::ParallelMessage(INFO,deltav2);
-                Util::ParallelMessage(INFO,deltav3);
-                Util::ParallelMessage(INFO,rho_RL); 
-                Util::ParallelMessage(INFO,a_RL);
+                Util::ParallelMessage(INFO,"hi ", hi);
+                Util::ParallelMessage(INFO,"lo ", lo);
+                Util::ParallelMessage(INFO,"rho_R ", rho_R);
+                Util::ParallelMessage(INFO,"rho_L ", rho_L);
+                Util::ParallelMessage(INFO,"rho_RL ", rho_RL); 
+                Util::ParallelMessage(INFO,"u_R ", u_R);
+                Util::ParallelMessage(INFO,"u_L ", u_L);
+                Util::ParallelMessage(INFO,"u_RL ", u_RL); 
+                //Util::ParallelMessage(INFO,"a_R ", a_R);
+                //Util::ParallelMessage(INFO,"a_L ", a_L);
+                Util::ParallelMessage(INFO,"a_RL ", a_RL);
+                Util::ParallelMessage(INFO,"lambda1 ", lambda1); 
+                Util::ParallelMessage(INFO,"lambda2 ", lambda2); 
+                Util::ParallelMessage(INFO,"lambda3 ", lambda3); 
+                Util::ParallelMessage(INFO,"deltav1 ", deltav1); 
+                Util::ParallelMessage(INFO,"deltav2 ", deltav2);
+                Util::ParallelMessage(INFO,"deltav3 ", deltav3);
             }
             Util::Exception(INFO);
         }
