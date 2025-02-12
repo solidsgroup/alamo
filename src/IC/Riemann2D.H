@@ -151,10 +151,10 @@ private:
     Set::Scalar q3_pressure = 0.5;
     Set::Scalar q4_pressure = 0.2;
 
-    Set::Vector q1_velocity = {0.0, 0.0};
-    Set::Vector q2_velocity = {0.0, 0.0};
-    Set::Vector q3_velocity = {0.0, 0.0};
-    Set::Vector q4_velocity = {0.0, 0.0};
+    Set::Vector q1_velocity = Set::Vector::Zero();
+    Set::Vector q2_velocity = Set::Vector::Zero();
+    Set::Vector q3_velocity = Set::Vector::Zero();
+    Set::Vector q4_velocity = Set::Vector::Zero();
 
 protected:
     using SodShock::shock_xpos;

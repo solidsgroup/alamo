@@ -1,5 +1,5 @@
-#ifndef IC_LS_ZALESAKLS_H_
-#define IC_LS_ZALESAKLS_H_
+#ifndef IC_LS_ZALESAK_H
+#define IC_LS_ZALESAK_H
 
 #include <cmath>
 #include "IC/IC.H"
@@ -13,34 +13,32 @@ class Zalesak : public IC {
 public:
     static constexpr const char* name = "zalesak";
 
-    enum Type {
-        XYZ,
-        YZ,
-        ZX,
-        XY
-    };
+    enum Type { XYZ, YZ, ZX, XY };
 
-    Zalesak(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {} ;
-    Zalesak(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp) : IC(_geom)
-    {pp_queryclass(*this);}
-    Zalesak(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
-    {pp_queryclass(name,*this);}
-    Zalesak(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center,
-              Set::Scalar _slot_width = -1, Set::Scalar _slot_length = -1, Type _type = Type::XYZ);
+    explicit Zalesak(amrex::Vector<amrex::Geometry>& _geom);
+    Zalesak(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp);
+    Zalesak(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const std::string& name);
 
-    void Define(Set::Scalar a_radius, Set::Vector a_center, Set::Scalar a_slot_width = -1, Set::Scalar a_slot_length = -1, Type a_type = Type::XYZ);
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar);
     static void Parse(Zalesak& value, IO::ParmParse& pp);
-
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar);
+    
 private:
-    Set::Vector center = Set::Vector::Zero();
     Set::Scalar radius = 1.0;
-    Set::Scalar slot_width = 0.1;
-    Set::Scalar slot_length = 0.6;
+    Set::Vector center = Set::Vector::Zero();
+    Set::Vector slot_center = Set::Vector::Zero();
+    Set::Vector slot_size = Set::Vector::Zero();
+    Set::Scalar fillet_radius = 0.0;
     Type type = Type::XYZ;
+
+    AMREX_GPU_HOST_DEVICE inline Set::Vector computeCoordinates(int i, int j, int k, int lev, bool cellcentered) const;
+    AMREX_GPU_HOST_DEVICE inline Set::Scalar computeCircleLevelSet(const Set::Vector& coords) const;
+    AMREX_GPU_HOST_DEVICE inline Set::Scalar computeRSquared(const Set::Vector& coords, Type type, const Set::Vector& center) const;
+    AMREX_GPU_HOST_DEVICE inline Set::Scalar computeSlotLevelSet(const Set::Vector& coords) const;
+    AMREX_GPU_HOST_DEVICE inline Set::Scalar computeLevelSetValue(Set::Scalar distance, Set::Scalar Narrow_Band_Width, Set::Scalar InnerTube, Set::Scalar OuterTube) const;
 };
 
 } // namespace LS
 } // namespace IC
 
-#endif // IC_LS_ZALESAKLS_H_
+#endif // IC_LS_ZALESAK_H
+
