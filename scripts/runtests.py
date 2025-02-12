@@ -9,6 +9,7 @@ import socket
 import time
 import re
 import pathlib
+import threading
 
 from sympy import capture
 
@@ -47,6 +48,23 @@ class MultiOrderedDict(OrderedDict):
         else:
             super().__setitem__(key, value)
 
+#
+# Convert metadata file to dictionary
+#
+def readMetadata(metadatafile):
+    metadata = dict()
+    for line in metadatafile.readlines():
+        if line.startswith('#'): continue;
+        if '::' in line:
+            ### skip these for now ...
+            continue
+            #line = re.sub(r'\([^)]*\)', '',line)
+            #line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+        if len(line.split(' = ')) != 2: continue;
+        col = line.split(' = ')[0]#.replace('.','_')
+        val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
+        metadata[col] = val
+    return metadata
 
 #
 # Provide some simple command line arguments for filtering the types of 
@@ -75,6 +93,7 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
+parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -111,6 +130,7 @@ def test(testdir):
     skips = 0
     tests = 0
     checks = 0
+    warnings = 0
     fasters = 0
     slowers = 0
     timeouts = 0
@@ -139,7 +159,7 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0,0,0,0,[]
+        return 0,0,0,0,0,0,0,0,[]
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
@@ -278,21 +298,60 @@ def test(testdir):
         # Run the actual test.
         print("  ├ " + desc)
         if args.cmd: print("  ├      " + command)
-        print("  │      Running test............................................",end="",flush=True)
+        bs = "\b\b\b\b\b\b"
+        if args.no_backspace:
+            print("  │      Running test............................................",end="")
+            bs = ""
+        else:
+            print("  │      Running test............................................[----]",end="",flush=True)
+            
         # Spawn the process and wait for it to finish before continuing.
         try:
             if args.dryrun: raise DryRunException()
             timeStarted = time.time()
-            p = subprocess.run(command.split(),capture_output=True,check=True,timeout=timeout)
+
+            #
+            # This is a thread that periodically checks the metadata file to determine
+            # progress of the alamo run. It scans the metadata file for the alamo-computed
+            # progress and prints out the current progress to the terminal.
+            #
+            def check_progress(proc,none):
+                n = 0.0
+                while True:
+                    if proc.poll() is not None:
+                        break
+                    try: 
+                        metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
+                        metadata = readMetadata(metadatafile)
+                        metadatafile.close()
+                        status = int(metadata["Status"].split('(')[1].split('%')[0])
+                        if not args.no_backspace:
+                            print(bs + f"[{status:3d}%]",end="",flush=True)
+                    except Exception as e:
+                        True #do nothing
+                    time.sleep(1)
+
+            # Start the run
+            proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+            # Start the check_progress thread
+            monitor_thread = threading.Thread(target=check_progress, args=(proc,""))
+            monitor_thread.start()
+
+            # Now, wait for test to complete or error out
+            stdout, stderr = proc.communicate(timeout=timeout)
+            retcode = proc.returncode
+            if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
+
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-            fstdout.write(ansi_escape.sub('',p.stdout.decode('utf-8')))
+            fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
             fstdout.close()
             fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-            fstderr.write(ansi_escape.sub('',p.stderr.decode('utf-8')))
+            fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
             fstderr.close()
-            print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            print(bs+"[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             record['runStatus'] = 'PASS'
             if dobenchmark:
                 if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
@@ -306,9 +365,10 @@ def test(testdir):
 
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
-        # we will continue with running other tests. (Script will return an error)
+        # we will continue with running other tests. (Script will return an error unless permit-timout
+        # has been enabled - usually for profiling)
         except subprocess.CalledProcessError as e:
-            print("[{}FAIL{}]".format(color.red,color.reset))
+            print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
@@ -318,7 +378,8 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
-            print("[{}TIMEOUT{}]".format(color.red,color.reset))
+            proc.kill()
+            print(bs+"[{}TIME{}]".format(color.red,color.reset))
             record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             try:
@@ -329,19 +390,18 @@ def test(testdir):
                     for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                     for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
                     for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                #for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             except Exception as e1:
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
             timeouts += 1
             continue
         except DryRunException as e:
-            print("[----]")
+            print("")
             record['runStatus'] = '----'
             
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
-            print("[{}FAIL{}]".format(color.red,color.reset))
+            print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
             fails += 1
@@ -352,7 +412,6 @@ def test(testdir):
         # script to determine if the run was successful.
         # The exception handling is basically the same as for the above test.
         if check:
-            print("  │      Checking result.........................................",end="",flush=True)
             try:
                 if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
@@ -360,10 +419,26 @@ def test(testdir):
                     cmd.append(config[desc]['check-file'])
                 if args.cmd: 
                     print("  ├      " + ' '.join(cmd))
-                p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
-                checks += 1
-                print("[{}PASS{}]".format(color.boldgreen,color.reset))
-                record['checkStatus'] = 'PASS'
+
+                print("  │      Checking result.........................................",end="",flush=True)
+                proc = subprocess.Popen(cmd,cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+                stdout, stderr = proc.communicate()
+                retcode = proc.returncode
+                if retcode == 0:
+                    if (stderr):
+                        print("[{}WARN{}]".format(color.boldyellow,color.reset)) 
+                        for line in stderr.decode('utf-8').split('\n')[:-1]: print("  │      {}STDERR: {}{}".format(
+                                color.boldyellow,line,color.reset))
+                        record['checkStatus'] = 'WARN'
+                        warnings += 1
+                    else:
+                        print("[{}PASS{}]".format(color.boldgreen,color.reset)) 
+                        record['checkStatus'] = 'PASS'
+                    checks += 1
+                else:
+                    raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
+
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 record['checkStatus'] = 'FAIL'
@@ -391,18 +466,7 @@ def test(testdir):
         if args.post:
             try:
                 metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
-                metadata = dict()
-                for line in metadatafile.readlines():
-                    if line.startswith('#'): continue;
-                    if '::' in line:
-                        ### skip these for now ...
-                        continue
-                        #line = re.sub(r'\([^)]*\)', '',line)
-                        #line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
-                    if len(line.split(' = ')) != 2: continue;
-                    col = line.split(' = ')[0]#.replace('.','_')
-                    val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
-                    metadata[col] = val
+                metadata = readMetadata(metadatafile)
                 metadatafile.close()
                 record['git_commit_hash'] = metadata['Git_commit_hash']
                 record['platform'] = metadata['Platform']
@@ -448,11 +512,12 @@ def test(testdir):
     sums = []
     if tests: sums.append("{}{} tests run{}".format(color.blue,tests,color.reset))
     if checks: sums.append("{}{} checks passed{}".format(color.green,checks,color.reset))
+    if warnings: sums.append("{}{} warnings{}".format(color.boldyellow,checks,color.reset))
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
     print(summary + ", ".join(sums))
-    return fails, checks, tests, skips, fasters, slowers, timeouts, records
+    return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
@@ -465,6 +530,7 @@ class stats:
     fails = 0   # Number of failed runs - script errors if this is nonzero
     skips = 0   # Number of tests that were unexpectedly skipped - script errors if this is nonzero
     checks = 0  # Number of successfully passed checks
+    warnings = 0
     tests = 0   # Number of successful checks
     fasters = 0
     slowers = 0
@@ -477,10 +543,11 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s, fa, sl, to, re = test(testdir)
+    f, c, w, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
+    stats.warnings += w
     stats.skips += s
     stats.fasters += fa
     stats.slowers += sl
@@ -493,6 +560,7 @@ print("{}{} tests run{}".format(color.blue,stats.tests,color.reset))
 print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.reset))
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))
+if stats.warnings: print("{}{} warnings{}".format(color.boldyellow,stats.warnings,color.reset))
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))

@@ -31,7 +31,7 @@ jobs:
       run: make
     - name: regression tests with coverage (2d + 3d)
       continue-on-error: true
-      run: scripts/runtests.py --serial --timeout=50 --permit-timeout --coverage
+      run: scripts/runtests.py --serial --timeout=50 --permit-timeout --coverage --no-backspace
     - name: generate coverage report
       run: make cov-report
     - name: generate documentation
@@ -39,9 +39,9 @@ jobs:
     - name: combine githubpages
       run: make githubpages
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v2
+      uses: actions/upload-pages-artifact@v3
       with:
         path: './githubpages/'
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v3
+      uses: actions/deploy-pages@v4

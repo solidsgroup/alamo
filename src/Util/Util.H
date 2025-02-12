@@ -44,6 +44,8 @@ template<>
 std::complex<int> Parse(std::string);
 }
 
+extern std::string globalprefix;
+
 std::string GetFileName();
 void CopyFileToOutputDir(std::string a_path, bool fullpath = true, std::string prefix = "");
 
@@ -67,6 +69,7 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
     if (pass) return;
 
     std::ostringstream infostream;
+    infostream << globalprefix;
     infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
     infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
     infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
@@ -92,6 +95,7 @@ void Abort (std::string file, std::string func, int line, Args const &... args)
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
+        infostream << globalprefix;
         infostream << Color::Bold << Color::FG::Red << "ABORT" << Color::Reset << ":   ";
         infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
         infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
@@ -113,6 +117,7 @@ void ParallelAbort (std::string file, std::string func, int line, Args const &..
 {
 
     std::ostringstream infostream;
+    infostream << globalprefix;
     infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
     infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
     infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
@@ -135,6 +140,7 @@ void Message (std::string file, std::string func, int line, Args const &... args
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
+        infostream << globalprefix;
         infostream << Color::Bold << Color::FG::Blue << "MESSAGE" << Color::Reset << ": ";
         infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
         infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
@@ -155,6 +161,7 @@ template<typename... Args>
 void ParallelMessage (std::string file, std::string func, int line, Args const &... args)
 {
     std::ostringstream infostream;
+    infostream << globalprefix;
     infostream << Color::Bold << Color::FG::Blue << "MESSAGE("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ": ";
     infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
     infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
@@ -173,6 +180,7 @@ void Warning (std::string file, std::string func, int line, Args const &... args
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
+        infostream << globalprefix;
         infostream << Color::Bold << Color::FG::Yellow << "WARNING" << Color::Reset << ": ";
         infostream << Color::FG::Yellow << file << Color::Reset << ":" << line << " ";
         infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
@@ -196,6 +204,7 @@ void Exception (std::string file, std::string func, int line, Args const &... ar
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
+        infostream << globalprefix;
         infostream << Color::Bold << Color::FG::Red << "EXCEPTION" << Color::Reset << ": ";
         infostream << Color::FG::LightGray << file << ":" << line << " (" << func << Color::Reset << ") ";
         std::string info = infostream.str();
@@ -225,6 +234,7 @@ void AssertException (std::string file, std::string func, int line, std::string 
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
+        infostream << globalprefix;
         infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
         infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
         infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
@@ -255,6 +265,7 @@ void ParmParseException (   std::string file, std::string func, int line,
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
+        infostream << globalprefix;
         infostream << Color::Bold << Color::FG::Red << "EXCEPTION" << Color::Reset << ": ";
         infostream << Color::FG::LightGray << file << ":" << line << " (" << func << Color::Reset << ") ";
         std::string info = infostream.str();
@@ -268,7 +279,8 @@ void ParmParseException (   std::string file, std::string func, int line,
         const std::size_t nargs = sizeof...(Args);
 
         if (nargs) messagestream << "\n";
-        messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
+        if (fullname != "")
+            messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
         if (line2 >= 0)
         {
             messagestream << " at " << file2 << ":" << line2;

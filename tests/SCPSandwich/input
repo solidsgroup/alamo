@@ -71,6 +71,10 @@ phi.ic.laminate.eps = 0.015
 phi.ic.laminate.singlefab = 1
 phi.ic.laminate.invert = 1
 
+# Initial conditions on eta
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value = 1.0
+
 # Boundary conditions on eta
 pf.eta.bc.type = constant
 pf.eta.bc.constant.type.xlo = dirichlet
