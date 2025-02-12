@@ -50,53 +50,53 @@ class Adhesion : public Solid<Set::Sym::Major> {
 
     public:
     /**
-     * @brief Adhesion model parameter representing adhesion strength.
-     *
-     * This parameter controls the overall strength of adhesion forces
-     * acting between material surfaces.
-     */
+    * @brief Adhesion model parameter representing adhesion strength.
+    *
+    * This parameter controls the overall strength of adhesion forces
+    * acting between material surfaces.
+    */
     Set::Scalar d = NAN;
 
     /**
-     * @brief Shear modulus for the adhesion model.
-     *
-     * Governs resistance to shear deformation. It defines how strongly
-     * the material resists shear forces.
-     */
+    * @brief Shear modulus for the adhesion model.
+    *
+    * Governs resistance to shear deformation. It defines how strongly
+    * the material resists shear forces.
+    */
     Set::Scalar mu = NAN;
 
     /**
-     * @brief Bulk modulus for the adhesion model.
-     *
-     * Governs resistance to volumetric deformation. It defines how much
-     * the material resists uniform compression.
-     */
+    * @brief Bulk modulus for the adhesion model.
+    *
+    * Governs resistance to volumetric deformation. It defines how much
+    * the material resists uniform compression.
+    */
     Set::Scalar kappa = NAN;
 
     /**
-     * @brief Adhesion parameter influencing energy dissipation.
-     *
-     * This parameter affects how adhesion strength decays as deformation
-     * increases. A higher value leads to more rapid decay of adhesion strength.
-     */
+    * @brief Adhesion parameter influencing energy dissipation.
+    *
+    * This parameter affects how adhesion strength decays as deformation
+    * increases. A higher value leads to more rapid decay of adhesion strength.
+    */
     Set::Scalar zeta = NAN;
 
     /**
-     * @brief Exponent controlling adhesion decay rate.
-     *
-     * This exponent defines the sensitivity of adhesion forces to volume
-     * changes. Higher values indicate a sharper decrease in adhesion force.
-     */
+    * @brief Exponent controlling adhesion decay rate.
+    *
+    * This exponent defines the sensitivity of adhesion forces to volume
+    * changes. Higher values indicate a sharper decrease in adhesion force.
+    */
     Set::Scalar n = NAN;
 
     /**
-     * @brief Returns an adhesion object with all parameters set to zero.
-     *
-     * This function creates an instance of Adhesion with all material
-     * parameters initialized to zero.
-     *
-     * @return A zero-initialized Adhesion object.
-     */
+    * @brief Returns an adhesion object with all parameters set to zero.
+    *
+    * This function creates an instance of Adhesion with all material
+    * parameters initialized to zero.
+    *
+    * @return A zero-initialized Adhesion object.
+    */
     static Adhesion Zero() {
         Adhesion adhesion;
         adhesion.d = 0;
@@ -108,13 +108,13 @@ class Adhesion : public Solid<Set::Sym::Major> {
     }
 
     /**
-     * @brief Returns a randomly initialized adhesion object.
-     *
-     * This function generates an instance of Adhesion with
-     * random values for its material parameters.
-     *
-     * @return A randomly initialized Adhesion object.
-     */
+    * @brief Returns a randomly initialized adhesion object.
+    *
+    * This function generates an instance of Adhesion with
+    * random values for its material parameters.
+    *
+    * @return A randomly initialized Adhesion object.
+    */
     static Adhesion Random() {
         Adhesion adhesion;
         adhesion.d = Util::Random();
@@ -126,27 +126,27 @@ class Adhesion : public Solid<Set::Sym::Major> {
     }
 
     /**
-     * @brief Parses input parameters for the Adhesion model from an
-     * IO::ParmParse object.
-     *
-     * This function reads and assigns values to the Adhesion model parameters
-     * from the provided parameter parser. Each parameter is queried from the
-     * parser and stored in the corresponding member variables of the Adhesion
-     * object.
-     *
-     * @param value Reference to an Adhesion object where parsed values will be
-     * stored.
-     * @param pp Reference to an IO::ParmParse object containing the input
-     * parameters.
-     *
-     * @details The function queries the following parameters:
-     * - "d": Adhesion model parameter representing adhesion strength.
-     * - "mu": Shear modulus, affecting material resistance to shear
-     * deformation.
-     * - "kappa": Bulk modulus, affecting resistance to volumetric deformation.
-     * - "zeta": Adhesion parameter influencing energy dissipation rate.
-     * - "n": Exponent controlling adhesion decay behavior.
-     */
+    * @brief Parses input parameters for the Adhesion model from an
+    * IO::ParmParse object.
+    *
+    * This function reads and assigns values to the Adhesion model parameters
+    * from the provided parameter parser. Each parameter is queried from the
+    * parser and stored in the corresponding member variables of the Adhesion
+    * object.
+    *
+    * @param value Reference to an Adhesion object where parsed values will be
+    * stored.
+    * @param pp Reference to an IO::ParmParse object containing the input
+    * parameters.
+    *
+    * @details The function queries the following parameters:
+    * - "d": Adhesion model parameter representing adhesion strength.
+    * - "mu": Shear modulus, affecting material resistance to shear
+    * deformation.
+    * - "kappa": Bulk modulus, affecting resistance to volumetric deformation.
+    * - "zeta": Adhesion parameter influencing energy dissipation rate.
+    * - "n": Exponent controlling adhesion decay behavior.
+    */
     static void Parse(Adhesion &value, IO::ParmParse &pp) {
         pp.query("d", value.d);
         pp.query("mu", value.mu);
