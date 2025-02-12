@@ -147,12 +147,13 @@ class Adhesion : public Solid<Set::Sym::Major> {
     * - "zeta": Adhesion parameter influencing energy dissipation rate.
     * - "n": Exponent controlling adhesion decay behavior.
     */
+    //Set::Scalar d = NAN, mu = NAN, kappa = NAN, zeta = NAN, n = NAN;
     static void Parse(Adhesion &value, IO::ParmParse &pp) {
-        pp.query("d", value.d);
-        pp.query("mu", value.mu);
-        pp.query("kappa", value.kappa);
-        pp.query("zeta", value.zeta);
-        pp.query("n", value.n);
+        pp.query("d", value.d);  // Adhesion model parameter
+        pp.query("mu", value.mu); // Shear modulus
+        pp.query("kappa", value.kappa); // Bulk modulus
+        pp.query("zeta", value.zeta); // Adhesion parameter
+        pp.query("n", value.n); // Exponent controlling
     }
 
     // Potential Energy Function W(F)
