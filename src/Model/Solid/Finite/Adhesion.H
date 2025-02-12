@@ -50,38 +50,52 @@ public:
 
 public:
   /**
-   * @brief Material parameter for adhesion behavior.
-   * Controls the overall strength of adhesion forces.
+   * @brief Adhesion model parameter representing adhesion strength.
+   * 
+   * This parameter controls the overall strength of adhesion forces 
+   * acting between material surfaces.
    */
   Set::Scalar d = NAN;
 
   /**
    * @brief Shear modulus for the adhesion model.
-   * Governs resistance to shear deformation.
+   * 
+   * Governs resistance to shear deformation. It defines how strongly 
+   * the material resists shear forces.
    */
   Set::Scalar mu = NAN;
 
   /**
    * @brief Bulk modulus for the adhesion model.
-   * Governs resistance to volumetric deformation.
+   * 
+   * Governs resistance to volumetric deformation. It defines how much 
+   * the material resists uniform compression.
    */
   Set::Scalar kappa = NAN;
 
   /**
    * @brief Adhesion parameter influencing energy dissipation.
-   * Affects how adhesion strength decays with deformation.
+   * 
+   * This parameter affects how adhesion strength decays as deformation increases. 
+   * A higher value leads to more rapid decay of adhesion strength.
    */
   Set::Scalar zeta = NAN;
 
   /**
    * @brief Exponent controlling adhesion decay rate.
-   * Defines sensitivity of adhesion force to volume changes.
+   * 
+   * This exponent defines the sensitivity of adhesion forces to volume changes. 
+   * Higher values indicate a sharper decrease in adhesion force.
    */
   Set::Scalar n = NAN;
 
   /**
-   * @brief Creates an Adhesion object with all parameters initialized to zero.
-   * @return An Adhesion object with zeroed parameters.
+   * @brief Returns an adhesion object with all parameters set to zero.
+   * 
+   * This function creates an instance of Adhesion with all material 
+   * parameters initialized to zero.
+   *
+   * @return A zero-initialized Adhesion object.
    */
   static Adhesion Zero() {
     Adhesion adhesion;
@@ -94,8 +108,12 @@ public:
   }
 
   /**
-   * @brief Creates an Adhesion object with randomized parameters.
-   * @return An Adhesion object with parameters randomly initialized.
+   * @brief Returns a randomly initialized adhesion object.
+   * 
+   * This function generates an instance of Adhesion with 
+   * random values for its material parameters.
+   *
+   * @return A randomly initialized Adhesion object.
    */
   static Adhesion Random() {
     Adhesion adhesion;
@@ -108,9 +126,21 @@ public:
   }
 
   /**
-   * @brief Parses adhesion parameters from an input object.
-   * @param value Reference to an Adhesion object to store parsed values.
-   * @param pp Input parameter parser object.
+   * @brief Parses input parameters for the Adhesion model from an IO::ParmParse object.
+   *
+   * This function reads and assigns values to the Adhesion model parameters from the
+   * provided parameter parser. Each parameter is queried from the parser and stored in
+   * the corresponding member variables of the Adhesion object.
+   *
+   * @param value Reference to an Adhesion object where parsed values will be stored.
+   * @param pp Reference to an IO::ParmParse object containing the input parameters.
+   *
+   * @details The function queries the following parameters:
+   * - "d": Adhesion model parameter representing adhesion strength.
+   * - "mu": Shear modulus, affecting material resistance to shear deformation.
+   * - "kappa": Bulk modulus, affecting resistance to volumetric deformation.
+   * - "zeta": Adhesion parameter influencing energy dissipation rate.
+   * - "n": Exponent controlling adhesion decay behavior.
    */
   static void Parse(Adhesion &value, IO::ParmParse &pp) {
     pp.query("d", value.d);
@@ -119,6 +149,7 @@ public:
     pp.query("zeta", value.zeta);
     pp.query("n", value.n);
   }
+
 
   // Potential Energy Function W(F)
   Set::Scalar W(const Set::Matrix &a_F) const override {
