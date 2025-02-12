@@ -145,7 +145,7 @@ class Adhesion : public Solid<Set::Sym::Major> {
     * deformation.
     * - "kappa": Bulk modulus, affecting resistance to volumetric deformation.
     * - "zeta": Adhesion parameter influencing energy dissipation rate.
-    * - "n": Exponent controlling adhesion decay behavior.
+    * - "n": Exponent controlling the adhesion decay behavior.
     */
     //Set::Scalar d = NAN, mu = NAN, kappa = NAN, zeta = NAN, n = NAN;
     static void Parse(Adhesion &value, IO::ParmParse &pp) {
