@@ -96,25 +96,27 @@ public:
     {
         Set::Scalar C11 = NAN, C12 = NAN, C13 = NAN, C33 = NAN , C44 = NAN; 
         
-        pp_query_default("C11",C11,1.68); // Elastic constant
-        pp_query_default("C12",C12,1.21); // Elastic constant
-        pp_query_default("C13",C13,0.75); // Elastic constant
-        pp_query_default("C33",C33,1.68); // Elastic constant
-        pp_query_default("C44",C44,1.68); // Elastic constant
+        pp_query_default("C11", C11, 1.68); // Elastic constant
+        pp_query_default("C12", C12, 1.21); // Elastic constant
+        pp_query_default("C13", C13, 0.75); // Elastic constant
+        pp_query_default("C33", C33, 1.68); // Elastic constant
+        pp_query_default("C44", C44, 1.68); // Elastic constant
 
         if (pp.contains("random"))
         {
-            value = TransverselyIsotropic::Random(C11,C12,C13,C33,C44);
+            value = TransverselyIsotropic::Random(C11, C12, C13, C33, C44);
             return;
         }
 
         Set::Scalar phi1 = NAN, Phi = NAN, phi2 = NAN;
-	    Set::Scalar small = 1e-8;
-        pp_query_default("phi1",phi1,small);  // Bunge Euler angle :math:\phi_1
-        pp_query_default("Phi", Phi, small);  // Bunge Euler angle :math:\Phi
-        pp_query_default("phi2",phi2,small);  // Bunge Euler angle :math:\phi_2
-        value.Define(C11,C12,C13,C33,C44,phi1,Phi,phi2);
+        Set::Scalar small = 1e-8; // <- Fixed indentation (tab replaced with spaces)
+        
+        pp_query_default("phi1", phi1, small);  // Bunge Euler angle :math:\phi_1
+        pp_query_default("Phi", Phi, small);    // Bunge Euler angle :math:\Phi
+        pp_query_default("phi2", phi2, small);  // Bunge Euler angle :math:\phi_2
+        value.Define(C11, C12, C13, C33, C44, phi1, Phi, phi2);
     }
+
 
     #define OP_CLASS TransverselyIsotropic
     #define OP_VARS X(ddw)
