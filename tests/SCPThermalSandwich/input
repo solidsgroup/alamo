@@ -49,8 +49,8 @@ pf.eps = 0.000001 #0.0005 # [m]
 pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
-eta.ic.type = constant #laminate 
-eta.ic.constant.value = 1.0 #laminate 
+pf.eta.ic.type = constant #laminate 
+pf.eta.ic.constant.value = 1.0 #laminate 
 
 ### Constant IC ############################################################ IC
 phi.ic.type = laminate
