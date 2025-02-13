@@ -10,7 +10,7 @@ permissions:
   id-token: write
 
 jobs:
-  test-coverage:
+  memcheck-2d-asan-g++:
     name: Compile in debug and run valgrind
     runs-on: ubuntu-latest
     steps:
@@ -19,8 +19,39 @@ jobs:
       run: bash .github/workflows/dependencies.sh
     - name: configure (2d)
       continue-on-error: true
-      run: ./configure --dim=2 --debug --memcheck
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests --debug --serial --dim=2 --memcheck
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan
+
+  memcheck-2d-asan-clang++:
+    name: 
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure (2d)
+      continue-on-error: true
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=clang++
+    - name: make (2d)
+      run: make
+    - name: regression tests with memory checking (2d)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++
+
+  memcheck-2d-msan-clang++:
+    name: 
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure (2d)
+      continue-on-error: true
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=msan --comp=clang++
+    - name: make (2d)
+      run: make
+    - name: regression tests with memory checking (2d)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++
+

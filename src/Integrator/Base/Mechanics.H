@@ -30,6 +30,13 @@ public:
     Mechanics() : Integrator()
     {}
 
+    ~Mechanics()
+    {
+        delete ic_rhs;
+        delete velocity_ic;
+        delete bc;
+    }
+
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(Mechanics& value, IO::ParmParse& pp)
@@ -481,7 +488,6 @@ protected:
 
 
     IC::IC* ic_rhs = nullptr;
-    BC::BC<Set::Scalar>* mybc;
 
     IC::IC* velocity_ic = nullptr;
 
