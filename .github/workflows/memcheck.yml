@@ -17,16 +17,10 @@ jobs:
     - uses: actions/checkout@v4
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
-    - name: install valgrind
-      run: sudo apt install valgrind
     - name: configure (2d)
       continue-on-error: true
-      run: ./configure --dim=2 --debug
+      run: ./configure --dim=2 --debug --memcheck
     - name: make (2d)
       run: make
-    - name: unit tests (2d)
-      run: valgrind --error-exitcode=1 --leak-check=full ./bin/test-2d-debug-g++
-    - name: flame (2d)
-      run: valgrind --error-exitcode=1 --leak-check=full ./bin/alamo-2d-debug-g++ tests/SCPSandwich/input stop_time=0.0002
-    - name: microstructure (2d)
-      run: valgrind --error-exitcode=1 --leak-check=full ./bin/alamo-2d-debug-g++ tests/PerturbedInterface/input stop_time=0.03
+    - name: regression tests with memory checking (2d)
+      run: ./scripts/runtests --debug --serial --dim=2 --memcheck

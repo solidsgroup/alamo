@@ -52,6 +52,12 @@ public:
         Parse(*this, pp);
     }
 
+    ~AllenCahn()
+    {
+        delete ic;
+        delete bc;
+    }
+
     // The Parse function initializes the AllenCahn object using
     // a parser, pp. 
     // Note that this is a static function, which means it does not have

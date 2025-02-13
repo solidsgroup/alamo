@@ -84,6 +84,7 @@ parser.add_argument('--coverage',default=False,action='store_true',help='Use the
 parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
 parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
 parser.add_argument('--no-coverage',default=False,action='store_true',help='Prevent coverage version of the code from being used')
+parser.add_argument('--memcheck',default=False,action='store_true',help='Run tests with valgrind memory checking. Debug must be set to true.')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
@@ -100,6 +101,10 @@ if args.coverage and args.no_coverage:
     raise Exception("Cannot specify both --coverage and --no-coverage")
 if args.only_coverage and args.no_coverage:
     raise Exception("Cannot specify both --only-coverage and --no-coverage")
+if args.memcheck and not args.debug:
+    raise Exception("Debug must be enabled with memory check")
+if args.memcheck and not args.serial:
+    raise Exception("Memory check supported in serial only")
 
 if args.post:
     if not os.path.isfile(args.post):
@@ -223,20 +228,24 @@ def test(testdir):
         #    generally use option 2.
         # 2. with 'dim', 'nprocs', 'args', etc keywords. See current tests for
         #    examples
-        command = ""
+
+        command = "" # The executable that gets called
+        cmdargs = "" # Extra arguments to pass to alamo in addition to input file
         if 'cmd' in config[desc].keys():
             command = config[desc]['cmd']
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
         else:
+            # If we are doing memory checking, cut off the simulation early
+            if args.memcheck: cmdargs += " max_step=2 "
+
             exe = 'alamo'
             if 'exe' in config[desc].keys(): exe = config[desc]['exe']
             dim = 3 # Dimension of alamo to use
             if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
             if 'nprocs' in config[desc].keys(): nprocs = int(config[desc]['nprocs'])
-            cmdargs = "" # Extra arguments to pass to alamo in addition to input file
-            if 'args' in config[desc].keys(): cmdargs = config[desc]['args'].replace('\n',' ')
+            if 'args' in config[desc].keys(): cmdargs += config[desc]['args'].replace('\n',' ')
 
             cmdargs += " plot_file={}/{}_{}".format(testdir,testid,desc)
 
@@ -252,6 +261,7 @@ def test(testdir):
             
             exestr = "./bin/{}-{}d".format(exe,dim)
             if args.debug: exestr += "-debug"
+            if args.debug: exestr += "-memcheck"
             if args.profile: exestr += "-profile"
             if coverage: exestr += "-coverage"
             exestr += "-"+args.comp
@@ -378,7 +388,6 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
-            proc.kill()
             print(bs+"[{}TIME{}]".format(color.red,color.reset))
             record['runStatus'] = 'TIMEOUT'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))

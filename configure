@@ -103,6 +103,7 @@ parser.add_argument('--diff',dest='diff',default=False,action='store_true',help=
 parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
+parser.add_argument('--memcheck',dest='memcheck',action='store_true',default=False,help="Enable AddressSanitizer (ASAN)")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
@@ -112,6 +113,10 @@ if not (args.buildamrexbranch or args.buildamrextag):
     args.buildamrextag = amrex_current_version
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
+if args.memcheck and not args.debug: 
+    raise(Exception(error("To use memcheck you must also add the --debug flag")))
+if args.memcheck and args.coverage: 
+    raise(Exception(error("Cannot run memcheck and coverage at the same time currently")))
 
 fpic = args.python 
 
@@ -125,6 +130,7 @@ f2 = open(".make/Makefile.post.conf","w")
 postfix = ""
 postfix += str(args.dim)+"d"
 if args.debug: postfix += "-debug"
+if args.memcheck: postfix += "-memcheck"
 if fpic: postfix += "-fpic"
 if args.profile: postfix += "-profile"
 if args.coverage: postfix += "-coverage"
@@ -361,6 +367,9 @@ if args.comp == 'g++':
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
 
+    if args.memcheck:
+        f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer\n")
+        f.write("LINKER_FLAGS += -fsanitize=address -static-libasan\n")
     if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
     elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
