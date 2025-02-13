@@ -10,7 +10,7 @@ permissions:
   id-token: write
 
 jobs:
-  memcheck-2d-asan-g++:
+  memcheck-2d-asan-gcc:
     name: Compile in debug and run valgrind
     runs-on: ubuntu-latest
     steps:
@@ -25,7 +25,7 @@ jobs:
     - name: regression tests with memory checking (2d)
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan
 
-  memcheck-2d-asan-clang++:
+  memcheck-2d-asan-clang:
     name: 
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +40,7 @@ jobs:
     - name: regression tests with memory checking (2d)
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++
 
-  memcheck-2d-msan-clang++:
+  memcheck-2d-msan-clang:
     name: 
     runs-on: ubuntu-latest
     steps:
