@@ -20,6 +20,8 @@ class Elastic
 public:
     static const int min = 1, max = 2;
 
+    virtual ~Elastic() = default;
+
 public:
     enum Type {Displacement, Traction, Periodic, Neumann, None}; 
 

@@ -84,7 +84,7 @@ parser.add_argument('--coverage',default=False,action='store_true',help='Use the
 parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
 parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
 parser.add_argument('--no-coverage',default=False,action='store_true',help='Prevent coverage version of the code from being used')
-parser.add_argument('--memcheck',default=False,action='store_true',help='Run tests with valgrind memory checking. Debug must be set to true.')
+parser.add_argument('--memcheck',default=None,help='Run tests with memory checking. ')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
@@ -261,7 +261,7 @@ def test(testdir):
             
             exestr = "./bin/{}-{}d".format(exe,dim)
             if args.debug: exestr += "-debug"
-            if args.debug: exestr += "-memcheck"
+            if args.memcheck: exestr += "-{}".format(args.memcheck)
             if args.profile: exestr += "-profile"
             if coverage: exestr += "-coverage"
             exestr += "-"+args.comp
@@ -420,7 +420,7 @@ def test(testdir):
         # ./tests/MyTest/test 
         # script to determine if the run was successful.
         # The exception handling is basically the same as for the above test.
-        if check:
+        if check and not args.memcheck:
             try:
                 if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
