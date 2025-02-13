@@ -108,6 +108,15 @@ public:
         Parse(*this, pp);
     }
 
+    ~Mechanics()
+    {
+        delete ic_eta;
+        delete ic_psi;
+        delete ic_trac_normal;
+        delete bc_psi;
+        delete bc_trac_normal;
+    }
+
     // Mechanics inputs. See also :ref:`Integrator::Base::Mechanics`
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
