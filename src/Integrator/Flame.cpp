@@ -219,6 +219,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     }
 
     bool allow_unused;
+    // Set this to true to allow unused inputs without error.
+    // (Not recommended.)
     pp.query_default("allow_unused",allow_unused,false);
     if (!allow_unused && pp.AnyUnusedInputs())
     {
