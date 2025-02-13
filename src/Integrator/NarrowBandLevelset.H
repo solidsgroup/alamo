@@ -36,6 +36,7 @@ public:
     virtual ~NarrowBandLevelset()
     {
         delete ls_ic;
+        delete velocity_ic;
         delete ls_bc;
     }
     
@@ -43,6 +44,7 @@ protected:
     // Variables (multi-fabs)
     Set::Field<Set::Scalar>    ls_mf;                 // Levelset field variable (current timestep)
     Set::Field<Set::Scalar>    ls_old_mf;             // Levelset field variable (previous timestep)
+    Set::Field<Set::Scalar>    velocity_mf;           // Velocity field variable (Assumed constant for now)
 
     // Solver setup and control functions (override)
     void Initialize(int lev) override;
@@ -54,6 +56,7 @@ protected:
     
     // Additional functions
     void Advect(int lev, Set::Scalar dt);
+    void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev);
 
 // Declare private functions such as Parse 
@@ -71,10 +74,10 @@ private:
     //
 
     IC::IC* ls_ic = nullptr;                     // Object used to initialize levelset field
+    IC::IC* velocity_ic = nullptr;               // Object used to initialize velocity field
     BC::BC<Set::Scalar>* ls_bc = nullptr;        // Object used to update temp field boundary ghost cells
-    
+    BC::Nothing bc_nothing;                      // Used for velocity
 
-    // Functions
 }; //NarrowBandLevelset Class
 
 } // namespace Integrator
