@@ -32,7 +32,8 @@ enum Hypercube {
     Node = 0, Edge = 1, Face = 2, Cell = 3
 };
 
-using HC = Hypercube;
+using HC   = Hypercube;
+using Grid = Hypercube;
 
 //class Field : public amrex::MultiFab
 //{
@@ -43,7 +44,6 @@ class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFa
 {
 public:
     Field() {} 
-    //~Field() {}
     Field(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost) 
     {
         Define(a_levs,a_grids,a_dmap,a_ncomp,a_nghost);

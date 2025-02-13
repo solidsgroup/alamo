@@ -15,6 +15,8 @@ namespace Integrator
 class BaseField
 {
 public:
+    virtual ~BaseField() = default;
+
     virtual void RemakeLevel (int lev,       
                             amrex::Real time, 
                             const amrex::BoxArray& cgrids, 

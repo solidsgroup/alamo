@@ -18,7 +18,7 @@
 namespace BC
 {
 class Expression
-    : public BC<Set::Scalar>
+    : public BC<Set::Scalar>, public BC<Set::Vector>
 {
 public:
     static constexpr const char* name = "expression";
@@ -61,7 +61,13 @@ public:
         Orientation face = Orientation::All,
         const amrex::Mask* mask = nullptr) override;
 
-    using BC::FillBoundary;
+    virtual void FillBoundary(amrex::BaseFab<Set::Vector>& in, const amrex::Box& box,
+        int ngrow, int dcomp, int ncomp, amrex::Real time,
+        Orientation face = Orientation::All,
+        const amrex::Mask* mask = nullptr) override;
+
+    using BC<Set::Scalar>::FillBoundary;
+    using BC<Set::Vector>::FillBoundary;
 
     amrex::BCRec GetBCRec() override;
     virtual amrex::Array<int, AMREX_SPACEDIM> IsPeriodic() override;
@@ -91,11 +97,14 @@ private:
     std::array<std::vector<amrex::Parser>, m_nfaces> m_bc_func_parser; 
     std::array<std::vector<amrex::ParserExecutor<4>>, m_nfaces> m_bc_func; 
 
+    std::string m_prefix;
+
     //std::array<std::vector<Numeric::Interpolator::Linear<Set::Scalar>>, m_nfaces> m_bc_val;
 
 public:
     static void Parse(Expression& value, IO::ParmParse& pp)
     {
+        value.m_prefix = pp.prefix();
         std::map<std::string, int> bcmap;
         bcmap["BOGUS_BC"] = amrex::BCType::mathematicalBndryTypes::bogus;
         bcmap["INT_DIR"] = amrex::BCType::mathematicalBndryTypes::int_dir;

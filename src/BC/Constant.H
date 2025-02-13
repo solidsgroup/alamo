@@ -41,7 +41,7 @@
 namespace BC
 {
 class Constant
-    : public BC<Set::Scalar>
+    : public BC<Set::Scalar>, public BC<Set::Vector>
 {
 
 #if AMREX_SPACEDIM==2
@@ -113,7 +113,14 @@ public:
         Orientation face = Orientation::All,
         const amrex::Mask* mask = nullptr) override;
 
-    using BC::FillBoundary;
+    virtual void FillBoundary(amrex::BaseFab<Set::Vector>& in, const amrex::Box& box,
+        int ngrow, int dcomp, int ncomp, amrex::Real time,
+        Orientation face = Orientation::All,
+        const amrex::Mask* mask = nullptr) override;
+
+    using BC<Set::Scalar>::FillBoundary;
+    using BC<Set::Vector>::FillBoundary;
+
 
     amrex::BCRec GetBCRec() override;
     virtual amrex::Array<int, AMREX_SPACEDIM> IsPeriodic() override;

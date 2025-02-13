@@ -38,6 +38,10 @@ public:
         delete energy_bc;
         delete eta_bc;
 
+        delete solid.momentum_ic;
+        delete solid.density_ic;
+        delete solid.energy_ic;
+        delete density_ic;
         delete velocity_ic;
         delete pressure_ic;
 
@@ -69,8 +73,8 @@ private:
     Set::Field<Set::Scalar> energy_mf;
     Set::Field<Set::Scalar> energy_old_mf;
 
-    Set::Field<Set::Scalar> momentum_mf;
-    Set::Field<Set::Scalar> momentum_old_mf;
+    Set::Field<Set::Vector> momentum_mf;
+    Set::Field<Set::Vector> momentum_old_mf;
 
     Set::Field<Set::Vector> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
@@ -99,7 +103,7 @@ private:
     Set::Field<Set::Scalar> flux_mf;
 
     BC::BC<Set::Scalar>* density_bc = nullptr;
-    BC::BC<Set::Scalar>* momentum_bc = nullptr;
+    BC::BC<Set::Vector>* momentum_bc = nullptr;
     BC::BC<Set::Scalar>* energy_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
 

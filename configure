@@ -222,7 +222,7 @@ if args.buildamrex and not args.amrex:
     args.amrex = "ext/amrex/"+postfix_amrex
     f.write("AMREX = ext/amrex/" + postfix_amrex + "/\n")
     f.write("AMREX_TARGET = ext/amrex/" + postfix_amrex + "\n")
-    
+    f.write('AMREX_SRC := $(shell find ext/amrex/Src -name "*.H") $(shell find ext/amrex/Src -name "*.cpp")' + "\n")
     
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
@@ -237,9 +237,10 @@ if args.buildamrex and not args.amrex:
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    f2.write("ext/amrex/"+postfix_amrex+": .FORCE\n")
+    f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
     f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
-    f2.write("\tmake -C ext/amrex install\n")
+    f2.write("\t$(MAKE) -C ext/amrex install\n")
+    f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")

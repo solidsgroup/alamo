@@ -167,6 +167,13 @@ Integrator::~Integrator()
     BL_PROFILE("Integrator::~Integrator");
     if (amrex::ParallelDescriptor::IOProcessor())
         IO::WriteMetaData(plot_file, IO::Status::Complete);
+
+
+    for (unsigned int i = 0; i < m_basefields.size(); i++) delete m_basefields[i];
+    for (unsigned int i = 0; i < m_basefields_cell.size(); i++) delete m_basefields_cell[i];
+    
+    m_basefields.clear();
+    m_basefields_cell.clear();
 }
 
 void Integrator::SetTimestep(Set::Scalar _timestep)

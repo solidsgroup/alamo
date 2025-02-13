@@ -36,6 +36,26 @@ struct State {
         }
         E = energy_mf(i,j,k);
     }
+    State(Set::Patch<const Set::Scalar> density_mf, Set::Patch<const Set::Vector> momentum_mf, Set::Patch<const Set::Scalar> energy_mf, int i, int j, int k, int direction)
+    {
+        rho = density_mf(i,j,k);
+        if (direction == 0)
+        {
+            M_normal = momentum_mf(i,j,k)(0);
+            M_tangent = momentum_mf(i,j,k)(1);
+        }
+        else if (direction == 1)
+        {
+            M_normal = momentum_mf(i,j,k)(1);
+            M_tangent = momentum_mf(i,j,k)(0);
+        }
+        else
+        {
+            Util::Abort(INFO, "Not supported yet");
+        }
+        E = energy_mf(i,j,k);
+    }
+
 
 
     friend std::ostream &operator<<(std::ostream &os, const State &state) 

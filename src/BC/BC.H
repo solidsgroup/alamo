@@ -84,9 +84,9 @@ public:
 
 
 
-    template <class Q = T>
-    typename std::enable_if<std::is_same<Q, amrex::Real>::value>::type
-        FillBoundary(amrex::MultiFab& mf,
+    // template <class Q = T>
+    // typename std::enable_if<std::is_same<Q, amrex::Real>::value>::type
+    void FillBoundary(amrex::MultiFab& mf,
             int dcomp, int ncomp,
             amrex::Real time, int /*bccomp*/)
     {
@@ -99,9 +99,9 @@ public:
         }
     }
 
-    template <class Q = T>
-    typename std::enable_if<std::is_same<Q, amrex::Real>::value>::type
-        operator () (amrex::MultiFab& mf,
+    // template <class Q = T>
+    // typename std::enable_if<std::is_same<Q, amrex::Real>::value>::type
+    void operator () (amrex::MultiFab& mf,
             int dcomp, int ncomp, amrex::IntVect const& /*nghost*/,
             amrex::Real time, int bccomp)
     {

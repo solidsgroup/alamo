@@ -84,12 +84,20 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true );
         value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false);
 
-        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true , {"x","y"});
-        value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false);
+
+        value.AddField<Set::Vector,Set::Grid::Cell>(
+            value.momentum_mf, value.momentum_bc, 1, nghost, "momentum",  true, true);
+        value.AddField<Set::Vector,Set::Grid::Cell>(
+            value.momentum_old_mf, value.momentum_bc, 1, nghost, "momentum",  false, true);
+        //value.AddField<Set::Vector,Set::Grid::Cell>(value.momentum_old_mf, &value.bcn_vec,1,nghost,"velocity",  true, false);
+
+
+        // value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true , {"x","y"});
+        // value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false);
  
-        value.AddField<Set::Scalar,Set::Hypercube::Cell>(value.pressure_mf, &value.bcn, 1,nghost, "pressure",  true, false);
-        value.AddField<Set::Vector,Set::Hypercube::Cell>(value.velocity_mf, &value.bcn_vec,1,nghost,"velocity",  true, false);
-        value.RegisterNewFab(value.vorticity_mf, new BC::Nothing<Set::Scalar>, 1, nghost, "vorticity", true);
+        value.AddField<Set::Scalar,Set::Grid::Cell>(value.pressure_mf, &value.bcn, 1,nghost, "pressure",  true, false);
+        value.AddField<Set::Vector,Set::Grid::Cell>(value.velocity_mf, &value.bcn_vec,1,nghost,"velocity",  true, false);
+        value.RegisterNewFab(value.vorticity_mf, &value.bcn, 1, nghost, "vorticity", true);
 
         value.RegisterNewFab(value.m0_mf,&value.bcn, 1, 0, "m0",  true);
         value.RegisterNewFab(value.u0_mf,&value.bcn, 2, 0, "u0",  true, {"x","y"});
@@ -193,8 +201,8 @@ void Hydro::Mix(int lev)
         Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho       = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho_old   = density_old_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>       M         = momentum_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>       M_old     = momentum_old_mf.Patch(lev,mfi);
+        Set::Patch<Set::Vector>       M         = momentum_mf.Patch(lev,mfi);
+        Set::Patch<Set::Vector>       M_old     = momentum_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       E         = energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       E_old     = energy_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
@@ -207,10 +215,9 @@ void Hydro::Mix(int lev)
             rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
 
-            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k)(0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
-            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k)(1))*eta(i, j, k)  +  M_solid(i, j, k, 1)*(1.0-eta(i, j, k));
-            M_old(i, j, k, 0) = M(i, j, k, 0);
-            M_old(i, j, k, 1) = M(i, j, k, 1);
+            M(i, j, k)(0) = (rho(i, j, k)*v(i, j, k)(0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
+            M(i, j, k)(1) = (rho(i, j, k)*v(i, j, k)(1))*eta(i, j, k)  +  M_solid(i, j, k, 1)*(1.0-eta(i, j, k));
+            M_old(i, j, k) = M(i, j, k);
 
             E(i, j, k) =
                 (0.5 * (v(i, j, k)(0) * v(i, j, k)(0) + v(i, j, k)(1) * v(i, j, k)(1)) * rho(i, j, k) + p(i, j, k) / (gamma - 1.0)) * eta(i, j, k) 
@@ -272,7 +279,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
 
         Set::Patch<const Set::Scalar> rho       = density_old_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> M         = momentum_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Vector> M         = momentum_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E         = energy_old_mf.Patch(lev,mfi); // total energy (internal energy + kinetic energy) per unit volume
                                                                                 // E/rho = e + 0.5*v^2
 
@@ -290,8 +297,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta(i,j,k)) * rho_solid(i,j,k);
             Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta(i,j,k)) * E_solid(i,j,k);
 
-            Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta(i,j,k)) * M_solid(i,j,k,0),
-                                    M(i,j,k,1) - (1.-eta(i,j,k)) * M_solid(i,j,k,1) );
+            Set::Vector etaM_fluid( M(i,j,k)(0) - (1.-eta(i,j,k)) * M_solid(i,j,k,0),
+                                    M(i,j,k)(1) - (1.-eta(i,j,k)) * M_solid(i,j,k,1) );
 
             //THESE ARE FLUID VELOCITY AND PRESSURE
 
@@ -311,11 +318,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         
         Set::Patch<const Set::Scalar> rho = density_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E   = energy_old_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> M   = momentum_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Vector> M   = momentum_old_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar>       rho_new = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       E_new   = energy_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>       M_new   = momentum_mf.Patch(lev,mfi);
+        Set::Patch<Set::Vector>       M_new   = momentum_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
@@ -487,11 +494,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //(mu * (lap_ux * eta(i, j, k))) +
                 Source(i, j, k, 1);
 
-            M_new(i, j, k, 0) = M(i, j, k, 0) +
+            M_new(i, j, k)(0) = M(i, j, k)(0) +
                 ( 
                     dMxf_dt + 
                     // todo add dMs_dt term if want time-evolving Ms
-                    etadot(i,j,k)*(M(i,j,k,0) - M_solid(i,j,k,0)) / (eta(i,j,k) + small)
+                    etadot(i,j,k)*(M(i,j,k)(0) - M_solid(i,j,k,0)) / (eta(i,j,k) + small)
                     ) * dt;
 
             Set::Scalar dMyf_dt =
@@ -501,11 +508,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //(mu * (lap_uy * eta(i, j, k))) +
                 Source(i, j, k, 2);
                 
-            M_new(i, j, k, 1) = M(i, j, k, 1) +
+            M_new(i, j, k)(1) = M(i, j, k)(1) +
                 ( 
                     dMyf_dt +
                     // todo add dMs_dt term if want time-evolving Ms
-                    etadot(i,j,k)*(M(i,j,k,1) - M_solid(i,j,k,1)) / (eta(i,j,k)+small)
+                    etadot(i,j,k)*(M(i,j,k)(1) - M_solid(i,j,k,1)) / (eta(i,j,k)+small)
                     )*dt;
 
             Set::Scalar dEf_dt =
@@ -524,8 +531,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             if (eta(i,j,k) < cutoff)
             {
                 rho_new(i,j,k,0) = rho_solid(i,j,k,0);
-                M_new(i,j,k,0)   = M_solid(i,j,k,0);
-                M_new(i,j,k,1)   = M_solid(i,j,k,1);
+                M_new(i,j,k)(0)   = M_solid(i,j,k,0);
+                M_new(i,j,k)(1)   = M_solid(i,j,k,1);
                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
             }
 
