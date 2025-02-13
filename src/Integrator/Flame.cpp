@@ -49,10 +49,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
         // phase field initial condition
-        pp.select<IC::Constant,IC::Expression>("pf.eta.ic",value.ic_eta,value.geom); // after comment
-
-        // phase field initial condition
-        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.ic_eta,value.geom); 
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
+        pp.forbid("eta.ic","--> you must use pf.eta.ic instead"); // delete this eventually once all tests are updated
     }
 
     {
@@ -219,12 +217,21 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
         value.psi_on = true;
     }
+
+    bool allow_unused;
+    pp.query_default("allow_unused",allow_unused,false);
+    if (!allow_unused && pp.AnyUnusedInputs())
+    {
+        Util::Warning(INFO,"The following inputs were specified but not used:");
+        pp.AllUnusedInputs();
+        Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
+    }
+        
 }
 
 void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
-    Util::Message(INFO, m_type);
     Base::Mechanics<model_type>::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
