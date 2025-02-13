@@ -1,14 +1,14 @@
 # Simulation output
-plot_file = output_levelset_zalesak2D
+plot_file = output_levelset_sphere
 
 # Simulation length
 timestep = 1.0
-stop_time = 1.0
+stop_time = 5.0
 
 # AMR parameters
 amr.plot_int = 1
 amr.max_level = 1
-amr.n_cell = 100 100 100
+amr.n_cell = 1000 1000 100
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -27,29 +27,32 @@ FluxScheme = LocalLaxFriedrichs
 #FluxReconstruction
 FluxReconstruction = FirstOrder
 
-# Initial conditions
-ls.ic.type = zalesak
-#ls.ic.sphere.radius = 0.25
-#ls.ic.sphere.center = 0.5 0.5 0.5
-#ls.ic.sphere.type   = "zx"
+# Initial conditions for levelset
+ic.ls.type = sphere
+ic.ls.sphere.radius = 0.25
+ic.ls.sphere.center = 0.5 0.5 0.5
+ic.ls.sphere.type   = "xy"
 
-ls.ic.zalesak.radius        = 0.25
-ls.ic.zalesak.center        = 0.5 0.5 0.5
-ls.ic.zalesak.slot_center   = 0.5 0.75 0.5
-ls.ic.zalesak.slot_size     = 0.1 0.2 0
-ls.ic.zalesak.fillet_radius = 0.0
-ls.ic.zalesak.type          = "xy"
+#ic.ls.zalesak.radius        = 0.25
+#ic.ls.zalesak.center        = 0.5 0.5 0.5
+#ic.ls.zalesak.slot_center   = 0.5 0.75 0.5
+#ic.ls.zalesak.slot_size     = 0.1 0.2 0.0
+#ic.ls.zalesak.fillet_radius = 0.005
+#ic.ls.zalesak.type          = "xy"
 
-# Boundary conditions
-ls.bc.type.xhi = neumann
-ls.bc.type.xlo = neumann
-ls.bc.type.yhi = neumann
-ls.bc.type.ylo = neumann
-ls.bc.type.zhi = neumann
-ls.bc.type.zlo = neumann
-ls.bc.val.xhi  = 0.0
-ls.bc.val.xlo  = 0.0
-ls.bc.val.yhi  = 0.0
-ls.bc.val.ylo  = 0.0
-ls.bc.val.zhi  = 0.0
-ls.bc.val.zlo  = 0.0
+# Initial velocity field (constant)
+ic.velocity.value = 1.0 0.0 0.0
+
+# Boundary conditions for levelset field
+bc.ls.type.xhi = neumann
+bc.ls.type.xlo = neumann
+bc.ls.type.yhi = neumann
+bc.ls.type.ylo = neumann
+bc.ls.type.zhi = neumann
+bc.ls.type.zlo = neumann
+bc.ls.val.xhi  = 0.0
+bc.ls.val.xlo  = 0.0
+bc.ls.val.yhi  = 0.0
+bc.ls.val.ylo  = 0.0
+bc.ls.val.zhi  = 0.0
+bc.ls.val.zlo  = 0.0

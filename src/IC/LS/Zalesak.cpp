@@ -92,12 +92,37 @@ Set::Scalar Zalesak::computeRSquared(const Set::Vector& coords, Type type, const
     }
 }
 
-Set::Scalar Zalesak::computeSlotLevelSet(const Set::Vector& coords) const {
+/*Set::Scalar Zalesak::computeSlotLevelSet(const Set::Vector& coords) const {
     Set::Vector d = (coords - slot_center).cwiseAbs() - slot_size / 2.0;
     Set::Vector d_clamped = d.cwiseMax(Set::Vector::Zero());
     Set::Scalar outside_distance = d_clamped.norm();
     Set::Scalar inside_distance = std::min(std::max(d(0), std::max(d(1), d(2))), 0.0);
     return outside_distance + inside_distance;
+}*/
+
+Set::Scalar Zalesak::computeSlotLevelSet(const Set::Vector& coords) const {
+    // Compute distance from rectangle edges
+    Set::Vector d = (coords - slot_center).cwiseAbs() - slot_size / 2.0;
+
+    // If inside the rectangle, return negative distance
+    if (d(0) <= 0 && d(1) <= 0) {
+        return -std::min(-d(0), -d(1));  // Max of inside distances (negative)
+    }
+
+    // Compute regular rectangle level set (sharp edges)
+    Set::Scalar dist = std::max(d(0), d(1));
+
+    // Only apply fillet when fillet > 0
+    if (fillet_radius > 0.0) {
+        // Handle corner smoothing
+        Set::Scalar corner_dist = std::sqrt(std::max(d(0), 0.0) * std::max(d(0), 0.0) +
+                                            std::max(d(1), 0.0) * std::max(d(1), 0.0));
+
+        // Blend between regular rect level set and rounded corners
+        dist = (dist > 0.0) ? corner_dist - fillet_radius : dist;
+    }
+
+    return dist;
 }
 
 /*Set::Scalar Zalesak::computeSlotLevelSet(const Set::Vector& coords) const {

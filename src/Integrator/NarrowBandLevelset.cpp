@@ -16,6 +16,7 @@
 // IC
 #include "IC/LS/Sphere.H"
 #include "IC/LS/Zalesak.H"
+#include "IC/Constant.H"
 
 // Numeric
 #include "Numeric/Stencil.H"
@@ -42,23 +43,40 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     {// Define initial and boundary conditions
     
     // Query the IC assuming either LS::Sphere or LS::Zalesak
-    pp.select<IC::LS::Sphere,IC::LS::Zalesak>("ls.ic",value.ls_ic,value.geom);
+    pp.select_default<IC::LS::Sphere,IC::LS::Zalesak>("ic.ls",value.ls_ic,value.geom);
     
-    // Assume Neumann BC
-    value.ls_bc = new BC::Constant(value.number_of_components, pp, "ls.bc");
+    // Assume Neumann BC for levelset field
+    value.ls_bc = new BC::Constant(value.number_of_components, pp, "bc.ls");
     }
     
     {// Define levelset multifab objects - only old and new domain levelset fields
     value.RegisterNewFab(value.ls_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS", true);
     value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
     }
-
+    
+    {// Manually parse ic.velocity values
+    std::vector<amrex::Real> velocity_values;
+    pp_queryarr_required("ic.velocity.value", velocity_values);
+    
+    // Trim extra dimensions beyond AMREX_SPACEDIM
+    velocity_values.resize(AMREX_SPACEDIM);
+    
+    // Initialize velocity IC manually
+    value.velocity_ic = new IC::Constant(value.geom, velocity_values);
+    
+    // Define velocity multifab
+    value.RegisterNewFab(value.velocity_mf, &value.bc_nothing, velocity_values.size(), value.number_of_ghost_cells, "Velocity", true); // "true" for debug
+    }
 }
 
 // Define required override functions
 void NarrowBandLevelset::Initialize(int lev){
+    // Initialize levelset field
     ls_ic->Initialize(lev, ls_old_mf);
     std::swap(*ls_mf[lev], *ls_old_mf[lev]);
+    
+    // Initialize velocity field
+    velocity_ic->Initialize(lev, velocity_mf);
 }
 
 void NarrowBandLevelset::TimeStepBegin(Set::Scalar time, int lev) {
@@ -78,7 +96,7 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Advect(lev, dt);
     
     //Reinitialize the level set function
-    if(current_timestep % 1 == 0) {
+    if(current_timestep % 5 == 0) {
         Reinitialize(lev);
     }
 }
@@ -91,7 +109,7 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
     
     // Compute the flux here
 
-    // Iterate over all of the patches on this level
+    /*// Iterate over all of the patches on this level
     for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         // Get the box (index dimensions) for this patch
@@ -100,7 +118,12 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
         // Get an array-accessible handle to the data on this patch.
         Set::Patch<const Set::Scalar>  ls_old = ls_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>        ls     = ls_mf.Patch(lev,mfi);
-    }
+    }*/
+}
+
+void UpdateInterfaceVelocity(int lev)
+{
+     // Loop through and set all velocity components
 }
 
 void NarrowBandLevelset::Reinitialize(int lev)
