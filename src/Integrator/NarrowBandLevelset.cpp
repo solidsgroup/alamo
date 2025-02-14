@@ -64,8 +64,11 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     // Initialize velocity IC manually
     value.velocity_ic = new IC::Constant(value.geom, velocity_values);
     
+    // Assume Neumann BC for levelset field
+    value.velocity_bc = new BC::Constant(AMREX_SPACEDIM, pp, "bc.velocity");
+    
     // Define velocity multifab
-    value.RegisterNewFab(value.velocity_mf, &value.bc_nothing, velocity_values.size(), value.number_of_ghost_cells, "Velocity", true); // "true" for debug
+    value.RegisterNewFab(value.velocity_mf, value.velocity_bc, AMREX_SPACEDIM, value.number_of_ghost_cells, "Velocity", true); // "true" for debug
     }
 }
 
@@ -107,23 +110,40 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
     // the new one.
     std::swap(*ls_mf[lev], *ls_old_mf[lev]);
     
-    // Compute the flux here
-
-    /*// Iterate over all of the patches on this level
+    // Iterate over all of the patches on this level
     for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         // Get the box (index dimensions) for this patch
         const amrex::Box& bx = mfi.tilebox();
 
         // Get an array-accessible handle to the data on this patch.
-        Set::Patch<const Set::Scalar>  ls_old = ls_old_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>        ls     = ls_mf.Patch(lev,mfi);
-    }*/
+        Set::Patch<const Set::Scalar>  ls_old   = ls_old_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>        ls       = ls_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>        velocity = ls_mf.Patch(lev,mfi);
+    }
+    
+    // Update the velocity
+    UpdateInterfaceVelocity(lev);
+    
+    // Compute the flux here
+   
 }
 
-void UpdateInterfaceVelocity(int lev)
+void NarrowBandLevelset::UpdateInterfaceVelocity(int lev)
 {
-     // Loop through and set all velocity components
+    // Loop through and set all velocity components
+    for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        Set::Patch<Set::Scalar>  velocity = velocity_mf.Patch(lev,mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            // Do computation here - right now placeholder to keep velocity constant
+            for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+                velocity(i,j,k,d) = velocity(i,j,k,d);
+            }
+        });
+    }
 }
 
 void NarrowBandLevelset::Reinitialize(int lev)

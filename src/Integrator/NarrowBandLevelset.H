@@ -75,8 +75,8 @@ private:
 
     IC::IC* ls_ic = nullptr;                     // Object used to initialize levelset field
     IC::IC* velocity_ic = nullptr;               // Object used to initialize velocity field
-    BC::BC<Set::Scalar>* ls_bc = nullptr;        // Object used to update temp field boundary ghost cells
-    BC::Nothing bc_nothing;                      // Used for velocity
+    BC::BC<Set::Scalar>* ls_bc = nullptr;        // Object used to update temp levelset field boundary ghost cells
+    BC::BC<Set::Scalar>* velocity_bc = nullptr;  // Object used to update temp velocity field boundary ghost cells
 
 }; //NarrowBandLevelset Class
 
