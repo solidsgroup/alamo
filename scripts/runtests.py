@@ -30,6 +30,11 @@ class color:
 # RE tool to strip out color escapes
 # 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+def clean(text,max_length=60):
+    ret = ansi_escape.sub('',text)
+    if len(ret) > max_length:
+        return ret[:max_length-3] + "..."
+    return ret
 
 #
 # Get a unique string ID to label all output files
@@ -112,7 +117,6 @@ if args.post:
     sys.path.append(str(pathlib.Path(args.post).parent))
     import post
     postdata = post.init()
-
 
 
 class DryRunException(Exception):
@@ -381,24 +385,24 @@ def test(testdir):
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line),color.reset))
+            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line),color.reset))
             fails += 1
             continue
-        # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
-        # we will continue with running other tests. (Script will return an error)
+        # If we run out of time we go here. We will print stdout and stderr to the screen, but 
+        # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
         except subprocess.TimeoutExpired as e:
+            proc.kill()
             print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
-            print("  │      {}CMD   : {}{}".format(color.lightgray,' '.join(e.cmd),color.reset))
             try:
                 stdoutlines = e.stdout.decode('utf-8').split('\n')
                 if len(stdoutlines) < 10:
-                    for line in stdoutlines: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                    for line in stdoutlines:      print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
                 else:
-                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.lightgray,line,color.reset))
+                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
                     for i in range(3):            print("  │      {}        {}{}".format(color.lightgray,"............",color.reset))
-                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.lightgray,line,color.reset))
+                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
             except Exception as e1:
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
