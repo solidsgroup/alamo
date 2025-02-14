@@ -388,17 +388,17 @@ def test(testdir):
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
         except subprocess.TimeoutExpired as e:
-            print(bs+"[{}TIME{}]".format(color.red,color.reset))
+            print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
-            print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
+            print("  │      {}CMD   : {}{}".format(color.lightgray,' '.join(e.cmd),color.reset))
             try:
                 stdoutlines = e.stdout.decode('utf-8').split('\n')
                 if len(stdoutlines) < 10:
                     for line in stdoutlines: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
                 else:
-                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                    for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
-                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.lightgray,line,color.reset))
+                    for i in range(3):            print("  │      {}        {}{}".format(color.lightgray,"............",color.reset))
+                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.lightgray,line,color.reset))
             except Exception as e1:
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
@@ -524,7 +524,7 @@ def test(testdir):
     if warnings: sums.append("{}{} warnings{}".format(color.boldyellow,checks,color.reset))
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
-    if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
+    if timeouts: sums.append("{}{} tests timed out{}".format(color.lightgray,timeouts,color.reset))
     print(summary + ", ".join(sums))
     return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
@@ -573,7 +573,7 @@ if stats.warnings: print("{}{} warnings{}".format(color.boldyellow,stats.warning
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
-if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
+if stats.timeouts: print("{}{} tests timed out".format(color.lightgray,stats.timeouts,color.reset))
 print("")
 
 return_code = stats.fails + stats.skips

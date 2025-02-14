@@ -492,7 +492,7 @@ protected:
     IC::IC* velocity_ic = nullptr;
 
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
-    BC::Operator::Elastic::Elastic* bc;
+    BC::Operator::Elastic::Elastic* bc = nullptr;
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;

@@ -161,16 +161,21 @@ Integrator::Integrator() : amrex::AmrCore()
 // Destructor
 Integrator::~Integrator()
 {
-    BL_PROFILE("Integrator::~Integrator");
-    if (amrex::ParallelDescriptor::IOProcessor())
-        IO::WriteMetaData(plot_file, IO::Status::Complete);
+    if (Util::finalized)
+    {
+        std::cout << "!! ERROR !! Integrator destructor called after alamo has been finalized." << std::endl;
+        std::cout << "            Behavior occurring after this is undefined." << std::endl;
+        std::abort();
+    }
 
+    // Close out the metadata file and mark completed.
+    IO::WriteMetaData(plot_file, IO::Status::Complete);
+
+    // De-initialize all of the base fields and clear the arrays.
     for (unsigned int i = 0; i < m_basefields.size(); i++) delete m_basefields[i];
     for (unsigned int i = 0; i < m_basefields_cell.size(); i++) delete m_basefields_cell[i];
-    
     m_basefields.clear();
     m_basefields_cell.clear();
-    
 }
 
 void Integrator::SetTimestep(Set::Scalar _timestep)
