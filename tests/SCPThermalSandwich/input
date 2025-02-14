@@ -30,7 +30,6 @@ amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 10.0
-amr.refinement_restriction = 0.1
 
 amr.n_cell = 16 2 2
 geometry.prob_lo = 0.0 -0.00025 -0.00025 # [ m ] 
@@ -43,7 +42,6 @@ geometry.is_periodic = 0 1 1
 timestep = 1.0e-5 # 0.00005 # [s]
 stop_time = 0.03
 small = 1.0e-8
-pf.min_eta = 0.1
 
 pf.eps = 0.000001 #0.0005 # [m]
 pf.lambda = 0.001
@@ -54,7 +52,6 @@ pf.eta.ic.constant.value = 1.0 #laminate
 
 ### Constant IC ############################################################ IC
 phi.ic.type = laminate
-phi.ic.number_of_inclusions = 1
 phi.ic.laminate.center = 0.0 0.0 0.0 
 phi.ic.laminate.thickness = 0.0001
 phi.ic.laminate.orientation = 0 1 
@@ -86,19 +83,14 @@ pf.eta.ic.type = constant
 pf.eta.ic.constant.value = 1.0
 
 
-## Conditional Variables ################################################## Conditional
-conditional.evolve = 1
-
 # THERMAL VARIABLES ######################################################### THERMAL
 thermal.T_fluid = 300.0
 
 thermal.m_ap = 1.45e5 #[m/s]
 thermal.m_htpb = 1.4e1 # 0.2 # [m/s]
-thermal.m_comb = 0.0
 thermal.E_ap = 11000.0   # 1050.0 # 4.0
 thermal.E_htpb = 7500.0   # 1200.0
 
-thermal.cut_off = 0.1
 thermal.on = 1  #activates the thermal functions
 thermal.bound = 300.0
 
