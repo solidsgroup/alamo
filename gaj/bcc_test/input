@@ -1,0 +1,96 @@
+# This is a test program to simulate the thermal stress
+# from a BCC polycrystal cooling
+
+alamo.program 		= mechanics
+plot_file		= gaj/bcc_test/output
+
+timestep		= 0.05
+stop_time		= 0.1
+
+amr.plot_dt		= 0.01
+amr.max_level		= 2
+amr.n_cell		= 64 64 64
+amr.max_grid_size 	= 8
+
+amr.blocking_factor	= 8
+amr.base_regrid_int	= 100
+amr.grid_eff		= 1.0
+amr.ref_threshold	= 0.1
+amr.cell.all 		= 1
+amr.max_grid_size 	= 8
+
+geometry.prob_lo	= -8 -8 -8
+geometry.prob_hi	=  8  8  8
+geometry.is_periodic	=  0  0  0
+
+ic.type			= png
+ic.png.filename		= gaj/bcc_test/redscale.png
+ic.png.fit		= coord
+ic.png.channel		= R
+
+nmodels 	= 4
+model1.E 	= 240
+model1.nu	= 0.33
+model1.F0	= -0.001 0 0 0 -0.001 0 0 0 -0.001
+
+model2.E	= 200
+model2.nu	= 0.33
+model2.F0	= -0.001 0 0 0 -0.001 0 0 0 -0.001
+
+model3.E 	= 160
+model3.nu	= 0.33
+model3.F0	= 0.001 0 0 0 0.001 0 0 0 0.001
+
+model4.E	= 120
+model3.nu	= 0.33
+model3.F0	= 0.001 0 0 0 0.001 0 0 0 0.001
+
+solver.verbose = 3
+solver.nriters = 1
+solver.fixed_iter = 2000
+
+bc.type = constant
+bc.constant.type.ylo	= trac disp
+bc.constant.type.xloylo	= disp disp
+bc.constant.type.xhiylo = disp disp
+bc.constant.type.xlo	= disp trac
+bc.constant.type.xhi	= disp trac
+bc.constant.type.xloyhi	= disp disp
+bc.constant.type.xhiyhi = disp disp
+bc.constant.type.yhi	= trac disp
+
+# ic2.png.max = 140 	# IC max for grain 2
+# ic2.png.min = 71	# IC min for grain 2
+# ic3.png.max = 210	# IC max for grain 3
+# ic3.png.min = 141	# IC min for grain 3
+# ic4.png.min = 211 	# IC min for grain 4
+
+
+
+# mechanics.interval	= 10
+# mechanics.type		= static
+# mechanics.bc.type	= constant
+# mechanics.bc.constant.type.xlo = disp disp disp
+# mechanics.bc.constant.type.xhi	   = disp disp disp
+# mechanics.bc.constant.type.xloyhi  = disp disp disp
+# mechanics.bc.constant.type.xhiyhi  = disp disp disp
+# mechanics.bc.constant.type.ylo		= neumann neumann neumann
+# mechanics.bc.constant.type.yhi		= neumann neumann neumann
+# mechanics.bc.constant.val.xhi           = 0.0 0.01 0.0
+# mechanics.bc.constant.val.xlo           = 0.0 0.0 0.0
+# mechanics.bc.constant.val.xhiyhi        = 0.0 0.01 0.0
+# mechanics.bc.constant.val.xloyhi        = 0.0 0.0 0.0
+# mechanics.bc.constant.val.xhiylo        = 0.0 0.01 0.0
+# mechanics.bc.constant.val.xloylo        = 0.0 0.0 0.0
+# mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
+# mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
+# mechanics.model.C11	= 116.4
+# mechanics.model.C12	= 134.7
+# mechanics.model.C44	= 231.4
+# mechanics.model.random	= 1
+
+
+
+
+
+

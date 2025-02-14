@@ -1,0 +1,63 @@
+#@ 
+#@ [2D-100grain-parallel]
+#@ nprocs = 4
+#@ dim = 2
+#@ benchmark-beaker = 16.04
+#@ benchmark-statler = 11.58
+#@ benchmark-waldorf = 9.32
+#@ 
+#@ [2D-100grain-serial]
+#@ nprocs = 1
+#@ dim = 2
+#@ benchmark-beaker = 50.84
+#@ benchmark-statler = 37.94
+#@ benchmark-github = 60.03
+#@ benchmark-waldorf = 26.9
+#@
+#@ [2D-20grain-serial-coverage]
+#@ nprocs   = 1
+#@ dim      = 2
+#@ coverage = true
+#@ check    = false
+#@ args     = stop_time=0.01
+#@ args     = ic.voronoi.number_of_grains=20
+#@
+
+alamo.program               = microstructure
+plot_file		    = gaj/Voronoi/output
+
+timestep		    = 0.005
+stop_time		    = 1
+
+amr.plot_dt		    = 0.1
+
+amr.max_level		    = 3
+amr.n_cell		    = 32 32 32
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 10
+amr.grid_eff		    = 1.0
+
+ic.type			    = voronoi
+ic.voronoi.number_of_grains = 100
+#ic.voronoi.number_of_grains = 100
+#ic.type			    = constant
+#ic.value = 1 0 0 0 0 0 0 0 0 0
+geometry.prob_lo	    = 0 0 0
+geometry.prob_hi	    = 5 5 5
+geometry.is_periodic	    = 1 1 1
+
+bc.eta.type.xhi			= periodic
+bc.eta.type.xlo			= periodic
+bc.eta.type.yhi			= periodic
+bc.eta.type.ylo			= periodic
+bc.eta.type.zhi			= periodic
+bc.eta.type.zlo			= periodic
+
+pf.number_of_grains	    = 10
+pf.M			    = 1.0 
+pf.mu			    = 10.0
+pf.gamma		    = 1.0
+pf.l_gb			    = 0.05
+pf.sigma0		    = 0.075
+
+

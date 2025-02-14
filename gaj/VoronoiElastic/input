@@ -1,0 +1,92 @@
+#@ 
+#@ [2d-serial]
+#@ dim=2
+#@ benchmark-beaker = 65.12
+#@ benchmark-statler = 45.09
+#@ benchmark-github = 70.39
+#@ benchmark-waldorf = 29.65
+#@
+#@ [2d-serial-coverage]
+#@ dim      = 2
+#@ coverage = true
+#@ check    = false
+#@ args     = stop_time=0.001
+#@ args     = mechanics.solver.fixed_iter=10
+#@
+#@ [2d-parallel]
+#@ dim=2
+#@ nprocs=4
+#@ benchmark-beaker=19.99
+#@ benchmark-statler=16.68
+#@ benchmark-waldorf=9.4
+#@
+
+alamo.program			= microstructure
+plot_file		        = gaj/VoronoiElastic/output
+
+timestep		        = 0.0005
+stop_time		        = 0.1
+
+amr.plot_dt			= 0.01
+amr.max_level		        = 2
+amr.n_cell		        = 64 64 64
+amr.max_grid_size = 8
+
+amr.blocking_factor	        = 8
+amr.base_regrid_int		= 100
+amr.grid_eff		        = 1.0
+amr.ref_threshold		= 0.1
+amr.cell.all = 1
+amr.max_grid_size = 8
+
+ic.type			        = voronoi
+ic.voronoi.number_of_grains	= 40
+
+geometry.prob_lo	        = 0 0 0
+geometry.prob_hi	        = 5 5 5
+geometry.is_periodic		= 0 0 0
+
+bc.eta.type.xhi			= neumann
+bc.eta.type.xlo			= neumann
+bc.eta.type.yhi			= neumann
+bc.eta.type.ylo			= neumann
+bc.eta.type.zhi			= neumann
+bc.eta.type.zlo			= neumann
+
+pf.number_of_grains	        = 10
+pf.M			        = 1.0 
+pf.mu			        = 10.0
+pf.gamma		        = 1.0
+pf.l_gb			        = 0.05
+pf.sigma0		        = 0.075
+
+mechanics.interval		= 10
+mechanics.type			= static
+mechanics.bc.type               = constant
+mechanics.bc.constant.type.xlo     = disp disp disp
+mechanics.bc.constant.type.xhi	   = disp disp disp
+mechanics.bc.constant.type.xloyhi  = disp disp disp
+mechanics.bc.constant.type.xhiyhi  = disp disp disp
+mechanics.bc.constant.type.ylo		= neumann neumann neumann
+mechanics.bc.constant.type.yhi		= neumann neumann neumann
+mechanics.bc.constant.val.xhi           = 0.0 0.01 0.0
+mechanics.bc.constant.val.xlo           = 0.0 0.0 0.0
+mechanics.bc.constant.val.xhiyhi        = 0.0 0.01 0.0
+mechanics.bc.constant.val.xloyhi        = 0.0 0.0 0.0
+mechanics.bc.constant.val.xhiylo        = 0.0 0.01 0.0
+mechanics.bc.constant.val.xloylo        = 0.0 0.0 0.0
+mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
+mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
+mechanics.model.C11             = 1.68
+mechanics.model.C12             = 1.21
+mechanics.model.C44             = 0.75
+mechanics.model.random          = 1
+#mechanics.solver.fixed_iter     = 100
+mechanics.solver.verbose        = 3
+mechanics.print_model = 1
+mechanics.print_residual = 1
+mechanics.solver.tol_rel = 1E-8
+mechanics.solver.tol_abs = 1E-8
+mechanics.solver.average_down_coeffs = 0
+mechanics.time_evolving = 1
+mechanics.tstart = 0

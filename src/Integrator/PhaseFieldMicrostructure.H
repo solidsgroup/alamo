@@ -253,7 +253,7 @@ protected:
 
     virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
-private:
+protected:
 
     int number_of_grains = -1;
     int number_of_ghost_cells = 1;
