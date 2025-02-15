@@ -385,8 +385,8 @@ def test(testdir):
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line),color.reset))
-            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line),color.reset))
+            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
@@ -416,7 +416,7 @@ def test(testdir):
         except Exception as e:
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
-            for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
+            for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             continue
         
@@ -456,8 +456,8 @@ def test(testdir):
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 record['checkStatus'] = 'FAIL'
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-                for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+                for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+                for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
                 fails += 1
                 continue
             except DryRunException as e:

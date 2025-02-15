@@ -291,6 +291,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
+            amrex::Box smallbox = mfi.nodaltilebox();
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
             //amrex::Box bx = mfi.nodaltilebox();
             //bx.grow(1);
@@ -303,14 +304,15 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             if (elastic.on)
             {
                 amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    //auto sten = Numeric::GetStencil(i, j, k, bx);
-                    Set::Scalar phi_avg = phi(i, j, k, 0);
-                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     rhs(i, j, k) = elastic.traction * grad_eta;
-
+                });
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar phi_avg = phi(i, j, k, 0);
+                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
                     model_ap.F0 *= (temp_avg - elastic.Tref);
@@ -328,12 +330,19 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
+            Util::Message(INFO);
                     //phi_avg = phi(i,j,k,0);
+            Util::Message(INFO);
                     model_type model_ap = elastic.model_ap;
+            Util::Message(INFO);
                     model_ap.F0 *= Set::Matrix::Zero();
+            Util::Message(INFO);
                     model_type model_htpb = elastic.model_htpb;
+            Util::Message(INFO);
                     model_htpb.F0 *= Set::Matrix::Zero();
+            Util::Message(INFO);
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+            Util::Message(INFO);
                 });
             }
         }
