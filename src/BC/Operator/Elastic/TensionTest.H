@@ -1,3 +1,17 @@
+//
+// A boundary condition for mechanics operators that simplifies frequently-used
+// conditions for uniaxial loading.
+//
+// Types include:
+// 
+// - :code:`uniaxial_stress_clamp`: fixes both ends and allows for stress
+//   concentrations at the corners.
+// - :code:`uniaxial_kolsky`
+// - :code:`uniaxial_stress`: 1D stress problem
+// - :code:`uniaxial_strain`: 1D strain problem
+// 
+//
+
 #ifndef BC_OPERATOR_ELASTIC_TENSIONTEST_H
 #define BC_OPERATOR_ELASTIC_TENSIONTEST_H
 
@@ -37,7 +51,8 @@ public:
         std::string disp = "0.0", trac = "0.0";
         LoadingMode mode;
 
-        pp_query("type",type); // Tension test type. (Only option right now is :code:`uniaxial_stress_clamp`)
+        // Tension test type.
+        pp_query_validate("type",type,{"uniaxial_stress_clamp","uniaxial_kolsky","uniaxial_stress","uniaxial_strain"});
         
         if (pp.contains("trac") && pp.contains("disp")) 
             Util::Abort(INFO,"Cannot specify both trac and disp");

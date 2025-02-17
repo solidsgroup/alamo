@@ -59,7 +59,7 @@ def extract(basefilename):
         for i, line in enumerate(lines):
             
             # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall('^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall(r'^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -79,7 +79,7 @@ def extract(basefilename):
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall('^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall(r'^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -100,7 +100,7 @@ def extract(basefilename):
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall('^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall(r'^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
                 #print(match)
                 query = dict()
@@ -122,7 +122,7 @@ def extract(basefilename):
                 continue
 
             # Catch pp.queryclass inputs
-            match = re.findall('^\s*pp.queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*,*\s*[INFO]*\s*\);\s*(?:\/\/\s*(.*)$)?',line)
+            match = re.findall(r'^\s*pp.queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*,*\s*[INFO]*\s*\);\s*(?:\/\/\s*(.*)$)?',line)
             if match:
                 queryclass = dict()
                 queryclass["type"] = "queryclass"
@@ -144,7 +144,7 @@ def extract(basefilename):
 
             # Catch ParmParse groups. This is old-fashioned but still supported.
             # All subsequent inputs will be nested under a group
-            match = re.findall('^\s*(?:IO|amrex)::ParmParse\s*pp\s*(?:\(\s*"([^"]*)"\s*\))?\s*;\s*(?:\/\/\s*(.*))?',line)
+            match = re.findall(r'^\s*(?:IO|amrex)::ParmParse\s*pp\s*(?:\(\s*"([^"]*)"\s*\))?\s*;\s*(?:\/\/\s*(.*))?',line)
             if match:
                 reset()
                 group = dict()
@@ -159,7 +159,7 @@ def extract(basefilename):
                 group["inputs"] = list()
 
             # Catch definition of a Parser function.
-            if re.match('^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
+            if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
                 if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
                 parsefn = True
 
@@ -178,7 +178,7 @@ def extract(basefilename):
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
                 for j in reversed(range(0,i)):
-                    docmatch = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
@@ -196,7 +196,7 @@ def extract(basefilename):
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
                 for j in reversed(range(0,i)):
-                    docmatch = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
@@ -215,7 +215,7 @@ def extract(basefilename):
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
                 for j in reversed(range(0,i)):
-                    docmatch = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
@@ -224,7 +224,7 @@ def extract(basefilename):
 
 
             # Catch definition of a switch group
-            match =re.findall('^\s*\/\/\s*\[\s*switch\s*(\S*)\s*]\s*(.*)',line)
+            match =re.findall(r'^\s*\/\/\s*\[\s*switch\s*(\S*)\s*]\s*(.*)',line)
             if match:
                 reset()
                 switch = dict()
@@ -237,7 +237,7 @@ def extract(basefilename):
             if switch:
                 # If we are inside a switch block, look for matches like
                 #    else if (ic_type == "KEY") value.ic = new CLASS(args,"PREFIX")
-                match = re.findall('^\s*(?:else)*\s*if\s*\(\S*\s*==\s*"([^"]*)"\s*\).*new\s*([A-Z,:,a-z,0-9,_]*)[^"]*"(.*)"',line)
+                match = re.findall(r'^\s*(?:else)*\s*if\s*\(\S*\s*==\s*"([^"]*)"\s*\).*new\s*([A-Z,:,a-z,0-9,_]*)[^"]*"(.*)"',line)
                 if match:
                     input=dict()
                     input["type"]="switchitem"
@@ -247,7 +247,7 @@ def extract(basefilename):
                     switch["inputs"].append(input)
 
             # Close a switch group
-            if re.match('^\s*\/\/\s*\[\s*end\s*(?:switch)?\s*]',line):
+            if re.match(r'^\s*\/\/\s*\[\s*end\s*(?:switch)?\s*]',line):
                 reset()
             
         reset()

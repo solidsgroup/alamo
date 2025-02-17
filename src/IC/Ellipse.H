@@ -2,12 +2,6 @@
 // In this case, each parameter must have number_of_inclusion*M values, where M is the
 // number of values specified for the single ellipse case.
 //
-// .. WARNING::
-// 
-//    This class is redundant with :ref:`IC::Ellipsoid` and :ref:`IC::Expression` and will
-//    probably be consolidated.
-//
-
 
 #ifndef IC_ELLIPSE_H_
 #define IC_ELLIPSE_H_

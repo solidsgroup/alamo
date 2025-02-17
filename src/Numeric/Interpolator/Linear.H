@@ -133,7 +133,7 @@ public:
         }
 
         // Do this if point is within interpolation range
-        for (unsigned int i = start; i<interval_points.size(); i++)
+        for (unsigned int i = start; i<interval_points.size()-1; i++)
         {
             if (interval_points[i] <= point && point <= interval_points[i+1])
             {

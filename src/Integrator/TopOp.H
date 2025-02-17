@@ -46,6 +46,12 @@ public:
         Parse(*this, pp);
     }
 
+    ~TopOp()
+    {
+        delete ic_psi;
+        delete bc_psi;
+    }
+
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(TopOp& value, IO::ParmParse& pp)

@@ -45,6 +45,9 @@ std::complex<int> Parse(std::string);
 }
 
 extern std::string globalprefix;
+extern bool initialized;
+extern bool finalized;
+
 
 std::string GetFileName();
 void CopyFileToOutputDir(std::string a_path, bool fullpath = true, std::string prefix = "");
