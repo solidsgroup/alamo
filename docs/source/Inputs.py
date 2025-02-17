@@ -8,7 +8,6 @@ import sys
 sys.path.insert(0,"../../scripts")
 
 from scraper import getdocumentation, geticon, extract, scrapeInputs
-from doxscrape import parse_all_doxygen_files
 
 src2url = {}
 try:
@@ -130,7 +129,6 @@ def printAPI(docfile, file, api):
                 ret += "- "+ str(rec['brief_description']['para'])
         return ret
 
-    print("...dropdown")
     docfile.write(".. dropdown:: API definitions in {}\n".format(file))
     docfile.write("\n")
     docfile.write(   "    **Classes**\n\n")
@@ -181,7 +179,9 @@ def printAPI(docfile, file, api):
 
 def scrapeInputs(root="../../src/", writeFiles=True, writeAPI=False):
 
-    api = parse_all_doxygen_files("../build/html/doxygen/doxygen_xml/")
+    if writeAPI:
+        from doxscrape import parse_all_doxygen_files
+        api = parse_all_doxygen_files("../build/html/doxygen/doxygen_xml/")
     
     srcfiles = set()
     for dirname, subdirlist, filelist in sorted(os.walk(root)):
@@ -238,7 +238,6 @@ def scrapeInputs(root="../../src/", writeFiles=True, writeAPI=False):
             subhdr = ""
             for i in range(len(classname.split('::'))):
                 subhdr = '::'.join(classname.split('::')[:i])
-                print(subhdr)
                 if subhdr not in written_headers:
                     if writeFiles:
                         if '::' not in subhdr and subhdr != "":

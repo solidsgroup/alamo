@@ -171,11 +171,11 @@ protected:
 
     /// This is a function that is called by `Integrator` to update the variables registered in
     /// RegisterIntegratedVariable; you can override this to do your integration.
-    virtual void Integrate(int /*amrlev*/,
-                           Set::Scalar /*time*/,
-                           int /*iter*/,
-                           const amrex::MFIter&/*mfi*/,
-                           const amrex::Box&/*box*/
+    virtual void Integrate( int /*amrlev*/,
+                            Set::Scalar /*time*/,
+                            int /*iter*/,
+                            const amrex::MFIter&/*mfi*/,
+                            const amrex::Box&/*box*/
         )
     {
         if (thermo.number > 0)
