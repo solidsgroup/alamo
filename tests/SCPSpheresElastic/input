@@ -3,16 +3,12 @@
 #@ dim=2
 #@ nprocs=1
 #@ args = stop_time=0.001
-#@ args = temp.ic.type="constant"
-#@ args = temp.ic.constant.value=500
 #@ check-file = reference/2d-serial-short.dat
 #@
 #@ [2d-parallel-long]
 #@ dim=2
 #@ nprocs=8
 #@ args = stop_time=0.02
-#@ args = temp.ic.type="constant"
-#@ args = temp.ic.constant.value=500
 #@ check-file = reference/2d-parallel-long.dat
 #@
 
@@ -39,8 +35,8 @@ stop_time = 0.11
 
 pf.eps = 0.000001 
 pf.lambda = 0.001
-eta.ic.type = constant
-eta.ic.constant.value=1.0
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value=1.0
 phi.ic.type = psread
 phi.ic.psread.filename = tests/SCPSpheresElastic/2d.xyzr
 phi.ic.psread.eps = 1.13e-5 
@@ -64,9 +60,6 @@ pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
-
-pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1.0
 
 thermal.on = 1
 thermal.bound = 300.0
@@ -100,6 +93,9 @@ thermal.hc = 1.0e7
 thermal.mlocal_ap = 1000.0
 thermal.mlocal_htpb = 5000.0
 thermal.mlocal_comb = 0.0
+
+temp.ic.type="constant"
+temp.ic.constant.value=500
 
 pressure.P = 4.0
 pressure.mob_ap = 1

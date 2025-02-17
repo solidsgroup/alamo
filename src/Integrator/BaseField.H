@@ -108,15 +108,12 @@ public:
 
             if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
             {
-                Numeric::Interpolator::NodeBilinear<T> *mapper
-                    = new Numeric::Interpolator::NodeBilinear<T>();
-            
                 amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
                                         0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
                                         physbc, 0,
                                         physbc, 0,
                                         m_refRatio[lev-1],
-                                        mapper, bcs, 0);
+                                        &node_bilinear, bcs, 0);
 
             }
             else if (destination_mf.boxArray().ixType() == amrex::IndexType::TheCellType())
@@ -160,14 +157,13 @@ public:
             cmf.push_back(m_field[lev-1].get());
             amrex::Vector<amrex::Real> ctime;
             ctime.push_back(time);
-            Numeric::Interpolator::NodeBilinear<T> *mapper = new Numeric::Interpolator::NodeBilinear<T>();
             amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
             amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
                                         m_geom[lev-1], m_geom[lev],
                                         physbc, 0,
                                         physbc, 0,
                                         m_refRatio[lev-1],
-                                        mapper, bcs, 0);
+                                        &node_bilinear, bcs, 0);
         }
         else if (m_gridtype == Set::Hypercube::Cell)
         {
@@ -300,6 +296,8 @@ private:
     const int m_ncomp, m_nghost;
     BC::BC<T> *m_bc;
     
+    Numeric::Interpolator::NodeBilinear<T> node_bilinear;
+
 public:
     virtual int NComp() override {
         return m_field.NComp();

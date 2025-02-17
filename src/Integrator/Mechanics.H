@@ -108,6 +108,15 @@ public:
         Parse(*this, pp);
     }
 
+    ~Mechanics()
+    {
+        delete ic_eta;
+        delete ic_psi;
+        delete ic_trac_normal;
+        delete bc_psi;
+        delete bc_trac_normal;
+    }
+
     // Mechanics inputs. See also :ref:`Integrator::Base::Mechanics`
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
@@ -216,7 +225,7 @@ public:
 
                 for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.grownnodaltilebox();
+                    amrex::Box bx = mfi.nodaltilebox();
                     bx = bx & domain;
 
                     amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
