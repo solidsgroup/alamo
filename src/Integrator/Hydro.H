@@ -38,6 +38,7 @@ public:
         delete energy_bc;
         delete eta_bc;
 
+        delete density_ic;
         delete velocity_ic;
         delete pressure_ic;
 
@@ -47,6 +48,10 @@ public:
 
         delete eta_ic;
         delete etadot_ic;
+
+        delete solid.momentum_ic;
+        delete solid.density_ic;
+        delete solid.energy_ic;
 
         delete roesolver;
     }
