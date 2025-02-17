@@ -20,6 +20,8 @@ namespace BC
 class Expression
     : public BC<Set::Scalar>
 {
+public:
+    static constexpr const char* name = "expression";
 
     //static constexpr const char* const Elastic::strings[];
     #if AMREX_SPACEDIM==2
@@ -181,8 +183,24 @@ public:
                 value.m_bc_func[face].push_back( value.m_bc_func_parser[face][i].compile<4>() );
             }
         }
-    }
 
+#if AMREX_SPACEDIM==2
+        // We may wish to use an input file that has 3D BC inputs
+        // This will prevent the parser from complaining that there are unused inputs.
+        std::vector<std::string> ignore_in_2d = {
+            "zlo","zhi",
+            "zhixlo","zloxlo","zhixhi","zloxhi","ylozlo","ylozhi","yhizlo","yhizhi",
+            "xloylozlo","xloylozhi","xloyhizlo","xloyhizhi","xhiylozlo","xhiylozhi","xhiyhizlo","xhiyhizhi"};
+        for (unsigned int n = 0; n < ignore_in_2d.size(); n++)
+        {
+            std::string querystr = std::string("val.") + ignore_in_2d[n];
+            pp.ignore(querystr);
+            querystr = std::string("type.") + ignore_in_2d[n];
+            pp.ignore(querystr);
+        }
+#endif
+        
+    }
 };
 }
 #endif

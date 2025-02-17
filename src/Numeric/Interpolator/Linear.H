@@ -133,7 +133,7 @@ public:
         }
 
         // Do this if point is within interpolation range
-        for (unsigned int i = start; i<interval_points.size(); i++)
+        for (unsigned int i = start; i<interval_points.size()-1; i++)
         {
             if (interval_points[i] <= point && point <= interval_points[i+1])
             {
@@ -181,7 +181,8 @@ Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
 }
 
 template<>
-inline Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative)
+ALAMO_SINGLE_DEFINITION
+Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivative)
 {
     std::ifstream input;
     input.open(filename);

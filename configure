@@ -9,6 +9,19 @@ import shutil
 #import ctypes.util
 import glob
 
+#
+# Configuration parameters, mainly to specify default values:
+#
+
+# This is the current Alamo-supported version of AMReX. 
+amrex_current_version = "25.02"
+# Required minimum mpich version - ignore unless using ASan
+mpich_minimum_version = "0.0.0"
+# Python versions
+python_minimum_major = 3
+python_minimum_minor = 5
+
+
 python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
 
 class color:
@@ -73,21 +86,18 @@ def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None):
         error("but got the following error")
         print(color.red + e.stderr.decode('ascii') + color.reset)
         raise e
+    return p
 
 message("Python",python_version)
-if sys.version_info.minor < 5:
-    raise Exception(error("You need Python 3.5 or greater"))
-
-#
-# This is the current Alamo-supported version of AMReX. 
-#
-amrex_current_version = "24.07"
+if sys.version_info.major < python_minimum_major or sys.version_info.minor < python_minimum_minor:
+    raise Exception(error("You need Python {}.{} or greater".format(python_minimum_major,python_minimum_minor)))
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
+parser.add_argument('--build-amrex-fork', dest="amrexfork",action='store_true',default="AMReX-Codes", help='Download and build AMReX automatically')
 parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--build-amrex-tag',dest="buildamrextag",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
@@ -103,15 +113,41 @@ parser.add_argument('--diff',dest='diff',default=False,action='store_true',help=
 parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
+parser.add_argument('--memcheck',dest='memcheck',action='store_true',default=False,help="Use memory checking")
+parser.add_argument('--memcheck-tool',dest='memcheck_tool',default="msan",help="Memory checking toolL MSan (default) or ASan")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.set_defaults(debug=False)
+
+#
+# Logic to ensure compatibility of command line arguments.
+#
+
 args=parser.parse_args()
-if not (args.buildamrexbranch or args.buildamrextag):
-    args.buildamrextag = amrex_current_version
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
+if args.memcheck and not args.debug: 
+    raise(Exception(error("To use memcheck you must also add the --debug flag")))
+if args.memcheck and args.coverage: 
+    raise(Exception(error("Cannot run memcheck and coverage at the same time currently")))
+if args.memcheck and args.memcheck_tool == "msan" and not args.comp=="clang++":
+    raise(Exception(error("MSan only works with clang, use --comp=clang++")))
+
+#
+# Update default arguments version numbers (etc.) based on command line arguments
+#
+
+# update amrex branch if needed
+if not (args.buildamrexbranch or args.buildamrextag):
+    args.buildamrextag = amrex_current_version
+# if using WSan, a minimum verion is required for MPICH.
+if args.memcheck and args.memcheck_tool == "asan":
+    asan_mpich_minimum_version = "4.2.0"
+    newversion = [str(max(int(a),int(b))) for a,b in zip(mpich_minimum_version.split('.'), asan_mpich_minimum_version.split('.'))]
+    mpich_minimum_version = '.'.join(newversion)
+    print(mpich_minimum_version)
+
 
 fpic = args.python 
 
@@ -125,6 +161,9 @@ f2 = open(".make/Makefile.post.conf","w")
 postfix = ""
 postfix += str(args.dim)+"d"
 if args.debug: postfix += "-debug"
+if args.memcheck:
+    if args.memcheck_tool == "asan": postfix += "-asan"
+    if args.memcheck_tool == "msan": postfix += "-msan"
 if fpic: postfix += "-fpic"
 if args.profile: postfix += "-profile"
 if args.coverage: postfix += "-coverage"
@@ -179,7 +218,7 @@ if args.buildamrex and not args.amrex:
                             cmd="git clone https://github.com/AMReX-Codes/amrex.git",
                             message="Cloning AMReX [default branch] -- This may take a while",
                             cwd="ext/")
-    else:
+    elif not args.offline:
         shellmessage("AMReX-Update",cmd="git -C ext/amrex fetch --all")
         #p = subprocess.Popen("".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
@@ -219,7 +258,7 @@ if args.buildamrex and not args.amrex:
     args.amrex = "ext/amrex/"+postfix_amrex
     f.write("AMREX = ext/amrex/" + postfix_amrex + "/\n")
     f.write("AMREX_TARGET = ext/amrex/" + postfix_amrex + "\n")
-    
+    f.write('AMREX_SRC := $(shell find ext/amrex/Src -name "*.H") $(shell find ext/amrex/Src -name "*.cpp")' + "\n")
     
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
@@ -234,9 +273,10 @@ if args.buildamrex and not args.amrex:
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    f2.write("ext/amrex/"+postfix_amrex+":\n")
+    f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
     f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
-    f2.write("\tmake -C ext/amrex install\n")
+    f2.write("\t$(MAKE) -C ext/amrex install\n")
+    f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")
@@ -340,7 +380,14 @@ if not args.alternate_mpi:
     message("Comp-Type", str(args.comp))
     shellmessage("Comp-Version",args.comp+" --version")
     shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
-    shellmessage("MPICH:","mpichversion")
+    mpichversionresult = shellmessage("MPICH:","mpichversion")
+    if args.memcheck_tool=="asan":
+        version_match_str = re.search(r"MPICH Version:\s*([\d.]+)", mpichversionresult.stdout.decode('ascii')).group(1)
+        version = [int(a) for a in version_match_str.split('.')]
+        minimum_version = [int(a) for a in mpich_minimum_version.split('.')]
+        if version<minimum_version:
+            raise Exception(error("MPICH version {} is less than required version {}".format(version_match_str, mpich_minimum_version)))
+        
     shellmessage("MPICH mpicxx:","mpicxx -v")
     f.write("CC = mpicxx -cxx="+args.comp+"\n")
     f.write("MPI_LIB = -lmpich\n")
@@ -361,6 +408,15 @@ if args.comp == 'g++':
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
 
+    if args.memcheck:
+        if args.memcheck_tool=="asan":
+            f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
+            f.write("LINKER_FLAGS += -fsanitize=address -static-libasan\n")
+        elif args.memcheck_tool=="msan":
+            f.write("CXX_COMPILE_FLAGS += -fsanitize=memory -fno-omit-frame-pointer\n")
+            f.write("LINKER_FLAGS += -fsanitize=memory\n")
+        else:
+            error("Invalid memory check tool ", args.memcheck_tool)
     if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
     elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")

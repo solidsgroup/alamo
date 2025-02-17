@@ -20,6 +20,8 @@ namespace IC
 class BMP : public IC
 {
 public:
+    static constexpr const char* name = "bmp";
+
     //enum Type {XYZ, XY, YZ, XZ};
     enum Fit {Stretch,FitWidth,FitHeight,Coord};
     enum Channel {R=0, G=1, B=2};
@@ -179,7 +181,7 @@ public:
 
         std::string fit;
         // How to position image in space
-        pp_query_validate("fit",fit,{"stretch","fitheight","fitwidth"}); 
+        pp_query_validate("fit",fit,{"stretch","fitheight","fitwidth","coord"}); 
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;

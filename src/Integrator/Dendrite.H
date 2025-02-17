@@ -39,19 +39,27 @@ public:
         Parse(*this, pp);
     }
 
+    ~Dendrite()
+    {
+        delete ic_temp;
+        delete ic_phi;
+        delete bc_temp;
+        delete bc_phi;
+    }
+
     static void Parse(Dendrite& value, IO::ParmParse& pp)
     {
-        pp_query("alpha", value.alpha); // Pre-multiplier of "m" barrier height
-        pp_query("delta", value.delta); // Anisotropy factor
-        pp_query("gamma", value.gamma); // Anisotropic temperature coupling factor
+        pp_query_required("alpha", value.alpha); // Pre-multiplier of "m" barrier height
+        pp_query_required("delta", value.delta); // Anisotropy factor
+        pp_query_required("gamma", value.gamma); // Anisotropic temperature coupling factor
 
-        pp_query("eps", value.eps); // Diffuse boundary width
-        pp_query("tau", value.tau); // Diffusive timescale
+        pp_query_required("eps", value.eps); // Diffuse boundary width
+        pp_query_required("tau", value.tau); // Diffusive timescale
 
         // Refinement criteria for temperature
-        pp_query("heat.refinement_threshold", value.refinement_threshold_temp);
+        pp_query_default("heat.refinement_threshold", value.refinement_threshold_temp, 0.01);
         // Refinement criteria for phi
-        pp_query("phi.refinement_threshold", value.refinement_threshold_phi);
+        pp_query_default("phi.refinement_threshold", value.refinement_threshold_phi, 0.01);
 
         // Expressions for ICs
         value.ic_temp = new IC::Expression(value.geom, pp, "ic.temp");
@@ -195,8 +203,8 @@ private:
     // evolution of p
     Set::Scalar eps, tau;
 
-    Set::Scalar refinement_threshold_temp = 0.01; // Criterion for cell refinement
-    Set::Scalar refinement_threshold_phi = 0.01; // Criterion for cell refinement
+    Set::Scalar refinement_threshold_temp = NAN; // Criterion for cell refinement
+    Set::Scalar refinement_threshold_phi = NAN; // Criterion for cell refinement
 
     IC::IC* ic_temp, * ic_phi;
     BC::BC<Set::Scalar>* bc_temp, * bc_phi;

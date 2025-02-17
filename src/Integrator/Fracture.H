@@ -15,8 +15,6 @@
 #include "BC/Constant.H"
 
 #include "IC/IC.H"
-#include "IC/Ellipsoid.H"
-#include "IC/Notch.H"
 #include "IC/Laminate.H"
 #include "IC/PerturbedInterface.H"
 
@@ -75,15 +73,17 @@ public:
             {
                 if(crack.ic_type[i] == "notch")
                 {
-                    IC::Notch *tmpic = new IC::Notch(geom);
-                    pp_queryclass("notch",*tmpic);
-                    crack.ic.push_back(tmpic);
+                    Util::Abort(INFO,"Not Supported");
+                    // IC::Notch *tmpic = new IC::Notch(geom);
+                    // pp_queryclass("notch",*tmpic);
+                    // crack.ic.push_back(tmpic);
                 }
                 else if (crack.ic_type[i] == "ellipsoid")
                 {
-                    IC::Ellipsoid *tmpic = new IC::Ellipsoid(geom);
-                    pp_queryclass("ellipsoid",*tmpic);
-                    crack.ic.push_back(tmpic);
+                    Util::Abort(INFO,"Not Supported");
+                    // IC::Ellipsoid *tmpic = new IC::Ellipsoid(geom);
+                    // pp_queryclass("ellipsoid",*tmpic);
+                    // crack.ic.push_back(tmpic);
                 }
                 else
                     Util::Abort(INFO, "This IC hasn't been implemented yet");
@@ -247,13 +247,10 @@ protected:
                 amrex::Array4<const Set::Scalar>                const &mat = material.material_mf[ilev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                            Set::Scalar matsum = 0.0;
                                             brittle_fracture_model_type_test modelsum(0.0,0.0);
                                             for (int p = 0; p < number_of_materials; p++)
                                             {
                                                 modelsum += mat(i,j,k,p)*material.brittlemodeltype[p];
-                                                matsum += mat(i,j,k,p);
-
                                             }
                                             model(i,j,k) = /*(1./matsum) * */modelsum ;
                                         });

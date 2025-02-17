@@ -27,7 +27,12 @@ data = load("{}/thermo.dat".format(outdir))
 sig_diff = numpy.interp(data['time'], ref['time'], ref['trac_xhi_x']) - data['trac_xhi_x']
 sig_norm = numpy.sqrt(integrate(ref['time'],ref['trac_xhi_x']*ref['trac_xhi_x']))
 
-error = numpy.sqrt(integrate(data['time'],sig_diff**2)) / sig_norm
+disp_diff = numpy.interp(data['time'], ref['time'], ref['disp_xhi_x']) - data['disp_xhi_x']
+disp_norm = numpy.sqrt(integrate(ref['time'],ref['disp_xhi_x']*ref['disp_xhi_x']))
+
+error = numpy.sqrt(integrate(data['time'],sig_diff**2)) / (sig_norm + 1E-16)
+error_disp = numpy.sqrt(integrate(data['time'],disp_diff**2)) / (disp_norm + 1E-16)
+
 
 
 pylab.clf()
@@ -40,7 +45,7 @@ pylab.savefig("{}/stress_time.png".format(outdir))
 
 pylab.clf()
 pylab.plot(ref['disp_xhi_x'],ref['trac_xhi_x'],marker='o',label="reference")
-pylab.plot(data['disp_xhi_x'],data['trac_xhi_x'],label="test")
+#pylab.plot(data['disp_xhi_x'],data['trac_xhi_x'],label="test")
 pylab.legend()
 pylab.xlabel("strain")
 pylab.ylabel("stress")
@@ -48,8 +53,8 @@ pylab.savefig("{}/stress_strain.png".format(outdir))
 
 
 if math.isnan(error): raise Exception("Stress is nan")
-if (error > tolerance): raise Exception("Error in stress calculation")
-
+if (error > tolerance): raise Exception("Error in stress calculation") # todo - we need to find a better way of recording intensive variables
+#if (error_disp > tolerance): raise Exception("Error in displacement calculation")
 
 
 #prof = ds.ray([0,0,0],[1,1,1],)

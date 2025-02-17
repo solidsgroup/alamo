@@ -17,7 +17,10 @@ namespace Util
 {
 
 std::string filename = "";
+std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
+bool initialized = false;
+bool finalized = false;
 
 std::string GetFileName()
 {
@@ -46,22 +49,45 @@ std::string GetFileName()
     }
     return filename;
 }
-void CopyFileToOutputDir(std::string a_path, bool fullpath)
+void CopyFileToOutputDir(std::string a_path, bool fullpath, std::string prefix)
 {
-    if (filename == "")
-        Util::Abort(INFO,"Cannot back up files yet because the output directory has not been specified");
-
-    std::string basefilename = std::filesystem::path(a_path).filename();
-    std::string absolutepath = std::filesystem::absolute(std::filesystem::path(a_path)).string();
-    std::string abspathfilename = absolutepath;
-    std::replace(abspathfilename.begin()+1,abspathfilename.end(),'/','_');
-
-    if (amrex::ParallelDescriptor::IOProcessor())
+    try
     {
-    // Copy the file where the file name is the absolute path, with / replaced with _
-    if (fullpath) std::filesystem::copy_file(a_path,filename+abspathfilename);
-    // Copy the file with the consistent base name
-    else          std::filesystem::copy_file(a_path,filename+basefilename);
+        if (filename == "")
+            Util::Exception(INFO,"Cannot back up files yet because the output directory has not been specified");
+
+        std::string basefilename = std::filesystem::path(a_path).filename();
+        std::string absolutepath = std::filesystem::absolute(std::filesystem::path(a_path)).string();
+        std::string abspathfilename = absolutepath;
+        std::replace(abspathfilename.begin(),abspathfilename.end(),'/','_');
+        if (prefix != "")
+        {
+            abspathfilename = prefix + "__" + abspathfilename;
+            basefilename    = prefix + "__" + abspathfilename;
+        }
+
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            std::string destinationpath;
+            if (fullpath) destinationpath = filename+"/"+abspathfilename;
+            else          destinationpath = filename+"/"+basefilename;
+
+            // Copy the file where the file name is the absolute path, with / replaced with _
+            if (std::filesystem::exists(destinationpath))
+                Util::Exception(INFO,"Trying to copy ",destinationpath," but it already exists.");
+            std::filesystem::copy_file(a_path,destinationpath);
+        }
+    }
+    catch (std::filesystem::filesystem_error const& ex)
+    {
+        Util::Exception(INFO,
+                        "file system error: \n",
+                        "     what():  " , ex.what()  , '\n',
+                        "     path1(): " , ex.path1() , '\n',
+                        "     path2(): " , ex.path2() , '\n',
+                        "     code().value():    " , ex.code().value() , '\n',
+                        "     code().message():  " , ex.code().message() , '\n',
+                        "     code().category(): " , ex.code().category().name());
     }
 }
 
@@ -104,6 +130,7 @@ void Initialize ()
     int argc = 0;
     char **argv = nullptr;
     Initialize(argc,argv);
+    initialized = true;
 }
 void Initialize (int argc, char* argv[])
 {
@@ -134,6 +161,7 @@ void Finalize()
     if (filename != "")
         IO::WriteMetaData(filename,IO::Status::Complete);
     amrex::Finalize();
+    finalized = true;
 }
 
 
@@ -216,6 +244,19 @@ int ReplaceAll(std::string &str, const char before, const std::string after)
     }
     return 0;
 }
+
+std::string Join(std::vector<std::string> & vec, char separator)
+{
+    std::ostringstream oss;
+    for (size_t i = 0; i < vec.size(); ++i) {
+        oss << vec[i];
+        if (i < vec.size() - 1) { // Don't add separator after the last element
+            oss << separator;
+        }
+    }
+    return oss.str();
+}
+
 std::string Wrap(std::string text, unsigned per_line)
 {
     unsigned line_begin = 0;

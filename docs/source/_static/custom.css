@@ -24,38 +24,6 @@ p
     margin-bottom: 10px; /* between paragraphs */    
 }
 
-
-table.api-inputs-table
-{
-    width:100%!important;
-    max-width:100%!important;
-    border-spacing: 0px!important;
-    border-collapse:separate!important;
-    border-radius:7px!important;
-    border: 2px solid #f3f3f3!important;
-    overflow: hidden;
-    white-space:pre-wrap !important;
-}
-
-table.api-inputs-table th
-{
-    background-color:#b1b6b9;
-    color:rgb(30, 30, 30);
-    border:none!important;
-}
-table.api-inputs-table tr.row-odd td
-{
-    background:#f3f3f3;
-    padding:3px;
-    border:none!important;
-}
-
-table.api-inputs-table tr.row-even td
-{
-    background-color:#f8f8f8 !important;
-    padding:3px;
-    border:none!important;
-}
 .api-inputs-table code.code
 {
     background-color:transparent !important;
@@ -76,13 +44,182 @@ li[class="toctree-l1"] a:hover
 
 h1 {font-size:xx-large!important;}
 h2 {font-size:x-large!important;}
-h3 {font-size:large!important;text-decoration: underline;}
-h4 {font-size:medium!important;text-decoration: underline;}
-h5 {font-size:small!important;text-decoration: underline;}
-h6 {font-size:x-small!important;text-decoration: underline;}
-h7 {font-size:xx-small!important;text-decoration: underline;}
+h3 {font-size:large!important;}
+h4 {font-size:medium!important;}
+h5 {font-size:medium!important;}
+h6 {font-size:small!important;}
+h7 {font-size:small!important;}
 
 
 .wy-nav-content {
-   //max-width: none; // uncomment to make full-width (but this doesn't look as good)
+   //max-width: none; // uncomment to make full-width (but this does not look as good)
+}
+
+
+ul.current {
+    padding:0px!important;
+}
+
+a.reference.internal{
+    text-decoration:none;!important;
+
+}
+
+ul.nav-tabs {
+    margin-bottom: 0 !important; /* Remove margin below the tabs */
+    padding-bottom: 0 !important; /* Remove padding below the tabs */
+}
+
+ul.nav-tabs > li {
+    list-style: none !important; /* Force no bullets */
+}
+
+/* Remove padding/margin to avoid extra spacing */
+ul.nav-tabs > li {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.card-title {
+    text-decoration: none;
+}
+
+/* Adjust the card header to eliminate extra space */
+.card-header {
+    padding-top: 0 !important; /* Adjust padding above */
+    padding-bottom: 0 !important; /* Adjust padding below */
+    margin-bottom: 0 !important; /* Remove margin below header */
+}
+
+li.toctree-l1 ul {
+    padding: 0px !important;
+}
+
+
+
+
+
+/* Modern, compact styles for tables with class 'api-inputs-table' */
+.api-inputs-table {
+  width: 100%;
+  border-collapse: separate !important; /* Changed to separate for border visibility */
+  border-spacing: 0 !important; /* Remove default spacing */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 14px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #b0b8c1 !important; /* Enhanced outside border with !important for more definition */
+}
+
+.api-inputs-table th,
+.api-inputs-table td {
+  padding: 10px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.api-inputs-table thead th {
+  background-color: #f5f7fa;
+  color: #333;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #d1d9e6;
+}
+
+.api-inputs-table tbody tr {
+  background-color: #fff !important; /* Apply important to background color */
+  transition: background-color 0.3s ease !important; /* Ensuring transition is applied to all rows */
+}
+
+.api-inputs-table tbody tr:nth-child(even) {
+  background-color: #fafbfc !important; /* Apply important to even row background */
+}
+
+.api-inputs-table tbody tr:hover,
+.api-inputs-table tbody tr:nth-child(even):hover {
+  background-color: #f0f4f8 !important; /* Apply important to hover effect for both odd and even rows */
+}
+
+.api-inputs-table a {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.api-inputs-table a:hover {
+  text-decoration: underline;
+}
+
+.api-inputs-table p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.api-inputs-table td[colspan="3"] {
+  background-color: #f9fafb !important; /* Apply important to colspan background */
+  font-weight: bold;
+  color: #555;
+}
+
+/* =========================================== */
+
+
+
+/* Improve section headers to match ReadTheDocs theme */
+h1 {
+    background-color: #2980b9; /* ReadTheDocs primary blue */
+    color: white !important;
+    padding: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+h2 {
+    background-color: #3498db; /* Slightly lighter blue */
+    color: white !important;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+h3 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h4 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h5 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+h6 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
+}
+
+/* Add space between sections */
+section {
+    margin-bottom: 35px;
+    padding-top: 20px;
+}
+
+/* Horizontal line styling */
+hr {
+    border: 1px solid #e1e4e5; /* Light gray, matching ReadTheDocs dividers */
+    margin: 20px 0;
 }

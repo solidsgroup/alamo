@@ -52,7 +52,8 @@ public:
     }
     static void Parse(NeoHookeanPredeformed& value, IO::ParmParse& pp)
     {
-        NeoHookean::Parse(value, pp);
+        pp.queryclass<NeoHookean>(value);
+        
         if (pp.contains("eps0") && pp.contains("F0"))
         {
             Util::Abort("Cannot specify both F0 and eps0");
