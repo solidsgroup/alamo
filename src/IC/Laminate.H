@@ -9,10 +9,9 @@
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 
-/// \class Laminate
-/// \brief Initialize Laminates in a matrix
 namespace IC
 {
+/// Initialize Laminates in a matrix
 class Laminate: public IC
 {
 public:
