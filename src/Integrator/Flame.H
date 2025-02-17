@@ -41,9 +41,12 @@ public:
 
     virtual ~Flame()
     {
-        delete bc_eta;
         delete ic_eta;
         delete ic_phi;
+        delete thermal.ic_temp;
+        delete ic_laser;
+        delete bc_eta;
+        delete bc_temp;
     }
 
 protected:

@@ -30,6 +30,13 @@ public:
     Mechanics() : Integrator()
     {}
 
+    ~Mechanics()
+    {
+        delete ic_rhs;
+        delete velocity_ic;
+        delete bc;
+    }
+
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(Mechanics& value, IO::ParmParse& pp)
@@ -481,12 +488,11 @@ protected:
 
 
     IC::IC* ic_rhs = nullptr;
-    BC::BC<Set::Scalar>* mybc;
 
     IC::IC* velocity_ic = nullptr;
 
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
-    BC::Operator::Elastic::Elastic* bc;
+    BC::Operator::Elastic::Elastic* bc = nullptr;
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;

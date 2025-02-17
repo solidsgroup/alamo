@@ -19,6 +19,8 @@ namespace Util
 std::string filename = "";
 std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
+bool initialized = false;
+bool finalized = false;
 
 std::string GetFileName()
 {
@@ -128,6 +130,7 @@ void Initialize ()
     int argc = 0;
     char **argv = nullptr;
     Initialize(argc,argv);
+    initialized = true;
 }
 void Initialize (int argc, char* argv[])
 {
@@ -158,6 +161,7 @@ void Finalize()
     if (filename != "")
         IO::WriteMetaData(filename,IO::Status::Complete);
     amrex::Finalize();
+    finalized = true;
 }
 
 

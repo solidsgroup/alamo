@@ -41,6 +41,14 @@ public:
         Parse(*this, pp);
     }
 
+    ~Dendrite()
+    {
+        delete ic_temp;
+        delete ic_phi;
+        delete bc_temp;
+        delete bc_phi;
+    }
+
     static void Parse(Dendrite& value, IO::ParmParse& pp)
     {
         pp_query_required("alpha", value.alpha); // Pre-multiplier of "m" barrier height
