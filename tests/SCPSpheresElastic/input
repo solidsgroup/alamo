@@ -39,12 +39,16 @@ stop_time = 0.11
 
 pf.eps = 0.000001 
 pf.lambda = 0.001
-eta.ic.type = constant
-eta.ic.constant.value=1.0
-phi.ic.type = psread
-phi.ic.psread.filename = tests/SCPSpheresElastic/2d.xyzr
-phi.ic.psread.eps = 1.13e-5 
+ta.ic.type = bmp
+eta.ic.bmp.filename = /home/abiswal/PaperVoidGrain/results/simple_circle.bmp
+eta.ic.bmp.fit = stretch
+eta.ic.bmp.channel = g
+phi.ic.type = bmp
+phi.ic.bmp.filename = /home/abiswal/PaperVoidGrain/results/base_circle0.bmp
+phi.ic.bmp.fit = stretch
+phi.ic.bmp.channel = g
 phi.zeta_0 = 1.13e-5
+phi.zeta = 1.13e-5
 
 pf.kappa = 1.0
 pf.gamma = 0.02726

@@ -160,7 +160,7 @@ private:
     Set::Scalar chamber_area = 0.0;
     Set::Scalar chamber_pressure = 1.0;
     Set::Scalar massflux = 0.00000001;
-    Set::Scalar pre_compute_mdot = 0.0;
+    //Set::Scalar pre_compute_mdot = 0.0;
 
     struct {
         bool on = 0;

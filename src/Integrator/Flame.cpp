@@ -428,7 +428,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         Set::Scalar domain_area = x_len * y_len;
         chamber_pressure = pressure.P;
         chamber_area = domain_area - volume;
-        //Util::Message(INFO, "Mass = ", massflux);
+        Util::Message(INFO, "Mass = ", massflux);
         //Util::Message(INFO, "Pressure = ", pressure.P);
         //Util::Message(INFO, "CPressure = ", chamber.pressure);
     }
@@ -444,8 +444,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         ballistic.Execute(chamber.mdot, timestep);
         chamber.pressure = ballistic.pressure0; // Access updated pressure
         //Util::ParallelMessage(INFO, "Mdot = ", chamber.mdot);
-        //Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
-        pre_compute_mdot = chamber.mdot;
+        Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
+        //pre_compute_mdot = chamber.mdot;
         //calculate mass flux out of nozzle
         // Set::Scalar vol = 1 + chamber.volume;
         // chamber.c_star = sqrt(chamber.gamma * chamber.R * chamber.T0);
