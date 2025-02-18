@@ -544,13 +544,13 @@ if args.clangd:
     cc = compmpicmd.stdout.decode('utf-8').replace('\n','')
 
     f = open("compile_commands.json","w")
-    f.write(    """[                                                                \n""")
+    f.write(    """[                                                                      \n""")
     for srcfile in srcfiles:
-        f.write("""  {                                                              \n""")
-        f.write("""     "directory": "{}",                                          \n""".format(projectdir))
-        f.write("""     "command":   "{} -I./src/ {} -I./ext/amrex/{}/include",\n""".format(cc, srcfile,postfix_amrex))
-        f.write("""     "file":      "{}",                                          \n""".format(srcfile))
-        f.write("""  },                                                             \n""")
-    f.write(    """]                                                                \n""")
+        f.write("""  {                                                                    \n""")
+        f.write("""     "directory": "{}",                                                \n""".format(projectdir))
+        f.write("""     "command":   "{} -std=c++17 -I./src/ {} -I./ext/amrex/{}/include",\n""".format(cc, srcfile,postfix_amrex))
+        f.write("""     "file":      "{}",                                                \n""".format(srcfile))
+        f.write("""  },                                                                   \n""")
+    f.write(    """]                                                                      \n""")
 
 
