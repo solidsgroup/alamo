@@ -120,7 +120,7 @@ parser.add_argument('--memcheck-tool',dest='memcheck_tool',default="msan",help="
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
-parser.add_argument('--clangd',dest='clangd',default=False,action='store_true', help='Generate compile_commands.json for clangd')
+parser.add_argument('--comp-cmds',dest='compile_commands',default=False,action='store_true', help='Generate compile_commands.json for language servers like clangd')
 parser.set_defaults(debug=False)
 
 #
@@ -532,7 +532,7 @@ if (args.docs):
     except: message("M2R",color.red + "M2R not installed - install using " + code("pip install m2r"))
 
 
-if args.clangd:
+if args.compile_commands:
     srcfiles = set()
     for dirname, _, filelist in sorted(os.walk("src/")):
         for f in filelist:
