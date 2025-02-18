@@ -558,5 +558,5 @@ if args.compile_commands:
     } for srcfile in srcfiles]
 
     with open(Path("compile_commands.json"), "w") as f:
-        json.dump(command_objects, f, indent="\t")
+        json.dump(command_objects, f, indent=4)
 
