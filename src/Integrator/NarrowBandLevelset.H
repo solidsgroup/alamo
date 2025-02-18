@@ -22,7 +22,8 @@
 #include "IC/Expression.H"
 
 // Numeric includes
-//#include "Numeric/FluxHandler.H"
+#include "Numeric/FluxHandler.H"
+#include "Numeric/TimeStepper.H"
 #include "Numeric/Stencil.H"
 
 namespace Integrator
@@ -49,6 +50,64 @@ public:
     const Set::Field<Set::Scalar>& GetLevelSetField() const { return ls_mf; }
     const Set::Field<Set::Scalar>& GetLevelSetFieldOld() const { return ls_old_mf; }
     const Set::Field<Set::Scalar>& GetVelocityField() const { return velocity_mf; }
+
+   // Subclass to manage feature maps
+    class FeatureMaps {
+    public:
+        // Singleton access to ensure one instance
+        static FeatureMaps& getInstance() {
+            static FeatureMaps instance;
+            return instance;
+        }
+
+        // Accessor methods for the maps
+        const std::map<std::string, FluxReconstruction>& getFluxReconstructionMap() const {
+            return fluxReconstructionMap;
+        }
+
+        const std::map<std::string, FluxScheme>& getFluxSchemeMap() const {
+            return fluxSchemeMap;
+        }
+
+        const std::map<std::string, TimeSteppingScheme>& getTimeSteppingSchemeMap() const {
+            return timeSteppingSchemeMap;
+        }
+
+    private:
+        // Private constructor to initialize the maps
+        FeatureMaps() {
+            fluxReconstructionMap = {
+                {"FirstOrder", FluxReconstruction::FirstOrder},
+                {"ThirdOrderENO", FluxReconstruction::ThirdOrderENO},
+                {"FifthOrderWENO", FluxReconstruction::FifthOrderWENO},
+                {"FifthOrderWENOWithChar", FluxReconstruction::FifthOrderWENOWithChar}
+            };
+
+            fluxSchemeMap = {
+                {"LocalLaxFriedrichs", FluxScheme::LocalLaxFriedrichs},
+                {"HLLCFlux", FluxScheme::HLLCFlux}
+            };
+
+            timeSteppingSchemeMap = {
+                {"ForwardEuler", TimeSteppingScheme::ForwardEuler},
+                {"RK3", TimeSteppingScheme::RK3}
+            };
+        }
+
+        // Disable copy and assignment
+        FeatureMaps(const FeatureMaps&) = delete;
+        FeatureMaps& operator=(const FeatureMaps&) = delete;
+
+        // The maps for different schemes
+        std::map<std::string, FluxReconstruction> fluxReconstructionMap;
+        std::map<std::string, FluxScheme> fluxSchemeMap;
+        std::map<std::string, TimeSteppingScheme> timeSteppingSchemeMap;
+    };
+
+    // Accessors to the singleton
+    static const FeatureMaps& getFeatureMaps() {
+        return FeatureMaps::getInstance();
+    }
     
 protected:
     // Variables (multi-fabs)
@@ -68,6 +127,33 @@ protected:
     void Advect(int lev, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev);
+
+    Numeric::FluxHandler<NarrowBandLevelset>* fluxHandler = nullptr;  // Flux handler instance
+    Numeric::TimeStepper<NarrowBandLevelset>* timeStepper = nullptr;  // Time stepper instance
+
+    template <typename T>
+    friend class Numeric::FluxReconstruction;
+
+    template <typename T>
+    friend class Numeric::FluxMethod;    
+
+    template <typename T>
+    friend class Numeric::FluxHandler;    
+
+    template <typename T>
+    friend class Numeric::FirstOrderReconstruction;
+
+    template <typename T>
+    friend class Numeric::LocalLaxFriedrichsMethod;
+
+    template <typename T>
+    friend class Numeric::TimeSteppingScheme;
+
+    template <typename T>
+    friend class Numeric::EulerForwardScheme;
+
+    template <typename T>
+    friend class Numeric::RK3Scheme;    
 
 // Declare private functions such as Parse 
 private:
