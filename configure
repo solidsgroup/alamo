@@ -8,6 +8,8 @@ import sys
 import shutil
 #import ctypes.util
 import glob
+import json
+from pathlib import Path
 
 #
 # Configuration parameters, mainly to specify default values:
@@ -532,7 +534,7 @@ if (args.docs):
 
 if args.clangd:
     srcfiles = set()
-    for dirname, subdirlist, filelist in sorted(os.walk("src/")):
+    for dirname, _, filelist in sorted(os.walk("src/")):
         for f in filelist:
             if f.endswith(".cc"): srcfiles.add(dirname+"/"+f)
             if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f)
@@ -542,15 +544,19 @@ if args.clangd:
     projectdir = os.getcwd()
 
     cc = compmpicmd.stdout.decode('utf-8').replace('\n','')
+    command_objects = []
+    command_objects = [{
+        "directory": projectdir,
+        "file": srcfile,
+        "arguments": [
+            *cc.split(" "),
+            "-std=c++17",
+            "-I./src/",
+            srcfile,
+            f"-I./ext/amrex/{postfix_amrex}/include",
+        ],
+    } for srcfile in srcfiles]
 
-    f = open("compile_commands.json","w")
-    f.write(    """[                                                                      \n""")
-    for srcfile in srcfiles:
-        f.write("""  {                                                                    \n""")
-        f.write("""     "directory": "{}",                                                \n""".format(projectdir))
-        f.write("""     "command":   "{} -std=c++17 -I./src/ {} -I./ext/amrex/{}/include",\n""".format(cc, srcfile,postfix_amrex))
-        f.write("""     "file":      "{}",                                                \n""".format(srcfile))
-        f.write("""  },                                                                   \n""")
-    f.write(    """]                                                                      \n""")
-
+    with open(Path("compile_commands.json"), "w") as f:
+        json.dump(command_objects, f, indent="\t")
 
