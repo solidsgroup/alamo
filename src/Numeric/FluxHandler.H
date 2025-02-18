@@ -114,7 +114,7 @@ public:
 };
 
 // First-order specific to NarrowBandLevelset integrator class
-template <>
+template <typename IntegratorDerivedClass>
 class FirstOrderFluxReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
 public:
     void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
@@ -456,7 +456,7 @@ public:
 };
 
 
-template <>
+template <typename IntegratorDerivedClass>
 class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMethod<Integrator::NarrowBandLevelset> {
 public:
     void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,

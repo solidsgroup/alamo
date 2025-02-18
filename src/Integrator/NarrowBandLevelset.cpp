@@ -34,6 +34,9 @@ NarrowBandLevelset::NarrowBandLevelset(int a_nghost)
 // Constructor that triggers Parse
 NarrowBandLevelset::NarrowBandLevelset(IO::ParmParse& pp) : NarrowBandLevelset() // Call default constructor
 {
+    fluxHandler = new Numeric::FluxHandler<NarrowBandLevelset>();
+    timeStepper = new Numeric::TimeStepper<NarrowBandLevelset>();
+
     pp.queryclass(*this); // Call the static Parse function
 }
 
@@ -69,6 +72,45 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     
     // Define velocity multifab
     value.RegisterNewFab(value.velocity_mf, value.velocity_bc, AMREX_SPACEDIM, value.number_of_ghost_cells, "Velocity", true); // "true" for debug
+    }
+
+      {
+    // Access the maps from the FeatureMaps singleton
+    auto& fluxReconstructionMap = getFeatureMaps().getFluxReconstructionMap();
+    auto& fluxSchemeMap = getFeatureMaps().getFluxSchemeMap();
+    auto& timeSteppingSchemeMap = getFeatureMaps().getTimeSteppingSchemeMap();
+
+    // Flux Reconstruction parsing
+    std::string fluxReconstructionStr;
+    if (pp.query("FluxReconstruction", fluxReconstructionStr)) {
+        auto it = fluxReconstructionMap.find(fluxReconstructionStr);
+        if (it != fluxReconstructionMap.end()) {
+            value.reconstruction_method = it->second;
+        } else {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxReconstruction value: " + fluxReconstructionStr);
+        }
+    }
+
+    // Flux Scheme parsing
+    std::string fluxSchemeStr;
+    if (pp.query("FluxScheme", fluxSchemeStr)) {
+        auto it = fluxSchemeMap.find(fluxSchemeStr);
+        if (it != fluxSchemeMap.end()) {
+            value.flux_scheme = it->second;
+        } else {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxScheme value: " + fluxSchemeStr);
+        }
+    }
+
+    // Time-Stepping Scheme parsing
+    std::string timeSteppingSchemeStr;
+    if (pp.query("TimeSteppingScheme", timeSteppingSchemeStr)) {
+        auto it = timeSteppingSchemeMap.find(timeSteppingSchemeStr);
+        if (it != timeSteppingSchemeMap.end()) {
+            value.temporal_scheme = it->second;
+        } else {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid TimeSteppingScheme value: " + timeSteppingSchemeStr);
+        }
     }
 }
 
@@ -124,6 +166,32 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
     
     // Update the velocity
     UpdateInterfaceVelocity(lev);
+
+       switch (temporal_scheme) {
+        case TimeSteppingScheme::ForwardEuler: {
+            
+            fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<NarrowBandLevelset>>());
+            fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<NarrowBandLevelset>>());
+
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<NarrowBandLevelset>>());
+
+            int numStages = timeStepper->GetNumberOfStages();
+            // One-stage loop for Forward Euler
+            for (int stage = 0; stage < numStages; ++stage) {
+
+                // 2. Perform flux reconstruction and compute fluxes in all directions
+                fluxHandler->ConstructFluxes(lev, this);
+
+                //ApplyBoundaryConditions(lev, time);
+
+                // 3. Compute sub-step using the chosen time-stepping scheme
+                timeStepper->ComputeSubStep(lev, dt, stage, this);
+
+
+            }
+            break;
+        }
+
     
     // Compute the flux
     
