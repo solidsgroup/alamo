@@ -2,6 +2,7 @@
 import numpy, yt, pylab, os, pandas, sys, math, glob
 from numpy import arctan2, sqrt, sin, cos, linspace, meshgrid, inf, pi
 
+yt.set_log_level(50) # disable logging
 
 ##
 ## EXACT SOLUTION

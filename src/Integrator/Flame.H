@@ -41,9 +41,12 @@ public:
 
     virtual ~Flame()
     {
-        delete bc_eta;
         delete ic_eta;
         delete ic_phi;
+        delete thermal.ic_temp;
+        delete ic_laser;
+        delete bc_eta;
+        delete bc_temp;
     }
 
 protected:
@@ -89,11 +92,10 @@ private:
     Set::Scalar small = NAN;
     Set::Scalar base_time = NAN;
     IC::IC* ic_eta = nullptr;
-    int ghost_count = NAN;
-    int homogeneousSystem = NAN;
+    int ghost_count = -1;
+    int homogeneousSystem = -1;
     bool plot_field = true;
-    int variable_pressure = NAN;
-    
+    int variable_pressure = -1;
 
     struct {
         Set::Scalar gamma = NAN;
@@ -155,7 +157,7 @@ private:
     } elastic;
 
     // Integrated variables
-    Set::Scalar volume = 1.0;
+    Set::Scalar volume = 0.0;
     Set::Scalar area = 0.0;
     Set::Scalar chamber_area = 0.0;
     Set::Scalar chamber_pressure = 1.0;

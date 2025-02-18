@@ -1,8 +1,8 @@
 //
 // This is an old-fashioned IC. 
-// You use IC::Expression instead.
+// It is kept because it is still used with the Trig regression test, but 
+// it is recommended to use IC::Expression instead.
 //
-
 
 #ifndef IC_TRIG_H_
 #define IC_TRIG_H_
@@ -21,6 +21,7 @@ namespace IC
 class Trig : public IC
 {
 public:
+    static constexpr const char* name = "trig";
     Trig (amrex::Vector<amrex::Geometry> &_geom,
         Set::Scalar _alpha = 1.0,
         AMREX_D_DECL(std::complex<int> _n1 = 0,

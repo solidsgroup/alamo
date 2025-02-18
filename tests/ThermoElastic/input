@@ -54,19 +54,18 @@ hc.ic.sphere.radius = 0.25
 hc.ic.sphere.inside = 0.0
 
 # Boundary conditions
-hc.bc.temp.type.xhi = dirichlet
-hc.bc.temp.type.xlo = dirichlet
-hc.bc.temp.type.yhi = dirichlet
-hc.bc.temp.type.ylo = dirichlet
-hc.bc.temp.type.zhi = dirichlet
-hc.bc.temp.type.zlo = dirichlet
-hc.bc.temp.val.xhi  = 0.0
-hc.bc.temp.val.xlo  = 1.0
-hc.bc.temp.val.yhi  = 0.0
-hc.bc.temp.val.ylo  = 1.0
-hc.bc.temp.val.zhi  = 0.0
-hc.bc.temp.val.zlo  = 1.0
-
+hc.bc.temp.constant.type.xhi = dirichlet
+hc.bc.temp.constant.type.xlo = dirichlet
+hc.bc.temp.constant.type.yhi = dirichlet
+hc.bc.temp.constant.type.ylo = dirichlet
+hc.bc.temp.constant.type.zhi = dirichlet
+hc.bc.temp.constant.type.zlo = dirichlet
+hc.bc.temp.constant.val.xhi  = 0.0
+hc.bc.temp.constant.val.xlo  = 1.0
+hc.bc.temp.constant.val.yhi  = 0.0
+hc.bc.temp.constant.val.ylo  = 1.0
+hc.bc.temp.constant.val.zhi  = 0.0
+hc.bc.temp.constant.val.zlo  = 1.0
 
 #
 # ELASTICITY MODEL
@@ -79,6 +78,8 @@ el.ic.type        = ellipse
 el.ic.ellipse.a   = 3.0 3.0 3.0  # ellipse radii
 el.ic.ellipse.x0  = 0 0 0 # location of ellipse center
 el.ic.ellipse.eps = 0.8 # diffuse boundary
+
+el.bc.type = constant
 
 # elastic moduli
 el.nmodels = 2
@@ -93,3 +94,4 @@ el.solver.nriters = 1
 
 el.ref_threshold = 5E-5
 el.eta_ref_threshold = 5E-5
+

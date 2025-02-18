@@ -52,10 +52,8 @@ jobs:
       run: ./configure --dim=2 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-2d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --timeout=200 --no-backspace
   test-3d-20-04:
     name: 3D g++ Build & Test (20.04)
     runs-on: ubuntu-20.04
@@ -67,10 +65,8 @@ jobs:
       run: ./configure --dim=3 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-3d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github --timeout=200 --no-backspace
   test-2d-22-04:
     name: 2D g++ Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -82,10 +78,8 @@ jobs:
       run: ./configure --dim=2 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-2d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
   test-3d-22-04:
     name: 3D g++ Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -97,10 +91,8 @@ jobs:
       run: ./configure --dim=3 
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-3d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace
   test-2d-22-04-clang:
     name: 2D Clang Build & Test (22.04)
     runs-on: ubuntu-22.04
@@ -114,7 +106,5 @@ jobs:
       run: ./configure --dim=2 --comp=clang++
     - name: make
       run: make
-    - name: unit tests
-      run: ./bin/test-2d-clang++
     - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace

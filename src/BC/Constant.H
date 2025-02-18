@@ -9,60 +9,14 @@
 // By default, all types are Dirichlet and all values are 0.0.
 // The complete list of BC types are below:
 //
-// .. table::
-//    :widths: 30 70
-//
-//    +--------------------------+-----------------------------------------------------------------+
-//    | BC Type                  | Description                                                     |
-//    +==========================+=================================================================+
-//    | :code:`Dirichlet`        | Standard Dirichlet boundary condition                           |                          
-//    +--------------------------+ (https://en.wikipedia.org/wiki/Dirichlet_boundary_condition).   |
-//    | :code:`dirichlet`        | Fixes the value of the **function** at the boundary.            |                          
-//    +--------------------------+                                                                 +
-//    | :code:`EXT_DIR`          |                                                                 |                        
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`Neumann`          | Standard Neumann boundary condition                             |                        
-//    +--------------------------+ (https://en.wikipedia.org/wiki/Neumann_boundary_condition)      +
-//    | :code:`neumann`          |                                                                 |                        
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`Periodic`         | Standard periodic boundary condition.                           |                         
-//    +--------------------------+ (https://en.wikipedia.org/wiki/Periodic_boundary_conditions).   |
-//    | :code:`periodic`         | **Important**: Ensure that your geometry is specified to be     |                        
-//    +--------------------------+ periodic using :code:`geometry.is_periodic`. For instance, if   |
-//    | :code:`INT_DIR`          | periodic in x, set to :code:`1 0 0`                             |                                
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`REFLECT_ODD`      | Effectively the same as dirichlet but with value fixed to 0     |
-//    +--------------------------+                                                                 +
-//    | :code:`reflect_odd`      |                                                                 |                            
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`REFLECT_EVEN`     | Effectively the same as neumann but with value fixed to 0       |
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`BOGUS_BC`         | Used for internal operations - not for general use              |
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`FOEXTRAP`         | These are BC types inherited from AMReX and not yet implemented |                         
-//    +--------------------------+ in Alamo. If you need BCs of this type, you will need to        +
-//    | :code:`HOEXTRAP`         | implement them yourself.                                        |                         
-//    +--------------------------+                                                                 +
-//    | :code:`Interior`         |                                                                 |                         
-//    +--------------------------+                                                                 +
-//    | :code:`Inflow`           |                                                                 |                       
-//    +--------------------------+                                                                 +
-//    | :code:`Outflow`          |                                                                 |                        
-//    +--------------------------+                                                                 +
-//    | :code:`Symmetry`         |                                                                 |                         
-//    +--------------------------+                                                                 +
-//    | :code:`SlipWall`         |                                                                 |                         
-//    +--------------------------+                                                                 +
-//    | :code:`NoSlipWall`       |                                                                 |                           
-//    +--------------------------+                                                                 +
-//    | :code:`interior`         |                                                                 |                         
-//    +--------------------------+                                                                 +
-//    | :code:`Marshak`          |                                                                 |                        
-//    +--------------------------+                                                                 +
-//    | :code:`SanchezPomraning` |                                                                 |                          
-//    +--------------------------+                                                                 +
-//    | :code:`inflow`           |                                                                 |                       
-//    +--------------------------+-----------------------------------------------------------------+
+// `Dirichlet <https://en.wikipedia.org/wiki/Dirichlet_boundary_condition>`_  boundary condition
+// types can be specified with :code:`Dirichlet`, :code:`dirichlet`, :code:`EXT_DIR`.
+// `Neumann <https://en.wikipedia.org/wiki/Neumann_boundary_condition>`_ boundary condition
+// types are specified with :code:`Neumann`, :code:`neumann`.
+// `Periodic <https://en.wikipedia.org/wiki/Periodic_boundary_conditions>`_ boundary conditions
+// can be specified with :code:`Periodic`, :code:`periodic`, :code:`INT_DIR`.
+// **Important**: Ensure that your geometry is specified to be periodic using :code:`geometry.is_periodic`.
+// For instance, if periodic in x, set to :code:`1 0 0`
 //
 // The BC values can be specified either as a number (e.g. :code:`1.0`) or using a linear interpolator
 // string (e.g. :code:`(0,1:2.3,-0.1)`).
@@ -103,6 +57,8 @@ class Constant
 #endif
 
 public:
+    static constexpr const char* name = "constant";
+
     //Constant (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
     Constant(int a_ncomp) : m_ncomp(a_ncomp) {};
     Constant(int a_ncomp, IO::ParmParse& pp, std::string name) : m_ncomp(a_ncomp)
@@ -117,6 +73,38 @@ public:
         AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
             amrex::Vector<amrex::Real> _bc_hi_2,
             amrex::Vector<amrex::Real> _bc_hi_3));
+
+    static Constant ZeroNeumann(int ncomp = 1)
+    {
+        Constant ret = Constant(ncomp);
+
+        for (int d = 0; d < m_nfaces; d++)
+        {
+            ret.m_bc_type[d].clear();
+            for (int n = 0; n < ncomp; n++)
+            {
+                ret.m_bc_type[d].push_back((int)amrex::LinOpBCType::Neumann);
+                ret.m_bc_val[d].push_back (0.0);;
+            }
+        }
+
+        return ret;
+    }
+
+    static Constant ZeroDirichlet(int ncomp = 1)
+    {
+        Constant ret = Constant(ncomp);
+
+        for (int d = 0; d < m_nfaces; d++)
+            for (int n = 0; n < ncomp; n++)
+            {
+                ret.m_bc_type[n][d] = (int)amrex::LinOpBCType::Dirichlet;
+                ret.m_bc_val [n][d]  = 0.0;
+            }
+
+        return ret;
+    }
+
 
     virtual ~Constant() {};
 

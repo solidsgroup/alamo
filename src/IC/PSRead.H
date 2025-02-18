@@ -21,6 +21,8 @@ namespace IC
 class PSRead : public IC
 {
 public:
+    static constexpr const char* name = "psread";
+
     enum Type
     {
         Partition,
@@ -95,6 +97,7 @@ public:
                 }
 
                 phi(i, j, k, 0) = min_grain_id;
+                if (invert) phi(i,j,k,0) = 1.0 - min_grain_id;
                 if (ncomp > 1) phi(i, j, k, 1) = 1.0 - min_grain_id;
             });
         }
@@ -108,6 +111,7 @@ public:
         pp_query_file("filename", filename); // Location of .xyzr file
         pp_query("verbose", verbose); // Verbosity (used in parser only)
         pp_query("mult",value.mult); // Coordinate multiplier
+        pp.query("invert",value.invert); // Coordinate multiplier
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
         std::ifstream datafile(filename);
@@ -142,6 +146,7 @@ private:
     Set::Scalar eps;
     Set::Scalar mult = 1.0;
     Set::Vector x0 = Set::Vector::Zero();
+    bool invert = false;
 };
 }
 #endif

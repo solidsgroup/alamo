@@ -42,6 +42,7 @@ IAMR
 obj
 cov
 githubpages
+ext/
 *_BACKUP_*
 *_BASE_*
 *_LOCAL_*

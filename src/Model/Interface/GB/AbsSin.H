@@ -18,6 +18,8 @@ namespace GB
 class AbsSin : public GB
 {
 public:
+    static constexpr const char* name = "abssin";
+
 AbsSin() {};
 AbsSin(IO::ParmParse &pp) {pp_queryclass(*this);};
 AbsSin(IO::ParmParse &pp, std::string name) {pp_queryclass(name,*this);};
