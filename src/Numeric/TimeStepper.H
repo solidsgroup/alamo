@@ -8,6 +8,7 @@
 #include <AMReX_Array4.H>
 #include "Set/Set.H"
 #include "Integrator/Integrator.H"
+#include "Integrator/NarrowBandLevelset.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 #include <memory>
@@ -143,6 +144,57 @@ public:
         return 1;  // Euler Forward has only one stage
     }
 };
+
+
+/*// EulerForwardScheme
+template <>
+class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
+public:
+    void ComputeSubStep(int lev, Set::Scalar dt, int stage, Integrator::NarrowBandLevelset** solver) override {
+        if (stage != 0) {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
+        }
+        const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
+
+        for (amrex::MFIter mfi(*solver->QVec_mf[lev], false); mfi.isValid(); ++mfi) {
+            const amrex::Box& bx = mfi.validbox();  // Valid region of the box
+            auto const& q_arr = solver->QVec_mf.Patch(lev, mfi);  // Updated conserved variables
+            auto const& q_old_arr = solver->QVec_old_mf.Patch(lev, mfi);  // Old conserved variables
+            auto const& xflux_arr = solver->XFlux_mf.Patch(lev, mfi);  // X-direction flux
+            auto const& yflux_arr = solver->YFlux_mf.Patch(lev, mfi);  // Y-direction flux
+#if (AMREX_SPACEDIM == 3)
+            auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
+#endif
+
+            // Parallel loop over cells in the valid box
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                for (int n = 0; n < solver->number_of_components; ++n) {
+                    // **Flux Divergence Computation**
+                    Set::Scalar flux_div = 0.0;
+
+                    // X-direction flux divergence
+                    flux_div += (xflux_arr(i, j, k, n) - xflux_arr(i-1, j, k, n)) / DX[0];
+
+                    // Y-direction flux divergence
+                    flux_div += (yflux_arr(i, j, k, n) - yflux_arr(i, j-1, k, n)) / DX[1];
+
+#if (AMREX_SPACEDIM == 3)
+                    // Z-direction flux divergence
+                    flux_div += (zflux_arr(i, j, k, n) - zflux_arr(i, j, k-1, n)) / DX[2];
+#endif
+
+                    // Update conserved variable using Euler Forward step
+                    Set::Scalar q_old = q_old_arr(i, j, k, n);
+                    q_arr(i, j, k, n) = q_old - dt * flux_div;            
+                }
+            });
+        }
+    }
+
+    int GetNumberOfStages() const override {
+        return 1;  // Euler Forward has only one stage
+    }
+};*/
 
 // RK3 Scheme
 template <typename IntegratorDerivedClass>

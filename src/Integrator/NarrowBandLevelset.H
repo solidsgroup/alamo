@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <memory>
 
-// Alamo inludes
+// Alamo includes
 #include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
@@ -20,6 +20,10 @@
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
+
+// Numeric includes
+//#include "Numeric/FluxHandler.H"
+#include "Numeric/Stencil.H"
 
 namespace Integrator
 {
@@ -39,6 +43,12 @@ public:
         delete velocity_ic;
         delete ls_bc;
     }
+    
+    // Public getters to access proteted/private members in Numeric templates
+    int GetNumGhostCells() const { return number_of_ghost_cells; }
+    const Set::Field<Set::Scalar>& GetLevelSetField() const { return ls_mf; }
+    const Set::Field<Set::Scalar>& GetLevelSetFieldOld() const { return ls_old_mf; }
+    const Set::Field<Set::Scalar>& GetVelocityField() const { return velocity_mf; }
     
 protected:
     // Variables (multi-fabs)

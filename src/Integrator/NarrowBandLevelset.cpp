@@ -19,7 +19,6 @@
 #include "IC/Constant.H"
 
 // Numeric
-#include "Numeric/Stencil.H"
 #include "Util/Util.H"
 
 namespace Integrator
@@ -54,6 +53,7 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
     }
     
+    // Following section will be deleted when velocity is taken from ScimitarX integrator class
     {// Manually parse ic.velocity values
     std::vector<amrex::Real> velocity_values;
     pp_queryarr_required("ic.velocity.value", velocity_values);
@@ -78,7 +78,7 @@ void NarrowBandLevelset::Initialize(int lev){
     ls_ic->Initialize(lev, ls_old_mf);
     std::swap(*ls_mf[lev], *ls_old_mf[lev]);
     
-    // Initialize velocity field
+    // Initialize velocity field -- will be deleted
     velocity_ic->Initialize(lev, velocity_mf);
 }
 
@@ -110,7 +110,7 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
     // the new one.
     std::swap(*ls_mf[lev], *ls_old_mf[lev]);
     
-    // Iterate over all of the patches on this level
+    /*// Iterate over all of the patches on this level
     for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         // Get the box (index dimensions) for this patch
@@ -120,12 +120,13 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
         Set::Patch<const Set::Scalar>  ls_old   = ls_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>        ls       = ls_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>        velocity = ls_mf.Patch(lev,mfi);
-    }
+    }*/
     
     // Update the velocity
     UpdateInterfaceVelocity(lev);
     
-    // Compute the flux here
+    // Compute the flux
+    
    
 }
 
