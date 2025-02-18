@@ -118,6 +118,7 @@ parser.add_argument('--memcheck-tool',dest='memcheck_tool',default="msan",help="
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
+parser.add_argument('--clangd',dest='clangd',default=False,action='store_true', help='Generate compile_commands.json for clangd')
 parser.set_defaults(debug=False)
 
 #
@@ -379,7 +380,7 @@ if not args.alternate_mpi:
             code("--alternate-mpi"))
     message("Comp-Type", str(args.comp))
     shellmessage("Comp-Version",args.comp+" --version")
-    shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
+    compmpicmd = shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
     mpichversionresult = shellmessage("MPICH:","mpichversion")
     if args.memcheck_tool=="asan":
         version_match_str = re.search(r"MPICH Version:\s*([\d.]+)", mpichversionresult.stdout.decode('ascii')).group(1)
@@ -527,4 +528,29 @@ if (args.docs):
     #M2R
     try: import m2r; message("M2R", str(m2r.__version__) + " (python 3)")
     except: message("M2R",color.red + "M2R not installed - install using " + code("pip install m2r"))
+
+
+if args.clangd:
+    srcfiles = set()
+    for dirname, subdirlist, filelist in sorted(os.walk("src/")):
+        for f in filelist:
+            if f.endswith(".cc"): srcfiles.add(dirname+"/"+f)
+            if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f)
+            if f.endswith(".H"): srcfiles.add(dirname+"/"+f)
+    srcfiles = list(srcfiles)
+
+    projectdir = os.getcwd()
+
+    cc = compmpicmd.stdout.decode('utf-8').replace('\n','')
+
+    f = open("compile_commands.json","w")
+    f.write(    """[                                                                \n""")
+    for srcfile in srcfiles:
+        f.write("""  {                                                              \n""")
+        f.write("""     "directory": "{}",                                          \n""".format(projectdir))
+        f.write("""     "command":   "{} -I./src/ {} -I./ext/amrex/{}/include",\n""".format(cc, srcfile,postfix_amrex))
+        f.write("""     "file":      "{}",                                          \n""".format(srcfile))
+        f.write("""  },                                                             \n""")
+    f.write(    """]                                                                \n""")
+
 
