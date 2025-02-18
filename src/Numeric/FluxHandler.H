@@ -5,6 +5,7 @@
 #include <AMReX_MultiFab.H>
 #include "Set/Set.H"
 #include "Integrator/ScimitarX.H"
+#include "Integrator/NarrowBandLevelset.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 #include "Model/Fluid/Fluid.H"  // Include fluid model helper functions
@@ -100,6 +101,66 @@ private:
     std::shared_ptr<FluxReconstruction<IntegratorDerivedClass>> reconstruction;  // Reconstruction method
     std::shared_ptr<FluxMethod<IntegratorDerivedClass>> flux_method;             // Flux method
 
+};
+
+// First-order upwind reconstruction template
+template <typename IntegratorDerivedClass>
+class FirstOrderFluxReconstruction : public FluxReconstruction<IntegratorDerivedClass> {
+public:
+    void ReconstructFlux(int direction, int lev, IntegratorDerivedClass* solver,
+                         amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
+        amrex::Abort("FirstOrderFluxReconstruction not implemented for this integrator.");
+    }
+};
+
+// First-order specific to NarrowBandLevelset integrator class
+template <>
+class FirstOrderFluxReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
+public:
+    void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
+                         amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
+        const int nghosts = solver->GetNumGhostCells();
+        
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
+            auto const& field_old_arr = solver->GetLevelSetFieldOld().Patch(lev, mfi);
+            auto const& velocity_arr = solver->GetVelocityField().Patch(lev, mfi);
+
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                int index[3] = {i, j, k};
+                int left_index[3] = {i, j, k};
+                int right_index[3] = {i, j, k};
+
+                int lower_bounds[3] = { face_bx_with_ghosts.smallEnd(0), face_bx_with_ghosts.smallEnd(1), face_bx_with_ghosts.smallEnd(2) };
+                int upper_bounds[3] = { face_bx_with_ghosts.bigEnd(0)-1, face_bx_with_ghosts.bigEnd(1)-1, face_bx_with_ghosts.bigEnd(2)-1 };
+
+                ClampIndices(index, lower_bounds, upper_bounds);
+
+                int left_offset[3] = {0, 0, 0};
+                int right_offset[3] = {0, 0, 0};
+                left_offset[direction] = -1;
+                right_offset[direction] = 1;
+
+                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+
+                Set::Scalar vel = velocity_arr(i, j, k, direction);
+                Set::Scalar sigma = std::copysign(1.0, vel);  // Branch-free logic
+
+                const Set::Scalar QL = 0.5 * ((1 + sigma) * field_old_arr(index[0], index[1], index[2], 0) +
+                                              (1.0 - sigma) * field_old_arr(left_index[0], left_index[1], left_index[2], 0));
+                
+                const Set::Scalar QR = 0.5 * ((1 + sigma) * field_old_arr(right_index[0], right_index[1], right_index[2], 0) +
+                                              (1.0 - sigma) * field_old_arr(index[0], index[1], index[2], 0));
+
+                QL_arr(i, j, k, 0) = QL;
+                QR_arr(i, j, k, 0) = QR;
+            });
+        }
+    }
 };
 
 // First-order upwind reconstruction
@@ -391,6 +452,35 @@ public:
         }
         
         //Util::Message(INFO, "Local Lax-Friedrichs flux computed for direction: " + std::to_string(direction));
+    }
+};
+
+
+template <>
+class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMethod<Integrator::NarrowBandLevelset> {
+public:
+    void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
+                     const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil) const override {
+        
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            // Use the expanded box that includes ghost layers
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, solver->GetNumGhostCells());  
+
+            auto const& flux_arr = solver->GetLevelSetField().Patch(lev, mfi);
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
+            auto const& velocity_arr = solver->GetVelocityField().Patch(lev, mfi);
+
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                Set::Scalar vel_L = velocity_arr(i, j, k, direction);
+                Set::Scalar vel_R = velocity_arr(i, j, k, direction);
+                Set::Scalar lambda_max = std::max(std::abs(vel_L), std::abs(vel_R));
+                Set::Scalar QL = QL_arr(i, j, k, 0);
+                Set::Scalar QR = QR_arr(i, j, k, 0);
+                Set::Scalar flux = 0.5 * (vel_L * QL + vel_R * QR) - 0.5 * lambda_max * (QR - QL);
+                flux_arr(i, j, k, direction) = flux;
+            });
+        }
     }
 };
 
