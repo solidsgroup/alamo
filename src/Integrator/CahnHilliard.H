@@ -16,7 +16,7 @@
 //
 // which is integrated using a forward Euler scheme.
 //
-// This is tested in :ref:`AllenCahn`
+// This is tested in :ref:`CahnHilliard`
 
 #ifndef INTEGRATOR_CAHNHILLIARD_H
 #define INTEGRATOR_CAHNHILLIARD_H
