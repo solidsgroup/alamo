@@ -47,5 +47,7 @@ ext/
 *_BASE_*
 *_LOCAL_*
 *_REMOTE_*
+compile_commands.json
 .cache/
 .python-version
+.clangd
