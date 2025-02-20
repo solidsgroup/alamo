@@ -22,9 +22,21 @@
 #include "IC/Expression.H"
 
 // Numeric includes
-#include "Numeric/FluxHandler.H"
-#include "Numeric/TimeStepper.H"
+//#include "Numeric/FluxHandler.H"
+//#include "Numeric/TimeStepper.H"
 #include "Numeric/Stencil.H"
+
+namespace Numeric {
+    template <typename T> class FluxReconstruction;
+    template <typename T> class FluxMethod;
+    template <typename T> class FluxHandler;  
+    template <typename T> class FirstOrderReconstruction;
+    template <typename T> class LocalLaxFriedrichsMethod;
+    template <typename T> class TimeStepper;
+    template <typename T> class TimeSteppingScheme;
+    template <typename T> class EulerForwardScheme;  
+    template <typename T> class RK3Scheme;
+}
 
 namespace Integrator
 {
@@ -40,18 +52,48 @@ public:
     // Destructor
     virtual ~NarrowBandLevelset()
     {
-        delete ls_ic;
-        delete velocity_ic;
-        delete ls_bc;
+        delete ic_ls;
+        delete ic_velocity;
+        
+        delete bc_ls;
+        
+        delete fluxHandler;
+        delete timeStepper;
     }
     
-    // Public getters to access proteted/private members in Numeric templates
+    // Public getters to access protected/private members in Numeric templates
     int GetNumGhostCells() const { return number_of_ghost_cells; }
     const Set::Field<Set::Scalar>& GetLevelSetField() const { return ls_mf; }
     const Set::Field<Set::Scalar>& GetLevelSetFieldOld() const { return ls_old_mf; }
     const Set::Field<Set::Scalar>& GetVelocityField() const { return velocity_mf; }
+    const Set::Field<Set::Scalar>& GetXFluxField() const { return XFlux_mf; }
+#if AMREX_SPACEDIM >= 2
+    const Set::Field<Set::Scalar>& GetYFluxField() const { return YFlux_mf; }
+#endif
+#if AMREX_SPACEDIM == 3
+    const Set::Field<Set::Scalar>& GetZFluxField() const { return ZFlux_mf; }
+#endif
+    
+    // Flux Reconstruction Schemes
+    enum class FluxReconstruction {
+        FirstOrder,               // Basic first-order reconstruction
+        ThirdOrderENO,            // Third-order Essentially Non-Oscillatory (ENO)
+        FifthOrderWENO,           // Fifth-order Weighted Essentially Non-Oscillatory (WENO)
+        FifthOrderWENOWithChar    // Fifth-order WENO with Characteristic decomposition
+    };
 
-   // Subclass to manage feature maps
+    // Flux Schemes
+    enum class FluxScheme {
+        LocalLaxFriedrichs,   // Local Lax-Friedrichs (Rusanov) flux
+        HLLCFlux             // Harten-Lax-van Leer Contact (HLLC) flux
+    };
+
+    enum class TimeSteppingScheme {
+        ForwardEuler,           // First-order explicit Euler method
+        RK3                    // Third-order Runge-Kutta method
+    };
+
+    // Subclass to manage feature maps
     class FeatureMaps {
     public:
         // Singleton access to ensure one instance
@@ -111,9 +153,12 @@ public:
     
 protected:
     // Variables (multi-fabs)
-    Set::Field<Set::Scalar>    ls_mf;                 // Levelset field variable (current timestep)
-    Set::Field<Set::Scalar>    ls_old_mf;             // Levelset field variable (previous timestep)
-    Set::Field<Set::Scalar>    velocity_mf;           // Velocity field variable (Assumed constant for now)
+    Set::Field<Set::Scalar>    ls_mf;                   // Levelset field variable (current timestep)
+    Set::Field<Set::Scalar>    ls_old_mf;               // Levelset field variable (previous timestep)
+    Set::Field<Set::Scalar>    velocity_mf;             // Velocity field variable (Assumed constant for now)
+    Set::Field<Set::Scalar>    XFlux_mf;                // X-direction flux field
+    Set::Field<Set::Scalar>    YFlux_mf;                // Y-direction flux field
+    Set::Field<Set::Scalar>    ZFlux_mf;                // Z-direction flux field
 
     // Solver setup and control functions (override)
     void Initialize(int lev) override;
@@ -127,6 +172,9 @@ protected:
     void Advect(int lev, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev);
+    void ComputeAndSetNewTimeStep();
+    Set::Scalar GetTimeStep();
+    void ApplyBoundaryConditions(int lev, Set::Scalar time);
 
     Numeric::FluxHandler<NarrowBandLevelset>* fluxHandler = nullptr;  // Flux handler instance
     Numeric::TimeStepper<NarrowBandLevelset>* timeStepper = nullptr;  // Time stepper instance
@@ -155,7 +203,6 @@ protected:
     template <typename T>
     friend class Numeric::RK3Scheme;    
 
-// Declare private functions such as Parse 
 private:
     //
     // Definition of parameters set only at instantiation by
@@ -169,10 +216,17 @@ private:
     // Definition of user-determined pointer variables.
     //
 
-    IC::IC* ls_ic = nullptr;                     // Object used to initialize levelset field
-    IC::IC* velocity_ic = nullptr;               // Object used to initialize velocity field
-    BC::BC<Set::Scalar>* ls_bc = nullptr;        // Object used to update temp levelset field boundary ghost cells
-    BC::BC<Set::Scalar>* velocity_bc = nullptr;  // Object used to update temp velocity field boundary ghost cells
+    IC::IC* ic_ls = nullptr;                     // Object used to initialize levelset field
+    IC::IC* ic_velocity = nullptr;               // Object used to initialize velocity field
+    BC::BC<Set::Scalar>* bc_ls = nullptr;        // Object used to update temp levelset field boundary ghost cells
+    BC::BC<Set::Scalar>* bc_velocity = nullptr;  // Object used to update temp velocity field boundary ghost cells
+    BC::Nothing bc_nothing;
+    
+    FluxReconstruction reconstruction_method;    // Selected flux reconstruction scheme
+    FluxScheme flux_scheme;                      // Selected flux scheme
+    TimeSteppingScheme temporal_scheme;          // Selected time-stepping scheme
+    
+    Set::Scalar cflNumber;                       // CFL number (read from input)
 
 }; //NarrowBandLevelset Class
 

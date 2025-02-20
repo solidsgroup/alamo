@@ -5,6 +5,8 @@
 
 // Alamo Includes
 #include "IO/ParmParse.H"
+#include "Numeric/FluxHandler.H"
+#include "Numeric/TimeStepper.H"
 #include "Integrator/NarrowBandLevelset.H"
 
 // BC
@@ -45,15 +47,15 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     {// Define initial and boundary conditions
     
     // Query the IC assuming either LS::Sphere or LS::Zalesak
-    pp.select_default<IC::LS::Sphere,IC::LS::Zalesak>("ic.ls",value.ls_ic,value.geom);
+    pp.select_default<IC::LS::Sphere,IC::LS::Zalesak>("ic.ls",value.ic_ls,value.geom);
     
     // Assume Neumann BC for levelset field
-    value.ls_bc = new BC::Constant(value.number_of_components, pp, "bc.ls");
+    value.bc_ls = new BC::Constant(value.number_of_components, pp, "bc.ls");
     }
     
     {// Define levelset multifab objects - only old and new domain levelset fields
-    value.RegisterNewFab(value.ls_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS", true);
-    value.RegisterNewFab(value.ls_old_mf, value.ls_bc, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
+    value.RegisterNewFab(value.ls_mf, value.bc_ls, value.number_of_components, value.number_of_ghost_cells, "LS", true);
+    value.RegisterNewFab(value.ls_old_mf, value.bc_ls, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
     }
     
     // Following section will be deleted when velocity is taken from ScimitarX integrator class
@@ -65,16 +67,25 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     velocity_values.resize(AMREX_SPACEDIM);
     
     // Initialize velocity IC manually
-    value.velocity_ic = new IC::Constant(value.geom, velocity_values);
+    value.ic_velocity = new IC::Constant(value.geom, velocity_values);
     
     // Assume Neumann BC for levelset field
-    value.velocity_bc = new BC::Constant(AMREX_SPACEDIM, pp, "bc.velocity");
+    value.bc_velocity = new BC::Constant(AMREX_SPACEDIM, pp, "bc.velocity");
     
     // Define velocity multifab
-    value.RegisterNewFab(value.velocity_mf, value.velocity_bc, AMREX_SPACEDIM, value.number_of_ghost_cells, "Velocity", true); // "true" for debug
+    value.RegisterNewFab(value.velocity_mf, value.bc_velocity, AMREX_SPACEDIM, value.number_of_ghost_cells, "Velocity", true); // "true" for debug
     }
+    
+    // Register face-centered flux fields
+    value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "xflux", false);
+#if AMREX_SPACEDIM >= 2
+    value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "yflux", false);
+#endif
+#if AMREX_SPACEDIM == 3
+    value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "zflux", false);
+#endif
 
-      {
+    {
     // Access the maps from the FeatureMaps singleton
     auto& fluxReconstructionMap = getFeatureMaps().getFluxReconstructionMap();
     auto& fluxSchemeMap = getFeatureMaps().getFluxSchemeMap();
@@ -112,16 +123,20 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid TimeSteppingScheme value: " + timeSteppingSchemeStr);
         }
     }
+    }
+    
+    // Read CFL number and initial time step
+    pp.query_required("cflNumber", value.cflNumber);
 }
 
 // Define required override functions
 void NarrowBandLevelset::Initialize(int lev){
     // Initialize levelset field
-    ls_ic->Initialize(lev, ls_old_mf);
+    ic_ls->Initialize(lev, ls_old_mf);
     std::swap(*ls_mf[lev], *ls_old_mf[lev]);
     
     // Initialize velocity field -- will be deleted
-    velocity_ic->Initialize(lev, velocity_mf);
+    ic_velocity->Initialize(lev, velocity_mf); 
 }
 
 void NarrowBandLevelset::TimeStepBegin(Set::Scalar time, int lev) {
@@ -129,7 +144,85 @@ void NarrowBandLevelset::TimeStepBegin(Set::Scalar time, int lev) {
 }
 
 void NarrowBandLevelset::TimeStepComplete(Set::Scalar time, int lev) {
-     
+    //ComputeAndSetNewTimeStep(); // Compute dt based on global `minDt   
+}
+
+void NarrowBandLevelset::ComputeAndSetNewTimeStep() {
+    // Compute the minimum time step using the CFL condition
+    Set::Scalar finest_dt = GetTimeStep();  // GetTimeStep() already applies the CFL number
+
+    // Start with the finest-level time step
+    Set::Scalar coarsest_dt = finest_dt;
+
+    // Adjust time step for coarser levels based on refinement ratios
+    for (int lev = finest_level; lev > 0; --lev) {
+        int refinement_factor = refRatio(lev - 1)[0];  // Assume isotropic refinement
+        coarsest_dt *= refinement_factor;  // Scale conservatively for refinement
+    }
+
+    // Set the time step for all levels
+    Integrator::SetTimestep(coarsest_dt);
+}
+
+Set::Scalar NarrowBandLevelset::GetTimeStep() {
+    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value       
+
+    for (int lev = 0; lev <= maxLevel(); ++lev) {  // Iterate over AMR levels
+        //std::cout << "ls value is: " << ls_mf[lev] << std::endl;
+        //std::cout << " velocity value is: " << velocity_mf[lev] << std::endl;
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(velocity_mf[lev] != nullptr, "velocity_mf[lev] is uninitialized!");
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(velocity_mf[lev]->ok(), "velocity_mf[lev] MultiFab is not allocated!");
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(grids[lev].size() > 0, "Empty BoxArray detected!");
+    
+        const Set::Scalar* dx = geom[lev].CellSize();  // Access the geometry at level `lev`
+
+        for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi) {
+            const amrex::Box& bx = mfi.tilebox();  // Iterate over tiles in the multifab
+            auto const& velocity_arr = velocity_mf[lev]->array(mfi);  // Velocity field
+
+            Set::Scalar minDt_local = std::numeric_limits<Set::Scalar>::max();  // Thread-local minDt
+
+            amrex::ParallelFor(bx, [=, &minDt_local](int i, int j, int k) noexcept {
+                // Extract velocity components
+                Set::Scalar u = velocity_arr(i, j, k, 0);
+#if (AMREX_SPACEDIM >= 2)
+                Set::Scalar v = velocity_arr(i, j, k, 1);
+#endif
+#if (AMREX_SPACEDIM == 3)
+                Set::Scalar w = velocity_arr(i, j, k, 2);
+#endif
+
+                // Compute the maximum velocity magnitude
+                Set::Scalar maxSpeed = std::abs(u);
+#if (AMREX_SPACEDIM >= 2)
+                maxSpeed = std::max(maxSpeed, std::abs(v));
+#endif
+#if (AMREX_SPACEDIM == 3)
+                maxSpeed = std::max(maxSpeed, std::abs(w));
+#endif
+
+                // Compute local CFL time step restriction
+                if (maxSpeed > 1e-8) {  // Avoid division by zero
+                    Set::Scalar dtLocal = dx[0] / maxSpeed;
+#if (AMREX_SPACEDIM >= 2)
+                    dtLocal = std::min(dtLocal, dx[1] / maxSpeed);
+#endif
+#if (AMREX_SPACEDIM == 3)
+                    dtLocal = std::min(dtLocal, dx[2] / maxSpeed);
+#endif
+                    minDt_local = std::min(minDt_local, dtLocal);
+                }
+            });
+
+            // Update the global minDt
+            minDt = std::min(minDt, minDt_local);
+        }
+    }
+
+    // Reduce across MPI processes to find the global minimum timestep
+    amrex::ParallelDescriptor::ReduceRealMin(minDt);
+    
+    return cflNumber * minDt;  // Return CFL-adjusted time step
 }
 
 void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) 
@@ -137,12 +230,16 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Advance time step
     current_timestep++;
     
+    // Apply boundary conditions
+    ApplyBoundaryConditions(lev, time);
+    
     // Advect
     Advect(lev, dt);
     
     //Reinitialize the level set function
-    if(current_timestep % 5 == 0) {
+    if(current_timestep % 100 == 0) {
         Reinitialize(lev);
+    
     }
 }
 
@@ -151,23 +248,12 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
     // Swap the old ls fab and the new ls fab so we use
     // the new one.
     std::swap(*ls_mf[lev], *ls_old_mf[lev]);
-    
-    /*// Iterate over all of the patches on this level
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        // Get the box (index dimensions) for this patch
-        const amrex::Box& bx = mfi.tilebox();
 
-        // Get an array-accessible handle to the data on this patch.
-        Set::Patch<const Set::Scalar>  ls_old   = ls_old_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>        ls       = ls_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>        velocity = ls_mf.Patch(lev,mfi);
-    }*/
-    
     // Update the velocity
     UpdateInterfaceVelocity(lev);
 
-       switch (temporal_scheme) {
+    // Compute the flux
+    switch (temporal_scheme) {
         case TimeSteppingScheme::ForwardEuler: {
             
             fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<NarrowBandLevelset>>());
@@ -182,20 +268,15 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar dt)
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                //ApplyBoundaryConditions(lev, time);
+                ApplyBoundaryConditions(lev, time);
 
                 // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
-
-
             }
             break;
         }
-
     
-    // Compute the flux
-    
-   
+    } 
 }
 
 void NarrowBandLevelset::UpdateInterfaceVelocity(int lev)
@@ -238,13 +319,13 @@ void NarrowBandLevelset::Reinitialize(int lev)
                 Set::Scalar grad_mag = std::max(grad.lpNorm<2>(), epsilon);  // Prevent division by zero
 
                 // Update the level set function phi using a smoothed sign function
-                Set::Scalar sign_phi = ls(i, j, k) / std::sqrt(ls(i, j, k) * ls(i, j, k) + epsilon);
-                Set::Scalar phi_new = ls(i, j, k) - sign_phi * (grad_mag - 1.0);
+                Set::Scalar sign_phi = ls(i, j, k, 0) / std::sqrt(ls(i, j, k, 0) * ls(i, j, k, 0) + epsilon);
+                Set::Scalar phi_new = ls(i, j, k, 0) - sign_phi * (grad_mag - 1.0);
                 
-                if (std::abs(phi_new - ls(i, j, k)) > reinit_tolerance)
+                if (std::abs(phi_new - ls(i, j, k, 0)) > reinit_tolerance)
                     converged = false;
 
-                ls(i, j, k) = phi_new;
+                ls(i, j, k, 0) = phi_new;
             });
         }
 
@@ -256,10 +337,44 @@ void NarrowBandLevelset::Reinitialize(int lev)
     
 void NarrowBandLevelset::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
 {
+    const Set::Scalar* DX = geom[lev].CellSize();
+    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+    Set::Scalar refinement_threshold = 10.0; // Set refinement threshold to 10
 
+    //for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*ls_mf[lev], false); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<Set::Scalar> const& levelset = (*ls_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=](int i, int j, int k) {
+            Set::Vector grad = Numeric::Gradient(levelset, i, j, k, 0, DX);
+            Set::Scalar grad_magnitude = grad.lpNorm<2>();
+
+            if (grad_magnitude * dr > refinement_threshold) {
+                tags(i, j, k) = amrex::TagBox::SET;
+            }
+        });
+    }
 }
 
 void NarrowBandLevelset::Regrid(int lev, Set::Scalar time) {
 
 }
+
+void NarrowBandLevelset::ApplyBoundaryConditions(int lev, Set::Scalar time) {
+
+        Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, 0);        
+        Integrator::ApplyPatch(lev, time, ls_old_mf, *ls_old_mf[lev], *bc_ls, 0); 
+        
+        Integrator::ApplyPatch(lev, time, velocity_mf, *velocity_mf[lev], *bc_velocity, 0);        
+ 
+        Integrator::ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev], bc_nothing, 0);        
+        Integrator::ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], bc_nothing, 0);
+#if AMREX_SPACEDIM == 3        
+        Integrator::ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], bc_nothing, 0);        
+#endif
+
+}
+
 } // namespace Integrator
