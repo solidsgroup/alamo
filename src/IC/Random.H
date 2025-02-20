@@ -40,7 +40,7 @@ public:
             {
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    field(i,j,k,n) += mult * Util::Random();
+                    field(i,j,k,n) += offset + mult * Util::Random();
                 });
             }
         }
@@ -50,11 +50,13 @@ public:
 
     static void Parse(Random & value, IO::ParmParse & pp)
     {
+        pp.query_default("offset",value.offset,0.0); // offset
         pp.query_default("mult",value.mult,1.0); // Multiplier
     }
     
 private:
-    Set::Scalar mult = NAN;
+    Set::Scalar mult = NAN; 
+    Set::Scalar offset = NAN;
 
 };
 }

@@ -72,7 +72,7 @@ def extract(basefilename):
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
                 for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
                 insert(query)
@@ -93,7 +93,7 @@ def extract(basefilename):
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
                 for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
                 insert(query)
@@ -115,7 +115,7 @@ def extract(basefilename):
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
                 for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
                 insert(query)
@@ -135,7 +135,7 @@ def extract(basefilename):
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [
                 for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: queryclass["doc"] = match[0] + " " + queryclass["doc"]
                     else: break
 
@@ -153,7 +153,7 @@ def extract(basefilename):
                 group["doc"] = match[0][1]
                 if group["doc"] == "":
                     for j in reversed(range(0,i)):
-                        match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                        match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                         if match: group["doc"] = match[0] + " " + group["doc"]
                         else: break
                 group["inputs"] = list()
