@@ -10,7 +10,7 @@
 
 
 
-.. include:: ../../Readme.rst
+.. include:: ../../README.rst
  
 
 System Install Scripts
