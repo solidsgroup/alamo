@@ -96,7 +96,7 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     if len(config) <= 1:
         #docfile.write("    * - :icon-gray:`warning`\n\n")
         docfile.write("    * - :fas:`triangle-exclamation;sd-text-secondary fa-fw fa-lg`\n\n")
-        if os.path.isfile(testdirname+"/Readme.rst"):
+        if os.path.isfile(testdirname+"/README.rst"):
             docfile.write("      - :ref:`{}`\n".format(testname))
         else: 
             docfile.write("      - {}\n\n".format(testname))
@@ -125,7 +125,7 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             docfile.write("      - :fas:`medal;fa-fw fa-lg sd-text-secondary`\n")
         docfile.write("\n")
 
-    if len(config) <= 1 and not os.path.isfile(testdirname+"/Readme.rst"):
+    if len(config) <= 1 and not os.path.isfile(testdirname+"/README.rst"):
         continue
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)
@@ -133,8 +133,8 @@ for testdirname in sorted(glob.glob("../../tests/*")):
         testdocfile.write(testname + "\n")
         testdocfile.write("="*len(testname) + "\n")
 
-        if os.path.isfile(testdirname+"/Readme.rst"):
-            testdocfile.write(".. include:: ../{}/Readme.rst\n\n\n".format(testdirname))
+        if os.path.isfile(testdirname+"/README.rst"):
+            testdocfile.write(".. include:: ../{}/README.rst\n\n\n".format(testdirname))
 
         for c in config:
             if c == "DEFAULT": continue
