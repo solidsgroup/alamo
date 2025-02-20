@@ -7,7 +7,7 @@
 # 2. 
 #
 # Current Error:
-# 1. pfm.region0, etc. are specified but not used.
+# 1. Get the heat conduction to work
 # 
 #
 #
@@ -64,7 +64,7 @@ hc.bc.temp.constant.val.ylo		= 0.0
 ## PHASE FIELD MODEL
 ##
 
-pfm.interval = 100 # What is this? Help
+# pfm.interval = 100 # What is this? Help
 mechanics.interval = 100 # If mechanics is controlled by the microstructure integrator, do I have to have the pfm prefix for mechanics? Help
 
 pfm.amr.max_level = 2
@@ -73,16 +73,21 @@ pfm.amr.max_level = 2
 # How can I get initial conditions started like this?
 # I need help on this part
 pfm.ic.type	= expression
-pfm.nmodels = 4
-pfm.region0 = "x > 0 and y > 0"
-pfm.region1 = "x < 0 and y > 0"
-pfm.region2 = "x < 0 and y < 0"
-pfm.region3 = "x > 0 and y < 0"
+pfm.pf.number_of_grains = 4
+pfm.ic.expression.region0 = "(x > 0 and y > 0)"
+pfm.ic.expression.region1 = "(x < 0 and y > 0)"
+pfm.ic.expression.region2 = "(x < 0 and y < 0)"
+pfm.ic.expression.region3 = "(x > 0 and y < 0)"
 
-pfm.ic.value.region0 = "-1"
-pfm.ic.value.region1 = "1"
-pfm.ic.value.region2 = "-1"
-pfm.ic.value.region3 = "1"
+#ic.expression.phi.value.region0 = "0.0"
+#ic.expression.phi.value.region1 = "1.0"
+#ic.expression.phi.value.region2 = "2.0"
+#ic.expression.phi.value.region3 = "3.0"
+
+# pfm.ic.value.region0 = "-1"
+# pfm.ic.value.region1 = "1"
+# pfm.ic.value.region2 = "-1"
+# pfm.ic.value.region3 = "1"
 
 
 # Mechanics Initial Conditions
