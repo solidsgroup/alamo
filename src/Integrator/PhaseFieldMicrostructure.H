@@ -331,7 +331,7 @@ private:
 
     Model::Interface::GB::GB *boundary = nullptr;
 
-    IC::IC *ic = nullptr;
+    IC::IC<Set::Scalar> *ic = nullptr;
 
     Set::Scalar volume = 5;
     Set::Scalar area = 0.0;

@@ -80,8 +80,8 @@ private:
 
     BC::BC<Set::Scalar>* bc_temp = nullptr;
     BC::BC<Set::Scalar>* bc_eta = nullptr;
-    IC::IC* ic_phi = nullptr;
-    IC::IC* ic_laser = nullptr;
+    IC::IC<Set::Scalar>* ic_phi = nullptr;
+    IC::IC<Set::Scalar>* ic_laser = nullptr;
 
     Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
     Set::Scalar m_refinement_criterion = NAN;
@@ -91,7 +91,7 @@ private:
     Set::Scalar zeta_0 =NAN;
     Set::Scalar small = NAN;
     Set::Scalar base_time = NAN;
-    IC::IC* ic_eta = nullptr;
+    IC::IC<Set::Scalar>* ic_eta = nullptr;
     int ghost_count = -1;
     int homogeneousSystem = -1;
     bool plot_field = true;
@@ -145,7 +145,7 @@ private:
         Set::Scalar disperssion1 = NAN;
         Set::Scalar disperssion2 = NAN;
         Set::Scalar disperssion3 = NAN;
-        IC::IC* ic_temp = nullptr;
+        IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
     struct {

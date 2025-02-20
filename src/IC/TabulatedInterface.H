@@ -11,7 +11,7 @@
 ///
 namespace IC
 {
-class TabulatedInterface : public IC
+class TabulatedInterface : public IC<Set::Scalar>
 {
 public:
     enum Type {Partition, Values};
@@ -47,7 +47,7 @@ public:
         ys = a_ys;
     }
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field,Set::Scalar)
+    virtual void Add(const int &lev, Set::Field<Set::Scalar> &a_field,Set::Scalar) override
     {
         Numeric::Interpolator::Linear<Set::Scalar> f(ys,xs);
 
