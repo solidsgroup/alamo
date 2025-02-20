@@ -41,7 +41,7 @@
 
 namespace IC
 {
-class Expression : public IC
+class Expression : public IC<Set::Scalar>, public IC<Set::Vector>
 {
 private:
     enum CoordSys { Cartesian, Polar, Spherical };
@@ -50,12 +50,14 @@ private:
     Expression::CoordSys coord = Expression::CoordSys::Cartesian;
 public:
     static constexpr const char* name = "expression";
-    Expression(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
-    Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
+    Expression(amrex::Vector<amrex::Geometry>& _geom) : 
+        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom) {}
+    Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : 
+        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
     {
         pp_queryclass(name, *this);
     }
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar a_time = 0.0)
+    virtual void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar a_time = 0.0) override
     {
         Util::Assert(INFO, TEST(a_field[lev]->nComp() == (int)f.size()));
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -72,7 +74,7 @@ public:
             {
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                    Set::Vector x = Set::Position(i, j, k, IC<Set::Scalar>::geom[lev], type);
                     if (coord == Expression::CoordSys::Cartesian)
                     {
 #if AMREX_SPACEDIM == 1
@@ -95,7 +97,7 @@ public:
         a_field[lev]->FillBoundary();
     };
 
-    void Add(const int& lev, Set::Field<Set::Vector>& a_field, Set::Scalar a_time = 0.0)
+    virtual void Add(const int& lev, Set::Field<Set::Vector>& a_field, Set::Scalar a_time = 0.0) override
     {
         Util::Assert(INFO, TEST(a_field[lev]->nComp() == 1));
         Util::Assert(INFO, TEST(f.size() >= AMREX_SPACEDIM));
@@ -112,7 +114,7 @@ public:
             {
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                    Set::Vector x = Set::Position(i, j, k, IC<Set::Vector>::geom[lev], type);
                     if (coord == Expression::CoordSys::Cartesian)
                     {
 #if AMREX_SPACEDIM == 1

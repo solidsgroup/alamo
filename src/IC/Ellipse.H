@@ -12,7 +12,7 @@
 
 namespace IC
 {
-class Ellipse : public IC
+class Ellipse : public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "ellipse";

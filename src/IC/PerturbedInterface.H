@@ -24,7 +24,7 @@
 
 namespace IC
 {
-class PerturbedInterface : public IC
+class PerturbedInterface : public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "perturbedinterface";

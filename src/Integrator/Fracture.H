@@ -568,7 +568,7 @@ private:
 
         Model::Interface::Crack::Constant cracktype;                      ///< type of crack. See Crack/Constant or Crack/Sin
         amrex::Vector<std::string> ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
-        amrex::Vector<IC::IC*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
+        amrex::Vector<IC::IC<Set::Scalar>*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
         bool is_ic = false;
 
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
@@ -586,7 +586,7 @@ private:
         std::string input_material = "isotropic";
         Set::Scalar refinement_threshold = 0.1;
         
-        IC::IC *ic;
+        IC::IC<Set::Scalar> *ic;
         std::string ic_type;
         bool is_ic = false;
     } material;
