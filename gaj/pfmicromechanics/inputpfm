@@ -1,4 +1,6 @@
 
+#
+#
 # Run by using this line in the alamo directory
 # ./bin/alamo-2d-g++ ./gaj/pfmicromechanics/input
 # 
@@ -9,7 +11,6 @@
 # Current Error:
 # 1. pfm.region0, etc. are specified but not used.
 # 
-#
 #
 
 

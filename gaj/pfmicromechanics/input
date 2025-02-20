@@ -79,10 +79,10 @@ pfm.region1 = "x < 0 and y > 0"
 pfm.region2 = "x < 0 and y < 0"
 pfm.region3 = "x > 0 and y < 0"
 
-pfm.ic.region0 = "-1"
-pfm.ic.region1 = "1"
-pfm.ic.region2 = "-1"
-pfm.ic.region3 = "1"
+pfm.ic.value.region0 = "-1"
+pfm.ic.value.region1 = "1"
+pfm.ic.value.region2 = "-1"
+pfm.ic.value.region3 = "1"
 
 
 # Mechanics Initial Conditions
