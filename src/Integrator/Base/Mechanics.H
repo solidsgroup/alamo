@@ -487,9 +487,9 @@ protected:
     Set::Vector disp_hi[AMREX_SPACEDIM];
 
 
-    IC::IC* ic_rhs = nullptr;
+    IC::IC<Set::Vector>* ic_rhs = nullptr;
 
-    IC::IC* velocity_ic = nullptr;
+    IC::IC<Set::Vector>* velocity_ic = nullptr;
 
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
     BC::Operator::Elastic::Elastic* bc = nullptr;

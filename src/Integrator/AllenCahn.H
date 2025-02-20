@@ -172,9 +172,9 @@ protected:
     }
 
 protected:
-    Set::Field<Set::Scalar> alpha_mf;         // Temperature field variable (current timestep)
-    Set::Field<Set::Scalar> alpha_old_mf;     // Temperature field variable (previous timestep)
-    IC::IC* ic;                              // Object used to initialize temperature field
+    Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
+    IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
 
     struct {
         Set::Scalar L = NAN;

@@ -70,7 +70,7 @@ private:
     Set::Field<Set::Scalar> intermediate;  /// Intermediate field used for CH kinetics
 
     BC::BC<Set::Scalar> *bc; /// eta's bc object
-    IC::IC *ic;              /// eta's ic object
+    IC::IC<Set::Scalar> *ic; /// eta's ic object
     
     Set::Scalar gamma = NAN; 
     Set::Scalar L     = NAN; 

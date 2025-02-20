@@ -11,8 +11,8 @@
 
 namespace IC
 {
-/// \brief Set each point to a random value.
-class Random : public IC
+/// Set each point to a random value.
+class Random : public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "random";

@@ -218,7 +218,7 @@ public:
 
 protected:
     MODEL model;
-    IC::IC* ic_psi = nullptr;
+    IC::IC<Set::Scalar>* ic_psi = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     Set::Scalar m_eta_ref_threshold = NAN;
     Set::Field<Set::Scalar> psi_old_mf;
