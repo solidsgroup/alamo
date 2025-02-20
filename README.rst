@@ -88,6 +88,8 @@ Now your system should be properly configured.
 If you are using an HPC, it is easier to switch to mpich or mvapich using the :code:`module` command.
 See the documentation for your specific platform to see how to load mpich or mvapich.    
 
+.. _configuration_section:
+
 Configuring
 ===========
 
@@ -223,8 +225,19 @@ To generate the documentation, type
 (You do not need to run :code:`./configure` before generating documentation.)
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.
 
+Compiling on high-performance clusters
+======================================
+
+Compiling alamo on a high-performance computing (HPC) cluster differs slightly from compiling it on a local machine, primarily due to dependency management. HPC clusters often require multiple software dependencies, sometimes with several versions of the same dependency. To streamline this, HPC clusters commonly use `**Environment Modules** <https://www.hpc.iastate.edu/guides/introduction-to-hpc-clusters/environment-modules>`_ (or simply *modules*), which help manage and load the necessary tools. Most HPC clusters likely provide all the required modules for compiling alamo.
+
+The following sections outline the steps for compiling alamo on specific HPC clusters. These instructions can be adapted for other clusters as needed.
+
+.. WARNING::
+    
+    These instructions are for reference only and may not always work. The alamo developers do not manage the software on these clusters, which may change over time. If you encounter outdated instructions, please `open an issue on GitHub <https://github.com/solidsgroup/alamo/issues>`_.
+
 Compiling on STAMPEDE2
-======================
+----------------------
 
 To compile on STAMPEDE2 you must first load the following modules:
 
@@ -252,4 +265,39 @@ Finally, make with
    Be sure to consult the Stampede2 user guide: https://portal.tacc.utexas.edu/user-guides/stampede2;
    along with https://solids.uccs.edu/resources/xsede.php for general Stampede2/XSEDE instructions.
    
+Compiling on Nova
+-----------------
 
+To compile on Nova, you must first load the necessary modules:
+
+.. code-block::
+
+   module load mpich
+
+If you are using Clang or another supported compiler, you will need to load that module as well (the GNU C++ Compiler is loaded by default). For example, to load the Clang compiler, run:
+
+.. code-block::
+
+   module load llvm
+
+Next, run the configure script with the :code:`--get-eigen` flag, adding any additional flags as described in :ref:`configuration_section`:
+
+.. code-block::
+
+   ./configure --get-eigen ...
+
+Compiling code can be computationally expensive and time-consuming. Running large, multithreaded operations on the login node of an HPC cluster is generally discouraged. To avoid this, it's recommended to compile within an interactive job using `salloc <https://slurm.schedmd.com/salloc.html>`_:
+
+.. code-block::
+
+   salloc -N1 --ntasks=1 --cpus-per-task=16 --mem=16G --time=10:00
+
+This command will block until the requested resources are allocated. The example above requests a single node with 16 cores and 16 GB of memory. Adjust the resources as needed. To speed up resource allocation, request a shorter time with the :code:`--time` flag.
+
+Finally, to compile the code, run the :code:`make` command, replacing 16 with the number of cores you requested in the :code:`salloc` command:
+
+.. code-block::
+
+   make -j16
+
+For more information on Nova or HPC in general, Iowa State University offers an `extensive guide online <https://www.hpc.iastate.edu/guides>`_.
