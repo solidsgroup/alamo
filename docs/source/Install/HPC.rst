@@ -148,20 +148,20 @@ Alamo Simulation Slurm Job Script
 The script starts a parallel job on Nova. Modify these parameters as needed:
 
 
-* **:code:`--time`**: The *wall clock time limit* (maximum job duration)
-* **:code:`--nodes`**: Number of nodes requested
-* **:code:`--ntasks-per-node`**: Number of tasks per node
-* **:code:`--mail-user`**: Email for notifications (remove if not needed)
+* :code:`--time`: The *wall clock time limit* (maximum job duration)
+* :code:`--nodes`: Number of nodes requested
+* :code:`--ntasks-per-node`: Number of tasks per node
+* :code:`--mail-user`: Email for notifications (remove if not needed)
 * **Executable path**: Example: :code:`./bin/alamo-2d-clang++`
 * **Input file path**: Specify the input file for Alamo
-
-Nova uses a *fair-share scheduling system* to prioritize job execution based on requested resources and past usage. To reduce wait times, request only necessary resources and set reasonable time limits.
-
-Slurm automatically determines the number of cores based on the :code:`--nodes` and :code:`--ntasks-per-node` values. Refer to the `Nova hardware guide <https://www.hpc.iastate.edu/guides/nova>`_ for appropriate values.
 
 .. NOTE::
 
    Iowa State University provides a `Slurm job script generator for Nova <https://www.hpc.iastate.edu/guides/nova/slurm-script-generator-for-nova>`_, which can help generate job scripts.
+
+Nova uses a *fair-share scheduling system* to prioritize job execution based on requested resources and past usage. To reduce wait times, request only necessary resources and set reasonable time limits.
+
+Slurm automatically determines the number of cores based on the :code:`--nodes` and :code:`--ntasks-per-node` values. Refer to the `Nova hardware guide <https://www.hpc.iastate.edu/guides/nova>`_ for appropriate values.
 
 Once modifications are made, submit the job with `sbatch <https://slurm.schedmd.com/sbatch.html>`_:
 
