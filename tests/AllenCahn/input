@@ -2,6 +2,7 @@
 #@  dim    = 2
 #@  nprocs = 1
 #@  check  = true
+#@  check-file = reference/reference-2d.csv
 #@  args   = stop_time=10.0
 #@
 #@  [2D-serial-level-coverage]
@@ -9,6 +10,13 @@
 #@  dim    = 2
 #@  check  = false
 #@  args   = stop_time=1.0
+#@
+#@  [2D-random.ic-test]
+#@  dim    = 2
+#@  check  = true
+#@  check-file = reference/random.ic-test-2d.dat
+#@  args   = alpha.ic.type = random
+#@  args   = stop_time=30.0
 
 
 alamo.program = allencahn

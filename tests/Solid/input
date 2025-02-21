@@ -51,7 +51,7 @@
 #@  args = model1.E=210
 #@  args = model1.nu=0.3
 #@  args = model1.sigma0=0.2
-#@  args = bc.tension_test.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
+#@  args = bc.tensiontest.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
 #@  benchmark-beaker = 10.42
 #@  benchmark-statler = 7.02
 #@  benchmark-github = 11.09
@@ -74,7 +74,7 @@
 #@  args = alamo.program.mechanics.model=finite.neohookean
 #@  args = model1.mu=3.0
 #@  args = model1.kappa=6.5
-#@  args = bc.tension_test.disp=(0,1:0,1)
+#@  args = bc.tensiontest.disp=(0,1:0,1)
 #@  args = solver.nriters=10
 #@  ignore = model1.E model1.nu
 #@  benchmark-beaker = 10.73
@@ -89,7 +89,7 @@
 #@  args = alamo.program.mechanics.model=finite.neohookean
 #@  args = model1.mu=3.0
 #@  args = model1.kappa=6.5
-#@  args = bc.tension_test.disp=(0,1:0,1)
+#@  args = bc.tensiontest.disp=(0,1:0,1)
 #@  args = solver.nriters=10
 #@  ignore = model1.E model1.nu
 #@  coverage = true
@@ -137,6 +137,6 @@ solver.verbose = 3
 solver.nriters = 1
 solver.max_iter = 30 #30
 
-bc.type = tension_test
-bc.tension_test.type = uniaxial_stress
-bc.tension_test.disp=(0,1:0,0.01)
+bc.type = tensiontest
+bc.tensiontest.type = uniaxial_stress
+bc.tensiontest.disp=(0,1:0,0.01)

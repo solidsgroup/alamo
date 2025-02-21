@@ -4,7 +4,10 @@ import re
 from os import listdir
 from os.path import isfile, join
 from glob import glob
+import sys
+sys.path.insert(0,"../../scripts")
 
+from scraper import getdocumentation, geticon, extract, scrapeInputs
 
 src2url = {}
 try:
@@ -20,198 +23,6 @@ try:
 	                continue
 except Exception as e:
     print(e)
-#print(src2url)
-
-
-def geticon(classname):
-    if classname.startswith("BC"): return ":fas:`border-top-left;fa-fw` "
-    if classname.startswith("IC"): return ":fas:`circle-right;fa-fw` "
-    if classname.startswith("IO"): return ":fas:`print;fa-fw` "
-    if classname.startswith("Integrator"): return ":fas:`gear;fa-fw` "
-    if classname.startswith("Model"): return ":fas:`panorama;fa-fw` "
-    if classname.startswith("Numeric"): return ":fas:`calculator;fa-fw` "
-    if classname.startswith("Operator"): return ":far:`map;fa-fw` "
-    if classname.startswith("Set"): return ":fas:`braille;fa-fw` "
-    if classname.startswith("Solver"): return ":fas:`diamond-turn-right;fa-fw` "
-    if classname.startswith("Util"): return ":fas:`sliders;fa-fw` "
-    else: return ""
-
-def getdocumentation(filename):
-    sourcefile = open(filename+".H")
-    ret = ""
-    for line in sourcefile.readlines():
-        if line.startswith(r"///"): # special provision for legacy doxygen comments
-            ret += line.split(r"///")[1]
-        elif line.startswith(r"// "):
-            ret += line.split(r"// ")[1]
-        elif line.startswith(r"//"):
-            ret += line.split(r"//")[1]
-        else:
-            return ret
-    return ret
-
-def extract(basefilename):
-    rets = list()
-    class inputdoc: pass
-    for filename in [basefilename+".H",basefilename+".cpp"]:
-        if not os.path.isfile(filename): continue
-        sourcefile = open(filename)
-        lines = sourcefile.readlines()
-        group = None
-        parsefn = False
-        switch = None
-        def reset():
-            nonlocal rets, group, parsefn, switch
-            if group:
-                rets.append(group)
-                group = None
-            if switch:
-                rets.append(switch)
-                switch = None
-        def insert(val):
-            nonlocal rets, group, parsefn, switch
-            val["parsefn"] = parsefn
-            if group: group["inputs"].append(val)
-            else: rets.append(val)
-
-        for i, line in enumerate(lines):
-            
-            # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall('^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
-            if match:
-                #print(match)
-                query = dict()
-                query["type"] = match[0][0]
-                query["string"] = match[0][1]
-                query["doc"] = match[0][2]
-                query["file"] = filename
-                query["line"] = i+1
-                
-                # Check if previous lines have simple comments. Ignores "///" comments and
-                # any comment beginning with [
-                for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-                    if match: query["doc"] = match[0] + " " + query["doc"]
-                    else: break
-                insert(query)
-                continue
-
-            # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall('^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
-            if match:
-                #print(match)
-                query = dict()
-                query["type"] = match[0][0]
-                query["string"] = match[0][1]
-                query["default"] = match[0][2]
-                query["doc"] = match[0][3]
-                query["file"] = filename
-                query["line"] = i+1
-                
-                # Check if previous lines have simple comments. Ignores "///" comments and
-                # any comment beginning with [
-                for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-                    if match: query["doc"] = match[0] + " " + query["doc"]
-                    else: break
-                insert(query)
-                continue
-
-            # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall('^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
-            if match:
-                #print(match)
-                query = dict()
-                query["type"] = match[0][0]
-                query["string"] = match[0][1]
-                query["possibles"] = match[0][2]
-                query["doc"] = match[0][3]
-                query["file"] = filename
-                query["line"] = i+1
-                query["default"] = True
-                
-                # Check if previous lines have simple comments. Ignores "///" comments and
-                # any comment beginning with [
-                for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-                    if match: query["doc"] = match[0] + " " + query["doc"]
-                    else: break
-                insert(query)
-                continue
-
-            # Catch pp.queryclass inputs
-            match = re.findall('^\s*pp.queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*,*\s*[INFO]*\s*\);\s*(?:\/\/\s*(.*)$)?',line)
-            if match:
-                queryclass = dict()
-                queryclass["type"] = "queryclass"
-                queryclass["class"] = match[0][0]+match[0][2]
-                queryclass["string"] = match[0][1]
-                queryclass["doc"] = match[0][3]
-                queryclass["file"] = filename
-                queryclass["line"] = i+1
-
-                # Check if previous lines have simple comments. Ignores "///" comments and
-                # any comment beginning with [
-                for j in reversed(range(0,i)):
-                    match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-                    if match: queryclass["doc"] = match[0] + " " + queryclass["doc"]
-                    else: break
-
-                insert(queryclass)
-                continue
-
-            # Catch ParmParse groups. This is old-fashioned but still supported.
-            # All subsequent inputs will be nested under a group
-            match = re.findall('^\s*(?:IO|amrex)::ParmParse\s*pp\s*(?:\(\s*"([^"]*)"\s*\))?\s*;\s*(?:\/\/\s*(.*))?',line)
-            if match:
-                reset()
-                group = dict()
-                group["type"] = "group"
-                group["prefix"] = match[0][0]
-                group["doc"] = match[0][1]
-                if group["doc"] == "":
-                    for j in reversed(range(0,i)):
-                        match = re.findall('^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-                        if match: group["doc"] = match[0] + " " + group["doc"]
-                        else: break
-                group["inputs"] = list()
-
-            # Catch definition of a Parser function.
-            if re.match('^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
-                if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
-                parsefn = True
-
-            # Catch definition of a switch group
-            match =re.findall('^\s*\/\/\s*\[\s*switch\s*(\S*)\s*]\s*(.*)',line)
-            if match:
-                reset()
-                switch = dict()
-                switch["type"] = "switch"
-                switch["string"] = match[0][0]
-                switch["doc"] = match[0][1]
-                switch["inputs"] = list()
-                continue
-
-            if switch:
-                # If we are inside a switch block, look for matches like
-                #    else if (ic_type == "KEY") value.ic = new CLASS(args,"PREFIX")
-                match = re.findall('^\s*(?:else)*\s*if\s*\(\S*\s*==\s*"([^"]*)"\s*\).*new\s*([A-Z,:,a-z,0-9,_]*)[^"]*"(.*)"',line)
-                if match:
-                    input=dict()
-                    input["type"]="switchitem"
-                    input["string"]=match[0][0]
-                    input["class"]=match[0][1]
-                    input["prefix"]=match[0][2]
-                    switch["inputs"].append(input)
-
-            # Close a switch group
-            if re.match('^\s*\/\/\s*\[\s*end\s*(?:switch)?\s*]',line):
-                reset()
-            
-        reset()
-
-    return rets
-
 
 inputsheader = r"""
 .. _inputs: 
@@ -307,9 +118,71 @@ the prefixes out.
 
 
 
+def printAPI(docfile, file, api):
 
-def scrapeInputs(root="../../src/", writeFiles=True):
+    def clean(rec):
+        ret = ""
+        if rec['brief_description']:
+            if (isinstance(rec['brief_description']['para'],dict)):
+                ret += "- "+ str(rec['brief_description']['para']['#text'])
+            else:
+                ret += "- "+ str(rec['brief_description']['para'])
+        return ret
 
+    docfile.write(".. dropdown:: API definitions in {}\n".format(file))
+    docfile.write("\n")
+    docfile.write(   "    **Classes**\n\n")
+    
+    for cls in api["classes"]:
+        if cls["file"]  != file: continue
+
+        docfile.write(        "    - :code:`{}`\n".format(cls['name']))
+        docfile.write(        "      {}          \n".format(clean(cls)))
+
+        if cls["methods"]:
+            docfile.write(    "      \n")
+            docfile.write(    "      **Methods**\n\n")
+            for method in cls["methods"]:
+                docfile.write("      - :code:`{}`\n".format(method['name']+method['argsstring']))
+                docfile.write("        {}\n".format(clean(method)))
+
+        if cls["variables"]:
+            docfile.write(    "      \n")
+            docfile.write(    "      **Variables**\n\n")
+            for var in cls["variables"]:
+                docfile.write("      - :code:`{}`\n".format(var['definition']))
+                docfile.write("        {}\n".format(clean(var)))
+
+    written_methods_yet = False;
+    for method in api["methods"]:
+        if cls["file"]  != file: continue
+
+        if not written_methods_yet:
+            docfile.write(    "    **Methods**\n\n")
+            written_methods_yet = True
+        
+        docfile.write(        "   - :code:`{}`\n".format(method['name']+method['argsstring']))
+        docfile.write(        "     {}\n".format(clean(method)))
+
+    
+
+        #for method in cls["methods"]:
+        #   docfile.write("       ")
+        
+        #docfile.write(f"    - Class Name: {cls['name']}, ID: {cls['id']}, Type: {cls['type']}, File: {cls['file']}\n")
+        #docfile.write(f"      Brief Description: {cls['brief_description']}\n")
+        #docfile.write(f"      Detailed Description: {cls['detailed_description']}\n\n")
+
+
+
+
+
+def scrapeInputs(root="../../src/", writeFiles=True, writeAPI=False):
+
+    if writeAPI:
+        from doxscrape import parse_all_doxygen_files
+        api = parse_all_doxygen_files("../build/html/doxygen/doxygen_xml/")
+    
     srcfiles = set()
     for dirname, subdirlist, filelist in sorted(os.walk(root)):
         for f in filelist:
@@ -378,11 +251,11 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                         docfile.write("\n\n\n")
                     written_headers.append(subhdr)
     
-            if classname.split("::")[-1] != classname.split("::")[-2]:
-                if writeFiles: docfile.write(classname + "\n")
-                lev = len(classname.split('::'))-1
-                if writeFiles: docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
-                subhdr = classname
+            #if classname.split("::")[-1] != classname.split("::")[-2]:
+            if writeFiles: docfile.write(classname + "\n")
+            lev = len(classname.split('::'))-1
+            if writeFiles: docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
+            subhdr = classname
                 
             if writeFiles:
                 srcfile = dirname.replace("../../","")+"/"+f+".cpp"
@@ -400,8 +273,12 @@ def scrapeInputs(root="../../src/", writeFiles=True):
             if documentation and writeFiles:
                 docfile.write(documentation)
                 
-            if not len(inputs): continue
-            if len(inputs) == 1 and not list(inputs)[0]: continue
+            if not len(inputs):
+                if writeFiles: printAPI(docfile,hdrfile,api)
+                continue
+            if len(inputs) == 1 and not list(inputs)[0]:
+                if writeFiles: printAPI(docfile,hdrfile,api)
+                continue
     
     
             if writeFiles:
@@ -422,10 +299,18 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 if (input["type"] in ["query","queryarr","query_validate",
                                       "query_default","queryarr_default",
                                       "query_required","queryarr_required",
-                                      "query_file"]):
+                                      "query_file", "select", "select_default"]):
                     global num_tot, num_doc
                     if input["parsefn"]: prefix = ["[prefix]"] + prefix
                     num_tot += 1
+
+                    # update the selects to derive the "type" that they should be
+                    # and set the name to "type"
+                    if input["type"] in ["select","select_default"]:
+                        input['possibles'] = [str(cl).split('::')[-1].lower() for cl in input["classes"]]
+                        input["string"] += ".type"
+                        
+                        
 
 
                     if writeFiles:
@@ -448,7 +333,7 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                         if writeFiles:
                             docfile.write(      "      - {}\n".format(input['doc'].replace('\n','\n        ')))
                             docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
-                            if "_default" in input["type"]:
+                            if input["type"] in ["query_default","queryarr_default"]:
                                 docfile.write(      "      - :bdg-success-line:`{}`".format(input['default'].strip()))
                                 docfilesearch.write("      - :bdg-success-line:`{}`".format(input['default'].strip()))
                             if "_required" in input["type"]:
@@ -463,6 +348,15 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                                 string += " ".join([":bdg-primary-line:`{}`".format(t) for t in things[1:]]) 
                                 docfile.write      (      "      - {}".format(string))
                                 docfilesearch.write(      "      - {}".format(string))
+                            if input["type"] in ["select","select_default"]:
+                                things = input['possibles']
+                                if input["type"] == "select_default":
+                                    string = ":bdg-success-line:`{}` ".format(things[0])
+                                    string += " ".join([":bdg-primary-line:`{}`".format(t) for t in things[1:]])
+                                elif input["type"] == "select":
+                                    string = " ".join([":bdg-primary-line:`{}`".format(t) for t in things])
+                                docfile.write      (      "      - {}".format(string))
+                                docfilesearch.write(      "      - {}".format(string))
                                 
                     else:
                         print(input['file'],':',input['line'],' ',input['string'],' missing documentation')
@@ -473,15 +367,17 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 if writeFiles:
                     docfile.write("\n")
                     docfilesearch.write("\n")
-    
-    
+
             for input in inputs:
                 writeInput(input,0,[])
             
             if writeFiles:
+                printAPI(docfile,hdrfile,api)
                 docfile.write("\n")
                 docfilesearch.write("\n")
-    
+
+        
+
     
     print("\n{} of {} inputs documented\n".format(num_doc,num_tot))
     

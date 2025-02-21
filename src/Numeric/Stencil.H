@@ -529,14 +529,15 @@ struct Stencil<T, 1, 1, 2>
 Set::Scalar
 Laplacian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
-    const Set::Scalar dx[AMREX_SPACEDIM])
+    const Set::Scalar dx[AMREX_SPACEDIM],
+    std::array<StencilType, AMREX_SPACEDIM>& stencil = DefaultType)
 {
     Set::Scalar ret = 0.0;
-    ret += (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, dx, stencil));
 #if AMREX_SPACEDIM > 1
-    ret += (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, m, dx, stencil));
 #if AMREX_SPACEDIM > 2
-    ret += (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, m, dx, stencil));
 #endif
 #endif
     return ret;
@@ -810,6 +811,26 @@ NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
 }
 
 [[nodiscard]] AMREX_FORCE_INLINE
+Set::Vector
+NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k, const int& m,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Vector ret;
+#if AMREX_SPACEDIM == 1
+    ret(0) = (f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+#elif AMREX_SPACEDIM == 2
+    ret(0) = 0.5 * (f(i + 1, j + 1, k, m) - f(i, j + 1, k, m) + f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+    ret(1) = 0.5 * (f(i + 1, j + 1, k, m) - f(i + 1, j, k, m) + f(i, j + 1, k, m) - f(i, j, k, m)) / dx[1];
+#elif AMREX_SPACEDIM == 3
+    ret(0) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i, j + 1, k + 1, m) + f(i + 1, j, k + 1, m) - f(i, j, k + 1, m) + f(i + 1, j + 1, k, m) - f(i, j + 1, k, m) + f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+    ret(1) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i + 1, j, k + 1, m) + f(i, j + 1, k + 1, m) - f(i, j, k + 1, m) + f(i + 1, j + 1, k, m) - f(i + 1, j, k, m) + f(i, j + 1, k, m) - f(i, j, k, m)) / dx[1];
+    ret(2) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i + 1, j + 1, k, m) + f(i, j + 1, k + 1, m) - f(i, j + 1, k, m) + f(i + 1, j, k + 1, m) - f(i + 1, j, k, m) + f(i, j, k + 1, m) - f(i, j, k, m)) / dx[2];
+#endif
+    return ret;
+}
+
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 Gradient(const amrex::Array4<const Set::Matrix>& f,
     const int& i, const int& j, const int& k,
@@ -826,6 +847,26 @@ Gradient(const amrex::Array4<const Set::Matrix>& f,
 #endif
 #if AMREX_SPACEDIM > 2
     ret[2] = Numeric::Stencil<Set::Matrix, 0, 0, 1>::D(f, i, j, k, 0, dx, stencil);
+#endif
+
+    return ret;
+}
+[[nodiscard]] AMREX_FORCE_INLINE
+Set::Matrix3
+NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,
+    const int& i, const int& j, const int& k,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix3 ret;
+
+#if AMREX_SPACEDIM > 0
+    ret[0] = (f(i+1,j,k) - f(i,j,k)) / dx[0];
+#endif
+#if AMREX_SPACEDIM > 1
+    ret[1] = (f(i,j+1,k) - f(i,j,k)) / dx[1];
+#endif
+#if AMREX_SPACEDIM > 2
+    ret[2] = (f(i,j,k+1) - f(i,j,k)) / dx[2];
 #endif
 
     return ret;

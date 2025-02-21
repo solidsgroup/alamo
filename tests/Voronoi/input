@@ -55,12 +55,13 @@ geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 5 5 5
 geometry.is_periodic	    = 1 1 1
 
-bc.eta.type.xhi			= periodic
-bc.eta.type.xlo			= periodic
-bc.eta.type.yhi			= periodic
-bc.eta.type.ylo			= periodic
-bc.eta.type.zhi			= periodic
-bc.eta.type.zlo			= periodic
+bc.eta.type = constant
+bc.eta.constant.type.xhi			= periodic
+bc.eta.constant.type.xlo			= periodic
+bc.eta.constant.type.yhi			= periodic
+bc.eta.constant.type.ylo			= periodic
+bc.eta.constant.type.zhi			= periodic
+bc.eta.constant.type.zlo			= periodic
 
 pf.number_of_grains	    = 10
 pf.M			    = 1.0 

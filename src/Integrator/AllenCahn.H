@@ -32,11 +32,15 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
-#include "IC/Random.H"
+#include "IC/PNG.H"
+#include "IC/PSRead.H"
 #include "Numeric/Stencil.H"
+#include "IC/Random.H"
 
 namespace Integrator
 {
+
+/// This is the definition of the Allen Cahn class
 class AllenCahn : virtual public Integrator
 {
 public:
@@ -50,6 +54,12 @@ public:
         Parse(*this, pp);
     }
 
+    ~AllenCahn()
+    {
+        delete ic;
+        delete bc;
+    }
+
     // The Parse function initializes the AllenCahn object using
     // a parser, pp. 
     // Note that this is a static function, which means it does not have
@@ -59,26 +69,21 @@ public:
     static void Parse(AllenCahn& value, IO::ParmParse& pp)
     {
         // Criterion for mesh refinement [0.01]
-        pp_query("refinement_threshold", value.refinement_threshold);
+        pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp_query("ch.L",value.ch.L);
+        pp_query_default("ch.L",value.ch.L, 1.0);
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp_query("ch.eps",value.ch.eps);
+        pp_query_default("ch.eps",value.ch.eps, 0.1);
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp_query("ch.grad",value.ch.grad);
+        pp_query_default("ch.grad",value.ch.grad, 1.0);
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp_query("ch.chempot",value.ch.chempot);
+        pp_query_default("ch.chempot",value.ch.chempot, 1.0);
+        // Force directional growth: 0=no growth, 1=only positive, -1=only negative
+        pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
 
-        std::string type = "sphere";
-        // Initial condition type ([sphere], constant, expression, bmp)
-        pp_query("alpha.ic.type", type);
-        if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
-        else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
-        else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
-        else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
-        else if (type == "random")     value.ic = new IC::Random(value.geom, pp, "alpha.ic.random");
-        else  Util::Abort(INFO, "Invalid ic.type ", type);
+        // Set the initial condition for the alpha field
+        pp.select_default<IC::Sphere,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::Random,IC::PSRead>("alpha.ic",value.ic,value.geom);
 
         // Use a constant BC object for temperature
         value.bc = new BC::Constant(1);
@@ -125,6 +130,11 @@ protected:
                 // Gradient
                 Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
                 driving_force -= ch.eps * ch.grad * alpha_lap;
+
+                if (ch.direction == 1)
+                    driving_force = std::min(0.0, driving_force);
+                else if (ch.direction == -1)
+                    driving_force = std::max(0.0, driving_force);
                 // Multiply by mobility
                 driving_force *= ch.L;
                 // Update
@@ -168,23 +178,24 @@ protected:
     }
 
 protected:
-    Set::Field<Set::Scalar> alpha_mf;         // Temperature field variable (current timestep)
-    Set::Field<Set::Scalar> alpha_old_mf;     // Temperature field variable (previous timestep)
+    Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
+    IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
 
     struct {
-        Set::Scalar L = 1.0;
-        Set::Scalar eps = 0.1;
-        Set::Scalar grad = 1.0;
-        Set::Scalar chempot = 1.0;
+        Set::Scalar L = NAN;
+        Set::Scalar eps = NAN;
+        Set::Scalar grad = NAN;
+        Set::Scalar chempot = NAN;
+        int direction = 0;
     } ch;
 
 private:
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 2;           // Number of ghost cells
 
-    Set::Scalar refinement_threshold = 0.01; // Criterion for cell refinement
+    Set::Scalar refinement_threshold = NAN; // Criterion for cell refinement
 
-    IC::IC* ic;                              // Object used to initialize temperature field
     BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
 };
 } // namespace Integrator

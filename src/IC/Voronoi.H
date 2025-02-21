@@ -7,9 +7,11 @@
 
 namespace IC
 {
-class Voronoi : public IC
+class Voronoi : public IC<Set::Scalar>
 {
 public:
+    static constexpr const char* name = "voronoi";
+
     enum Type {Partition, Values};
 
     Voronoi (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}

@@ -21,9 +21,11 @@
 
 namespace IC
 {
-class PNG : public IC
+class PNG : public IC<Set::Scalar>
 {
 public:
+    static constexpr const char* name = "png";
+
     //enum Type {XYZ, XY, YZ, XZ};
     enum Fit { Stretch, FitWidth, FitHeight, Coord };
     enum Channel { R = 0, G = 1, B = 2, A = 3 };

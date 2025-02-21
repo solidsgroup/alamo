@@ -1,0 +1,10 @@
+#@ [2d]
+#@ exe=test
+#@ dim=2
+#@ check=false
+#@
+#@ [3d]
+#@ exe=test
+#@ dim=3
+#@ check=false
+#@

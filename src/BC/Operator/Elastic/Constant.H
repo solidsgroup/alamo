@@ -31,6 +31,7 @@ namespace Elastic
 class Constant : public Elastic
 {
 public:
+    static constexpr const char* name = "constant";
 
     Constant()
     {

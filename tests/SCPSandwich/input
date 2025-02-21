@@ -58,8 +58,8 @@ pressure.n_comb = 0.0 # [ 1 ]
 pressure.P = 0.2
 
 # Phase field IC
-eta.ic.type = constant
-eta.ic.constant.value = 1
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value = 1
 
 # Species field params
 phi.ic.type = laminate
@@ -71,15 +71,23 @@ phi.ic.laminate.eps = 0.015
 phi.ic.laminate.singlefab = 1
 phi.ic.laminate.invert = 1
 
+# Initial conditions on eta
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value = 1.0
+
 # Boundary conditions on eta
-pf.eta.bc.type.xlo = dirichlet
-pf.eta.bc.type.xhi = dirichlet
-pf.eta.bc.type.ylo = neumann
-pf.eta.bc.type.yhi = neumann
-pf.eta.bc.val.xlo = 0.0
-pf.eta.bc.val.xhi = 1.0
-pf.eta.bc.val.ylo = 0.0
-pf.eta.bc.val.yhi = 0.0
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value = 1.0
 
 thermal.on = 0 
 elastic.type = disable

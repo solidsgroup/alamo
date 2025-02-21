@@ -6,12 +6,12 @@
 namespace IC
 {
 /// Initialize a coupon-shaped IC (for the Flame simulation)
-class Wedge : public IC
+class Wedge : public IC<Set::Scalar>
 {
 public:
     Wedge (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {};
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &field)
+    virtual void Add(const int &lev, Set::Field<Set::Scalar> &field, Set::Scalar /*time*/) override
     {
         amrex::Real sizex = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];
         // AMREX_D_TERM(,

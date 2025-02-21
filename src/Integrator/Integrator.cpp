@@ -21,7 +21,7 @@ Integrator::Integrator() : amrex::AmrCore()
         // These are basic parameters that are, in 
         // general, common to all Alamo simulations.
         IO::ParmParse pp;
-        pp_query("max_step", max_step);               // Number of iterations before ending
+        pp_query_default("max_step", max_step, 2147483647);  // Number of iterations before ending (default is maximum possible int)
         pp_query_required("stop_time", stop_time);    // Simulation time before ending
         pp_query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
         pp_query("restart", restart_file_cell);       // Name of restart file to READ from
@@ -49,23 +49,23 @@ Integrator::Integrator() : amrex::AmrCore()
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
         IO::ParmParse pp("amr");
-        pp_query("regrid_int", regrid_int);           // Regridding interval in step numbers
-        pp_query("base_regrid_int", base_regrid_int); // Regridding interval based on coarse level only
-        pp_query("plot_int", plot_int);               // Interval (in timesteps) between plotfiles
-        pp_query("plot_dt", plot_dt);                 // Interval (in simulation time) between plotfiles
-        pp_query("plot_file", plot_file);             // Output file
+        pp_query_default("regrid_int", regrid_int, 2);           // Regridding interval in step numbers
+        pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
+        pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
+        pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
+        pp_query_default("plot_file", plot_file, "output");             // Output file
 
-        pp_query("cell.all", cell.all);                // Turn on to write all output in cell fabs (default: off)
-        pp_query("cell.any", cell.any);                // Turn off to prevent any cell based output (default: on)
-        pp_query("node.all", node.all);                // Turn on to write all output in node fabs (default: off)
-        pp_query("node.any", node.any);                // Turn off to prevent any node based output (default: on)
+        pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
+        pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
+        pp_query_default("node.all", node.all, false);                // Turn on to write all output in node fabs (default: off)
+        pp_query_default("node.any", node.any, true);                // Turn off to prevent any node based output (default: on)
 
         pp_query_default("abort_on_nan",abort_on_nan, true); // Abort if a plotfile contains nan or inf.
 
         Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO, TEST(!(!node.any && node.all)));
 
-        pp_query("max_plot_level", max_plot_level);    // Specify a maximum level of refinement for output files
+        pp_query_default("max_plot_level", max_plot_level, -1);    // Specify a maximum level of refinement for output files (NO REFINEMENT)
 
         IO::FileNameParse(plot_file);
 
@@ -80,7 +80,7 @@ Integrator::Integrator() : amrex::AmrCore()
             else if (cnt == 1)
             {
                 int nsubsteps_all;
-                pp_query("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
+                pp_query_required("nsubsteps", nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
                 for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
             }
             else
@@ -91,13 +91,19 @@ Integrator::Integrator() : amrex::AmrCore()
     }
     {
         IO::ParmParse pp("dynamictimestep");
+        // activate dynamic CFL-based timestep
         pp_query("on",dynamictimestep.on);
         if (dynamictimestep.on)
         {
+            // how much information to print
             pp_query_validate("verbose",dynamictimestep.verbose,{0,1});
+            // number of previous timesteps for rolling average
             pp_query_default("nprevious",dynamictimestep.nprevious,5);
+            // dynamic teimstep CFL condition
             pp_query_default("cfl",dynamictimestep.cfl,1.0);
+            // minimum timestep size allowed shen stepping dynamically
             pp_query_default("min",dynamictimestep.min,timestep);
+            // maximum timestep size allowed shen stepping dynamically
             pp_query_default("max",dynamictimestep.max,timestep);
 
             Util::AssertException(INFO,TEST(dynamictimestep.max >= dynamictimestep.min));
@@ -107,10 +113,10 @@ Integrator::Integrator() : amrex::AmrCore()
         // Information on how to generate thermodynamic
         // data (to show up in thermo.dat)
         IO::ParmParse pp("amr.thermo");
-        thermo.interval = 1;                           // Default: integrate every time.
-        pp_query("int", thermo.interval);              // Integration interval (1)
-        pp_query("plot_int", thermo.plot_int);         // Interval (in timesteps) between writing
-        pp_query("plot_dt", thermo.plot_dt);           // Interval (in simulation time) between writing
+        thermo.interval = 1;                                       // Default: integrate every time.
+        pp_query_default("int", thermo.interval, 1);               // Integration interval (1)
+        pp_query_default("plot_int", thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
+        pp_query_default("plot_dt", thermo.plot_dt, -1.0);         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
     }
 
     {
@@ -118,7 +124,7 @@ Integrator::Integrator() : amrex::AmrCore()
         // set of grids to work on. This is pretty much always used
         // for testing purposes only.
         IO::ParmParse pp("explicitmesh");
-        pp_query("on", explicitmesh.on); // Use explicit mesh instead of AMR
+        pp_query_default("on", explicitmesh.on, 0); // Use explicit mesh instead of AMR
         if (explicitmesh.on)
         {
             for (int ilev = 0; ilev < maxLevel(); ++ilev)
@@ -152,15 +158,24 @@ Integrator::Integrator() : amrex::AmrCore()
     IO::WriteMetaData(plot_file, IO::Status::Running, 0);
 }
 
-///
-/// \func  ~Integrator
-/// \brief Does nothing -- check here first if there are memory leaks
-///
+// Destructor
 Integrator::~Integrator()
 {
-    BL_PROFILE("Integrator::~Integrator");
-    if (amrex::ParallelDescriptor::IOProcessor())
-        IO::WriteMetaData(plot_file, IO::Status::Complete);
+    if (Util::finalized)
+    {
+        std::cout << "!! ERROR !! Integrator destructor called after alamo has been finalized." << std::endl;
+        std::cout << "            Behavior occurring after this is undefined." << std::endl;
+        std::abort();
+    }
+
+    // Close out the metadata file and mark completed.
+    IO::WriteMetaData(plot_file, IO::Status::Complete);
+
+    // De-initialize all of the base fields and clear the arrays.
+    for (unsigned int i = 0; i < m_basefields.size(); i++) delete m_basefields[i];
+    for (unsigned int i = 0; i < m_basefields_cell.size(); i++) delete m_basefields_cell[i];
+    m_basefields.clear();
+    m_basefields_cell.clear();
 }
 
 void Integrator::SetTimestep(Set::Scalar _timestep)
@@ -186,7 +201,6 @@ void Integrator::SetPlotInt(int a_plot_int)
 void
 Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxArray& cgrids, const amrex::DistributionMapping& dm)
 {
-    Util::Message(INFO);
     BL_PROFILE("Integrator::MakeNewLevelFromCoarse");
 
     for (int n = 0; n < cell.number_of_fabs; n++)
@@ -306,28 +320,28 @@ Integrator::ClearLevel(int lev)
 
 
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true, suffix);
 }
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true, suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true,suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true,suffix);
 }
 
 
@@ -618,18 +632,18 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             {
                 for (int j = 0; j < node.number_of_fabs; j++)
                 {
-                    if (tmp_name_array[i] == node.name_array[j])
+                    if (tmp_name_array[i] == node.name_array[i][j])
                     {
                         match = true;
-                        Util::Message(INFO, "Initializing ", node.name_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
+                        Util::Message(INFO, "Initializing ", node.name_array[i][j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
                         amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, 0, 1, total_nghost);
                     }
                     for (int k = 0; k < node.ncomp_array[j]; k++)
                     {
-                        if (tmp_name_array[i] == amrex::Concatenate(node.name_array[j], k + 1, 3))
+                        if (tmp_name_array[i] == node.name_array[j][k])
                         {
                             match = true;
-                            Util::Message(INFO, "Initializing ", node.name_array[j], "[", k, "]; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
+                            Util::Message(INFO, "Initializing ", node.name_array[j][k], "; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, total_nghost);
                         }
                     }
@@ -641,10 +655,10 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                 for (int j = 0; j < cell.number_of_fabs; j++)
                     for (int k = 0; k < cell.ncomp_array[j]; k++)
                     {
-                        if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j], k + 1, 3))
+                        if (tmp_name_array[i] == cell.name_array[j][k])
                         {
                             match = true;
-                            Util::Message(INFO, "Initializing ", cell.name_array[j], "[", k, "]; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
+                            Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, cell.nghost_array[j]);
                         }
                     }
@@ -760,20 +774,20 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         if (!cell.writeout_array[i]) continue;
         ccomponents += cell.ncomp_array[i];
         if (cell.ncomp_array[i] > 1)
-            for (int j = 1; j <= cell.ncomp_array[i]; j++)
-                cnames.push_back(amrex::Concatenate(cell.name_array[i], j, 3));
+            for (int j = 0; j < cell.ncomp_array[i]; j++)
+                cnames.push_back(cell.name_array[i][j]);
         else
-            cnames.push_back(cell.name_array[i]);
+            cnames.push_back(cell.name_array[i][0]);
     }
     for (int i = 0; i < node.number_of_fabs; i++)
     {
         if (!node.writeout_array[i]) continue;
         ncomponents += node.ncomp_array[i];
         if (node.ncomp_array[i] > 1)
-            for (int j = 1; j <= node.ncomp_array[i]; j++)
-                nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
+            for (int j = 0; j < node.ncomp_array[i]; j++)
+                nnames.push_back(node.name_array[i][j]);
         else
-            nnames.push_back(node.name_array[i]);
+            nnames.push_back(node.name_array[i][0]);
     }
     for (unsigned int i = 0; i < m_basefields_cell.size(); i++)
     {

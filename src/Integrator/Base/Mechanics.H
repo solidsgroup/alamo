@@ -14,6 +14,7 @@
 #include "Operator/Operator.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
+#include "IC/Trig.H"
 
 namespace Integrator
 {
@@ -28,6 +29,13 @@ public:
 
     Mechanics() : Integrator()
     {}
+
+    ~Mechanics()
+    {
+        delete ic_rhs;
+        delete velocity_ic;
+        delete bc;
+    }
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
@@ -86,23 +94,19 @@ public:
             if (velocity_ic_str == "expression") value.velocity_ic = new IC::Expression(value.geom, pp,"velocity.ic.expression");
         }
 
-        std::string bc_type;
-        // Determine the boundary condition type
-        pp_query_validate("bc.type", bc_type,{"constant","tension_test","expression"});
-        if (bc_type == "constant")          value.bc = new BC::Operator::Elastic::Constant(pp, "bc.constant");
-        else if (bc_type == "tension_test") value.bc = new BC::Operator::Elastic::TensionTest(pp, "bc.tension_test");
-        else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp, "bc.expression");
-        else Util::Abort(INFO, "Invalid bc.type ", bc_type);
+        // Select the mechanical boundary conditions
+        pp.select<BC::Operator::Elastic::Constant,BC::Operator::Elastic::TensionTest,BC::Operator::Elastic::Expression>("bc",value.bc);
 
         pp_query_default("print_model", value.m_print_model, false); // Print out model variables (if enabled by model)
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
 
-        // Read in IC for RHS
-        std::string rhstype;
-        pp_query_validate("rhs.type", rhstype,{"none","trig","constant"}); // Initializer for RHS
-        if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
-        else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
+        // This if is here because the code currently allows for no
+        // body force to be defined, in which case value.ic_rhs is set to
+        // a nullptr. This should eventually be fixed - this is a stopgap.
+        if (pp.contains("rhs.type"))
+            // initial condition for right hand side (body force) 
+            pp.select<IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,value.geom);
 
         // Timestep interval for elastic solves (default - solve every time)
         pp_query_default("interval", value.m_interval, 0);
@@ -125,7 +129,6 @@ public:
 
         // Whether to refine based on elastic solution
         pp_query_default("elastic_ref_threshold", value.m_elastic_ref_threshold,0.01); 
-
 
         // Set this to true to zero out the displacement before each solve.
         // (This is a temporary fix - we need to figure out why this is needed.)
@@ -235,7 +238,7 @@ protected:
         }
     }
 
-    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
         BL_PROFILE("Integrator::Base::Mechanics::Advance");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
@@ -367,7 +370,7 @@ protected:
             amrex::Array4<MODEL>               const& model = (*model_mf[lev]).array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k));
+                model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
         }
         Util::RealFillBoundary(*model_mf[lev], geom[lev]);
@@ -379,6 +382,12 @@ protected:
     {
         BL_PROFILE("Integrator::Base::Mechanics::Integrate");
         if (m_type == Type::Disable) return;
+
+        if (amrex::ParallelDescriptor::NProcs() > 1)
+        {
+            Util::Warning(INFO,"There is a known bug when calculating trac/disp in Base::Mechanics in parallel.");
+            Util::Warning(INFO,"The thermo.dat values likely will not be correct; use the boxlib output instead.");
+        }
 
         const amrex::Real* DX = geom[amrlev].CellSize();
         amrex::Box domain = geom[amrlev].Domain();
@@ -435,13 +444,13 @@ protected:
         Set::Scalar DXnorm = DX.lpNorm<2>();
         for (amrex::MFIter mfi(*strain_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Box bx = mfi.tilebox();
+            bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Matrix> const& eps = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                auto sten = Numeric::GetStencil(i, j, k, bx);
-                Set::Matrix3 grad = Numeric::Gradient(eps, i, j, k, DX.data(), sten);
+                Set::Matrix3 grad = Numeric::NodeGradientOnCell(eps, i, j, k, DX.data());
                 if (grad.norm() * DXnorm > m_elastic_ref_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
@@ -478,13 +487,12 @@ protected:
     Set::Vector disp_hi[AMREX_SPACEDIM];
 
 
-    IC::IC* ic_rhs = nullptr;
-    BC::BC<Set::Scalar>* mybc;
+    IC::IC<Set::Vector>* ic_rhs = nullptr;
 
-    IC::IC* velocity_ic = nullptr;
+    IC::IC<Set::Vector>* velocity_ic = nullptr;
 
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
-    BC::Operator::Elastic::Elastic* bc;
+    BC::Operator::Elastic::Elastic* bc = nullptr;
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;

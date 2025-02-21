@@ -24,9 +24,11 @@
 
 namespace IC
 {
-class PerturbedInterface : public IC
+class PerturbedInterface : public IC<Set::Scalar>
 {
 public:
+    static constexpr const char* name = "perturbedinterface";
+
     enum Mollifier {Dirac, Gaussian};
     PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
         IC(_geom)

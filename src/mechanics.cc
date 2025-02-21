@@ -21,6 +21,7 @@
 #include "Model/Solid/Affine/Hexagonal.H"
 
 #include "Integrator/Mechanics.H"
+#include "Model/Solid/Finite/CrystalPlastic.H"
 
 int main (int argc, char* argv[])
 {
@@ -47,6 +48,7 @@ int main (int argc, char* argv[])
         else if (model == "finite.pseudolinear.cubic") integrator = new Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>(pp);
         else if (model == "finite.pseudoaffine.cubic") integrator = new Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>(pp);
         else if (model == "affine.j2")          integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>(pp);
+        else if (model == "finite.crystalplastic")        integrator = new Integrator::Mechanics<Model::Solid::Finite::CrystalPlastic>(pp);
         else Util::Abort(INFO,model," is not a valid model");
     }
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
