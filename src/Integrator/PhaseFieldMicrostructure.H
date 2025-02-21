@@ -21,7 +21,6 @@
 #include "BC/BC.H"
 #include "BC/Constant.H"
 #include "BC/Operator/Elastic/Constant.H"
-#include "BC/Step.H"
 #include "IC/Constant.H"
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
@@ -297,9 +296,10 @@ public:
 
 
         value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
-        value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
-        if (value.pf.threshold.on)
-            value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
+        value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld",false);
+        //value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
+        // if (value.pf.threshold.on)
+        //     value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
         if (value.disconnection.on)
             value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
 
@@ -326,6 +326,7 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
+    virtual void UpdateEigenstrain(int lev);
 
     virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
@@ -337,8 +338,14 @@ private:
 
     // Cell fab
     Set::Field<Set::Scalar> eta_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+    Set::Field<Set::Scalar> eta_old_mf; 
     Set::Field<Set::Scalar> driving_force_mf;
     Set::Field<Set::Scalar> driving_force_threshold_mf;
+    Set::Field<Set::Scalar> fluct_mf;
+    Set::Field<Set::Scalar> disc_mf; //see box
+    // Node fab
+    //Set::Field<Set::Scalar> elasticdf_mf;
+    Set::Field<Set::Scalar> totaldf_mf;
 
     BC::BC<Set::Scalar> *mybc = nullptr;
 
