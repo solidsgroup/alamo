@@ -38,6 +38,9 @@
 
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Affine/Cubic.H"
+
+#include "Model/Defect/Disconnection.H"
+
 #include "Operator/Elastic.H"
 
 namespace Integrator
@@ -214,34 +217,8 @@ public:
         pp.query("disconnection.on",value.disconnection.on);
         if (value.disconnection.on)
         {
-            Util::Assert(INFO,TEST(AMREX_SPACEDIM==2),"2D only");
-            pp_query_default("disconnection.tstart", value.disconnection.tstart,0.0); // time to start applying disconnections
-            pp_query_default("disconnection.nucleation_energy",value.disconnection.nucleation_energy,0.0); // nucleation energy
-            pp_query_default("disconnection.tau_vol",value.disconnection.tau_vol, 1.0); // characteristic time
-            pp_query_default("disconnection.temp",value.disconnection.temp,0.0); // temperature
-            pp_query_default("disconnection.box_size",value.disconnection.box_size ,0.0); // characteristic size
-            pp_query_required("disconnection.interval",value.disconnection.interval); // interval between generation events
-            pp_query_default("disconnection.epsilon",value.disconnection.epsilon,1E-20); // regularization epsilon
-
-            // whether to manually specify disconnection nucleation points
-            pp.query("disconnection.fixed.on",value.disconnection.fixed.on); 
-            if (value.disconnection.fixed.on)
-            {
-                pp.queryarr("disconnection.fixed.sitex",value.disconnection.fixed.sitex); // array of x locations
-                pp.queryarr("disconnection.fixed.sitey",value.disconnection.fixed.sitey); // array of y locations
-                pp.queryarr("disconnection.fixed.phases",value.disconnection.fixed.phases); // array of order parameter number
-                pp.queryarr("disconnection.fixed.time",value.disconnection.fixed.time); // time to appear
-                Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.sitey.size()));
-                Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.phases.size()));
-                Util::Assert(INFO,TEST(value.disconnection.fixed.sitex.size() == value.disconnection.fixed.time.size()));
-                value.disconnection.fixed.done.resize(value.disconnection.fixed.sitex.size(),false);
-            }
-            else
-            {
-                value.disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
-                value.disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
-                value.disconnection.rand_num_gen.seed(amrex::ParallelDescriptor::MyProc());
-            }
+            // Read in nucleation parameters from disconnection class
+            pp.queryclass<Model::Defect::Disconnection>("disconnection",value.disconnection.model);
         }
 
         // Shear coupling matrices
@@ -300,8 +277,8 @@ public:
         //value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
         // if (value.pf.threshold.on)
         //     value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
-        if (value.disconnection.on)
-            value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
+        // if (value.disconnection.on)
+        //     value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
         value.RegisterIntegratedVariable(&value.area, "area");
@@ -327,6 +304,11 @@ protected:
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
     virtual void UpdateEigenstrain(int lev);
+    virtual void UpdateEigenstrain()
+    {
+        for (int lev = 0; lev <= this->max_level; lev++)
+            UpdateEigenstrain(lev);
+    }
 
     virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
@@ -342,7 +324,7 @@ private:
     Set::Field<Set::Scalar> driving_force_mf;
     Set::Field<Set::Scalar> driving_force_threshold_mf;
     Set::Field<Set::Scalar> fluct_mf;
-    Set::Field<Set::Scalar> disc_mf; //see box
+    //Set::Field<Set::Scalar> disc_mf; //see box
     // Node fab
     //Set::Field<Set::Scalar> elasticdf_mf;
     Set::Field<Set::Scalar> totaldf_mf;
@@ -422,32 +404,7 @@ private:
 
     struct {
         int on = 0;
-        //int phase = 0;
-        int interval = -1;
-        bool nucleate = false;
-        Set::Scalar tstart = NAN;
-        Set::Scalar fixed_site = 4.0;
-        Set::Scalar range = 0.06;
-        Set::Scalar nucleation_energy = NAN;
-        Set::Scalar tau_vol = NAN;
-        Set::Scalar temp = NAN;
-        Set::Scalar K_b = 8.617333262145e-5; // eV/K
-        Set::Scalar box_size = NAN;
-        Set::Scalar epsilon = NAN;
-        std::uniform_real_distribution<double> unif_dist;
-        std::uniform_int_distribution<int> int_dist;
-        std::default_random_engine rand_num_gen;
-        std::vector<Set::Scalar> sitex;
-        std::vector<Set::Scalar> sitey;
-        std::vector<int> phases;
-        struct {
-            int on = 0;
-            std::vector<Set::Scalar> sitex;
-            std::vector<Set::Scalar> sitey;
-            std::vector<int> phases;
-            std::vector<Set::Scalar> time;
-            std::vector<bool> done;
-        } fixed;
+        Model::Defect::Disconnection model;
     } disconnection;
 
     struct {

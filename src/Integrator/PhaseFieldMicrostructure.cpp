@@ -23,6 +23,7 @@
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Solid/Finite/PseudoAffine/Cubic.H"
+#include "Model/Defect/Disconnection.H"
 
 #include "Util/MPI.H"
 
@@ -408,103 +409,19 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
     BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     for (int lev = 0; lev < totaldf_mf.size(); lev++) totaldf_mf[lev]->setVal(0.0);
 
-    // df_limit_max.resize(this->max_level+1);
-    // df_limit_min.resize(this->max_level+1);
-
-    //
-    // Manual Disconnection Nucleation
-    //
-    // currently supportedfor 2d only
-    //
-    #if AMREX_SPACEDIM == 2 
-    if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
+    // Insertion of disconnections
+    if (disconnection.on)
     {
-        disconnection.sitex.clear();
-        disconnection.sitey.clear();
-        disconnection.phases.clear();
-
-        int lev = this->max_level;
-        const Set::Scalar *DX = this->geom[lev].CellSize();
-        Set::Scalar exponent = DX[0] * DX[0] * (this->timestep * disconnection.interval) / disconnection.tau_vol;
-
-        // Determine the nucleation sites in my portion of the mesh
-        for (amrex::MFIter mfi(*eta_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box &bx = mfi.tilebox();
-            amrex::Array4<amrex::Real> const &eta = (*eta_mf[lev]).array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                Set::Scalar E0 = 2.0*disconnection.nucleation_energy;
-                E0 /= disconnection.epsilon + 256.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1);
-                Set::Scalar p = std::exp(-E0/(disconnection.K_b*disconnection.temp));
-                Set::Scalar P = 1.0 - std::pow(1.0 - p,exponent);
-                if (eta(i,j,k,0) < 0 || eta(i,j,k,0) > 1.0 || eta(i,j,k,1) < 0 || eta(i,j,k,1) > 1.0) P = 0.0;
-                Set::Scalar q = 0.0;
-                q = disconnection.unif_dist(disconnection.rand_num_gen);
-                if (q < P)
-                {
-                    disconnection.sitex.push_back(this->geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0]);
-                    disconnection.sitey.push_back(this->geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1]);
-                    int phase = disconnection.int_dist(disconnection.rand_num_gen);
-                    disconnection.phases.push_back(phase);
-                } });
-        }
-        // Sync up all the nucleation sites among processors
-        Util::MPI::Allgather(disconnection.sitex);
-        Util::MPI::Allgather(disconnection.sitey);
-        Util::MPI::Allgather(disconnection.phases);
-        Util::Message(INFO, "Nucleating ", disconnection.phases.size(), " disconnections");
-        if (disconnection.sitex.size() > 0)
-        {
-            // Now that we all know the nucleation locations, perform the nucleation
-            for (int lev = 0; lev <= this->max_level; lev++)
-            {
-                amrex::Box domain = this->geom[lev].Domain();
-                domain.convert(amrex::IntVect::TheNodeVector());
-                const amrex::Real *DX = this->geom[lev].CellSize();
-                for (amrex::MFIter mfi(*this->model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-                {
-                    const amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                    //amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
-                    amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
-                    amrex::Array4<Set::Scalar> const &disc = (*disc_mf[lev]).array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                    {
-                        Set::Vector x;
-                        AMREX_D_TERM(
-                            x(0) = this->geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-                            x(1) = this->geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
-                            x(2) = this->geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];);
-                        disc(i, j, k, 0) = 0.0;
-                        for (unsigned int m = 0; m < disconnection.phases.size(); m++)
-                        {
-                            amrex::Real r_squared = 0;
-                            Set::Vector nucleation_site(disconnection.sitex[m], disconnection.sitey[m]);
-                            for (int n = 0; n < AMREX_SPACEDIM; n++)
-                            {
-                                amrex::Real dist = nucleation_site(n) - x(n);
-                                r_squared += dist * dist;
-                            }
-                            amrex::Real bump = exp(-r_squared / disconnection.box_size);
-                            disc(i, j, k, 0) += bump;
-                            eta(i, j, k, disconnection.phases[m]) = bump * (1 - eta(i, j, k, disconnection.phases[m])) + eta(i, j, k, disconnection.phases[m]);
-                            eta(i, j, k, 1 - disconnection.phases[m]) = (1. - bump) * eta(i, j, k, 1 - disconnection.phases[m]);
-                        }
-                    });
-                }
-                UpdateEigenstrain(lev);
-                Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
-            }
-        }
+        disconnection.model.Nucleate(eta_mf,this->Geom(),this->timestep,time, iter);
+        UpdateEigenstrain();
     }
-    #endif
     
     Base::Mechanics<model_type>::TimeStepBegin(time, iter);
 
     if (anisotropy.on && time >= anisotropy.tstart)
     {
-        Util::AssertException(INFO,TEST(this->dynamictimestep.on == false),
-                              "Cannot use anisotropy with dynamic timestep yet");
+        Util::AssertException(  INFO,TEST(this->dynamictimestep.on == false),
+                                "Cannot use anisotropy with dynamic timestep yet");
         this->SetTimestep(anisotropy.timestep);
         if (anisotropy.elastic_int > 0)
             if (iter % anisotropy.elastic_int) return;
