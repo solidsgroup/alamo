@@ -388,7 +388,7 @@ void ComputeConservedVariables(int lev) {
 #if (AMREX_SPACEDIM == 3)
             Set::Scalar wvel = p_arr(i, j, k, variableIndex.WVEL);
 #endif
-            Set::Scalar ie = p_arr(i, j, k, variableIndex.IE);
+            Set::Scalar internal_energy = p_arr(i, j, k, variableIndex.IE);
 
             // Total internal energy
             Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
@@ -396,7 +396,7 @@ void ComputeConservedVariables(int lev) {
                                             + wvel * wvel
 #endif
                                             );
-            Set::Scalar tot_int_energy = ie + kinetic_energy;
+            Set::Scalar total_internal_energy = internal_energy + kinetic_energy;
 
             //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "ComputeConservedVariables", false);
             //debug.DebugValuesIfTarget(i, j, k, vvel, "v-velocity", "ComputeConservedVariables", false);
@@ -408,7 +408,7 @@ void ComputeConservedVariables(int lev) {
 #if (AMREX_SPACEDIM == 3)
             q_arr(i, j, k, variableIndex.WVEL) = rho * wvel;
 #endif
-            q_arr(i, j, k, variableIndex.IE) = rho * tot_int_energy;
+            q_arr(i, j, k, variableIndex.IE) = rho * total_internal_energy;
 
         });
     
@@ -449,7 +449,7 @@ void ComputeConservedVariables(int lev) {
 
                 //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "UpdateSolutions", false);
 
-                Set::Scalar total_energy = q_arr(i, j, k, variableIndex.IE);  // Total specific energy
+                Set::Scalar total_internal_energy = q_arr(i, j, k, variableIndex.IE) / rho;  // Total specific energy
 
                 // Compute kinetic energy
                 Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
@@ -459,7 +459,7 @@ void ComputeConservedVariables(int lev) {
                                                 );
 
                 // Compute internal energy
-                Set::Scalar internal_energy = (total_energy - rho*kinetic_energy)/rho;
+                Set::Scalar internal_energy = (total_internal_energy - kinetic_energy);
 
                 // Assume ideal gas law: p = (gamma - 1) * rho * internal_energy
                 const Set::Scalar gamma = 1.4;  // Ideal gas constant for air (can be adjusted)
@@ -472,10 +472,10 @@ void ComputeConservedVariables(int lev) {
 #if (AMREX_SPACEDIM == 3)
                 p_arr(i, j, k, variableIndex.WVEL) = wvel;
 #endif
-                pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
-
-                // Also update internal energy explicitly if needed
+                // Also update internal energy
                 p_arr(i, j, k, variableIndex.IE) = internal_energy;
+
+                pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
 
                 //debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal energy", "GetFluxVector", false);
 
@@ -528,8 +528,8 @@ private:
 
     Set::Scalar refinement_threshold;
 
-    IC::IC* ic_PVec = nullptr;            // Object used to initialize Q Vector
-    IC::IC* ic_Pressure = nullptr;       // Object used to initialize Pressure
+    IC::IC<Set::Scalar>* ic_PVec = nullptr;            // Object used to initialize Q Vector
+    IC::IC<Set::Scalar>* ic_Pressure = nullptr;       // Object used to initialize Pressure
     BC::BC<Set::Scalar>* bc_PVec = nullptr;            // Object used to provide Boundary Condition for Q Vector
     BC::BC<Set::Scalar>* bc_Pressure = nullptr;            // Object used to provide Boundary Condition for Q Vector
     BC::Nothing bc_nothing;

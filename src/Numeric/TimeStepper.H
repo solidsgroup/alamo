@@ -121,7 +121,7 @@ public:
 
 #if (AMREX_SPACEDIM == 3)
                     // Z-direction flux divergence
-                    flux_div += (zflux_arr(i,j,z) - zflux_arr(i,j,z-1)) / DX[2];
+                    flux_div += (zflux_arr(i,j,k) - zflux_arr(i,j,k-1)) / DX[2];
 #endif
 
                     // Update conserved variable using Euler Forward step

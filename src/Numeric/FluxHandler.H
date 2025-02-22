@@ -162,7 +162,7 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
     // Shift and clamp for left and right indices
     int left_offset[3] = {0, 0, 0};
     int right_offset[3] = {0, 0, 0};
-    left_offset[direction] = -1;  // Shift left
+    left_offset[direction] = 0;  // Shift left
     right_offset[direction] = 1;  // Shift right
 
     ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
@@ -175,9 +175,11 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
 
         for (int n = 0; n < num_components; ++n) {
             // Branch-free computation of QL and QR
-            const Set::Scalar QL = 0.5 * ((1 + sigma)* p_arr(index[0], index[1], index[2], n) + (1.0 - sigma) * p_arr(left_index[0], left_index[1], left_index[2], n));
-            const Set::Scalar QR = 0.5 * ((1 + sigma)* p_arr(right_index[0], right_index[1], right_index[2], n) + (1.0 - sigma)*p_arr(index[0], index[1], index[2],n));  // Since we are using first-order upwinding  
+            //const Set::Scalar QL = 0.5 * ((1 + sigma)* p_arr(index[0], index[1], index[2], n) + (1.0 - sigma) * p_arr(left_index[0], left_index[1], left_index[2], n));
+            //const Set::Scalar QR = 0.5 * ((1 + sigma)* p_arr(right_index[0], right_index[1], right_index[2], n) + (1.0 - sigma)*p_arr(index[0], index[1], index[2],n));  // Since we are using first-order upwinding  
             
+            const Set::Scalar QL = p_arr(left_index[0], left_index[1], left_index[2], n);
+            const Set::Scalar QR = p_arr(right_index[0], right_index[1], right_index[2], n);  // Since we are using first-order upwinding  
             // Assign values to the stencil arrays
             QL_arr(index[0], index[1], index[2], n) = QL;
             QR_arr(index[0], index[1], index[2], n) = QR;
@@ -279,8 +281,8 @@ public:
             Set::Scalar e_L = std::max(QL_arr(index[0], index[1], index[2], solver->variableIndex.IE), 1e-8);
             Set::Scalar e_R = std::max(QR_arr(index[0], index[1], index[2], solver->variableIndex.IE), 1e-8);
         
-            Set::Scalar pressure_L = (gamma - 1.0) * e_L;
-            Set::Scalar pressure_R = (gamma - 1.0) * e_R;
+            Set::Scalar pressure_L = (gamma - 1.0) * rho_L * e_L;
+            Set::Scalar pressure_R = (gamma - 1.0) * rho_R * e_R;
         
             Set::Scalar vel_L[3] = {0.0, 0.0, 0.0};
             Set::Scalar vel_R[3] = {0.0, 0.0, 0.0};
@@ -302,9 +304,9 @@ public:
             Set::Scalar KE_L = 0.5 * (vel_L[0] * vel_L[0] + vel_L[1] * vel_L[1] + vel_L[2] * vel_L[2]);  // Kinetic energy for left state
             Set::Scalar KE_R = 0.5 * (vel_R[0] * vel_R[0] + vel_R[1] * vel_R[1] + vel_R[2] * vel_R[2]);  // Kinetic energy for right state
 
-            // **Total Energy (E = e + KE)**
-            Set::Scalar E_L = e_L + KE_L;  // Total energy for left state
-            Set::Scalar E_R = e_R + KE_R;  // Total energy for right state
+            // **Total Internal Energy (E = e + KE)**
+            Set::Scalar E_L = e_L + KE_L;  // Total internal energy for left state
+            Set::Scalar E_R = e_R + KE_R;  // Total internal energy for right state
 
             // **Speed of sound**
             Set::Scalar c_L = std::sqrt(gamma * std::max(pressure_L, 1e-8) / rho_L);
