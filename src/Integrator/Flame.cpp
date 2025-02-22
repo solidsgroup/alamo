@@ -330,19 +330,12 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
-            Util::Message(INFO);
                     //phi_avg = phi(i,j,k,0);
-            Util::Message(INFO);
                     model_type model_ap = elastic.model_ap;
-            Util::Message(INFO);
                     model_ap.F0 *= Set::Matrix::Zero();
-            Util::Message(INFO);
                     model_type model_htpb = elastic.model_htpb;
-            Util::Message(INFO);
                     model_htpb.F0 *= Set::Matrix::Zero();
-            Util::Message(INFO);
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
-            Util::Message(INFO);
                 });
             }
         }
