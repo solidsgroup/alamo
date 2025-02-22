@@ -43,7 +43,7 @@ public:
         Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
         a_field[a_lev]->setVal(0.0);
         Add(a_lev,a_field,a_time);
-    };
+    }
 
     // SFINAE solution: we initialize using "Zero" if it is a class type.
     template <typename U = T, typename std::enable_if_t<!std::is_arithmetic_v<U>, int> = 0>
@@ -54,7 +54,7 @@ public:
         Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
         a_field[a_lev]->setVal(T::Zero());
         Add(a_lev,a_field,a_time);
-    };
+    }
 
     virtual void SetComp(int a_comp) final {comp = a_comp;}
 protected:
