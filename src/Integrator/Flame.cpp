@@ -28,6 +28,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
+        // Whether to include extra fields (such as mdot, etc) in the plot output
+        pp_query_default("plot_field",value.plot_field,true); 
+        
         pp_query_default("timestep", value.base_time, 1.0e-4); //Simulation timestep
         pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
         pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
