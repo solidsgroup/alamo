@@ -53,14 +53,14 @@ public:
                         } else if (x(0) >= getShockXPos() && x(1) < getShockYPos()) {
                             assignQuadrantValues(phi, i, j, k, n, 4);
                         } else if (x(0) < getShockXPos() && x(1) >= getShockYPos()) {
-                            assignQuadrantValues(phi, i, j, k, n, 1);
-                        } else {
                             assignQuadrantValues(phi, i, j, k, n, 2);
+                        } else {
+                            assignQuadrantValues(phi, i, j, k, n, 1);
                         }
                     } else if (getMfName() == "ic.pressure.riemann2d") {
                         phi(i, j, k, n) = (x(0) < getShockXPos() && x(1) < getShockYPos()) ? q3_pressure :
                                           (x(0) >= getShockXPos() && x(1) < getShockYPos()) ? q4_pressure :
-                                          (x(0) < getShockXPos() && x(1) >= getShockYPos()) ? q1_pressure : q2_pressure;
+                                          (x(0) < getShockXPos() && x(1) >= getShockYPos()) ? q2_pressure : q1_pressure;
                     } else {
                         Util::Abort(INFO, "Unknown MultiFab name: " + getMfName());
                     }
