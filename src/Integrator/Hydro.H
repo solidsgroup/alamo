@@ -18,6 +18,7 @@
 #include "IC/Laminate.H"
 #include "IC/Expression.H"
 
+#include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
 
 #if AMREX_SPACEDIM==2
@@ -84,9 +85,9 @@ private:
         Set::Field<Set::Scalar> density_mf;
         Set::Field<Set::Scalar> momentum_mf;
         Set::Field<Set::Scalar> energy_mf;
-        IC::IC* density_ic   = nullptr;
-        IC::IC* momentum_ic  = nullptr;
-        IC::IC* energy_ic    = nullptr;
+        IC::IC<Set::Scalar>* density_ic   = nullptr;
+        IC::IC<Set::Scalar>* momentum_ic  = nullptr;
+        IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
 
 protected:
@@ -108,16 +109,16 @@ private:
     BC::BC<Set::Scalar>* energy_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
 
-    IC::IC* velocity_ic = nullptr;
-    IC::IC* pressure_ic = nullptr;
-    IC::IC* density_ic  = nullptr;
+    IC::IC<Set::Scalar>* velocity_ic = nullptr;
+    IC::IC<Set::Scalar>* pressure_ic = nullptr;
+    IC::IC<Set::Scalar>* density_ic  = nullptr;
 
-    IC::IC* ic_m0 = nullptr;
-    IC::IC* ic_u0 = nullptr;
-    IC::IC* ic_q = nullptr;
+    IC::IC<Set::Scalar>* ic_m0 = nullptr;
+    IC::IC<Set::Scalar>* ic_u0 = nullptr;
+    IC::IC<Set::Scalar>* ic_q = nullptr;
 
-    IC::IC* eta_ic = nullptr;
-    IC::IC* etadot_ic = nullptr;
+    IC::IC<Set::Scalar>* eta_ic = nullptr;
+    IC::IC<Set::Scalar>* etadot_ic = nullptr;
 
     BC::Nothing bc_nothing;
 
