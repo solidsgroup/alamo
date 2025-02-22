@@ -51,12 +51,9 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                              value.ghost_count, "eta_old", false);
 
         // phase field initial condition
-        pp.select<IC::Constant, IC::Expression>("pf.eta.ic", value.ic_eta,
-                                                value.geom); // after comment
 
-        // phase field initial condition
-        pp.select<IC::Laminate, IC::Constant, IC::Expression, IC::BMP, IC::PNG>(
-            "eta.ic", value.ic_eta, value.geom);
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
+        pp.forbid("eta.ic","--> you must use pf.eta.ic instead"); // delete this eventually once all tests are updated
     }
 
     {
@@ -368,11 +365,22 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                              "psi", value.plot_psi);
         value.psi_on = true;
     }
+
+    bool allow_unused;
+    // Set this to true to allow unused inputs without error.
+    // (Not recommended.)
+    pp.query_default("allow_unused",allow_unused,false);
+    if (!allow_unused && pp.AnyUnusedInputs())
+    {
+        Util::Warning(INFO,"The following inputs were specified but not used:");
+        pp.AllUnusedInputs();
+        Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
+    }
+        
 }
 
 void Flame::Initialize(int lev) {
     BL_PROFILE("Integrator::Flame::Initialize");
-    Util::Message(INFO, m_type);
     Base::Mechanics<model_type>::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
@@ -425,59 +433,54 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) {
         eta_mf[lev]->FillBoundary();
         temp_mf[lev]->FillBoundary();
 
-        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi) {
+        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+        {
+            amrex::Box smallbox = mfi.nodaltilebox();
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
-            // amrex::Box bx = mfi.nodaltilebox();
-            // bx.grow(1);
-            amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const &phi =
-                phi_mf[lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const &eta =
-                eta_mf[lev]->array(mfi);
-            amrex::Array4<Set::Vector> const &rhs = rhs_mf[lev]->array(mfi);
-            // amrex::Array4<const Set::Scalar> const& Pressure =
-            // pressure_mf[lev]->array(mfi); // [error]
+            //amrex::Box bx = mfi.nodaltilebox();
+            //bx.grow(1);
+            amrex::Array4<model_type>        const& model = model_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
+            amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
+            // amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi); // [error]
 
-            if (elastic.on) {
-                amrex::Array4<const Set::Scalar> const &temp =
-                    temp_mf[lev]->array(mfi);
-                amrex::ParallelFor(
-                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        // auto sten = Numeric::GetStencil(i, j, k, bx);
-                        Set::Scalar phi_avg = phi(i, j, k, 0);
-                        Set::Scalar temp_avg =
-                            Numeric::Interpolate::CellToNodeAverage(temp, i, j,
-                                                                    k, 0);
-                        Set::Vector grad_eta =
-                            Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                        rhs(i, j, k) = elastic.traction * grad_eta;
+            if (elastic.on)
+            {
+                amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
+                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+                    rhs(i, j, k) = elastic.traction * grad_eta;
+                });
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar phi_avg = phi(i, j, k, 0);
+                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
+                    model_type model_ap = elastic.model_ap;
+                    model_ap.F0 -= Set::Matrix::Identity();
+                    model_ap.F0 *= (temp_avg - elastic.Tref);
+                    model_ap.F0 += Set::Matrix::Identity();
+                    model_type model_htpb = elastic.model_htpb;
+                    model_htpb.F0 -= Set::Matrix::Identity();
+                    model_htpb.F0 *= (temp_avg - elastic.Tref);
+                    model_htpb.F0 += Set::Matrix::Identity();
 
-                        model_type model_ap = elastic.model_ap;
-                        model_ap.F0 -= Set::Matrix::Identity();
-                        model_ap.F0 *= (temp_avg - elastic.Tref);
-                        model_ap.F0 += Set::Matrix::Identity();
-                        model_type model_htpb = elastic.model_htpb;
-                        model_htpb.F0 -= Set::Matrix::Identity();
-                        model_htpb.F0 *= (temp_avg - elastic.Tref);
-                        model_htpb.F0 += Set::Matrix::Identity();
-
-                        model(i, j, k) =
-                            model_ap * phi_avg + model_htpb * (1. - phi_avg);
-                    });
-            } else {
-                amrex::ParallelFor(
-                    bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        Set::Scalar phi_avg =
-                            Numeric::Interpolate::CellToNodeAverage(phi, i, j,
-                                                                    k, 0);
-                        // phi_avg = phi(i,j,k,0);
-                        model_type model_ap = elastic.model_ap;
-                        model_ap.F0 *= Set::Matrix::Zero();
-                        model_type model_htpb = elastic.model_htpb;
-                        model_htpb.F0 *= Set::Matrix::Zero();
-                        model(i, j, k) =
-                            model_ap * phi_avg + model_htpb * (1. - phi_avg);
-                    });
+                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                });
+            }
+            else
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
+                    //phi_avg = phi(i,j,k,0);
+                    model_type model_ap = elastic.model_ap;
+                    model_ap.F0 *= Set::Matrix::Zero();
+                    model_type model_htpb = elastic.model_htpb;
+                    model_htpb.F0 *= Set::Matrix::Zero();
+                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                });
             }
         }
         Util::RealFillBoundary(*model_mf[lev], geom[lev]);

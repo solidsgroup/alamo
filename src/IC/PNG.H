@@ -21,7 +21,7 @@
 
 namespace IC
 {
-class PNG : public IC
+class PNG : public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "png";

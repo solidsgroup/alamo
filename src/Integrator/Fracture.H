@@ -644,11 +644,10 @@ class Fracture : public Integrator {
         Set::Scalar driving_force_tolerance_rel = 1E-4;
         Set::Scalar driving_force_tolerance_abs = 0.0;
 
-        Model::Interface::Crack::Constant
-            cracktype; ///< type of crack. See Crack/Constant or Crack/Sin
-        amrex::Vector<std::string>
-            ic_type; ///< crack IC type. See IC/Notch and IC/Ellipsoid
-        amrex::Vector<IC::IC *> ic; ///< crack IC. See IC/Notch and IC/Ellipsoid
+
+        Model::Interface::Crack::Constant cracktype;                      ///< type of crack. See Crack/Constant or Crack/Sin
+        amrex::Vector<std::string> ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
+        amrex::Vector<IC::IC<Set::Scalar>*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
         bool is_ic = false;
 
         Set::Scalar scaleModulusMax =
@@ -666,8 +665,7 @@ class Fracture : public Integrator {
         Set::Field<brittle_fracture_model_type_test> model_mf;
         std::string input_material = "isotropic";
         Set::Scalar refinement_threshold = 0.1;
-
-        IC::IC *ic;
+        IC::IC<Set::Scalar> *ic;
         std::string ic_type;
         bool is_ic = false;
     } material;

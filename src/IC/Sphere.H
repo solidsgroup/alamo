@@ -3,6 +3,7 @@
 
 #include <cmath>
 
+#include "IO/ParmParse.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
 
@@ -10,7 +11,7 @@
 /// \brief Initialize a spherical inclusion
 namespace IC
 {
-class Sphere: public IC
+class Sphere: public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "sphere";

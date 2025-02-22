@@ -30,6 +30,13 @@ public:
     Mechanics() : Integrator()
     {}
 
+    ~Mechanics()
+    {
+        delete ic_rhs;
+        delete velocity_ic;
+        delete bc;
+    }
+
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(Mechanics& value, IO::ParmParse& pp)
@@ -376,7 +383,8 @@ protected:
         BL_PROFILE("Integrator::Base::Mechanics::Integrate");
         if (m_type == Type::Disable) return;
 
-        if (amrex::ParallelDescriptor::NProcs() > 1)
+        if (amrex::ParallelDescriptor::NProcs() > 1 && a_box.contains(amrex::IntVect::TheZeroVector()) &&
+            amrlev == 0)
         {
             Util::Warning(INFO,"There is a known bug when calculating trac/disp in Base::Mechanics in parallel.");
             Util::Warning(INFO,"The thermo.dat values likely will not be correct; use the boxlib output instead.");
@@ -480,13 +488,12 @@ protected:
     Set::Vector disp_hi[AMREX_SPACEDIM];
 
 
-    IC::IC* ic_rhs = nullptr;
-    BC::BC<Set::Scalar>* mybc;
+    IC::IC<Set::Vector>* ic_rhs = nullptr;
 
-    IC::IC* velocity_ic = nullptr;
+    IC::IC<Set::Vector>* velocity_ic = nullptr;
 
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
-    BC::Operator::Elastic::Elastic* bc;
+    BC::Operator::Elastic::Elastic* bc = nullptr;
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;

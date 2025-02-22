@@ -17,6 +17,9 @@ public:
         HeatConduction(3),
         Mechanics<Model::Solid::Affine::Isotropic>()
     { }
+
+    ~ThermoElastic() = default;
+    
     ThermoElastic(IO::ParmParse &pp) : ThermoElastic()
     {Parse(*this,pp);}
     static void Parse(ThermoElastic &value, IO::ParmParse &pp)

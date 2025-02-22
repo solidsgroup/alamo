@@ -9,11 +9,10 @@
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 
-/// \class Laminate
-/// \brief Initialize Laminates in a matrix
 namespace IC
 {
-class Laminate: public IC
+/// Initialize Laminates in a matrix
+class Laminate: public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "laminate";

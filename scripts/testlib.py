@@ -36,6 +36,7 @@ def validate(path,
              generate_ref_data = False,
              reference=None,
              tolerance=1E-8,
+             abs_tolerance=None,
              coord = 'x',
              tight_layout = True,
              filename_suffix=None):
@@ -69,12 +70,20 @@ def validate(path,
         exit(-1)
     
 
-    all_ok = True
     if not type(tolerance)==list:
         tolerance = [tolerance] * len(vars)
     elif len(tolerance) != len(vars):
         raise Exception("Wrong number of tolerance values")
-    for i, (var, tol) in enumerate(zip(vars,tolerance)):
+
+    if not abs_tolerance:
+        abs_tolerance = tolerance
+    elif not type(abs_tolerance)==list:
+        abs_tolerance = [abs_tolerance] * len(vars)
+    elif len(abs_tolerance) != len(vars):
+        raise Exception("Wrong number of rel_tolerance values")
+
+    all_ok = True
+    for i, (var, tol, abs_tol) in enumerate(zip(vars,tolerance, abs_tolerance)):
         if isinstance(reference,list):
             ref_df = pandas.read_csv(reference[i])
         else:
@@ -123,11 +132,12 @@ def validate(path,
 
         relerr = err/mag
 
-        print("{} abs error [tolerance={}]".format(var,tol),err)
+        print("{} abs error [tolerance={}]: {}".format(var,tol,err))
         print("{} norm".format(var),mag)
-        print("{} rel error [tolerance={}]".format(var,tol),relerr)
+        print("{} rel error [tolerance={}]: {}".format(var,tol,relerr))
         
-        if relerr > tol: all_ok = False
+        if relerr > tol:       all_ok = False
+        if err > abs_tol:      all_ok = False
         if math.isnan(relerr): all_ok = False
 
     if not all_ok:

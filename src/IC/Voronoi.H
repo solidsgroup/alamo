@@ -7,7 +7,7 @@
 
 namespace IC
 {
-class Voronoi : public IC
+class Voronoi : public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "voronoi";

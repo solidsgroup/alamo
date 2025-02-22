@@ -101,6 +101,15 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
         Parse(*this, pp);
     }
 
+    ~Mechanics()
+    {
+        delete ic_eta;
+        delete ic_psi;
+        delete ic_trac_normal;
+        delete bc_psi;
+        delete bc_trac_normal;
+    }
+
     // Mechanics inputs. See also :ref:`Integrator::Base::Mechanics`
     static void Parse(Mechanics &value, IO::ParmParse &pp) {
         pp.queryclass<Base::Mechanics<MODEL>>(value);
@@ -213,8 +222,10 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
                 domain.convert(amrex::IntVect::TheNodeVector());
                 Set::Vector DX(geom[lev].CellSize());
 
-                for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi) {
-                    amrex::Box bx = mfi.grownnodaltilebox();
+
+                for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+                {
+                    amrex::Box bx = mfi.nodaltilebox();
                     bx = bx & domain;
 
                     amrex::Array4<Set::Vector> const &rhs =
@@ -353,11 +364,12 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
     Set::Field<Set::Scalar> eta_mf;
     Set::Scalar m_eta_ref_threshold = NAN;
     std::vector<MODEL> models;
-    IC::IC *ic_eta = nullptr;
-    IC::IC *ic_psi = nullptr;
-    IC::IC *ic_trac_normal = nullptr;
-    BC::BC<Set::Scalar> *bc_psi = nullptr;
-    BC::BC<Set::Scalar> *bc_trac_normal = nullptr;
+
+    IC::IC<Set::Scalar>* ic_eta = nullptr;
+    IC::IC<Set::Scalar>* ic_psi = nullptr;
+    IC::IC<Set::Scalar>* ic_trac_normal = nullptr;
+    BC::BC<Set::Scalar>* bc_psi = nullptr;
+    BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
     bool psi_reset_on_regrid = false;
     bool eta_reset_on_regrid = false;
 
