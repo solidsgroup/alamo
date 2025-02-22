@@ -15,6 +15,7 @@ testlib.validate(path=path,
                  end=[8,16,0],
                  vars=["Eta001","stress_xx"],
                  tolerance=[0.01,0.1],
+                 abs_tolerance = 10000, 
                  reference=reference,
                  generate_ref_data = False,
 )

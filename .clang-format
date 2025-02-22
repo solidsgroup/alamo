@@ -25,4 +25,4 @@ SpaceBeforeParensOptions:
   BeforeNonEmptyParentheses: false
 ColumnLimit: 0
 AlwaysBreakAfterDefinitionReturnType: false
-
+AccessModifierOffset: -4

@@ -383,7 +383,8 @@ protected:
         BL_PROFILE("Integrator::Base::Mechanics::Integrate");
         if (m_type == Type::Disable) return;
 
-        if (amrex::ParallelDescriptor::NProcs() > 1)
+        if (amrex::ParallelDescriptor::NProcs() > 1 && a_box.contains(amrex::IntVect::TheZeroVector()) &&
+            amrlev == 0)
         {
             Util::Warning(INFO,"There is a known bug when calculating trac/disp in Base::Mechanics in parallel.");
             Util::Warning(INFO,"The thermo.dat values likely will not be correct; use the boxlib output instead.");
