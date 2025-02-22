@@ -51,6 +51,7 @@ If you are using Ubuntu (or a debian-based distribution) you can install all nec
 
 If you are using a non-debian based system such as RedHat, you can install the corresponding packages in :code:`dependencies.sh`. 
 Windows and Mac OS are not supported.
+To configure and run Alamo on a high-performance computing (HPC) cluster, please see :ref:`install_hpc`.
 
 Setting MPICH as default MPI
 ============================
