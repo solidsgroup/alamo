@@ -39,6 +39,8 @@
 
 namespace Integrator
 {
+
+/// This is the definition of the Allen Cahn class
 class AllenCahn : virtual public Integrator
 {
 public:
@@ -177,9 +179,9 @@ protected:
     }
 
 protected:
-    Set::Field<Set::Scalar> alpha_mf;         // Temperature field variable (current timestep)
-    Set::Field<Set::Scalar> alpha_old_mf;     // Temperature field variable (previous timestep)
-    IC::IC* ic;                              // Object used to initialize temperature field
+    Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
+    IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
 
     Set::Field<Set::Scalar> &eta_mf = alpha_mf;
     Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;

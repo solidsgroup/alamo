@@ -10,6 +10,7 @@ import time
 import re
 import pathlib
 import threading
+import signal
 
 from sympy import capture
 
@@ -392,7 +393,24 @@ def test(testdir):
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
         except subprocess.TimeoutExpired as e:
+
+            #
+            # Attempt to kill the program gracefully ith SIGINT so that it has a chance to
+            # write .gcda files (for coverage report)
+            #
+            if not args.no_backspace:
+                print(bs+"[kill]",end="")
+            proc.send_signal(signal.SIGINT)
+            for i in range(10): # Give it about 20 seconds...
+                if proc.poll() is None:
+                    time.sleep(2)
+                else: break
+                    
+            #
+            # Time's up!
+            #
             proc.kill()
+
             print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
             try:
