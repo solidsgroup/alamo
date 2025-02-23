@@ -280,7 +280,7 @@ public:
                 Util::Exception(INFO, "Tangential velocity difference incorrectly affecting normal flux.");
             }
             Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",0);
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        } catch (const std::runtime_error& e)
         {
             failed++;
             Util::Test::SubMessage("Test 1: Tangential velocity should induce no normal flux",1);
@@ -304,7 +304,7 @@ public:
                 Util::Exception(INFO, "Pure transverse velocity difference affecting normal flux.");
             }
             Util::Test::SubMessage("Test 2: Pure transverse velocity difference",0);
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        } catch (const std::runtime_error& e)
         {
             failed++;
             Util::Test::SubMessage("Test 2: Pure transverse velocity difference",1);
@@ -330,7 +330,7 @@ public:
                 Util::Exception(INFO, "Symmetric states should result in zero flux.");
             }
             Util::Test::SubMessage("Test 3: Constant states induces no flux difference",0);
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        } catch (const std::runtime_error& e)
         {
             failed++;
             Util::Test::SubMessage("Test 3: Constant states induces no flux difference",1);
@@ -354,7 +354,7 @@ public:
                 Util::Exception(INFO, "Uniform flow should result in no flux.");
             }
             Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",0);
-        } catch ( std::_Nested_exception<std::runtime_error> &e)
+        } catch (const std::runtime_error& e)
         {
             failed++;
             Util::Test::SubMessage("Test 4: Uniform flow should maintain constant flux",1);
