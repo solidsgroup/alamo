@@ -117,10 +117,12 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
 
+    readmes = find_files_ignore_case(Path(testdirname), "README.rst")
+
     if len(config) <= 1:
         #docfile.write("    * - :icon-gray:`warning`\n\n")
         docfile.write("    * - :fas:`triangle-exclamation;sd-text-secondary fa-fw fa-lg`\n\n")
-        if os.path.isfile(testdirname+"/README.rst"):
+        if readmes:
             docfile.write("      - :ref:`{}`\n".format(testname))
         else: 
             docfile.write("      - {}\n\n".format(testname))
@@ -149,7 +151,7 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             docfile.write("      - :fas:`medal;fa-fw fa-lg sd-text-secondary`\n")
         docfile.write("\n")
 
-    if len(config) <= 1 and not os.path.isfile(testdirname+"/README.rst"):
+    if len(config) <= 1 and len(readmes) == 0:
         continue
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)
@@ -157,8 +159,12 @@ for testdirname in sorted(glob.glob("../../tests/*")):
         testdocfile.write(testname + "\n")
         testdocfile.write("="*len(testname) + "\n")
 
-        if os.path.isfile(testdirname+"/README.rst"):
-            testdocfile.write(".. include:: ../{}/README.rst\n\n\n".format(testdirname))
+        for readme in readmes:
+            testdocfile.write(
+                f".. include:: ../{testdirname}/{readme.name}\n"
+            )
+        if readmes:
+            testdocfile.write("\n\n")
 
         for c in config:
             if c == "DEFAULT": continue
