@@ -7,6 +7,7 @@ from os.path import isfile, join
 import io
 import configparser
 from collections import OrderedDict
+from pathlib import Path
 
 
 #
@@ -19,6 +20,29 @@ class MultiOrderedDict(OrderedDict):
         else:
             super().__setitem__(key, value)
 
+
+def find_files_ignore_case(target_dir: Path, file_name: str) -> list[Path]:
+    """Get paths in `target_dir` that match `file_name`, ignoring case.
+
+    Parameters
+    ----------
+    target_dir
+        The directory to search for matching files.
+    file_name
+        The file name to search for in `target_dir`.
+
+    Returns
+    -------
+    list[Path]
+        File paths that match `file_name` in `target_dir`.
+
+    """
+    try:
+        return [f for f in target_dir.iterdir()
+            if f.name.lower() == file_name.lower() and Path.is_file(f)]
+    except OSError:
+        print(f"'{target_dir}' is not a directory or otherwise inaccessible.")
+        return []
 
 #def icon(str)
 
