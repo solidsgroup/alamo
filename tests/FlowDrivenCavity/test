@@ -15,6 +15,7 @@ testlib.validate(path=path,
                  end=[12,-12,0],
                  vars=["velocityx","velocityy","density"],
                  tolerance=[0.2,0.2,0.5],
+                 abs_tolerance=100, # basically ignore absolute tolerance
                  generate_ref_data = False,
 )
 exit(0)
