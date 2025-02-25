@@ -124,12 +124,12 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
 
     const int num_components = solver->number_of_components;  // Number of components (e.g., rho, u, v, E)
 
-    // Define velocity components based on direction
+    /*// Define velocity components based on direction
     int velocity_component[3] = {
         solver->variableIndex.UVEL,  // X-direction -> UVEL
         solver->variableIndex.VVEL,  // Y-direction -> VVEL
         solver->variableIndex.WVEL   // Z-direction -> WVEL
-    };
+    };*/
 
     amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
@@ -170,8 +170,8 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
     
     //debug.DebugIndicesAndBounds(iface, jface, kface, index, left_index, right_index, lower_bounds, upper_bounds, "QL and QR Construction");
 
-        const Set::Scalar vel = p_arr(index[0], index[1], index[2], velocity_component[direction]);  // Normal velocity
-        const Set::Scalar sigma = std::copysign(1.0, vel);  // 1 if vel > 0, 0 if vel <= 0
+        //const Set::Scalar vel = p_arr(index[0], index[1], index[2], velocity_component[direction]);  // Normal velocity
+        //const Set::Scalar sigma = std::copysign(1.0, vel);  // 1 if vel > 0, 0 if vel <= 0
 
         for (int n = 0; n < num_components; ++n) {
             // Branch-free computation of QL and QR

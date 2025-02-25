@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+import sys
+import os
+
+# Explicitly add the `scripts/` folder to the Python path
+sys.path.insert(0, os.path.abspath("../../scripts"))
+import testlib
+
+# Get the output directory from command-line arguments
+output_dir = sys.argv[1] if len(sys.argv) > 1 else "output"
+final_path = os.path.join(output_dir, "00536cell")  # Adjusted path
+
+# Ensure necessary directories exist
+plot_dir = "plots"
+os.makedirs(plot_dir, exist_ok=True)
+
+# Validate that the `Header` file exists before proceeding
+header_path = os.path.join(final_path, "Header")
+
+print(f" Checking for Header file in: {final_path}")
+if not os.path.exists(header_path):
+    print(f" ERROR: Expected Header file not found at: {header_path}")
+    print("Make sure the simulation has run and generated the correct output.")
+    sys.exit(1)  # Exit with an error if Header is missing
+
+print(f"Found Header file: {header_path}")
+
+# Test settings
+tolerance = 0.02  # Acceptable error threshold
+
+# Mapping reference files to variables
+reference_files = {
+    "PrimitiveVec001": os.path.join("references", "density_0.25.csv"),
+    "PrimitiveVec002": os.path.join("references", "velocity_0.25.csv"),
+    "Pressure": os.path.join("references", "pressure_0.25.csv"),
+    "PrimitiveVec004": os.path.join("references", "internal_0.25.csv"),
+}
+
+#  Correct **2D Sod Shock lineout** (Extract along the x-axis at `y=0.25`)
+start = [0, 0.15]  # Start at (x=0, y=0.25)
+end = [1, 0.15]    # End at (x=1, y=0.25)
+
+# -------------------------
+#  Calling `testlib.validate()` for Each Variable
+# -------------------------
+print(" Validating Sod Shock test using testlib.py...")
+
+for var, ref_file in reference_files.items():
+    print(f"Validating {var} against {ref_file}...")
+
+    testlib.validate(
+        path=final_path,  # Using corrected path where Header exists
+        extraction_type = 1,
+        outdir=plot_dir,
+        start=start,
+        end=end,
+        vars=[var],  # Validate one variable at a time
+        tolerance=tolerance,
+        reference=ref_file,
+        filename_suffix=var.lower(),
+        axis = 2
+    )
+
+print("Sod Shock test completed successfully.")
+sys.exit(0)
+

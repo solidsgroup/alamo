@@ -11,26 +11,26 @@ from scraper import getdocumentation, geticon, extract, scrapeInputs
 
 src2url = {}
 try:
-	doxsourcefiles = sorted(glob("../build/html/doxygen/*source.html"))
-	for doxsourcefile in doxsourcefiles:
-	    with open(doxsourcefile) as f:
-	        for line in f.readlines():
-	            if r"<title>" in line:
-	                line = line.replace(r"<title>Alamo: ","")
-	                line = line.replace(r" Source File</title>","")
-	                line = line.replace("\n","")
-	                src2url[line] = doxsourcefile.replace("../build/html/","")
-	                continue
+    doxsourcefiles = sorted(glob("../build/html/doxygen/*source.html"))
+    for doxsourcefile in doxsourcefiles:
+        with open(doxsourcefile) as f:
+            for line in f.readlines():
+                if r"<title>" in line:
+                    line = line.replace(r"<title>Alamo: ","")
+                    line = line.replace(r" Source File</title>","")
+                    line = line.replace("\n","")
+                    src2url[line] = doxsourcefile.replace("../build/html/","")
+                    continue
 except Exception as e:
     print(e)
 
 inputsheader = r"""
 .. _inputs: 
-	
+    
 =============================
 :fas:`cube;fa-fw` Inputs
 =============================
-	
+    
 """
 
 
@@ -246,8 +246,8 @@ def scrapeInputs(root="../../src/", writeFiles=True, writeAPI=False):
                             docfile.write(geticon(subhdr) + subhdr+"\n")
                             docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
                         else:
-    	                    docfile.write("\n" + subhdr+"\n")
-    	                    docfile.write("".ljust(len(subhdr),headerchar[i-1]))
+                            docfile.write("\n" + subhdr+"\n")
+                            docfile.write("".ljust(len(subhdr),headerchar[i-1]))
                         docfile.write("\n\n\n")
                     written_headers.append(subhdr)
     

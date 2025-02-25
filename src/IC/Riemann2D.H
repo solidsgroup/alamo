@@ -22,7 +22,7 @@ class Riemann2D : public SodShock {
 public:
     // Constructor requiring variable indices
     Riemann2D(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-              const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
+            const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
         : SodShock(_geom, pp, name, precomputed_indices) {
         initialize(pp, name);
     }
@@ -34,7 +34,7 @@ public:
     }
 
     // Override Add function to handle 2D Riemann problems
-    virtual void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar time) override {
+    virtual void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar /*time*/) override {
         int ncomp = a_phi[0]->nComp();
 
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
@@ -59,8 +59,8 @@ public:
                         }
                     } else if (getMfName() == "ic.pressure.riemann2d") {
                         phi(i, j, k, n) = (x(0) < getShockXPos() && x(1) < getShockYPos()) ? q3_pressure :
-                                          (x(0) >= getShockXPos() && x(1) < getShockYPos()) ? q4_pressure :
-                                          (x(0) < getShockXPos() && x(1) >= getShockYPos()) ? q2_pressure : q1_pressure;
+                                        (x(0) >= getShockXPos() && x(1) < getShockYPos()) ? q4_pressure :
+                                        (x(0) < getShockXPos() && x(1) >= getShockYPos()) ? q2_pressure : q1_pressure;
                     } else {
                         Util::Abort(INFO, "Unknown MultiFab name: " + getMfName());
                     }
@@ -115,27 +115,27 @@ private:
         switch (quadrant) {
             case 1:
                 phi(i, j, k, n) = (n == variable_indices->DENS) ? q1_density :
-                                   (n == variable_indices->UVEL) ? q1_velocity[0] :
-                                   (n == variable_indices->VVEL) ? q1_velocity[1] :
-                                   (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q1_density, q1_pressure, gamma) : 0.0;
+                                    (n == variable_indices->UVEL) ? q1_velocity[0] :
+                                    (n == variable_indices->VVEL) ? q1_velocity[1] :
+                                    (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q1_density, q1_pressure, gamma) : 0.0;
                 break;
             case 2:
                 phi(i, j, k, n) = (n == variable_indices->DENS) ? q2_density :
-                                   (n == variable_indices->UVEL) ? q2_velocity[0] :
-                                   (n == variable_indices->VVEL) ? q2_velocity[1] :
-                                   (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q2_density, q2_pressure, gamma) : 0.0;
+                                    (n == variable_indices->UVEL) ? q2_velocity[0] :
+                                    (n == variable_indices->VVEL) ? q2_velocity[1] :
+                                    (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q2_density, q2_pressure, gamma) : 0.0;
                 break;
             case 3:
                 phi(i, j, k, n) = (n == variable_indices->DENS) ? q3_density :
-                                   (n == variable_indices->UVEL) ? q3_velocity[0] :
-                                   (n == variable_indices->VVEL) ? q3_velocity[1] :
-                                   (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q3_density, q3_pressure, gamma) : 0.0;
+                                    (n == variable_indices->UVEL) ? q3_velocity[0] :
+                                    (n == variable_indices->VVEL) ? q3_velocity[1] :
+                                    (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q3_density, q3_pressure, gamma) : 0.0;
                 break;
             case 4:
                 phi(i, j, k, n) = (n == variable_indices->DENS) ? q4_density :
-                                   (n == variable_indices->UVEL) ? q4_velocity[0] :
-                                   (n == variable_indices->VVEL) ? q4_velocity[1] :
-                                   (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q4_density, q4_pressure, gamma) : 0.0;
+                                    (n == variable_indices->UVEL) ? q4_velocity[0] :
+                                    (n == variable_indices->VVEL) ? q4_velocity[1] :
+                                    (n == variable_indices->IE) ? fluid_model.ComputeInternalEnergyFromDensityAndPressure(q4_density, q4_pressure, gamma) : 0.0;
                 break;
         }
     }
@@ -170,4 +170,3 @@ protected:
 } // namespace IC
 
 #endif
-

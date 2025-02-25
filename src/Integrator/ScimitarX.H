@@ -42,6 +42,7 @@ public:
 
         delete ic_PVec;
         delete ic_Pressure;
+
     }
 
     std::string constructKey(const std::string& prefix, const std::string& component_name, const std::string& property, const std::string& side) {
@@ -253,7 +254,7 @@ protected:
         //Util::Message(INFO, "Completed ScimitarX::Advance for level: " + std::to_string(lev));
     }
     // Function to advance hyperbolic balance equations without stiff terms
-    void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt) {
+    void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar /*time*/, Set::Scalar dt) {
         // Util::Message(INFO, "Starting AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
 
     // Determine the solver type and handle different governing equations
@@ -379,7 +380,6 @@ void ComputeConservedVariables(int lev) {
         const amrex::Box& bx = mfi.validbox();
         auto const& p_arr = PVec_mf.Patch(lev, mfi);
         auto const& q_arr = QVec_mf.Patch(lev, mfi);
-        auto const& pressure_arr = Pressure_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             Set::Scalar rho = p_arr(i, j, k, variableIndex.DENS);
@@ -497,8 +497,8 @@ protected:
     int number_of_components;            // Number of components
     int number_of_ghost_cells = 1;           // Number of ghost cells
 
-    Numeric::FluxHandler<ScimitarX>* fluxHandler = nullptr;  // Flux handler instance
-    Numeric::TimeStepper<ScimitarX>* timeStepper = nullptr;  // Time stepper instance
+    std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
+    std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
 
     template <typename T>
     friend class Numeric::FluxReconstruction;
