@@ -62,6 +62,8 @@
 #include <fstream>
 #include <iomanip>
 #include <numeric>
+#include <type_traits>
+#include <cstdint>
 
 #include "AMReX.H"
 #include "AMReX_ParallelDescriptor.H"
@@ -85,6 +87,7 @@
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "IC/Constant.H"
+#include "IC/EBSD.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
@@ -93,6 +96,7 @@
 #include "Solver/Nonlocal/Newton.H"
 
 #include "Operator/Operator.H"
+#include "mpi_proto.h"
 
 
 namespace Integrator
@@ -194,19 +198,22 @@ public:
                 value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
             }
         }
-        Util::Message(INFO);
+
+        pp.select_optional<IC::EBSD<MODEL>>("model.ic",value.ic_model,value.geom);
 
     }
 
-    void Initialize(int lev) override
+    void Initialize(int lev) override 
     {
         Base::Mechanics<MODEL>::Initialize(lev);
         eta_mf[lev]->setVal(0.0);
         if (models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
         else eta_mf[lev]->setVal(1.0);
 
-        if (psi_on) ic_psi->Initialize(lev, psi_mf);
+        if (psi_on) ic_psi->Initialize(lev, psi_mf); 
         if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf);
+
+        //if (ic_model) ic_model->Initialize(lev, model_mf);
     }
 
     virtual void UpdateModel(int a_step, Set::Scalar time) override
@@ -355,6 +362,7 @@ protected:
     IC::IC<Set::Scalar>* ic_eta = nullptr;
     IC::IC<Set::Scalar>* ic_psi = nullptr;
     IC::IC<Set::Scalar>* ic_trac_normal = nullptr;
+    IC::IC<MODEL>* ic_model = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
     bool psi_reset_on_regrid = false;

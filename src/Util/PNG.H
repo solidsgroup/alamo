@@ -1,7 +1,9 @@
+#ifndef UTIL_PNG_H
+#define UTIL_PNG_H
+
 
 #include <string.h>
 
-#include "Set/Set.H"
 #include "IO/ParmParse.H"
 
 #ifndef ALAMO_NOPNG
@@ -275,3 +277,5 @@ private:
 };
 
 }
+
+#endif
