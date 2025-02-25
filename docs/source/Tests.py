@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import annotations
 import os 
 import glob
 import re
@@ -8,7 +9,6 @@ import io
 import configparser
 from collections import OrderedDict
 from pathlib import Path
-
 
 #
 # Special order from SO - dictionary allows for keys to be specified multiple times and 
