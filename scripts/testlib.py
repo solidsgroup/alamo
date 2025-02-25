@@ -43,6 +43,7 @@ def validate(path,
              generate_ref_data=False,
              reference=None,
              tolerance=1E-8,
+             abs_tolerance=None,
              coord='x',
              tight_layout=True,
              filename_suffix=None):
@@ -90,16 +91,25 @@ def validate(path,
         new_df.to_csv(reference)
         print("Reference data generated, now exiting noisily so we don't accidentally pass the test")
         exit(-1)
-    
+  
 
-    all_ok = True
     if not isinstance(tolerance, list):
         tolerance = [tolerance] * len(vars)
     elif len(tolerance) != len(vars):
         raise Exception("Wrong number of tolerance values")
 
+
+    if not abs_tolerance:
+        abs_tolerance = tolerance
+    elif not isinstance(abs_tolerance, list):
+        abs_tolerance = [abs_tolerance] * len(vars)
+    elif len(abs_tolerance) != len(vars):
+        raise Exception("Wrong number of rel_tolerance values")
+
+
     # Loop through each variable to compare extracted simulation data against the reference.
-    for i, (var, tol) in enumerate(zip(vars, tolerance)):
+    all_ok = True
+    for i, (var, tol, abs_tol) in enumerate(zip(vars, tolerance, abs_tolerance)):
         if isinstance(reference, list):
             ref_df = pandas.read_csv(reference[i])
         else:
