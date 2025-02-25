@@ -98,7 +98,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     // Initial Conditions
     {
         std::string type = "constant";
-        pp.query("ic.pvec.type", type);
+        pp.query("ic.pvec.type", type);  // IC condition type for Primitive Variables
 
         if (type == "sodshock") {
             value.ic_PVec = new IC::SodShock(value.geom, pp, "ic.pvec.sodshock", ScimitarX::variableIndex);
@@ -108,7 +108,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pvec.type: " + type);
         }
 
-        pp.query("ic.pressure.type", type);
+        pp.query("ic.pressure.type", type); // IC condition type for pressure 
         if (type == "sodshock") {
             value.ic_Pressure = new IC::SodShock(value.geom, pp, "ic.pressure.sodshock");
         } else if (type == "riemann2d") {

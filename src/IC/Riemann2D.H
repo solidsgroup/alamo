@@ -74,34 +74,34 @@ private:
         setMfName(name);
 
         if (getMfName() == "ic.pvec.riemann2d") {
-            pp.query("ic.pvec.riemann2d.q1.DENS", q1_density);
-            pp.query("ic.pvec.riemann2d.q2.DENS", q2_density);
-            pp.query("ic.pvec.riemann2d.q3.DENS", q3_density);
-            pp.query("ic.pvec.riemann2d.q4.DENS", q4_density);
+            pp.query("ic.pvec.riemann2d.q1.DENS", q1_density);  // Ist Quadrant Density
+            pp.query("ic.pvec.riemann2d.q2.DENS", q2_density); // IInd Quadrant Density
+            pp.query("ic.pvec.riemann2d.q3.DENS", q3_density); // IIIrd Quadrant Density
+            pp.query("ic.pvec.riemann2d.q4.DENS", q4_density); // IVth Quadrant Density
 
-            pp.query("ic.pvec.riemann2d.q1.UVEL", q1_velocity[0]);
-            pp.query("ic.pvec.riemann2d.q2.UVEL", q2_velocity[0]);
-            pp.query("ic.pvec.riemann2d.q3.UVEL", q3_velocity[0]);
-            pp.query("ic.pvec.riemann2d.q4.UVEL", q4_velocity[0]);
+            pp.query("ic.pvec.riemann2d.q1.UVEL", q1_velocity[0]); // Ist Quadrant Velocity in X-Direction
+            pp.query("ic.pvec.riemann2d.q2.UVEL", q2_velocity[0]); // IInd Quadrant Velocity in X-Direction
+            pp.query("ic.pvec.riemann2d.q3.UVEL", q3_velocity[0]); // IIIrd Quadrant Velocity in X-Direction
+            pp.query("ic.pvec.riemann2d.q4.UVEL", q4_velocity[0]); // IVth Quadrant Velocity in X-Direction
 
-            pp.query("ic.pvec.riemann2d.q1.VVEL", q1_velocity[1]);
-            pp.query("ic.pvec.riemann2d.q2.VVEL", q2_velocity[1]);
-            pp.query("ic.pvec.riemann2d.q3.VVEL", q3_velocity[1]);
-            pp.query("ic.pvec.riemann2d.q4.VVEL", q4_velocity[1]);
+            pp.query("ic.pvec.riemann2d.q1.VVEL", q1_velocity[1]); // Ist Quadrant Velocity in Y-Direction
+            pp.query("ic.pvec.riemann2d.q2.VVEL", q2_velocity[1]); // IInd Quadrant Velocity in Y-Direction
+            pp.query("ic.pvec.riemann2d.q3.VVEL", q3_velocity[1]); // IIIrd Quadrant Velocity in Y-Direction
+            pp.query("ic.pvec.riemann2d.q4.VVEL", q4_velocity[1]); // IVth Quadrant Velocity in Y-Direction
 
-            pp.query("ic.pvec.riemann2d.q1", q1_pressure);
-            pp.query("ic.pvec.riemann2d.q2", q2_pressure);
-            pp.query("ic.pvec.riemann2d.q3", q3_pressure);
-            pp.query("ic.pvec.riemann2d.q4", q4_pressure);
+            pp.query("ic.pvec.riemann2d.q1", q1_pressure); // Ist Quadrant Pressure
+            pp.query("ic.pvec.riemann2d.q2", q2_pressure); // IInd Quadrant Pressure
+            pp.query("ic.pvec.riemann2d.q3", q3_pressure); // IIIrd Quadrant Pressure
+            pp.query("ic.pvec.riemann2d.q4", q4_pressure); // IVth Quadrant Pressure
         } else if (getMfName() == "ic.pressure.riemann2d") {
-            pp.query("ic.pressure.riemann2d.q1", q1_pressure);
-            pp.query("ic.pressure.riemann2d.q2", q2_pressure);
-            pp.query("ic.pressure.riemann2d.q3", q3_pressure);
-            pp.query("ic.pressure.riemann2d.q4", q4_pressure);
+            pp.query("ic.pressure.riemann2d.q1", q1_pressure); // Ist Quadrant Pressure
+            pp.query("ic.pressure.riemann2d.q2", q2_pressure); // IInd Quadrant Pressure
+            pp.query("ic.pressure.riemann2d.q3", q3_pressure); // IIIrd Quadrant Pressure
+            pp.query("ic.pressure.riemann2d.q4", q4_pressure); // IVth Quadrant Pressure
         }
 
-        pp.query("shock.xpos", shock_xpos);
-        pp.query("shock.ypos", shock_ypos);
+        pp.query("shock.xpos", shock_xpos); // Shock Location in X-Direction
+        pp.query("shock.ypos", shock_ypos); // Shock Location in Y-Direction
 
         Util::Message(INFO, "Initialized Riemann2D with shock positions: x=" + std::to_string(getShockXPos()) + ", y=" + std::to_string(getShockYPos()));
     }
