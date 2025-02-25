@@ -8,9 +8,9 @@ outdir = sys.argv[1]
 reference = sys.argv[2]
 
 tol = 0.0
-if reference == "reference/eps0.05.dat": tol = 0.025
-if reference == "reference/eps0.10.dat": tol = 0.05
-if reference == "reference/eps0.20.dat": tol = 0.1
+if reference == "reference/eps0.05.dat": tol = 0.02
+if reference == "reference/eps0.10.dat": tol = 0.035
+if reference == "reference/eps0.20.dat": tol = 0.055
 
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
@@ -26,8 +26,6 @@ testlib.validate(path=path,
                  generate_ref_data = False,
                  tight_layout=False,
 )
-
-testlib.warning("Using a forgiving tolerance here while under development...")
 
 
 exit(0)

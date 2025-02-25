@@ -18,6 +18,12 @@ testlib.validate(path=path,
                  abs_tolerance=100, # basically ignore absolute tolerance
                  generate_ref_data = False,
 )
+
+
+testlib.warning("WARNING: currently using fairly generous tolerances.")
+testlib.warning("         Once this is completely working, decrease acceptable")
+testlib.warning("         error.")
+
 exit(0)
 
 
