@@ -43,7 +43,9 @@ public:
         }
         else Util::Abort(INFO);
 
+        // Desired minimum value to scale pixels by
         pp_query_default("min", value.min, 0.0  );
+        // Desired maximum value to scale pixels by
         pp_query_default("max", value.max, 255.0);
 
         //
@@ -210,11 +212,11 @@ public:
                 Set::Scalar fQ21 = ((Set::Scalar)(px_se[channel]) - min) / (max - min);
                 Set::Scalar fQ22 = ((Set::Scalar)(px_ne[channel]) - min) / (max - min);
 
-                ret[channel] =
-                    (fQ11 * (x2 - ximg(0)) * (y2 - ximg(1)) +
-                     fQ21 * (ximg(0) - x1) * (y2 - ximg(1)) +
-                     fQ12 * (x2 - ximg(0)) * (ximg(1) - y1) +
-                     fQ22 * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy);
+                ret[channel] = (
+                    fQ11 * (x2 - ximg(0)) * (y2 - ximg(1)) +
+                    fQ21 * (ximg(0) - x1) * (y2 - ximg(1)) +
+                    fQ12 * (x2 - ximg(0)) * (ximg(1) - y1) +
+                    fQ22 * (ximg(0) - x1) * (ximg(1) - y1)) / (img_dx * img_dy);
 
             }
             else if ((I == 0 || I == png_width - 1) && J < png_height - 1)
