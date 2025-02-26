@@ -1,0 +1,149 @@
+alamo.program = hydro
+
+### OUTPUT ###
+
+plot_file = ./output.HeatedPlate
+
+### MESHING ###
+
+#amr.plot_dt = 0.1
+amr.plot_int = 10000
+amr.max_level = 2
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.regrid_int = 100
+amr.grid_eff = 0.8
+amr.n_cell = 64 64 0
+
+# Uncomment to test AMR
+#amr.max_level = 2
+#amr.n_cell = 128 64 0
+
+### DIMENSIONS ###
+
+geometry.prob_lo = 0.0 -1.0 0.0 # [ m ] 
+geometry.prob_hi = 10.0 9.0 0.0 # [ m ]
+
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 0.5e-2
+stop_time = 10000.0
+
+### ETA IC ###
+
+m0.ic.type = expression
+m0.ic.expression.region0 = "0.0"
+
+u0.ic.type = expression
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "0.0"
+
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.001*x*((1.0 - tanh(10*(x-5.0))*tanh(10*(x-5.0))) + (1.0 - tanh(10*(x-2.5))*tanh(10*(x-2.5))) + (1.0 - tanh(10*(x-7.5))*tanh(10*(x-7.5))))"
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.1
+eta.ic.expression.constant.vel_x = 0.0 
+eta.ic.expression.constant.vel_y = 0.0 
+eta.ic.expression.constant.x0 = 2.0 
+eta.ic.expression.region0     = "0.5*tanh((y+0.5)/eps)+0.5" #"1.0-(-0.5*tanh((y+0.5)/eps)+0.5)*(0.5*tanh((x-2)/eps)+0.5)"
+
+### HYDRO PARAM ###
+
+gamma = 1.4
+cfl   = 0.4
+mu    = 0.1
+pref = 100
+
+Ldot_active = 0.0
+
+#rho_solid = 100.0 #kg/m^3 
+#rho_fluid = 100.0 #kg/m^3
+
+density.ic.constant.value = 100
+momentum.ic.constant.value = 0 0
+energy.ic.constant.value = 0
+
+solid.momentum.ic.constant.value = 0 0
+solid.density.ic.constant.value = 100
+solid.energy.ic.constant.value = 5.6
+
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.constant.gamma = 1.4
+pressure.ic.expression.region0 = "2.0"
+
+
+
+### ETA BC  ###
+
+pf.eta.bc.type.xlo = neumann
+pf.eta.bc.type.xhi = neumann
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.zlo = neumann
+pf.eta.bc.type.zhi = neumann
+
+pf.eta.bc.val.xlo = 0.0
+pf.eta.bc.val.xhi = 0.0
+pf.eta.bc.val.ylo = 0.0
+pf.eta.bc.val.yhi = 0.0
+pf.eta.bc.val.zlo = 0.0
+pf.eta.bc.val.zhi = 0.0
+
+### HYDRO BC ###
+
+density.bc.type.xhi = neumann
+density.bc.type.xlo = neumann
+density.bc.type.ylo = neumann
+density.bc.type.yhi = neumann
+
+density.bc.val.xhi = 0.0
+density.bc.val.xlo = 0.0
+density.bc.val.ylo = 0.0 
+density.bc.val.yhi = 0.0
+
+energy.bc.type.xhi = neumann
+energy.bc.type.xlo = neumann
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+energy.bc.val.xhi = 0.0
+energy.bc.val.xlo = 0.0
+energy.bc.val.ylo = 0.0 
+energy.bc.val.yhi = 0.0
+
+momentum.bc.type.xhi = dirichlet dirichlet
+momentum.bc.type.xlo = dirichlet dirichlet
+momentum.bc.type.ylo = neumann neumann
+momentum.bc.type.yhi = neumann neumann
+momentum.bc.val.xhi = 0.0 0.0
+momentum.bc.val.xlo = 0.0 0.0
+momentum.bc.val.ylo = 0.0 0.0
+momentum.bc.val.yhi = 0.0 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+r_refinement_criterion   = 0.1
+e_refinement_criterion   = 0.1
+m_refinement_criterion   = 0.1
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.1
+rho_refinement_criterion = 0.5
+
+#TODO
+
+small = 1E-6
+
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+cfl = 0.001
+dynamictimestep.max  = 0.1
+dynamictimestep.min  = 0.0

@@ -1,0 +1,155 @@
+# Simulation length
+timestep = 2E-4
+stop_time = 10.0
+
+# AMR parameters
+amr.plot_dt = 0.01
+amr.max_level = 2
+amr.n_cell = 128 64 64
+amr.blocking_factor = 4
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = -6.0 0 0
+geometry.prob_hi = 6.0 6.0 6.0
+geometry.is_periodic= 0 0 0
+
+alamo.program = dendrite
+plot_file = ./output.dendrite
+
+
+#amr.n_cell = 64 64
+#geometry.prob_lo = -24.0 -24.0 0.0 # [ m ] 
+#geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
+#geometry.is_periodic = 0 0 0
+#stop_time = 1000.0
+
+
+tstart = 000.1
+invert = 1
+
+dendrite.ic.phi.region0  = "(x-1.0)^2 + (y-1.0)^2 + z^2 < 0.1"
+dendrite.ic.temp.constant.DeltaT = 0.25
+dendrite.ic.temp.region0 = "-DeltaT*(x^2 + y^2 + z^2 > 0.1)"
+dendrite.tau = 3E-4
+dendrite.diffusion = 1.0
+dendrite.eps = 1E-2
+dendrite.alpha = 0.9
+dendrite.gamma = 55.0
+dendrite.delta = 0.5
+dendrite.theta = 15.0
+dendrite.bc.temp.type.xhi = neumann
+dendrite.bc.temp.type.xlo = neumann
+dendrite.bc.temp.type.yhi = neumann
+dendrite.bc.temp.type.ylo = neumann
+dendrite.bc.temp.type.zhi = neumann
+dendrite.bc.temp.type.zlo = neumann
+dendrite.bc.phi.type.xhi = neumann
+dendrite.bc.phi.type.xlo = neumann
+dendrite.bc.phi.type.yhi = neumann
+dendrite.bc.phi.type.ylo = neumann
+dendrite.bc.phi.type.zhi = neumann
+dendrite.bc.phi.type.zlo = neumann
+
+
+
+
+### ETA IC ###
+#hydro.rhoInterface.ic.type = expression
+#hydro.rhoInterface.ic.expression.region0 = "20.0"
+#hydro.vInjected.ic.type = expression
+#hydro.vInjected.ic.expression.region0 = "0.0"
+#hydro.vInjected.ic.expression.region1 = "0.0"
+#hydro.deltapInterface.ic.type = expression
+#hydro.deltapInterface.ic.expression.region0 = "0.0"
+### HYDRO PARAM ###
+hydro.gamma = 1.4
+hydro.mu    = 2.0
+hydro.pref    = 10000
+#hydro.rho_solid = 30.0 #kg/m^3
+#hydro.rho_fluid = 20.0 #kg/m^3
+#hydro.E_solid   = 5.0
+hydro.density.ic.constant.value = 40.0
+hydro.velocity.ic.type = expression
+hydro.velocity.ic.expression.constant.eps   = 0.1
+hydro.velocity.ic.expression.constant.x0    = -2.0
+hydro.velocity.ic.expression.region0 = "0.0"
+hydro.velocity.ic.expression.region1 = "0.0"
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 5.0
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+### ETA BC  ###
+hydro.pf.eta.bc.type.xlo = neumann
+hydro.pf.eta.bc.type.xhi = neumann
+hydro.pf.eta.bc.type.ylo = neumann
+hydro.pf.eta.bc.type.yhi = neumann
+hydro.pf.eta.bc.type.zlo = neumann
+hydro.pf.eta.bc.type.zhi = neumann
+hydro.pf.eta.bc.val.xlo = 0.0
+hydro.pf.eta.bc.val.xhi = 0.0
+hydro.pf.eta.bc.val.ylo = 0.0
+hydro.pf.eta.bc.val.yhi = 0.0
+hydro.pf.eta.bc.val.zlo = 0.0
+hydro.pf.eta.bc.val.zhi = 0.0
+### HYDRO BC ###
+hydro.density.bc.type.xhi = neumann
+hydro.density.bc.type.xlo = dirichlet
+hydro.density.bc.type.ylo = neumann
+hydro.density.bc.type.yhi = neumann
+hydro.density.bc.val.xhi = 0.0
+hydro.density.bc.val.xlo = 1.0
+hydro.density.bc.val.ylo = 0.0 
+hydro.density.bc.val.yhi = 0.0
+hydro.energy.bc.type.xhi = neumann
+hydro.energy.bc.type.xlo = dirichlet #neumann
+hydro.energy.bc.type.ylo = neumann
+hydro.energy.bc.type.yhi = neumann
+hydro.energy.bc.val.xhi = 0.0
+hydro.energy.bc.val.xlo = 1.0 #0.0
+hydro.energy.bc.val.ylo = 0.0 
+hydro.energy.bc.val.yhi = 0.0
+hydro.momentum.bc.type.xhi = neumann neumann
+hydro.momentum.bc.type.xlo = neumann neumann #dirichlet neumann
+hydro.momentum.bc.type.ylo = neumann dirichlet
+hydro.momentum.bc.type.yhi = neumann dirichlet
+hydro.momentum.bc.val.xhi = 0.0 0.0
+hydro.momentum.bc.val.xlo = 0.0  0.0 #10. 0.0
+hydro.momentum.bc.val.ylo = 0.0 0.0
+hydro.momentum.bc.val.yhi = 0.0 0.0
+hydro.eta.ic.constant.value = 1.0
+### HYDRO REFINEMENT CRITERIA ###
+#hydro.r_refinement_criterion   = 0.1
+#hydro.e_refinement_criterion   = 0.1
+#hydro.m_refinement_criterion   = 0.1
+hydro.eta_refinement_criterion = 0.1
+hydro.omega_refinement_criterion = 10000000
+hydro.gradu_refinement_criterion = 10000000
+
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.density.ic.constant.value = 40.0
+hydro.solid.energy.ic.constant.value = 0.0
+
+hydro.m0.ic.constant.value = 0.0
+hydro.u0.ic.constant.value = 0.0
+hydro.q.ic.constant.value = 0.0
+
+hydro.small=1E-8
+hydro.cutoff=0.01
+hydro.lagrange=1000.0
+
+#hydro.Lfactor=-10
+#hydro.Pfactor=10
+
+
+
+amr.abort_on_nan = 0
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.max  = 2E-4
+dynamictimestep.min  = 1E-8
+hydro.cfl   = 10.0
+hydro.cfl_v   = 1.0
+#hydro.small=1E-4

@@ -132,13 +132,22 @@ def validate(path,
 
         relerr = err/mag
 
-        print("{} abs error [tolerance={}]: {}".format(var,tol,err))
+        print("{} abs error [tolerance={}]: {}".format(var,abs_tol,err))
         print("{} norm".format(var),mag)
         print("{} rel error [tolerance={}]: {}".format(var,tol,relerr))
         
-        if relerr > tol:       all_ok = False
-        if err > abs_tol:      all_ok = False
-        if math.isnan(relerr): all_ok = False
+        if relerr > tol:
+            all_ok = False
+            print("    {} relative error is too high".format(var))
+        if err > abs_tol:
+            all_ok = False
+            print("    {} absolute error is too high".format(var))
+        if math.isnan(relerr):
+            all_ok = False
+            print("    {} relative error is NAN".format(var))
+
+    if all_ok:
+        print("All errors are within tolerance")
 
     if not all_ok:
         print("ERROR: Regression test failed")

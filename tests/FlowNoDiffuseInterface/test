@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+import sys, glob
+sys.path.insert(0,"../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+checkfile = sys.argv[2]
+datfile = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+
+start = [0,0]
+end   = [7,0]
+vars = ["velocityx","pressure"]
+coord = 'x'
+
+testlib.validate(path=datfile,
+                 outdir=outdir,
+                 start=start,
+                 end=end,
+                 vars=vars,
+                 tolerance=0.05,
+                 generate_ref_data = False,
+                 reference=checkfile,
+                 coord=coord)
+exit(0)
+
+
+
+
+
