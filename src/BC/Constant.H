@@ -9,60 +9,14 @@
 // By default, all types are Dirichlet and all values are 0.0.
 // The complete list of BC types are below:
 //
-// .. table::
-//    :widths: 30 70
-//
-//    +--------------------------+-----------------------------------------------------------------+
-//    | BC Type                  | Description                                                     |
-//    +==========================+=================================================================+
-//    | :code:`Dirichlet`        | Standard Dirichlet boundary condition                           |
-//    +--------------------------+ (https://en.wikipedia.org/wiki/Dirichlet_boundary_condition).   |
-//    | :code:`dirichlet`        | Fixes the value of the **function** at the boundary.            |
-//    +--------------------------+                                                                 +
-//    | :code:`EXT_DIR`          |                                                                 |                        
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`Neumann`          | Standard Neumann boundary condition                             |                        
-//    +--------------------------+ (https://en.wikipedia.org/wiki/Neumann_boundary_condition)      +
-//    | :code:`neumann`          |                                                                 |                        
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`Periodic`         | Standard periodic boundary condition.                           |
-//    +--------------------------+ (https://en.wikipedia.org/wiki/Periodic_boundary_conditions).   |
-//    | :code:`periodic`         | **Important**: Ensure that your geometry is specified to be     |                        
-//    +--------------------------+ periodic using :code:`geometry.is_periodic`. For instance, if   |
-//    | :code:`INT_DIR`          | periodic in x, set to :code:`1 0 0`                             |
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`REFLECT_ODD`      | Effectively the same as dirichlet but with value fixed to 0     |
-//    +--------------------------+                                                                 +
-//    | :code:`reflect_odd`      |                                                                 |
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`REFLECT_EVEN`     | Effectively the same as neumann but with value fixed to 0       |
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`BOGUS_BC`         | Used for internal operations - not for general use              |
-//    +--------------------------+-----------------------------------------------------------------+
-//    | :code:`FOEXTRAP`         | These are BC types inherited from AMReX and not yet implemented |
-//    +--------------------------+ in Alamo. If you need BCs of this type, you will need to        +
-//    | :code:`HOEXTRAP`         | implement them yourself.                                        |
-//    +--------------------------+                                                                 +
-//    | :code:`Interior`         |                                                                 |
-//    +--------------------------+                                                                 +
-//    | :code:`Inflow`           |                                                                 |                       
-//    +--------------------------+                                                                 +
-//    | :code:`Outflow`          |                                                                 |                        
-//    +--------------------------+                                                                 +
-//    | :code:`Symmetry`         |                                                                 |
-//    +--------------------------+                                                                 +
-//    | :code:`SlipWall`         |                                                                 |
-//    +--------------------------+                                                                 +
-//    | :code:`NoSlipWall`       |                                                                 |
-//    +--------------------------+                                                                 +
-//    | :code:`interior`         |                                                                 |
-//    +--------------------------+                                                                 +
-//    | :code:`Marshak`          |                                                                 |                        
-//    +--------------------------+                                                                 +
-//    | :code:`SanchezPomraning` |                                                                 |
-//    +--------------------------+                                                                 +
-//    | :code:`inflow`           |                                                                 |                       
-//    +--------------------------+-----------------------------------------------------------------+
+// `Dirichlet <https://en.wikipedia.org/wiki/Dirichlet_boundary_condition>`_  boundary condition
+// types can be specified with :code:`Dirichlet`, :code:`dirichlet`, :code:`EXT_DIR`.
+// `Neumann <https://en.wikipedia.org/wiki/Neumann_boundary_condition>`_ boundary condition
+// types are specified with :code:`Neumann`, :code:`neumann`.
+// `Periodic <https://en.wikipedia.org/wiki/Periodic_boundary_conditions>`_ boundary conditions
+// can be specified with :code:`Periodic`, :code:`periodic`, :code:`INT_DIR`.
+// **Important**: Ensure that your geometry is specified to be periodic using :code:`geometry.is_periodic`.
+// For instance, if periodic in x, set to :code:`1 0 0`
 //
 // The BC values can be specified either as a number (e.g. :code:`1.0`) or using a linear interpolator
 // string (e.g. :code:`(0,1:2.3,-0.1)`).

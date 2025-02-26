@@ -235,13 +235,13 @@ protected:
 
     /// \fn    RegisterNewFab
     /// \brief Register a field variable for AMR with this class 
-    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
-    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout,std::vector<std::string> suffix = {});
-    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
-    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix = {});
+    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, std::vector<std::string> suffix = {});
+    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix = {});
+    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix = {});
     
     template<int Direction>
-    void RegisterFaceFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {}) {
+    void RegisterFaceFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, [[maybe_unused]] std::vector<std::string> suffix = {}) {
         static_assert(Direction >= 0 && Direction <= 2, "Invalid face direction: must be 0 (X), 1 (Y), or 2 (Z)");
     
         int nlevs_max = maxLevel() + 1;  // Maximum number of AMR levels

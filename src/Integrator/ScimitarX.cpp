@@ -22,8 +22,8 @@ Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;
 ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 {
 
-    fluxHandler = new Numeric::FluxHandler<ScimitarX>();
-    timeStepper = new Numeric::TimeStepper<ScimitarX>();
+    fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>();
+    timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
 
     pp.queryclass(*this);
 }
@@ -80,25 +80,25 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     
     // Register New Fabs
     {
-        value.RegisterNewFab(value.QVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec", false);
-        value.RegisterNewFab(value.QVec_old_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false);
+        value.RegisterNewFab(value.QVec_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec", false, {});
+        value.RegisterNewFab(value.QVec_old_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "QVec_old", false, {});
 
-        value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
+        value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false, {});
 #if AMREX_SPACEDIM >= 2
-        value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
+        value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false, {});
 #endif
 #if AMREX_SPACEDIM == 3
-        value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
+        value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false, {});
 #endif
 //        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
-        value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true); 
-        value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true);
+        value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true, {}); 
+        value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true, {});
 
     }
     // Initial Conditions
     {
         std::string type = "constant";
-        pp.query("ic.pvec.type", type);
+        pp.query("ic.pvec.type", type);  // IC condition type for Primitive Variables
 
         if (type == "sodshock") {
             value.ic_PVec = new IC::SodShock(value.geom, pp, "ic.pvec.sodshock", ScimitarX::variableIndex);
@@ -108,7 +108,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pvec.type: " + type);
         }
 
-        pp.query("ic.pressure.type", type);
+        pp.query("ic.pressure.type", type); // IC condition type for pressure 
         if (type == "sodshock") {
             value.ic_Pressure = new IC::SodShock(value.geom, pp, "ic.pressure.sodshock");
         } else if (type == "riemann2d") {
@@ -200,17 +200,17 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
 }
 
 
-void ScimitarX::TimeStepBegin(Set::Scalar time, int lev) {
+void ScimitarX::TimeStepBegin(Set::Scalar /*time*/, int /*lev*/) {
 
 }
 
 
-void ScimitarX::TimeStepComplete(Set::Scalar time, int lev) {
+void ScimitarX::TimeStepComplete(Set::Scalar /*time*/, int /*lev*/) {
      
         ComputeAndSetNewTimeStep(); // Compute dt based on global `minDt`
 }
 
-void ScimitarX::Regrid(int lev, Set::Scalar time) {
+void ScimitarX::Regrid(int /*lev*/, Set::Scalar /*time*/) {
 
 }
 
@@ -271,7 +271,6 @@ Set::Scalar ScimitarX::GetTimeStep() {
 #if (AMREX_SPACEDIM == 3)
                 Set::Scalar w = pArr(i, j, k, variableIndex.WVEL);
 #endif
-                Set::Scalar ie = pArr(i, j, k, variableIndex.IE);
                 Set::Scalar gamma = 1.4;
                 Set::Scalar p = std::max(pressure(i, j, k),1e-6);
                 Set::Scalar c = Model::Fluid::Fluid().ComputeWaveSpeed(rho, p, gamma);

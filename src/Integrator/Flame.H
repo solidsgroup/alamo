@@ -41,9 +41,12 @@ public:
 
     virtual ~Flame()
     {
-        delete bc_eta;
         delete ic_eta;
         delete ic_phi;
+        delete thermal.ic_temp;
+        delete ic_laser;
+        delete bc_eta;
+        delete bc_temp;
     }
 
 protected:
@@ -77,8 +80,8 @@ private:
 
     BC::BC<Set::Scalar>* bc_temp = nullptr;
     BC::BC<Set::Scalar>* bc_eta = nullptr;
-    IC::IC* ic_phi = nullptr;
-    IC::IC* ic_laser = nullptr;
+    IC::IC<Set::Scalar>* ic_phi = nullptr;
+    IC::IC<Set::Scalar>* ic_laser = nullptr;
 
     Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
     Set::Scalar m_refinement_criterion = NAN;
@@ -88,11 +91,11 @@ private:
     Set::Scalar zeta_0 =NAN;
     Set::Scalar small = NAN;
     Set::Scalar base_time = NAN;
-    IC::IC* ic_eta = nullptr;
-    int ghost_count = NAN;
-    int homogeneousSystem = NAN;
+    IC::IC<Set::Scalar>* ic_eta = nullptr;
+    int ghost_count = -1;
+    int homogeneousSystem = -1;
     bool plot_field = true;
-    int variable_pressure = NAN;
+    int variable_pressure = -1;
 
     struct {
         Set::Scalar gamma = NAN;
@@ -142,7 +145,7 @@ private:
         Set::Scalar disperssion1 = NAN;
         Set::Scalar disperssion2 = NAN;
         Set::Scalar disperssion3 = NAN;
-        IC::IC* ic_temp = nullptr;
+        IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
     struct {
@@ -150,7 +153,7 @@ private:
         Set::Scalar Tref = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
-        int phirefinement = NAN;
+        int phirefinement = -1;
     } elastic;
 
     // Integrated variables

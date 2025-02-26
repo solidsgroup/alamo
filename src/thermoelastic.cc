@@ -19,9 +19,11 @@ int main (int argc, char* argv[])
     pp_query("alamo.program",program);
     srand(2);
 
-    Integrator::ThermoElastic integrator(pp);
-    integrator.InitData();
-    integrator.Evolve();
+    {
+        Integrator::ThermoElastic integrator(pp);
+        integrator.InitData();
+        integrator.Evolve();
+    }
     
     Util::Finalize();
 } 

@@ -1,0 +1,99 @@
+#@
+#@ [2d-serial]
+#@ dim=2
+#@ 
+#@ [2d-serial-coverage]
+#@ dim=2
+#@ coverage=true
+#@ args=stop_time=0.0002
+#@ check=false
+#@
+
+alamo.program = scimitarx
+
+plot_file = output
+
+# Simulation length
+timestep = 0.001
+stop_time = 0.25
+max_step = 1000
+
+# AMR parameters
+amr.plot_int = 500
+amr.max_level = 0
+amr.n_cell = 200 50 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.blocking_factor = 1
+amr.regrid_int = -1  # No regridding for uniform grid
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1.0 0.25 1  # Set height proportionally to match reduced y-cells
+geometry.is_periodic = 0 0 0
+
+#SolverType
+SolverType = SolveCompressibleEuler
+
+#cflNumber
+cflNumber = 0.2
+
+#TimeSteppingScheme
+TimeSteppingScheme = RK3
+
+
+#FluxMethod
+FluxScheme = LocalLaxFriedrichs
+
+#FluxReconstruction
+FluxReconstruction = FirstOrder
+
+# Initial conditions
+# Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
+ic.pvec.type = sodshock
+ic.pvec.sodshock.left.DENS = 1.0
+ic.pvec.sodshock.right.DENS = 0.125
+ic.pvec.sodshock.left.UVEL = 0.0
+ic.pvec.sodshock.right.UVEL = 0.0
+ic.pvec.sodshock.left.VVEL = 0.0
+ic.pvec.sodshock.right.VVEL = 0.0
+
+# Pressure
+ic.pressure.type = sodshock
+ic.pressure.sodshock.left = 1.0
+ic.pressure.sodshock.right = 0.1
+
+# Shock position
+shock.xpos = 0.5
+shock.ypos = 0.0
+shock.zpos = 0.0
+
+# Boundary conditions for 2D [Density, UVel, VVel, WVel, IE]
+bc.pvec.type.xhi = neumann neumann neumann neumann
+bc.pvec.type.xlo = neumann neumann neumann neumann
+bc.pvec.type.yhi = neumann neumann neumann neumann
+bc.pvec.type.ylo = neumann neumann neumann neumann
+bc.pvec.type.zhi = neumann neumann neumann neumann
+bc.pvec.type.zlo = neumann neumann neumann neumann
+
+bc.pvec.val.xhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.xlo = 0.0 0.0 0.0 0.0
+bc.pvec.val.yhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.ylo = 0.0 0.0 0.0 0.0
+bc.pvec.val.zhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.zlo = 0.0 0.0 0.0 0.0 
+
+#Boundary conditions for Pressure
+bc.pressure.type.xhi = neumann
+bc.pressure.type.xlo = neumann
+bc.pressure.type.yhi = neumann
+bc.pressure.type.ylo = neumann
+bc.pressure.type.zhi = neumann
+bc.pressure.type.zlo = neumann
+
+bc.pressure.val.xhi = 0.0
+bc.pressure.val.xlo = 0.0
+bc.pressure.val.yhi = 0.0
+bc.pressure.val.ylo = 0.0
+bc.pressure.val.zhi = 0.0
+bc.pressure.val.zlo = 0.0
+

@@ -4,31 +4,33 @@ import re
 from os import listdir
 from os.path import isfile, join
 from glob import glob
+import sys
+sys.path.insert(0,"../../scripts")
 
 from scraper import getdocumentation, geticon, extract, scrapeInputs
 
 src2url = {}
 try:
-	doxsourcefiles = sorted(glob("../build/html/doxygen/*source.html"))
-	for doxsourcefile in doxsourcefiles:
-	    with open(doxsourcefile) as f:
-	        for line in f.readlines():
-	            if r"<title>" in line:
-	                line = line.replace(r"<title>Alamo: ","")
-	                line = line.replace(r" Source File</title>","")
-	                line = line.replace("\n","")
-	                src2url[line] = doxsourcefile.replace("../build/html/","")
-	                continue
+    doxsourcefiles = sorted(glob("../build/html/doxygen/*source.html"))
+    for doxsourcefile in doxsourcefiles:
+        with open(doxsourcefile) as f:
+            for line in f.readlines():
+                if r"<title>" in line:
+                    line = line.replace(r"<title>Alamo: ","")
+                    line = line.replace(r" Source File</title>","")
+                    line = line.replace("\n","")
+                    src2url[line] = doxsourcefile.replace("../build/html/","")
+                    continue
 except Exception as e:
     print(e)
 
 inputsheader = r"""
 .. _inputs: 
-	
+    
 =============================
 :fas:`cube;fa-fw` Inputs
 =============================
-	
+    
 """
 
 
@@ -114,8 +116,73 @@ the prefixes out.
       - Description
 """
 
-def scrapeInputs(root="../../src/", writeFiles=True):
 
+
+def printAPI(docfile, file, api):
+
+    def clean(rec):
+        ret = ""
+        if rec['brief_description']:
+            if (isinstance(rec['brief_description']['para'],dict)):
+                ret += "- "+ str(rec['brief_description']['para']['#text'])
+            else:
+                ret += "- "+ str(rec['brief_description']['para'])
+        return ret
+
+    docfile.write(".. dropdown:: API definitions in {}\n".format(file))
+    docfile.write("\n")
+    docfile.write(   "    **Classes**\n\n")
+    
+    for cls in api["classes"]:
+        if cls["file"]  != file: continue
+
+        docfile.write(        "    - :code:`{}`\n".format(cls['name']))
+        docfile.write(        "      {}          \n".format(clean(cls)))
+
+        if cls["methods"]:
+            docfile.write(    "      \n")
+            docfile.write(    "      **Methods**\n\n")
+            for method in cls["methods"]:
+                docfile.write("      - :code:`{}`\n".format(method['name']+method['argsstring']))
+                docfile.write("        {}\n".format(clean(method)))
+
+        if cls["variables"]:
+            docfile.write(    "      \n")
+            docfile.write(    "      **Variables**\n\n")
+            for var in cls["variables"]:
+                docfile.write("      - :code:`{}`\n".format(var['definition']))
+                docfile.write("        {}\n".format(clean(var)))
+
+    written_methods_yet = False;
+    for method in api["methods"]:
+        if cls["file"]  != file: continue
+
+        if not written_methods_yet:
+            docfile.write(    "    **Methods**\n\n")
+            written_methods_yet = True
+        
+        docfile.write(        "   - :code:`{}`\n".format(method['name']+method['argsstring']))
+        docfile.write(        "     {}\n".format(clean(method)))
+
+    
+
+        #for method in cls["methods"]:
+        #   docfile.write("       ")
+        
+        #docfile.write(f"    - Class Name: {cls['name']}, ID: {cls['id']}, Type: {cls['type']}, File: {cls['file']}\n")
+        #docfile.write(f"      Brief Description: {cls['brief_description']}\n")
+        #docfile.write(f"      Detailed Description: {cls['detailed_description']}\n\n")
+
+
+
+
+
+def scrapeInputs(root="../../src/", writeFiles=True, writeAPI=False):
+
+    if writeAPI:
+        from doxscrape import parse_all_doxygen_files
+        api = parse_all_doxygen_files("../build/html/doxygen/doxygen_xml/")
+    
     srcfiles = set()
     for dirname, subdirlist, filelist in sorted(os.walk(root)):
         for f in filelist:
@@ -179,16 +246,16 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                             docfile.write(geticon(subhdr) + subhdr+"\n")
                             docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
                         else:
-    	                    docfile.write("\n" + subhdr+"\n")
-    	                    docfile.write("".ljust(len(subhdr),headerchar[i-1]))
+                            docfile.write("\n" + subhdr+"\n")
+                            docfile.write("".ljust(len(subhdr),headerchar[i-1]))
                         docfile.write("\n\n\n")
                     written_headers.append(subhdr)
     
-            if classname.split("::")[-1] != classname.split("::")[-2]:
-                if writeFiles: docfile.write(classname + "\n")
-                lev = len(classname.split('::'))-1
-                if writeFiles: docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
-                subhdr = classname
+            #if classname.split("::")[-1] != classname.split("::")[-2]:
+            if writeFiles: docfile.write(classname + "\n")
+            lev = len(classname.split('::'))-1
+            if writeFiles: docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
+            subhdr = classname
                 
             if writeFiles:
                 srcfile = dirname.replace("../../","")+"/"+f+".cpp"
@@ -206,8 +273,12 @@ def scrapeInputs(root="../../src/", writeFiles=True):
             if documentation and writeFiles:
                 docfile.write(documentation)
                 
-            if not len(inputs): continue
-            if len(inputs) == 1 and not list(inputs)[0]: continue
+            if not len(inputs):
+                if writeFiles: printAPI(docfile,hdrfile,api)
+                continue
+            if len(inputs) == 1 and not list(inputs)[0]:
+                if writeFiles: printAPI(docfile,hdrfile,api)
+                continue
     
     
             if writeFiles:
@@ -296,15 +367,17 @@ def scrapeInputs(root="../../src/", writeFiles=True):
                 if writeFiles:
                     docfile.write("\n")
                     docfilesearch.write("\n")
-    
-    
+
             for input in inputs:
                 writeInput(input,0,[])
             
             if writeFiles:
+                printAPI(docfile,hdrfile,api)
                 docfile.write("\n")
                 docfilesearch.write("\n")
-    
+
+        
+
     
     print("\n{} of {} inputs documented\n".format(num_doc,num_tot))
     

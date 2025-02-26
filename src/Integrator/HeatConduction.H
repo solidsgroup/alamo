@@ -191,7 +191,7 @@ private:
     // in the ~HeatConduction destructor.
     //
 
-    IC::IC* ic = nullptr;                    // Object used to initialize temperature field
+    IC::IC<Set::Scalar>* ic = nullptr;                    // Object used to initialize temperature field
     BC::BC<Set::Scalar>* bc = nullptr;       // Object used to update temp field boundary ghost cells
 };
 } // namespace Integrator

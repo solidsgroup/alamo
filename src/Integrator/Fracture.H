@@ -15,8 +15,6 @@
 #include "BC/Constant.H"
 
 #include "IC/IC.H"
-#include "IC/Ellipsoid.H"
-#include "IC/Notch.H"
 #include "IC/Laminate.H"
 #include "IC/PerturbedInterface.H"
 
@@ -75,15 +73,17 @@ public:
             {
                 if(crack.ic_type[i] == "notch")
                 {
-                    IC::Notch *tmpic = new IC::Notch(geom);
-                    pp_queryclass("notch",*tmpic);
-                    crack.ic.push_back(tmpic);
+                    Util::Abort(INFO,"Not Supported");
+                    // IC::Notch *tmpic = new IC::Notch(geom);
+                    // pp_queryclass("notch",*tmpic);
+                    // crack.ic.push_back(tmpic);
                 }
                 else if (crack.ic_type[i] == "ellipsoid")
                 {
-                    IC::Ellipsoid *tmpic = new IC::Ellipsoid(geom);
-                    pp_queryclass("ellipsoid",*tmpic);
-                    crack.ic.push_back(tmpic);
+                    Util::Abort(INFO,"Not Supported");
+                    // IC::Ellipsoid *tmpic = new IC::Ellipsoid(geom);
+                    // pp_queryclass("ellipsoid",*tmpic);
+                    // crack.ic.push_back(tmpic);
                 }
                 else
                     Util::Abort(INFO, "This IC hasn't been implemented yet");
@@ -568,7 +568,7 @@ private:
 
         Model::Interface::Crack::Constant cracktype;                      ///< type of crack. See Crack/Constant or Crack/Sin
         amrex::Vector<std::string> ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
-        amrex::Vector<IC::IC*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
+        amrex::Vector<IC::IC<Set::Scalar>*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
         bool is_ic = false;
 
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
@@ -586,7 +586,7 @@ private:
         std::string input_material = "isotropic";
         Set::Scalar refinement_threshold = 0.1;
         
-        IC::IC *ic;
+        IC::IC<Set::Scalar> *ic;
         std::string ic_type;
         bool is_ic = false;
     } material;

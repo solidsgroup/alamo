@@ -57,7 +57,7 @@ public:
     
     public:
         // 1. Function to set the target debug location
-        static void SetTargetDebugLocation(double x, double y, double z, const amrex::Geometry& geom) {
+        static void SetTargetDebugLocation(double x, double y, [[maybe_unused]] double z, const amrex::Geometry& geom) {
         // Create a RealVect using AMREX_D_DECL to handle different dimensions
         amrex::Array<amrex::Real, AMREX_SPACEDIM> pos = {AMREX_D_DECL(x, y, z)};
     
@@ -70,7 +70,7 @@ public:
                             (AMREX_SPACEDIM == 3 ? std::to_string(target_location[2]) : "N/A") + ")");
         }
 
-        static void SetTargetDebugLocationIndices(int i, int j, int k) {
+        static void SetTargetDebugLocationIndices(int i, int j, [[maybe_unused]] int k) {
         // Set the target location directly using grid indices (i, j, k)
         target_location = amrex::IntVect(AMREX_D_DECL(i, j, k));  // Create IntVect with (i, j, k)
 
@@ -252,7 +252,7 @@ public:
 
 
 
-static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int lev, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
+static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int /*lev*/, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
     const amrex::Box& domain = geom.Domain();  // Physical domain without ghost cells
 
     for (amrex::MFIter mfi(mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {

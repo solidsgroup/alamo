@@ -150,19 +150,19 @@ These are written using the #@ comments at the top of the input file.
 
 .. code-block:: make
 
-	#@  [2D-serial-5levels]        | each [...] specifies a run of the test 
-	#@  dim    = 2                 | specify two dimensions
-	#@  nprocs = 1                 | specify running in serial (the default)
-	#@  check  = false             | for this test we do not want to run the verification
-	#@   
-	#@  [3D-parallel-4levels]      | another test
-	#@  dim    = 3                 | specify running in 3D (the default)
-	#@  nprocs = 4                 | specify run in parallel with 4 processors
-	#@  args   = amr.max_level=4   | specify an additional argument to be added to input file
-	#@  benchmark-beaker = 16.10   | timing test: benchmark-id record current average time to
-	#@  benchmark-statler = 11.36  |     run on platform "id". The autotest system will let you 
-	#@  benchmark-github = 22.75   |     know if future changes slow the test down.
-	#@  ignore = myargument        | tell alamo to ignore certain arguments
+    #@  [2D-serial-5levels]        | each [...] specifies a run of the test 
+    #@  dim    = 2                 | specify two dimensions
+    #@  nprocs = 1                 | specify running in serial (the default)
+    #@  check  = false             | for this test we do not want to run the verification
+    #@   
+    #@  [3D-parallel-4levels]      | another test
+    #@  dim    = 3                 | specify running in 3D (the default)
+    #@  nprocs = 4                 | specify run in parallel with 4 processors
+    #@  args   = amr.max_level=4   | specify an additional argument to be added to input file
+    #@  benchmark-beaker = 16.10   | timing test: benchmark-id record current average time to
+    #@  benchmark-statler = 11.36  |     run on platform "id". The autotest system will let you 
+    #@  benchmark-github = 22.75   |     know if future changes slow the test down.
+    #@  ignore = myargument        | tell alamo to ignore certain arguments
 
 For additional examples, see the Tests section.
 
