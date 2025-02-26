@@ -38,6 +38,7 @@ reference_files = {
 #  Correct **2D Sod Shock lineout** (Extract along the x-axis at `y=0.25`)
 start = [0, 0.15]  # Start at (x=0, y=0.25)
 end = [1, 0.15]    # End at (x=1, y=0.25)
+plot_type = ["OneDLinePlot"]  
 
 # -------------------------
 #  Calling `testlib.validate()` for Each Variable
@@ -49,8 +50,8 @@ for var, ref_file in reference_files.items():
 
     testlib.validate(
         path=final_path,  # Using corrected path where Header exists
-        extraction_type = 1,
         outdir=plot_dir,
+        plot_type=plot_type,
         start=start,
         end=end,
         vars=[var],  # Validate one variable at a time
