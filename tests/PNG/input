@@ -2,7 +2,6 @@
 #@  exe    = mechanics
 #@  dim    = 2
 #@  nprocs = 1
-#@  check  = false
 
 alamo.program               = mechanics
 alamo.program.mechanics.model = affine.isotropic
