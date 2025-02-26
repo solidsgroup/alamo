@@ -22,7 +22,7 @@ import os, subprocess
 import sys
 sys.path.append(os.path.abspath('.'))
 import Inputs
-Inputs.scrapeInputs()
+Inputs.scrapeInputs(writeAPI=True)
 import Tests
 import Builder
 # -- Project information ----------------------------------------------------

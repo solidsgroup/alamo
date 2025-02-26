@@ -10,7 +10,7 @@
 
 
 
-.. include:: ../../Readme.rst
+.. include:: ../../README.rst
  
 
 System Install Scripts
@@ -25,5 +25,5 @@ System Install Scripts
         Install/Ubuntu
         Install/MacOS
         Install/Windows
-
+        Install/HPC
            

@@ -11,7 +11,7 @@
 namespace IC
 {
 /// \brief Initialize using a trigonometric series
-class Trig2 : public IC
+class Trig2 : public IC<Set::Scalar>
 {
 public:
     Trig2 (amrex::Vector<amrex::Geometry> &_geom,

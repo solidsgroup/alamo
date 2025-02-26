@@ -8,7 +8,6 @@
 #include "PhaseFieldMicrostructure.H"
 #include "Integrator/Base/Mechanics.H"
 #include "BC/Constant.H"
-#include "BC/Step.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "IC/Random.H"
@@ -23,6 +22,10 @@
 
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Affine/Hexagonal.H"
+#include "Model/Solid/Finite/PseudoAffine/Cubic.H"
+#include "Model/Defect/Disconnection.H"
+
+#include "Util/MPI.H"
 
 namespace Integrator
 {
@@ -31,30 +34,38 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 {
     BL_PROFILE("PhaseFieldMicrostructure::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
-    /// TODO Make this optional
-    //if (lev != max_level) return;
-    //std::swap(eta_old_mf[lev], eta_new_mf[lev]);
     const Set::Scalar* DX = this->geom[lev].CellSize();
 
+    std::swap(eta_old_mf[lev], eta_mf[lev]);
+    
+
+    Set::Scalar df_max = std::numeric_limits<Set::Scalar>::min();
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
     for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.tilebox();
-        //if (m_type == MechanicsBase<model_type>::Type::Static)
-        //bx.grow(number_of_ghost_cells-1);
-        //bx = bx & domain;
-        Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> driving_force = driving_force_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);// = (*driving_force_mf[lev]).array(mfi);
+        Set::Patch<Set::Scalar> etanew = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta    = eta_old_mf.Patch(lev,mfi);
+
+        Set::Scalar *df_max_handle = &df_max;
+
+        Set::Patch<const Set::Matrix> sigma = stress_mf.Patch(lev,mfi); 
+        Set::Patch<const Set::Vector> disp  = this->disp_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            Set::Matrix sig = Set::Matrix::Zero();
+            if (pf.elastic_df) sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
+
             for (int m = 0; m < number_of_grains; m++)
             {
-                driving_force(i, j, k, m) = 0.0;
-                if (pf.threshold.on) driving_force_threshold(i, j, k, m) = 0.0;
+                //if (shearcouple.on) etaold(i,j,k,m) = eta(i,j,k,m);
+
+                Set::Scalar driving_force = 0.0;
+                Set::Scalar driving_force_threshold = NAN;
+                if (pf.threshold.on) driving_force_threshold = 0.0;
                 Set::Scalar kappa = NAN, mu = NAN;
 
                 //
@@ -73,18 +84,18 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 {
                     kappa = pf.l_gb * 0.75 * pf.sigma0;
                     mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
-                    if (pf.threshold.boundary)  driving_force_threshold(i, j, k, m) += -kappa * laplacian;
-                    else                        driving_force(i, j, k, m) += -kappa * laplacian;
+                    if (pf.threshold.boundary)  driving_force_threshold += -kappa * laplacian;
+                    else                        driving_force += -kappa * laplacian;
                 }
                 else
                 {
                     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDEta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
                     auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDEta);
-                    if (pf.threshold.boundary) driving_force_threshold(i, j, k, m) += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
-                    else                       driving_force(i, j, k, m) += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
+                    if (pf.threshold.boundary) driving_force_threshold += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
+                    else                       driving_force += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
                     if (std::isnan(std::get<0>(anisotropic_df))) Util::Abort(INFO);
-                    if (pf.threshold.boundary) driving_force_threshold(i, j, k, m) += anisotropy.beta * std::get<1>(anisotropic_df);
-                    else                       driving_force(i, j, k, m) += anisotropy.beta * std::get<1>(anisotropic_df);
+                    if (pf.threshold.boundary) driving_force_threshold += anisotropy.beta * std::get<1>(anisotropic_df);
+                    else                       driving_force += anisotropy.beta * std::get<1>(anisotropic_df);
                     if (std::isnan(std::get<1>(anisotropic_df))) Util::Abort(INFO);
                     mu = 0.75 * (1.0 / 0.23) * boundary->W(Deta) / pf.l_gb;
                 }
@@ -101,9 +112,10 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
                 }
                 if (pf.threshold.chempot)
-                    driving_force_threshold(i, j, k, m) += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+                    driving_force_threshold += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
                 else
-                    driving_force(i, j, k, m) += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+                    driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+
 
                 //
                 // LAGRANGE MULTIPLIER
@@ -111,9 +123,9 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 if (lagrange.on && m == 0 && time > lagrange.tstart)
                 {
                     if (pf.threshold.lagrange)
-                        driving_force_threshold(i, j, k, m) += lagrange.lambda * (volume - lagrange.vol0);
+                        driving_force_threshold += lagrange.lambda * (volume - lagrange.vol0);
                     else
-                        driving_force(i, j, k, m) += lagrange.lambda * (volume - lagrange.vol0);
+                        driving_force += lagrange.lambda * (volume - lagrange.vol0);
                 }
 
                 //
@@ -122,152 +134,159 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 if (sdf.on && time > sdf.tstart)
                 {
                     if (pf.threshold.sdf)
-                        driving_force_threshold(i, j, k, m) += sdf.val[m](time);
+                        driving_force_threshold += sdf.val[m](time);
                     else
-                        driving_force(i, j, k, m) += sdf.val[m](time);
+                        driving_force += sdf.val[m](time);
                 }
-            }
-        });
 
-        //
-        // ELASTIC DRIVING FORCE
-        //
-        if (pf.elastic_df)
-        {
-            amrex::Array4<const Set::Matrix> const& sigma = (*this->stress_mf[lev]).array(mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                for (int m = 0; m < number_of_grains; m++)
+              
+                //
+                // ELASTIC DRIVING FORCE
+                //
+                if (pf.elastic_df)
                 {
-                    Set::Matrix F0avg = Set::Matrix::Zero();
-
-                    for (int n = 0; n < number_of_grains; n++)
+                    Set::Scalar elastic_df_m = 0.0;
+                    
+                    if (shearcouple.on)
                     {
-                        F0avg += eta(i, j, k, n) * mechanics.model[n].F0;
+                        for (int n = 0; n < number_of_grains; n++)
+                        {
+                            if (n==m) continue;
+                            Set::Scalar etam = eta(i,j,k,m);
+                            Set::Scalar etan = eta(i,j,k,n);
+
+                            Set::Scalar sumsq = (etam*etam + etan*etan);
+                            sumsq = sumsq * sumsq;
+
+                            //Set::Scalar dgm = 2.0*etan*etan*etam / sumsq;
+                            Set::Scalar dgn = 2.0*etan*etam*etam / sumsq;
+
+
+                            Set::Matrix Fgbn = shearcouple.Fgb[n*number_of_grains + m];
+
+                            if (model_type::kinvar == Model::Solid::KinematicVariable::F)
+                            {
+                                Set::Matrix F =
+                                    Set::Matrix::Identity() +
+                                    Numeric::NodeGradientOnCell(disp,i,j,k,DX);
+                                Fgbn = F*Fgbn;
+                            }
+
+                            elastic_df_m += (sig.transpose() * Fgbn).trace() * dgn;
+                        }
+                    }
+                    else
+                    {
+                        Set::Matrix F0avg = Set::Matrix::Zero();
+
+                        for (int n = 0; n < number_of_grains; n++)
+                            F0avg += eta(i, j, k, n) * mechanics.model[n].F0;
+
+                        Set::Matrix dF0deta = Set::Matrix::Zero();
+
+                        for (int n = 0; n < number_of_grains; n++)
+                        {
+                            if (n == m) continue;
+                            Set::Scalar normsq = eta(i, j, k, m) * eta(i, j, k, m) + eta(i, j, k, n) * eta(i, j, k, n);
+                            dF0deta += (2.0 * eta(i, j, k, m) * eta(i, j, k, n) * eta(i, j, k, n) *
+                                        (mechanics.model[m].F0 - mechanics.model[n].F0))
+                                / normsq / normsq;
+                        }
+
+                        elastic_df_m += (dF0deta.transpose() * sig).trace();
                     }
 
-                    Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
-
-                    //Set::Matrix dF0deta = mechanics.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
-                    Set::Matrix dF0deta = Set::Matrix::Zero();
-
-                    for (int n = 0; n < number_of_grains; n++)
-                    {
-                        if (n == m) continue;
-                        Set::Scalar normsq = eta(i, j, k, m) * eta(i, j, k, m) + eta(i, j, k, n) * eta(i, j, k, n);
-                        dF0deta += (2.0 * eta(i, j, k, m) * eta(i, j, k, n) * eta(i, j, k, n) * (mechanics.model[m].F0 - mechanics.model[n].F0))
-                            / normsq / normsq;
-                    }
-
-                    Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
 
                     if (pf.threshold.mechanics)
-                        driving_force_threshold(i, j, k, m) -= pf.elastic_mult * tmpdf;
+                        driving_force_threshold -= pf.elastic_mult * elastic_df_m;
                     else
-                        driving_force(i, j, k, m) -= pf.elastic_mult * tmpdf;
+                        driving_force -= pf.elastic_mult * elastic_df_m;
                 }
-            });
-        }
 
-
-        //
-        // Update eta
-        // (if NOT using anisotropic kinetics)
-        //
-        
-        if (!anisotropic_kinetics.on || time < anisotropic_kinetics.tstart)
-        {
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                for (int m = 0; m < number_of_grains; m++)
+                //
+                // Update eta
+                //
+                // Final mobility and threshold values:
+                Set::Scalar L = NAN, threshold = NAN;
+                // (if we are NOT using anisotropic kinetics)
+                if (!anisotropic_kinetics.on || time < anisotropic_kinetics.tstart)
                 {
-                    if (pf.threshold.on)
-                    {
-                        if (driving_force_threshold(i, j, k, m) > pf.threshold.value)
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m) - pf.threshold.value);
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m));
-                        }
-                        else if (driving_force_threshold(i, j, k, m) < -pf.threshold.value)
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m) + pf.threshold.value);
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= pf.L * dt * (driving_force_threshold(i, j, k, m));
-                        }
-                    }
-
-                    eta(i, j, k, m) -= pf.L * dt * driving_force(i, j, k, m);
+                    L = pf.L;
+                    threshold = pf.threshold.value;
                 }
-            });
-        }
-    }
-
-    //
-    // Update eta
-    // (if we ARE using anisotropic kinetics)
-    //
-    
-    if (anisotropic_kinetics.on && time >= anisotropic_kinetics.tstart)
-    {
-        for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            amrex::Box bx = mfi.tilebox();
-            amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar> const& L = (*anisotropic_kinetics.L_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar> const& threshold = (*anisotropic_kinetics.threshold_mf[lev]).array(mfi);
-
-            for (int m = 0; m < number_of_grains; m++)
-            {
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                // (if we ARE using anisotropic kinetics)
+                else
                 {
-                    Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
                     Set::Scalar theta = atan2(Deta(1), Deta(0));
-                    L(i, j, k, m) = (4. / 3.) * anisotropic_kinetics.mobility(theta) / pf.l_gb;
-                    threshold(i, j, k, m) = anisotropic_kinetics.threshold(theta);
-                });
-            }
-        }
-        
-        for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            amrex::Box bx = mfi.tilebox();
-            Set::Patch<Set::Scalar>       eta = eta_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> driving_force = driving_force_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> driving_force_threshold = driving_force_threshold_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> L = anisotropic_kinetics.L_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> threshold = anisotropic_kinetics.threshold_mf.Patch(lev,mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                for (int m = 0; m < number_of_grains; m++)
-                {
-                    if (pf.threshold.on)
-                    {
-                        if (driving_force_threshold(i, j, k, m) > threshold(i,j,k,m))
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m) - threshold(i,j,k,m));
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m));
-                        }
-                        else if (driving_force_threshold(i, j, k, m) < -pf.threshold.value)
-                        {
-                            if (pf.threshold.type == ThresholdType::Continuous)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m) + threshold(i,j,k,m));
-                            else if (pf.threshold.type == ThresholdType::Chop)
-                                eta(i, j, k, m) -= L(i,j,k,m) * dt * (driving_force_threshold(i, j, k, m));
-                        }
-                    }
-
-                    eta(i, j, k, m) -= L(i,j,k,m) * dt * driving_force(i, j, k, m);
+                    L = (4. / 3.) * anisotropic_kinetics.mobility(theta) / pf.l_gb;
+                    threshold = anisotropic_kinetics.threshold(theta);
                 }
-            });
-        }        
+
+                Set::Scalar totaldf = 0.0;
+                if (pf.threshold.on)
+                {
+                    if (driving_force_threshold > threshold)
+                    {
+                        if (pf.threshold.type == ThresholdType::Continuous)
+                            totaldf -= L * (driving_force_threshold - threshold);
+                        else if (pf.threshold.type == ThresholdType::Chop)
+                            totaldf -= L * (driving_force_threshold);
+                    }
+                    else if (driving_force_threshold < -threshold)
+                    {
+                        if (pf.threshold.type == ThresholdType::Continuous)
+                            totaldf -= L * (driving_force_threshold + threshold);
+                        else if (pf.threshold.type == ThresholdType::Chop)
+                            totaldf -= L  * (driving_force_threshold);
+                    }
+                }
+                totaldf -= L * driving_force;
+
+                // Final Eta Update
+                etanew(i, j, k, m) = eta(i,j,k,m) +  dt * totaldf;
+                *df_max_handle = std::max(df_max, std::fabs(totaldf));
+            }
+        });
     }
+
+    if (shearcouple.on && time >= mechanics.tstart) UpdateEigenstrain(lev);
+    //this->DynamicTimestep_SyncDrivingForce(lev,df_max);
+}
+
+template <class model_type>
+void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
+{
+    if (this->m_type == Mechanics<model_type>::Disable) return;
+    eta_mf[lev]->FillBoundary();
+    eta_old_mf[lev]->FillBoundary();
+
+    amrex::Box domain = this->geom[lev].Domain();
+    domain.convert(amrex::IntVect::TheNodeVector());
+
+    for (amrex::MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        amrex::Box bx = mfi.grownnodaltilebox() & domain;
+        Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> etanew = eta_mf.Patch(lev,mfi);
+        Set::Patch<model_type>        model  = model_mf.Patch(lev,mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            for (int m = 0; m < number_of_grains; m++)
+                for (int n = 0; n < number_of_grains; n++)
+                {
+                    if (m==n) continue;
+                    Set::Scalar emnew = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, m);//, sten);
+                    Set::Scalar emold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, m);//, sten);
+                    Set::Scalar ennew = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, n);//, sten);
+                    Set::Scalar enold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, n);//, sten);
+                    Set::Scalar gmnew = (emnew * emnew) / (emnew * emnew + ennew * ennew);
+                    Set::Scalar gmold = (emold * emold) / (emold * emold + enold * enold);
+                    model(i, j, k).F0 -= 0.5 * (gmnew - gmold) * shearcouple.Fgb[m*number_of_grains + n]; 
+                }
+        });
+    }
+    
+    Util::RealFillBoundary(*this->model_mf[lev],this->geom[lev]);
 }
 
 template<class model_type>
@@ -276,6 +295,7 @@ void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_mf);
+    ic->Initialize(lev, eta_old_mf);
 }
 
 template<class model_type>
@@ -304,9 +324,9 @@ void PhaseFieldMicrostructure<model_type>::TagCellsForRefinement(int lev, amrex:
 }
 
 template<class model_type>
-void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/)
+void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/) 
 {
-    // TODO: remove this function, it is no longer needed.
+    this->DynamicTimestep_Update();
 }
 
 template<class model_type>
@@ -334,8 +354,48 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
                 std::vector<Set::Scalar> etas(number_of_grains);
                 for (int n = 0; n < number_of_grains; n++)
                     etas[n] = Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n);
-                model(i, j, k) = model_type::Combine(mechanics.model, etas, 1);
+                model_type mix = model_type::Combine(mechanics.model, etas, mechanics.model_mix_order);
+                if (a_step == 0 || !shearcouple.on) // Do a complete model initialization
+                    model(i,j,k) = mix ;
+                else // Otherwise, we will set the modulus only and leave the eigenstrain alone
+                {
+                    Set::Matrix F0 = model(i,j,k).F0;
+                    model(i,j,k) = mix;
+                    model(i,j,k).F0 = F0;
+                }
             });
+        }
+
+        if (mechanics.model_neumann_boundary)
+        {
+            Util::AssertException(INFO,TEST(AMREX_SPACEDIM==2),"neumann boundary works in 2d only");
+            for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                amrex::Array4<model_type> const& model = this->model_mf[lev]->array(mfi);
+                const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if      (i==lo.x && j==lo.y)
+                        model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
+                    else if (i==lo.x && j==hi.y)
+                        model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j-1,k));
+                    else if (i==hi.x && j==lo.y)
+                        model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j+1,k));
+                    else if (i==hi.x && j==hi.y)
+                        model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j-1,k));
+
+                    else if (i==lo.x)
+                        model(i,j,k) = model(i+1,j,k);
+                    else if (i==hi.x)
+                        model(i,j,k) = model(i-1,j,k);
+                    else if (j==lo.y)
+                        model(i,j,k) = model(i,j+1,k);
+                    else if (j==hi.y)
+                        model(i,j,k) = model(i,j-1,k);
+                });
+            }
         }
 
         Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
@@ -347,10 +407,21 @@ template<class model_type>
 void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int iter)
 {
     BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
+    for (int lev = 0; lev < totaldf_mf.size(); lev++) totaldf_mf[lev]->setVal(0.0);
+
+    // Insertion of disconnections
+    if (disconnection.on)
+    {
+        disconnection.model.Nucleate(eta_mf,this->Geom(),this->timestep,time, iter);
+        UpdateEigenstrain();
+    }
+    
     Base::Mechanics<model_type>::TimeStepBegin(time, iter);
 
     if (anisotropy.on && time >= anisotropy.tstart)
     {
+        Util::AssertException(  INFO,TEST(this->dynamictimestep.on == false),
+                                "Cannot use anisotropy with dynamic timestep yet");
         this->SetTimestep(anisotropy.timestep);
         if (anisotropy.elastic_int > 0)
             if (iter % anisotropy.elastic_int) return;
@@ -417,6 +488,7 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
 
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>;
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>;
+template class PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>;
 
 
 } // namespace Integrator

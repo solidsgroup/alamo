@@ -28,6 +28,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
+        // Whether to include extra fields (such as mdot, etc) in the plot output
+        pp_query_default("plot_field",value.plot_field,true); 
+        
         pp_query_default("timestep", value.base_time, 1.0e-4); //Simulation timestep
         pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
         pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
@@ -49,10 +52,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
         // phase field initial condition
-        pp.select<IC::Constant,IC::Expression>("pf.eta.ic",value.ic_eta,value.geom); // after comment
-
-        // phase field initial condition
-        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("eta.ic",value.ic_eta,value.geom); 
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
+        pp.forbid("eta.ic","--> you must use pf.eta.ic instead"); // delete this eventually once all tests are updated
     }
 
     {
@@ -219,12 +220,23 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
         value.psi_on = true;
     }
+
+    bool allow_unused;
+    // Set this to true to allow unused inputs without error.
+    // (Not recommended.)
+    pp.query_default("allow_unused",allow_unused,false);
+    if (!allow_unused && pp.AnyUnusedInputs())
+    {
+        Util::Warning(INFO,"The following inputs were specified but not used:");
+        pp.AllUnusedInputs();
+        Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
+    }
+        
 }
 
 void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
-    Util::Message(INFO, m_type);
     Base::Mechanics<model_type>::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
@@ -282,6 +294,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
+            amrex::Box smallbox = mfi.nodaltilebox();
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
             //amrex::Box bx = mfi.nodaltilebox();
             //bx.grow(1);
@@ -294,14 +307,15 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             if (elastic.on)
             {
                 amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    //auto sten = Numeric::GetStencil(i, j, k, bx);
-                    Set::Scalar phi_avg = phi(i, j, k, 0);
-                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     rhs(i, j, k) = elastic.traction * grad_eta;
-
+                });
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar phi_avg = phi(i, j, k, 0);
+                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
                     model_ap.F0 *= (temp_avg - elastic.Tref);

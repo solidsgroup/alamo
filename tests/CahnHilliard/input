@@ -1,0 +1,47 @@
+#@  [2D-serial-level]
+#@  dim    = 2
+#@  nprocs = 1
+#@  check  = true
+#@  check-file = reference/reference-2d.csv
+#@  args   = stop_time=0.01
+
+alamo.program = cahnhilliard
+
+### OUTPUT ###
+
+plot_file = tests/CahnHilliard/output
+
+### MESHING ###
+
+amr.plot_dt = 0.0001
+amr.max_level = 1
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+amr.grid_eff = 0.8
+amr.n_cell = 64 64 0
+
+geometry.prob_lo = -0.5 -0.5 0.0
+geometry.prob_hi =  0.5  0.5 0.0
+
+geometry.is_periodic = 0 0 0
+
+timestep  = 0.000001
+stop_time = 1.0
+
+eta.bc.constant.type.xlo = neumann
+eta.bc.constant.type.xhi = neumann
+eta.bc.constant.type.ylo = neumann
+eta.bc.constant.type.yhi = neumann
+eta.bc.constant.val.xlo = 0.0
+eta.bc.constant.val.xhi = 0.0
+eta.bc.constant.val.ylo = 0.0
+eta.bc.constant.val.yhi = 0.0
+
+eta.ic.random.offset = -1.0
+eta.ic.random.mult   = 2.0
+
+
+#gamma = 0.0005
+gamma = 0.00005
+
+refinement_threshold = 0.01

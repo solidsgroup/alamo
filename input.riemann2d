@@ -3,8 +3,8 @@ plot_file = output_riemann_2d
 
 # Simulation length
 timestep = 0.001
-stop_time = 0.2
-max_step = 500
+stop_time = 0.35
+max_step = 2000
 
 # AMR parameters
 amr.plot_int = 5
@@ -38,23 +38,23 @@ FluxReconstruction = FirstOrder
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
 ic.pvec.type = riemann2d
-ic.pvec.riemann2d.q2.DENS = 1.5
-ic.pvec.riemann2d.q1.DENS = 0.5323
+ic.pvec.riemann2d.q1.DENS = 1.5
+ic.pvec.riemann2d.q2.DENS = 0.5323
 ic.pvec.riemann2d.q3.DENS = 0.138
 ic.pvec.riemann2d.q4.DENS = 0.5323
-ic.pvec.riemann2d.q2.UVEL = 0.0
-ic.pvec.riemann2d.q1.UVEL = 1.206
+ic.pvec.riemann2d.q1.UVEL = 0.0
+ic.pvec.riemann2d.q2.UVEL = 1.206
 ic.pvec.riemann2d.q3.UVEL = 1.206
 ic.pvec.riemann2d.q4.UVEL = 0.0
-ic.pvec.riemann2d.q2.VVEL = 0.0
 ic.pvec.riemann2d.q1.VVEL = 0.0
+ic.pvec.riemann2d.q2.VVEL = 0.0
 ic.pvec.riemann2d.q3.VVEL = 1.206
 ic.pvec.riemann2d.q4.VVEL = 1.206
 
 # Pressure
 ic.pressure.type = riemann2d
-ic.pressure.riemann2d.q2 = 1.5
-ic.pressure.riemann2d.q1 = 0.3
+ic.pressure.riemann2d.q1 = 1.5
+ic.pressure.riemann2d.q2 = 0.3
 ic.pressure.riemann2d.q3 = 0.029
 ic.pressure.riemann2d.q4 = 0.3
 

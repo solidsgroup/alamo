@@ -51,6 +51,7 @@ If you are using Ubuntu (or a debian-based distribution) you can install all nec
 
 If you are using a non-debian based system such as RedHat, you can install the corresponding packages in :code:`dependencies.sh`. 
 Windows and Mac OS are not supported.
+To configure and run Alamo on a high-performance computing (HPC) cluster, please see :ref:`install_hpc`.
 
 Setting MPICH as default MPI
 ============================
@@ -100,19 +101,24 @@ This is done simply by running the following in the alamo directory
     ./configure
 
 By default, alamo will configure in 3D production mode. 
-To compile in  2D debug mode, 
+To compile in 2D debug mode, 
 
 .. code-block::
 
     ./configure --dim=2 --debug
 
-There are multiple compilation options available for Alamo, and they must all be specified at configure time.
+Additionally, the configuration step is when you specify which compiler will be used for compilation. By default, the configure script will use the GNU C++ Compiler (g++). To specify a different compiler, such as the Clang C++ Compiler, use the following command line argument, replacing clang++ with the supported compiler you'd like to use:
+
+.. code-block::
+
+   ./configure --comp clang++
+
+There are many compilation options available for Alamo, and they must all be specified at configure time.
 For a complete listing of the Alamo configuration options, type
 
 .. code-block::
 
     ./configure --help
-
 
 .. NOTE:: 
     The configure script produces output designed to assist in determining compile issues with Alamo.
@@ -222,34 +228,3 @@ To generate the documentation, type
 
 (You do not need to run :code:`./configure` before generating documentation.)
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.
-
-Compiling on STAMPEDE2
-======================
-
-To compile on STAMPEDE2 you must first load the following modules:
-
-.. code-block::
-
-    module load python3
-
-This will load Python3.
-The following configure script is recommended:
-
-.. code-block::
-
-    ./configure --build-amrex --get-eigen --comp=icc
-
-where other arguments (e.g. :code:`--dim=2`) can be added as necessary.
-Finally, make with
-
-.. code-block::
-
-    make
-
-.. WARNING::
-   Remember to use good stewardship when compiling and running on a supercomputer.
-   (For instance, do *not* use :code:`make -j16` to build.)
-   Be sure to consult the Stampede2 user guide: https://portal.tacc.utexas.edu/user-guides/stampede2;
-   along with https://solids.uccs.edu/resources/xsede.php for general Stampede2/XSEDE instructions.
-   
-

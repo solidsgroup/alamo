@@ -105,20 +105,20 @@ void SodShock::initialize(IO::ParmParse& pp, const std::string& name) {
     }
 
     if (mf_name == "ic.pvec.sodshock") {
-        pp.query("ic.pvec.sodshock.left.DENS", rho_left);
-        pp.query("ic.pvec.sodshock.right.DENS", rho_right);
-        pp.query("ic.pvec.sodshock.left.UVEL", u_left);
-        pp.query("ic.pvec.sodshock.right.UVEL", u_right);
+        pp.query("ic.pvec.sodshock.left.DENS", rho_left);  // Left State Denisty
+        pp.query("ic.pvec.sodshock.right.DENS", rho_right); // Right State Density
+        pp.query("ic.pvec.sodshock.left.UVEL", u_left); // Left State Velocity in X-Direction
+        pp.query("ic.pvec.sodshock.right.UVEL", u_right); // Right State Velocity in X-Direction
 #if AMREX_SPACEDIM >= 2
-        pp.query("ic.pvec.sodshock.left.VVEL", v_left);
-        pp.query("ic.pvec.sodshock.right.VVEL", v_right);
+        pp.query("ic.pvec.sodshock.left.VVEL", v_left); // Left State Velocity in Y-Direction
+        pp.query("ic.pvec.sodshock.right.VVEL", v_right); // Right State Velocity in Y-Direction 
 #endif
 #if AMREX_SPACEDIM == 3
-        pp.query("ic.pvec.sodshock.left.WVEL", w_left);
-        pp.query("ic.pvec.sodshock.right.WVEL", w_right);
+        pp.query("ic.pvec.sodshock.left.WVEL", w_left); // Left State Velocity in Z-Direction
+        pp.query("ic.pvec.sodshock.right.WVEL", w_right); // Right State Velocity in Z-Direction
 #endif
-        pp.query("ic.pressure.sodshock.left", p_left);
-        pp.query("ic.pressure.sodshock.right", p_right);
+        pp.query("ic.pressure.sodshock.left", p_left); // Left State Pressure
+        pp.query("ic.pressure.sodshock.right", p_right); // Right State Pressure
 
         Util::Message(INFO, "DEBUG: Parsed ic.pvec.sodshock values:");
         Util::Message(INFO, "  rho_left = " + std::to_string(rho_left));
@@ -131,17 +131,17 @@ void SodShock::initialize(IO::ParmParse& pp, const std::string& name) {
         Util::Message(INFO, "  w_left = " + std::to_string(w_left) + ", w_right = " + std::to_string(w_right));
 #endif
     } else if (mf_name == "ic.pressure.sodshock") {
-        pp.query("ic.pressure.sodshock.left", p_left);
-        pp.query("ic.pressure.sodshock.right", p_right);
+        pp.query("ic.pressure.sodshock.left", p_left);  // Left State Pressure
+        pp.query("ic.pressure.sodshock.right", p_right); // Right State Pressure
 
         Util::Message(INFO, "DEBUG: Parsed ic.pressure.sodshock values:");
         Util::Message(INFO, "  p_left = " + std::to_string(p_left));
         Util::Message(INFO, "  p_right = " + std::to_string(p_right));
     }
 
-    pp.query("shock.xpos", shock_xpos);
-    pp.query("shock.ypos", shock_ypos);
-    pp.query("shock.zpos", shock_zpos);
+    pp.query("shock.xpos", shock_xpos); // Shock Location in X-Direction
+    pp.query("shock.ypos", shock_ypos); // Shock Location in Y-Direction                                        
+    pp.query("shock.zpos", shock_zpos); // Shock Location in Z-Direction
 
     Util::Message(INFO, "DEBUG: Shock position: xpos = " + std::to_string(shock_xpos) +
                         ", ypos = " + std::to_string(shock_ypos) +

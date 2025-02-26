@@ -10,7 +10,7 @@
 
 #include "Numeric/Interpolator/Linear.H"
 
-#define PI 3.14159265 
+//#define PI 3.14159265
 
 namespace Model
 {

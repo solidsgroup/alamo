@@ -8,7 +8,7 @@
 
 
 namespace IC {
-class SodShock : public IC {
+class SodShock : public IC<Set::Scalar> {
 public:
     // Constructor requiring variable indices
     SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,

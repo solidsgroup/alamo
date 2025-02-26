@@ -3,11 +3,11 @@ plot_file = output_sod_2d
 
 # Simulation length
 timestep = 0.001
-stop_time = 0.2
-max_step = 500
+stop_time = 0.25
+max_step = 1000
 
 # AMR parameters
-amr.plot_int = 5
+amr.plot_int = 50
 amr.max_level = 0
 amr.n_cell = 200 50 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 1

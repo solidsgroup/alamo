@@ -24,7 +24,7 @@ public:
             Util::Message(INFO, "Invalid values in ComputePressureFromDensityAndInternalEnergy: " + std::to_string(rho));
             return 0.0;
         }
-        return (gamma - 1.0) * e;
+        return (gamma - 1.0) * rho * e;
     }
 
     template <typename RealType>
@@ -44,7 +44,7 @@ public:
             Util::Message(INFO, "Invalid values in ComputeInternalEnergyFromDensityAndPressure: " + std::to_string(rho));
             return 0.0;
         }
-        return p / (gamma - 1.0);
+        return p /(rho * (gamma - 1.0));
     }
 
     virtual bool ContainsNan() {

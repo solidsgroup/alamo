@@ -39,6 +39,14 @@ public:
         Parse(*this, pp);
     }
 
+    ~Dendrite()
+    {
+        delete ic_temp;
+        delete ic_phi;
+        delete bc_temp;
+        delete bc_phi;
+    }
+
     static void Parse(Dendrite& value, IO::ParmParse& pp)
     {
         pp_query_required("alpha", value.alpha); // Pre-multiplier of "m" barrier height
@@ -198,7 +206,7 @@ private:
     Set::Scalar refinement_threshold_temp = NAN; // Criterion for cell refinement
     Set::Scalar refinement_threshold_phi = NAN; // Criterion for cell refinement
 
-    IC::IC* ic_temp, * ic_phi;
+    IC::IC<Set::Scalar>* ic_temp, * ic_phi;
     BC::BC<Set::Scalar>* bc_temp, * bc_phi;
 };
 } // namespace Integrator
