@@ -3,6 +3,9 @@ name: Install
 on:
   push:
     branches: ["development", "master","candidate","candidate-install"]
+  pull_request:
+    branches:
+    - development
 
 jobs:
   install-ubuntu-20-04:
