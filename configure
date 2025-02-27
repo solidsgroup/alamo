@@ -556,6 +556,7 @@ if not args.compile_commands:
             "-I./src/",
             srcfile,
             f"-I./ext/amrex/{postfix_amrex}/include",
+            "-I./ext/cantera/include" if args.cantera else "",
         ],
     } for srcfile in srcfiles]
 
@@ -580,6 +581,8 @@ if args.cantera:
     f_make_pre.write("CANTERA = ext/cantera/\n")
     f_make_pre.write("CANTERA_TARGET = ext/cantera/build/lib/libcantera.a\n")
     f_make_pre.write("CANTERA_SRC = $(shell find ext/cantera/src)\n")
+    f_make_pre.write("CXX_COMPILE_FLAGS += ./ext/cantera/include\n")
+    f_make_pre.write("LINKER_FLAGS += ./ext/cantera/build/lib/libcantera.a\n")
     
     f_make_post.write("${CANTERA_TARGET}: ${CANTERA_SRC}\n")
     f_make_post.write("\t@scons -C ${CANTERA} build -j${JOBS}\n")
