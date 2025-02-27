@@ -236,7 +236,7 @@ public:
                 ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                 ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
 
-                Set::Scalar vel = velocity_arr(i, j, k, direction);
+                Set::Scalar vel = velocity_arr(index[0], index[1], index[2], direction);
                 Set::Scalar sigma = std::copysign(1.0, vel);  // Branch-free logic
 
                 const Set::Scalar QL = 0.5 * ((1 + sigma) * field_old_arr(index[0], index[1], index[2], 0) +
@@ -244,6 +244,7 @@ public:
                 
                 const Set::Scalar QR = 0.5 * ((1 + sigma) * field_old_arr(right_index[0], right_index[1], right_index[2], 0) +
                                               (1.0 - sigma) * field_old_arr(index[0], index[1], index[2], 0));
+
 
                 QL_arr(i, j, k, 0) = QL;
                 QR_arr(i, j, k, 0) = QR;

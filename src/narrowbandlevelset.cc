@@ -17,9 +17,11 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     srand(2);
 
+   {
     Integrator::NarrowBandLevelset integrator(pp);
     integrator.InitData();
     integrator.Evolve();
+   }
     
     Util::Finalize();
 } 

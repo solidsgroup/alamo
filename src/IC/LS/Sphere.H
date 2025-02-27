@@ -9,7 +9,7 @@
 namespace IC {
 namespace LS {
 
-class Sphere : public IC {
+class Sphere : public IC<Set::Scalar> {
 public:
     static constexpr const char* name = "sphere";
 

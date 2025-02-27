@@ -9,7 +9,7 @@
 namespace IC {
 namespace LS {
 
-class Zalesak : public IC {
+class Zalesak : public IC<Set::Scalar> {
 public:
     static constexpr const char* name = "zalesak";
 

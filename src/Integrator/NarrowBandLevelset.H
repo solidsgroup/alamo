@@ -57,8 +57,6 @@ public:
         
         delete bc_ls;
         
-        delete fluxHandler;
-        delete timeStepper;
     }
     
     // Public getters to access protected/private members in Numeric templates
@@ -176,8 +174,8 @@ protected:
     Set::Scalar GetTimeStep();
     void ApplyBoundaryConditions(int lev, Set::Scalar time);
 
-    Numeric::FluxHandler<NarrowBandLevelset>* fluxHandler = nullptr;  // Flux handler instance
-    Numeric::TimeStepper<NarrowBandLevelset>* timeStepper = nullptr;  // Time stepper instance
+    std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
+    std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;
 
     template <typename T>
     friend class Numeric::FluxReconstruction;
@@ -216,8 +214,8 @@ private:
     // Definition of user-determined pointer variables.
     //
 
-    IC::IC* ic_ls = nullptr;                     // Object used to initialize levelset field
-    IC::IC* ic_velocity = nullptr;               // Object used to initialize velocity field
+    IC::IC<Set::Scalar>* ic_ls = nullptr;                     // Object used to initialize levelset field
+    IC::IC<Set::Scalar>* ic_velocity = nullptr;               // Object used to initialize velocity field
     BC::BC<Set::Scalar>* bc_ls = nullptr;        // Object used to update temp levelset field boundary ghost cells
     BC::BC<Set::Scalar>* bc_velocity = nullptr;  // Object used to update temp velocity field boundary ghost cells
     BC::Nothing bc_nothing;

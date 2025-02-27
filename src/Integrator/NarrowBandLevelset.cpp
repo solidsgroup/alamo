@@ -36,8 +36,8 @@ NarrowBandLevelset::NarrowBandLevelset(int a_nghost)
 // Constructor that triggers Parse
 NarrowBandLevelset::NarrowBandLevelset(IO::ParmParse& pp) : NarrowBandLevelset() // Call default constructor
 {
-    fluxHandler = new Numeric::FluxHandler<NarrowBandLevelset>();
-    timeStepper = new Numeric::TimeStepper<NarrowBandLevelset>();
+    fluxHandler = std::make_shared<Numeric::FluxHandler<NarrowBandLevelset>>();
+    timeStepper = std::make_shared<Numeric::TimeStepper<NarrowBandLevelset>>();
 
     pp.queryclass(*this); // Call the static Parse function
 }
