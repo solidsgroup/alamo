@@ -6,67 +6,65 @@ ref = sys.argv[2]
 
 tolerance = 1E-4
 
-def integrate(x, y):
+def integrate(x,y):
     ret = 0
-    for i in range(len(x) - 1):
-        ret = ret + 0.5 * (y[i + 1] + y[i]) * (x[i + 1] - x[i])
+    for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
     return ret
 
 def load(datafile):
     with open(datafile) as f:
         headers = f.readline().split()
-    raw = numpy.loadtxt(datafile, skiprows=1)
+    raw = numpy.loadtxt(datafile,skiprows=1)
     data = dict()
     for i in range(len(headers)):
-        data[headers[i]] = raw[:, i]
+        data[headers[i]] = raw[:,i]
     return data
+    
 
-ref = load(ref.format(outdir))
+ref  = load(ref.format(outdir))
 data = load("{}/thermo.dat".format(outdir))
 
 sig_diff = numpy.interp(data['time'], ref['time'], ref['trac_xhi_x']) - data['trac_xhi_x']
-sig_norm = numpy.sqrt(integrate(ref['time'], ref['trac_xhi_x'] * ref['trac_xhi_x']))
+sig_norm = numpy.sqrt(integrate(ref['time'],ref['trac_xhi_x']*ref['trac_xhi_x']))
 
-error = numpy.sqrt(integrate(data['time'], sig_diff ** 2)) / sig_norm
+error = numpy.sqrt(integrate(data['time'],sig_diff**2)) / sig_norm
+
 
 pylab.clf()
-pylab.plot(ref['time'], ref['trac_xhi_x'], marker='o', label="reference")
-pylab.plot(data['time'], data['trac_xhi_x'], label="test")
+pylab.plot(ref['time'],ref['trac_xhi_x'],marker='o',label="reference")
+pylab.plot(data['time'],data['trac_xhi_x'],label="test")
 pylab.legend()
 pylab.xlabel("time")
 pylab.ylabel("stress")
 pylab.savefig("{}/stress_time.png".format(outdir))
 
 pylab.clf()
-pylab.plot(ref['disp_xhi_x'], ref['trac_xhi_x'], marker='o', label="reference")
-pylab.plot(data['disp_xhi_x'], data['trac_xhi_x'], label="test")
+pylab.plot(ref['disp_xhi_x'],ref['trac_xhi_x'],marker='o',label="reference")
+pylab.plot(data['disp_xhi_x'],data['trac_xhi_x'],label="test")
 pylab.legend()
 pylab.xlabel("strain")
 pylab.ylabel("stress")
 pylab.savefig("{}/stress_strain.png".format(outdir))
 
-if math.isnan(error):
-    raise Exception("Stress is nan")
-if error > tolerance:
-    raise Exception("Error in stress calculation")
 
-#prof = ds.ray([ 0, 0, 0 ], [ 1, 1, 1 ], )
-#df = prof.to_dataframe([ ("gas", "x"), ("gas", "y"), ("gas", "z"), "disp_x" ])
+if math.isnan(error): raise Exception("Stress is nan")
+if (error > tolerance): raise Exception("Error in stress calculation")
+
+
+
+#prof = ds.ray([0,0,0],[1,1,1],)
+#df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),"disp_x"])
 #
-#x, y, z, \
-#    u1 = [numpy.array(_x) for _x in zip(
-#        *sorted(zip(df["x"], df["y"], df["z"], df["disp_x"])))]
+#x,y,z,u1 = [numpy.array(_x) for _x in zip(*sorted(zip(df["x"],df["y"],df["z"],df["disp_x"])))]
 #
-#if dim == 2 : u1_exact = -numpy.sin(numpy.pi * x) * numpy.sin(numpy.pi * y) / \
-#                          numpy.pi / numpy.pi / 2.0
-#if dim == 3 : u1_exact = -numpy.sin(numpy.pi * x) * numpy.sin(numpy.pi * y) * \
-#                          numpy.sin(numpy.pi * z) / numpy.pi / numpy.pi / 3.0
+#if dim==2: u1_exact  =  - numpy.sin(numpy.pi*x) * numpy.sin(numpy.pi*y) / numpy.pi / numpy.pi / 2.0
+#if dim==3: u1_exact  =  - numpy.sin(numpy.pi*x) * numpy.sin(numpy.pi*y) * numpy.sin(numpy.pi*z) / numpy.pi / numpy.pi / 3.0
 #
-#pylab.plot(x, u1, marker = 'o')
-#pylab.plot(x, u1_exact)
+#pylab.plot(x,u1,marker='o')
+#pylab.plot(x,u1_exact)
 #pylab.savefig("{}/u1.png".format(outdir))
 #
-#u1_err = sum((u1_exact - u1) * *2) / sum(u1_exact * *2)
-#print("displacement error", u1_err)
+#u1_err = sum((u1_exact - u1)**2) / sum(u1_exact**2)
+#print("displacement error",u1_err)
 #
-#if u1_err > tolerance : raise(Exception("Error in u1"))
+#if u1_err > tolerance: raise(Exception("Error in u1"))
