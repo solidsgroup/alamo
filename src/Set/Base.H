@@ -4,8 +4,6 @@
 #include "AMReX.H"
 #include "AMReX_REAL.H"
 #include "AMReX_SPACE.H"
-#include "AMReX_Vector.H"
-#include "AMReX_BLassert.H"
 #include "AMReX_Geometry.H"
 #include "AMReX_IndexType.H"
 #include <eigen3/Eigen/Core>

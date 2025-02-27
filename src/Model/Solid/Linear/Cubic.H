@@ -26,12 +26,12 @@ public:
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
-        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,phi1,Phi,phi2);
+        ddw = Set::Matrix4<3,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,phi1,Phi,phi2);
     }
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R)
     {
-        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,R);
+        ddw = Set::Matrix4<3,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,R);
     }
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
@@ -43,22 +43,28 @@ public:
     }
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
     {
-        return ddw;
+        return ddw.Reduce();
     }
+
+    virtual void Rotate(const Set::Matrix3d &R) override
+    {
+        ddw.Rotate(R);
+    }
+
     virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }
 
 public:
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> ddw;
+    Set::Matrix4<3,Set::Sym::MajorMinor> ddw;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
     AMREX_FORCE_INLINE
     static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta)
     {
         Cubic ret;
-        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        ret.ddw = Set::Matrix4<3,Set::Sym::MajorMinor>::Zero();
         Set::Scalar etasum = 0.;
         for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
         for (unsigned int n = 0 ; n < models.size(); n++)

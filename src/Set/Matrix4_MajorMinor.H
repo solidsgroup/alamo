@@ -3,6 +3,7 @@
 
 #include "Base.H"
 #include <math.h>
+#include "Matrix3.H"
 
 namespace Set
 {
@@ -17,6 +18,8 @@ class Matrix4<2,Sym::MajorMinor>
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
+
+
     //Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
     //{
     //    for (int i = 0; i < 6; i++) data[i] =  in.data[i];
@@ -161,6 +164,7 @@ public:
         return Cubic(C11,C12,C44,R);
     }
 
+    friend class Matrix4<3,Sym::MajorMinor>;
 
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
     friend bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
@@ -414,6 +418,44 @@ public:
         return false;
     }
 
+    Matrix4<AMREX_SPACEDIM, Sym::MajorMinor>
+    Reduce() const
+    {
+        Matrix4<AMREX_SPACEDIM, Sym::MajorMinor> ret;
+#if AMREX_SPACEDIM==2
+        ret.data[0] = data[0];  // [0000]
+        ret.data[1] = data[1];  // [0001] [0010] [0100] [1000]
+        ret.data[2] = data[3];  // [0011][1100]
+        ret.data[3] = data[6];  // [0101] [1001] [0110] [1010]
+        ret.data[4] = data[8];  // [0111] [1011] [1101] [1110]
+        ret.data[5] = data[15]; // [1111]
+#elif AMREX_SPACEDIM == 3
+        ret = *this;
+#endif
+        return ret;
+    }
+
+    void
+    Rotate(const Set::Matrix3d &R)
+    {
+        Set::Matrix4<3,Sym::MajorMinor> ret;
+
+        for(int p = 0; p < 3; p++) 
+            for(int q = 0; q < 3; q++) 
+                for(int s = 0; s < 3; s++) 
+                    for(int t = 0; t < 3; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++) 
+                            for(int j = 0; j < 3; j++) 
+                                for(int k = 0; k < 3; k++) 
+                                    for(int l = 0; l < 3; l++) 
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*(*this)(i,j,k,l)*R(q,j)*R(t,l);
+                    }                
+        *this = ret;
+    }
+
+
     //AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] -= a.data[i];}
@@ -486,6 +528,7 @@ public:
         return Cubic(C11,C12,C44,R);
     }
 
+    friend Matrix4<2,Sym::MajorMinor>;
     friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);

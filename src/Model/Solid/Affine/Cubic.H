@@ -82,7 +82,7 @@ public:
     static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta, int order)
     {
         Cubic ret;
-        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        ret.ddw = Set::Matrix4<3,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
         if (order == 1)
         {

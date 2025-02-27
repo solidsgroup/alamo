@@ -41,7 +41,13 @@ public:
     {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
     virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
     {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
-    
+
+    virtual void
+    Rotate(const Set::Matrix3d &/*rotation_matrix*/)
+    {
+        Util::Abort(INFO,"Not implemented");
+    }
+
     virtual void Advance(Set::Scalar /*dt*/, Set::Matrix /*strain*/, Set::Matrix /*stress*/, Set::Scalar /*time*/) {}
 
     // Todo: implement for all models and make this pure virtual
