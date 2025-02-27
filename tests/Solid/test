@@ -68,3 +68,4 @@ if (error > tolerance): raise Exception("Error in stress calculation")
 #print("displacement error",u1_err)
 #
 #if u1_err > tolerance: raise(Exception("Error in u1"))
+                               
