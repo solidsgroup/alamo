@@ -581,7 +581,8 @@ if args.cantera:
     f_make_pre.write("CANTERA = ext/cantera/\n")
     f_make_pre.write("CANTERA_TARGET = ext/cantera/build/lib/libcantera.a\n")
     f_make_pre.write("CANTERA_SRC = $(shell find ext/cantera/src)\n")
-    f_make_pre.write("CXX_COMPILE_FLAGS += ./ext/cantera/include\n")
+    f_make_pre.write("CXX_COMPILE_FLAGS += -I./ext/cantera/include\n")
+    f_make_pre.write("CXX_COMPILE_FLAGS += -DALAMO_CANTERA\n")
     f_make_pre.write("LINKER_FLAGS += ./ext/cantera/build/lib/libcantera.a\n")
     
     f_make_post.write("${CANTERA_TARGET}: ${CANTERA_SRC}\n")

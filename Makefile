@@ -206,8 +206,8 @@ test: .FORCE
 	@make docs
 	@./scripts/runtests.py
 
-GCDA = $(shell find obj/ -name "*.gcda" )
-GCNO = $(shell find obj/ -name "*.gcno" )
+GCDA = $(shell find obj/ -name "*.gcda" 2>/dev/null)
+GCNO = $(shell find obj/ -name "*.gcno" 2>/dev/null)
 
 GCDA_DIRS  = $(shell find obj/ -maxdepth 1 -name "*coverage*" )
 GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
