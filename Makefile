@@ -2,6 +2,7 @@
 -include .make/Makefile.pre.conf
 
 AMREX_TARGET ?= 
+CANTERA_TARGET ?= 
 CC ?= mpicxx -cxx=g++
 MPI_LIB ?= -lmpich
 
@@ -22,6 +23,8 @@ FG_CYAN            = \033[36m
 FG_MAGENTA         = \033[35m
 
 
+# number of parallel jobs
+JOBS = $(shell echo $(MAKEFLAGS) | sed -n 's/.*-j *\([0-9][0-9]*\).*/\1/p')
 
 
 METADATA_GITHASH  = $(shell git describe --always --dirty)
@@ -43,7 +46,11 @@ LINKER_FLAGS += -Bsymbolic-functions
 #LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 
 
-ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})
+ALAMO_INCLUDE += $(if ${AMREX}, -isystem ${AMREX}/include/)
+ALAMO_INCLUDE += $(if ${CANTERA}, -isystem ${CANTERA}/include/)
+ALAMO_INCLUDE += -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+
 LIB     += -L${AMREX}/lib/ -lamrex -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
@@ -123,7 +130,7 @@ bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	@mkdir -p bin/
 	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
 
-obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
+obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET} ${CANTERA_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
@@ -131,7 +138,7 @@ obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET} 
+obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET}  ${CANTERA_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
@@ -147,7 +154,7 @@ obj/obj-$(POSTFIX)/%.cpp.o:
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
+obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET} ${CANTERA_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
 	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
@@ -155,7 +162,7 @@ obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	@mkdir -p $(dir $@)
 	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
-obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
+obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET} ${CANTERA_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
 	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
@@ -163,7 +170,7 @@ obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@mkdir -p $(dir $@)
 	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
-obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
+obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}  ${CANTERA_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_LIGHTYELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 

@@ -121,6 +121,8 @@ parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_tru
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
+parser.add_argument('--cantera',dest='cantera',default=False,action='store_true', help='Download cantera and integrate into build process')
+parser.add_argument('--cantera-branch',dest='cantera_branch',default="tags/v3.1.0", help='Latest stable cantera version')
 parser.set_defaults(debug=False)
 
 #
@@ -155,8 +157,8 @@ if args.memcheck and args.memcheck_tool == "asan":
 fpic = args.python 
 
 subprocess.run(['mkdir','-p','.make'])
-f = open(".make/Makefile.pre.conf","w")
-f2 = open(".make/Makefile.post.conf","w")
+f_make_pre = open(".make/Makefile.pre.conf","w")
+f_make_post = open(".make/Makefile.post.conf","w")
 
 #
 # Specify Postfix
@@ -171,7 +173,7 @@ if fpic: postfix += "-fpic"
 if args.profile: postfix += "-profile"
 if args.coverage: postfix += "-coverage"
 postfix += "-" + args.comp
-f.write("POSTFIX = " + postfix + '\n')
+f_make_pre.write("POSTFIX = " + postfix + '\n')
 
 #
 # Current Repo settings
@@ -182,7 +184,7 @@ shellmessage("Current Hash",   "git log -1 --pretty=format:%H", hidecmd=True)
 #
 # DIMENSION
 #
-f.write("DIM = " + str(args.dim) + "\n")
+f_make_pre.write("DIM = " + str(args.dim) + "\n")
 message("Dimension",str(args.dim))
 
 #
@@ -192,7 +194,7 @@ message("Dimension",str(args.dim))
 #
 # DEBUG
 #
-f.write("DEBUG = " + str(args.debug) + "\n")
+f_make_pre.write("DEBUG = " + str(args.debug) + "\n")
 message("Debug Mode",str(args.debug))
 
 #
@@ -200,8 +202,8 @@ message("Debug Mode",str(args.debug))
 #
 message("OpenMP",str(args.omp))
 if args.omp:
-    f.write("CXX_COMPILE_FLAGS += -DOMP -fopenmp \n")
-    f.write("LINKER_FLAGS += -lgomp \n")
+    f_make_pre.write("CXX_COMPILE_FLAGS += -DOMP -fopenmp \n")
+    f_make_pre.write("LINKER_FLAGS += -lgomp \n")
 
 #
 # AMREX
@@ -259,9 +261,9 @@ if args.buildamrex and not args.amrex:
     postfix_amrex = postfix+"-"+amrexdescribe
     
     args.amrex = "ext/amrex/"+postfix_amrex
-    f.write("AMREX = ext/amrex/" + postfix_amrex + "/\n")
-    f.write("AMREX_TARGET = ext/amrex/" + postfix_amrex + "\n")
-    f.write('AMREX_SRC := $(shell find ext/amrex/Src -name "*.H") $(shell find ext/amrex/Src -name "*.cpp")' + "\n")
+    f_make_pre.write("AMREX = ext/amrex/" + postfix_amrex + "/\n")
+    f_make_pre.write("AMREX_TARGET = ext/amrex/" + postfix_amrex + "\n")
+    f_make_pre.write('AMREX_SRC := $(shell find ext/amrex/Src -name "*.H") $(shell find ext/amrex/Src -name "*.cpp")' + "\n")
     
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
@@ -276,10 +278,10 @@ if args.buildamrex and not args.amrex:
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
-    f2.write("\t$(MAKE) -C ext/amrex install\n")
-    f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
+    f_make_post.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
+    f_make_post.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
+    f_make_post.write("\t$(MAKE) -C ext/amrex install\n")
+    f_make_post.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")
@@ -325,7 +327,7 @@ elif (args.amrex != ""):
 
     message("AMReX Directory", args.amrex)
     if githash: message("AMReX Git commit", githash)
-    f.write("AMREX = " + args.amrex + "\n")
+    f_make_pre.write("AMREX = " + args.amrex + "\n")
 else:
     warning("AMReX path not specified. This may cause compile errors.")
 
@@ -343,36 +345,36 @@ if (args.geteigen):
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
         #subprocess.run("mv eigen-git-mirror eigen3".split())
     message("Eigen-Directory","ext/")
-    f.write("EIGEN = ./ext/\n")
+    f_make_pre.write("EIGEN = ./ext/\n")
 elif (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
     message("Eigen-Directory",args.eigen)
-    f.write("EIGEN = " + args.eigen + "\n")
+    f_make_pre.write("EIGEN = " + args.eigen + "\n")
 
 
 #
 # MAC OS SUPPORT
 #
 if args.macos:
-    #f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
-    f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
+    #f_make_pre.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
+    f_make_pre.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
 #else:
-f.write("LIB += -lpng \n")
+f_make_pre.write("LIB += -lpng \n")
 
 #
 # ADD ADDITIONAL LINK LIBRARIES
 #
 if args.link:
     for l in args.link:
-        f.write("LIB += -L" + l + "\n")
+        f_make_pre.write("LIB += -L" + l + "\n")
     
 #
 # Compiler and MPI library
 #
-if   (args.comp == "g++"):     f.write("COMP = GCC\n")
-elif (args.comp == "clang++"): f.write("COMP = CLANG\n")
-elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
+if   (args.comp == "g++"):     f_make_pre.write("COMP = GCC\n")
+elif (args.comp == "clang++"): f_make_pre.write("COMP = CLANG\n")
+elif (args.comp == "icc"):     f_make_pre.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
 if not args.alternate_mpi:
@@ -392,8 +394,8 @@ if not args.alternate_mpi:
             raise Exception(error("MPICH version {} is less than required version {}".format(version_match_str, mpich_minimum_version)))
         
     shellmessage("MPICH mpicxx:","mpicxx -v")
-    f.write("CC = mpicxx -cxx="+args.comp+"\n")
-    f.write("MPI_LIB = -lmpich\n")
+    f_make_pre.write("CC = mpicxx -cxx="+args.comp+"\n")
+    f_make_pre.write("MPI_LIB = -lmpich\n")
 else:
     warning("Only mpich/mvapich mpi are supported. Use alternatives at your own risk.")
     shellmessage("Compiler (" + args.comp + ")", args.comp + " -v")
@@ -404,35 +406,35 @@ else:
     shellmessage("MPI Compiling Line", "mpicxx -show", env)
 
     backend_comp = " MPICH_CXX=" + args.comp + " OMPI_CXX=" + args.comp + " I_MPI_CXX=" + args.comp + " "
-    f.write("CC =" + backend_comp + "mpicxx\n")
+    f_make_pre.write("CC =" + backend_comp + "mpicxx\n")
 
 if args.comp == 'g++':
-    f.write("MPI_LIB += -lgfortran\n")
-    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
+    f_make_pre.write("MPI_LIB += -lgfortran\n")
+    f_make_pre.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.coverage: f_make_pre.write("LINKER_FLAGS += -fprofile-arcs\n")
 
     if args.memcheck:
         if args.memcheck_tool=="asan":
-            f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
-            f.write("LINKER_FLAGS += -fsanitize=address -static-libasan\n")
+            f_make_pre.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
+            f_make_pre.write("LINKER_FLAGS += -fsanitize=address -static-libasan\n")
         elif args.memcheck_tool=="msan":
-            f.write("CXX_COMPILE_FLAGS += -fsanitize=memory -fno-omit-frame-pointer\n")
-            f.write("LINKER_FLAGS += -fsanitize=memory\n")
+            f_make_pre.write("CXX_COMPILE_FLAGS += -fsanitize=memory -fno-omit-frame-pointer\n")
+            f_make_pre.write("LINKER_FLAGS += -fsanitize=memory\n")
         else:
             error("Invalid memory check tool ", args.memcheck_tool)
-    if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
-    elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
-    else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+    if args.coverage and args.debug: f_make_pre.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
+    elif args.debug:                 f_make_pre.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    elif args.coverage:              f_make_pre.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    else:                            f_make_pre.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
 if args.comp == 'clang++':
-    f.write("MPI_LIB += -lgfortran\n")
-    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+    f_make_pre.write("MPI_LIB += -lgfortran\n")
+    f_make_pre.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.debug: f_make_pre.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f_make_pre.write("CXX_COMPILE_FLAGS += -O3\n")
 if args.comp == 'icc':
-    f.write("MPI_LIB += -lifcore\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
+    f_make_pre.write("MPI_LIB += -lifcore\n")
+    if args.debug: f_make_pre.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f_make_pre.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
 
 #
 # LibGFortran? -- not needed anymore
@@ -465,9 +467,9 @@ if args.python:
     #else:
     #    raise Exception(error("Cannot find python boost lib. Install using " + code("sudo apt install libboost-python-dev")))
     
-    f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
-    f.write("PYTHON_LIB = " + python_boost_lib + '\n')
-    f.write("CXX_COMPILE_FLAGS += -fPIC \n")
+    f_make_pre.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
+    f_make_pre.write("PYTHON_LIB = " + python_boost_lib + '\n')
+    f_make_pre.write("CXX_COMPILE_FLAGS += -fPIC \n")
     message("Python","True")
     message("Pythin include dir:",python_include_dir)
     message("Pythin boost lib:",python_boost_lib)
@@ -479,19 +481,19 @@ if args.python:
 if args.diff:
     try: shellmessage("diff2html","diff2html --version")
     except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
-    f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff/{}.diff.html)\"'.format(postfix)+'\n')
-    f.write("DEP_EXTRA += .diff/{}.diff.html\n".format(postfix))
-    f2.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
-    f2.write("\t-@mkdir -p .diff\n".format(postfix))
-    f2.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
-    f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt .simba/diff-template.html --output stdout --style side >/dev/null 2>/dev/null\n".format(postfix))
+    f_make_pre.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff/{}.diff.html)\"'.format(postfix)+'\n')
+    f_make_pre.write("DEP_EXTRA += .diff/{}.diff.html\n".format(postfix))
+    f_make_post.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
+    f_make_post.write("\t-@mkdir -p .diff\n".format(postfix))
+    f_make_post.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
+    f_make_post.write("\t-@diff2html -F .diff/{}.diff.html --hwt .simba/diff-template.html --output stdout --style side >/dev/null 2>/dev/null\n".format(postfix))
 
-f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
-f.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
-f2.write(".diff/{}.diff.patch: .FORCE\n".format(postfix))
-f2.write("\t-@mkdir -p .diff\n".format(postfix))
-f2.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
-f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
+f_make_pre.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
+f_make_pre.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
+f_make_post.write(".diff/{}.diff.patch: .FORCE\n".format(postfix))
+f_make_post.write("\t-@mkdir -p .diff\n".format(postfix))
+f_make_post.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
+f_make_post.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 
 #
 # JIT expression evaluation with Libmesh's FParser
@@ -503,10 +505,10 @@ f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 #if args.libmesh:
 #    if not os.path.isfile(args.libmesh+'/lib/libmesh_opt.so'):
 #        raise Exception(error("{}/lib/libmesh_opt.so not found. libmesh path must contain lib/libmesh_opt.so".format(args.libmesh)))
-#    f.write('ALAMO_INCLUDE += -I{}/include/\n'.format(args.libmesh))
-#    f.write('LIB     +=   {}/lib/libmesh_opt.so -Wl,-rpath,{}/lib/ \n'.format(args.libmesh,args.libmesh))
+#    f_make_pre.write('ALAMO_INCLUDE += -I{}/include/\n'.format(args.libmesh))
+#    f_make_pre.write('LIB     +=   {}/lib/libmesh_opt.so -Wl,-rpath,{}/lib/ \n'.format(args.libmesh,args.libmesh))
 #if args.jit:
-#    f.write('CXX_COMPILE_FLAGS += -DALAMO_JIT\n')
+#    f_make_pre.write('CXX_COMPILE_FLAGS += -DALAMO_JIT\n')
 
 #
 # Documentation check
@@ -560,3 +562,24 @@ if not args.compile_commands:
     with open(Path("compile_commands.json"), "w") as f:
         json.dump(command_objects, f, indent=4)
 
+#
+# Manage the integration with cantera
+#
+if args.cantera:
+    if not os.path.isdir("ext/cantera"):
+        shellmessage("Cantera-Clone",
+                     cmd = "git clone --recursive https://github.com/Cantera/cantera.git",
+                     message="Cloning Cantera -- This may take a while",
+                     cwd="ext/")
+    else:
+        message("Cantera-Clone", "Already cloned")
+
+    shellmessage("Cantera-Checkout",cmd="git checkout "+args.cantera_branch, cwd="ext/cantera/")
+    shellmessage("Cantera-Update",cmd="git submodule update")
+
+    f_make_pre.write("CANTERA = ext/cantera/\n")
+    f_make_pre.write("CANTERA_TARGET = ext/cantera/build/lib/libcantera.a\n")
+    f_make_pre.write("CANTERA_SRC = $(shell find ext/cantera/src)\n")
+    
+    f_make_post.write("${CANTERA_TARGET}: ${CANTERA_SRC}\n")
+    f_make_post.write("\t@scons -C ${CANTERA} build -j${JOBS}\n")
