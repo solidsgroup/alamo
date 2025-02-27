@@ -1,10 +1,10 @@
-#@
-#@
-#@
+#@ [allencahn]
+#@ exe=sfi
+#@ dim=2
 #@ args = amr.n_cell = 64 8
-#@ args = geometry.prob_lo = -24.0 -3 
-#@ args = geometry.prob_hi =  24.0  3 
-#@ args = amr.blocking_factor = 2
+#@ args = amr.prob_lo = -24.0 -3.0 0.0
+#@ args = amr.prob_hi = 24.0, 3.0 0.0
+#@ args = amr.blocking_factor = 4
 
 
 
@@ -22,7 +22,7 @@ amr.n_cell = 64 64
 geometry.prob_lo = -24.0 -24.0 0.0 # [ m ] 
 geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
 geometry.is_periodic = 0 0 0
-stop_time = 1000.0
+stop_time = 12.0
 
 
 allencahn.ch.direction = 1
