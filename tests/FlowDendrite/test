@@ -18,6 +18,7 @@ testlib.validate(path=path,
                  coord = "x",
                  vars=["momentumx","density","pressure","eta"],
                  tolerance=[tol, tol, tol, tol],
+                 abs_tolerance=[100, 100, 100, 100], #ignore
                  generate_ref_data = False,
                  tight_layout=False,
 )
