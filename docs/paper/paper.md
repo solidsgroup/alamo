@@ -29,8 +29,8 @@ bibliography: paper.bib
 
 # Summary
 
-
-
+Alamo is a high-performance scientific code that uses block-structured adaptive mesh refinement to solve such problems as: the ignition and burn of solid rocket propellant, damage and fracture in materials undergoing loading, and the interaction of compressible flow with eroding solid materials.
+Alamo is powered by AMReX, and provides a set of unique methods, models, and algorithms that enable it to solve solid-mechanics orient problems using the poser of block-structured adaptive mesh refinement.
 
 # Statement of need
 
