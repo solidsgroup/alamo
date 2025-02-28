@@ -31,6 +31,8 @@ public:
     enum Fit { Stretch, FitWidth, FitHeight, Coord };
     enum Channel { R = 0, G = 1, B = 2, A = 3 };
 
+    virtual ~PNG() {}
+
     PNG(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
 
     PNG(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : PNG(_geom)
