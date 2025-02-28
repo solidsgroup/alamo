@@ -1,8 +1,13 @@
+---
 name: Coverage
 
-on:
+"on":
   push:
-    branches: ["development","candidate-coverage"]
+    branches:
+      - development
+  pull_request:
+    branches:
+      - development
 
 permissions:
   contents: read
@@ -11,37 +16,46 @@ permissions:
 
 jobs:
   test-coverage:
-    name: Generate documentation and test coverage report
+    name: Run Regression Test Suite & Build Documentation
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
-    - name: configure (2d)
-      continue-on-error: true
-      run: ./configure --dim=2 --coverage 
-    - name: make (2d)
-      continue-on-error: true
-      run: make
-    - name: configure (3d)
-      continue-on-error: true
-      run: ./configure --dim=3 --coverage
-    - name: make (3d)
-      continue-on-error: true
-      run: make
-    - name: regression tests with coverage (2d + 3d)
-      continue-on-error: true
-      run: scripts/runtests.py --serial --timeout=50 --permit-timeout --coverage --no-backspace
-    - name: generate coverage report
-      run: make cov-report
-    - name: generate documentation
-      run: make docs
-    - name: combine githubpages
-      run: make githubpages
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: './githubpages/'
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: bash .github/workflows/dependencies.sh
+      - name: Configure (2D)
+        continue-on-error: true
+        run: ./configure --dim=2 --coverage
+      - name: Build (2D)
+        continue-on-error: true
+        run: make
+      - name: Configure (3D)
+        continue-on-error: true
+        run: ./configure --dim=3 --coverage
+      - name: Build (3D)
+        continue-on-error: true
+        run: make
+      - name: Regression Tests & Coverage (2D/3D)
+        continue-on-error: true
+        run: >
+          scripts/runtests.py --serial
+          --timeout=50 --permit-timeout
+          --coverage --no-backspace
+      - name: Generate Coverage Report
+        run: make cov-report
+      - name: Generate Documentation
+        run: make docs
+      - name: Compile GitHub Pages
+        run: make githubpages
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: githubpages
+  deploy-documentation:
+    name: Deploy Documentation
+    needs: test-coverage
+    if: ${{ github.ref == 'refs/heads/development' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Deploy Documentation
+        uses: actions/deploy-pages@v4

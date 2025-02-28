@@ -78,11 +78,11 @@ class new:
     sigyy = ret[4]
 
 pylab.clf()
-pylab.plot(new.x,new.sigxx,marker='o',color='C0',label="$\sigma_{xx}$",linestyle="",markerfacecolor='None')
+pylab.plot(new.x,new.sigxx,marker='o',color='C0',label=r"$\sigma_{xx}$",linestyle="",markerfacecolor='None')
 pylab.plot(ref.x,ref.sigxx,color='C0')
-pylab.plot(new.x,new.sigyy,marker='o',color='C1',label="$\sigma_{yy}$",linestyle="",markerfacecolor='None')
+pylab.plot(new.x,new.sigyy,marker='o',color='C1',label=r"$\sigma_{yy}$",linestyle="",markerfacecolor='None')
 pylab.plot(ref.x,ref.sigyy,color='C1')
-pylab.plot(new.x,new.sigxy,marker='o',color='C2',label="$\sigma_{xy}$",linestyle="",markerfacecolor='None')
+pylab.plot(new.x,new.sigxy,marker='o',color='C2',label=r"$\sigma_{xy}$",linestyle="",markerfacecolor='None')
 pylab.plot(ref.x,ref.sigxy,color='C2')
 pylab.legend()
 pylab.tight_layout()
