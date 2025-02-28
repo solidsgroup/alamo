@@ -23,13 +23,13 @@ amr.n_cell = 120 40 0
 ### DIMENSIONS ###
 
 geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
-geometry.prob_hi = 1.0 1.0 0.0 # [ m ]
+geometry.prob_hi = 3.0 3.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-4
+timestep  = 1.0e-3
 stop_time = 10.0
 
 ### HYDRO PARAM ###
@@ -47,7 +47,7 @@ lagrange=1E3
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.1
-eta.ic.expression.region0        = "(0.5*tanh((y - 0.2)/eps) - 0.5*tanh((y - 0.8)/eps))"
+eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
 m0.ic.type = expression
 m0.ic.expression.region0 = "0.0"
