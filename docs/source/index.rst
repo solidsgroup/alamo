@@ -59,7 +59,7 @@ Documentation for alamo
         :link: developers
         :link-type: ref
 
-        :fas:`code;fa-fw` Research Instructions
+        :fas:`code;fa-fw` Developer Instructions
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Basics of Alamo design philosophy and practice.
