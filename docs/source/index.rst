@@ -55,12 +55,11 @@ Documentation for alamo
         ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         :bdg-warning-line:`For those using existing code to run new siulations.` 
         
-
     .. grid-item-card:: 
         :link: developers
         :link-type: ref
 
-        :fas:`code;fa-fw` Developer Instructions
+        :fas:`code;fa-fw` Research Instructions
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Basics of Alamo design philosophy and practice.
@@ -69,6 +68,18 @@ Documentation for alamo
         ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         :bdg-danger-line:`Starting point for all new alamo developers`
         
+    .. grid-item-card:: 
+        :link: studentguides
+        :link-type: ref
+
+        :fas:`student;fa-fw` New Student Guide
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        Basics of Alamo guide for new students.
+        How to get started with alamo, visit, inkscape and overleaf.
+        
+        ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-danger-line:`Starting point for all new students`    
         
     .. grid-item-card:: 
         :link: autodoc
@@ -170,4 +181,5 @@ The development team gratefully acknowledges the funding sources that enable the
         InputsSearch
         Developers
         Questions
+        StudentGuides
         Builder
