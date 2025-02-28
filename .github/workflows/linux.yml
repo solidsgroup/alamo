@@ -2,7 +2,7 @@ name: Linux
 
 on:
   push:
-    branches-ignore: ["candidate-install"]
+    branches-ignore: ["paper", "candidate-install"]
 
 jobs:
   tabs:

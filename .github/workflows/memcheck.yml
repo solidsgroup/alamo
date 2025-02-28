@@ -2,7 +2,7 @@ name: Memory Leak Check
 
 on:
   push:
-    branches-ignore: ["candidate-install"]
+    branches-ignore: ["paper","candidate-install"]
 
 permissions:
   contents: read
