@@ -10,7 +10,6 @@ namespace Numeric
 {
 
 enum StencilType { Lo, Hi, Central };
-
 static std::array<StencilType, AMREX_SPACEDIM>
 DefaultType = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) };
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>

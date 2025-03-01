@@ -630,55 +630,9 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         });
     }
 
-}//end TagCells
+}
 
-// void Hydro::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/, const amrex::MFIter &mfi, const amrex::Box &box)
-// {
-//   BL_PROFILE("Hydro::Integrate");
-//   const Set::Scalar *DX = geom[amrlev].CellSize();
-//   Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-//   amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
-//   amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//   volume += eta(i, j, k, 0) * dv;
-//   Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-//   Set::Scalar normgrad = grad.lpNorm<2>();
-//   Set::Scalar da = normgrad * dv;
-//   area += da;
-//   });
-
-
-//  }//end Integrate
-
-//  void Hydro::UpdateModel(int /*a_step*/)
-//  {
-//    for (int lev = 0; lev <= finest_level; ++lev)
-//    {
-//      eta_mf[lev] -> FillBoundary();
-//      density_mf[lev] -> FillBoundary();
-//      energy_mf[lev] -> FillBoundary();
-//      Momentum[lev] -> FillBoundary();
-//      
-//      for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//      {
-//  amrex::Box bx = mfi.nodaltilebox();
-//  amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
-//
-//  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//  // TODO
-//
-//  });
-//
-//
-//     } // end For2
-
-//     Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-//     amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]-> nGrow());
-
-//    } //end For1
-//}//end update
-
-
-}//end code
+}
 
 
 #endif

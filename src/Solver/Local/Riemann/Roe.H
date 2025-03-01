@@ -171,14 +171,6 @@ public:
         //
         Flux fl;
         
-        //fl.mass =
-        //    (
-        //        rho_L * u_L 
-        //        + (std::min(0.0,lambda1)*deltav1
-        //        + (0.5*rho_RL/(a_RL))*( std::min(0.0,lambda2)*deltav2 -
-        //                                std::min(0.0,lambda3)*deltav3)) 
-        //        )
-        //    ;
         fl.mass = (0.5*(rho_L*u_L + rho_R*u_R) - 0.5*(
                         r11*fabs(lambda1)*deltav1 +
                         r21*fabs(lambda2)*deltav2 +
@@ -211,28 +203,13 @@ public:
         }
 
 
-        //fl.momentum_normal =
-        //    (
-        //        rho_L * u_L * u_L + p_L
-        //        + (u_RL*std::min(0.0,lambda1)*deltav1
-        //        + (0.5*rho_RL/(a_RL))*( lambda2*std::min(0.0,lambda2)*deltav2 -
-        //                                lambda3*std::min(0.0,lambda3)*deltav3)) 
-        //        ) 
-        //    ;
         fl.momentum_normal = ( 0.5*(rho_L*u_L*u_L + p_L + rho_R*u_R*u_R + p_R) - 0.5*(
                                     r12*fabs(lambda1)*deltav1 +
                                     r22*fabs(lambda2)*deltav2 +
                                     r32*fabs(lambda3)*deltav3)
             );
 
-        //fl.energy =
-        //    (
-        //        ke_L * u_L + (p_L + ue_L) * u_L
-        //        + (0.5*u_RL*u_RL*std::min(0.0,lambda1)*deltav1
-        //        + (0.5*rho_RL/(a_RL))*( (h_RL + a_RL*u_RL)*std::min(0.0,lambda2)*deltav2 -
-        //                                (h_RL - a_RL*u_RL)*std::min(0.0,lambda3)*deltav3))               
-        //        ) 
-        //    ;
+
         fl.energy = (   0.5*(u_L*(ke_L + p_L + ue_L) + u_R*(ke_R + p_R + ue_R)) - 0.5*
                         (
                             r13*fabs(lambda1)*deltav1 +
