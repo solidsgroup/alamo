@@ -1,0 +1,134 @@
+#@ [roe]
+#@ exe=hydro
+#@ dim=2
+
+#@ [roe-fix]
+#@ exe=hydro
+#@ dim=2
+#@ roefix=1
+
+alamo.program = hydro
+
+### OUTPUT ###
+
+plot_file = ./tests/FlowRiemannShockTube/output
+
+### MESHING ###
+
+#amr.plot_dt = 0.1
+amr.plot_int = 1000
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+amr.grid_eff = 0.8
+amr.n_cell = 512 4 #160 20 0
+
+# Uncomment to test AMR
+#amr.max_level = 2
+#amr.n_cell = 128 32 0
+
+### DIMENSIONS ###
+
+geometry.prob_lo =  -5.0  -0.05859375   0.0 # [ m ] 
+geometry.prob_hi =  10.0   0.1171875   0.0 # [ m ]
+
+
+
+
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 1.0e-5
+stop_time = 0.01
+
+### ETA IC ###
+
+#Ldot_0 = 0.0
+
+m0.ic.constant.value = 0.0 
+u0.ic.constant.value = 0.0 
+
+q.ic.type = constant
+q.ic.constant.value = 0.0
+
+#deltapInterface.ic.type = expression
+#deltapInterface.ic.expression.region0 = "0.0"
+
+eta.ic.type = constant
+eta.ic.constant.value  = 1.0
+
+### HYDRO PARAM ###
+
+gamma = 1.4
+cfl   = 0.4
+mu    = 0.0
+
+pref = 0.0
+
+density.ic.type = expression
+density.ic.expression.constant.rho_L = 1.0
+density.ic.expression.constant.rho_R = 0.125
+density.ic.expression.region0 = "rho_L*(x<0) + rho_R*(x>0)" 
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.v_L = 100
+velocity.ic.expression.constant.v_R = -50
+velocity.ic.expression.region0 = "v_L*(x<0) + v_R*(x>0)"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.constant.p_L = 100000
+pressure.ic.expression.constant.p_R = 10000
+pressure.ic.expression.region0 = "p_L*(x<0) + p_R*(x>0)"
+
+solid.density.ic.type = constant
+solid.density.ic.constant.value = 0.0
+solid.velocity.ic.type = constant
+solid.velocity.ic.constant.value = 0.0 0.0
+solid.momentum.ic.type = constant
+solid.momentum.ic.constant.value = 0.0
+solid.energy.ic.type = constant
+solid.energy.ic.constant.value = 0.0
+
+### ETA BC  ###
+
+pf.eta.bc.type.xlo = neumann
+pf.eta.bc.type.xhi = neumann
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+
+### HYDRO BC ###
+
+density.bc.type.xhi = neumann
+density.bc.type.xlo = neumann
+density.bc.type.ylo = neumann
+density.bc.type.yhi = neumann
+energy.bc.type.xhi = neumann
+energy.bc.type.xlo = neumann
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+momentum.bc.type.xhi = neumann neumann
+momentum.bc.type.xlo = neumann neumann
+momentum.bc.type.ylo = neumann neumann
+momentum.bc.type.yhi = neumann neumann
+
+### HYDRO REFINEMENT CRITERIA ###
+
+r_refinement_criterion   = 100000.1
+e_refinement_criterion   = 100000.1
+m_refinement_criterion   = 100000.1
+eta_refinement_criterion = 100000.1
+
+#TODO
+
+momentum.bc.type.xlo = neumann
+momentum.bc.type.xhi = neumann
+momentum.bc.type.ylo = neumann
+momentum.bc.type.yhi = neumann
+energy.bc.type.xlo = neumann
+energy.bc.type.xhi = neumann
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+
+
