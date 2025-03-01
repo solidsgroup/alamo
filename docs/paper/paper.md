@@ -29,12 +29,12 @@ bibliography: paper.bib
 
 # Summary
 
-Alamo is a high-performance scientific code that uses block-structured adaptive mesh refinement to solve such problems as: the ignition and burn of solid rocket propellant, damage and fracture in materials undergoing loading, and the interaction of compressible flow with eroding solid materials.
-Alamo is powered by AMReX, and provides a set of unique methods, models, and algorithms that enable it to solve solid-mechanics orient problems using the poser of block-structured adaptive mesh refinement.
+Alamo is a high-performance scientific code that uses block-structured adaptive mesh refinement to solve such problems as: the ignition and burn of solid rocket propellant, plasticity, damage and fracture in materials undergoing loading, and the interaction of compressible flow with eroding solid materials.
+Alamo is powered by AMReX, and provides a set of unique methods, models, and algorithms that enable it to solve solid-mechanics oriented problems using the poser of block-structured adaptive mesh refinement.
 
 # Statement of need
 
-The phase field (PF) method is a powerful theoretical framework that enables the systematic description of complex physical systems.
+The phase field (PF) method is a powerful theoretical framework that enables the systematic description of complex physical systems [@qin2010phase,@steinbach2009phase,@burger2006phase].
 PF methods have been successfully used to describe phenomena such as solidification, microstructure evolution, fracture, damage, dislocations, and many more.
 Beyond materials science, PF methods have also enjoyed great success in other applications ranging from deflagration of solid rocket propellant to topology optimization.
 
@@ -49,7 +49,7 @@ However, they can be limited in their ability to resolve fine-scale features, an
 On the other hand, real-space methods with AMR are often able to attain very good performance, can be easily suited to the domain of interest, and provide an attractive platform for prototyping new physical models.
 
 A number of open-source real-space PF codes exist and have enjoyed significant popularity.
-Some of the most widely known are Moose, [@giudicelli2024moose], Fenics [@baratta2023dolfinx], and Prisms-PF [@dewitt2020prisms], which employ octree style AMR.
+Some of the most widely known codes with PF implementations are Moose, [@giudicelli2024moose], Fenics [@baratta2023dolfinx], and Prisms-PF [@dewitt2020prisms], which employ octree style AMR.
 Though effective, octree-AMR can result on complex and expensive mesh management.
 It is can also be challenging to achieve optimal load balancing, due to the high degree of unpredictable connectivity within the octree mesh.
 
@@ -91,10 +91,10 @@ An optional interface is provided that allows users to communicate model informa
 Because mechanical models are instantiated as field variables, they require arithmetic operations in order to be interpolated/averaged as the mesh is adapted.
 Alamo implements a "model vector space" framework that provides an intuitive and efficient framework for automatic creation of arithmetic operations.
 This allows model developers to implement all necessary arithmetic operators with only three additional lines of code, ensuring systematic compliance of the model and increased readability of the code.
-The flexibility of this framework is exemplified through Alamo's library of solid models, which include implementations of solids ranging from linear elastic isotropic materials to finite deformation crystal plasticity.
+The flexibility of this framework is exemplified through Alamo's library of solid models, which include implementations of solids ranging from linear elastic isotropic materials to finite deformation strain gradient crystal plasticity.
 
 Because the mechanical solver is coupled to problems defined with diffuse boundaries, often involving "void" regions in which there is no mechanical strength, additional steps are necessary to avoid convergence issues.
-Alamo contains methods for accounting for diffuse boundary conditions, and uses a joint cell/node based interpolation scheme to ensure good convergence even when the solution is not uniquely defined.
+Alamo contains methods for accounting for diffuse boundary conditions, and uses a joint cell/node based interpolation scheme to ensure good convergence even when the operator is near-singular.
 Details on the near-singular solver capability, as well as the model vector space implementation, have been documented in [@agrawal2023robust].
 
 ## Multiple inheritance polymorphic integrators 
@@ -104,7 +104,7 @@ Each integrator is responsible for solving a certain set of equations: the HeatC
 All integrators inherit from the base integrator, which interfaces with AMReX and manages the creation/deletion/evolution of field variables.
 This partitions the code so that each integrator is responsible only for its own physics, without excessive bookkeeping infrastructure.
 
-Most phase field problems of interest feature the non-trivial interaction of multiple disparate physical behaviors.
+Most PF problems of interest feature the non-trivial interaction of multiple disparate physical behaviors.
 For example, microstructure evolution in metals is strongly coupled to mechanical loading.
 Or, some phase field models may require a fully resolved flow-field.
 Such couplings can rapidly increase the complexity of the code base.
@@ -126,7 +126,7 @@ This allows for integrators to be combined in arbitrary ways, with minimal (or p
 Numerous alamo integrators have been developed and used for scientific applications.
 A brief summary is included here:
 
-- Microstructure evolution is simulated using the multi-phase field method [@eren2022comparison] combined with the strong-form mechanics solver to simulate grain boundary anisotropy [@ribot2019new], phase field disconnections [@runnels2020phase,gokuli2021multiphase], and twin growth in magnesium [@hu2024atomistic].
+- Microstructure evolution is simulated using the multi-phase field method [@eren2022comparison] combined with the strong-form mechanics solver to simulate grain boundary anisotropy [@ribot2019new], phase field disconnections [@runnels2020phase,@gokuli2021multiphase], and twin growth in magnesium [@hu2024atomistic].
 
 - The phase field fracture mechanics model couples crack evolution and mechanics to capture crack propagation [@agrawal2021block,@agrawal2023robust].
 
