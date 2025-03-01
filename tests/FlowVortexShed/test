@@ -5,6 +5,7 @@ import testlib
 import glob
 
 outdir = sys.argv[1]
+ref = sys.argv[2]
 
 tol = 5e-2
 
@@ -12,10 +13,10 @@ path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
 testlib.validate(path=path,
                  outdir=outdir,
-                 reference="reference/reference-2d.csv",
-                 start=[-6, 0],
-                 end  =[14, 6],
-                 coord = "x",
+                 reference=ref,
+                 start=[10, -5],
+                 end  =[10, 5],
+                 coord = "y",
                  vars=["momentumx","vorticity","pressure"],
                  tolerance=[tol, tol, tol],
                  abs_tolerance = [100,100,100], #ignore

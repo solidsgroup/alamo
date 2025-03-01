@@ -1,8 +1,8 @@
-#@ [Roe]
+#@ [roe]
 #@ exe=hydro
 #@ dim=2
 
-#@ [Roe_fix]
+#@ [roe-fix]
 #@ exe=hydro
 #@ dim=2
 #@ roefix=1

@@ -1,11 +1,11 @@
-#@ [serial-channelflow]
+#@ [serial]
 #@ exe = hydro
 #@ dim = 2
 #@ args = amr.plot_dt = 0.5
 #@ args = stop_time=2.5
 #@ check-file = reference/reference-2d.csv
 
-#@ [parallel-channelflow]
+#@ [parallel]
 #@ exe = hydro
 #@ dim = 2
 #@ nprocs = 4

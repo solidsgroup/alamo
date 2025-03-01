@@ -1,15 +1,15 @@
-#@ [serial-vortex-shed]
+#@ [serial]
 #@ exe=hydro
 #@ dim=2
 #@ args = stop_time = 25
 #@ check-file = reference/reference-2d.csv
 
-#@ [parallel-vortex-shed]
+#@ [parallel]
 #@ exe=hydro
 #@ dim=2
 #@ nprocs = 4
 #@ args = stop_time = 100
-#@ check = false
+#@ check-file = reference/parallel.csv
 
 alamo.program = hydro
 

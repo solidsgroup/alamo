@@ -1,4 +1,4 @@
-#@ [allencahn]
+#@ [serial]
 #@ exe=sfi
 #@ dim=2
 #@ args = amr.n_cell = 64 8
