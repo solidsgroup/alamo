@@ -6,6 +6,8 @@ set -eu -o pipefail
 # ============
 #
 
+BREW_DEPENDENCIES=("gfortran" "mpich" "eigen" "libpng")
+
 #
 # Use macOS Homebrew system to install system-wide dependencies 
 # [ you should only need to do this once ]
@@ -14,11 +16,7 @@ if ! which brew > /dev/null; then
 	echo "Homebrew not found"
 	exit 1
 fi
-brew update
-brew install gfortran || true
-brew install mpich || true
-brew install eigen || true
-brew install libpng || true
+brew update && brew install "${BREW_DEPENDENCIES[@]}"
 
 #
 # If your system is unable to find gfortran (for instance, if you are
