@@ -18,11 +18,11 @@ authors:
     affiliation: 3
 affiliations:
  - name: Department of Aerospace Engineering, Iowa State University, Ames, IA, USA
-   id: 1
+   index: 1
  - name: Materials and Physical Data Group, Los Alamos National Laboratory, Los Alamos, NM, USA
-   id: 2
+   index: 2
  - name: Arizona State University, Phoenix, AZ, USA
-   id: 3
+   index: 3
 date: 2025
 bibliography: paper.bib
 ---
@@ -30,7 +30,7 @@ bibliography: paper.bib
 # Summary
 
 Alamo is a high-performance scientific code that uses block-structured adaptive mesh refinement to solve such problems as: the ignition and burn of solid rocket propellant, plasticity, damage and fracture in materials undergoing loading, and the interaction of compressible flow with eroding solid materials.
-Alamo is powered by AMReX, and provides a set of unique methods, models, and algorithms that enable it to solve solid-mechanics oriented problems using the poser of block-structured adaptive mesh refinement.
+Alamo is powered by AMReX, and provides a set of unique methods, models, and algorithms that enable it to solve solid-mechanics problems (coupled to other physical behavior such as fluid flow or thermal diffusion) using the power of block-structured adaptive mesh refinement.
 
 # Statement of need
 
@@ -57,12 +57,12 @@ Block-structured AMR (BSAMR) is an alternative AMR strategy.
 BSAMR divides the domains into distinct levels, with each level usually consisting of a collection of Cartesian grid regions (patches), that effectively evolve independently.
 Communication between patches and levels is then handled through ghost cells, interpolation, and restriction.
 This data structure is extremely efficient and scalable, while also being highly amenable to efficient code prototyping.
-Importantly, BSAMR also acts as a seamless extension to geometric multigrid, making naturally efficient at performing global implicit solves.
+Importantly, BSAMR also acts as a seamless extension to geometric multigrid, making naturally efficient at performing global mechanical equilibrium solves.
 The AMReX framework [@zhang2019amrex] provides a powerful platform for development of BSAMR codes.
-However, the use of AMReX (and BSAMR in general) has been limited in PF and solid mechanics, due to the inherent challenges of solving implicit mechanical equilibrium equations on a patch-based mesh.
+However, the use of AMReX (and BSAMR in general) has been limited in PF and solid mechanics, due to the inherent challenges of solving the mechanical equilibrium equations on a patch-based mesh.
 
 The Alamo multiphysics solver leverages the power of BSAMR for phase-field problems.
-Alamo provides a unique, strong-form finite-deformation, matrix-free mechanics solver, enabling the efficient solution of implicit solid mechanics calculations.
+Alamo provides a unique, strong-form finite-deformation, matrix-free mechanics solver, enabling the efficient solution of the solid mechanics calculations.
 It also provides a set of numerical integration routines, myriad material models, and numerous examples covering a broad cross-section of PF modeling interests.
 
 
@@ -77,16 +77,17 @@ The Alamo mechanical solver extends the multi-level multi-grid (MLMG) solver to 
 \end{equation}
 where $\mathbf{F}$ is the deformation gradient, $\mathbf{B}$ is a body force, and $\mathrm{W}$ is an arbitrary Helmholtz free energy with derivatives $\mathbf{P}=\mathrm{DW}(\mathbf{F}) = d\mathrm{W}/d\mathbf{F}$ the Piola-Kirchhoff stress tensor, and $\mathbb{C}=\mathrm{DDW}(\mathbf{F})=d^2\mathrm{W}/d\mathbf{F}/d\mathbf{F}$ the tangent modulus.
 Usually, the solution of \autoref{eq:mech_equil} is achieved using the finite element method (FEM).
-However, FEM is not readily amenable to the BSAMR structure, due to the difficulties in achieving consistent shape functions between levels, and problems with achieving consistent derivatives at the coarse/fine boundary without a global matrix.
+However, the main advantages of FEM (conformal meshing, ability to handle material discontinuities) are not relevant in the BSAMR framework.
+Moreover, FEM often presents difficulties in achieving consistent shape functions between levels, causing problems in achieving consistent derivatives at the coarse/fine boundary without a global matrix.
 
-The Alamo solver is developed to be native to the BSAMR framework, and takes full advantage of the integration with geometric multigrid.
+The Alamo solver, on the other hand, is developed to be native to the BSAMR framework, and takes full advantage of the integration with geometric multigrid.
 It is matrix-free, which is necessary in order to avoid additional communication overhead.
 It is strong-form, using finite differences instead of shape functions to calculate derivatives, ensuring consistency between levels and compatibility with restriction/prolongation operations.
 It handles coarse-fine boundaries using a novel "reflux-free" method, which avoids the special treatment of boundaries by including an extra layer of smoothed ghost nodes.
 Details on these aspects of the solver are available in [@runnels2021massively].
 
 The Alamo mechanical solver is versatile, allowing any type of mechanical model to be used though the abstract solid model interface (per the norm for most FEM codes).
-Alamo uses templated AMReX BaseFab structures to encapsulate model parameters, which enables uses to implement sophisticated models without any knowledge of the external Alamo/AMReX infrastructure.
+Alamo uses templated AMReX BaseFab structures to encapsulate model parameters, which enables users to implement sophisticated models without any knowledge of the external Alamo/AMReX infrastructure.
 An optional interface is provided that allows users to communicate model information to the Alamo I/O routines, in order to include internal solid mechanics variables (such as accumulated plastic slip) with the field output.
 Because mechanical models are instantiated as field variables, they require arithmetic operations in order to be interpolated/averaged as the mesh is adapted.
 Alamo implements a "model vector space" framework that provides an intuitive and efficient framework for automatic creation of arithmetic operations.
