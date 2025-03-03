@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu -o pipefail 
+set -eu -o pipefail
 
 #
 # DEPENDENCIES
@@ -20,9 +20,9 @@ sudo apt install libpng-dev
 #
 
 #
-# In the alamo directory, run this command with any additional arguments. 
+# In the alamo directory, run this command with any additional arguments.
 #
-./configure 
+./configure
 
 #
 # Compile the code by running make
@@ -39,7 +39,6 @@ ls ./bin/
 #
 ./bin/test-3d-g++
 
-
 #
 # PYTHON [OPTIONAL]
 # =================
@@ -53,4 +52,3 @@ ls ./bin/
 # Install packages needed for regression test script
 #
 pip3 install sympy yt matplotlib numpy pandas
-

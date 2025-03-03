@@ -9,12 +9,12 @@ set -eu -o pipefail
 BREW_DEPENDENCIES=("gfortran" "mpich" "eigen" "libpng")
 
 #
-# Use macOS Homebrew system to install system-wide dependencies 
+# Use macOS Homebrew system to install system-wide dependencies
 # [ you should only need to do this once ]
 #
-if ! which brew > /dev/null; then
-	echo "Homebrew not found"
-	exit 1
+if ! which brew >/dev/null; then
+    echo "Homebrew not found"
+    exit 1
 fi
 brew update && brew install "${BREW_DEPENDENCIES[@]}"
 
@@ -37,7 +37,7 @@ brew update && brew install "${BREW_DEPENDENCIES[@]}"
 # [ you need to do this in every new shell OR add to your shell config file (like .bashrc) ]
 #
 CPLUS_INCLUDE_PATH=CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/include
-export CPLUS_INCLUDE_PATH 
+export CPLUS_INCLUDE_PATH
 #
 # In the alamo directory, run this command with any additional arguments.
 #
