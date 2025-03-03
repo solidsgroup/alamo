@@ -1,34 +1,34 @@
+---
 name: Install
 
-on:
+"on":
   push:
-    branches: ["development", "master","candidate","candidate-install"]
+    branches: ["development", "master", "candidate", "candidate-install"]
   pull_request:
     branches:
-    - development
+      - development
 
 jobs:
   install-ubuntu-20-04:
     name: Ubuntu 20.04
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v4
-    - name: running the install script
-      run: bash .github/workflows/install-ubuntu-22.04.sh
+      - uses: actions/checkout@v4
+      - name: running the install script
+        run: bash .github/workflows/install-ubuntu-22.04.sh
   install-ubuntu-22-04:
     name: Ubuntu 22.04
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - name: running the install script
-      run: bash .github/workflows/install-ubuntu-22.04.sh
+      - uses: actions/checkout@v4
+      - name: running the install script
+        run: bash .github/workflows/install-ubuntu-22.04.sh
   install-macos:
-    name: Mac OS 
+    name: macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: creating gfortran symlink
-      run: ln -s /opt/homebrew/bin/gfortran-14 /opt/homebrew/bin/gfortran
-    - name: running the install script
-      run: bash .github/workflows/install-macos.sh
-
+      - uses: actions/checkout@v4
+      - name: creating gfortran symlink
+        run: ln -s /opt/homebrew/bin/gfortran-14 /opt/homebrew/bin/gfortran
+      - name: running the install script
+        run: bash .github/workflows/install-macos.sh
