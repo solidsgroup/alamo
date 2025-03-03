@@ -1,4 +1,5 @@
-set -eu -o pipefail 
+#!/bin/bash
+set -eu -o pipefail
 
 #
 # DEPENDENCIES
@@ -6,15 +7,18 @@ set -eu -o pipefail
 #
 
 #
-# Use Mac OS HomeBrew system to install mpich and eigen
+# Use macOS Homebrew system to install system-wide dependencies 
 # [ you should only need to do this once ]
 #
+if ! which brew > /dev/null; then
+	echo "Homebrew not found"
+	exit 1
+fi
 brew update
 brew install gfortran || true
 brew install mpich || true
 brew install eigen || true
 brew install libpng || true
-
 
 #
 # If your system is unable to find gfortran (for instance, if you are
@@ -37,7 +41,7 @@ brew install libpng || true
 export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/include
 
 #
-# In the alamo directory, run this command with any additional arguments. 
+# In the alamo directory, run this command with any additional arguments.
 #
 # [ you need to include these arguments every time you configure ]
 #
@@ -58,7 +62,6 @@ ls ./bin/
 #
 ./bin/test-3d-g++
 
-
 #
 # PYTHON [OPTIONAL]
 # =================
@@ -75,4 +78,3 @@ ls ./bin/
 # Install packages needed for regression test script
 #
 pip3 install sympy yt matplotlib numpy pandas --break-system-packages --user
-
