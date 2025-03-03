@@ -22,7 +22,7 @@ find . -type d \( -name .git \
     -exec grep -Iq . {} \; \
     -exec sed -i 's/\t/\ \ \ \ /g' {} +
 
-gitdiff=`git diff`
+gitdiff=$(git diff)
 
 if [ -z "$gitdiff" ]
 then
