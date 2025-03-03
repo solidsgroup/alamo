@@ -36,14 +36,14 @@ brew update && brew install "${BREW_DEPENDENCIES[@]}"
 #
 # [ you need to do this in every new shell OR add to your shell config file (like .bashrc) ]
 #
-export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/include
-
+CPLUS_INCLUDE_PATH=CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/include
+export CPLUS_INCLUDE_PATH 
 #
 # In the alamo directory, run this command with any additional arguments.
 #
 # [ you need to include these arguments every time you configure ]
 #
-./configure --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
+./configure --macos --link "$(brew --prefix)/lib/gcc/current/" "$(brew --prefix libpng)/lib/"
 
 #
 # Compile the code by running make
