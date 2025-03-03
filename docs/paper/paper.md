@@ -34,7 +34,7 @@ Alamo is powered by AMReX, and provides a set of unique methods, models, and alg
 
 # Statement of need
 
-The phase field (PF) method is a powerful theoretical framework that enables the systematic description of complex physical systems [@qin2010phase,@steinbach2009phase,@burger2006phase].
+The phase field (PF) method is a powerful theoretical framework that enables the systematic description of complex physical systems [@qin2010phase;@steinbach2009phase;@burger2006phase].
 PF methods have been successfully used to describe phenomena such as solidification, microstructure evolution, fracture, damage, dislocations, and many more.
 Beyond materials science, PF methods have also enjoyed great success in other applications ranging from deflagration of solid rocket propellant to topology optimization.
 
@@ -127,9 +127,9 @@ This allows for integrators to be combined in arbitrary ways, with minimal (or p
 Numerous alamo integrators have been developed and used for scientific applications.
 A brief summary is included here:
 
-- Microstructure evolution is simulated using the multi-phase field method [@eren2022comparison] combined with the strong-form mechanics solver to simulate grain boundary anisotropy [@ribot2019new], phase field disconnections [@runnels2020phase,@gokuli2021multiphase], and twin growth in magnesium [@hu2024atomistic].
+- Microstructure evolution is simulated using the multi-phase field method [@eren2022comparison] combined with the strong-form mechanics solver to simulate grain boundary anisotropy [@ribot2019new], phase field disconnections [@runnels2020phase;@gokuli2021multiphase], and twin growth in magnesium [@hu2024atomistic].
 
-- The phase field fracture mechanics model couples crack evolution and mechanics to capture crack propagation [@agrawal2021block,@agrawal2023robust].
+- The phase field fracture mechanics model couples crack evolution and mechanics to capture crack propagation [@agrawal2021block;@agrawal2023robust].
 
 - Deflagration of solid rocket propellant is captured using a phase field method [@kanagarajan2022diffuse], coupled to heat transfer [@meier2024diffuse] and the hyperelastic solver [@meier2024finite] to accurately predict ignition, deflagration, and mechanical response.
 
