@@ -174,7 +174,7 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             testdocfile.write(testsectionname+"\n")
             testdocfile.write("-"*len(testsectionname)+"\n")
 
-            testdocfile.write(".. flat-table:: \n")
+            testdocfile.write(".. list-table:: \n")
             testdocfile.write("    :widths: 10 90\n")
             testdocfile.write("    :header-rows: 0\n\n")
 

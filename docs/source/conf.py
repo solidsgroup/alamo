@@ -58,9 +58,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
     'sphinx.ext.autosectionlabel',
-#    'breathe',
     'linuxdoc.rstFlatTable',
-#    'm2r'
     'sphinx_design',
     'sphinx_copybutton',
     'sphinxcontrib.bibtex'
