@@ -1,11 +1,10 @@
 //
-// This is a general purpose integrator that focuses on solving 
+// This is a general purpose integrator that focuses on solving
 // elasticity/mechanics equations in the absence of other multiphysics
-// simulations.
-// It is enabled by :code:`alamo.program=mechanics` if used on its own, in
-// which case there is no prefix.
-// If it is being used by another integrator, see that integrator to determine
-// the value of :code:`[prefix]` (often equal to :code:`elastic`).
+// simulations.  It is enabled by :code:`alamo.program=mechanics` if
+// used on its own, in which case there is no prefix.  If it is being
+// used by another integrator, see that integrator to determine the
+// value of :code:`[prefix]` (often equal to :code:`elastic`).
 //
 // This integrator inherits from :ref:`Integrator::Base::Mechanics`; see 
 // documentation for that integrator for additional parameters.
@@ -114,14 +113,14 @@ public:
     {
         pp.queryclass<Base::Mechanics<MODEL>>(value);
 
-        int nmodels = 1;
+        value.nmodels = 1;
 
         pp.select<IC::EBSD<MODEL>>("model.ic",value.ic_model,value.geom);
 
         if (!value.ic_model)
         {
-            pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
-            for (int i = 0; i < nmodels; i++)
+            pp_query_default("nmodels", value.nmodels, 1); // Number of elastic model varieties
+            for (int i = 0; i < value.nmodels; i++)
             {
                 bool init = false;
                 MODEL tmp_model;
@@ -144,7 +143,7 @@ public:
             Util::Assert(INFO, TEST(value.models.size() > 0));
         }
 
-        value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
+        value.RegisterNodalFab(value.eta_mf, value.nmodels, 2, "eta", true);
         // Refinement threshold for eta field
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
         // Refinement threshold for strain gradient
@@ -153,7 +152,7 @@ public:
         pp_query_default("model_neumann_boundary",value.model_neumann_boundary,false);
 
         // Read in IC for eta
-        if (nmodels > 1 && pp.contains("ic.type"))
+        if (value.nmodels > 1 && pp.contains("ic.type"))
         {
             // Select the initial condition for eta
             pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead>("ic",value.ic_eta,value.geom);
@@ -200,7 +199,7 @@ public:
     {
         Base::Mechanics<MODEL>::Initialize(lev);
         eta_mf[lev]->setVal(0.0);
-        if (models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
+        if (nmodels > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
         else eta_mf[lev]->setVal(1.0);
 
         if (psi_on) ic_psi->Initialize(lev, psi_mf); 
@@ -264,7 +263,7 @@ public:
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         model(i, j, k) = MODEL::Zero();
-                        for (unsigned int n = 0; n < models.size(); n++)
+                        for (unsigned int n = 0; n < nmodels; n++)
                             model(i, j, k) += eta(i, j, k, n) * models[n];
                     });
                 }
@@ -346,13 +345,14 @@ public:
 
     void Regrid(int lev, Set::Scalar time) override
     {
-        if (eta_reset_on_regrid && models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf, time);
+        if (eta_reset_on_regrid && nmodels > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf, time);
         if (psi_reset_on_regrid) ic_psi->Initialize(lev, psi_mf, time);
     }
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Scalar m_eta_ref_threshold = NAN;
+    unsigned int nmodels = 1;
     std::vector<MODEL> models;
     IC::IC<Set::Scalar>* ic_eta = nullptr;
     IC::IC<Set::Scalar>* ic_psi = nullptr;
