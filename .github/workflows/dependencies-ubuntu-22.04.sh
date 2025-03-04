@@ -17,7 +17,7 @@ sudo apt install libpng-dev
 #
 # Install these packages if compiling with clang
 #
-sudo apt install clang libgfortran-14-dev
+sudo apt install clang
 
 #
 # These are needed for regression test scripts and other code infrastructure
