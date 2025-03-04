@@ -95,7 +95,7 @@
 
 namespace Integrator {
 template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
-  public:
+    public:
     Mechanics() : Base::Mechanics<MODEL>() {}
     Mechanics(IO::ParmParse &pp) : Base::Mechanics<MODEL>() {
         Parse(*this, pp);
@@ -116,7 +116,7 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
 
         int nmodels;
         pp_query_default("nmodels", nmodels,
-                         1); // Number of elastic model varieties
+                        1); // Number of elastic model varieties
         for (int i = 0; i < nmodels; i++) {
             bool init = false;
             MODEL tmp_model;
@@ -137,7 +137,7 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
         }
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta",
-                               true);
+                                true);
         // Refinement threshold for eta field
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
         // Refinement threshold for strain gradient
@@ -145,32 +145,32 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
         // Explicity impose neumann condition on model at domain boundaries (2d
         // only)
         pp_query_default("model_neumann_boundary", value.model_neumann_boundary,
-                         false);
+                        false);
 
         // Read in IC for eta
         if (nmodels > 1 && pp.contains("ic.type")) {
             // Select the initial condition for eta
             pp.select<IC::Constant, IC::Ellipse, IC::Voronoi, IC::BMP, IC::PNG,
-                      IC::Expression, IC::PSRead>("ic", value.ic_eta,
-                                                  value.geom);
+                        IC::Expression, IC::PSRead>("ic", value.ic_eta,
+                                                    value.geom);
 
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.
             // Default is false unless eta ic is set, then default is.
             // true.
             pp_query_default("eta.reset_on_regrid", value.eta_reset_on_regrid,
-                             true);
+                            true);
         }
 
         // Read in IC for psi
         if (pp.contains("psi.ic.type")) {
             // Select initial condition for psi field
             pp.select<IC::Ellipse, IC::Constant, IC::Expression, IC::PSRead,
-                      IC::PNG>("psi.ic", value.ic_psi, value.geom);
+                        IC::PNG>("psi.ic", value.ic_psi, value.geom);
 
             value.bc_psi = new BC::Nothing();
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi",
-                                 value.plot_psi);
+                                value.plot_psi);
             value.psi_on = true;
 
             value.psi_reset_on_regrid = true;
@@ -178,7 +178,7 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
             // Default is false unless a psi ic is set, then default is
             // true.
             pp_query_default("psi.reset_on_regrid", value.psi_reset_on_regrid,
-                             true);
+                            true);
         }
 
         if (pp.contains("trac_normal.ic.type")) {
@@ -190,7 +190,7 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
             if (value.ic_trac_normal) {
                 value.bc_trac_normal = new BC::Nothing();
                 value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal,
-                                     1, 2, "trac_normal", true);
+                                    1, 2, "trac_normal", true);
             }
         }
         Util::Message(INFO);
@@ -275,13 +275,13 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
 
             if (model_neumann_boundary) {
                 Util::AssertException(INFO, TEST(AMREX_SPACEDIM == 2),
-                                      "neumann boundary works in 2d only");
+                                        "neumann boundary works in 2d only");
                 for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi) {
                     amrex::Box bx = mfi.grownnodaltilebox() & domain;
                     amrex::Array4<MODEL> const &model =
                         this->model_mf[lev]->array(mfi);
                     const Dim3 lo = amrex::lbound(domain),
-                               hi = amrex::ubound(domain);
+                                hi = amrex::ubound(domain);
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j,
                                                                 int k) {
@@ -315,16 +315,16 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags,
-                               Set::Scalar a_time, int a_ngrow) override {
+                                Set::Scalar a_time, int a_ngrow) override {
         if (m_type == Base::Mechanics<MODEL>::Type::Disable)
             return;
         Base::Mechanics<MODEL>::TagCellsForRefinement(lev, a_tags, a_time,
-                                                      a_ngrow);
+                                                        a_ngrow);
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
         for (amrex::MFIter mfi(*eta_mf[lev], TilingIfNotGPU()); mfi.isValid();
-             ++mfi) {
+            ++mfi) {
             amrex::Box bx = mfi.nodaltilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
@@ -360,7 +360,7 @@ template <class MODEL> class Mechanics : virtual public Base::Mechanics<MODEL> {
             ic_psi->Initialize(lev, psi_mf, time);
     }
 
-  protected:
+    protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Scalar m_eta_ref_threshold = NAN;
     std::vector<MODEL> models;

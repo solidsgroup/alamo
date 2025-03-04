@@ -15,7 +15,7 @@ namespace Set {
 template <> class Matrix4<2, Sym::MajorMinor> {
     Scalar data[6] = {NAN, NAN, NAN, NAN, NAN, NAN};
 
-  public:
+    public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
     // Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
     //{
@@ -23,7 +23,7 @@ template <> class Matrix4<2, Sym::MajorMinor> {
     // }
     AMREX_FORCE_INLINE
     const Scalar &operator()(const int i, const int j, const int k,
-                             const int l) const {
+                            const int l) const {
         int uid = i + 2 * j + 4 * k + 8 * l;
         if (uid == 0)
             return data[0]; // [0000]
@@ -75,7 +75,7 @@ template <> class Matrix4<2, Sym::MajorMinor> {
                         for (int j = 0; j < 2; j++) {
                             const Set::Scalar &val = (*this)(i, j, k, l);
                             os << std::scientific << std::setw(11)
-                               << val; //(fabs(val)>1E-10 ? val : 0);
+                                << val; //(fabs(val)>1E-10 ? val : 0);
                             os << " ";
                         }
                         os << "│ ";
@@ -88,8 +88,8 @@ template <> class Matrix4<2, Sym::MajorMinor> {
 
     Set::Scalar Norm() {
         return std::sqrt(data[0] * data[0] + data[1] * data[1] +
-                         data[2] * data[2] + data[3] * data[3] +
-                         data[4] * data[4] + data[5] * data[5]);
+                        data[2] * data[2] + data[3] * data[3] +
+                        data[4] * data[4] + data[5] * data[5]);
     }
     bool contains_nan() const {
         if (std::isnan(data[0]))
@@ -152,7 +152,7 @@ template <> class Matrix4<2, Sym::MajorMinor> {
     }
     static Matrix4<2, Sym::MajorMinor>
     Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44,
-          Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
+            Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<2, Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3];
 
@@ -180,15 +180,15 @@ template <> class Matrix4<2, Sym::MajorMinor> {
                                 for (int k = 0; k < 3; k++)
                                     for (int l = 0; l < 3; l++)
                                         ret(p, q, s, t) += R(p, i) * R(s, k) *
-                                                           Ctmp[i][j][k][l] *
-                                                           R(q, j) * R(t, l);
+                                                            Ctmp[i][j][k][l] *
+                                                            R(q, j) * R(t, l);
                     }
         return ret;
     }
     static Matrix4<2, Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12,
-                                             Set::Scalar C44, Set::Scalar phi1,
-                                             Set::Scalar Phi,
-                                             Set::Scalar phi2) {
+                                            Set::Scalar C44, Set::Scalar phi1,
+                                            Set::Scalar Phi,
+                                            Set::Scalar phi2) {
         Eigen::Matrix3d R;
         R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(Phi, Eigen::Vector3d::UnitZ()) *
@@ -196,16 +196,16 @@ template <> class Matrix4<2, Sym::MajorMinor> {
         return Matrix4<2, Sym::MajorMinor>::Cubic(C11, C12, C44, R);
     }
     static Matrix4<2, Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12,
-                                             Set::Scalar C44,
-                                             Set::Quaternion q) {
+                                            Set::Scalar C44,
+                                            Set::Quaternion q) {
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Cubic(C11, C12, C44, R);
     }
 
     static Matrix4<2, Sym::MajorMinor>
     Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13,
-               Set::Scalar C33, Set::Scalar C44,
-               Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
+                Set::Scalar C33, Set::Scalar C44,
+                Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<2, Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3] = {
             {{{0.0}}}}; // Initialize all entries to zero
@@ -265,8 +265,8 @@ template <> class Matrix4<2, Sym::MajorMinor> {
                                 for (int k = 0; k < 3; k++) {
                                     for (int l = 0; l < 3; l++) {
                                         ret(p, q, s, t) += R(p, i) * R(s, k) *
-                                                           Ctmp[i][j][k][l] *
-                                                           R(q, j) * R(t, l);
+                                                            Ctmp[i][j][k][l] *
+                                                            R(q, j) * R(t, l);
                                     }
                                 }
                             }
@@ -281,37 +281,37 @@ template <> class Matrix4<2, Sym::MajorMinor> {
 
     static Matrix4<2, Sym::MajorMinor>
     Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13,
-               Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1,
-               Set::Scalar Phi, Set::Scalar phi2) {
+                Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1,
+                Set::Scalar Phi, Set::Scalar phi2) {
         Eigen::Matrix3d R;
         R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(Phi, Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         return Matrix4<2, Sym::MajorMinor>::Transverse(C11, C12, C13, C33, C44,
-                                                       R);
+                                                        R);
     }
     static Matrix4<2, Sym::MajorMinor>
     Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13,
-               Set::Scalar C33, Set::Scalar C44, Set::Quaternion q) {
+                Set::Scalar C33, Set::Scalar C44, Set::Quaternion q) {
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Transverse(C11, C12, C13, C33, C44, R);
     }
 
     friend Eigen::Matrix<Set::Scalar, 2, 2>
     operator*(Matrix4<2, Sym::MajorMinor> a,
-              Eigen::Matrix<Set::Scalar, 2, 2> b);
+                Eigen::Matrix<Set::Scalar, 2, 2> b);
     friend bool operator==(Matrix4<2, Sym::MajorMinor> a,
-                           Matrix4<2, Sym::MajorMinor> b);
+                            Matrix4<2, Sym::MajorMinor> b);
     friend Matrix4<2, Sym::MajorMinor> operator+(Matrix4<2, Sym::MajorMinor> a,
-                                                 Matrix4<2, Sym::MajorMinor> b);
+                                                Matrix4<2, Sym::MajorMinor> b);
     friend Matrix4<2, Sym::MajorMinor> operator-(Matrix4<2, Sym::MajorMinor> a,
-                                                 Matrix4<2, Sym::MajorMinor> b);
+                                                Matrix4<2, Sym::MajorMinor> b);
     friend Matrix4<2, Sym::MajorMinor> operator*(Matrix4<2, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Matrix4<2, Sym::MajorMinor> operator*(Set::Scalar b,
-                                                 Matrix4<2, Sym::MajorMinor> a);
+                                                Matrix4<2, Sym::MajorMinor> a);
     friend Matrix4<2, Sym::MajorMinor> operator/(Matrix4<2, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Set::Vector operator*(Matrix4<2, Sym::MajorMinor> a, Set::Matrix3 b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE bool
@@ -368,19 +368,19 @@ operator*(Matrix4<2, Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar, 2, 2> b) {
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real, 2, 1>
 operator*(Matrix4<2, Sym::MajorMinor> a,
-          std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
+            std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Set::Vector
 operator*(Matrix4<2, Sym::MajorMinor> a, Set::Matrix3 b) {
     Set::Vector ret = Set::Vector::Zero();
     ret(0) = a.data[0] * b(0, 0, 0) +
-             a.data[1] * (b(0, 1, 0) + b(1, 0, 0) + b(0, 0, 1)) +
-             a.data[2] * b(1, 1, 0) + a.data[3] * (b(0, 1, 1) + b(1, 0, 1)) +
-             a.data[4] * b(1, 1, 1);
+            a.data[1] * (b(0, 1, 0) + b(1, 0, 0) + b(0, 0, 1)) +
+            a.data[2] * b(1, 1, 0) + a.data[3] * (b(0, 1, 1) + b(1, 0, 1)) +
+            a.data[4] * b(1, 1, 1);
     ret(1) = a.data[1] * b(0, 0, 0) + a.data[2] * b(0, 0, 1) +
-             a.data[3] * (b(0, 1, 0) + b(1, 0, 0)) +
-             a.data[4] * (b(1, 1, 0) + b(0, 1, 1) + b(1, 0, 1)) +
-             a.data[5] * b(1, 1, 1);
+            a.data[3] * (b(0, 1, 0) + b(1, 0, 0)) +
+            a.data[4] * (b(1, 1, 0) + b(0, 1, 1) + b(1, 0, 1)) +
+            a.data[5] * b(1, 1, 1);
     return ret;
 }
 
@@ -400,13 +400,13 @@ operator*(Matrix4<2, Sym::MajorMinor> a, Set::Matrix3 b) {
 ///
 template <> class Matrix4<3, Sym::MajorMinor> {
     Scalar data[21] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                       NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
+                        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
 
-  public:
+    public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_FORCE_INLINE
     const Scalar &operator()(const int i, const int j, const int k,
-                             const int l) const {
+                            const int l) const {
         int uid = i + 3 * j + 9 * k + 27 * l;
         // [0000]
         if (uid == 0)
@@ -431,14 +431,14 @@ template <> class Matrix4<3, Sym::MajorMinor> {
             return data[6];
         // [0102] [0120] [1002] [1020] [0201] [2001] [0210] [2010]
         else if (uid == 57 || uid == 21 || uid == 33 || uid == 15 ||
-                 uid == 55 || uid == 19 || uid == 29 || uid == 11)
+                uid == 55 || uid == 19 || uid == 29 || uid == 11)
             return data[7];
         // [0111] [1011] [1101] [1110]
         else if (uid == 39 || uid == 37 || uid == 31 || uid == 13)
             return data[8];
         // [0112] [1012] [0121] [1021] [1201] [1210] [2101] [2110]
         else if (uid == 66 || uid == 48 || uid == 64 || uid == 46 ||
-                 uid == 34 || uid == 16 || uid == 32 || uid == 14)
+                uid == 34 || uid == 16 || uid == 32 || uid == 14)
             return data[9];
         // [0122] [1022] [2201] [2210]
         else if (uid == 75 || uid == 73 || uid == 35 || uid == 17)
@@ -451,7 +451,7 @@ template <> class Matrix4<3, Sym::MajorMinor> {
             return data[12];
         // [0212] [2012] [0221] [2021] [1202] [1220] [2102] [2120]
         else if (uid == 69 || uid == 51 || uid == 61 || uid == 25 ||
-                 uid == 65 || uid == 47 || uid == 59 || uid == 23)
+                uid == 65 || uid == 47 || uid == 59 || uid == 23)
             return data[13];
         // [0222] [2022] [2202] [2220]
         else if (uid == 78 || uid == 74 || uid == 62 || uid == 26)
@@ -504,14 +504,14 @@ template <> class Matrix4<3, Sym::MajorMinor> {
             return data[6];
         // [0102] [0120] [1002] [1020] [0201] [2001] [0210] [2010]
         else if (uid == 57 || uid == 21 || uid == 33 || uid == 15 ||
-                 uid == 55 || uid == 19 || uid == 29 || uid == 11)
+                uid == 55 || uid == 19 || uid == 29 || uid == 11)
             return data[7];
         // [0111] [1011] [1101] [1110]
         else if (uid == 39 || uid == 37 || uid == 31 || uid == 13)
             return data[8];
         // [0112] [1012] [0121] [1021] [1201] [1210] [2101] [2110]
         else if (uid == 66 || uid == 48 || uid == 64 || uid == 46 ||
-                 uid == 34 || uid == 16 || uid == 32 || uid == 14)
+                uid == 34 || uid == 16 || uid == 32 || uid == 14)
             return data[9];
         // [0122] [1022] [2201] [2210]
         else if (uid == 75 || uid == 73 || uid == 35 || uid == 17)
@@ -524,7 +524,7 @@ template <> class Matrix4<3, Sym::MajorMinor> {
             return data[12];
         // [0212] [2012] [0221] [2021] [1202] [1220] [2102] [2120]
         else if (uid == 69 || uid == 51 || uid == 61 || uid == 25 ||
-                 uid == 65 || uid == 47 || uid == 59 || uid == 23)
+                uid == 65 || uid == 47 || uid == 59 || uid == 23)
             return data[13];
         // [0222] [2022] [2202] [2220]
         else if (uid == 78 || uid == 74 || uid == 62 || uid == 26)
@@ -679,7 +679,7 @@ template <> class Matrix4<3, Sym::MajorMinor> {
     }
     static Matrix4<3, Sym::MajorMinor>
     Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44,
-          Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
+            Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<3, Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3];
 
@@ -706,15 +706,15 @@ template <> class Matrix4<3, Sym::MajorMinor> {
                                 for (int k = 0; k < 3; k++)
                                     for (int l = 0; l < 3; l++)
                                         ret(p, q, s, t) += R(p, i) * R(s, k) *
-                                                           Ctmp[i][j][k][l] *
-                                                           R(q, j) * R(t, l);
+                                                            Ctmp[i][j][k][l] *
+                                                            R(q, j) * R(t, l);
                     }
         return ret;
     }
     static Matrix4<3, Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12,
-                                             Set::Scalar C44, Set::Scalar phi1,
-                                             Set::Scalar Phi,
-                                             Set::Scalar phi2) {
+                                            Set::Scalar C44, Set::Scalar phi1,
+                                            Set::Scalar Phi,
+                                            Set::Scalar phi2) {
         Eigen::Matrix3d R;
         R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(Phi, Eigen::Vector3d::UnitZ()) *
@@ -722,16 +722,16 @@ template <> class Matrix4<3, Sym::MajorMinor> {
         return Matrix4<3, Sym::MajorMinor>::Cubic(C11, C12, C44, R);
     }
     static Matrix4<3, Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12,
-                                             Set::Scalar C44,
-                                             Set::Quaternion q) {
+                                            Set::Scalar C44,
+                                            Set::Quaternion q) {
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Cubic(C11, C12, C44, R);
     }
 
     static Matrix4<3, Sym::MajorMinor>
     Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13,
-               Set::Scalar C33, Set::Scalar C44,
-               Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
+                Set::Scalar C33, Set::Scalar C44,
+                Eigen::Matrix3d R = Eigen::Matrix3d::Identity()) {
         Set::Matrix4<3, Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3] = {
             {{{0.0}}}}; // Initialize all entries to zero
@@ -792,8 +792,8 @@ template <> class Matrix4<3, Sym::MajorMinor> {
                                     for (int l = 0; l < 3; l++) {
                                         // Calculate the result
                                         ret(p, q, s, t) += R(p, i) * R(s, k) *
-                                                           Ctmp[i][j][k][l] *
-                                                           R(q, j) * R(t, l);
+                                                            Ctmp[i][j][k][l] *
+                                                            R(q, j) * R(t, l);
                                     }
                                 }
                             }
@@ -807,39 +807,39 @@ template <> class Matrix4<3, Sym::MajorMinor> {
 
     static Matrix4<3, Sym::MajorMinor>
     Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13,
-               Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1,
-               Set::Scalar Phi, Set::Scalar phi2) {
+                Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1,
+                Set::Scalar Phi, Set::Scalar phi2) {
         Eigen::Matrix3d R;
         R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(Phi, Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         return Matrix4<3, Sym::MajorMinor>::Transverse(C11, C12, C13, C33, C44,
-                                                       R);
+                                                        R);
     }
 
     static Matrix4<3, Sym::MajorMinor>
     Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13,
-               Set::Scalar C33, Set::Scalar C44, Set::Quaternion q) {
+                Set::Scalar C33, Set::Scalar C44, Set::Quaternion q) {
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Transverse(C11, C12, C13, C33, C44, R);
     }
 
     friend bool operator==(Matrix4<3, Sym::MajorMinor> a,
-                           Matrix4<3, Sym::MajorMinor> b);
+                            Matrix4<3, Sym::MajorMinor> b);
     friend Matrix4<3, Sym::MajorMinor> operator+(Matrix4<3, Sym::MajorMinor> a,
-                                                 Matrix4<3, Sym::MajorMinor> b);
+                                                Matrix4<3, Sym::MajorMinor> b);
     friend Matrix4<3, Sym::MajorMinor> operator-(Matrix4<3, Sym::MajorMinor> a,
-                                                 Matrix4<3, Sym::MajorMinor> b);
+                                                Matrix4<3, Sym::MajorMinor> b);
     friend Matrix4<3, Sym::MajorMinor> operator*(Matrix4<3, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Matrix4<3, Sym::MajorMinor> operator*(Set::Scalar b,
-                                                 Matrix4<3, Sym::MajorMinor> a);
+                                                Matrix4<3, Sym::MajorMinor> a);
     friend Matrix4<3, Sym::MajorMinor> operator/(Matrix4<3, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Set::Vector operator*(Matrix4<3, Sym::MajorMinor> a, Set::Matrix3 b);
     friend Eigen::Matrix<amrex::Real, 3, 3>
     operator*(Matrix4<3, Sym::MajorMinor> a,
-              Eigen::Matrix<amrex::Real, 3, 3> b);
+                Eigen::Matrix<amrex::Real, 3, 3> b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE bool
 operator==(Matrix4<3, Sym::MajorMinor> a, Matrix4<3, Sym::MajorMinor> b) {
@@ -885,23 +885,23 @@ operator*(Matrix4<3, Sym::MajorMinor> a, Eigen::Matrix<amrex::Real, 3, 3> b) {
     Eigen::Matrix<amrex::Real, 3, 3> ret =
         Eigen::Matrix<amrex::Real, 3, 3>::Zero();
     ret(0, 0) += a.data[0] * b(0, 0) + a.data[1] * (b(0, 1) + b(1, 0)) +
-                 a.data[2] * (b(0, 2) + b(2, 0)) + a.data[3] * b(1, 1) +
-                 a.data[4] * (b(1, 2) + b(2, 1)) + a.data[5] * b(2, 2);
+                a.data[2] * (b(0, 2) + b(2, 0)) + a.data[3] * b(1, 1) +
+                a.data[4] * (b(1, 2) + b(2, 1)) + a.data[5] * b(2, 2);
     ret(1, 1) += a.data[3] * b(0, 0) + a.data[8] * (b(0, 1) + b(1, 0)) +
-                 a.data[12] * (b(0, 2) + b(2, 0)) + a.data[15] * b(1, 1) +
-                 a.data[16] * (b(1, 2) + b(2, 1)) + a.data[17] * b(2, 2);
+                a.data[12] * (b(0, 2) + b(2, 0)) + a.data[15] * b(1, 1) +
+                a.data[16] * (b(1, 2) + b(2, 1)) + a.data[17] * b(2, 2);
     ret(2, 2) += a.data[5] * b(0, 0) + a.data[10] * (b(0, 1) + b(1, 0)) +
-                 a.data[14] * (b(0, 2) + b(2, 0)) + a.data[17] * b(1, 1) +
-                 a.data[19] * (b(1, 2) + b(2, 1)) + a.data[20] * b(2, 2);
+                a.data[14] * (b(0, 2) + b(2, 0)) + a.data[17] * b(1, 1) +
+                a.data[19] * (b(1, 2) + b(2, 1)) + a.data[20] * b(2, 2);
     ret(1, 2) += a.data[4] * b(0, 0) + a.data[9] * (b(0, 1) + b(1, 0)) +
-                 a.data[13] * (b(0, 2) + b(2, 0)) + a.data[16] * b(1, 1) +
-                 a.data[18] * (b(1, 2) + b(2, 1)) + a.data[19] * b(2, 2);
+                a.data[13] * (b(0, 2) + b(2, 0)) + a.data[16] * b(1, 1) +
+                a.data[18] * (b(1, 2) + b(2, 1)) + a.data[19] * b(2, 2);
     ret(2, 0) += a.data[2] * b(0, 0) + a.data[7] * (b(0, 1) + b(1, 0)) +
-                 a.data[11] * (b(0, 2) + b(2, 0)) + a.data[12] * b(1, 1) +
-                 a.data[13] * (b(1, 2) + b(2, 1)) + a.data[14] * b(2, 2);
+                a.data[11] * (b(0, 2) + b(2, 0)) + a.data[12] * b(1, 1) +
+                a.data[13] * (b(1, 2) + b(2, 1)) + a.data[14] * b(2, 2);
     ret(0, 1) += a.data[1] * b(0, 0) + a.data[6] * (b(0, 1) + b(1, 0)) +
-                 a.data[7] * (b(0, 2) + b(2, 0)) + a.data[8] * b(1, 1) +
-                 a.data[9] * (b(1, 2) + b(2, 1)) + a.data[10] * b(2, 2);
+                a.data[7] * (b(0, 2) + b(2, 0)) + a.data[8] * b(1, 1) +
+                a.data[9] * (b(1, 2) + b(2, 1)) + a.data[10] * b(2, 2);
 
     ret(2, 1) = ret(1, 2);
     ret(0, 2) = ret(2, 0);
@@ -922,11 +922,11 @@ operator*(Matrix4<3, Sym::MajorMinor> a, Eigen::Matrix<amrex::Real, 2, 2> b) {
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real, 3, 1>
 operator*(Matrix4<3, Sym::MajorMinor> a,
-          std::array<Eigen::Matrix<amrex::Real, 3, 3>, 3> b);
+            std::array<Eigen::Matrix<amrex::Real, 3, 3>, 3> b);
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real, 2, 1>
 operator*(Matrix4<3, Sym::MajorMinor> a,
-          std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
+            std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Set::Vector
 operator*(Matrix4<3, Sym::MajorMinor> a, Set::Matrix3 b) {
@@ -934,38 +934,38 @@ operator*(Matrix4<3, Sym::MajorMinor> a, Set::Matrix3 b) {
     Set::Vector ret = Set::Vector::Zero();
 
     ret(0) += a.data[0] * b(0, 0, 0) +
-              a.data[1] * (b(0, 1, 0) + b(1, 0, 0) + b(0, 0, 1)) +
-              a.data[2] * (b(0, 2, 0) + b(2, 0, 0) + b(0, 0, 2)) +
-              a.data[3] * b(1, 1, 0) + a.data[4] * (b(1, 2, 0) + b(2, 1, 0)) +
-              a.data[5] * b(2, 2, 0) + a.data[6] * (b(0, 1, 1) + b(1, 0, 1)) +
-              a.data[7] * (b(0, 2, 1) + b(2, 0, 1) + b(0, 1, 2) + b(1, 0, 2)) +
-              a.data[8] * b(1, 1, 1) + a.data[9] * (b(1, 2, 1) + b(2, 1, 1)) +
-              a.data[10] * b(2, 2, 1) + a.data[11] * (b(0, 2, 2) + b(2, 0, 2)) +
-              a.data[12] * b(1, 1, 2) + a.data[13] * (b(1, 2, 2) + b(2, 1, 2)) +
-              a.data[14] * b(2, 2, 2);
+                a.data[1] * (b(0, 1, 0) + b(1, 0, 0) + b(0, 0, 1)) +
+                a.data[2] * (b(0, 2, 0) + b(2, 0, 0) + b(0, 0, 2)) +
+                a.data[3] * b(1, 1, 0) + a.data[4] * (b(1, 2, 0) + b(2, 1, 0)) +
+                a.data[5] * b(2, 2, 0) + a.data[6] * (b(0, 1, 1) + b(1, 0, 1)) +
+                a.data[7] * (b(0, 2, 1) + b(2, 0, 1) + b(0, 1, 2) + b(1, 0, 2)) +
+                a.data[8] * b(1, 1, 1) + a.data[9] * (b(1, 2, 1) + b(2, 1, 1)) +
+                a.data[10] * b(2, 2, 1) + a.data[11] * (b(0, 2, 2) + b(2, 0, 2)) +
+                a.data[12] * b(1, 1, 2) + a.data[13] * (b(1, 2, 2) + b(2, 1, 2)) +
+                a.data[14] * b(2, 2, 2);
 
     ret(1) += a.data[1] * b(0, 0, 0) + a.data[4] * b(0, 0, 2) +
-              a.data[3] * b(0, 0, 1) + a.data[6] * (b(0, 1, 0) + b(1, 0, 0)) +
-              a.data[7] * (b(0, 2, 0) + b(2, 0, 0)) +
-              a.data[8] * (b(1, 1, 0) + b(0, 1, 1) + b(1, 0, 1)) +
-              a.data[9] * (b(1, 2, 0) + b(2, 1, 0) + b(0, 1, 2) + b(1, 0, 2)) +
-              a.data[10] * b(2, 2, 0) + a.data[12] * (b(0, 2, 1) + b(2, 0, 1)) +
-              a.data[13] * (b(0, 2, 2) + b(2, 0, 2)) + a.data[15] * b(1, 1, 1) +
-              a.data[16] * (b(1, 2, 1) + b(2, 1, 1) + b(1, 1, 2)) +
-              a.data[17] * b(2, 2, 1) + a.data[18] * (b(1, 2, 2) + b(2, 1, 2)) +
-              a.data[19] * b(2, 2, 2);
+                a.data[3] * b(0, 0, 1) + a.data[6] * (b(0, 1, 0) + b(1, 0, 0)) +
+                a.data[7] * (b(0, 2, 0) + b(2, 0, 0)) +
+                a.data[8] * (b(1, 1, 0) + b(0, 1, 1) + b(1, 0, 1)) +
+                a.data[9] * (b(1, 2, 0) + b(2, 1, 0) + b(0, 1, 2) + b(1, 0, 2)) +
+                a.data[10] * b(2, 2, 0) + a.data[12] * (b(0, 2, 1) + b(2, 0, 1)) +
+                a.data[13] * (b(0, 2, 2) + b(2, 0, 2)) + a.data[15] * b(1, 1, 1) +
+                a.data[16] * (b(1, 2, 1) + b(2, 1, 1) + b(1, 1, 2)) +
+                a.data[17] * b(2, 2, 1) + a.data[18] * (b(1, 2, 2) + b(2, 1, 2)) +
+                a.data[19] * b(2, 2, 2);
 
     ret(2) += a.data[2] * b(0, 0, 0) + a.data[4] * b(0, 0, 1) +
-              a.data[5] * b(0, 0, 2) + a.data[7] * (b(0, 1, 0) + b(1, 0, 0)) +
-              a.data[9] * (b(0, 1, 1) + b(1, 0, 1)) +
-              a.data[10] * (b(0, 1, 2) + b(1, 0, 2)) +
-              a.data[11] * (b(0, 2, 0) + b(2, 0, 0)) + a.data[12] * b(1, 1, 0) +
-              a.data[13] * (b(1, 2, 0) + b(2, 1, 0) + b(0, 2, 1) + b(2, 0, 1)) +
-              a.data[14] * (b(2, 2, 0) + b(0, 2, 2) + b(2, 0, 2)) +
-              a.data[16] * b(1, 1, 1) + a.data[17] * b(1, 1, 2) +
-              a.data[18] * (b(1, 2, 1) + b(2, 1, 1)) +
-              a.data[19] * (b(2, 2, 1) + b(1, 2, 2) + b(2, 1, 2)) +
-              a.data[20] * b(2, 2, 2);
+                a.data[5] * b(0, 0, 2) + a.data[7] * (b(0, 1, 0) + b(1, 0, 0)) +
+                a.data[9] * (b(0, 1, 1) + b(1, 0, 1)) +
+                a.data[10] * (b(0, 1, 2) + b(1, 0, 2)) +
+                a.data[11] * (b(0, 2, 0) + b(2, 0, 0)) + a.data[12] * b(1, 1, 0) +
+                a.data[13] * (b(1, 2, 0) + b(2, 1, 0) + b(0, 2, 1) + b(2, 0, 1)) +
+                a.data[14] * (b(2, 2, 0) + b(0, 2, 2) + b(2, 0, 2)) +
+                a.data[16] * b(1, 1, 1) + a.data[17] * b(1, 1, 2) +
+                a.data[18] * (b(1, 2, 1) + b(2, 1, 1)) +
+                a.data[19] * (b(2, 2, 1) + b(1, 2, 2) + b(2, 1, 2)) +
+                a.data[20] * b(2, 2, 2);
 
     return ret;
 }

@@ -43,7 +43,7 @@ using brittle_fracture_model_type_test = Model::Solid::Linear::Isotropic;
 
 class Fracture : public Integrator {
 
-  public:
+    public:
     Fracture() {
         IO::ParmParse pp_crack("crack");
         pp_crack.query("modulus_scaling_max", crack.scaleModulusMax);
@@ -84,18 +84,18 @@ class Fracture : public Integrator {
 
         RegisterNodalFab(crack.c_mf, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.c_old_mf, 1, number_of_ghost_nodes, "crack_old",
-                         false);
+                        false);
         RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes,
-                         "driving_force", false);
+                        "driving_force", false);
 
         RegisterIntegratedVariable(&(crack.driving_force_norm),
-                                   "driving_force_norm");
+                                    "driving_force_norm");
         RegisterIntegratedVariable(&(crack.int_crack), "int_c");
         RegisterIntegratedVariable(&(elastic.int_energy), "int_W");
 
         IO::ParmParse pp_material("material");
         pp_material.query("refinement_threshold",
-                          material.refinement_threshold);
+                            material.refinement_threshold);
 
         IO::ParmParse pp_material_ic("material.ic");
         pp_material_ic.query("type", material.ic_type);
@@ -163,27 +163,27 @@ class Fracture : public Integrator {
 
         nlevels = maxLevel() + 1;
         RegisterNodalFab(elastic.disp_mf, AMREX_SPACEDIM, number_of_ghost_nodes,
-                         "disp", true);
+                        "disp", true);
         RegisterNodalFab(elastic.rhs_mf, AMREX_SPACEDIM, number_of_ghost_nodes,
-                         "rhs", false);
+                        "rhs", false);
         RegisterNodalFab(elastic.residual_mf, AMREX_SPACEDIM,
-                         number_of_ghost_nodes, "res", false);
+                        number_of_ghost_nodes, "res", false);
         RegisterNodalFab(elastic.strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM,
-                         number_of_ghost_nodes, "strain", false);
+                        number_of_ghost_nodes, "strain", false);
         RegisterNodalFab(elastic.stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM,
-                         number_of_ghost_nodes, "stress", true);
+                        number_of_ghost_nodes, "stress", true);
         RegisterNodalFab(elastic.energy_mf, 1, number_of_ghost_nodes, "energy",
-                         false);
+                        false);
         RegisterNodalFab(elastic.energy_pristine_mf, 1, number_of_ghost_nodes,
-                         "energy_pristine", false);
+                        "energy_pristine", false);
         RegisterNodalFab(elastic.energy_pristine_old_mf, 1,
-                         number_of_ghost_nodes, "energy_pristine_old", false);
+                        number_of_ghost_nodes, "energy_pristine_old", false);
         RegisterNodalFab(material.material_mf, number_of_materials,
-                         number_of_ghost_nodes, "materials", true);
+                        number_of_ghost_nodes, "materials", true);
         RegisterGeneralFab(material.model_mf, 1, number_of_ghost_nodes);
     }
 
-  protected:
+    protected:
     void Initialize(int ilev) override {
         elastic.disp_mf[ilev]->setVal(0.0);
         elastic.strain_mf[ilev]->setVal(0.0);
@@ -215,8 +215,8 @@ class Fracture : public Integrator {
 
     void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) override {
         Util::Message(INFO, crack.driving_force_norm, " ",
-                      crack.driving_force_reference, " ",
-                      crack.driving_force_tolerance_rel);
+                        crack.driving_force_reference, " ",
+                        crack.driving_force_tolerance_rel);
         if (crack.driving_force_norm / crack.driving_force_reference <
             crack.driving_force_tolerance_rel)
             elastic.do_solve_now = true;
@@ -236,10 +236,10 @@ class Fracture : public Integrator {
             // material.model_mf[ilev]->setVal(material.brittlemodeltype[0]);
             Util::RealFillBoundary(*material.material_mf[ilev], geom[ilev]);
             std::swap(elastic.energy_pristine_old_mf[ilev],
-                      elastic.energy_pristine_mf[ilev]);
+                        elastic.energy_pristine_mf[ilev]);
 
             for (MFIter mfi(*material.material_mf[ilev], false); mfi.isValid();
-                 ++mfi) {
+                ++mfi) {
                 amrex::Box bx = mfi.grownnodaltilebox();
                 amrex::Array4<brittle_fracture_model_type_test> const &model =
                     material.model_mf[ilev]->array(mfi);
@@ -265,7 +265,7 @@ class Fracture : public Integrator {
             Util::RealFillBoundary(*material.material_mf[ilev], geom[ilev]);
 
             for (amrex::MFIter mfi(*elastic.disp_mf[ilev], true); mfi.isValid();
-                 ++mfi) {
+                ++mfi) {
                 amrex::Box box = mfi.grownnodaltilebox();
                 amrex::Array4<const Set::Scalar> const &c =
                     (*crack.c_mf[ilev]).array(mfi);
@@ -275,7 +275,7 @@ class Fracture : public Integrator {
                 // (material.model_mf)[ilev]->array(mfi);
 
                 amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j,
-                                                             int k) {
+                                                            int k) {
                     Set::Scalar _temp = 0.0;
                     // _temp = crack.cracktype->g_phi(c(i,j,k,0),0);
                     _temp = crack.cracktype.g_phi(c(i, j, k, 0), 0) +
@@ -309,10 +309,10 @@ class Fracture : public Integrator {
 
             AMREX_D_TERM(elastic.rhs_mf[ilev]->setVal(
                 loading.body_force(0) * volume, 0, 1);
-                         , elastic.rhs_mf[ilev]->setVal(
-                               loading.body_force(1) * volume, 1, 1);
-                         , elastic.rhs_mf[ilev]->setVal(
-                               loading.body_force(2) * volume, 2, 1););
+                        , elastic.rhs_mf[ilev]->setVal(
+                                loading.body_force(1) * volume, 1, 1);
+                        , elastic.rhs_mf[ilev]->setVal(
+                                loading.body_force(2) * volume, 2, 1););
         }
 
         elastic.brittlebc.Init(elastic.rhs_mf, geom);
@@ -346,7 +346,7 @@ class Fracture : public Integrator {
             // solver(op_b);
             pp_queryclass("solver", solver);
             solver.solve(elastic.disp_mf, elastic.rhs_mf, material.model_mf,
-                         1E-8, 1E-8);
+                        1E-8, 1E-8);
             solver.compResidual(elastic.residual_mf, elastic.disp_mf,
                                 elastic.rhs_mf, material.model_mf);
         }
@@ -358,12 +358,12 @@ class Fracture : public Integrator {
 
             Util::RealFillBoundary(*elastic.strain_mf[ilev], geom[ilev]);
             Util::RealFillBoundary(*elastic.energy_pristine_old_mf[ilev],
-                                   geom[ilev]);
+                                    geom[ilev]);
             Util::RealFillBoundary(*material.material_mf[ilev], geom[ilev]);
             elastic.energy_pristine_mf[ilev]->setVal(0.0);
 
             for (amrex::MFIter mfi(*elastic.strain_mf[ilev], true);
-                 mfi.isValid(); ++mfi) {
+                mfi.isValid(); ++mfi) {
                 const amrex::Box &box = mfi.grownnodaltilebox();
                 amrex::Array4<const Set::Scalar> const &strain =
                     (*elastic.strain_mf[ilev]).array(mfi);
@@ -375,7 +375,7 @@ class Fracture : public Integrator {
                     (*elastic.energy_pristine_old_mf[ilev]).array(mfi);
 
                 amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j,
-                                                             int k) {
+                                                            int k) {
                     Set::Matrix eps = Numeric::FieldToMatrix(strain, i, j, k);
                     Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(eps);
                     Set::Vector eValues = eigensolver.eigenvalues();
@@ -387,10 +387,10 @@ class Fracture : public Integrator {
                     for (int n = 0; n < AMREX_SPACEDIM; n++) {
                         if (eValues(n) > 0.0)
                             epsp += eValues(n) * (eVectors.col(n) *
-                                                  eVectors.col(n).transpose());
+                                                    eVectors.col(n).transpose());
                         else
                             epsn += eValues(n) * (eVectors.col(n) *
-                                                  eVectors.col(n).transpose());
+                                                    eVectors.col(n).transpose());
                     }
                     // brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
                     // for (int p = 0; p < number_of_materials; p++)
@@ -399,14 +399,14 @@ class Fracture : public Integrator {
 
                     for (int p = 0; p < number_of_materials; p++)
                         energy(i, j, k) += mat(i, j, k, p) *
-                                           material.brittlemodeltype[p].W(epsp);
+                                            material.brittlemodeltype[p].W(epsp);
 
                     if (energy(i, j, k) < energy_old(i, j, k))
                         energy(i, j, k) = energy_old(i, j, k);
                 });
             }
             Util::RealFillBoundary(*elastic.energy_pristine_mf[ilev],
-                                   geom[ilev]);
+                                    geom[ilev]);
         }
 
         integrate_variables_before_advance = false;
@@ -425,7 +425,7 @@ class Fracture : public Integrator {
         amrex::Box domain(geom[lev].Domain());
         domain.convert(amrex::IntVect::TheNodeVector());
         const amrex::Dim3 lo = amrex::lbound(domain),
-                          hi = amrex::ubound(domain);
+                            hi = amrex::ubound(domain);
 
         for (amrex::MFIter mfi(*crack.c_mf[lev], true); mfi.isValid(); ++mfi) {
             const amrex::Box &bx = mfi.nodaltilebox();
@@ -467,11 +467,11 @@ class Fracture : public Integrator {
 
                     Set::Scalar bilap =
                         Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old, i, j,
-                                                                  k, 0, DX) +
+                                                                    k, 0, DX) +
                         2.0 * Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(
-                                  c_old, i, j, k, 0, DX) +
+                                    c_old, i, j, k, 0, DX) +
                         Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old, i, j,
-                                                                  k, 0, DX);
+                                                                    k, 0, DX);
 
                     Set::Scalar en_cell = energy(i, j, k, 0);
 
@@ -486,7 +486,7 @@ class Fracture : public Integrator {
                         crack.cracktype.Dg_phi(c_old(i, j, k, 0), 0.0) *
                         en_cell * elastic.df_mult;
                     rhs += crack.cracktype.Dg_phi(c_old(i, j, k, 0), 0.0) *
-                           en_cell * elastic.df_mult;
+                            en_cell * elastic.df_mult;
 
                     // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of
                     // rhs at (",i,",",j,",",k,") = ", rhs);
@@ -504,7 +504,7 @@ class Fracture : public Integrator {
 
                     if (number_of_materials > 1)
                         Gc *= (1.0 -
-                               _temp_product * (1. - crack.mult_df_Gc) / 0.25);
+                                _temp_product * (1. - crack.mult_df_Gc) / 0.25);
 
                     // Util::Message(INFO, "Gc = ", Gc);
 
@@ -512,7 +512,7 @@ class Fracture : public Integrator {
                         Gc * crack.cracktype.Dw_phi(c_old(i, j, k, 0), 0.0) /
                         (4.0 * Zeta);
                     rhs += Gc * crack.cracktype.Dw_phi(c_old(i, j, k, 0), 0.) /
-                           (4.0 * Zeta);
+                            (4.0 * Zeta);
 
                     df(i, j, k, 2) =
                         2.0 * Zeta * Gc * laplacian * crack.mult_df_lap;
@@ -529,13 +529,13 @@ class Fracture : public Integrator {
                     // c_old(i,j,k,0) = ",c_old(i,j,k,0));
                     df(i, j, k, 4) = std::max(
                         0., rhs - crack.cracktype.DrivingForceThreshold(
-                                      c_old(i, j, k, 0)));
+                                        c_old(i, j, k, 0)));
                     c(i, j, k, 0) =
                         c_old(i, j, k, 0) -
                         dt *
                             std::max(
                                 0., rhs - crack.cracktype.DrivingForceThreshold(
-                                              c_old(i, j, k, 0))) *
+                                                c_old(i, j, k, 0))) *
                             crack.cracktype.Mobility(c_old(i, j, k, 0));
 
                     if (c(i, j, k, 0) < 0.0)
@@ -549,7 +549,7 @@ class Fracture : public Integrator {
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags,
-                               amrex::Real /*time*/, int /*ngrow*/) override {
+                                amrex::Real /*time*/, int /*ngrow*/) override {
         const amrex::Real *DX = geom[lev].CellSize();
         const Set::Vector dx(DX);
         const Set::Scalar dxnorm = dx.lpNorm<2>();
@@ -557,7 +557,7 @@ class Fracture : public Integrator {
         domain.convert(amrex::IntVect::TheNodeVector());
 
         for (amrex::MFIter mfi(*crack.c_mf[lev], TilingIfNotGPU());
-             mfi.isValid(); ++mfi) {
+            mfi.isValid(); ++mfi) {
             const amrex::Box bx = mfi.tilebox() & domain.grow(-1);
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<const Set::Scalar> const &c =
@@ -576,7 +576,7 @@ class Fracture : public Integrator {
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
-                   const amrex::MFIter &mfi, const amrex::Box &box) override {
+                    const amrex::MFIter &mfi, const amrex::Box &box) override {
         const amrex::Real *DX = geom[amrlev].CellSize();
         const Set::Scalar DV = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
@@ -602,7 +602,7 @@ class Fracture : public Integrator {
         elastic.do_solve_now = false;
     }
 
-  private:
+    private:
     int number_of_ghost_nodes = 2; ///< Number of ghost nodes
     int number_of_materials = 1;
     int nlevels;

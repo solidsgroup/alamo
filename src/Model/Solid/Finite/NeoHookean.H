@@ -8,7 +8,7 @@ namespace Model {
 namespace Solid {
 namespace Finite {
 class NeoHookean : public Solid<Set::Sym::Major> {
-  public:
+    public:
     NeoHookean(){};
     NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base){};
     virtual ~NeoHookean(){};
@@ -91,9 +91,9 @@ class NeoHookean : public Solid<Set::Sym::Major> {
                         t1 -= (2. / 3.) * F(i, j) * FinvT(k, l);
                         t1 -= (2. / 3.) * FinvT(i, j) * F(k, l);
                         t1 += (2. / 9.) * (F * F.transpose()).trace() *
-                              FinvT(i, j) * FinvT(k, l);
+                                FinvT(i, j) * FinvT(k, l);
                         t1 += (1. / 3.) * (F * F.transpose()).trace() *
-                              FinvT(i, l) * FinvT(k, j);
+                                FinvT(i, l) * FinvT(k, j);
 
                         t2 += (2. * J - 1.) * FinvT(i, j) * FinvT(k, l);
                         t2 += (1. - J) * FinvT(i, l) * FinvT(k, j);
@@ -116,11 +116,11 @@ class NeoHookean : public Solid<Set::Sym::Major> {
         out << "mu = " << mu << " kappa = " << kappa;
     }
 
-  public:
+    public:
     Set::Scalar mu = NAN, kappa = NAN;
     static constexpr KinematicVariable kinvar = KinematicVariable::F;
 
-  public:
+    public:
     static NeoHookean Zero() {
         NeoHookean ret;
         ret.mu = 0.0;

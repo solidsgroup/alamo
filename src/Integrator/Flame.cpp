@@ -23,32 +23,32 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
         pp_query_default("timestep", value.base_time,
-                         1.0e-4);                      // Simulation timestep
+                        1.0e-4);                      // Simulation timestep
         pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
         pp_query_default("pf.kappa", value.pf.kappa,
-                         0.0); // Interface energy param
+                        0.0); // Interface energy param
         pp_query_default("pf.gamma", value.pf.gamma,
-                         1.0); // Scaling factor for mobility
+                        1.0); // Scaling factor for mobility
         pp_query_default("pf.lambda", value.pf.lambda,
-                         0.0); // Chemical potential multiplier
+                        0.0); // Chemical potential multiplier
         pp_query_default("pf.w1", value.pf.w1, 0.0);   // Unburned rest energy
         pp_query_default("pf.w12", value.pf.w12, 0.0); // Barrier energy
         pp_query_default("pf.w0", value.pf.w0, 0.0);   // Burned rest energy
         pp_query_default("amr.ghost_cells", value.ghost_count,
-                         2); // number of ghost cells in all fields
+                        2); // number of ghost cells in all fields
         pp_query_default("geometry.x_len", value.x_len,
-                         0.001); // Domain x length
+                        0.001); // Domain x length
         pp_query_default("geometry.y_len", value.y_len,
-                         0.001); // Domain y length
+                        0.001); // Domain y length
 
         // value.bc_eta = new BC::Constant(1);
 
         // Boundary conditions for phase field order params
         pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1);
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, value.ghost_count,
-                             "eta", true);
+                            "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1,
-                             value.ghost_count, "eta_old", false);
+                            value.ghost_count, "eta_old", false);
 
         // phase field initial condition
 
@@ -59,30 +59,30 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
     {
         // IO::ParmParse pp("thermal");
         pp_query_default("thermal.on", value.thermal.on,
-                         false); // Whether to use the Thermal Transport Model
+                        false); // Whether to use the Thermal Transport Model
         pp_query_default("elastic.on", value.elastic.on,
-                         0); // Whether to use Neo-hookean Elastic model
+                        0); // Whether to use Neo-hookean Elastic model
         pp_query_default("thermal.bound", value.thermal.bound,
-                         0.0); // System Initial Temperature
+                        0.0); // System Initial Temperature
         pp_query_default("elastic.traction", value.elastic.traction,
-                         0.0); // Body force
+                        0.0); // Body force
         pp_query_default("elastic.phirefinement", value.elastic.phirefinement,
-                         1); // Phi refinement criteria
+                        1); // Phi refinement criteria
 
         if (value.thermal.on) {
             pp_query_required("thermal.rho_ap",
-                              value.thermal.rho_ap); // AP Density
+                                value.thermal.rho_ap); // AP Density
             pp_query_required("thermal.rho_htpb",
-                              value.thermal.rho_htpb); // HTPB Density
+                                value.thermal.rho_htpb); // HTPB Density
             pp_query_required("thermal.k_ap",
-                              value.thermal.k_ap); // AP Thermal Conductivity
+                                value.thermal.k_ap); // AP Thermal Conductivity
             pp_query_required(
                 "thermal.k_htpb",
                 value.thermal.k_htpb); // HTPB Thermal Conductivity
             pp_query_required("thermal.cp_ap",
-                              value.thermal.cp_ap); // AP Specific Heat
+                                value.thermal.cp_ap); // AP Specific Heat
             pp_query_required("thermal.cp_htpb",
-                              value.thermal.cp_htpb); // HTPB Specific Heat
+                                value.thermal.cp_htpb); // HTPB Specific Heat
 
             pp_query_default("thermal.q0", value.thermal.q0,
                              0.0); // Baseline heat flux
@@ -104,79 +104,79 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                     .E_htpb); // HTPB Activation Energy for Arrhenius Law
 
             pp_query_default("thermal.hc", value.thermal.hc,
-                             1.0); // Used to change heat flux units
+                            1.0); // Used to change heat flux units
             pp_query_default("thermal.massfraction", value.thermal.massfraction,
-                             0.8); // Systen AP mass fraction
+                            0.8); // Systen AP mass fraction
             pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap,
-                             0.0); // AP mass flux reference value
+                            0.0); // AP mass flux reference value
             pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb,
-                             0.0); // HTPB mass flux reference value
+                            0.0); // HTPB mass flux reference value
             pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb,
-                             0.0); // AP/HTPB mass flux reference value
+                            0.0); // AP/HTPB mass flux reference value
 
             pp_query_default("thermal.T_fluid", value.thermal.T_fluid,
-                             300.0); // Temperature of the Standin Fluid
+                            300.0); // Temperature of the Standin Fluid
 
             pp_query("thermal.disperssion1",
-                     value.thermal
-                         .disperssion1); // K; dispersion variables are use to
-                                         // set the outter field properties for
-                                         // the void grain case.
+                    value.thermal
+                        .disperssion1); // K; dispersion variables are use to
+                                        // set the outter field properties for
+                                        // the void grain case.
             pp_query("thermal.disperssion2",
-                     value.thermal
-                         .disperssion2); // rho; dispersion variables are use to
-                                         // set the outter field properties for
-                                         // the void grain case.
+                    value.thermal
+                        .disperssion2); // rho; dispersion variables are use to
+                                        // set the outter field properties for
+                                        // the void grain case.
             pp_query("thermal.disperssion3",
-                     value.thermal
-                         .disperssion3); // cp; dispersion variables are use to
-                                         // set the outter field properties for
-                                         // the void grain case.
+                    value.thermal
+                        .disperssion3); // cp; dispersion variables are use to
+                                        // set the outter field properties for
+                                        // the void grain case.
 
             pp_query_default("thermal.modeling_ap", value.thermal.modeling_ap,
-                             1.0); // Scaling factor for AP thermal conductivity
-                                   // (default = 1.0)
+                            1.0); // Scaling factor for AP thermal conductivity
+                                    // (default = 1.0)
             pp_query_default("thermal.modeling_htpb",
-                             value.thermal.modeling_htpb,
-                             1.0); // Scaling factor for HTPB thermal
-                                   // conductivity (default = 1.0)
+                            value.thermal.modeling_htpb,
+                            1.0); // Scaling factor for HTPB thermal
+                                  // conductivity (default = 1.0)
 
             // Temperature boundary condition
             pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp,
                                             1);
 
             value.RegisterNewFab(value.temp_mf, value.bc_temp, 1,
-                                 value.ghost_count + 1, "temp", true);
+                                value.ghost_count + 1, "temp", true);
             value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1,
-                                 value.ghost_count + 1, "temp_old", false);
+                                value.ghost_count + 1, "temp_old", false);
             value.RegisterNewFab(value.temps_mf, value.bc_temp, 1,
-                                 value.ghost_count + 1, "temps", false);
+                                value.ghost_count + 1, "temps", false);
             value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1,
-                                 value.ghost_count + 1, "temps_old", false);
+                                value.ghost_count + 1, "temps_old", false);
 
             value.RegisterNewFab(value.mdot_mf, value.bc_eta, 1,
-                                 value.ghost_count + 1, "mdot",
-                                 value.plot_field);
+                                value.ghost_count + 1, "mdot",
+                                value.plot_field);
             value.RegisterNewFab(value.mob_mf, value.bc_eta, 1,
-                                 value.ghost_count + 1, "mob",
-                                 value.plot_field);
+                                value.ghost_count + 1, "mob",
+                                value.plot_field);
             value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1,
-                                 value.ghost_count + 1, "alpha",
-                                 value.plot_field);
+                                value.ghost_count + 1, "alpha",
+                                value.plot_field);
             value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1,
-                                 value.ghost_count + 1, "heatflux",
-                                 value.plot_field);
+                                value.ghost_count + 1, "heatflux",
+                                value.plot_field);
             value.RegisterNewFab(value.laser_mf, value.bc_temp, 1,
-                                 value.ghost_count + 1, "laser",
-                                 value.plot_field);
+                                value.ghost_count + 1, "laser",
+                                value.plot_field);
 
             value.RegisterIntegratedVariable(&value.volume, "total_area");
             value.RegisterIntegratedVariable(&value.area, "Interface_area");
             value.RegisterIntegratedVariable(&value.chamber_area,
-                                             "chamber_area", false);
+                                            "chamber_area", false);
             value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
             value.RegisterIntegratedVariable(&value.chamber_pressure,
-                                             "Pressure", false);
+                                            "Pressure", false);
 
             // laser initial condition
             pp.select_default<IC::Constant, IC::Expression>(
@@ -190,7 +190,7 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
 
     {
         pp_query_default("pressure.P", value.pressure.P,
-                         1.0); // Constant pressure value
+                        1.0); // Constant pressure value
         if (value.thermal.on) {
             pp_query_required(
                 "pressure.a1",
@@ -260,23 +260,23 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                     .n_comb); // AP/HTPB power pressure law parameter (r*P^n)
         }
         pp_query_default("variable_pressure", value.variable_pressure,
-                         0); // Whether to compute the pressure evolution
+                        0); // Whether to compute the pressure evolution
         pp_query_default(
             "homogeneousSystem", value.homogeneousSystem,
             0); // Whether to initialize Phi with homogenized properties
     }
 
     pp_query_default("amr.refinement_criterion", value.m_refinement_criterion,
-                     0.001); // Refinement criterion for eta field
+                    0.001); // Refinement criterion for eta field
     pp_query_default("amr.refinement_criterion_temp",
-                     value.t_refinement_criterion,
-                     0.001); // Refinement criterion for temperature field
+                    value.t_refinement_criterion,
+                    0.001); // Refinement criterion for temperature field
     pp_query_default(
         "amr.refinament_restriction", value.t_refinement_restriction,
         0.1); // Eta value to restrict the refinament for the temperature field
     pp_query_default("amr.phi_refinement_criterion",
-                     value.phi_refinement_criterion,
-                     1.0e100); // Refinement criterion for phi field [infinity]
+                    value.phi_refinement_criterion,
+                    1.0e100); // Refinement criterion for phi field [infinity]
     pp_query_default("small", value.small, 1.0e-8); // Lowest value of Eta.
 
     {
@@ -284,15 +284,15 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
         // specified using these parameters.
         std::string phi_ic_type = "packedspheres";
         pp_query_validate("phi.ic.type", phi_ic_type,
-                          {"psread", "laminate", "expression", "constant",
-                           "bmp",
-                           "png"}); // IC type (psread, laminate, constant)
+                            {"psread", "laminate", "expression", "constant",
+                            "bmp",
+                            "png"}); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {
             value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             // value.ic_phicell = new IC::PSRead(value.geom, pp,
             // "phi.ic.psread");
             pp_query_default("phi.ic.psread.eps", value.zeta,
-                             1.0e-5); // AP/HTPB interface length
+                            1.0e-5); // AP/HTPB interface length
             pp_query_default(
                 "phi.zeta_0", value.zeta_0,
                 1.0e-5); // Reference interface length for heat integration
@@ -301,7 +301,7 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
             // value.ic_phicell = new IC::Laminate(value.geom, pp,
             // "phi.ic.laminate");
             pp_query_default("phi.ic.laminate.eps", value.zeta,
-                             1.0e-5); // AP/HTPB interface length
+                            1.0e-5); // AP/HTPB interface length
             pp_query_default(
                 "phi.zeta_0", value.zeta_0,
                 1.0e-5); // Reference interface length for heat integration
@@ -314,7 +314,7 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                 "phi.zeta_0", value.zeta_0,
                 1.0e-5); // Reference interface length for heat integration
             pp_query_default("phi.zeta", value.zeta,
-                             1.0e-5); // AP/HTPB interface length
+                            1.0e-5); // AP/HTPB interface length
         } else if (phi_ic_type == "constant") {
             value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
             // value.ic_phicell = new IC::Constant(value.geom, pp,
@@ -323,7 +323,7 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                 "phi.zeta_0", value.zeta_0,
                 1.0e-5); // Reference interface length for heat integration
             pp_query_default("phi.zeta", value.zeta,
-                             1.0e-5); // AP/HTPB interface length
+                            1.0e-5); // AP/HTPB interface length
         } else if (phi_ic_type == "bmp") {
             value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
             // value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
@@ -331,19 +331,19 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                 "phi.zeta_0", value.zeta_0,
                 1.0e-5); // Reference interface length for heat integration
             pp_query_default("phi.zeta", value.zeta,
-                             1.0e-5); // AP/HTPB interface length
+                            1.0e-5); // AP/HTPB interface length
         } else if (phi_ic_type == "png") {
             value.ic_phi = new IC::PNG(value.geom, pp, "phi.ic.png");
             pp_query_default(
                 "phi.zeta_0", value.zeta_0,
                 1.0e-5); // Reference interface length for heat integration
             pp_query_default("phi.zeta", value.zeta,
-                             1.0e-5); // AP/HTPB interface length
+                            1.0e-5); // AP/HTPB interface length
         } else
             Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
         // value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
         value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi",
-                               true);
+                                true);
         // value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1,
         // value.ghost_count + 1, "phi", true);
     }
@@ -362,7 +362,7 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count,
-                             "psi", value.plot_psi);
+                            "psi", value.plot_psi);
         value.psi_on = true;
     }
 
@@ -487,7 +487,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) {
 
         psi_mf[lev]->setVal(1.0);
         amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1,
-                              psi_mf[lev]->nGrow());
+                                psi_mf[lev]->nGrow());
     }
 }
 
@@ -579,14 +579,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                     zeta_1 = zeta_0;
 
                 Set::Scalar k1 = pressure.arrhenius.a1 * pressure.P +
-                                 pressure.arrhenius.b1 - zeta_1 / zeta;
+                                pressure.arrhenius.b1 - zeta_1 / zeta;
                 Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P +
-                                 pressure.arrhenius.b2 - zeta_1 / zeta;
+                                pressure.arrhenius.b2 - zeta_1 / zeta;
                 Set::Scalar k3 =
                     4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P +
-                               pressure.arrhenius.a3 * pressure.P +
-                               pressure.arrhenius.b3) -
-                              k1 / 2.0 - k2 / 2.0);
+                                pressure.arrhenius.a3 * pressure.P +
+                                pressure.arrhenius.b3) -
+                                k1 / 2.0 - k2 / 2.0);
                 Set::Scalar k4 =
                     pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
 
@@ -603,40 +603,40 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                     Set::Scalar cp;
                     if (homogeneousSystem) {
                         K = (thermal.modeling_ap * thermal.k_ap *
-                                 thermal.massfraction +
-                             thermal.modeling_htpb * thermal.k_htpb *
-                                 (1.0 - thermal.massfraction)) *
+                                thermal.massfraction +
+                            thermal.modeling_htpb * thermal.k_htpb *
+                                (1.0 - thermal.massfraction)) *
                                 phi_avg +
                             thermal.disperssion1 *
                                 (1. - phi_avg); // Calculate effective thermal
                                                 // conductivity
                         rho =
                             (thermal.rho_ap * thermal.massfraction +
-                             thermal.rho_htpb * (1.0 - thermal.massfraction)) *
+                            thermal.rho_htpb * (1.0 - thermal.massfraction)) *
                                 phi_avg +
                             thermal.disperssion2 *
                                 (1. - phi_avg); // No special interface mixure
                                                 // rule is needed here.
                         cp = (thermal.cp_ap * thermal.massfraction +
-                              thermal.cp_htpb * (1.0 - thermal.massfraction)) *
-                                 phi_avg +
-                             thermal.disperssion3 * (1. - phi_avg);
+                                thermal.cp_htpb * (1.0 - thermal.massfraction)) *
+                                phi_avg +
+                            thermal.disperssion3 * (1. - phi_avg);
                     } else {
                         K = thermal.modeling_ap * thermal.k_ap * phi_avg +
                             thermal.modeling_htpb * thermal.k_htpb *
                                 (1.0 - phi_avg); // Calculate effective thermal
-                                                 // conductivity
+                                                // conductivity
                         rho =
                             thermal.rho_ap * phi_avg +
                             thermal.rho_htpb *
                                 (1.0 - phi_avg); // No special interface mixure
-                                                 // rule is needed here.
+                                                // rule is needed here.
                         cp = thermal.cp_ap * phi_avg +
-                             thermal.cp_htpb * (1.0 - phi_avg);
+                            thermal.cp_htpb * (1.0 - phi_avg);
                     }
                     Set::Scalar df_deta =
                         ((pf.lambda / pf.eps) * dw(eta(i, j, k)) -
-                         pf.eps * pf.kappa * eta_lap);
+                        pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) =
                         eta(i, j, k) - mob(i, j, k) * dt * df_deta;
                     if (etanew(i, j, k) <= small)
@@ -651,14 +651,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                     if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) ||
                         isnan(mdot(i, j, k))) {
                         Util::Message(INFO, etanew(i, j, k),
-                                      "etanew contains nan (i=", i, " j= ", j,
-                                      ")");
+                                        "etanew contains nan (i=", i, " j= ", j,
+                                        ")");
                         Util::Message(INFO, mdot(i, j, k),
-                                      "mdot contains nan (i=", i, " j= ", j,
-                                      ")");
+                                        "mdot contains nan (i=", i, " j= ", j,
+                                        ")");
                         Util::Message(INFO, alpha(i, j, k),
-                                      "alpha contains nan (i=", i, " j= ", j,
-                                      ")");
+                                        "alpha contains nan (i=", i, " j= ", j,
+                                        ")");
                         Util::Abort(INFO);
                     }
                 });
@@ -678,18 +678,18 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                     if (homogeneousSystem) {
                         qflux = k4 * phi_avg;
                         mlocal = (thermal.mlocal_ap) * thermal.massfraction +
-                                 (thermal.mlocal_htpb) *
-                                     (1.0 - thermal.massfraction);
+                                (thermal.mlocal_htpb) *
+                                    (1.0 - thermal.massfraction);
                         mdota = fabs(mdot(i, j, k));
                         mbase = tanh(4.0 * mdota / (mlocal));
                         K = (thermal.modeling_ap * thermal.k_ap *
-                                 thermal.massfraction +
+                                thermal.massfraction +
                              thermal.modeling_htpb * thermal.k_htpb *
-                                 (1.0 - thermal.massfraction)) *
+                                (1.0 - thermal.massfraction)) *
                                 phi_avg +
                             thermal.disperssion1 * (1. - phi_avg);
                         heatflux(i, j, k) = (laser(i, j, k) * phi_avg +
-                                             thermal.hc * mbase * qflux) /
+                                            thermal.hc * mbase * qflux) /
                                             K;
                     } else {
                         qflux = k1 * phi_avg + k2 * (1.0 - phi_avg) +
@@ -711,8 +711,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
 
                     if (isnan(heatflux(i, j, k))) {
                         Util::Message(INFO, heatflux(i, j, k),
-                                      "heat contains nan (i=", i, " j= ", j,
-                                      ")");
+                                        "heat contains nan (i=", i, " j= ", j,
+                                        ")");
                         Util::Abort(INFO);
                     }
                 });
@@ -743,11 +743,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                         (1.0 - etanew(i, j, k)) * thermal.T_fluid;
                     if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
                         Util::Message(INFO, tempsnew(i, j, k),
-                                      "tempsnew contains nan (i=", i, " j= ", j,
-                                      ")");
+                                        "tempsnew contains nan (i=", i, " j= ", j,
+                                        ")");
                         Util::Message(INFO, temps(i, j, k),
-                                      "temps contains nan (i=", i, " j= ", j,
-                                      ")");
+                                        "temps contains nan (i=", i, " j= ", j,
+                                        ")");
                         Util::Abort(INFO);
                     }
                 });
@@ -767,8 +767,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                             L = thermal.m_ap *
                                 exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
                         L += thermal.m_htpb *
-                             exp(-thermal.E_htpb / tempnew(i, j, k)) *
-                             (1.0 - phi_avg);
+                            exp(-thermal.E_htpb / tempnew(i, j, k)) *
+                            (1.0 - phi_avg);
                         // L += thermal.m_comb * (0.5 * tempnew(i, j, k) /
                         // thermal.bound) * phi(i, j, k) * (1.0 - phi(i, j, k));
                         if (tempnew(i, j, k) <= thermal.bound)
@@ -778,8 +778,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                         // mob(i,j,k) = L;
                         if (isnan(mob(i, j, k))) {
                             Util::Message(INFO, mob(i, j, k),
-                                          "mob contains nan (i=", i, " j= ", j,
-                                          ")");
+                                            "mob contains nan (i=", i, " j= ", j,
+                                            ")");
                             Util::Abort(INFO);
                         }
                     });
@@ -812,11 +812,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                                         pow(pressure.P, pressure.power.n_comb);
 
                 pressure.power.a_fit = -1.16582 * sin(pressure.P) -
-                                       0.681788 * cos(pressure.P) + 3.3563;
+                                        0.681788 * cos(pressure.P) + 3.3563;
                 pressure.power.b_fit = -0.708225 * sin(pressure.P) +
-                                       0.548067 * cos(pressure.P) + 1.55985;
+                                        0.548067 * cos(pressure.P) + 1.55985;
                 pressure.power.c_fit = -0.0130849 * sin(pressure.P) -
-                                       0.03597 * cos(pressure.P) + 0.00725694;
+                                        0.03597 * cos(pressure.P) + 0.00725694;
 
                 amrex::ParallelFor(
                     bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -851,7 +851,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                             Numeric::Laplacian(eta, i, j, k, 0, DX);
                         Set::Scalar df_deta =
                             ((pf.lambda / pf.eps) * dw(eta(i, j, k)) -
-                             pf.eps * pf.kappa * eta_lap);
+                            pf.eps * pf.kappa * eta_lap);
                         etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
 
                         if (etanew(i, j, k) > eta(i, j, k))
@@ -863,10 +863,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
 } // Function
 
 void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags,
-                                  Set::Scalar time, int ngrow) {
+                                    Set::Scalar time, int ngrow) {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
     Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time,
-                                                       ngrow);
+                                                        ngrow);
 
     const Set::Scalar *DX = geom[lev].CellSize();
     Set::Scalar dr =
@@ -930,7 +930,7 @@ void Flame::Regrid(int lev, Set::Scalar time) {
 }
 
 void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
-                      const amrex::MFIter &mfi, const amrex::Box &box) {
+                        const amrex::MFIter &mfi, const amrex::Box &box) {
     BL_PROFILE("Flame::Integrate");
     const Set::Scalar *DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);

@@ -15,7 +15,7 @@ namespace Model {
 namespace Solid {
 namespace Linear {
 class TransverselyIsotropic : public Solid<Set::Sym::MajorMinor> {
-  public:
+    public:
     TransverselyIsotropic(){};
     TransverselyIsotropic(Solid<Set::Sym::MajorMinor> base)
         : Solid<Set::Sym::MajorMinor>(base){};
@@ -46,7 +46,7 @@ class TransverselyIsotropic : public Solid<Set::Sym::MajorMinor> {
     }
     virtual void Print(std::ostream &out) const override { out << ddw; }
 
-  public:
+    public:
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::MajorMinor> ddw;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
@@ -72,7 +72,7 @@ class TransverselyIsotropic : public Solid<Set::Sym::MajorMinor> {
     }
     static TransverselyIsotropic Random() {
         return Random(Util::Random(), Util::Random(), Util::Random(),
-                      Util::Random(), Util::Random());
+                        Util::Random(), Util::Random());
     }
     static TransverselyIsotropic Random(Set::Scalar C11, Set::Scalar C12,
                                         Set::Scalar C13, Set::Scalar C33,
