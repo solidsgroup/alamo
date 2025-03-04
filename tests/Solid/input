@@ -118,7 +118,7 @@
 #@  ignore = model1.E model1.nu
 #@  coverage = true
 #@  alamo.program = mechanics
-#@  plot_file = tests / solid / output
+#@  plot_file = tests / Solid / output
 #@  type = static
 
 alamo.program = mechanics
