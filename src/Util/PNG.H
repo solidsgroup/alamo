@@ -18,7 +18,13 @@ public:
     PNG() {} 
     PNG(IO::ParmParse &pp,std::string name) 
     {pp.queryclass(name, *this);}
-    ~PNG() {} 
+    ~PNG()
+    {
+        for (int y = 0; y < png_height; y++) {
+            free(row_pointers[y]);
+        }
+        free(row_pointers);
+    } 
 
     //enum Type {XYZ, XY, YZ, XZ};
     enum Fit { Stretch, FitWidth, FitHeight, Coord };
