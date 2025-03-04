@@ -578,26 +578,21 @@ public:
     }
 
     //
-    // Identical to the above, except sets the type automatically to the
-    // firs specified 
+    // Identical to select, except allows for nothing to be specified;
+    // in this case, ic_eta is set to nullptr.
     //
     template<typename FirstIC, typename... IC, typename... Args, typename PTRTYPE>
     void select_optional (std::string name, PTRTYPE *& ic_eta, Args&&... args)
     {
         std::string type = "";
 
-        this->query_default(name + ".type", type, FirstIC::name);
+        this->query_default(name + ".type", type, "");
+        Util::Message(INFO,type);
 
-        bool matched =
-            ((  type == FirstIC::name 
-                ? (ic_eta = new FirstIC(std::forward<Args>(args)..., (*this), name + "." + std::string(FirstIC::name))),
-                true : false))
-            || 
-            ((  type == IC::name 
-                ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
-                true : false) || ...);
-
-
+        bool matched = ((type == IC::name 
+                        ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                        true
+                        : false) || ...);
         if (!matched)
             ic_eta = nullptr;
     }
