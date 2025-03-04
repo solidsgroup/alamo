@@ -1,5 +1,5 @@
 ---
-title: 'The Alamo multiphysics solver for phase field simulations with block structured adaptive mesh refinement'
+title: 'The Alamo multiphysics solver for phase field simulations with strong-form mechanics and block structured adaptive mesh refinement'
 tags:
   - c++
   - computational physics
