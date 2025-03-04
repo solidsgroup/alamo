@@ -15,9 +15,18 @@
 | master        | |ubuntu-badge-master| |
 +---------------+-----------------------+
 
-20.04 and 22.04
----------------
+22.04
+-----
 
-.. literalinclude:: ../../../.github/workflows/install-ubuntu-22.04.sh
+.. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-22.04.sh
    :language: bash
    :lines: 2-
+
+.. literalinclude:: ../../../.github/workflows/build-and-test.sh
+   :language: bash
+   :lines: 2-
+
+.. literalinclude:: ../../../.github/workflows/build-docs.sh
+   :language: bash
+   :lines: 2-
+      
