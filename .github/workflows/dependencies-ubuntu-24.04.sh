@@ -22,15 +22,18 @@ sudo apt install clang libgfortran-14-dev
 #
 # These are needed for regression test scripts and other code infrastructure
 #
-sudo apt install python3-pip npm lcov doxygen
+sudo apt install lcov doxygen
 
 # Needed for regression testing
-pip3 install yt matplotlib numpy pandas
+sudo apt install python3-yt python3-matplotlib python3-numpy python3-pandas
 
 # Needed to build documentation
-pip3 install sphinx breathe m2r sphinx_rtd_theme linuxdoc sphinx_design
-pip3 install sphinx-copybutton sphinxcontrib-bibtex xmltodict
+sudo apt install python3-sphinx python3-breathe python3-m2r
+sudo apt install python3-sphinx-rtd-theme python3-sphinx-design
+sudo apt install python3-sphinx-copybutton python3-sphinxcontrib.bibtex
+sudo apt install python3-xmltodict
 
 # Needed for editorconfig linting
+sudo apt install npm
 npm install -g eclint
 
