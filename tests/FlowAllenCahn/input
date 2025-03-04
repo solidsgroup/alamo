@@ -186,11 +186,3 @@ dynamictimestep.min  = 1E-4
 hydro.cfl   = 10.0
 hydro.cfl_v   = 10.0
 #hydro.small=1E-4
-
-
-
-
-amr.n_cell = 64 8
-geometry.prob_lo = -24.0 -3 
-geometry.prob_hi =  24.0  3 
-amr.blocking_factor = 2
