@@ -28,7 +28,7 @@ sudo apt install python3-pip npm lcov doxygen
 pip3 install yt matplotlib numpy pandas
 
 # Needed to build documentation
-pip3 install sphinx breathe m2r sphinx_rtd_theme linuxdoc sphinx_design
+pip3 install sphinx sphinx_rtd_theme linuxdoc sphinx_design
 pip3 install sphinx-copybutton sphinxcontrib-bibtex xmltodict
 
 # Needed for editorconfig linting
