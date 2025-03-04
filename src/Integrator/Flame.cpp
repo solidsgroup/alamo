@@ -85,7 +85,7 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
                                 value.thermal.cp_htpb); // HTPB Specific Heat
 
             pp_query_default("thermal.q0", value.thermal.q0,
-                             0.0); // Baseline heat flux
+                            0.0); // Baseline heat flux
 
             pp_query_required(
                 "thermal.m_ap",
@@ -139,7 +139,7 @@ void Flame::Parse(Flame &value, IO::ParmParse &pp) {
             pp_query_default("thermal.modeling_htpb",
                             value.thermal.modeling_htpb,
                             1.0); // Scaling factor for HTPB thermal
-                                  // conductivity (default = 1.0)
+                                    // conductivity (default = 1.0)
 
             // Temperature boundary condition
             pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp,
@@ -684,7 +684,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
                         mbase = tanh(4.0 * mdota / (mlocal));
                         K = (thermal.modeling_ap * thermal.k_ap *
                                 thermal.massfraction +
-                             thermal.modeling_htpb * thermal.k_htpb *
+                            thermal.modeling_htpb * thermal.k_htpb *
                                 (1.0 - thermal.massfraction)) *
                                 phi_avg +
                             thermal.disperssion1 * (1. - phi_avg);

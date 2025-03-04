@@ -569,7 +569,7 @@ template <> class Matrix4<3, Sym::MajorMinor> {
                         for (int j = 0; j < 3; j++) {
                             const Set::Scalar &val = (*this)(i, j, k, l);
                             os << std::scientific << std::setw(11)
-                               << val; //(fabs(val)>1E-10 ? val : 0);
+                                << val; //(fabs(val)>1E-10 ? val : 0);
                             os << " ";
                         }
                         os << "│ ";
