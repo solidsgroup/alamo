@@ -15,16 +15,33 @@
 | master        | |ubuntu-badge-master| |
 +---------------+-----------------------+
 
-22.04
------
+Install dependencies
+~~~~~~~~~~~~~~~~~~~~
 
-.. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-22.04.sh
-   :language: bash
-   :lines: 2-
+.. tab-set::
+
+    .. tab-item:: 24.04
+
+        .. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-24.04.sh
+           :language: bash
+           :lines: 2-
+
+    .. tab-item:: 22.04
+
+        .. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-22.04.sh
+           :language: bash
+           :lines: 2-
+
+
+Build code and run unit tests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. literalinclude:: ../../../.github/workflows/build-and-test.sh
    :language: bash
    :lines: 2-
+
+Build this documentation
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. literalinclude:: ../../../.github/workflows/build-docs.sh
    :language: bash

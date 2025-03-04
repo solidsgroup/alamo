@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Dependencies
-        run: bash .github/workflows/dependencies.sh
+        run: bash .github/workflows/dependencies-ubuntu-24.04.sh
       - name: Configure (2D)
         continue-on-error: true
         run: ./configure --dim=2 --coverage
