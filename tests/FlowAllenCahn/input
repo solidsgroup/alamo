@@ -1,0 +1,196 @@
+#@ [serial]
+#@ exe=sfi
+#@ dim=2
+#@ args = amr.n_cell = 64 8
+#@ args = amr.prob_lo = -24.0 -3.0 0.0
+#@ args = amr.prob_hi = 24.0, 3.0 0.0
+#@ args = amr.blocking_factor = 4
+
+
+
+
+alamo.program = allencahn
+plot_file = ./output.allencahn
+amr.plot_dt = 0.1
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.regrid_int = 100
+amr.grid_eff = 0.7
+amr.max_level = 3
+timestep  = 1e-2
+amr.n_cell = 64 64
+geometry.prob_lo = -24.0 -24.0 0.0 # [ m ] 
+geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
+geometry.is_periodic = 0 0 0
+stop_time = 12.0
+
+
+allencahn.ch.direction = 1
+allencahn.ch.direction_tstart = 10.0
+tstart = 10.0
+
+#alamo.program = allencahn
+
+### OUTPUT ###
+
+#plot_file = tests/AllenCahn/output
+
+### MESHING ###
+#amr.plot_int = 1
+#amr.plot_int = 1000
+#amr.max_level = 2
+#amr.max_grid_size = 500000
+#amr.blocking_factor = 2
+#amr.grid_eff = 0.8
+#amr.n_cell = 96 64 0
+#geometry.prob_lo = -1.5 -1.0 0.0 # [ m ] 
+#geometry.prob_hi =  1.5  1.0 0.0 # [ m ]
+#geometry.is_periodic = 0 0 0
+#timestep  = 0.01
+#stop_time = 100.0
+allencahn.alpha.bc.type.xlo = neumann
+allencahn.alpha.bc.type.xhi = neumann
+allencahn.alpha.bc.type.ylo = neumann
+allencahn.alpha.bc.type.yhi = neumann
+allencahn.alpha.bc.val.xlo = 0.0
+allencahn.alpha.bc.val.xhi = 0.0
+allencahn.alpha.bc.val.ylo = 0.0
+allencahn.alpha.bc.val.yhi = 0.0
+allencahn.alpha.ic.type = png
+allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
+allencahn.alpha.ic.png.fit = coord
+allencahn.alpha.ic.png.coord.lo = -38 -38
+allencahn.alpha.ic.png.coord.hi = 38 38
+allencahn.alpha.ic.png.max = 0
+allencahn.alpha.ic.png.min = 255
+
+allencahn.refinement_threshold = 0.1
+
+
+#allencahn.alpha.ic.type = expression
+#allencahn.alpha.ic.expression.region0 = "0.5 * (1 + tanh((sqrt(x^2+y^2) - 1.0)/0.1))"
+#allencahn.alpha.ic.type = psread
+#allencahn.alpha.ic.psread.eps = 0.2
+#allencahn.alpha.ic.psread.filename = 2d.xyzr
+#allencahn.alpha.ic.psread.mult = 10.0
+#allencahn.alpha.ic.psread.x0 = -20.0 0
+#allencahn.alpha.ic.psread.invert = 1
+allencahn.ch.L = 10.0
+allencahn.ch.eps = 0.2
+allencahn.ch.grad = 0.01
+allencahn.ch.chempot = 0.01
+allencahn.ch.direction = 0
+
+
+
+
+
+
+
+### ETA IC ###
+#hydro.rhoInterface.ic.type = expression
+#hydro.rhoInterface.ic.expression.region0 = "20.0"
+#hydro.vInjected.ic.type = expression
+#hydro.vInjected.ic.expression.region0 = "0.0"
+#hydro.vInjected.ic.expression.region1 = "0.0"
+#hydro.deltapInterface.ic.type = expression
+#hydro.deltapInterface.ic.expression.region0 = "0.0"
+### HYDRO PARAM ###
+hydro.gamma = 1.4
+hydro.mu    = 5.0
+hydro.pref    = 10000
+#hydro.rho_solid = 30.0 #kg/m^3
+#hydro.rho_fluid = 20.0 #kg/m^3
+#hydro.E_solid   = 5.0
+hydro.density.ic.constant.value = 40.0
+hydro.velocity.ic.type = expression
+hydro.velocity.ic.expression.constant.eps   = 0.1
+hydro.velocity.ic.expression.constant.x0    = -2.0
+hydro.velocity.ic.expression.region0 = "0.0"
+hydro.velocity.ic.expression.region1 = "0.0"
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 5.0
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+### ETA BC  ###
+hydro.pf.eta.bc.type.xlo = neumann
+hydro.pf.eta.bc.type.xhi = neumann
+hydro.pf.eta.bc.type.ylo = neumann
+hydro.pf.eta.bc.type.yhi = neumann
+hydro.pf.eta.bc.type.zlo = neumann
+hydro.pf.eta.bc.type.zhi = neumann
+hydro.pf.eta.bc.val.xlo = 0.0
+hydro.pf.eta.bc.val.xhi = 0.0
+hydro.pf.eta.bc.val.ylo = 0.0
+hydro.pf.eta.bc.val.yhi = 0.0
+hydro.pf.eta.bc.val.zlo = 0.0
+hydro.pf.eta.bc.val.zhi = 0.0
+### HYDRO BC ###
+hydro.density.bc.type.xhi = neumann
+hydro.density.bc.type.xlo = dirichlet
+hydro.density.bc.type.ylo = neumann
+hydro.density.bc.type.yhi = neumann
+hydro.density.bc.val.xhi = 0.0
+hydro.density.bc.val.xlo = 42.0
+hydro.density.bc.val.ylo = 0.0 
+hydro.density.bc.val.yhi = 0.0
+hydro.energy.bc.type.xhi = neumann
+hydro.energy.bc.type.xlo = dirichlet #neumann
+hydro.energy.bc.type.ylo = neumann
+hydro.energy.bc.type.yhi = neumann
+hydro.energy.bc.val.xhi = 0.0
+hydro.energy.bc.val.xlo = 1000.0 #0.0
+hydro.energy.bc.val.ylo = 0.0 
+hydro.energy.bc.val.yhi = 0.0
+hydro.momentum.bc.type.xhi = neumann neumann
+hydro.momentum.bc.type.xlo = neumann neumann #dirichlet neumann
+hydro.momentum.bc.type.ylo = neumann dirichlet
+hydro.momentum.bc.type.yhi = neumann dirichlet
+hydro.momentum.bc.val.xhi = 0.0 0.0
+hydro.momentum.bc.val.xlo = 0.0  0.0 #10. 0.0
+hydro.momentum.bc.val.ylo = 0.0 0.0
+hydro.momentum.bc.val.yhi = 0.0 0.0
+hydro.eta.ic.constant.value = 1.0
+### HYDRO REFINEMENT CRITERIA ###
+#hydro.r_refinement_criterion   = 0.1
+#hydro.e_refinement_criterion   = 0.1
+#hydro.m_refinement_criterion   = 0.1
+hydro.eta_refinement_criterion = 0.1
+hydro.omega_refinement_criterion = 10000000
+hydro.gradu_refinement_criterion = 10000000
+
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.density.ic.constant.value = 40.0
+hydro.solid.energy.ic.constant.value = 0.0
+
+hydro.m0.ic.constant.value = 0.0
+hydro.u0.ic.constant.value = 0.0
+hydro.q.ic.constant.value = 0.0
+
+hydro.small=1E-8
+hydro.cutoff=0.2
+hydro.lagrange=2000.0
+
+#hydro.Lfactor=-10
+#hydro.Pfactor=10
+
+
+
+amr.abort_on_nan = 0
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.max  = 0.01
+dynamictimestep.min  = 1E-4
+#dynamictimestep.cfl = 0.005
+hydro.cfl   = 10.0
+hydro.cfl_v   = 10.0
+#hydro.small=1E-4
+
+
+
+
+amr.n_cell = 64 8
+geometry.prob_lo = -24.0 -3 
+geometry.prob_hi =  24.0  3 
+amr.blocking_factor = 2
