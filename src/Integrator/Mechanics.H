@@ -195,16 +195,15 @@ public:
 
     }
 
-    void Initialize(int lev) override 
+    void Initialize(int lev) override
     {
         Base::Mechanics<MODEL>::Initialize(lev);
         eta_mf[lev]->setVal(0.0);
         if (nmodels > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
         else eta_mf[lev]->setVal(1.0);
 
-        if (psi_on) ic_psi->Initialize(lev, psi_mf); 
+        if (psi_on) ic_psi->Initialize(lev, psi_mf);
         if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf);
-
         if (ic_model) ic_model->Initialize(lev, model_mf);
     }
 
