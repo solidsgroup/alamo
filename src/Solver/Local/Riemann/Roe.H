@@ -1,14 +1,15 @@
-#ifndef SOLVER_LOCAL_RIEMANN_ROE_H
-#define SOLVER_LOCAL_RIEMANN_ROE_H
-
 //
 // This implements the Riemann Roe solver.
 //
 // Notation and algorithm follow the presentation in Section 5.3.3
 // of *Computational Gasdynamics* by Culbert B. Laney (page 88)
 //
+// This solver uses an optional entropy fix [documentation needed]
+//
 
-#include "Set/Set.H"
+#ifndef SOLVER_LOCAL_RIEMANN_ROE_H
+#define SOLVER_LOCAL_RIEMANN_ROE_H
+
 #include "IO/ParmParse.H"
 #include "Solver/Local/Riemann/Riemann.H"
 
@@ -40,14 +41,17 @@ public:
     }
 
     int verbose = 0;
+    bool entropy_fix = false;
 
     static void Parse(Roe & value, IO::ParmParse & pp)
     {
         // enable to dump diagnostic data if the roe solver fails
-        pp.query_default("verbose",value.verbose,1);
+        pp.query_default("verbose", value.verbose, 1);
+        // apply entropy fix if tru
+        pp.query_default("entropy_fix", value.entropy_fix, false);
     }
 
-    Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small, int roefix)
+    Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small)
     {
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
@@ -142,7 +146,7 @@ public:
         //
         // ROE ENTROPY FIX (not included in cited paper)
         //
-        if (roefix == 1) {
+        if (entropy_fix == 1) {
             Util::ParallelMessage(INFO,"Entropy fix is still experimental and needs to be investigated further");
             //  Eq. 4.3.67 in "Computational Fluid Dynamics for Engineers and Scientists" by Sreenivas Jayanti
             //Set::Scalar a_L = std::sqrt(gamma * p_L / (rho_L + small)); // sound speed
@@ -236,15 +240,14 @@ public:
         Set::Scalar gamma = 1.4;
         Set::Scalar pref = 10.0;
         Set::Scalar small = 1E-10;
-        int roefix = 0;
 
         // Test 1: Tangential Velocity Difference - No Normal Flux
         try {
             State left  (1.0, 1.0, 0.0, 1.0);
             State center(1.0, 1.0, 1.0, 1.0);
             State right (1.0, 1.0, 2.0, 1.0);
-            Flux fluxlo = solver.Solve(center, right, gamma, pref, small, roefix);
-            Flux fluxhi = solver.Solve(left, center,  gamma, pref, small, roefix);
+            Flux fluxlo = solver.Solve(center, right, gamma, pref, small);
+            Flux fluxhi = solver.Solve(left, center,  gamma, pref, small);
 
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
                 || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
@@ -268,8 +271,8 @@ public:
             State left  (1.0, 0.0, 0.0, 1.0);
             State center(1.0, 0.0, 1.0, 1.0);
             State right (1.0, 0.0, 2.0, 1.0);
-            Flux fluxlo = solver.Solve(left, center,  gamma, pref, small, roefix);
-            Flux fluxhi = solver.Solve(center, right, gamma, pref, small, roefix);
+            Flux fluxlo = solver.Solve(left, center,  gamma, pref, small);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10
                 || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10
                 || fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
@@ -292,8 +295,8 @@ public:
             State left(1.0, 0.0, 0.0, 1.0);
             State center(1.0, 0.0, 0.0, 1.0);
             State right(1.0, 0.0, 0.0, 1.0);
-            Flux fluxhi = solver.Solve(center, right, gamma, pref, small, roefix);
-            Flux fluxlo = solver.Solve(left, center, gamma, pref, small, roefix);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
+            Flux fluxlo = solver.Solve(left, center, gamma, pref, small);
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 // no change in mass flux
                 || fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 // no change in momentum flux
                 || fabs(fluxhi.momentum_tangent) > 1E-10 // zero tangent flux
@@ -318,8 +321,8 @@ public:
             State left (1.0, 1.0, 0.5, 1.0);
             State center(1.0, 1.0, 0.5, 1.0);
             State right (1.0, 1.0, 0.5, 1.0);
-            Flux fluxhi = solver.Solve(center, right, gamma, pref, small, roefix);
-            Flux fluxlo = solver.Solve(left, center, gamma, pref, small, roefix);
+            Flux fluxhi = solver.Solve(center, right, gamma, pref, small);
+            Flux fluxlo = solver.Solve(left, center, gamma, pref, small);
             if (fabs(fluxhi.mass - fluxlo.mass) > 1E-10 ||
                 fabs(fluxhi.momentum_normal - fluxlo.momentum_normal) > 1E-10 ||
                 fabs(fluxhi.energy - fluxlo.energy) > 1E-10) {
