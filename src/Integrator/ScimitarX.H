@@ -24,6 +24,9 @@
 #include "Util/ScimitarX_Util.H"
 #include "Numeric/TimeStepper.H"
 #include "Numeric/FluxHandler.H"
+#include "Numeric/WENOReconstruction.H"
+#include "Numeric/IntegratorVariableAccessLayer.H"
+#include "Numeric/NumericFactory.H"
 
 namespace Integrator
 {
@@ -45,10 +48,6 @@ public:
 
     }
 
-    std::string constructKey(const std::string& prefix, const std::string& component_name, const std::string& property, const std::string& side) {
-        return prefix + component_name + "." + property + "." + side;
-    }
-
     // Enum for Solver Types
     enum class SolverType {
         SolveCompressibleEuler,
@@ -66,28 +65,9 @@ public:
         IE      // Specific Internal Energy
     };
 
-    // Flux Reconstruction Schemes
-    enum class FluxReconstruction {
-        FirstOrder,               // Basic first-order reconstruction
-        ThirdOrderENO,            // Third-order Essentially Non-Oscillatory (ENO)
-        FifthOrderWENO,           // Fifth-order Weighted Essentially Non-Oscillatory (WENO)
-        FifthOrderWENOWithChar    // Fifth-order WENO with Characteristic decomposition
-    };
-
-    // Flux Schemes
-    enum class FluxScheme {
-        LocalLaxFriedrichs,   // Local Lax-Friedrichs (Rusanov) flux
-        HLLCFlux             // Harten-Lax-van Leer Contact (HLLC) flux
-    };
-
-    enum class TimeSteppingScheme {
-        ForwardEuler,           // First-order explicit Euler method
-        RK3                    // Third-order Runge-Kutta method
-    };
 
     // Maps for SolverTypes string to Enum conversions
     static const std::map<std::string, SolverType> stringToSolverType;
-
 
     // Helper function to convert an enum class to int
     template <typename Enum>
@@ -180,64 +160,34 @@ public:
 
     static IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, const Util::ScimitarX_Util::getVariableIndex& variableIndex);
 
-    // Subclass to manage feature maps
-    class FeatureMaps {
+    // Solver-specific metadata class (can be moved to a separate file later)
+    class SolverMetadata : public Numeric::SolverMetadata {
     public:
-        // Singleton access to ensure one instance
-        static FeatureMaps& getInstance() {
-            static FeatureMaps instance;
-            return instance;
+        std::string getName() const override { 
+            return "ScimitarX Compressible Euler Solver"; 
         }
-
-        // Accessor methods for the maps
-        const std::map<std::string, FluxReconstruction>& getFluxReconstructionMap() const {
-            return fluxReconstructionMap;
+        
+        bool supportsFluxReconstruction(Numeric::FluxReconstructionType method) const override;
+        bool supportsFluxScheme(Numeric::FluxScheme scheme) const override;
+        bool supportsTimeSteppingScheme(Numeric::TimeSteppingSchemeType scheme) const override;
+        bool supportsReconstructionMode(Numeric::ReconstructionMode mode) const override;
+        
+        Numeric::FluxReconstructionType getDefaultFluxReconstruction() const override {
+            return Numeric::FluxReconstructionType::FirstOrder;
         }
-
-        const std::map<std::string, FluxScheme>& getFluxSchemeMap() const {
-            return fluxSchemeMap;
+        
+        Numeric::FluxScheme getDefaultFluxScheme() const override {
+            return Numeric::FluxScheme::LocalLaxFriedrichs;
         }
-
-        const std::map<std::string, TimeSteppingScheme>& getTimeSteppingSchemeMap() const {
-            return timeSteppingSchemeMap;
+        
+        Numeric::TimeSteppingSchemeType getDefaultTimeSteppingScheme() const override {
+            return Numeric::TimeSteppingSchemeType::ForwardEuler;
         }
-
-    private:
-        // Private constructor to initialize the maps
-        FeatureMaps() {
-            fluxReconstructionMap = {
-                {"FirstOrder", FluxReconstruction::FirstOrder},
-                {"ThirdOrderENO", FluxReconstruction::ThirdOrderENO},
-                {"FifthOrderWENO", FluxReconstruction::FifthOrderWENO},
-                {"FifthOrderWENOWithChar", FluxReconstruction::FifthOrderWENOWithChar}
-            };
-
-            fluxSchemeMap = {
-                {"LocalLaxFriedrichs", FluxScheme::LocalLaxFriedrichs},
-                {"HLLCFlux", FluxScheme::HLLCFlux}
-            };
-
-            timeSteppingSchemeMap = {
-                {"ForwardEuler", TimeSteppingScheme::ForwardEuler},
-                {"RK3", TimeSteppingScheme::RK3}
-            };
+        
+        Numeric::ReconstructionMode getDefaultReconstructionMode() const override {
+            return Numeric::ReconstructionMode::Primitive;
         }
-
-        // Disable copy and assignment
-        FeatureMaps(const FeatureMaps&) = delete;
-        FeatureMaps& operator=(const FeatureMaps&) = delete;
-
-        // The maps for different schemes
-        std::map<std::string, FluxReconstruction> fluxReconstructionMap;
-        std::map<std::string, FluxScheme> fluxSchemeMap;
-        std::map<std::string, TimeSteppingScheme> timeSteppingSchemeMap;
     };
-
-    // Accessors to the singleton
-    static const FeatureMaps& getFeatureMaps() {
-        return FeatureMaps::getInstance();
-    }
-
 
 protected:
 
@@ -246,62 +196,23 @@ protected:
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int lev) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override {
-        //Util::Message(INFO, "Starting ScimitarX::Advance for level: " + std::to_string(lev));
 
         // Advance the solution without stiff source terms
         AdvanceInTimeWithoutStiffTerms(lev, time, dt);
 
-        //Util::Message(INFO, "Completed ScimitarX::Advance for level: " + std::to_string(lev));
     }
     // Function to advance hyperbolic balance equations without stiff terms
     void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar /*time*/, Set::Scalar dt) {
-        // Util::Message(INFO, "Starting AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
-
-    // Determine the solver type and handle different governing equations
-    /*switch (solverType) {
-        case SolverType::SolveCompressibleEuler: {
-            Util::Message(INFO, "SolverType: Compressible Euler");
-            break;
-        }
-        case SolverType::SolveElastoPlastic: {
-            Util::Message(INFO, "SolverType: Elasto-Plastic");
-            break;
-        }
-        case SolverType::SolveFiveEquationModel: {
-            Util::Message(INFO, "SolverType: Five-Equation Model");
-            break;
-        }
-        default:
-            Util::Abort(__FILE__, __func__, __LINE__, "Unknown SolverType.");
-    }*/
-
-    // Ensure that the fluxHandler and timeStepper are properly initialized
-    /* if (!fluxHandler) {
-        Util::Abort(__FILE__, __func__, __LINE__, "FluxHandler is not initialized.");
-    }
-    if (!timeStepper) {
-        Util::Abort(__FILE__, __func__, __LINE__, "TimeStepper is not initialized.");
-    }*/
 
     // Determine the time-stepping scheme
     switch (temporal_scheme) {
-        case TimeSteppingScheme::ForwardEuler: {
-            //Util::Message(INFO, "TimeSteppingScheme: Forward Euler");
-           
-            //Util::ScimitarX_Util::Debug debug; 
 
-            fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
-            fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
-
-            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
-
+        case Numeric::TimeSteppingSchemeType::ForwardEuler: {
+             
             int numStages = timeStepper->GetNumberOfStages();
             // One-stage loop for Forward Euler
             for (int stage = 0; stage < numStages; ++stage) {
                 
-
-                //debug.DebugGhostCellsAndBoundary(*Pressure_mf[lev], geom[lev], lev, "Pressure", "Ghost Cell Debug", true);
-
                 // 1. Compute Conserved Variables
                 ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
 
@@ -316,12 +227,8 @@ protected:
                 // 4. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
 
-                //Util::Message(INFO, "Before Applying Boundary Condition");
 
                 //ApplyBoundaryConditions(lev, time);
-
-                //Util::Message(INFO, "After Applying Boundary Condition");
-                //debug.DebugGhostCellsAndBoundary(*Pressure_mf[lev], geom[lev], lev, "QVec", "Ghost Cell Debug", true);
 
                 // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
                 std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
@@ -329,21 +236,24 @@ protected:
             break;
         }
 
-        case TimeSteppingScheme::RK3: {
-            //Util::Message(INFO, "TimeSteppingScheme: RK3");
-            fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
-            fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
-
-            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
+        case Numeric::TimeSteppingSchemeType::RK3: {
 
             int numStages = timeStepper->GetNumberOfStages();
 
             for (int stage = 0; stage < numStages; ++stage) {
+                // 1. Compute Conserved Variables
                 ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+
+                // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
+
+                // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
+
+                // 4. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
-                //ApplyBoundaryConditions(lev, time);
+
+                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
                 std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
             }
             break;
@@ -368,12 +278,6 @@ protected:
 // Template function to specialize GetFluxVectors based on SolverType
 template <SolverType solverType>
 void ComputeConservedVariables(int lev) {
-    //Util::Message(INFO, "Starting GetFluxVectors for SolverType-specific computation");
-
-        //Util::ScimitarX_Util::Debug debug;
-
-        //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        //debug.SetTargetDebugLocationIndices(48, -2, 0);
 
     //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
     for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
@@ -398,9 +302,6 @@ void ComputeConservedVariables(int lev) {
                                             );
             Set::Scalar total_internal_energy = internal_energy + kinetic_energy;
 
-            //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "ComputeConservedVariables", false);
-            //debug.DebugValuesIfTarget(i, j, k, vvel, "v-velocity", "ComputeConservedVariables", false);
-
             // Set Q vector components (solver-type-specific handling can go here)
             q_arr(i, j, k, variableIndex.DENS) = rho;
             q_arr(i, j, k, variableIndex.UVEL) = rho * uvel;
@@ -411,20 +312,14 @@ void ComputeConservedVariables(int lev) {
             q_arr(i, j, k, variableIndex.IE) = rho * total_internal_energy;
 
         });
-    
-    
+        
     }
 
-    //Util::Message(INFO, "Flux Vectors computed successfully for SolverType-specific routine");
 }
 
     // Template function for updating conservative variables to primitive variables
     template <SolverType solverType>
     void UpdateSolutions(int lev) {
-        //Util::ScimitarX_Util::Debug debug;
-
-        //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
-        //debug.SetTargetDebugLocationIndices(48, -2, 0);
 
         //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
@@ -439,7 +334,6 @@ void ComputeConservedVariables(int lev) {
                 // Extract conservative variables from QVec
                 Set::Scalar rho = q_arr(i, j, k, variableIndex.DENS);      // Density
 
-                //debug.CheckNaNAndAbort(i, j, k, rho, "Density", "UpdateSolutions", true);
 
                 Set::Scalar uvel = q_arr(i, j, k, variableIndex.UVEL) / rho;  // Velocity in x-direction
                 Set::Scalar vvel = q_arr(i, j, k, variableIndex.VVEL) / rho;  // Velocity in y-direction
@@ -447,7 +341,6 @@ void ComputeConservedVariables(int lev) {
                 Set::Scalar wvel = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
 #endif
 
-                //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "UpdateSolutions", false);
 
                 Set::Scalar total_internal_energy = q_arr(i, j, k, variableIndex.IE) / rho;  // Total specific energy
 
@@ -477,7 +370,6 @@ void ComputeConservedVariables(int lev) {
 
                 pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
 
-                //debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal energy", "GetFluxVector", false);
 
             });
 
@@ -497,8 +389,20 @@ protected:
     int number_of_components;            // Number of components
     int number_of_ghost_cells = 1;           // Number of ghost cells
 
+    //Add FluxHandler member to ScimitarX class declaration
     std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
+
+    //Add timeStepper member to ScimitarX class declaration
     std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
+
+
+    std::shared_ptr<Numeric::GenericVariableAccessor> GetVariableAccessor() const {
+        return variable_accessor;
+    }    
+
+    void SetVariableAccessor(std::shared_ptr<Numeric::GenericVariableAccessor> accessor) {
+        variable_accessor = std::move(accessor);
+    }    
 
     template <typename T>
     friend class Numeric::FluxReconstruction;
@@ -513,6 +417,9 @@ protected:
     friend class Numeric::FirstOrderReconstruction;
 
     template <typename T>
+    friend class Numeric::WENOReconstruction;
+
+    template <typename T>
     friend class Numeric::LocalLaxFriedrichsMethod;
 
     template <typename T>
@@ -522,7 +429,10 @@ protected:
     friend class Numeric::EulerForwardScheme;
 
     template <typename T>
-    friend class Numeric::RK3Scheme;    
+    friend class Numeric::RK3Scheme; 
+ 
+    template <typename T>
+    friend class Numeric::CompressibleEuler::CompressibleEulerVariableAccessor;
 
 private:
 
@@ -536,9 +446,17 @@ private:
 
     SolverType solverType;                //solverType 
 
-    FluxReconstruction reconstruction_method;  // Selected flux reconstruction scheme
-    FluxScheme flux_scheme;                    // Selected flux scheme
-    TimeSteppingScheme temporal_scheme;         // Selected time-stepping scheme
+  // Solver Configuration
+    Numeric::FluxReconstructionType reconstruction_method = 
+        Numeric::FluxReconstructionType::FirstOrder;
+    Numeric::FluxScheme flux_scheme = 
+        Numeric::FluxScheme::LocalLaxFriedrichs;
+    Numeric::TimeSteppingSchemeType temporal_scheme = 
+        Numeric::TimeSteppingSchemeType::ForwardEuler;
+    Numeric::ReconstructionMode variable_space = 
+        Numeric::ReconstructionMode::Primitive;
+
+    std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
 
     Set::Scalar cflNumber;        // CFL number (read from input)
 

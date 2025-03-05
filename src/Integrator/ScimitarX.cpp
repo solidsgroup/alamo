@@ -9,6 +9,8 @@
 #include "Numeric/Stencil.H"
 #include "Numeric/TimeStepper.H"
 #include "Numeric/FluxHandler.H"
+#include "Numeric/NumericFactory.H"
+#include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 
@@ -22,8 +24,13 @@ Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;
 ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 {
 
-    fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>();
+    fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
     timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
+
+    // Register solver metadata
+    Numeric::SolverMetadataRegistry::getInstance().registerSolverMetadata<ScimitarX>(
+            std::make_unique<ScimitarX::SolverMetadata>()
+        );
 
     pp.queryclass(*this);
 }
@@ -119,48 +126,88 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
 
     } 
 
-    { 
-    // Access the maps from the FeatureMaps singleton
-    auto& fluxReconstructionMap = getFeatureMaps().getFluxReconstructionMap();
-    auto& fluxSchemeMap = getFeatureMaps().getFluxSchemeMap();
-    auto& timeSteppingSchemeMap = getFeatureMaps().getTimeSteppingSchemeMap();
-
-    // Flux Reconstruction parsing
-    std::string fluxReconstructionStr;
-    if (pp.query("FluxReconstruction", fluxReconstructionStr)) {
-        auto it = fluxReconstructionMap.find(fluxReconstructionStr);
-        if (it != fluxReconstructionMap.end()) {
-            value.reconstruction_method = it->second;
-        } else {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxReconstruction value: " + fluxReconstructionStr);
+    // Parse reconstruction mode
+   // Parse Flux Reconstruction Method
+    std::string reconstructionStr;
+    if (pp.query("FluxReconstruction", reconstructionStr)) {
+        try {
+            value.reconstruction_method = 
+                Numeric::NumericFactory::parseFluxReconstruction(reconstructionStr);
+        } catch (const std::runtime_error& e) {
+            Util::Warning(INFO, "Invalid Flux Reconstruction: " + reconstructionStr 
+                + ". Using default.");
         }
     }
 
-    // Flux Scheme parsing
+    // Parse Flux Scheme
     std::string fluxSchemeStr;
     if (pp.query("FluxScheme", fluxSchemeStr)) {
-        auto it = fluxSchemeMap.find(fluxSchemeStr);
-        if (it != fluxSchemeMap.end()) {
-            value.flux_scheme = it->second;
-        } else {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxScheme value: " + fluxSchemeStr);
+        try {
+            value.flux_scheme = 
+                Numeric::NumericFactory::parseFluxScheme(fluxSchemeStr);
+        } catch (const std::runtime_error& e) {
+            Util::Warning(INFO, "Invalid Flux Scheme: " + fluxSchemeStr 
+                + ". Using default.");
         }
     }
 
-    // Time-Stepping Scheme parsing
-    std::string timeSteppingSchemeStr;
-    if (pp.query("TimeSteppingScheme", timeSteppingSchemeStr)) {
-        auto it = timeSteppingSchemeMap.find(timeSteppingSchemeStr);
-        if (it != timeSteppingSchemeMap.end()) {
-            value.temporal_scheme = it->second;
-        } else {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid TimeSteppingScheme value: " + timeSteppingSchemeStr);
+    // Parse Time Stepping Scheme
+    std::string timeSteppingStr;
+    if (pp.query("TimeSteppingScheme", timeSteppingStr)) {
+        try {
+            value.temporal_scheme = 
+                Numeric::NumericFactory::parseTimeSteppingScheme(timeSteppingStr);
+        } catch (const std::runtime_error& e) {
+            Util::Warning(INFO, "Invalid Time Stepping Scheme: " + timeSteppingStr 
+                + ". Using default.");
         }
     }
 
-    }
+    // Parse Reconstruction Mode
+    std::string reconstructionModeStr;
+    if (pp.query("ReconstructionMode", reconstructionModeStr)) {
+        try {
+            value.variable_space = 
+                Numeric::NumericFactory::parseReconstructionMode(reconstructionModeStr);
+        } catch (const std::runtime_error& e) {
+            Util::Warning(INFO, "Invalid Reconstruction Mode: " + reconstructionModeStr 
+                + ". Using default.");
+        }
+    }    
+
     // Read CFL number and initial time step
     pp.query_required("cflNumber", value.cflNumber);
+
+   // Set up components using factory methods
+    value.variable_accessor = Numeric::NumericFactory::createVariableAccessor<ScimitarX>(
+        value.variable_space
+    );
+
+    value.fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(
+        value.variable_accessor
+    );
+
+    // Set Flux Reconstruction
+    value.fluxHandler->SetReconstruction(
+        Numeric::NumericFactory::createReconstructionMethod<ScimitarX>(
+            value.reconstruction_method
+        )
+    );
+
+    // Set Flux Method
+    value.fluxHandler->SetFluxMethod(
+        Numeric::NumericFactory::createFluxMethod<ScimitarX>(
+            value.flux_scheme
+        )
+    );
+
+    // Set Time Stepping Scheme
+    value.timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
+    value.timeStepper->SetTimeSteppingScheme(
+        Numeric::NumericFactory::createTimeSteppingScheme<ScimitarX>(
+            value.temporal_scheme
+        )
+    );    
     
 }
 
@@ -353,5 +400,45 @@ IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Ut
     return bc_pp;
 }
 
+// Compatibility Check Implementations
+bool ScimitarX::SolverMetadata::supportsFluxReconstruction(Numeric::FluxReconstructionType method) const {
+    switch(method) {
+        case Numeric::FluxReconstructionType::FirstOrder:
+        case Numeric::FluxReconstructionType::WENO:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool ScimitarX::SolverMetadata::supportsFluxScheme(Numeric::FluxScheme scheme) const {
+    switch(scheme) {
+        case Numeric::FluxScheme::LocalLaxFriedrichs:
+        case Numeric::FluxScheme::HLLC:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool ScimitarX::SolverMetadata::supportsTimeSteppingScheme(Numeric::TimeSteppingSchemeType scheme) const {
+    switch(scheme) {
+        case Numeric::TimeSteppingSchemeType::ForwardEuler:
+        case Numeric::TimeSteppingSchemeType::RK3:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool ScimitarX::SolverMetadata::supportsReconstructionMode(Numeric::ReconstructionMode mode) const {
+    switch(mode) {
+        case Numeric::ReconstructionMode::Primitive:
+        case Numeric::ReconstructionMode::Conservative:
+            return true;
+        default:
+            return false;
+    }
+}
 
 } // namespace Integrator

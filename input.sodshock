@@ -33,7 +33,13 @@ TimeSteppingScheme = ForwardEuler
 FluxScheme = LocalLaxFriedrichs
 
 #FluxReconstruction
-FluxReconstruction = FirstOrder
+FluxReconstruction = WENO
+
+#WenoVariant
+WENOVariant = WENOJS5
+
+#Reconstruction Mode
+ReconstructionMode = Characteristic
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]

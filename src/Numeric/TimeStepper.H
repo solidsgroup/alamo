@@ -8,6 +8,7 @@
 #include <AMReX_Array4.H>
 #include "Set/Set.H"
 #include "Integrator/Integrator.H"
+#include "Numeric/NumericFactory.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 #include <memory>
@@ -121,7 +122,7 @@ public:
 
 #if (AMREX_SPACEDIM == 3)
                     // Z-direction flux divergence
-                    flux_div += (zflux_arr(i,j,k) - zflux_arr(i,j,k-1)) / DX[2];
+                    flux_div += (zflux_arr(i, j, k, n) - zflux_arr(i, j, k-1, n)) / DX[2];
 #endif
 
                     // Update conserved variable using Euler Forward step
