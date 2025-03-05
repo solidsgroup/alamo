@@ -51,3 +51,4 @@ compile_commands.json
 .cache/
 .python-version
 .clangd
+.DS_Store
