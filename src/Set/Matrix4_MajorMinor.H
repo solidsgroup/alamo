@@ -452,7 +452,7 @@ public:
                                     for(int l = 0; l < 3; l++) 
                                         ret(p,q,s,t) += R(p,i)*R(s,k)*(*this)(i,j,k,l)*R(q,j)*R(t,l);
                     }                
-        *this = ret;
+        for (int n = 0; n < 21; n++) data[n] = ret.data[n];
     }
 
 

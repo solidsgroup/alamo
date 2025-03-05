@@ -119,7 +119,7 @@ public:
 
         if (!value.ic_model)
         {
-            pp_query_default("nmodels", value.nmodels, 1); // Number of elastic model varieties
+            pp.query_default("nmodels", value.nmodels, 1); // Number of elastic model varieties
             for (int i = 0; i < value.nmodels; i++)
             {
                 bool init = false;
@@ -240,68 +240,69 @@ public:
             }
         }
 
-        if (a_step > 0) return;
-
-        for (int lev = 0; lev <= finest_level; ++lev)
+        if (a_step > 0 && !ic_model)
         {
-            eta_mf[lev]->FillBoundary();
-
-            amrex::Box domain = this->geom[lev].Domain();
-            domain.convert(amrex::IntVect::TheNodeVector());
-
-            Set::Vector DX(geom[lev].CellSize());
-
-            if (!ic_model)
+            for (int lev = 0; lev <= finest_level; ++lev)
             {
-                for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+                eta_mf[lev]->FillBoundary();
+
+                amrex::Box domain = this->geom[lev].Domain();
+                domain.convert(amrex::IntVect::TheNodeVector());
+
+                Set::Vector DX(geom[lev].CellSize());
+
+                if (!ic_model)
                 {
-                    amrex::Box bx = mfi.grownnodaltilebox();
-                    bx = bx & domain;
-
-                    amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
-                    amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
-
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        model(i, j, k) = MODEL::Zero();
-                        for (unsigned int n = 0; n < nmodels; n++)
-                            model(i, j, k) += eta(i, j, k, n) * models[n];
-                    });
-                }
-            }
-
-            if (model_neumann_boundary)
-            {
-                Util::AssertException(INFO,TEST(AMREX_SPACEDIM==2),"neumann boundary works in 2d only");
-                for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
-                {
-                    amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                    amrex::Array4<MODEL> const& model = this->model_mf[lev]->array(mfi);
-                    const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
-
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
                     {
-                        if      (i==lo.x && j==lo.y)
-                            model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
-                        else if (i==lo.x && j==hi.y)
-                            model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j-1,k));
-                        else if (i==hi.x && j==lo.y)
-                            model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j+1,k));
-                        else if (i==hi.x && j==hi.y)
-                            model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j-1,k));
+                        amrex::Box bx = mfi.grownnodaltilebox();
+                        bx = bx & domain;
 
-                        else if (i==lo.x)
-                            model(i,j,k) = model(i+1,j,k);
-                        else if (i==hi.x)
-                            model(i,j,k) = model(i-1,j,k);
-                        else if (j==lo.y)
-                            model(i,j,k) = model(i,j+1,k);
-                        else if (j==hi.y)
-                            model(i,j,k) = model(i,j-1,k);
-                    });
+                        amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
+                        amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
+
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                            model(i, j, k) = MODEL::Zero();
+                            for (int n = 0; n < nmodels; n++)
+                                model(i, j, k) += eta(i, j, k, n) * models[n];
+                        });
+                    }
                 }
-            }
 
-            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+                if (model_neumann_boundary)
+                {
+                    Util::AssertException(INFO,TEST(AMREX_SPACEDIM==2),"neumann boundary works in 2d only");
+                    for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+                    {
+                        amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                        amrex::Array4<MODEL> const& model = this->model_mf[lev]->array(mfi);
+                        const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                        {
+                            if      (i==lo.x && j==lo.y)
+                                model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
+                            else if (i==lo.x && j==hi.y)
+                                model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j-1,k));
+                            else if (i==hi.x && j==lo.y)
+                                model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j+1,k));
+                            else if (i==hi.x && j==hi.y)
+                                model(i,j,k) = 0.5*(model(i-1,j,k)+model(i,j-1,k));
+
+                            else if (i==lo.x)
+                                model(i,j,k) = model(i+1,j,k);
+                            else if (i==hi.x)
+                                model(i,j,k) = model(i-1,j,k);
+                            else if (j==lo.y)
+                                model(i,j,k) = model(i,j+1,k);
+                            else if (j==hi.y)
+                                model(i,j,k) = model(i,j-1,k);
+                        });
+                    }
+                }
+
+                Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            }
         }
     }
 
@@ -345,14 +346,17 @@ public:
 
     void Regrid(int lev, Set::Scalar time) override
     {
-        if (eta_reset_on_regrid && nmodels > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf, time);
-        if (psi_reset_on_regrid) ic_psi->Initialize(lev, psi_mf, time);
+        if (eta_reset_on_regrid && nmodels > 1 && ic_eta)
+            ic_eta->Initialize(lev, eta_mf, time);
+        if (psi_reset_on_regrid)
+            ic_psi->Initialize(lev, psi_mf, time);
+        ic_model->Initialize(lev, model_mf, time);
     }
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Scalar m_eta_ref_threshold = NAN;
-    unsigned int nmodels = 1;
+    int nmodels = 1;
     std::vector<MODEL> models;
     IC::IC<Set::Scalar>* ic_eta = nullptr;
     IC::IC<Set::Scalar>* ic_psi = nullptr;
