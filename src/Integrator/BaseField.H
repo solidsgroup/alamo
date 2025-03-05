@@ -2,11 +2,13 @@
 #define INTEGRATOR_BASEFIELD_H
 
 #include "AMReX_FillPatchUtil.H"
+#include "AMReX_MultiFabUtil.H"
 
 #include "Util/Util.H"
 #include "Set/Set.H"
 #include "Numeric/Interpolator/NodeBilinear.H"
 #include "Numeric/Interpolator/CellBilinear.H"
+#include "BC/BC.H"
 //#include "Numeric/Interpolator/CellConservativeLinear.H"
 
 namespace Integrator
@@ -59,10 +61,11 @@ public:
         amrex::BCRec GetBCRec() {return amrex::BCRec();}
     };
 
-    Field(Set::Field<T> & a_field, 
-        const amrex::Vector<amrex::Geometry> &a_geom, 
-        const amrex::Vector<amrex::IntVect> &a_refRatio,
-        int a_ncomp, int a_nghost) : 
+    Field(Set::Field<T> &a_field,
+          const amrex::Vector<amrex::Geometry> &a_geom,
+          const amrex::Vector<amrex::IntVect> &a_refRatio,
+
+          int a_ncomp, int a_nghost) : 
         m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio), 
         m_ncomp(a_ncomp), m_nghost(a_nghost)
     {} 

@@ -6,6 +6,9 @@
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
 
+#include "Set/Set.H"
+#include "BC/BC.H"
+
 namespace BC
 {
 template<class T = Set::Scalar>

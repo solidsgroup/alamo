@@ -39,6 +39,8 @@
 
 namespace Integrator
 {
+
+/// This is the definition of the Allen Cahn class
 class AllenCahn : virtual public Integrator
 {
 public:

@@ -11,6 +11,7 @@
 #include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "IC/PNG.H"
+#include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
 
 #if AMREX_SPACEDIM == 2
