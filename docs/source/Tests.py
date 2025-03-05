@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import annotations
 import os 
 import glob
 import re
@@ -7,6 +8,7 @@ from os.path import isfile, join
 import io
 import configparser
 from collections import OrderedDict
+from pathlib import Path
 
 
 #
@@ -19,6 +21,29 @@ class MultiOrderedDict(OrderedDict):
         else:
             super().__setitem__(key, value)
 
+
+def find_files_ignore_case(target_dir: Path, file_name: str) -> list[Path]:
+    """Get paths in `target_dir` that match `file_name`, ignoring case.
+
+    Parameters
+    ----------
+    target_dir
+        The directory to search for matching files.
+    file_name
+        The file name to search for in `target_dir`.
+
+    Returns
+    -------
+    list[Path]
+        File paths that match `file_name` in `target_dir`.
+
+    """
+    try:
+        return [f for f in target_dir.iterdir()
+            if f.name.lower() == file_name.lower() and Path.is_file(f)]
+    except OSError:
+        print(f"'{target_dir}' is not a directory or otherwise inaccessible.")
+        return []
 
 #def icon(str)
 
@@ -93,10 +118,12 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
 
+    readmes = find_files_ignore_case(Path(testdirname), "README.rst")
+
     if len(config) <= 1:
         #docfile.write("    * - :icon-gray:`warning`\n\n")
         docfile.write("    * - :fas:`triangle-exclamation;sd-text-secondary fa-fw fa-lg`\n\n")
-        if os.path.isfile(testdirname+"/Readme.rst"):
+        if readmes:
             docfile.write("      - :ref:`{}`\n".format(testname))
         else: 
             docfile.write("      - {}\n\n".format(testname))
@@ -125,7 +152,7 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             docfile.write("      - :fas:`medal;fa-fw fa-lg sd-text-secondary`\n")
         docfile.write("\n")
 
-    if len(config) <= 1 and not os.path.isfile(testdirname+"/Readme.rst"):
+    if len(config) <= 1 and len(readmes) == 0:
         continue
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)
@@ -133,8 +160,12 @@ for testdirname in sorted(glob.glob("../../tests/*")):
         testdocfile.write(testname + "\n")
         testdocfile.write("="*len(testname) + "\n")
 
-        if os.path.isfile(testdirname+"/Readme.rst"):
-            testdocfile.write(".. include:: ../{}/Readme.rst\n\n\n".format(testdirname))
+        for readme in readmes:
+            testdocfile.write(
+                f".. include:: ../{testdirname}/{readme.name}\n"
+            )
+        if readmes:
+            testdocfile.write("\n\n")
 
         for c in config:
             if c == "DEFAULT": continue
@@ -143,7 +174,7 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             testdocfile.write(testsectionname+"\n")
             testdocfile.write("-"*len(testsectionname)+"\n")
 
-            testdocfile.write(".. flat-table:: \n")
+            testdocfile.write(".. list-table:: \n")
             testdocfile.write("    :widths: 10 90\n")
             testdocfile.write("    :header-rows: 0\n\n")
 

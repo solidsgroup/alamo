@@ -147,3 +147,5 @@ elastic.type = disable
 
 laser.ic.type = constant
 laser.ic.constant.value = 1.0e6
+
+plot_field = 0

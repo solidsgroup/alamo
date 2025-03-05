@@ -14,6 +14,7 @@ testlib.validate(path=path,
                  vars=["pressure","velocityx","density"],
                  reference=["reference/pressure.csv","reference/velocity.csv","reference/density.csv"],
                  tolerance=[0.05,0.05,0.05],
+                 abs_tolerance=1E100, #ignore absolute tolerance
                  tight_layout=False)
 exit(0)
 

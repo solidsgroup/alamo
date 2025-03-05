@@ -16,7 +16,7 @@ from pathlib import Path
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.02"
+amrex_current_version = "25.03"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -122,7 +122,6 @@ parser.add_argument('--memcheck-tool',dest='memcheck_tool',default="msan",help="
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
-parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.set_defaults(debug=False)
 
 #
@@ -130,8 +129,6 @@ parser.set_defaults(debug=False)
 #
 
 args=parser.parse_args()
-if not (args.buildamrexbranch or args.buildamrextag):
-    args.buildamrextag = amrex_current_version
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 

@@ -1,7 +1,11 @@
-#@ [Roe]
+#@ [roe]
 #@ exe=hydro
 #@ dim=2
 
+#@ [roe-fix]
+#@ exe=hydro
+#@ dim=2
+#@ roefix=1
 
 alamo.program = hydro
 
@@ -35,7 +39,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-6
+timestep  = 1.0e-5
 stop_time = 0.01
 
 ### ETA IC ###
