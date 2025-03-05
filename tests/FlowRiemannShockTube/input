@@ -5,7 +5,7 @@
 #@ [roe-fix]
 #@ exe=hydro
 #@ dim=2
-#@ roefix=1
+#@ args= solver.roe.entropy_fix=1
 
 alamo.program = hydro
 
