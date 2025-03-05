@@ -4,7 +4,6 @@
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
 #include "Set/Set.H"
-//#include "Integrator/ScimitarX.H"
 #include "Integrator/NarrowBandLevelset.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
@@ -21,6 +20,20 @@ namespace Integrator {
 }
 
 namespace Numeric {
+
+/*// Clamp all indices
+AMREX_GPU_DEVICE
+inline void ClampIndices(int indices[3], const int lower_bounds[3], const int upper_bounds[3]) {
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        indices[d] = amrex::max(lower_bounds[d], amrex::min(indices[d], upper_bounds[d]));
+    }
+}
+
+// Clamp a single index (optimized)
+AMREX_GPU_DEVICE
+inline void ShiftAndClampIndex(int& index, int offset, int lower_bound, int upper_bound) {
+    index = amrex::max(lower_bound, amrex::min(index + offset, upper_bound));
+}*/
 
 // ClampIndices: Clamps indices to valid bounds (branch-free logic)
 AMREX_GPU_DEVICE
@@ -202,7 +215,129 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
 
 };
 
+// "Optimized" version with edit clamping functions
+/*// First-order specific to NarrowBandLevelset integrator class
+template <>
+class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
+public:
+    void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
+                         amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
+        const int nghosts = solver->GetNumGhostCells();
+
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
+            auto const& ls = solver->ls_mf.Patch(lev, mfi);  // Level-set field (using Patch)
+            auto const& vel_arr = solver->velocity_mf.Patch(lev, mfi);  // Velocity field (using Patch)
+
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                int index[3] = {iface, jface, kface};
+                int left_index[3] = {iface, jface, kface};
+                int right_index[3] = {iface, jface, kface};
+
+                int lower_bounds[3] = {face_bx_with_ghosts.smallEnd(0), face_bx_with_ghosts.smallEnd(1), face_bx_with_ghosts.smallEnd(2)};
+                int upper_bounds[3] = {face_bx_with_ghosts.bigEnd(0), face_bx_with_ghosts.bigEnd(1), face_bx_with_ghosts.bigEnd(2)};
+
+                // Clamp main index
+                ClampIndices(index, lower_bounds, upper_bounds);
+
+                // Define offsets for first-order upwind
+                int left_offset = -1, right_offset = 1;
+                ShiftAndClampIndex(left_index[direction], left_offset, lower_bounds[direction], upper_bounds[direction]);
+                ShiftAndClampIndex(right_index[direction], right_offset, lower_bounds[direction], upper_bounds[direction]);
+
+                // Compute velocity sign without branching
+                Set::Scalar vel = vel_arr(index[0], index[1], index[2], direction);
+                int sign = vel >= 0 ? 1 : 0;
+
+                // First-order upwind reconstruction
+                Set::Scalar QL = sign * ls(index[0], index[1], index[2], 0) + 
+                                 (1 - sign) * ls(left_index[0], left_index[1], left_index[2], 0);
+                Set::Scalar QR = sign * ls(right_index[0], right_index[1], right_index[2], 0) + 
+                                 (1 - sign) * ls(index[0], index[1], index[2], 0);
+
+                // Store results
+                QL_arr(index[0], index[1], index[2], 0) = QL;
+                QR_arr(index[0], index[1], index[2], 0) = QR;
+            });
+        }
+    }
+};*/
+
 // First-order specific to NarrowBandLevelset integrator class
+template <>
+class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
+public:
+    void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
+                         amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
+        const int nghosts = solver->GetNumGhostCells();
+        //printf("direction: %d\n", direction);
+
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
+            auto const& ls = solver->ls_mf.Patch(lev, mfi);            // Level-set field
+            auto const& vel_arr = solver->velocity_mf.Patch(lev, mfi); // Velocity field
+
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                // Construct index arrays with correct number of components
+                int index[3] = {iface, jface, kface};
+                int left_index[3] = {iface, jface, kface};
+                int right_index[3] = {iface, jface, kface};
+                
+                int lower_bounds[3];
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0);
+                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1);
+                
+                int upper_bounds[3];
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1;
+                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1;
+                
+#if AMREX_SPACEDIM == 2
+    lower_bounds[2] = 0;
+    upper_bounds[2] = 0;
+#else
+    lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+    upper_bounds[2] = face_bx_with_ghosts.bigEnd(2)-1;
+#endif
+
+                // Clamp the main index
+                ClampIndices(index, lower_bounds, upper_bounds);
+
+                // Define offsets (modular for future higher-order schemes)
+                int left_offset[3] = {0, 0, 0};
+                int right_offset[3] = {0, 0, 0};
+                left_offset[direction] = -1;  // Left offset for first-order upwind scheme
+                right_offset[direction] = 1;  // Right offset for first-order upwind scheme
+
+                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+
+                // Compute velocity and its sign (branch-free)
+                Set::Scalar vel = vel_arr(index[0], index[1], index[2], direction);
+                int sigma = vel >= 0 ? 1 : 0;
+                //Set::Scalar sigma = 0.5 * (1.0 + std::copysign(1.0, vel)); // 1 if vel > 0, 0 if vel < 0
+
+                // First-order upwind reconstruction
+                Set::Scalar QL = sigma * ls(index[0], index[1], index[2], 0) + 
+                                 (1.0 - sigma) * ls(left_index[0], left_index[1], left_index[2], 0);
+                Set::Scalar QR = sigma * ls(right_index[0], right_index[1], right_index[2], 0) + 
+                                 (1.0 - sigma) * ls(index[0], index[1], index[2], 0);
+
+                // Store results
+                QL_arr(index[0], index[1], index[2], 0) = QL;
+                QR_arr(index[0], index[1], index[2], 0) = QR;
+                //printf("index[0]: %d, index[1]: %d, QL: %f, QR: %f\n", index[0], index[1], QL, QR);
+            });
+        }
+    }
+};
+
+/*// First-order specific to NarrowBandLevelset integrator class
 template <>
 class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
 public:
@@ -251,7 +386,7 @@ public:
             });
         }
     }
-};
+};*/
 
 // Local Lax-Friedrichs flux method
 template <typename IntegratorDerivedClass>
@@ -457,6 +592,125 @@ class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMeth
 public:
     void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
                      const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil) const override {
+        
+        const int nghosts = solver->GetNumGhostCells();  // Get number of ghost cells
+
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            // Use a face-centered box to compute fluxes
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+
+            // Select the correct flux MultiFab based on direction
+            auto const& flux_arr = (direction == 0) ? solver->XFlux_mf.Patch(lev, mfi) :
+                                  (direction == 1) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                  solver->ZFlux_mf.Patch(lev, mfi);
+
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
+            auto const& velocity_arr = solver->velocity_mf.Patch(lev, mfi);
+
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                int index[3] = {iface, jface, kface};
+                int left_index[3] = {iface, jface, kface};
+                int right_index[3] = {iface, jface, kface};
+
+                // Compute valid index bounds
+                int lower_bounds[3];
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0);
+                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1);
+                
+                int upper_bounds[3];
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1;
+                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1;
+                
+#if AMREX_SPACEDIM == 2
+    lower_bounds[2] = 0;
+    upper_bounds[2] = 0;
+#else
+    lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+    upper_bounds[2] = face_bx_with_ghosts.bigEnd(2)-1;
+#endif
+
+                // Clamp the main index to valid bounds
+                ClampIndices(index, lower_bounds, upper_bounds);
+
+                // Define offsets for left and right indices
+                int left_offset[3] = {0, 0, 0};
+                int right_offset[3] = {0, 0, 0};
+                left_offset[direction] = -1;
+                right_offset[direction] = 1;
+
+                // Shift and clamp left/right indices
+                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+
+                // Get velocities at left and right faces
+                Set::Scalar vel_L = velocity_arr(left_index[0], left_index[1], left_index[2], direction);
+                Set::Scalar vel_R = velocity_arr(right_index[0], right_index[1], right_index[2], direction);
+
+                // Compute max wave speed λ for LF flux
+                Set::Scalar lambda_max = std::max(std::abs(vel_L), std::abs(vel_R));
+
+                // Fetch reconstructed level-set values
+                Set::Scalar QL = QL_arr(index[0], index[1], index[2], 0);
+                Set::Scalar QR = QR_arr(index[0], index[1], index[2], 0);
+
+                // Compute Local Lax-Friedrichs numerical flux
+                Set::Scalar flux = 0.5 * (vel_L * QL + vel_R * QR) - 0.5 * lambda_max * (QR - QL);
+
+                // Store computed flux
+                flux_arr(index[0], index[1], index[2], 0) = flux;
+                
+                //printf("index[0]: %d, index[1]: %d, vel_L: %f, vel_R: %f, flux: %f\n", index[0], index[1], vel_L, vel_R, flux);
+            });
+        }
+    }
+};
+
+/*template <>
+class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMethod<Integrator::NarrowBandLevelset> {
+public:
+    void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
+                     const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil) const override {
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, solver->GetNumGhostCells());
+
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
+            auto const& velocity_arr = solver->GetVelocityField().Patch(lev, mfi);
+            auto const& flux_arr = (direction == FluxHandler<Integrator::NarrowBandLevelset>::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
+                                   (direction == FluxHandler<Integrator::NarrowBandLevelset>::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                   solver->ZFlux_mf.Patch(lev, mfi);
+
+            amrex::ParallelFor(face_bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                int index[3] = {iface, jface, kface};
+
+                int lower_bounds[3] = {face_bx_with_ghosts.smallEnd(0), face_bx_with_ghosts.smallEnd(1), face_bx_with_ghosts.smallEnd(2)};
+                int upper_bounds[3] = {face_bx_with_ghosts.bigEnd(0) - 1, face_bx_with_ghosts.bigEnd(1) - 1, face_bx_with_ghosts.bigEnd(2) - 1};
+
+                // Clamp the main index
+                ClampIndices(index, lower_bounds, upper_bounds);
+            
+                Set::Scalar vel_L = velocity_arr(i, j, k, 0);
+                Set::Scalar vel_R = velocity_arr(i, j, k, 0);
+                Set::Scalar lambda_max = std::max(std::abs(vel_L), std::abs(vel_R));
+
+                Set::Scalar QL = QL_arr(i, j, k, 0);
+                Set::Scalar QR = QR_arr(i, j, k, 0);
+
+                Set::Scalar flux = 0.5 * (vel_L * QL + vel_R * QR) - 0.5 * lambda_max * (QR - QL);
+
+                // Store computed flux in the correct face direction
+                flux_arr(i, j, k, 0) = flux;
+            });
+        }
+    }
+};*/
+
+/*template <>
+class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMethod<Integrator::NarrowBandLevelset> {
+public:
+    void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
+                     const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil) const override {
         for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
             const amrex::Box& face_bx = mfi.grownnodaltilebox(direction, solver->GetNumGhostCells());
 
@@ -482,7 +736,7 @@ public:
             });
         }
     }
-};
+};*/
 
 /*template <>
 class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMethod<Integrator::NarrowBandLevelset> {

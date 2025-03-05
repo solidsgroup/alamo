@@ -3,12 +3,12 @@ plot_file = output_levelset_disk_2D
 
 # Simulation length
 timestep = 0.001
-stop_time = 0.100
-max_step = 100
+stop_time = 0.001
+max_step = 1
 
 # AMR parameters
-amr.plot_int = 20
-amr.max_level = 1
+amr.plot_int = 1
+amr.max_level = 0
 amr.n_cell = 100 100 100
 amr.blocking_factor = 1
 amr.regrid_int = 10
@@ -40,7 +40,7 @@ ic.ls.sphere.type   = "xy"
 #ic.ls.zalesak.radius        = 0.25
 #ic.ls.zalesak.center        = 0.5 0.5 0.5
 #ic.ls.zalesak.slot_center   = 0.5 0.75 0.5
-i#c.ls.zalesak.slot_size     = 0.1 0.2 0.0
+#ic.ls.zalesak.slot_size     = 0.1 0.2 0.0
 #ic.ls.zalesak.fillet_radius = 0.005
 #ic.ls.zalesak.type          = "xy"
 

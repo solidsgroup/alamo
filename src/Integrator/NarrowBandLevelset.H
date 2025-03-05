@@ -167,9 +167,10 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     
     // Additional functions
-    void Advect(int lev, Set::Scalar dt);
+    void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
-    void Reinitialize(int lev);
+    void Reinitialize(int lev, Set::Scalar time);
+    void ApplyNarrowBanding(int lev);
     void ComputeAndSetNewTimeStep();
     Set::Scalar GetTimeStep();
     void ApplyBoundaryConditions(int lev, Set::Scalar time);
