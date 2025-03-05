@@ -49,6 +49,9 @@ public:
         pp.query_default("verbose", value.verbose, 1);
         // apply entropy fix if tru
         pp.query_default("entropy_fix", value.entropy_fix, false);
+
+        if (value.entropy_fix)
+            Util::Warning(INFO,"The entropy fix is experimental and should be used with caution");
     }
 
     Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small)
@@ -147,21 +150,6 @@ public:
         // ROE ENTROPY FIX (not included in cited paper)
         //
         if (entropy_fix == 1) {
-            Util::ParallelMessage(INFO,"Entropy fix is still experimental and needs to be investigated further");
-            //  Eq. 4.3.67 in "Computational Fluid Dynamics for Engineers and Scientists" by Sreenivas Jayanti
-            //Set::Scalar a_L = std::sqrt(gamma * p_L / (rho_L + small)); // sound speed
-            //Set::Scalar a_R = std::sqrt(gamma * p_R / (rho_R + small));
-            //Set::Scalar lambda1_L = u_L;         Set::Scalar lambda1_R = u_R; // eigenvalues
-            //Set::Scalar lambda2_L = u_L + a_L;   Set::Scalar lambda2_R = u_R + a_R;
-            //Set::Scalar lambda3_L = u_L - a_L;   Set::Scalar lambda3_R = u_R - a_R;
-            //Set::Scalar fix1 = std::max(0.0, std::max(lambda1 - lambda1_L, lambda1_R - lambda1));
-            //Set::Scalar fix2 = std::max(0.0, std::max(lambda2 - lambda2_L, lambda2_R - lambda2));
-            //Set::Scalar fix3 = std::max(0.0, std::max(lambda3 - lambda3_L, lambda3_R - lambda3));
-            //if ( lambda1 < fix1 ) lambda1 = fix1;
-            //if ( lambda2 < fix2 ) lambda2 = fix2;
-            //if ( lambda3 < fix3 ) lambda3 = fix3;
-
-            // chimeracfd method https://chimeracfd.com/programming/gryphon/fluxroe.html
             lambda1 = fabs(lambda1);
             lambda2 = fabs(lambda2);
             lambda3 = fabs(lambda3);
