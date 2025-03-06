@@ -12,6 +12,7 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Finite/Adhesion.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "Model/Solid/Finite/PseudoLinear/Cubic.H"
@@ -47,6 +48,7 @@ int main (int argc, char* argv[])
         else if (model == "finite.neohookeanpre") integrator = new Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>(pp);
         else if (model == "finite.pseudolinear.cubic") integrator = new Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>(pp);
         else if (model == "finite.pseudoaffine.cubic") integrator = new Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>(pp);
+        else if (model == "finite.adhesion") integrator = new Integrator::Mechanics<Model::Solid::Finite::Adhesion>(pp);
         else if (model == "affine.j2")          integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>(pp);
         else if (model == "finite.crystalplastic")        integrator = new Integrator::Mechanics<Model::Solid::Finite::CrystalPlastic>(pp);
         else Util::Abort(INFO,model," is not a valid model");
