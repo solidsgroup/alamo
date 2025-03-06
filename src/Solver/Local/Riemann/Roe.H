@@ -4,7 +4,9 @@
 // Notation and algorithm follow the presentation in Section 5.3.3
 // of *Computational Gasdynamics* by Culbert B. Laney (page 88)
 //
-// This solver uses an optional entropy fix [documentation needed]
+// This solver uses an optional entropy fix
+//   Option 1: chimeracfd method https://chimeracfd.com/programming/gryphon/fluxroe.html
+//   Option 2: Eq. 4.3.67 in *Computational Fluid Dynamics for Engineers and Scientists* by Sreenivas Jayanti
 //
 
 #ifndef SOLVER_LOCAL_RIEMANN_ROE_H
@@ -41,7 +43,7 @@ public:
     }
 
     int verbose = 0;
-    bool entropy_fix = false;
+    int entropy_fix = 0;
 
     static void Parse(Roe & value, IO::ParmParse & pp)
     {
@@ -50,8 +52,10 @@ public:
         // apply entropy fix if tru
         pp.query_default("entropy_fix", value.entropy_fix, false);
 
-        if (value.entropy_fix)
+        if (value.entropy_fix == 1)
             Util::Warning(INFO,"The entropy fix is experimental and should be used with caution");
+        else if (value.entropy_fix == 2)
+            Util::Warning(INFO,"The entropy fix is experimental and should be used with caution. Has previously caused errors with FlowDrivenCavity regression test");
     }
 
     Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small)
@@ -147,15 +151,28 @@ public:
         //
 
         //
-        // ROE ENTROPY FIX (not included in cited paper)
+        // ROE ENTROPY FIX (Source cited in header comments)
         //
-        if (entropy_fix == 1) {
+        if (entropy_fix == 1) { // chimeracfd
             lambda1 = fabs(lambda1);
             lambda2 = fabs(lambda2);
             lambda3 = fabs(lambda3);
             if ( lambda1 < deltau ) lambda1 = 0.5*(lambda1*lambda1 + deltau*deltau)/deltau;
             if ( lambda2 < deltau ) lambda2 = 0.5*(lambda2*lambda2 + deltau*deltau)/deltau;
             if ( lambda3 < deltau ) lambda3 = 0.5*(lambda3*lambda3 + deltau*deltau)/deltau;
+        }
+        else if (entropy_fix == 2) { // Jayanti
+            Set::Scalar a_L = std::sqrt(gamma * p_L / (rho_L + small)); // sound speed
+            Set::Scalar a_R = std::sqrt(gamma * p_R / (rho_R + small));
+            Set::Scalar lambda1_L = u_L;         Set::Scalar lambda1_R = u_R; // eigenvalues
+            Set::Scalar lambda2_L = u_L + a_L;   Set::Scalar lambda2_R = u_R + a_R;
+            Set::Scalar lambda3_L = u_L - a_L;   Set::Scalar lambda3_R = u_R - a_R;
+            Set::Scalar fix1 = std::max(0.0, std::max(lambda1 - lambda1_L, lambda1_R - lambda1));
+            Set::Scalar fix2 = std::max(0.0, std::max(lambda2 - lambda2_L, lambda2_R - lambda2));
+            Set::Scalar fix3 = std::max(0.0, std::max(lambda3 - lambda3_L, lambda3_R - lambda3));
+            if ( lambda1 < fix1 ) lambda1 = fix1;
+            if ( lambda2 < fix2 ) lambda2 = fix2;
+            if ( lambda3 < fix3 ) lambda3 = fix3;
         }
 
         //
@@ -181,8 +198,6 @@ public:
                 Util::ParallelMessage(INFO,"u_R ", u_R);
                 Util::ParallelMessage(INFO,"u_L ", u_L);
                 Util::ParallelMessage(INFO,"u_RL ", u_RL); 
-                //Util::ParallelMessage(INFO,"a_R ", a_R);
-                //Util::ParallelMessage(INFO,"a_L ", a_L);
                 Util::ParallelMessage(INFO,"a_RL ", a_RL);
                 Util::ParallelMessage(INFO,"lambda1 ", lambda1); 
                 Util::ParallelMessage(INFO,"lambda2 ", lambda2); 
