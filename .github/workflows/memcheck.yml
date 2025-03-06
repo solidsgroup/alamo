@@ -11,11 +11,11 @@ permissions:
 
 jobs:
   memcheck-2d-asan-gcc:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d)
       continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 

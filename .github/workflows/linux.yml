@@ -37,8 +37,22 @@ jobs:
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: make
       run: bash .github/workflows/build-docs.sh
+  test-2d-22-04:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-22.04.sh
+    - name: configure (2d)
+      run: ./configure --dim=2 
+    - name: make
+      run: make
+    - name: regression tests
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
+    - name: parallelism check
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe"
   test-2d-24-04:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
@@ -50,7 +64,7 @@ jobs:
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe"
   test-3d-24-04:
     runs-on: ubuntu-24.04
     steps:
@@ -64,7 +78,7 @@ jobs:
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe"
   test-2d-24-04-clang:
     runs-on: ubuntu-24.04
     steps:
@@ -80,4 +94,4 @@ jobs:
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --comp=clang++ --no-backspace
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --comp=clang++ --no-backspace --mpirun-flags="--oversubscribe"
