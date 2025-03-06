@@ -10,14 +10,14 @@ sudo apt install build-essential g++ gfortran
 # Use apt (or apt-get) to install these packages
 # [ you should only need to do this once ]
 #
-sudo apt install libmpich-dev libmpich12 mpich
+sudo apt install libopenmpi-dev 
 sudo apt install libeigen3-dev
 sudo apt install libpng-dev
 
 #
 # Install these packages if compiling with clang
 #
-sudo apt install clang libgfortran-14-dev
+sudo apt install clang libgfortran-14-dev libstdc++-14-dev
 
 #
 # These are needed for regression test scripts and other code infrastructure
