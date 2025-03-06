@@ -16,8 +16,8 @@
 alamo.program		= thermomechanics # would the program be thermomechanics?
 plot_file			= gaj/pfmicromechanics/output
 
-timestep			= 0.005
-stop_time 			= 0.1
+timestep			= 0.0001
+stop_time 			= 0.5
 
 amr.plot_dt			= 0.01
 amr.max_level		= 2
@@ -41,7 +41,7 @@ geometry.is_periodic	= 0 0 0
 ## HEAT TRANSFER MODEL
 ##
 
-hc.heat.alpha = 1.0
+hc.heat.alpha = 2.0
 hc.heat.refinement_threshold = 0.1
 
 # Work on initial conditions for heat transfer
@@ -53,11 +53,11 @@ hc.ic.constant.value = 1.0
 # should be a heat source on the top Help
 hc.bc.temp.constant.type.xhi 	= dirichlet
 hc.bc.temp.constant.type.xlo 	= dirichlet
-hc.bc.temp.constant.type.yhi 	= neumann # check these BC's
+hc.bc.temp.constant.type.yhi 	= dirichlet # check these BC's
 hc.bc.temp.constant.type.ylo 	= dirichlet
 hc.bc.temp.constant.val.xhi 	= 0.0
 hc.bc.temp.constant.val.xlo		= 0.0
-hc.bc.temp.constant.val.yhi		= 1.0
+hc.bc.temp.constant.val.yhi		= 2.0
 hc.bc.temp.constant.val.ylo		= 0.0
 
 ##
