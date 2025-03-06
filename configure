@@ -379,33 +379,6 @@ elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 message("Comp-Type", str(args.comp))
 shellmessage("Comp-Version",args.comp+" --version")
-if args.comp == 'g++':
-    f.write("MPI_LIB += -lgfortran\n")
-    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
-
-    if args.memcheck:
-        if args.memcheck_tool=="asan":
-            f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
-            f.write("LINKER_FLAGS += -fsanitize=address -static-libasan\n")
-        elif args.memcheck_tool=="msan":
-            f.write("CXX_COMPILE_FLAGS += -fsanitize=memory -fno-omit-frame-pointer\n")
-            f.write("LINKER_FLAGS += -fsanitize=memory\n")
-        else:
-            error("Invalid memory check tool ", args.memcheck_tool)
-    if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
-    elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
-    else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
-if args.comp == 'clang++':
-    f.write("MPI_LIB += -lgfortran\n")
-    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
-if args.comp == 'icc':
-    f.write("MPI_LIB += -lifcore\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 
 
 #
@@ -479,6 +452,41 @@ else:
     f.write("MPI_LIB = -lmpich\n")
     warning("We haven't tested "+mpidist+" yet. Attempting to add the proper compile " +
             "flags but no guarantees.")
+
+
+#
+# ADD NECESSARY COMPILER-SPECIFIC MPI FLAGS
+#   note: this must come after the MPI section, otherwise the order of
+#         flags may cause linker to fail!
+#
+if args.comp == 'g++':
+    f.write("MPI_LIB += -lgfortran\n")
+    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
+    if args.memcheck:
+        if args.memcheck_tool=="asan":
+            f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
+            f.write("LINKER_FLAGS += -fsanitize=address -static-libasan\n")
+        elif args.memcheck_tool=="msan":
+            f.write("CXX_COMPILE_FLAGS += -fsanitize=memory -fno-omit-frame-pointer\n")
+            f.write("LINKER_FLAGS += -fsanitize=memory\n")
+        else:
+            error("Invalid memory check tool ", args.memcheck_tool)
+    if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
+    elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+if args.comp == 'clang++':
+    f.write("MPI_LIB += -lgfortran\n")
+    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+if args.comp == 'icc':
+    f.write("MPI_LIB += -lifcore\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
+
+
 
 #
 # DIFF
