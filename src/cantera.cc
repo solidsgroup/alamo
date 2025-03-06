@@ -15,17 +15,21 @@
 void simple_demo()
 {
     // Create a new Solution object
-  auto sol = Cantera::newSolution("gri30.yaml", "gri30", "None");
+  auto sol = Cantera::newSolution("gri30.yaml", "gri30", "none");
     auto gas = sol->thermo();
 
-    // Set the thermodynamic state by specifying T (500 K) P (2 atm) and the mole
-    // fractions. Note that the mole fractions do not need to sum to 1.0 - they will
-    // be normalized internally. Also, the values for any unspecified species will be
-    // set to zero.
+    // Set the thermodynamic state by specifying U [internal energy] and V [specific 
+    // volume] and the mass fractions. Note that the mole fractions do not need to sum 
+    // to 1.0 - they will be normalized internally. Also, the values for any 
+    // unspecified species will be set to zero.
+
+    // These conditions come out roughly to T=500K, P=1atm
+    // Constant volume adiabatic flame temperature of stoichiometric
+    // hydrogen and oxygen is ~3500K
     Cantera::AnyMap state;
-    state["U"] = 100000.0;
-    state["V"] = 1.0e-3;
-    state["Y"] = "H2:2.0, O2:2.0";
+    state["U"] = 1.5e5;
+    state["V"] = 2.6e-0;
+    state["Y"] = "H2:1.0, O2:8.0";
     
     gas->setState(state);
     std::cout << gas->report() << std::endl;
@@ -36,7 +40,7 @@ void simple_demo()
     reactor_net.addReactor(reactor);
     double dt = 1e2;
     double t = 0.0;
-    double tend = 1e8;
+    double tend = 1e12;
     while (t < tend) {
       t = reactor_net.step();
     }
