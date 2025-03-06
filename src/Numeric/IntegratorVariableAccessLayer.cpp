@@ -4,7 +4,256 @@
 
 namespace Numeric {
 
-void CompressibleEuler::CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToWorkingBuffer(
+namespace CompressibleEuler {    
+
+CompressibleEulerVariableAccessor::CompressibleEulerVariableAccessor(
+    int total_ghosts,
+    ReconstructionMode mode
+) : current_mode(mode), total_ghost_cells(total_ghosts) {}
+
+std::shared_ptr<SolverCapabilities> 
+CompressibleEulerVariableAccessor::getSolverCapabilities() const {
+    // Create a detailed solver capabilities object for Compressible Euler solver
+    class CompressibleEulerCapabilities : public SolverCapabilities {
+    public:
+        std::string getIdentifier() const override { 
+            return "CompressibleEuler"; 
+        }
+
+        std::string getDescription() const override { 
+            return "Compressible Euler Equations Solver"; 
+        }
+
+        MethodSupport supportsFluxReconstruction(FluxReconstructionType method) const override {
+            switch(method) {
+                case FluxReconstructionType::FirstOrder:
+                    return MethodSupport::Supported();
+                case FluxReconstructionType::WENO:
+                    return MethodSupport::Supported();
+                default:
+                    return MethodSupport::Unsupported(
+                        {"Unsupported reconstruction method"},
+                        {"Use FirstOrder or WENO reconstruction"}
+                    );
+            }
+        }
+
+        MethodSupport supportsFluxScheme(FluxScheme scheme) const override {
+            switch(scheme) {
+                case FluxScheme::LocalLaxFriedrichs:
+                    return MethodSupport::Supported();
+                case FluxScheme::HLLC:
+                    return MethodSupport::Unsupported(
+                        {"HLLC not fully implemented"},
+                        {"Use LocalLaxFriedrichs for now"}
+                    );
+                default:
+                    return MethodSupport::Unsupported(
+                        {"Unknown flux scheme"},
+                        {"Use standard flux methods"}
+                    );
+            }
+        }
+
+        MethodSupport supportsTimeSteppingScheme(TimeSteppingSchemeType scheme) const override {
+            switch(scheme) {
+                case TimeSteppingSchemeType::ForwardEuler:
+                case TimeSteppingSchemeType::RK3:
+                    return MethodSupport::Supported();
+                default:
+                    return MethodSupport::Unsupported(
+                        {"Unsupported time stepping scheme"},
+                        {"Use ForwardEuler or RK3"}
+                    );
+            }
+        }
+
+        MethodSupport supportsReconstructionMode(ReconstructionMode mode) const override {
+            switch(mode) {
+                case ReconstructionMode::Primitive:
+                case ReconstructionMode::Conservative:
+                case ReconstructionMode::Characteristic:
+                    return MethodSupport::Supported();
+                default:
+                    return MethodSupport::Unsupported(
+                        {"Unsupported reconstruction mode"},
+                        {"Use Primitive, Conservative, or Characteristic"}
+                    );
+            }
+        }
+
+        MethodSupport supportsWenoVariant(WenoVariant variant) const override {
+            switch(variant) {
+                case WenoVariant::WENOJS5:
+                case WenoVariant::WENOZ5:
+                    return MethodSupport::Supported();
+                default:
+                    return MethodSupport::Unsupported(
+                        {"Unsupported WENO variant"},
+                        {"Use WENOJS5 or WENOZ5"}
+                    );
+            }
+        }
+
+        MethodValidationResult validateMethodCombination(
+            FluxReconstructionType fluxReconstruction,
+            FluxScheme fluxScheme,
+            TimeSteppingSchemeType timeSteppingScheme,
+            ReconstructionMode reconstructionMode,
+            WenoVariant wenoVariant = WenoVariant::WENOJS5
+        ) const override {
+            MethodValidationResult result;
+            result.isValid = true;
+
+            // Add specific validation logic here
+            if (fluxReconstruction == FluxReconstructionType::WENO && 
+                fluxScheme == FluxScheme::HLLC) {
+                result.isValid = false;
+                result.warnings.push_back(
+                    "WENO reconstruction with HLLC flux might be numerically unstable"
+                );
+            }
+
+            return result;
+        }
+
+        DefaultConfiguration getDefaultConfiguration() const override {
+            return {
+                FluxReconstructionType::WENO,
+                FluxScheme::LocalLaxFriedrichs,
+                TimeSteppingSchemeType::RK3,
+                ReconstructionMode::Primitive,
+                WenoVariant::WENOJS5
+            };
+        }
+
+        std::shared_ptr<GenericVariableAccessor> createVariableAccessor(
+            ReconstructionMode mode,
+            int numGhostCells = 2
+        ) const override {
+            return std::make_shared<CompressibleEulerVariableAccessor>(
+                numGhostCells, mode);
+        }
+    };
+
+    return std::make_shared<CompressibleEulerCapabilities>();
+}
+
+amrex::MultiFab 
+CompressibleEulerVariableAccessor::CreateWorkingBuffer(
+    const amrex::BoxArray& baseGrids, 
+    const amrex::DistributionMapping& dm, 
+    int num_components, 
+    const SolverCapabilities::MethodValidationResult& validationResult
+) const {
+    // Adjust ghost cells based on validation result and reconstruction type
+    int adjusted_ghost_cells = total_ghost_cells;
+    
+    if (!validationResult.isValid) {
+        // If method combination is invalid, potentially adjust ghost cells
+        adjusted_ghost_cells = std::max(total_ghost_cells + 1, 3);
+    }
+
+    return amrex::MultiFab(
+        baseGrids, 
+        dm, 
+        num_components, 
+        adjusted_ghost_cells
+    );
+}
+
+// Implementations of other methods remain similar to previous version
+// with added validation and more flexible handling
+
+int 
+CompressibleEulerVariableAccessor::getRequiredGhostCells(
+    ReconstructionMode mode, 
+    FluxReconstructionType reconstructionType
+) const {
+    switch(reconstructionType) {
+        case FluxReconstructionType::FirstOrder:
+            return 1;
+        case FluxReconstructionType::WENO:
+            return 3;  // WENO5 requires 3 ghost cells
+        default:
+            return total_ghost_cells;
+    }
+}
+    
+
+// Add these implementations to IntegratorVariableAccessLayer.cpp
+
+void CompressibleEulerVariableAccessor::TransformVariables(
+    int lev, 
+    void* solver_void,
+    amrex::MultiFab& working_buffer,
+    ReconstructionMode mode, 
+    const SolverCapabilities::MethodValidationResult& validationResult,
+    int direction
+) const {
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    
+    // Handle different reconstruction modes
+    switch(mode) {
+        case ReconstructionMode::Primitive:
+            // Copy primitive variables to the working buffer
+            CopyPrimitiveVariablesToWorkingBuffer(lev, solver, working_buffer);
+            break;
+            
+        case ReconstructionMode::Conservative:
+            // Copy conservative variables to the working buffer
+            CopyConservativeVariablesToWorkingBuffer(lev, solver, working_buffer);
+            break;
+            
+        case ReconstructionMode::Characteristic:
+            // First copy primitive variables, then transform to characteristic
+            CopyPrimitiveVariablesToWorkingBuffer(lev, solver, working_buffer);
+            ToCharacteristic(direction, lev, solver, working_buffer);
+            break;
+            
+        default:
+            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
+    }
+}
+
+void CompressibleEulerVariableAccessor::ReverseTransform(
+    int lev,
+    void* solver_void,
+    amrex::MultiFab& QL_stencil,
+    amrex::MultiFab& QR_stencil, 
+    ReconstructionMode mode, 
+    const SolverCapabilities::MethodValidationResult& validationResult,
+    int direction
+) const {
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    
+    // Handle different reconstruction modes
+    switch(mode) {
+        case ReconstructionMode::Primitive:
+            // No transformation needed - the reconstructed values are already primitive
+            break;
+            
+        case ReconstructionMode::Conservative:
+            // No transformation needed - the reconstructed values are already conservative
+            break;
+            
+        case ReconstructionMode::Characteristic:
+            // Transform from characteristic variables back to primitive/conservative
+            FromCharacteristic(direction, lev, solver, QL_stencil, QR_stencil);
+            break;
+            
+        default:
+            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
+    }
+}
+
+
+
+
+
+void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToWorkingBuffer(
     int lev,
     Integrator::ScimitarX* solver,
     amrex::MultiFab& working_buffer
@@ -20,7 +269,7 @@ void CompressibleEuler::CompressibleEulerVariableAccessor::CopyPrimitiveVariable
     working_buffer.FillBoundary(solver->geom[lev].periodicity());
 }
 
-void CompressibleEuler::CompressibleEulerVariableAccessor::CopyConservativeVariablesToWorkingBuffer(
+void CompressibleEulerVariableAccessor::CopyConservativeVariablesToWorkingBuffer(
     int lev,
     Integrator::ScimitarX* solver,
     amrex::MultiFab& working_buffer
@@ -36,7 +285,7 @@ void CompressibleEuler::CompressibleEulerVariableAccessor::CopyConservativeVaria
     working_buffer.FillBoundary(solver->geom[lev].periodicity());
 }
 
-void CompressibleEuler::CompressibleEulerVariableAccessor::ToCharacteristic(
+void CompressibleEulerVariableAccessor::ToCharacteristic(
     int direction, 
     int lev, 
     const Integrator::ScimitarX* solver, 
@@ -114,7 +363,7 @@ void CompressibleEuler::CompressibleEulerVariableAccessor::ToCharacteristic(
     }
 }
 
-void CompressibleEuler::CompressibleEulerVariableAccessor::FromCharacteristic(
+void CompressibleEulerVariableAccessor::FromCharacteristic(
     int direction, 
     int lev, 
     const Integrator::ScimitarX* solver,
@@ -195,7 +444,7 @@ void CompressibleEuler::CompressibleEulerVariableAccessor::FromCharacteristic(
 }
 
 Set::Matrix 
-CompressibleEuler::CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(const Set::Vector& W, int dir) {
+CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(const Set::Vector& W, int dir) {
     // Constants
     const Set::Scalar gamma = 1.4;
     
@@ -253,5 +502,7 @@ CompressibleEuler::CompressibleEulerVariableAccessor::ComputeRightEigenvectorMat
 
     return R_n;
 }
+
+} // namespace CompressibleEuler
 
 }  // namespace Numeric 

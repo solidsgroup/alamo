@@ -11,6 +11,7 @@
 #include "Set/Set.H"
 #include "Integrator/Integrator.H"
 #include "Util/Util.H"
+#include "Numeric/NumericTypes.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/FluxHandler.H"
 #include "Numeric/NumericFactory.H"
@@ -67,13 +68,11 @@ struct WENOJS5Traits : public WENOBaseTraits<5> {
     
     // Smoothness indicator coefficients for WENO5
     struct SmoothnessCoefficients {
-        // β₀ = (13/12)(f₍ᵢ₋₂₎ - 2f₍ᵢ₋₁₎ + fᵢ)² + (1/4)(f₍ᵢ₋₂₎ - 4f₍ᵢ₋₁₎ + 3fᵢ)²
+
         static constexpr std::array<Set::Scalar, 2> Stencil0 = {13.0/12.0, 1.0/4.0};
         
-        // β₁ = (13/12)(f₍ᵢ₋₁₎ - 2fᵢ + f₍ᵢ₊₁₎)² + (1/4)(f₍ᵢ₋₁₎ - f₍ᵢ₊₁₎)²
         static constexpr std::array<Set::Scalar, 2> Stencil1 = {13.0/12.0, 1.0/4.0};
         
-        // β₂ = (13/12)(fᵢ - 2f₍ᵢ₊₁₎ + f₍ᵢ₊₂₎)² + (1/4)(3fᵢ - 4f₍ᵢ₊₁₎ + f₍ᵢ₊₂₎)²
         static constexpr std::array<Set::Scalar, 2> Stencil2 = {13.0/12.0, 1.0/4.0};
     };
     

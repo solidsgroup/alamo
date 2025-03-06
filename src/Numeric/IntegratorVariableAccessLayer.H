@@ -1,3 +1,4 @@
+// IntegratorVariableAccessLayer.H
 #ifndef NUMERIC_VARIABLE_ACCESS_LAYER_H
 #define NUMERIC_VARIABLE_ACCESS_LAYER_H
 
@@ -10,7 +11,8 @@
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "Numeric/Stencil.H"
-#include "Numeric/NumericFactory.H"
+#include "Numeric/NumericTypes.H"
+#include "Numeric/SolverCapabilities.H"
 
 namespace Integrator {
     class ScimitarX;
@@ -18,23 +20,28 @@ namespace Integrator {
 
 namespace Numeric {
 
-// Base class for generic variable accessor
 class GenericVariableAccessor {
 public:
     virtual ~GenericVariableAccessor() = default;
 
+    // Enhanced method to get solver capabilities
+    virtual std::shared_ptr<SolverCapabilities> getSolverCapabilities() const = 0;
+
+    // Create working buffer with more flexible configuration
     virtual amrex::MultiFab CreateWorkingBuffer(
         const amrex::BoxArray& baseGrids, 
         const amrex::DistributionMapping& dm, 
         int num_components, 
-        int num_ghost_cells = 0
+        const SolverCapabilities::MethodValidationResult& validationResult
     ) const = 0;
 
+    // Enhanced variable transformation methods
     virtual void TransformVariables(
         int lev, 
         void* solver, 
         amrex::MultiFab& working_buffer, 
-        Numeric::ReconstructionMode mode, 
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult,
         int direction = 0
     ) const = 0;
 
@@ -43,109 +50,100 @@ public:
         void* solver, 
         amrex::MultiFab& QL_stencil,
         amrex::MultiFab& QR_stencil, 
-        Numeric::ReconstructionMode mode, 
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult,
         int direction = 0
     ) const = 0;
 
-    virtual int GetTotalGhostCells() const = 0;
+    // More comprehensive ghost cell management
+    virtual int getRequiredGhostCells(
+        ReconstructionMode mode, 
+        FluxReconstructionType reconstructionType
+    ) const = 0;
 
-  // Add this declaration
-    virtual Numeric::ReconstructionMode GetReconstructionMode() const = 0;
-protected:
-
-    Numeric::ReconstructionMode current_mode;
-    int total_ghost_cells;
+    // Current reconstruction mode accessor
+    virtual ReconstructionMode getCurrentReconstructionMode() const = 0;
 };
 
-// Placeholder namespaces for other solver-specific variable accessors
-namespace ElastoPlastic {
-    class ElastoPlasticVariableAccessor;
-}
-
-namespace FiveEquationModel {
-    class FiveEquationVariableAccessor;
-}
-
+// Specific implementation for Compressible Euler flows
 namespace CompressibleEuler {
+
+class CompressibleEulerCapabilities : public SolverCapabilities {
+public:
+    std::string getIdentifier() const override { 
+        return "CompressibleEuler"; 
+    }
+
+    std::string getDescription() const override { 
+        return "Compressible Euler Equations Solver"; 
+    }
+
+    MethodSupport supportsFluxReconstruction(FluxReconstructionType method) const override;
+    MethodSupport supportsFluxScheme(FluxScheme scheme) const override;
+    MethodSupport supportsTimeSteppingScheme(TimeSteppingSchemeType scheme) const override;
+    MethodSupport supportsReconstructionMode(ReconstructionMode mode) const override;
+    MethodSupport supportsWenoVariant(WenoVariant variant) const override;
+    MethodValidationResult validateMethodCombination(
+        FluxReconstructionType fluxReconstruction,
+        FluxScheme fluxScheme,
+        TimeSteppingSchemeType timeSteppingScheme,
+        ReconstructionMode reconstructionMode,
+        WenoVariant wenoVariant = WenoVariant::WENOJS5
+    ) const override;
+    DefaultConfiguration getDefaultConfiguration() const override;
+    std::shared_ptr<GenericVariableAccessor> createVariableAccessor(
+        ReconstructionMode mode,
+        int numGhostCells = 2
+    ) const override;
+};
 
 class CompressibleEulerVariableAccessor : public GenericVariableAccessor {
 public:
-        
-    // Constants specific to Compressible Euler solver
-    static constexpr int NumComponents = AMREX_SPACEDIM + 2;  // ρ, ρu, ρv, [ρw], E
-    static constexpr Set::Scalar Gamma = 1.4;  // Ratio of specific heats
-
     CompressibleEulerVariableAccessor(
         int total_ghosts = 2,
-        Numeric::ReconstructionMode mode = Numeric::ReconstructionMode::Primitive
-    ) {
-        total_ghost_cells = total_ghosts;
-        current_mode = mode;
-    }
+        ReconstructionMode mode = ReconstructionMode::Primitive
+    );
 
-    // Implement GetReconstructionMode method
-    Numeric::ReconstructionMode GetReconstructionMode() const override {
-        return current_mode;
-    }
+    // Implement the new virtual methods from base class
+    std::shared_ptr<SolverCapabilities> getSolverCapabilities() const override;
 
     amrex::MultiFab CreateWorkingBuffer(
         const amrex::BoxArray& baseGrids, 
         const amrex::DistributionMapping& dm, 
         int num_components, 
-        int num_ghost_cells = 0
-    ) const override {
-        return amrex::MultiFab(
-            baseGrids, 
-            dm, 
-            num_components, 
-            std::max(total_ghost_cells, num_ghost_cells)
-        );
-    }
+        const SolverCapabilities::MethodValidationResult& validationResult
+    ) const override;
 
     void TransformVariables(
-        int lev,
+        int lev, 
         void* solver_void,
         amrex::MultiFab& working_buffer,
-        Numeric::ReconstructionMode mode,
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult,
         int direction = 0
-    ) const override {
-        Integrator::ScimitarX* solver = static_cast<Integrator::ScimitarX*>(solver_void);
-
-        switch (mode) {
-            case Numeric::ReconstructionMode::Primitive:
-                CopyPrimitiveVariablesToWorkingBuffer(lev, solver, working_buffer);
-                break;
-            case Numeric::ReconstructionMode::Conservative:
-                CopyConservativeVariablesToWorkingBuffer(lev, solver, working_buffer);
-                break;
-            case Numeric::ReconstructionMode::Characteristic:
-                CopyConservativeVariablesToWorkingBuffer(lev, solver, working_buffer);
-                ToCharacteristic(direction, lev, solver, working_buffer);
-                break;
-            default:
-                Util::Abort(INFO, "Unknown reconstruction mode");
-        }
-    }
+    ) const override;
 
     void ReverseTransform(
         int lev,
         void* solver_void,
         amrex::MultiFab& QL_stencil,
-        amrex::MultiFab& QR_stencil,
-        Numeric::ReconstructionMode mode,
+        amrex::MultiFab& QR_stencil, 
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult,
         int direction = 0
-    ) const override {
-        if (mode == Numeric::ReconstructionMode::Characteristic) {
-            Integrator::ScimitarX* solver = static_cast<Integrator::ScimitarX*>(solver_void);
-            FromCharacteristic(direction, lev, solver, QL_stencil, QR_stencil);
-        }
-    }
+    ) const override;
 
-    int GetTotalGhostCells() const override {
-        return total_ghost_cells;
+    int getRequiredGhostCells(
+        ReconstructionMode mode, 
+        FluxReconstructionType reconstructionType
+    ) const override;
+
+    ReconstructionMode getCurrentReconstructionMode() const override {
+        return current_mode;
     }
 
 private:
+    // Private helper methods
     void CopyPrimitiveVariablesToWorkingBuffer(
         int lev,
         Integrator::ScimitarX* solver,
@@ -173,149 +171,27 @@ private:
         amrex::MultiFab& QR_stencil
     ) const;
 
+    // Companion method for matrix transformations
     AMREX_GPU_DEVICE AMREX_FORCE_INLINE
     static Set::Matrix ComputeRightEigenvectorMatrix(
         const Set::Vector& W, 
         int direction
     );
+
+    ReconstructionMode current_mode;
+    int total_ghost_cells;
 };
 
-/*// Forward declarations for CompressibleEuler's Inline Methods
-inline void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToWorkingBuffer(
-    int lev,
-    Integrator::ScimitarX* solver,
-    amrex::MultiFab& working_buffer
-) const;
+} // namespace CompressibleEuler
 
-inline void CompressibleEulerVariableAccessor::CopyConservativeVariablesToWorkingBuffer(
-    int lev,
-    Integrator::ScimitarX* solver,
-    amrex::MultiFab& working_buffer
-) const;
-
-inline void CompressibleEulerVariableAccessor::ToCharacteristic(
-    int direction, 
-    int lev, 
-    const Integrator::ScimitarX* solver, 
-    amrex::MultiFab& input_mf
-) const;
-
-inline void CompressibleEulerVariableAccessor::FromCharacteristic(
-    int direction, 
-    int lev, 
-    const Integrator::ScimitarX* solver,
-    amrex::MultiFab& QL_stencil, 
-    amrex::MultiFab& QR_stencil
-) const;*/
-
-}
-
-/*// Placeholder Variable Accessors for other Solver Types
+// Placeholder namespaces for other solver-specific variable accessors
 namespace ElastoPlastic {
-    class ElastoPlasticVariableAccessor : public GenericVariableAccessor {
-    public:
-        // Implement base class methods with placeholders
-        ElastoPlasticVariableAccessor(
-            int total_ghosts = 2,
-            ReconstructionMode mode = ReconstructionMode::Primitive
-        ) {
-            total_ghost_cells = total_ghosts;
-            current_mode = mode;
-        }
-
-        amrex::MultiFab CreateWorkingBuffer(
-            const amrex::BoxArray& baseGrids, 
-            const amrex::DistributionMapping& dm, 
-            int num_components, 
-            int num_ghost_cells = 0
-        ) const override {
-            Util::Abort(INFO, "ElastoPlastic CreateWorkingBuffer not implemented");
-            return amrex::MultiFab();
-        }
-
-        void TransformVariables(
-            int lev, 
-            void* solver, 
-            amrex::MultiFab& working_buffer, 
-            ReconstructionMode mode, 
-            int direction = 0
-        ) const override {
-            Util::Abort(INFO, "ElastoPlastic TransformVariables not implemented");
-        }
-
-        void ReverseTransform(
-            int lev, 
-            void* solver, 
-            amrex::MultiFab& QL_stencil,
-            amrex::MultiFab& QR_stencil, 
-            ReconstructionMode mode, 
-            int direction = 0
-        ) const override {
-            Util::Abort(INFO, "ElastoPlastic ReverseTransform not implemented");
-        }
-
-        int GetTotalGhostCells() const override {
-            return total_ghost_cells;
-        }
-
-        ReconstructionMode GetReconstructionMode() const override {
-            return current_mode;
-        }
-    };
+    class ElastoPlasticVariableAccessor;
 }
 
 namespace FiveEquationModel {
-    class FiveEquationVariableAccessor : public GenericVariableAccessor {
-    public:
-        // Implement base class methods with placeholders
-        FiveEquationVariableAccessor(
-            int total_ghosts = 2,
-            ReconstructionMode mode = ReconstructionMode::Primitive
-        ) {
-            total_ghost_cells = total_ghosts;
-            current_mode = mode;
-        }
-
-        amrex::MultiFab CreateWorkingBuffer(
-            const amrex::BoxArray& baseGrids, 
-            const amrex::DistributionMapping& dm, 
-            int num_components, 
-            int num_ghost_cells = 0
-        ) const override {
-            Util::Abort(INFO, "FiveEquationModel CreateWorkingBuffer not implemented");
-            return amrex::MultiFab();
-        }
-
-        void TransformVariables(
-            int lev, 
-            void* solver, 
-            amrex::MultiFab& working_buffer, 
-            ReconstructionMode mode, 
-            int direction = 0
-        ) const override {
-            Util::Abort(INFO, "FiveEquationModel TransformVariables not implemented");
-        }
-
-        void ReverseTransform(
-            int lev, 
-            void* solver, 
-            amrex::MultiFab& QL_stencil,
-            amrex::MultiFab& QR_stencil, 
-            ReconstructionMode mode, 
-            int direction = 0
-        ) const override {
-            Util::Abort(INFO, "FiveEquationModel ReverseTransform not implemented");
-        }
-
-        int GetTotalGhostCells() const override {
-            return total_ghost_cells;
-        }
-
-        ReconstructionMode GetReconstructionMode() const override {
-            return current_mode;
-        }
-    };
-}*/
+    class FiveEquationVariableAccessor;
+}
 
 } // namespace Numeric
 

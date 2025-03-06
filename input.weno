@@ -36,7 +36,7 @@ FluxScheme = LocalLaxFriedrichs
 FluxReconstruction = WENO
 
 #WenoVariant
-#WENOVariant = WENOJS5
+WENOVariant = WENOJS5
 
 #Reconstruction Mode
 ReconstructionMode = Primitive

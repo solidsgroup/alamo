@@ -28,6 +28,18 @@
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/NumericFactory.H"
 
+namespace Numeric {
+    template<typename IntegratorDerivedClass> class FluxHandler;
+    template<typename IntegratorDerivedClass> class FluxMethod;
+    template<typename IntegratorDerivedClass> class FluxReconstruction;
+    template<typename IntegratorDerivedClass> class FirstOrderReconstruction;
+    template<typename IntegratorDerivedClass, typename VariantTraits> class WENOReconstruction;
+    template<typename IntegratorDerivedClass> class LocalLaxFriedrichsMethod;
+    template<typename IntegratorDerivedClass> class TimeSteppingScheme;
+    template<typename IntegratorDerivedClass> class EulerForwardScheme;
+    template<typename IntegratorDerivedClass> class RK3Scheme;
+}
+
 namespace Integrator
 {
 class ScimitarX : virtual public Integrator
@@ -160,34 +172,6 @@ public:
 
     static IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, const Util::ScimitarX_Util::getVariableIndex& variableIndex);
 
-    // Solver-specific metadata class (can be moved to a separate file later)
-    class SolverMetadata : public Numeric::SolverMetadata {
-    public:
-        std::string getName() const override { 
-            return "ScimitarX Compressible Euler Solver"; 
-        }
-        
-        bool supportsFluxReconstruction(Numeric::FluxReconstructionType method) const override;
-        bool supportsFluxScheme(Numeric::FluxScheme scheme) const override;
-        bool supportsTimeSteppingScheme(Numeric::TimeSteppingSchemeType scheme) const override;
-        bool supportsReconstructionMode(Numeric::ReconstructionMode mode) const override;
-        
-        Numeric::FluxReconstructionType getDefaultFluxReconstruction() const override {
-            return Numeric::FluxReconstructionType::FirstOrder;
-        }
-        
-        Numeric::FluxScheme getDefaultFluxScheme() const override {
-            return Numeric::FluxScheme::LocalLaxFriedrichs;
-        }
-        
-        Numeric::TimeSteppingSchemeType getDefaultTimeSteppingScheme() const override {
-            return Numeric::TimeSteppingSchemeType::ForwardEuler;
-        }
-        
-        Numeric::ReconstructionMode getDefaultReconstructionMode() const override {
-            return Numeric::ReconstructionMode::Primitive;
-        }
-    };
 
 protected:
 
@@ -195,77 +179,8 @@ protected:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int lev) override;
-    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override {
-
-        // Advance the solution without stiff source terms
-        AdvanceInTimeWithoutStiffTerms(lev, time, dt);
-
-    }
-    // Function to advance hyperbolic balance equations without stiff terms
-    void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar /*time*/, Set::Scalar dt) {
-
-    // Determine the time-stepping scheme
-    switch (temporal_scheme) {
-
-        case Numeric::TimeSteppingSchemeType::ForwardEuler: {
-             
-            int numStages = timeStepper->GetNumberOfStages();
-            // One-stage loop for Forward Euler
-            for (int stage = 0; stage < numStages; ++stage) {
-                
-                // 1. Compute Conserved Variables
-                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
-
-                // 2. Perform flux reconstruction and compute fluxes in all directions
-                fluxHandler->ConstructFluxes(lev, this);
-
-                //ApplyBoundaryConditions(lev, time);
-                
-                // 3. Compute sub-step using the chosen time-stepping scheme
-                timeStepper->ComputeSubStep(lev, dt, stage, this);
-
-                // 4. Update solution from conservative to primitive variables
-                UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
-
-
-                //ApplyBoundaryConditions(lev, time);
-
-                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
-                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
-            }
-            break;
-        }
-
-        case Numeric::TimeSteppingSchemeType::RK3: {
-
-            int numStages = timeStepper->GetNumberOfStages();
-
-            for (int stage = 0; stage < numStages; ++stage) {
-                // 1. Compute Conserved Variables
-                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
-
-                // 2. Perform flux reconstruction and compute fluxes in all directions
-                fluxHandler->ConstructFluxes(lev, this);
-
-                // 3. Compute sub-step using the chosen time-stepping scheme
-                timeStepper->ComputeSubStep(lev, dt, stage, this);
-
-                // 4. Update solution from conservative to primitive variables
-                UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
-
-                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
-                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
-            }
-            break;
-        }
-
-        default:
-            Util::Abort(__FILE__, __func__, __LINE__, "Unknown TimeSteppingScheme.");
-    }
-
-        // Util::Message(INFO, "Completed AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
-    }
-
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
+    void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt);
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
     Set::Scalar GetTimeStep();
@@ -394,44 +309,40 @@ protected:
 
     //Add timeStepper member to ScimitarX class declaration
     std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
+    
+    // Remove duplicate function in ScimitarX.H, keep only one definition:
+    std::shared_ptr<Numeric::SolverCapabilities> GetSolverCapabilities() const {
+         // Create a CompressibleEulerCapabilities instance
+         return std::make_shared<Numeric::CompressibleEuler::CompressibleEulerCapabilities>();
+    }
 
-
-    std::shared_ptr<Numeric::GenericVariableAccessor> GetVariableAccessor() const {
-        return variable_accessor;
-    }    
-
-    void SetVariableAccessor(std::shared_ptr<Numeric::GenericVariableAccessor> accessor) {
-        variable_accessor = std::move(accessor);
-    }    
-
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::FluxReconstruction;
 
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::FluxMethod;    
 
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::FluxHandler;    
 
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::FirstOrderReconstruction;
 
-    template <typename T>
+    template <typename IntegratorDerivedClass, typename VariantTraits>
     friend class Numeric::WENOReconstruction;
 
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::LocalLaxFriedrichsMethod;
 
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::TimeSteppingScheme;
 
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::EulerForwardScheme;
 
-    template <typename T>
+    template <typename IntegratorDerivedClass>
     friend class Numeric::RK3Scheme; 
  
-    template <typename T>
     friend class Numeric::CompressibleEuler::CompressibleEulerVariableAccessor;
 
 private:
@@ -455,6 +366,8 @@ private:
         Numeric::TimeSteppingSchemeType::ForwardEuler;
     Numeric::ReconstructionMode variable_space = 
         Numeric::ReconstructionMode::Primitive;
+
+    Numeric::WenoVariant  weno_variant = Numeric::WenoVariant::WENOJS5; 
 
     std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
 

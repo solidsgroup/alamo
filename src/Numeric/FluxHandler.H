@@ -7,13 +7,20 @@
 #include "Integrator/ScimitarX.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
-#include "Model/Fluid/Fluid.H"  // Include fluid model helper functions
+#include "Model/Fluid/Fluid.H" 
 #include "Numeric/Stencil.H" 
-#include "Numeric/NumericFactory.H"
+#include "Numeric/NumericTypes.H"
+#include "Numeric/SolverCapabilities.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include <memory>
 #include <cmath>
 #include <algorithm>
+
+//forward declaration for ScimitarX
+namespace Integrator {
+    class ScimitarX;
+
+}
 
 namespace Numeric {
 
@@ -65,9 +72,13 @@ class FluxHandler {
 public:
     enum Directions { Xdir = 0, Ydir = 1, Zdir = 2 };
 
-    // Updated constructor to accept a generic variable accessor
+    // Constructor accepts a variable accessor
     FluxHandler(std::shared_ptr<GenericVariableAccessor> accessor) 
-        : variable_accessor(accessor) {}
+        : variable_accessor(accessor) {
+        if (!accessor) {
+            Util::Warning(INFO, "FluxHandler created with null variable accessor");
+        }
+    }
 
     // Set reconstruction method 
     void SetReconstruction(std::shared_ptr<FluxReconstruction<IntegratorDerivedClass>> recon) {
@@ -79,15 +90,34 @@ public:
         flux_method = std::move(method);
     }
 
-    // ConstructFluxes method to use variable accessor
+    // ConstructFluxes method with improved validation and error handling
     void ConstructFluxes(int lev, IntegratorDerivedClass* solver) const {
         // Validate reconstruction and flux method are set
         if (!reconstruction || !flux_method) {
-            amrex::Abort("FluxHandler: Reconstruction or flux method is not set.");
+            Util::Abort(INFO, "FluxHandler: Reconstruction or flux method is not set.");
         }
 
-        // Get current reconstruction mode from the variable accessor
-        Numeric::ReconstructionMode mode = variable_accessor->GetReconstructionMode();
+        // Check if variable accessor is valid
+        if (!variable_accessor) {
+            Util::Abort(INFO, "FluxHandler: Variable accessor is not set.");
+        }
+
+        // Get solver capabilities for validation
+        auto solverCapabilities = variable_accessor->getSolverCapabilities();
+        if (!solverCapabilities) {
+            Util::Abort(INFO, "FluxHandler: Unable to retrieve solver capabilities.");
+        }
+
+        // Get current reconstruction mode
+        ReconstructionMode mode = variable_accessor->getCurrentReconstructionMode();
+
+        // Validate method combinations through solver capabilities
+        auto validationResult = solverCapabilities->validateMethodCombination(
+            FluxReconstructionType::WENO,  // Default assumption, could be parameterized
+            FluxScheme::LocalLaxFriedrichs, // Default assumption, could be parameterized
+            TimeSteppingSchemeType::RK3,    // Default assumption, could be parameterized
+            mode
+        );
 
         // Process for each spatial direction
         for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
@@ -97,27 +127,45 @@ public:
             face_type[dir] = 1;
             face_ba.convert(face_type);
 
+            // Determine required ghost cells based on reconstruction method and mode
+            int ghost_cells = variable_accessor->getRequiredGhostCells(
+                mode, 
+                FluxReconstructionType::WENO  // Default assumption, could be parameterized
+            );
+
             // Create stencil MultiFabs for left and right states
-            int ghost_cells = variable_accessor->GetTotalGhostCells();
             amrex::MultiFab QL_stencil(face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
             amrex::MultiFab QR_stencil(face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
 
-            // Create working buffer using variable accessor
+            // Create working buffer using enhanced variable accessor method
             amrex::MultiFab working_buffer = variable_accessor->CreateWorkingBuffer(
-                    solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells);
+                solver->grids[lev], 
+                solver->dmap[lev], 
+                solver->number_of_components, 
+                validationResult
+            );
 
-            // Transform variables (if needed)
-            variable_accessor->TransformVariables(lev, solver, working_buffer, mode, dir);
+            // Transform variables using enhanced method with validation
+            variable_accessor->TransformVariables(
+                lev, solver, working_buffer, mode, validationResult, dir
+            );
 
             // Perform flux reconstruction
             reconstruction->ReconstructFlux(dir, lev, solver, working_buffer, QL_stencil, QR_stencil);
 
-            // Reverse transform variables (if needed)
-            variable_accessor->ReverseTransform(lev, solver, QL_stencil, QR_stencil, mode, dir);
+            // Reverse transform with validation
+            variable_accessor->ReverseTransform(
+                lev, solver, QL_stencil, QR_stencil, mode, validationResult, dir
+            );
 
             // Compute numerical flux
             flux_method->ComputeFlux(dir, lev, solver, QL_stencil, QR_stencil);
         }
+    }
+
+    // Get the current variable accessor
+    std::shared_ptr<GenericVariableAccessor> GetVariableAccessor() const {
+        return variable_accessor;
     }
 
 private:
@@ -125,8 +173,8 @@ private:
     std::shared_ptr<FluxReconstruction<IntegratorDerivedClass>> reconstruction;
     std::shared_ptr<FluxMethod<IntegratorDerivedClass>> flux_method;
     std::shared_ptr<GenericVariableAccessor> variable_accessor;
-
 };
+
 // First-order upwind reconstruction
 template <typename IntegratorDerivedClass>
 class FirstOrderReconstruction : public FluxReconstruction<IntegratorDerivedClass> {
@@ -197,7 +245,6 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
             // Assign values to the stencil arrays
             QL_arr(index[0], index[1], index[2], n) = QL;
             QR_arr(index[0], index[1], index[2], n) = QR;
-
         }
     });
 }
@@ -357,9 +404,7 @@ public:
 
             // **Local Lax-Friedrichs flux calculation**
             for (int n = 0; n < num_components; ++n) {
-
                 flux_arr(index[0], index[1], index[2], n) =  0.5 * (F_L[n] + F_R[n]) - 0.5 * lambda_max * (QR_cons[n] - QL_cons[n]);
-
             }
         
         });

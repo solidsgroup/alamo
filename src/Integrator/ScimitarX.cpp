@@ -27,11 +27,6 @@ ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
     fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
     timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
 
-    // Register solver metadata
-    Numeric::SolverMetadataRegistry::getInstance().registerSolverMetadata<ScimitarX>(
-            std::make_unique<ScimitarX::SolverMetadata>()
-        );
-
     pp.queryclass(*this);
 }
 
@@ -60,25 +55,6 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 for (const auto& [variable, index] : ScimitarX::variableIndex.variableIndexMap) {
                 std::cout << "  Variable: " << variable << ", Index: " << index << std::endl;
                 }
-
-                // Call the setupBoundaryConditions function
-                /* IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, ScimitarX::variableIndex);
-
-                std::string result;
-                if (bc_pp.query("bc.pvec.type.xlo", result)) {
-                std::cout << "DEBUG: Queried type.xlo from bc_pp: " << result << std::endl;
-                } else {
-                std::cerr << "ERROR: Missing bc.pvec.type.xlo in bc_pp" << std::endl;
-                }
-
-                if (bc_pp.query("bc.pvec.val.xlo", result)) {
-                std::cout << "DEBUG: Queried val.xlo from bc_pp: " << result << std::endl;
-                } else {
-                std::cerr << "ERROR: Missing bc.pvec.val.xlo in bc_pp" << std::endl;
-                } */  
-
-                value.bc_PVec = new BC::Constant(value.number_of_components, pp, "bc.pvec");
-                value.bc_Pressure = new BC::Constant(1, pp, "bc.pressure");
             } else {
                 Util::Abort(__FILE__, __func__, __LINE__, "Invalid SolverType: " + solverTypeStr);
             }
@@ -97,11 +73,10 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
 #if AMREX_SPACEDIM == 3
         value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false, {});
 #endif
-//        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
         value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true, {}); 
         value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true, {});
-
     }
+    
     // Initial Conditions
     {
         std::string type = "constant";
@@ -123,23 +98,41 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         } else {
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pressure.type: " + type);
         }
-
     } 
 
-    // Parse reconstruction mode
-   // Parse Flux Reconstruction Method
+    // Parse Flux Reconstruction Method
+    {
     std::string reconstructionStr;
     if (pp.query("FluxReconstruction", reconstructionStr)) {
         try {
             value.reconstruction_method = 
                 Numeric::NumericFactory::parseFluxReconstruction(reconstructionStr);
+                
+            // If WENO reconstruction is selected, also parse the WENO variant
+            if (value.reconstruction_method == Numeric::FluxReconstructionType::WENO) {
+                std::string wenoVariantStr;
+                
+                // Query for WENO variant parameter, default to "WENOJS5" if not specified
+                pp.query_default("WENOVariant", wenoVariantStr, "WENOJS5");
+                
+                try {
+                    value.weno_variant = 
+                        Numeric::NumericFactory::parseWenoVariant(wenoVariantStr);
+                } catch (const std::runtime_error& e) {
+                    Util::Warning(INFO, "Invalid WENO Variant: " + wenoVariantStr 
+                        + ". Using default WENOJS5.");
+                    value.weno_variant = Numeric::WenoVariant::WENOJS5;
+                }
+            }
         } catch (const std::runtime_error& e) {
             Util::Warning(INFO, "Invalid Flux Reconstruction: " + reconstructionStr 
                 + ". Using default.");
         }
+    }        
     }
 
     // Parse Flux Scheme
+    {
     std::string fluxSchemeStr;
     if (pp.query("FluxScheme", fluxSchemeStr)) {
         try {
@@ -150,8 +143,10 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 + ". Using default.");
         }
     }
+    }
 
     // Parse Time Stepping Scheme
+    {
     std::string timeSteppingStr;
     if (pp.query("TimeSteppingScheme", timeSteppingStr)) {
         try {
@@ -162,8 +157,10 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 + ". Using default.");
         }
     }
+    }
 
     // Parse Reconstruction Mode
+    {
     std::string reconstructionModeStr;
     if (pp.query("ReconstructionMode", reconstructionModeStr)) {
         try {
@@ -173,44 +170,116 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
             Util::Warning(INFO, "Invalid Reconstruction Mode: " + reconstructionModeStr 
                 + ". Using default.");
         }
-    }    
+    }
+    }     
 
     // Read CFL number and initial time step
     pp.query_required("cflNumber", value.cflNumber);
 
-   // Set up components using factory methods
-    value.variable_accessor = Numeric::NumericFactory::createVariableAccessor<ScimitarX>(
-        value.variable_space
+    // Get SolverCapabilities
+    std::shared_ptr<Numeric::SolverCapabilities> solverCapabilities = 
+        value.GetSolverCapabilities();
+
+    // Set up variable accessor
+    value.variable_accessor = solverCapabilities->createVariableAccessor(
+        value.variable_space,
+        value.number_of_ghost_cells
     );
 
+    // Set up flux handler
     value.fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(
         value.variable_accessor
     );
 
-    // Set Flux Reconstruction
-    value.fluxHandler->SetReconstruction(
-        Numeric::NumericFactory::createReconstructionMethod<ScimitarX>(
-            value.reconstruction_method
-        )
+    // Set Flux Reconstruction using capabilities validation
+    auto reconstructionSupport = solverCapabilities->supportsFluxReconstruction(
+        value.reconstruction_method
     );
-
-    // Set Flux Method
-    value.fluxHandler->SetFluxMethod(
-        Numeric::NumericFactory::createFluxMethod<ScimitarX>(
-            value.flux_scheme
-        )
-    );
-
-    // Set Time Stepping Scheme
-    value.timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
-    value.timeStepper->SetTimeSteppingScheme(
-        Numeric::NumericFactory::createTimeSteppingScheme<ScimitarX>(
-            value.temporal_scheme
-        )
-    );    
     
+    if (reconstructionSupport) {
+        value.fluxHandler->SetReconstruction(
+            Numeric::NumericFactory::createReconstructionMethod<ScimitarX>(
+                value.reconstruction_method
+            )
+        );
+    } else {
+        // Fall back to default if not supported
+        Util::Warning(INFO, "Selected reconstruction method not supported. Using default.");
+        value.reconstruction_method = solverCapabilities->getDefaultConfiguration().fluxReconstruction;
+        value.fluxHandler->SetReconstruction(
+            Numeric::NumericFactory::createReconstructionMethod<ScimitarX>(
+                value.reconstruction_method
+            )
+        );
+    }
+
+    // Also validate WENO variant if using WENO
+    bool wenoVariantSupport = true;
+    if (value.reconstruction_method == Numeric::FluxReconstructionType::WENO) {
+        wenoVariantSupport = solverCapabilities->supportsWenoVariant(
+            value.weno_variant
+        );
+    }
+     
+    // Apply similar pattern for flux method
+    auto fluxSupport = solverCapabilities->supportsFluxScheme(value.flux_scheme);
+    if (fluxSupport) {
+        value.fluxHandler->SetFluxMethod(
+            Numeric::NumericFactory::createFluxMethod<ScimitarX>(
+                value.flux_scheme
+            )
+        );
+    } else {
+        // Fall back to default
+        Util::Warning(INFO, "Selected flux scheme not supported. Using default.");
+        value.flux_scheme = solverCapabilities->getDefaultConfiguration().fluxScheme;
+        value.fluxHandler->SetFluxMethod(
+            Numeric::NumericFactory::createFluxMethod<ScimitarX>(
+                value.flux_scheme
+            )
+        );
+    }
+
+    // Set Time Stepping Scheme with similar validation
+    auto timeStepSupport = solverCapabilities->supportsTimeSteppingScheme(
+        value.temporal_scheme
+    );
+
+    if (timeStepSupport) {
+        value.timeStepper->SetTimeSteppingScheme(
+            Numeric::NumericFactory::createTimeSteppingScheme<ScimitarX>(
+                value.temporal_scheme
+            )
+        );
+    } else {
+        // Fall back to default
+        Util::Warning(INFO, "Selected time stepping scheme not supported. Using default.");
+        value.temporal_scheme = solverCapabilities->getDefaultConfiguration().timeSteppingScheme;
+        value.timeStepper->SetTimeSteppingScheme(
+            Numeric::NumericFactory::createTimeSteppingScheme<ScimitarX>(
+                value.temporal_scheme
+            )
+        );
+    }
+
+    // Validate overall method combination
+    auto validationResult = solverCapabilities->validateMethodCombination(
+        value.reconstruction_method,
+        value.flux_scheme,
+        value.temporal_scheme,
+        value.variable_space
+    );
+
+    if (!validationResult.isValid) {
+        Util::Warning(INFO, "Selected method combination may not be optimal:");
+        for (const auto& warning : validationResult.warnings) {
+            Util::Warning(INFO, " - " + warning);
+        }
+    }      
 }
 
+
+// Initialize the Primitive Variables and Pressure through Initial Condition.
 void ScimitarX::Initialize(int lev)
 {
     ic_PVec->Initialize(lev, PVec_mf);
@@ -260,6 +329,79 @@ void ScimitarX::TimeStepComplete(Set::Scalar /*time*/, int /*lev*/) {
 void ScimitarX::Regrid(int /*lev*/, Set::Scalar /*time*/) {
 
 }
+
+void ScimitarX::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
+
+        // Advance the solution without stiff source terms
+        AdvanceInTimeWithoutStiffTerms(lev, time, dt);
+
+}
+
+// Function to advance hyperbolic balance equations without stiff terms
+void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar /*time*/, Set::Scalar dt) {
+
+    // Determine the time-stepping scheme
+    switch (temporal_scheme) {
+
+        case Numeric::TimeSteppingSchemeType::ForwardEuler: {
+             
+            int numStages = timeStepper->GetNumberOfStages();
+            // One-stage loop for Forward Euler
+            for (int stage = 0; stage < numStages; ++stage) {
+                
+                // 1. Compute Conserved Variables
+                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+
+                // 2. Perform flux reconstruction and compute fluxes in all directions
+                fluxHandler->ConstructFluxes(lev, this);
+
+                //ApplyBoundaryConditions(lev, time);
+                
+                // 3. Compute sub-step using the chosen time-stepping scheme
+                timeStepper->ComputeSubStep(lev, dt, stage, this);
+
+                // 4. Update solution from conservative to primitive variables
+                UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+
+
+                //ApplyBoundaryConditions(lev, time);
+
+                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
+                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
+            }
+            break;
+        }
+
+        case Numeric::TimeSteppingSchemeType::RK3: {
+
+            int numStages = timeStepper->GetNumberOfStages();
+
+            for (int stage = 0; stage < numStages; ++stage) {
+                // 1. Compute Conserved Variables
+                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+
+                // 2. Perform flux reconstruction and compute fluxes in all directions
+                fluxHandler->ConstructFluxes(lev, this);
+
+                // 3. Compute sub-step using the chosen time-stepping scheme
+                timeStepper->ComputeSubStep(lev, dt, stage, this);
+
+                // 4. Update solution from conservative to primitive variables
+                UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+
+                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
+                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
+            }
+            break;
+        }
+
+        default:
+            Util::Abort(__FILE__, __func__, __LINE__, "Unknown TimeSteppingScheme.");
+    }
+
+        // Util::Message(INFO, "Completed AdvanceInTimeWithoutStiffTerms for level: " + std::to_string(lev));
+}
+
 
 void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
         
@@ -398,47 +540,6 @@ IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Ut
     }
 
     return bc_pp;
-}
-
-// Compatibility Check Implementations
-bool ScimitarX::SolverMetadata::supportsFluxReconstruction(Numeric::FluxReconstructionType method) const {
-    switch(method) {
-        case Numeric::FluxReconstructionType::FirstOrder:
-        case Numeric::FluxReconstructionType::WENO:
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool ScimitarX::SolverMetadata::supportsFluxScheme(Numeric::FluxScheme scheme) const {
-    switch(scheme) {
-        case Numeric::FluxScheme::LocalLaxFriedrichs:
-        case Numeric::FluxScheme::HLLC:
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool ScimitarX::SolverMetadata::supportsTimeSteppingScheme(Numeric::TimeSteppingSchemeType scheme) const {
-    switch(scheme) {
-        case Numeric::TimeSteppingSchemeType::ForwardEuler:
-        case Numeric::TimeSteppingSchemeType::RK3:
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool ScimitarX::SolverMetadata::supportsReconstructionMode(Numeric::ReconstructionMode mode) const {
-    switch(mode) {
-        case Numeric::ReconstructionMode::Primitive:
-        case Numeric::ReconstructionMode::Conservative:
-            return true;
-        default:
-            return false;
-    }
 }
 
 } // namespace Integrator
