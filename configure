@@ -16,7 +16,7 @@ from pathlib import Path
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.02"
+amrex_current_version = "25.03"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -67,7 +67,7 @@ def message(title,message="",wrap_message=True):
     print(color.boldgreen + title.ljust(width) + color.reset,end="")
     if wrap_message: wrap(message)
     else: print(message)
-def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None):
+def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None,shell=False):
     print(color.boldgreen + title.ljust(width) + color.reset, end="")
     if message and hidecmd:
         print(message)
@@ -77,7 +77,9 @@ def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None):
     elif not message and not hidecmd:
         print(code(cmd))
     
-    p = subprocess.run(cmd.split(' '),capture_output=True,cwd=cwd)
+    if not shell: cmd = cmd.split()
+    p = subprocess.run(cmd,shell=shell,capture_output=True,cwd=cwd)
+
     wrap(p.stdout.decode('ascii').replace('\n',' '),hanging=hidecmd,strcolor=color.lightblue)
     wrap(p.stderr.decode('ascii').replace('\n',' '),hanging=hidecmd,strcolor=color.blue)
     try:
@@ -108,8 +110,6 @@ parser.add_argument('--debug', dest='debug', action='store_true', help='Compile 
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--offline', dest='offline', action='store_true',default=False, help='[Compile in production mode]')
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
-parser.add_argument('--alternate-mpi', dest='alternate_mpi', action='store_true',default=False, help='Compile with an unsupported MPI library (only MPICH and MVAPICH are supported)')
-parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
 parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
@@ -121,6 +121,7 @@ parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_tru
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
+parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.set_defaults(debug=False)
 
 #
@@ -152,11 +153,15 @@ if args.memcheck and args.memcheck_tool == "asan":
     print(mpich_minimum_version)
 
 
-fpic = args.python 
-
 subprocess.run(['mkdir','-p','.make'])
 f = open(".make/Makefile.pre.conf","w")
 f2 = open(".make/Makefile.post.conf","w")
+
+#
+# Specify verbosity of Makefile
+#
+if args.verbose:
+    f.write("QUIET = \n")
 
 #
 # Specify Postfix
@@ -167,7 +172,6 @@ if args.debug: postfix += "-debug"
 if args.memcheck:
     if args.memcheck_tool == "asan": postfix += "-asan"
     if args.memcheck_tool == "msan": postfix += "-msan"
-if fpic: postfix += "-fpic"
 if args.profile: postfix += "-profile"
 if args.coverage: postfix += "-coverage"
 postfix += "-" + args.comp
@@ -270,7 +274,6 @@ if args.buildamrex and not args.amrex:
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
-    if fpic: amrex_configure += ' --enable-pic=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
     message("AMReX-Configure",amrex_configure,False)
@@ -368,21 +371,67 @@ if args.link:
         f.write("LIB += -L" + l + "\n")
     
 #
-# Compiler and MPI library
+# CHECK COMPILER AND SET OPTIONS
 #
 if   (args.comp == "g++"):     f.write("COMP = GCC\n")
 elif (args.comp == "clang++"): f.write("COMP = CLANG\n")
 elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
+message("Comp-Type", str(args.comp))
+shellmessage("Comp-Version",args.comp+" --version")
 
-if not args.alternate_mpi:
+
+#
+# CHECK MPI DISTRIBUTION AND SET OPTIONS
+#
+
+p = shellmessage("MPI","mpicxx -show")
+mpidiststr = p.stdout.decode('utf-8').replace('\n','')
+
+mpidist = None
+if "mpich" in mpidiststr.lower():
+    mpidist = "mpich"
+elif "mvapich2" in mpidiststr.lower():
+    mpidist = "mvapich2"
+elif "mvapich" in mpidiststr.lower():
+    mpidist = "mvapich"
+elif "openmpi" in mpidiststr.lower():
+    mpidist = "openmpi"
+message("mpi implementation", mpidist)
+
+if mpidist == "openmpi":
+    compmpicmd = shellmessage("openmpi comp flags", "mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
+    compmpicmd = args.comp + " " + compmpicmd
+    shellmessage("openmpi c++ link"   , "mpicxx --showme:link".format(args.comp))
+    shellmessage("openmpi fort link"   , "mpifort --showme:link".format(args.comp))
+    shellmessage("openmpi version", "mpicxx --showme:version")
+    env = os.environ.copy()
+    env.update({'OMPI_CXX': args.comp})
+
+    mpicomp = shellmessage("openmpi cxx default", "mpicxx --showme:command").stdout.decode('utf-8').replace('\n','')
+    ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
+    shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
+    f.write(f"CC = {ompicc} \n")
+
+    p = shellmessage("openmpi mpiexec", "mpiexec --version")
+    pexecversion = p.stdout.decode('utf-8').replace('\n','').lower()
+
+    if ("openmpi" not in pexecversion and
+        "open mpi" not in pexecversion and
+        "openrte" not in pexecversion and
+        "open-mpi" not in pexecversion):
+        warning("Your mpiexec seems inconsistent with your mpicxx!!!")
+    if ("mpich" in pexecversion):
+        error("In fact, it seems as though your mpiexec is part of mpich "+
+              "instead of openmpi. Please fix before attempting to run.")
+
+elif mpidist == "mpich":
     if not shutil.which("mpichversion"):
         raise Exception(color.red + "ERROR" + color.reset +
-            ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " +
+            ": An MPICH or MVAPICH installation was not found, to compile "+
+            "with another MPI library please use " +
             code("--alternate-mpi"))
-    message("Comp-Type", str(args.comp))
-    shellmessage("Comp-Version",args.comp+" --version")
-    compmpicmd = shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
+    compmpicmd = shellmessage("mpich comp","mpicxx -cxx="+args.comp+" -show").stdout.decode('utf-8').replace('\n','')
     mpichversionresult = shellmessage("MPICH:","mpichversion")
     if args.memcheck_tool=="asan":
         version_match_str = re.search(r"MPICH Version:\s*([\d.]+)", mpichversionresult.stdout.decode('ascii')).group(1)
@@ -391,26 +440,29 @@ if not args.alternate_mpi:
         if version<minimum_version:
             raise Exception(error("MPICH version {} is less than required version {}".format(version_match_str, mpich_minimum_version)))
         
-    shellmessage("MPICH mpicxx:","mpicxx -v")
+    shellmessage("mpich mpicxx:","mpicxx -v")
     f.write("CC = mpicxx -cxx="+args.comp+"\n")
     f.write("MPI_LIB = -lmpich\n")
+
+    p = shellmessage("mpich mpiexec", "mpiexec --version")
+    if "mpich" not in p.stdout.decode('utf-8').replace('\n',''):
+        warning("Your mpiexec seems inconsistent with your mpicxx!!!")
 else:
-    warning("Only mpich/mvapich mpi are supported. Use alternatives at your own risk.")
-    shellmessage("Compiler (" + args.comp + ")", args.comp + " -v")
-    shellmessage("MPI Library","mpiexec --version")
+    f.write("CC = mpicxx -cxx="+args.comp+"\n")
+    f.write("MPI_LIB = -lmpich\n")
+    warning("We haven't tested "+mpidist+" yet. Attempting to add the proper compile " +
+            "flags but no guarantees.")
 
-    env = os.environ.copy()
-    env.update({'MPICH_CXX': args.comp, 'OMPI_CXX': args.comp, 'I_MPI_CXX': args.comp})
-    shellmessage("MPI Compiling Line", "mpicxx -show", env)
 
-    backend_comp = " MPICH_CXX=" + args.comp + " OMPI_CXX=" + args.comp + " I_MPI_CXX=" + args.comp + " "
-    f.write("CC =" + backend_comp + "mpicxx\n")
-
+#
+# ADD NECESSARY COMPILER-SPECIFIC MPI FLAGS
+#   note: this must come after the MPI section, otherwise the order of
+#         flags may cause linker to fail!
+#
 if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
-
     if args.memcheck:
         if args.memcheck_tool=="asan":
             f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
@@ -432,46 +484,9 @@ if args.comp == 'clang++':
 if args.comp == 'icc':
     f.write("MPI_LIB += -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
+    else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 
-#
-# LibGFortran? -- not needed anymore
-#
-#if args.gfortranln:
-#    shellmessage("Gfort Link","ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so")
-#run = subprocess.run(['ld','-lgfortran'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-#if run.returncode:
-#    warning("Could not find -lgfortran, which will probably cause linking errors. You can try running " 
-#            + code("ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so"))
-#subprocess.run(['rm','a.out','-rf'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
-#
-# Python information
-#
-if args.python:
-    if os.path.isdir("/usr/include/python"+str(args.python)+"/"):
-        python_include_dir = "/usr/include/python"+str(args.python)+"/"
-    elif os.path.isdir("/usr/include/python"+str(args.python)+"m/"):
-        python_include_dir = "/usr/include/python"+str(args.python)+"m/"
-    else:
-        message("Py incl. dirs",' '.join(glob.glob(("/usr/include/python*"))))
-        raise Exception(error("Python include directory does not exist. Version may be incorrect, or you may need to install using either" 
-                        + code("sudo apt install python3-dev") + " or " + code("sudo apt install python-dev")))
-
-    #if ctypes.util.find_library("boost_python-py"+args.python.replace(".","")):
-    #    python_boost_lib = "-lboost_python-py"+str(args.python).replace(".","")
-    #elif ctypes.util.find_library("boost_python3-py"+args.python.replace(".","")):
-    #    python_boost_lib = "-lboost_python3-py"+str(args.python).replace(".","")
-    #else:
-    #    raise Exception(error("Cannot find python boost lib. Install using " + code("sudo apt install libboost-python-dev")))
-    
-    f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
-    f.write("PYTHON_LIB = " + python_boost_lib + '\n')
-    f.write("CXX_COMPILE_FLAGS += -fPIC \n")
-    message("Python","True")
-    message("Pythin include dir:",python_include_dir)
-    message("Pythin boost lib:",python_boost_lib)
-    note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
 
 #
 # DIFF
@@ -493,20 +508,6 @@ f2.write("\t-@mkdir -p .diff\n".format(postfix))
 f2.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
 f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 
-#
-# JIT expression evaluation with Libmesh's FParser
-#
-# TODO: This part here is not done yet. Still need to generalize for
-#       arbitrary user libmesh install path.
-# https://mooseframework.inl.gov/modules/phase_field/FunctionMaterials/JITCompilation.html
-#
-#if args.libmesh:
-#    if not os.path.isfile(args.libmesh+'/lib/libmesh_opt.so'):
-#        raise Exception(error("{}/lib/libmesh_opt.so not found. libmesh path must contain lib/libmesh_opt.so".format(args.libmesh)))
-#    f.write('ALAMO_INCLUDE += -I{}/include/\n'.format(args.libmesh))
-#    f.write('LIB     +=   {}/lib/libmesh_opt.so -Wl,-rpath,{}/lib/ \n'.format(args.libmesh,args.libmesh))
-#if args.jit:
-#    f.write('CXX_COMPILE_FLAGS += -DALAMO_JIT\n')
 
 #
 # Documentation check
@@ -543,7 +544,7 @@ if not args.compile_commands:
 
     projectdir = os.getcwd()
 
-    cc = compmpicmd.stdout.decode('utf-8').replace('\n','')
+    cc = compmpicmd
     command_objects = []
     command_objects = [{
         "directory": projectdir,
