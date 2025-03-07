@@ -53,14 +53,13 @@ If you are using a non-debian based system such as RedHat, you can install the c
 Windows and Mac OS are not supported.
 To configure and run Alamo on a high-performance computing (HPC) cluster, please see :ref:`install_hpc`.
 
-Setting MPICH as default MPI
-============================
+Setting the default MPI
+=======================
 
-Alamo and AMReX require either mpich or mvapich. 
-OpenMPI is not supported, but is often set as the default on Ubuntu systems.
-This can often happen after the installation of other packages, such as Paraview, and is not usually caught by the configure script.
-
-On Ubuntu, you can check to see whether openmpi is being used by the :code:`update-alternatives` command.
+Alamo can be compiled with either MPICH or OpenMPI.
+(mvapich2 is semi-supported but not regularly tested.)
+**MPICH currently does not work on Ubuntu 24.04**, so OpenMPI is now recommended.
+On Ubuntu, you can check to see which version of mpi is being used by the :code:`update-alternatives` command.
 
 .. code-block::
 
@@ -70,14 +69,14 @@ On Ubuntu, you can check to see whether openmpi is being used by the :code:`upda
     
       Selection    Path                    Priority   Status
     ------------------------------------------------------------
-    * 0            /usr/bin/mpicc.openmpi   50        auto mode
-      1            /usr/bin/mpicc.mpich     40        manual mode
+      0            /usr/bin/mpicc.openmpi   50        auto mode
+    * 1            /usr/bin/mpicc.mpich     40        manual mode
       2            /usr/bin/mpicc.openmpi   50        manual mode
     
     Press <enter> to keep the current choice[*], or type selection number:     
 
-In this case, mpich is installed along with openmpi, but openmpi has been set to the default.
-Here, you can just type 1 to set the selection to mpich.
+In this case, mpich is installed along with openmpi, but mpich is currently the default.
+You can press 0 to switch to openmpi.
 Do the same thing for :code:`mpirun`:
 
 .. code-block::
@@ -86,7 +85,7 @@ Do the same thing for :code:`mpirun`:
     
 Now your system should be properly configured.
 
-If you are using an HPC, it is easier to switch to mpich or mvapich using the :code:`module` command.
+If you are using an HPC, it is easier to switch between versions using the :code:`module` command.
 See the documentation for your specific platform to see how to load mpich or mvapich.    
 
 Configuring

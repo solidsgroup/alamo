@@ -1,10 +1,6 @@
 #ifndef INTEGRATOR_HYDRO_H
 #define INTEGRATOR_HYDRO_H
 
-#include <string>
-#include <limits>
-#include <memory>
-
 #include "Integrator/Integrator.H"
 #include "IO/ParmParse.H"
 
@@ -12,11 +8,6 @@
 #include "BC/Constant.H"
 #include "BC/Nothing.H"
 #include "IC/IC.H"
-
-#include "IC/Sphere.H"
-#include "IC/Constant.H"
-#include "IC/Laminate.H"
-#include "IC/Expression.H"
 
 #include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
@@ -135,7 +126,6 @@ private:
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
-    int roefix = 0;
 
     Solver::Local::Riemann::Roe *roesolver = nullptr;
 
