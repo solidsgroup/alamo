@@ -50,9 +50,5 @@ ext/
 compile_commands.json
 .cache/
 .python-version
-.clangd.gitignore.swp
-Doxyfile.bak
-myenv/
-sphinx_env/
-*.png
-*.session
+.clangd
+.DS_Store
