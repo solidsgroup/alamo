@@ -303,5 +303,3 @@ def scrape(root="../src/"):
 
     return data
 
-for s in scrape():
-    print(s)
