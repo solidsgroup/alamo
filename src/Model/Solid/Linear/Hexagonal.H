@@ -1,7 +1,7 @@
 //
 // This class implements elasticity for a linear material with hexagonal symmetry.
 // The elastic modulus tensor :math:`\mathbb{C}` has major and minor symmetry but not cubic symmetry,
-// so the symmetry class for this material is :ref:`Set::Sym::MajorMinor`.
+// so the symmetry class for this material is MajorMinor
 // The five elastic constants in the unrotated system are :math:`C_{11},C_{12},C_{13},C_{33},C_{44}`,
 // and the resulting elastic modulus tensor is
 //
