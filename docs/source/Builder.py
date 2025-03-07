@@ -51,7 +51,6 @@ def printInputs(classname,indent="",prefix=""):
             cls = cls.split("<")[0] # remove template args for now
             if not cls in data.keys(): # if it's not an actual classname then
                 cls = "::".join(classname.split("::")[:-1])+"::"+cls
-            print(cls)
             name = cls.split("::")[-1].lower()
             html += printInputs(cls,indent+"      ",
                                 prefix = input["string"] + ".")
@@ -63,7 +62,6 @@ def printInputs(classname,indent="",prefix=""):
             cls = cls.split("<")[0] # remove template args for now
             if not cls in data.keys(): # if it's not an actual classname then
                 cls = "::".join(classname.split("::")[:-1])+"::"+cls
-            print(cls)
             html += printInputs(cls,indent=indent, prefix=prefix)
         elif "validate" in input["type"]:
             id = prefix + input["string"]
@@ -73,7 +71,6 @@ def printInputs(classname,indent="",prefix=""):
             html += indent + "  </div>\n"
             html += indent + """  <select class="form-select" id="{}"  name="{}">""".format(id,id)
             html += indent + """  <option selected disabled value="">Choose...</option>"""
-            print(input["possibles"].split(','))
             for option in input["possibles"].replace('"','').split(','):
                 html += indent + """  <option>{}</option>""".format(option)
             html += indent + """  </select>"""
@@ -286,4 +283,3 @@ const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstra
 f = open("Builder.html",'w')
 f.write(html)
 f.close()
-#print(html)

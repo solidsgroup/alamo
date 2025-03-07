@@ -248,10 +248,11 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
 /// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 ///
 void
-Integrator::RemakeLevel(int lev,       ///<[in] AMR Level
-    amrex::Real time,     ///<[in] Simulation time
-    const amrex::BoxArray& cgrids,
-    const amrex::DistributionMapping& dm)
+Integrator::RemakeLevel(int lev,                             ///<[in] AMR Level
+                        amrex::Real time,                    ///<[in] Simulation time
+                        const amrex::BoxArray &cgrids,       ///<[in] Coarse grids
+                        const amrex::DistributionMapping &dm ///[in] Distribution mapping
+    )
 {
     BL_PROFILE("Integrator::RemakeLevel");
     for (int n = 0; n < cell.number_of_fabs; n++)
