@@ -50,9 +50,9 @@ jobs:
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
     - name: parallelism check
-      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe"
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace
   test-2d-24-04:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
