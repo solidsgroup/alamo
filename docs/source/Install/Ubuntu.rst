@@ -20,13 +20,17 @@ Install dependencies
 
 .. tab-set::
 
-    .. tab-item:: 24.04
+    .. tab-item:: :fab:`ubuntu;fa-b` 24.04 LTS
+
+       MPICH does not currently work on 24.04, so OpenMPI is used instead.
+       If you already have multiple versions of MPI installed, 
+       see :ref:`Setting the default MPI` to set the correct one.
 
         .. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-24.04.sh
            :language: bash
            :lines: 2-
 
-    .. tab-item:: 22.04
+    .. tab-item:: :fab:`ubuntu;fa-b` 22.04 LTS
 
         .. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-22.04.sh
            :language: bash
