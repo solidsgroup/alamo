@@ -1,10 +1,14 @@
-from scraper import getdocumentation, geticon, extract, scrapeInputs
+import sys
+sys.path.insert(0,"../../scripts")
+import scraper
+from scraper import scrape
 
 
 
-data = scrapeInputs()
 
 def printInputs(classname,indent="",prefix=""):
+    data = scrape("../../src/")
+
     if classname not in data.keys(): return ""
     html = ""
     for input in data[classname]["inputs"]:
