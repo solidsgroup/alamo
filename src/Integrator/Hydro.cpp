@@ -2,12 +2,10 @@
 #include "Hydro.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
-#include "BC/Nothing.H"
 #include "BC/Expression.H"
 #include "Numeric/Stencil.H"
-#include "Numeric/Function.H"
+#include "IC/Constant.H"
 #include "IC/Laminate.H"
-#include "IC/PSRead.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "IC/PNG.H"
@@ -68,7 +66,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
-        pp_query_default("roefix",value.roefix,0); // Roe solver entropy fix
+
+        pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
     }
     // Register FabFields:
@@ -427,12 +426,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             try
             {
                 //lo interface fluxes
-                flux_xlo = roesolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small, roefix) * eta(i,j,k);
-                flux_ylo = roesolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small, roefix) * eta(i,j,k);
+                flux_xlo = roesolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_ylo = roesolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
 
                 //hi interface fluxes
-                flux_xhi = roesolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small, roefix) * eta(i,j,k);
-                flux_yhi = roesolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small, roefix) * eta(i,j,k);
+                flux_xhi = roesolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_yhi = roesolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
             }
             catch(...)
             {
