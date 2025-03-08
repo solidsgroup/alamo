@@ -7,7 +7,8 @@ from glob import glob
 import sys
 sys.path.insert(0,"../../scripts")
 
-from scraper import getdocumentation, geticon, extract, scrapeInputs
+import scraper
+from scraper import getdocumentation, geticon, extract
 
 src2url = {}
 try:
@@ -105,17 +106,16 @@ the prefixes out.
     </style>
 
 
+.. raw:: html
 
-.. rst-class:: api-inputs-table
-
-.. flat-table:: 
-    :header-rows: 1
-
-    * - Parameter
-      - Namespace / Class
-      - Description
+   <table class="api-inputs-table docutils align-default">
+     <thead><tr>
+       <th class="head"><p>Parameter</p></th>
+       <th class="head"><p>Type</p></th>
+       <th class="head"><p>Values</p></th>
+     </tr></thead>
+     <tbody>
 """
-
 
 
 def printAPI(docfile, file, api):
@@ -164,38 +164,21 @@ def printAPI(docfile, file, api):
         docfile.write(        "   - :code:`{}`\n".format(method['name']+method['argsstring']))
         docfile.write(        "     {}\n".format(clean(method)))
 
+
+
+
+def write(root="../../src/"):
+
+    docs = scraper.scrape(root)
+
+    from doxscrape import parse_all_doxygen_files
+    api = parse_all_doxygen_files("../build/html/doxygen/doxygen_xml/")
     
-
-        #for method in cls["methods"]:
-        #   docfile.write("       ")
-        
-        #docfile.write(f"    - Class Name: {cls['name']}, ID: {cls['id']}, Type: {cls['type']}, File: {cls['file']}\n")
-        #docfile.write(f"      Brief Description: {cls['brief_description']}\n")
-        #docfile.write(f"      Detailed Description: {cls['detailed_description']}\n\n")
-
-
-
-
-
-def scrapeInputs(root="../../src/", writeFiles=True, writeAPI=False):
-
-    if writeAPI:
-        from doxscrape import parse_all_doxygen_files
-        api = parse_all_doxygen_files("../build/html/doxygen/doxygen_xml/")
+    docfilesearch  = open("InputsSearch.rst","w")
+    docfilesearch.write(inputsearchheader)
     
-    srcfiles = set()
-    for dirname, subdirlist, filelist in sorted(os.walk(root)):
-        for f in filelist:
-            if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f.replace(".cpp",""))
-            if f.endswith(".H"): srcfiles.add(dirname+"/"+f.replace(".H",""))
-    srcfiles = list(srcfiles)
-    
-    if writeFiles: docfilesearch    = open("InputsSearch.rst","w")
-    if writeFiles: docfilesearch.write(inputsearchheader)
-    
-    
-    if writeFiles: docfile    = open("Inputs.rst","w")
-    if writeFiles: docfile.write(inputsheader)
+    docfile = open("Inputs.rst","w")
+    docfile.write(inputsheader)
     
     headerchar = ["=","*","-","~","."]
     written_headers = []
@@ -204,187 +187,175 @@ def scrapeInputs(root="../../src/", writeFiles=True, writeAPI=False):
     num_tot = 0
     num_doc = 0
 
-    for dirname, subdirlist, filelist in sorted(os.walk(root)):
-        hdrname = dirname.replace(root,"").replace("/","::")
-        depth = len(hdrname.split("::")) 
+    for classname in docs:
+        inputs = docs[classname]['inputs']
+        documentation = docs[classname]['documentation']
     
-        srcfileset = set()
-        for f in filelist:
-            if f.endswith(".cpp"): srcfileset.add(f.replace(".cpp",""))
-            if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
-        srcfilelist = list(srcfileset)
-        
-        #
-        # This function makes sure pure abstract classes get
-        # listed first.
-        #
-        def alphabetize_with_abstract_first(key):
-            if key == hdrname.split("::")[-1]:
-                return "0"
-            return(key[0])
-        for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
-
-            try:
-                inputs = extract(dirname+"/"+f)
-            except Exception as e:
-                print("ERROR: problem reading",dirname)
-                raise
-            documentation = getdocumentation(dirname+"/"+f)
-            if not len(inputs) and not documentation:
-                continue
+        subhdr = ""
+        for i in range(len(classname.split('::'))):
+            subhdr = '::'.join(classname.split('::')[:i])
+            if subhdr not in written_headers:
+                if '::' not in subhdr and subhdr != "":
+                    docfile.write("--------------------\n\n\n")
+                    docfile.write(".. _{}:\n\n".format(subhdr))
+                    docfile.write(geticon(subhdr) + subhdr+"\n")
+                    docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
+                else:
+	                docfile.write("\n" + subhdr+"\n")
+	                docfile.write("".ljust(len(subhdr),headerchar[i-1]))
+                docfile.write("\n\n\n")
+            written_headers.append(subhdr)
     
-            classname = dirname.replace(root,"").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
-    
-            subhdr = ""
-            for i in range(len(classname.split('::'))):
-                subhdr = '::'.join(classname.split('::')[:i])
-                if subhdr not in written_headers:
-                    if writeFiles:
-                        if '::' not in subhdr and subhdr != "":
-                            docfile.write("--------------------\n\n\n")
-                            docfile.write(".. _{}:\n\n".format(subhdr))
-                            docfile.write(geticon(subhdr) + subhdr+"\n")
-                            docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
-                        else:
-    	                    docfile.write("\n" + subhdr+"\n")
-    	                    docfile.write("".ljust(len(subhdr),headerchar[i-1]))
-                        docfile.write("\n\n\n")
-                    written_headers.append(subhdr)
-    
-            #if classname.split("::")[-1] != classname.split("::")[-2]:
-            if writeFiles: docfile.write(classname + "\n")
-            lev = len(classname.split('::'))-1
-            if writeFiles: docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
-            subhdr = classname
+        docfile.write(classname + "\n")
+        lev = len(classname.split('::'))-1
+        docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
+        subhdr = classname
                 
-            if writeFiles:
-                srcfile = dirname.replace("../../","")+"/"+f+".cpp"
-                hdrfile = dirname.replace("../../","")+"/"+f+".H"
-                if srcfile in src2url.keys() or hdrfile in src2url.keys():
-                    docfile.write("\n\n")
+        srcfile = docs[classname]['srcfile']
+        hdrfile = docs[classname]['hdrfile']
+        if srcfile or hdrfile:
+            docfile.write("\n\n")
+            if srcfile:
+                docfile.write(r":bdg-link-primary-line:`{} <{}>`".format(srcfile,src2url[srcfile])+"\n")
+            if hdrfile:
+                docfile.write(r":bdg-link-secondary-line:`{} <{}>`".format(hdrfile,src2url[hdrfile])+"\n")
+            docfile.write("\n\n")
+
+        if documentation:
+            docfile.write(documentation)
+                
+        if not len(inputs):
+            printAPI(docfile,hdrfile,api)
+            continue
+        if len(inputs) == 1 and not list(inputs)[0]:
+            printAPI(docfile,hdrfile,api)
+            continue
+    
+        docfile.write("""\n\n""")
+        docfile.write(""".. raw:: html \n\n""")
+        docfile.write("""                 \n""")
+        docfile.write("""   <table class="api-inputs-table docutils align-default">\n\n""")
+        docfile.write("""     <thead><tr> \n""")
+        docfile.write("""       <th class="head"><p>Parameter</p></th> \n""")
+        docfile.write("""       <th class="head"><p>Type</p></th> \n""")
+        docfile.write("""       <th class="head"><p>Values</p></th> \n""")
+        docfile.write("""     </tr></thead> \n""")
+        docfile.write("""     <tbody> \n""")
+
+        def writeInput(input,lev,prefix):
+
+            prefix = list(filter(lambda x: x != "", prefix))
+            if (input["type"]=="group"):
+                for subinput in input["inputs"]:
+                    writeInput(subinput,lev+1,prefix + [input["prefix"]])
                     
-                    if srcfile in src2url.keys():
-                        docfile.write(r":bdg-link-primary-line:`{} <{}>`".format(srcfile,src2url[srcfile])+"\n")
-                    if hdrfile in src2url.keys():
-                        docfile.write(r":bdg-link-secondary-line:`{} <{}>`".format(hdrfile,src2url[hdrfile])+"\n")
-                    docfile.write("\n\n")
+            elif (input["type"] in ["query","queryarr","query_validate",
+                                  "query_default","queryarr_default",
+                                  "query_required","queryarr_required",
+                                  "query_file", "select", "select_default"]):
+
+                input_html_row = """      <tr> \n"""
+
+                global num_tot, num_doc
+                if input["parsefn"]: prefix = ["[prefix]"] + prefix
+                num_tot += 1
+
+                # update the selects to derive the "type" that they should be
+                # and set the name to "type"
+                if input["type"] in ["select","select_default"]:
+                    input['possibles'] = [str(cl).split('::')[-1].lower() for cl in input["classes"]]
+                    input["string"] += ".type"
+
+                codetarget = ""
+                try:
+                    filename = src2url[input["file"].replace("../../","")]
+                    linenumber = "l"+str(input["line"]).zfill(5)
+                    codetarget = filename+"#"+linenumber
+                except Exception as e:
+                    print(e)
+
+                bdg_secondary_ext = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
+                fullname = '.'.join(prefix+[input['string']])
+
+                input_html_row += f"""         <td><p><a href="{codetarget}" class="{bdg_secondary_ext}"> """
+                input_html_row += f"""                 <span>{fullname}</span></a></p>""" 
+                input_html_row += f"""         </td> \n"""
 
 
-            if documentation and writeFiles:
-                docfile.write(documentation)
-                
-            if not len(inputs):
-                if writeFiles: printAPI(docfile,hdrfile,api)
-                continue
-            if len(inputs) == 1 and not list(inputs)[0]:
-                if writeFiles: printAPI(docfile,hdrfile,api)
-                continue
-    
-    
-            if writeFiles:
-                docfile.write("\n\n")
-                docfile.write(".. rst-class:: api-inputs-table\n\n")
-                docfile.write(".. flat-table:: \n")
-                docfile.write("    :header-rows: 1\n\n")
-                docfile.write("    * - Parameter\n")
-                docfile.write("      - Type\n")
-                docfile.write("      - Values\n")
-    
-            def writeInput(input,lev,prefix):
-                prefix = list(filter(lambda x: x != "", prefix))
-                if (input["type"]=="group"):
-                    if writeFiles: docfile.write("    * - {}  \n".format(input['doc'].replace("\n", "\n        ")))
-                    for subinput in input["inputs"]:
-                        writeInput(subinput,lev+1,prefix + [input["prefix"]])
-                if (input["type"] in ["query","queryarr","query_validate",
-                                      "query_default","queryarr_default",
-                                      "query_required","queryarr_required",
-                                      "query_file", "select", "select_default"]):
-                    global num_tot, num_doc
-                    if input["parsefn"]: prefix = ["[prefix]"] + prefix
-                    num_tot += 1
-
-                    # update the selects to derive the "type" that they should be
-                    # and set the name to "type"
+                bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
+                bdg_primary   = "sd-sphinx-override sd-badge sd-outline-primary sd-text-primary"
+                bdg_secondary = "sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary"
+                bdg_danger    = "sd-sphinx-override sd-badge sd-outline-danger sd-text-danger"
+                if input["doc"] != "":
+                    value_string = ""
+                    if input["type"] in ["query_default","queryarr_default"]:
+                        value_string += f"""<span class="{bdg_success}">{input['default']}</span>"""
+                    if "_required" in input["type"]:
+                        value_string += f"""<span class="{bdg_danger}">required</span>"""
+                    if "_file" in input["type"]:
+                        value_string += f"""<span class="{bdg_secondary}">file path</span> """
+                    if "_validate" in input["type"]:
+                        things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
+                        value_string = f"""<span class="{bdg_success}">{things[0]}</span> """
+                        value_string += " ".join([f"""<span class="{bdg_primary}">{thing}</span>""" for thing in things[1:]])
                     if input["type"] in ["select","select_default"]:
-                        input['possibles'] = [str(cl).split('::')[-1].lower() for cl in input["classes"]]
-                        input["string"] += ".type"
-                        
-                        
+                        things = input['possibles']
+                        if input["type"] == "select_default":
+                            value_string = f"""<span class="{bdg_success}">{things[0]}</span> """
+                            value_string += " ".join([f"""<span class="{bdg_primary}">{thing}</span>""" for thing in things[1:]])
+                        elif input["type"] == "select":
+                            value_string = " ".join([f"""<span class="{bdg_primary}">{thing}</span>""" for thing in things])
 
+                    # Convert RST math directeves to plain mathjax
+                    processed_doc = re.sub(r":math:`(.*?)`", r"\\(\1\\)", input['doc'].replace('\n',''))
+                    # Convert RST code directives to <code>
+                    processed_doc = re.sub(r":code:`(.*?)`", r"<code>\1</code>", processed_doc)
+                    
 
-                    if writeFiles:
-                        codetarget = None
-                        try:
-                            filename = src2url[input["file"].replace("../../","")]
-                            linenumber = "l"+str(input["line"]).zfill(5)
-                            codetarget = filename+"#"+linenumber
-                        except Exception as e:
-                            print(e)
-
-                        if codetarget:
-                            docfile.write(      "    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
-                            docfilesearch.write("    * - :bdg-link-secondary:`{}<{}>`".format('.'.join(prefix+[input['string']]),codetarget) + "\n")
-                        else:
-                            docfile.write(      "    * - :bdg-danger:`{}`".format('.'.join(prefix+[input['string']])) + "\n")
-                            docfilesearch.write("    * - :bdg-danger:`{}`".format('.'.join(prefix+[input['string']])) + "\n")
-                    if input["doc"] != "":
-                        num_doc += 1
-                        if writeFiles:
-                            docfile.write(      "      - {}\n".format(input['doc'].replace('\n','\n        ')))
-                            docfilesearch.write("      - {}\n".format(input['doc'].replace('\n','\n        ')))
-                            if input["type"] in ["query_default","queryarr_default"]:
-                                docfile.write(      "      - :bdg-success-line:`{}`".format(input['default'].strip()))
-                                docfilesearch.write("      - :bdg-success-line:`{}`".format(input['default'].strip()))
-                            if "_required" in input["type"]:
-                                docfile.write(      "      - :bdg-danger-line:`required`")
-                                docfilesearch.write("      - :bdg-danger-line:`required`")
-                            if "_file" in input["type"]:
-                                docfile.write(      "      - :bdg-secondary-line:`file path`")
-                                docfilesearch.write("      - :bdg-secondary-line:`file path`")
-                            if "_validate" in input["type"]:
-                                things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
-                                string = ":bdg-success-line:`{}` ".format(things[0])
-                                string += " ".join([":bdg-primary-line:`{}`".format(t) for t in things[1:]]) 
-                                docfile.write      (      "      - {}".format(string))
-                                docfilesearch.write(      "      - {}".format(string))
-                            if input["type"] in ["select","select_default"]:
-                                things = input['possibles']
-                                if input["type"] == "select_default":
-                                    string = ":bdg-success-line:`{}` ".format(things[0])
-                                    string += " ".join([":bdg-primary-line:`{}`".format(t) for t in things[1:]])
-                                elif input["type"] == "select":
-                                    string = " ".join([":bdg-primary-line:`{}`".format(t) for t in things])
-                                docfile.write      (      "      - {}".format(string))
-                                docfilesearch.write(      "      - {}".format(string))
-                                
+                    if value_string != "": 
+                        input_html_row += f"""         <td colspan="1"><p><span>{processed_doc}</span></p></td> \n"""
+                        input_html_row += f"""         <td><p>{value_string}</p></td> \n"""
                     else:
-                        print(input['file'],':',input['line'],' ',input['string'],' missing documentation')
-                        if writeFiles:
-                            docfile.write("      - \n")
-                            docfilesearch.write("      - \n")
+                        input_html_row += f"""         <td colspan="2"><p><span>{processed_doc}</span></p></td> \n"""
+
+
+                    docfile.write(input_html_row)
+                    docfilesearch.write(input_html_row)
+                    num_doc +=1
+
+
+                else:
+                    print(input)
+                    print(input['file'],':',input['line'],' ',input['string'],' missing documentation')
+                    docfile.write("      - \n")
+                    docfilesearch.write("      - \n")
     
-                if writeFiles:
-                    docfile.write("\n")
-                    docfilesearch.write("\n")
+            docfile.write("\n")
+            docfilesearch.write("\n")
 
-            for input in inputs:
-                writeInput(input,0,[])
+        for input in inputs:
+            writeInput(input,0,[])
             
-            if writeFiles:
-                printAPI(docfile,hdrfile,api)
-                docfile.write("\n")
-                docfilesearch.write("\n")
+        docfile.write("""     </tbody> \n""")
+        docfile.write("""   </table>\n\n""")
 
-        
+
+        printAPI(docfile,hdrfile,api)
+        docfile.write("\n")
+        docfilesearch.write("\n")
 
     
     print("\n{} of {} inputs documented\n".format(num_doc,num_tot))
     
+
+
+    docfilesearch.write("""     </tbody> \n""")
+    docfilesearch.write("""   </table>\n\n""")
     
-    if writeFiles:
-        docfile.close()
-        docfilesearch.close()
+    docfile.close()
+    docfilesearch.close()
 
     return num_doc, num_tot
 
+
+write()

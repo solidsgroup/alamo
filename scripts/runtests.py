@@ -101,6 +101,8 @@ parser.add_argument('--no-clean', dest='clean', default=False, action='store_fal
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
+parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
+parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -261,7 +263,7 @@ def test(testdir):
             if nprocs > 1 and args.serial: 
                 continue
             # If not running in serial, specify mpirun command
-            if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
+            if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
             # Specify alamo command.
             
             exestr = "./bin/{}-{}d".format(exe,dim)
@@ -357,6 +359,18 @@ def test(testdir):
             stdout, stderr = proc.communicate(timeout=timeout)
             retcode = proc.returncode
             if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
+
+            if args.check_mpi:
+                pattern = r"MPI initialized with (\d+) MPI processes"
+                match = re.search(pattern, stdout.decode('utf-8'))
+                if match:
+                    actual_nprocs = int(match.group(1))
+                    if nprocs != actual_nprocs:
+                        raise subprocess.CalledProcessError(retcode, proc.args, output=stdout,
+                                                            stderr=f"MPI is not working: should run with {nprocs} procs but is running with {actual_nprocs}!".encode('utf-8'))
+                else:
+                    raise subprocess.CalledProcessError(retcode, proc.args, output=stdout,
+                                                        stderr=f"Could not tell if MPI is working!".encode('utf-8'))
 
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)

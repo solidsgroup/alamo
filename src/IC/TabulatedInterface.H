@@ -1,16 +1,21 @@
+//
+// Initialize a 2D interface in a 2 component field defind by (x,y)
+// which are an array of points along the interface.
+//
+//
+
 #ifndef IC_TABULATEDINTERFACE_H_
 #define IC_TABULATEDINTERFACE_H_
 
 #include "IO/ParmParse.H"
 #include "IC/IC.H"
-#include "Util/Util.H"
+
+#include "IO/ParmParse.H"
 #include "Numeric/Interpolator/Linear.H"
 
-/// \class TabulatedInterface
-/// \brief Initialize a perturbed interface using a linear interpolation
-///
 namespace IC
 {
+///  Initialize a perturbed interface using a linear interpolation
 class TabulatedInterface : public IC<Set::Scalar>
 {
 public:

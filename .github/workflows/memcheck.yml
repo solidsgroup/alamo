@@ -11,13 +11,18 @@ permissions:
 
 jobs:
   memcheck-2d-asan-gcc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh 
+    - name: installing mpich (needed for asan)
+      run: sudo apt install -y libmpich-dev libmpich12 mpich
+    - name: switch mpi compiler to mpich
+      run: sudo update-alternatives --set mpi /usr/bin/mpicc.mpich
+    - name: switch mpirun to mpich
+      run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d)
-      continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 
     - name: make (2d)
       run: make
@@ -25,11 +30,11 @@ jobs:
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout
 
   memcheck-2d-asan-clang:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
       continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=clang++
@@ -39,11 +44,11 @@ jobs:
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout
 
   memcheck-2d-msan-clang:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
       continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=msan --comp=clang++

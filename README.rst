@@ -1,14 +1,33 @@
+.. raw:: html
+
+   <p align="center">
+       <img src="https://www.solids.group/wp-content/uploads/2025/03/alamo3-inv.png" alt="alamo" width="400">
+   </p>
+
+   <p align="center">
+       <img src="https://github.com/solidsgroup/alamo/actions/workflows/linux.yml/badge.svg?branch=development">
+       <img src="https://github.com/solidsgroup/alamo/actions/workflows/coverage.yml/badge.svg?branch=development">
+       <img src="https://img.shields.io/github/last-commit/solidsuccs/alamo/development.svg?label=last%20commit%20%28development%29">
+       <img src="https://img.shields.io/github/contributors/solidsuccs/alamo.svg">
+       <img src="https://img.shields.io/github/issues-pr/solidsuccs/alamo.svg">
+       <img src="https://img.shields.io/github/issues/solidsuccs/alamo.svg">
+       <img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10381768.svg">
+   </p>
+
 .. getting-started:
 
-Note: this README page is also the Doxygen main page, the Github readme page, 
-and the Docs main page.
-You can view it by running :code:`make docs` in the root directory, then opening 
-:code:`docs/doxygen/html/index.html` or :code:`docs/build/html/index.html` in a web browser. 
+Alamo is a high-performance scientific code that uses block-structured adaptive mesh refinement
+to solve such problems as: the ignition and burn of solid rocket propellant, plasticity, damage
+and fracture in materials undergoing loading, and the interaction of compressible flow with
+eroding solid materials. Alamo is powered by AMReX, and provides a set of unique methods,
+models, and algorithms that enable it to solve solid-mechanics problems (coupled to other
+physical behavior such as fluid flow or thermal diffusion) using the power of block-structured
+adaptive mesh refinement.
 
-
+`Alamo documentation <https://solidsgroup.github.io/alamo/docs/>`_
 
 Downloading Alamo
-=================
+-----------------
 
 Download alamo using git:
 
@@ -23,7 +42,7 @@ You can download alamo using HTTPS instead,
     
     https://github.com/solidsuccs/alamo.git 
 
-Note, however, that you will not be able to push anything using HTTPS authentication.
+Note, that you will not be able to push anything using HTTPS authentication.
 The :code:`master` branch is the most stable and is what is checked out by default.
 The :code:`develompent` branch is generally stable, and includes the latest functionality.
 To switch to :code:`development`, in the alamo directory,
@@ -31,36 +50,20 @@ To switch to :code:`development`, in the alamo directory,
 .. code-block::
     
     git checkout development
-
-
-
-.. literalinclude:: .git/workflows/dependencies.sh
-   :caption: Dependencies
-   :language: bash
     
 Installing dependencies
-=======================
+-----------------------
 
-Alamo depends primarily on AMReX, but has some of its own dependencies, such as Eigen.
-The two officially supported Linux distributions are currently: the latest version of Ubuntu, and Ubuntu 20.04. (This is subject to change).
-If you are using Ubuntu (or a debian-based distribution) you can install all necessary dependencies by running the dependencies script:
+Alamo is routinely run and tested on Ubuntu and MacOS.
+You can use the
+`System Install Scripts <https://solidsgroup.github.io/alamo/docs/GettingStarted.html#system-install-scripts>`_
+to install all necessary dependencies for your system.
 
-.. code-block::
+Setting default MPI
+-------------------
 
-    sudo bash .github/workflows/dependencies.sh
-
-If you are using a non-debian based system such as RedHat, you can install the corresponding packages in :code:`dependencies.sh`. 
-Windows and Mac OS are not supported.
-To configure and run Alamo on a high-performance computing (HPC) cluster, please see :ref:`install_hpc`.
-
-Setting MPICH as default MPI
-============================
-
-Alamo and AMReX require either mpich or mvapich. 
-OpenMPI is not supported, but is often set as the default on Ubuntu systems.
-This can often happen after the installation of other packages, such as Paraview, and is not usually caught by the configure script.
-
-On Ubuntu, you can check to see whether openmpi is being used by the :code:`update-alternatives` command.
+It may be necessary to use a specific MPI distribution.
+On Ubuntu, you can change the distribution with the following:
 
 .. code-block::
 
@@ -76,21 +79,16 @@ On Ubuntu, you can check to see whether openmpi is being used by the :code:`upda
     
     Press <enter> to keep the current choice[*], or type selection number:     
 
-In this case, mpich is installed along with openmpi, but openmpi has been set to the default.
-Here, you can just type 1 to set the selection to mpich.
-Do the same thing for :code:`mpirun`:
+Do the same thing for mpirun.
 
 .. code-block::
 
     $> sudo update-alternatives --config mpirun
     
-Now your system should be properly configured.
-
-If you are using an HPC, it is easier to switch to mpich or mvapich using the :code:`module` command.
-See the documentation for your specific platform to see how to load mpich or mvapich.    
+Remember to run :code:`make realclean` every time you switch mpi versions. 
 
 Configuring
-===========
+-----------
 
 To compile alamo, you must first run the configure script. 
 This is done simply by running the following in the alamo directory 
@@ -101,31 +99,26 @@ This is done simply by running the following in the alamo directory
     ./configure
 
 By default, alamo will configure in 3D production mode. 
-To compile in 2D debug mode, 
+To compile in  2D debug mode, 
 
 .. code-block::
 
     ./configure --dim=2 --debug
 
-Additionally, the configuration step is when you specify which compiler will be used for compilation. By default, the configure script will use the GNU C++ Compiler (g++). To specify a different compiler, such as the Clang C++ Compiler, use the following command line argument, replacing clang++ with the supported compiler you'd like to use:
-
-.. code-block::
-
-   ./configure --comp clang++
-
-There are many compilation options available for Alamo, and they must all be specified at configure time.
+There are multiple compilation options available for Alamo, and they must all be specified at configure time.
 For a complete listing of the Alamo configuration options, type
 
 .. code-block::
 
     ./configure --help
 
+
 .. NOTE:: 
     The configure script produces output designed to assist in determining compile issues with Alamo.
     Whenever you request help with alamo, please always include the complete output of the configure script.
 
 Compiling
-=========
+---------
 
 Once you have configured Alamo, compile it by
 
@@ -155,8 +148,8 @@ All you need to do is re-run the configure script, and previous versions of Alam
     To continue the build, just issue the :code:`make` command again and it should continue normally.
     You can also add the :code:`--output-sync=target` option which may help eliminate the issue.
 
-Testing
-=======
+Unit Testing
+------------
 
 Upon successful compilation, run tests by
 
@@ -176,55 +169,11 @@ If you are a developer and you are preparing to merge your branch into :code:`de
     make
     make test
 
-For a full description of the Alamo regression test system, please see 
+Regression Testing
+------------------
 
+Alamo contains several `Regression Tests <https://solidsgroup.github.io/alamo/docs/Tests.html>`_ that are routinely tested
+and checked with CI.
+These are checked for `Performance <https://lookerstudio.google.com/s/id-e_zDzO8w>`_ 
+and `Code Coverage <https://solidsgroup.github.io/alamo/cov/>`_
 
-Common Error Messages
-=====================
-
-The following are some common error messages and problems encountered:
-
-* :code:`MLLinOp: grids not coarsenable between AMR levels`
-  This is a conflict in the **multigrid solver** because the grid size is not a power of 2.
-  Solve by changing the domain dimensions (`amr.n_cell`) so that they are powers of two.
-
-* :code:`static_cast<long>(i) < this->size() failed`
-  One common reason this happens is if Dirichlet/Neumann
-  boundaries are specified but no boundary values are provided.
-
-* :code:`error: lvalue required as left operand of assignment`
-  This can happen when using the :code:`()` operator with a :code:`Isotropic` :code:`Matrix4`-type object.
-  Because this data structure only stores two constants, it is not possible to define any of the values using
-  indices. 
-  (Similarly, you cannot set an :code:`Isotropic` 4-matrix to a :code:`Cubic` 4-matrix since the Cubic
-  matrix has lower symmetry).
-  If you get this error, you should use a lower-symmetry 4-matrix.
-
-* :code:`Inconsistent box arrays`
-  This is known to happen when using an :code:`Operator::Elastic` inside an :code:`Integrator`, e.g. in :code:`TimeStepBegin`.
-  Typically this happens when the Elastic operator is not initialized within the routine in which it is used - i.e.e if it is declared as a member variable inside the :code:`Integrator` - derived class.
-  (The reason is that there are AMReX-specific functions that only get called by the constructor.)
-  The fix is to initialize the operator object inside the routine in which it is used - either by making the member variable a pointer and using the :code:`new` keyword, or by just creating the variable inside the function.
-  
-  
-
-Generating this documentation
-=============================
-
-Generating documentation requires the following packages:
-
-* Doxygen (on Ubuntu: :code:`sudo apt install doxygen`)
-* Sphinx (on Ubuntu: :code:`sudo apt install python3-sphinx`)
-* Breathe (on Ubuntu: :code:`sudo apt install python3-breathe`)
-* M2R (on Ubuntu: :code:`python3 -m pip install m2r`)
-* RTD theme (on Ubuntu: :code:`python3 -m pip install sphinx_rtd_theme`)
-* GraphViz (on Ubuntu: :code:`sudo apt install graphviz`)
-
-To generate the documentation, type
-
-.. code-block::
-
-    make docs
-
-(You do not need to run :code:`./configure` before generating documentation.)
-Documentation will be generated in `docs/build/html` and can be viewed using a browser.

@@ -109,7 +109,7 @@ gcc Configure and Compile Script
 
 .. code-block:: bash
 
-   # /bin/bash
+   #!/usr/bin/env bash
    module purge
    module load mpich
    ./configure --get-eigen
@@ -120,7 +120,7 @@ clang++ Configure and Compile Script
 
 .. code-block:: bash
 
-   # /bin/bash
+   #!/usr/bin/env bash
    module purge
    module load mpich llvm
    ./configure --get-eigen --comp clang++
@@ -131,11 +131,13 @@ Alamo Simulation Slurm Job Script
 
 .. code-block:: bash
     
-    #!/bin/bash
+    #!/usr/bin/env bash
     #SBATCH --time=24:00:00
     #SBATCH --nodes=1
     #SBATCH --ntasks-per-node=36
+    #SBATCH --mem-per-cpu=1000
     #SBATCH --job-name="alamo"
+    #SBATCH --output="%x-%j-log.txt"
     #SBATCH --mail-user=your_email@iastate.edu
     #SBATCH --mail-type=BEGIN
     #SBATCH --mail-type=END
@@ -143,14 +145,16 @@ Alamo Simulation Slurm Job Script
 
     module purge
     module load mpich
-    srun --mpi=mpix ./path/to/alamo/executable /path/to/input/file
+    srun --mpi=pmi2 ./path/to/alamo/executable /path/to/input/file
 
 The script starts a parallel job on Nova. Modify these parameters as needed:
-
 
 * :code:`--time`: The *wall clock time limit* (maximum job duration)
 * :code:`--nodes`: Number of nodes requested
 * :code:`--ntasks-per-node`: Number of tasks per node
+* :code:`--mem-per-cpu`: Memory allocated per core (MB)
+* :code:`--job-name`: The job name that will be displayed when running `squeue`
+* :code:`--output`: The name of the log file that will be output (see the `Slurm documentation <https://slurm.schedmd.com/sbatch.html#SECTION_FILENAME-PATTERN>`_ for filename pattern specifications)
 * :code:`--mail-user`: Email for notifications (remove if not needed)
 * **Executable path**: Example: :code:`./bin/alamo-2d-clang++`
 * **Input file path**: Specify the input file for Alamo
