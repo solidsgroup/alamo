@@ -22,11 +22,13 @@
 #include "IC/Laminate.H"
 #include "IC/Expression.H"
 #include "Util/ScimitarX_Util.H"
-#include "Numeric/TimeStepper.H"
+#include "Numeric/NumericTypes.H"
+#include "Numeric/NumericFactory.H"
+#include "Numeric/SolverCapabilities.H"
+#include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/FluxHandler.H"
 #include "Numeric/WENOReconstruction.H"
-#include "Numeric/IntegratorVariableAccessLayer.H"
-#include "Numeric/NumericFactory.H"
+#include "Numeric/TimeStepper.H"
 
 namespace Numeric {
     template<typename IntegratorDerivedClass> class FluxHandler;
@@ -45,28 +47,12 @@ namespace Integrator
 class ScimitarX : virtual public Integrator
 {
 public:
-
-    ScimitarX() {};
-    ScimitarX(IO::ParmParse& pp);
-    static void Parse(ScimitarX& value, IO::ParmParse& pp);
-
-    virtual ~ScimitarX()
-    {
-        delete bc_PVec;
-        delete bc_Pressure;
-
-        delete ic_PVec;
-        delete ic_Pressure;
-
-    }
-
     // Enum for Solver Types
     enum class SolverType {
         SolveCompressibleEuler,
         SolveElastoPlastic,
         SolveFiveEquationModel
     };
-
 
     // Enum for Euler Field Variables
     enum class EulerFieldVariables {
@@ -76,7 +62,6 @@ public:
         WVEL,   // W-velocity
         IE      // Specific Internal Energy
     };
-
 
     // Maps for SolverTypes string to Enum conversions
     static const std::map<std::string, SolverType> stringToSolverType;
@@ -168,31 +153,44 @@ public:
         std::map<ScimitarX::SolverType, std::vector<ScimitarX::EulerFieldVariables>> solverTypeVariables;
     };
 
-    static Util::ScimitarX_Util::getVariableIndex variableIndex; // 
+    static Util::ScimitarX_Util::getVariableIndex variableIndex;
 
+    // Constructors and destructor
+    ScimitarX();
+    ScimitarX(IO::ParmParse& pp);
+    static void Parse(ScimitarX& value, IO::ParmParse& pp);
+    virtual ~ScimitarX()
+     {
+        delete bc_PVec;
+        delete bc_Pressure;
+
+        delete ic_PVec;
+        delete ic_Pressure;
+
+    }
+
+    // Static helper for boundary conditions setup
     static IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, const Util::ScimitarX_Util::getVariableIndex& variableIndex);
-
-
+    // Method for explicit capabilities registration
+    void RegisterSolverCapabilities();
 protected:
-
-// Solver setup and control functions
+    // Required override methods from Integrator base class
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
     void TimeStepComplete(Set::Scalar time, int lev) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
-    void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt);
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
+
+    // ScimitarX specific methods
+    void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt);
     Set::Scalar GetTimeStep();
     void ComputeAndSetNewTimeStep();
-    void ComputeConservedVariables(int lev);
-    void UpdateSolutions(int lev);
     void ApplyBoundaryConditions(int lev, Set::Scalar time);
 
-protected:
-// Template function to specialize GetFluxVectors based on SolverType
-template <SolverType solverType>
-void ComputeConservedVariables(int lev) {
+    // Template methods for solver-type specific operations
+    template <SolverType solverType>
+    void ComputeConservedVariables(int lev){
 
     //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
     for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
@@ -235,8 +233,7 @@ void ComputeConservedVariables(int lev) {
     // Template function for updating conservative variables to primitive variables
     template <SolverType solverType>
     void UpdateSolutions(int lev) {
-
-        //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+      //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
 
@@ -291,31 +288,59 @@ void ComputeConservedVariables(int lev) {
         }
     }
 
+    // Method to get solver capabilities (centralized)
+    std::shared_ptr<Numeric::SolverCapabilities> GetSolverCapabilities() const;
+
 protected:
-    Set::Field<Set::Scalar> QVec_mf;          // Q Vector holding all the field variables in Conservative Form (current timestep)
-    Set::Field<Set::Scalar> QVec_old_mf;      // Q Vector holding all the field variables in Conservative Form (previous timestep)
-    Set::Field<Set::Scalar> XFlux_mf;         // X-dir Flux Vector holding all the field variables (current timestep)
-    Set::Field<Set::Scalar> YFlux_mf;         // Y-dir Flux Vector holding all the field variables (current timestep)
-    Set::Field<Set::Scalar> ZFlux_mf;         // Z-dir Flux Vector holding all the field variables (current timestep)
-//    Set::Field<Set::Scalar> Source_mf;         // Source term Vector for all the field variables (current timestep)
-    Set::Field<Set::Scalar> PVec_mf;      // Primitive Vector holding all the field variables in primitive form (current timestep)
-    Set::Field<Set::Scalar> Pressure_mf;  // Multifab for pressure variable
+    // Field data structures
+    Set::Field<Set::Scalar> QVec_mf;          // Conservative variables (current timestep)
+    Set::Field<Set::Scalar> QVec_old_mf;      // Conservative variables (previous timestep)
+    Set::Field<Set::Scalar> XFlux_mf;         // X-dir Flux Vector
+    Set::Field<Set::Scalar> YFlux_mf;         // Y-dir Flux Vector
+    Set::Field<Set::Scalar> ZFlux_mf;         // Z-dir Flux Vector
+    Set::Field<Set::Scalar> PVec_mf;          // Primitive variables
+    Set::Field<Set::Scalar> Pressure_mf;      // Pressure variable
 
-    int number_of_components;            // Number of components
-    int number_of_ghost_cells = 1;           // Number of ghost cells
+    // Core solver parameters
+    int number_of_components;                 // Number of components
+    int number_of_ghost_cells;            // Number of ghost cells
+    SolverType solverType;                    // Current solver type
+    Set::Scalar cflNumber;                    // CFL number (read from input)
+    Set::Scalar refinement_threshold;         // Threshold for AMR refinement
 
-    //Add FluxHandler member to ScimitarX class declaration
+    // Numeric handlers (using shared_ptr for better lifetime management)
     std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
-
-    //Add timeStepper member to ScimitarX class declaration
     std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
-    
-    // Remove duplicate function in ScimitarX.H, keep only one definition:
-    std::shared_ptr<Numeric::SolverCapabilities> GetSolverCapabilities() const {
-         // Create a CompressibleEulerCapabilities instance
-         return std::make_shared<Numeric::CompressibleEuler::CompressibleEulerCapabilities>();
-    }
+    std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
+    std::shared_ptr<Numeric::SolverCapabilities> solverCapabilities;
 
+    // Initial and boundary conditions
+    IC::IC<Set::Scalar>* ic_PVec = nullptr;            // Object used to initialize Primitive Vector
+    IC::IC<Set::Scalar>* ic_Pressure = nullptr;        // Object used to initialize Pressure
+    BC::BC<Set::Scalar>* bc_PVec = nullptr;            // Boundary Condition for Primitive Vector
+    BC::BC<Set::Scalar>* bc_Pressure = nullptr;        // Boundary Condition for Pressure
+    BC::Nothing bc_nothing;                            // Default "do-nothing" boundary condition
+
+    // Numeric method configuration 
+    Numeric::FluxReconstructionType reconstruction_method = 
+        Numeric::FluxReconstructionType::FirstOrder;
+    Numeric::FluxScheme flux_scheme = 
+        Numeric::FluxScheme::LocalLaxFriedrichs;
+    Numeric::TimeSteppingSchemeType temporal_scheme = 
+        Numeric::TimeSteppingSchemeType::ForwardEuler;
+    Numeric::ReconstructionMode variable_space = 
+        Numeric::ReconstructionMode::Primitive;
+    Numeric::WenoVariant weno_variant = 
+        Numeric::WenoVariant::WENOJS5;
+
+private:
+    // Helper method to setup numeric components based on solverType
+    void SetupNumericComponents();
+    
+    // Helper to validate and configure numeric methods
+    void ValidateAndSetupNumerics(IO::ParmParse& pp);
+
+    // Friend declarations for Numeric namespace access
     template <typename IntegratorDerivedClass>
     friend class Numeric::FluxReconstruction;
 
@@ -344,43 +369,16 @@ protected:
     friend class Numeric::RK3Scheme; 
  
     friend class Numeric::CompressibleEuler::CompressibleEulerVariableAccessor;
-
-private:
-
-    Set::Scalar refinement_threshold;
-
-    IC::IC<Set::Scalar>* ic_PVec = nullptr;            // Object used to initialize Q Vector
-    IC::IC<Set::Scalar>* ic_Pressure = nullptr;       // Object used to initialize Pressure
-    BC::BC<Set::Scalar>* bc_PVec = nullptr;            // Object used to provide Boundary Condition for Q Vector
-    BC::BC<Set::Scalar>* bc_Pressure = nullptr;            // Object used to provide Boundary Condition for Q Vector
-    BC::Nothing bc_nothing;
-
-    SolverType solverType;                //solverType 
-
-  // Solver Configuration
-    Numeric::FluxReconstructionType reconstruction_method = 
-        Numeric::FluxReconstructionType::FirstOrder;
-    Numeric::FluxScheme flux_scheme = 
-        Numeric::FluxScheme::LocalLaxFriedrichs;
-    Numeric::TimeSteppingSchemeType temporal_scheme = 
-        Numeric::TimeSteppingSchemeType::ForwardEuler;
-    Numeric::ReconstructionMode variable_space = 
-        Numeric::ReconstructionMode::Primitive;
-
-    Numeric::WenoVariant  weno_variant = Numeric::WenoVariant::WENOJS5; 
-
-    std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
-
-    Set::Scalar cflNumber;        // CFL number (read from input)
-
+            
+    
 }; //ScimitarX Class
 
-    inline const std::map<std::string, ScimitarX::SolverType> ScimitarX::stringToSolverType = {
-        {"SolveCompressibleEuler", ScimitarX::SolverType::SolveCompressibleEuler},
-        {"SolveElastoPlastic", ScimitarX::SolverType::SolveElastoPlastic},
-        {"SolveFiveEquationModel", ScimitarX::SolverType::SolveFiveEquationModel}
-    };
-
+// Static member initialization for string to solver type mapping
+inline const std::map<std::string, ScimitarX::SolverType> ScimitarX::stringToSolverType = {
+    {"SolveCompressibleEuler", ScimitarX::SolverType::SolveCompressibleEuler},
+    {"SolveElastoPlastic", ScimitarX::SolverType::SolveElastoPlastic},
+    {"SolveFiveEquationModel", ScimitarX::SolverType::SolveFiveEquationModel}
+};
 
 } // namespace Integrator
-#endif
+#endif // INTEGRATOR_SCIMITARX_H

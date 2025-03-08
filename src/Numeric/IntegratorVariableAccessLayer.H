@@ -31,8 +31,8 @@ public:
     virtual amrex::MultiFab CreateWorkingBuffer(
         const amrex::BoxArray& baseGrids, 
         const amrex::DistributionMapping& dm, 
-        int num_components, 
-        const SolverCapabilities::MethodValidationResult& validationResult
+        const int num_components,
+        const int ghost_cells         
     ) const = 0;
 
     // Enhanced variable transformation methods
@@ -110,8 +110,8 @@ public:
     amrex::MultiFab CreateWorkingBuffer(
         const amrex::BoxArray& baseGrids, 
         const amrex::DistributionMapping& dm, 
-        int num_components, 
-        const SolverCapabilities::MethodValidationResult& validationResult
+        const int num_components,
+        const int ghost_cells 
     ) const override;
 
     void TransformVariables(

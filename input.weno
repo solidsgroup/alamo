@@ -1,10 +1,10 @@
 # Simulation output
-plot_file = output_sod_2d
+plot_file = output_sod_WENO
 
 # Simulation length
 timestep = 0.001
 stop_time = 0.25
-max_step = 1000
+max_step = 5
 
 # AMR parameters
 amr.plot_int = 50
@@ -36,10 +36,10 @@ FluxScheme = LocalLaxFriedrichs
 FluxReconstruction = WENO
 
 #WenoVariant
-WENOVariant = WENOJS5
+WenoVariant = WENOJS5
 
 #Reconstruction Mode
-ReconstructionMode = Primitive
+ReconstructionMode = Characteristic
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]

@@ -7,10 +7,13 @@
 #include "IC/Riemann2D.H"
 #include "Model/Fluid/Fluid.H"
 #include "Numeric/Stencil.H"
-#include "Numeric/TimeStepper.H"
-#include "Numeric/FluxHandler.H"
+#include "Numeric/NumericTypes.H"
 #include "Numeric/NumericFactory.H"
+#include "Numeric/SolverCapabilities.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
+#include "Numeric/FluxHandler.H"
+#include "Numeric/WENOReconstruction.H"
+#include "Numeric/TimeStepper.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 
@@ -19,6 +22,32 @@ namespace Integrator
 
 // Define the static member variable
 Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;
+
+// Default constructor implementation
+ScimitarX::ScimitarX() : Integrator()
+{
+    // Initialize member variables with default values
+    number_of_components = 0;
+    number_of_ghost_cells = 4;
+    cflNumber = 0.5; // Set a reasonable default
+    refinement_threshold = 10.0; // Default threshold
+    
+    // Initialize handlers with nullptr (will be set up later)
+    fluxHandler = nullptr;
+    timeStepper = nullptr;
+    variable_accessor = nullptr;
+    solverCapabilities = nullptr;
+    
+    // Set default numerical method configurations
+    reconstruction_method = Numeric::FluxReconstructionType::FirstOrder;
+    flux_scheme = Numeric::FluxScheme::LocalLaxFriedrichs;
+    temporal_scheme = Numeric::TimeSteppingSchemeType::ForwardEuler;
+    variable_space = Numeric::ReconstructionMode::Primitive;
+    weno_variant = Numeric::WenoVariant::WENOJS5;
+    
+    // Note: bc_PVec, ic_PVec, etc. are initialized to nullptr in the member initialization list
+    // and will be properly set up in Parse or Initialize methods
+}
 
 
 ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
@@ -29,6 +58,187 @@ ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 
     pp.queryclass(*this);
 }
+
+void ScimitarX::RegisterSolverCapabilities() {
+    // Retrieve solver capabilities
+    auto capabilities = GetSolverCapabilities();
+    
+    if (capabilities) {
+        // Register with global capabilities registry
+        Numeric::SolverCapabilitiesRegistry::getInstance()
+            .registerCapabilities(capabilities);
+        
+        // Store for later use
+        solverCapabilities = capabilities;
+        
+        // Log registration details
+        Util::Message(INFO, "Registered Solver Capabilities for: " + 
+            capabilities->getIdentifier());
+    } else {
+        Util::Warning(INFO, "Failed to register solver capabilities for solver type: " + 
+            std::to_string(static_cast<int>(solverType)));
+    }
+}
+
+std::shared_ptr<Numeric::SolverCapabilities> 
+ScimitarX::GetSolverCapabilities() const {
+    // Return cached capabilities if already created
+    if (solverCapabilities) {
+        return solverCapabilities;
+    }
+
+    // Dynamically create capabilities based on solver type
+    switch (solverType) {
+        case SolverType::SolveCompressibleEuler:
+            return std::make_shared<Numeric::CompressibleEuler::CompressibleEulerCapabilities>();
+        case SolverType::SolveElastoPlastic: {
+            Util::Warning(INFO, "ElastoPlastic solver capabilities not fully implemented");
+            return nullptr;
+        }
+        case SolverType::SolveFiveEquationModel: {
+            Util::Warning(INFO, "Five Equation Model solver capabilities not fully implemented");
+            // Similar placeholder as ElastoPlastic
+            return nullptr;
+        }
+        default:
+            Util::Abort(INFO, "Unknown solver type during capabilities creation: " + 
+                        std::to_string(static_cast<int>(solverType)));
+            return nullptr;
+    }
+}
+
+
+// Implementation of SetupNumericComponents
+void ScimitarX::SetupNumericComponents() 
+{
+    // Initialize handlers if they're null
+    if (!fluxHandler) {
+        fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
+    }
+    
+    if (!timeStepper) {
+        timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
+    }
+    
+    // Create variable accessor based on current solver type
+    if (solverType == SolverType::SolveCompressibleEuler) {
+        // Create the variable accessor if it doesn't exist
+        if (!variable_accessor) {
+            variable_accessor = std::make_shared<Numeric::CompressibleEuler::CompressibleEulerVariableAccessor>(
+                number_of_ghost_cells, variable_space);
+        }
+        
+        // Update the flux handler with the accessor
+        fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(variable_accessor);
+        
+        // Set up flux reconstruction method based on configuration
+        if (reconstruction_method == Numeric::FluxReconstructionType::WENO) {
+            if (weno_variant == Numeric::WenoVariant::WENOJS5) {
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS5<ScimitarX>>());
+            } else {
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOZ5<ScimitarX>>());
+            }
+        } else {
+            fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
+        }
+        
+        // Set up flux method
+        fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+        
+        // Set up time stepping scheme
+        if (temporal_scheme == Numeric::TimeSteppingSchemeType::ForwardEuler) {
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
+        } else {
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::RK3Scheme<ScimitarX>>());
+        }
+    } else {
+        // For other solver types, use default configurations
+        Util::Warning(INFO, "SetupNumericComponents: Unsupported solver type. Using defaults.");
+        
+        // Create a basic variable accessor if none exists
+        if (!variable_accessor) {
+            // This is a placeholder - in a real implementation, you'd create 
+            // appropriate accessors for each solver type
+            variable_accessor = std::make_shared<Numeric::CompressibleEuler::CompressibleEulerVariableAccessor>(
+                number_of_ghost_cells, variable_space);
+        }
+        
+        // Update flux handler with accessor
+        fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(variable_accessor);
+        
+        // Set up defaults for other solver types
+        fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
+        fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+        timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
+    }
+    
+    Util::Message(INFO, "Numeric components set up successfully.");
+}
+
+
+void ScimitarX::ValidateAndSetupNumerics(IO::ParmParse& pp) {
+    // Ensure solver capabilities are registered
+    if (!solverCapabilities) {
+        RegisterSolverCapabilities();
+    }
+
+    // Perform comprehensive configuration validation
+    auto validationResult = solverCapabilities->validateMethodCombination(
+        reconstruction_method,
+        flux_scheme,
+        temporal_scheme,
+        variable_space,
+        weno_variant
+    );
+
+    // Enhanced logging and error handling
+    if (!validationResult.isValid) {
+        // Log comprehensive error information
+        Util::Warning(INFO, "Invalid Numeric Method Configuration Detected:");
+        
+        // Detailed error reporting
+        for (const auto& error : validationResult.errors) {
+            Util::Warning(INFO, "  Error: " + error);
+        }
+        
+        for (const auto& warning : validationResult.warnings) {
+            Util::Warning(INFO, "  Warning: " + warning);
+        }
+
+        // Retrieve and apply default configuration
+        auto defaultConfig = solverCapabilities->getDefaultConfiguration();
+        
+        Util::Message(INFO, "Applying Default Configuration:");
+        Util::Message(INFO, "  Flux Reconstruction: " + 
+            Numeric::NumericFactory::toString(defaultConfig.fluxReconstruction));
+        Util::Message(INFO, "  Flux Scheme: " + 
+            Numeric::NumericFactory::toString(defaultConfig.fluxScheme));
+        Util::Message(INFO, "  Time Stepping: " + 
+            Numeric::NumericFactory::toString(defaultConfig.timeSteppingScheme));
+        Util::Message(INFO, "  Reconstruction Mode: " + 
+            Numeric::NumericFactory::toString(defaultConfig.reconstructionMode));
+        Util::Message(INFO, "  WENO Variant: " + 
+            Numeric::NumericFactory::toString(defaultConfig.wenoVariant));
+
+        // Override current configuration with defaults
+        reconstruction_method = defaultConfig.fluxReconstruction;
+        flux_scheme = defaultConfig.fluxScheme;
+        temporal_scheme = defaultConfig.timeSteppingScheme;
+        variable_space = defaultConfig.reconstructionMode;
+        weno_variant = defaultConfig.wenoVariant;
+    }
+
+    // Additional validation logging
+    Util::Message(INFO, "Final Numeric Method Configuration:");
+    Util::Message(INFO, "  Flux Reconstruction: " + 
+        Numeric::NumericFactory::toString(reconstruction_method));
+    Util::Message(INFO, "  Flux Scheme: " + 
+        Numeric::NumericFactory::toString(flux_scheme));
+    
+    // Proceed with setting up numeric components
+    SetupNumericComponents();
+}
+
 
 void
 ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
@@ -55,6 +265,26 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 for (const auto& [variable, index] : ScimitarX::variableIndex.variableIndexMap) {
                 std::cout << "  Variable: " << variable << ", Index: " << index << std::endl;
                 }
+
+               // Call the setupBoundaryConditions function
+                /* IO::ParmParse bc_pp = setupPVecBoundaryConditions(pp, ScimitarX::variableIndex);
+
+                std::string result;
+                if (bc_pp.query("bc.pvec.type.xlo", result)) {
+                std::cout << "DEBUG: Queried type.xlo from bc_pp: " << result << std::endl;
+                } else {
+                std::cerr << "ERROR: Missing bc.pvec.type.xlo in bc_pp" << std::endl;
+                }
+
+                if (bc_pp.query("bc.pvec.val.xlo", result)) {
+                std::cout << "DEBUG: Queried val.xlo from bc_pp: " << result << std::endl;
+                } else {
+                std::cerr << "ERROR: Missing bc.pvec.val.xlo in bc_pp" << std::endl;
+                } */  
+ 
+               value.bc_PVec = new BC::Constant(value.number_of_components, pp, "bc.pvec");
+               value.bc_Pressure = new BC::Constant(1, pp, "bc.pressure");
+
             } else {
                 Util::Abort(__FILE__, __func__, __LINE__, "Invalid SolverType: " + solverTypeStr);
             }
@@ -100,182 +330,68 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         }
     } 
 
-    // Parse Flux Reconstruction Method
-    {
-    std::string reconstructionStr;
-    if (pp.query("FluxReconstruction", reconstructionStr)) {
-        try {
-            value.reconstruction_method = 
-                Numeric::NumericFactory::parseFluxReconstruction(reconstructionStr);
-                
-            // If WENO reconstruction is selected, also parse the WENO variant
-            if (value.reconstruction_method == Numeric::FluxReconstructionType::WENO) {
-                std::string wenoVariantStr;
-                
-                // Query for WENO variant parameter, default to "WENOJS5" if not specified
-                pp.query_default("WENOVariant", wenoVariantStr, "WENOJS5");
-                
-                try {
-                    value.weno_variant = 
-                        Numeric::NumericFactory::parseWenoVariant(wenoVariantStr);
-                } catch (const std::runtime_error& e) {
-                    Util::Warning(INFO, "Invalid WENO Variant: " + wenoVariantStr 
-                        + ". Using default WENOJS5.");
-                    value.weno_variant = Numeric::WenoVariant::WENOJS5;
-                }
-            }
-        } catch (const std::runtime_error& e) {
-            Util::Warning(INFO, "Invalid Flux Reconstruction: " + reconstructionStr 
-                + ". Using default.");
-        }
-    }        
-    }
-
-    // Parse Flux Scheme
-    {
-    std::string fluxSchemeStr;
-    if (pp.query("FluxScheme", fluxSchemeStr)) {
-        try {
-            value.flux_scheme = 
-                Numeric::NumericFactory::parseFluxScheme(fluxSchemeStr);
-        } catch (const std::runtime_error& e) {
-            Util::Warning(INFO, "Invalid Flux Scheme: " + fluxSchemeStr 
-                + ". Using default.");
-        }
-    }
-    }
-
-    // Parse Time Stepping Scheme
-    {
-    std::string timeSteppingStr;
-    if (pp.query("TimeSteppingScheme", timeSteppingStr)) {
-        try {
-            value.temporal_scheme = 
-                Numeric::NumericFactory::parseTimeSteppingScheme(timeSteppingStr);
-        } catch (const std::runtime_error& e) {
-            Util::Warning(INFO, "Invalid Time Stepping Scheme: " + timeSteppingStr 
-                + ". Using default.");
-        }
-    }
-    }
-
-    // Parse Reconstruction Mode
-    {
-    std::string reconstructionModeStr;
-    if (pp.query("ReconstructionMode", reconstructionModeStr)) {
-        try {
-            value.variable_space = 
-                Numeric::NumericFactory::parseReconstructionMode(reconstructionModeStr);
-        } catch (const std::runtime_error& e) {
-            Util::Warning(INFO, "Invalid Reconstruction Mode: " + reconstructionModeStr 
-                + ". Using default.");
-        }
-    }
-    }     
-
-    // Read CFL number and initial time step
+   // Read flux reconstruction method
+   std::string reconstr_str = "FirstOrder";  // Default
+   pp.query("FluxReconstruction", reconstr_str);
+   try {
+       value.reconstruction_method = Numeric::NumericFactory::parseFluxReconstruction(reconstr_str);
+       Util::Message(INFO, "Flux Reconstruction: " + reconstr_str);
+   } catch (const std::runtime_error& e) {
+       Util::Abort(__FILE__, __func__, __LINE__, 
+           "Invalid FluxReconstruction parameter: " + reconstr_str + "\n" + e.what());
+   }
+   
+   // Read flux scheme
+   std::string flux_str = "LocalLaxFriedrichs";  // Default
+   pp.query("FluxScheme", flux_str);
+   try {
+       value.flux_scheme = Numeric::NumericFactory::parseFluxScheme(flux_str);
+       Util::Message(INFO, "Flux Scheme: " + flux_str);
+   } catch (const std::runtime_error& e) {
+       Util::Abort(__FILE__, __func__, __LINE__, 
+           "Invalid FluxScheme parameter: " + flux_str + "\n" + e.what());
+   }
+   
+   // Read time stepping scheme
+   std::string time_str = "ForwardEuler";  // Default
+   pp.query("TimeSteppingScheme", time_str);
+   try {
+       value.temporal_scheme = Numeric::NumericFactory::parseTimeSteppingScheme(time_str);
+       Util::Message(INFO, "Time Stepping Scheme: " + time_str);
+   } catch (const std::runtime_error& e) {
+       Util::Abort(__FILE__, __func__, __LINE__, 
+           "Invalid TimeSteppingScheme parameter: " + time_str + "\n" + e.what());
+   }
+   
+   // Read reconstruction mode
+   std::string mode_str = "Primitive";  // Default
+   pp.query("ReconstructionMode", mode_str);
+   try {
+       value.variable_space = Numeric::NumericFactory::parseReconstructionMode(mode_str);
+       Util::Message(INFO, "Reconstruction Mode: " + mode_str);
+   } catch (const std::runtime_error& e) {
+       Util::Abort(__FILE__, __func__, __LINE__, 
+           "Invalid ReconstructionMode parameter: " + mode_str + "\n" + e.what());
+   }
+   
+   // Read WENO variant
+   std::string weno_str = "WENOJS5";  // Default
+   pp.query("WenoVariant", weno_str);
+   try {
+       value.weno_variant = Numeric::NumericFactory::parseWenoVariant(weno_str);
+       Util::Message(INFO, "WENO Variant: " + weno_str);
+   } catch (const std::runtime_error& e) {
+       Util::Abort(__FILE__, __func__, __LINE__, 
+           "Invalid WenoVariant parameter: " + weno_str + "\n" + e.what());
+   }
+   
+   
+    // Read CFL number
     pp.query_required("cflNumber", value.cflNumber);
-
-    // Get SolverCapabilities
-    std::shared_ptr<Numeric::SolverCapabilities> solverCapabilities = 
-        value.GetSolverCapabilities();
-
-    // Set up variable accessor
-    value.variable_accessor = solverCapabilities->createVariableAccessor(
-        value.variable_space,
-        value.number_of_ghost_cells
-    );
-
-    // Set up flux handler
-    value.fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(
-        value.variable_accessor
-    );
-
-    // Set Flux Reconstruction using capabilities validation
-    auto reconstructionSupport = solverCapabilities->supportsFluxReconstruction(
-        value.reconstruction_method
-    );
     
-    if (reconstructionSupport) {
-        value.fluxHandler->SetReconstruction(
-            Numeric::NumericFactory::createReconstructionMethod<ScimitarX>(
-                value.reconstruction_method
-            )
-        );
-    } else {
-        // Fall back to default if not supported
-        Util::Warning(INFO, "Selected reconstruction method not supported. Using default.");
-        value.reconstruction_method = solverCapabilities->getDefaultConfiguration().fluxReconstruction;
-        value.fluxHandler->SetReconstruction(
-            Numeric::NumericFactory::createReconstructionMethod<ScimitarX>(
-                value.reconstruction_method
-            )
-        );
-    }
-
-    // Also validate WENO variant if using WENO
-    bool wenoVariantSupport = true;
-    if (value.reconstruction_method == Numeric::FluxReconstructionType::WENO) {
-        wenoVariantSupport = solverCapabilities->supportsWenoVariant(
-            value.weno_variant
-        );
-    }
-     
-    // Apply similar pattern for flux method
-    auto fluxSupport = solverCapabilities->supportsFluxScheme(value.flux_scheme);
-    if (fluxSupport) {
-        value.fluxHandler->SetFluxMethod(
-            Numeric::NumericFactory::createFluxMethod<ScimitarX>(
-                value.flux_scheme
-            )
-        );
-    } else {
-        // Fall back to default
-        Util::Warning(INFO, "Selected flux scheme not supported. Using default.");
-        value.flux_scheme = solverCapabilities->getDefaultConfiguration().fluxScheme;
-        value.fluxHandler->SetFluxMethod(
-            Numeric::NumericFactory::createFluxMethod<ScimitarX>(
-                value.flux_scheme
-            )
-        );
-    }
-
-    // Set Time Stepping Scheme with similar validation
-    auto timeStepSupport = solverCapabilities->supportsTimeSteppingScheme(
-        value.temporal_scheme
-    );
-
-    if (timeStepSupport) {
-        value.timeStepper->SetTimeSteppingScheme(
-            Numeric::NumericFactory::createTimeSteppingScheme<ScimitarX>(
-                value.temporal_scheme
-            )
-        );
-    } else {
-        // Fall back to default
-        Util::Warning(INFO, "Selected time stepping scheme not supported. Using default.");
-        value.temporal_scheme = solverCapabilities->getDefaultConfiguration().timeSteppingScheme;
-        value.timeStepper->SetTimeSteppingScheme(
-            Numeric::NumericFactory::createTimeSteppingScheme<ScimitarX>(
-                value.temporal_scheme
-            )
-        );
-    }
-
-    // Validate overall method combination
-    auto validationResult = solverCapabilities->validateMethodCombination(
-        value.reconstruction_method,
-        value.flux_scheme,
-        value.temporal_scheme,
-        value.variable_space
-    );
-
-    if (!validationResult.isValid) {
-        Util::Warning(INFO, "Selected method combination may not be optimal:");
-        for (const auto& warning : validationResult.warnings) {
-            Util::Warning(INFO, " - " + warning);
-        }
-    }      
+    // Validate and setup numeric methods (centralized)
+    value.ValidateAndSetupNumerics(pp);
+        
 }
 
 

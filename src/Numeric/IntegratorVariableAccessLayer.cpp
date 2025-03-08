@@ -143,22 +143,15 @@ amrex::MultiFab
 CompressibleEulerVariableAccessor::CreateWorkingBuffer(
     const amrex::BoxArray& baseGrids, 
     const amrex::DistributionMapping& dm, 
-    int num_components, 
-    const SolverCapabilities::MethodValidationResult& validationResult
+    const int num_components, 
+    const int ghost_cells
 ) const {
-    // Adjust ghost cells based on validation result and reconstruction type
-    int adjusted_ghost_cells = total_ghost_cells;
-    
-    if (!validationResult.isValid) {
-        // If method combination is invalid, potentially adjust ghost cells
-        adjusted_ghost_cells = std::max(total_ghost_cells + 1, 3);
-    }
 
     return amrex::MultiFab(
         baseGrids, 
         dm, 
         num_components, 
-        adjusted_ghost_cells
+        ghost_cells
     );
 }
 

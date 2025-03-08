@@ -128,10 +128,7 @@ public:
             face_ba.convert(face_type);
 
             // Determine required ghost cells based on reconstruction method and mode
-            int ghost_cells = variable_accessor->getRequiredGhostCells(
-                mode, 
-                FluxReconstructionType::WENO  // Default assumption, could be parameterized
-            );
+            int ghost_cells = solver->number_of_ghost_cells;
 
             // Create stencil MultiFabs for left and right states
             amrex::MultiFab QL_stencil(face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
@@ -142,7 +139,7 @@ public:
                 solver->grids[lev], 
                 solver->dmap[lev], 
                 solver->number_of_components, 
-                validationResult
+                ghost_cells
             );
 
             // Transform variables using enhanced method with validation
