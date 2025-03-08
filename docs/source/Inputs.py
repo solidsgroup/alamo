@@ -296,21 +296,21 @@ def write(root="../../src/"):
                         value_string += f"""<span class="{bdg_secondary}">file path</span> """
                     if "_validate" in input["type"]:
                         things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
+                        value_string = f"""<span class="{bdg_success}">{things[0]}</span> """
                         value_string += " ".join([f"""<span class="{bdg_primary}">{thing}</span>""" for thing in things[1:]])
-                        #docfile.write(f"""         <td><p>{string}</p></td> \n""")
-                        #docfile.write      (      "      - {}".format(string))
-                        #docfilesearch.write(      "      - {}".format(string))
                     if input["type"] in ["select","select_default"]:
                         things = input['possibles']
                         if input["type"] == "select_default":
-                            value_string = f"""<span class={bdg_success}>{things[0]}</span> """
+                            value_string = f"""<span class="{bdg_success}">{things[0]}</span> """
                             value_string += " ".join([f"""<span class="{bdg_primary}">{thing}</span>""" for thing in things[1:]])
                         elif input["type"] == "select":
                             value_string = " ".join([f"""<span class="{bdg_primary}">{thing}</span>""" for thing in things])
-                        #docfile.write(f"""         <td><p>{string}</p></td> \n""")
-                        #docfilesearch.write(      "      - {}".format(string))
 
+                    # Convert RST math directeves to plain mathjax
                     processed_doc = re.sub(r":math:`(.*?)`", r"\\(\1\\)", input['doc'].replace('\n',''))
+                    # Convert RST code directives to <code>
+                    processed_doc = re.sub(r":code:`(.*?)`", r"<code>\1</code>", processed_doc)
+                    
 
                     if value_string != "": 
                         input_html_row += f"""         <td colspan="1"><p><span>{processed_doc}</span></p></td> \n"""

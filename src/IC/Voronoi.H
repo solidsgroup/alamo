@@ -1,3 +1,6 @@
+// Initialize an N component field with a Voronoi tessellation.
+// (Mostly used by :code:`Integrator::PhaseFieldMicrostructure`).
+
 #ifndef IC_VORONOI_H_
 #define IC_VORONOI_H_
 

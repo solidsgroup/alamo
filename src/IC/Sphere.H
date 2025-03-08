@@ -1,3 +1,11 @@
+//
+// Initialize a sphere region in which the field \(\eta=1\).
+// Can be a 3D sphere (xyz) or oriented around any of the three
+// axes. 
+//
+// :bdg-warning:`This functionality is replaced by IC::Expression.`
+// 
+
 #ifndef IC_SPHERE_H_
 #define IC_SPHERE_H_
 
@@ -5,10 +13,8 @@
 
 #include "IO/ParmParse.H"
 #include "IC/IC.H"
-#include "Util/Util.H"
 
-/// \class Sphere
-/// \brief Initialize a spherical inclusion
+/// Initialize a spherical inclusion
 namespace IC
 {
 class Sphere: public IC<Set::Scalar>
@@ -135,27 +141,24 @@ public:
     // with the Expression IC.
     static void Parse(Sphere& value, IO::ParmParse& pp)
     {
-        pp_query("radius", value.radius); // Radius of the sphere
+        pp_query_default("radius", value.radius,1.0); // Radius of the sphere
         pp_queryarr("center", value.center); // Vector location of the sphere center
-        pp_query("inside", value.alpha_in); // Value of the field inside the sphere
-        pp_query("outside", value.alpha_out); // Value of the field outside teh sphere
+        pp_query_default("inside", value.alpha_in,1.0); // Value of the field inside the sphere
+        pp_query_default("outside", value.alpha_out,0.0); // Value of the field outside teh sphere
         std::string type;
-        pp_query("type", type); // Type - can be cylinder oriented along the x, y, z directions or full sphere.
-        if (type == "yz")
-            value.type = Type::YZ;
-        if (type == "zx")
-            value.type = Type::ZX;
-        if (type == "xy")
-            value.type = Type::XY;
-        if (type == "xyz")
-            value.type = Type::XYZ;
+        // Type - can be cylinder oriented along the x, y, z directions or full sphere.
+        pp_query_validate("type", type, {"xyz","yz","zx","xy"}); 
+        if (type == "yz")  value.type = Type::YZ;
+        if (type == "zx")  value.type = Type::ZX;
+        if (type == "xy")  value.type = Type::XY;
+        if (type == "xyz") value.type = Type::XYZ;
     }
 
 private:
     Set::Vector center = Set::Vector::Zero();
-    Set::Scalar radius = 1.0;
-    Set::Scalar alpha_in = 1.0;
-    Set::Scalar alpha_out = 0.0;
+    Set::Scalar radius = NAN;
+    Set::Scalar alpha_in = NAN;
+    Set::Scalar alpha_out = NAN;
     Type type = Type::XYZ;
 };
 }
