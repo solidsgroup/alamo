@@ -1,4 +1,6 @@
 //
+// Boundary condition similar to BC::Constant, except that "values"
+// are given as strings which are functions of x,y,z,t.
 //
 
 #ifndef BC_EXPRESSION_H_
@@ -11,9 +13,8 @@
 #include <AMReX_Array.H>
 #include <AMReX_Parser.H>
 
-#include "Set/Set.H"
+#include "IO/ParmParse.H"
 #include "BC/BC.H"
-#include "Numeric/Interpolator/Linear.H"
 
 namespace BC
 {
