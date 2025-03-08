@@ -3,8 +3,19 @@
 #@ dim=2
 #@ check=false
 #@
+#@ [2d-parallel]
+#@ exe=test
+#@ dim=2
+#@ check=false
+#@ nprocs=4
+#@
 #@ [3d]
 #@ exe=test
 #@ dim=3
 #@ check=false
 #@
+#@ [3d-parallel]
+#@ exe=test
+#@ dim=3
+#@ check=false
+#@ nprocs=4
