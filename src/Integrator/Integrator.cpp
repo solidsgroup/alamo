@@ -53,7 +53,10 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
         pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
         pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
-        pp_query_default("plot_file", plot_file, "output");             // Output file
+
+
+        // Output file: see IO::FileNameParse for wildcards and variable substitution
+        pp_query_default("plot_file", plot_file, "output");
 
         pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
         pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
