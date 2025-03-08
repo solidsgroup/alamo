@@ -513,7 +513,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
                 Source(i, j, k, 3);
                 
-            E_new(i, j, k) = E(i, j, k) + 
+            E_new(i, j, k) = (E(i, j, k) + pref/(gamma - 1.0))*pow(rho_new(i,j,k)/rho(i,j,k),gamma-1.0) - pref/(gamma - 1.0) +
                 ( 
                     dEf_dt +
                     // todo add dEs_dt term if want time-evolving Es
