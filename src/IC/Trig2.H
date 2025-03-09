@@ -1,3 +1,6 @@
+// This is an old IC that exist only to support some of the old operator tests.
+// IC::Expression should be used instead. 
+
 #ifndef IC_TRIG2_H_
 #define IC_TRIG2_H_
 
@@ -5,12 +8,11 @@
 
 #include "AMReX_Vector.H"
 #include "IC/IC.H"
-#include "Util/Util.H"
 #include "Set/Set.H"
 
 namespace IC
 {
-/// \brief Initialize using a trigonometric series
+/// Initialize using a trigonometric series
 class Trig2 : public IC<Set::Scalar>
 {
 public:

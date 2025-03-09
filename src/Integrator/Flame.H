@@ -11,7 +11,6 @@
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
 #include "IC/IC.H"
-#include "IC/Wedge.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/PSRead.H" 
