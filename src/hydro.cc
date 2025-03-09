@@ -17,14 +17,11 @@ int main (int argc, char* argv[])
     Util::Initialize(argc,argv);
 
     #if AMREX_SPACEDIM==2
-    std::string program = "hydro";
     IO::ParmParse pp;
-    pp.query("alamo.program",program);
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
-    if (program == "hydro")                integrator = new Integrator::Hydro(pp);
-    else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
+    pp.select_main<Integrator::Hydro>(integrator);
 
     integrator->InitData();
     integrator->Evolve();

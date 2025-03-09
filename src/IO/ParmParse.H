@@ -576,6 +576,25 @@ public:
         if (!matched)
             Util::Exception(INFO,type," not a valid type for ",name);
     }
+
+    //
+    // Similar to select but specialized for main functions
+    //
+    template<typename... INTEGRATOR, typename... Args, typename PTRTYPE>
+    void select_main (PTRTYPE *& ic_eta, Args&&... args)
+    {
+        std::string type = "";
+
+        this->query_required("alamo.program", type);
+        
+        bool matched = ((type == INTEGRATOR::name 
+                        ? (ic_eta = new INTEGRATOR(std::forward<Args>(args)..., (*this))),
+                        true
+                        : false) || ...);
+        if (!matched)
+            Util::Exception(INFO,type," not a valid type for ",type);
+    }
+    
 };
 }
 #endif
