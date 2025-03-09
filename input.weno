@@ -1,10 +1,10 @@
 # Simulation output
-plot_file = output_sod_WENO
+plot_file = output_sodshock_Characteristic_WENOJS5
 
 # Simulation length
 timestep = 0.001
 stop_time = 0.25
-max_step = 5
+max_step = 1000
 
 # AMR parameters
 amr.plot_int = 50

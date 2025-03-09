@@ -19,9 +19,11 @@ namespace Set
 using Scalar   = amrex::Real;
 using Vector   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,1>;
 using Vector3d = Eigen::Vector3d;
+using MultiVector = Eigen::Matrix<amrex::Real, Eigen::Dynamic, 1>; //Vectors with N-components
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using Matrix3d = Eigen::Matrix3d;
+using MultiMatrix = Eigen::Matrix<amrex::Real, Eigen::Dynamic, Eigen::Dynamic>; //Vectors with N-components
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
 AMREX_FORCE_INLINE

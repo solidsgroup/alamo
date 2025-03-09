@@ -194,11 +194,11 @@ protected:
 
     //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
     for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box& bx_with_ghosts = mfi.growntilebox();
         auto const& p_arr = PVec_mf.Patch(lev, mfi);
         auto const& q_arr = QVec_mf.Patch(lev, mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             Set::Scalar rho = p_arr(i, j, k, variableIndex.DENS);
             Set::Scalar uvel = p_arr(i, j, k, variableIndex.UVEL);
             Set::Scalar vvel = p_arr(i, j, k, variableIndex.VVEL);

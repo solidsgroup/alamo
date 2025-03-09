@@ -576,14 +576,12 @@ public:
             amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                 // Construct index arrays with correct number of components
                 int index[3];
-                int left_index[3];
                 int right_index[3];
                 int lower_bounds[3];
                 int upper_bounds[3];
                 
                 // Set up indices and bounds
                 index[0] = iface; index[1] = jface; index[2] = kface;
-                left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
                 right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
 
                 // Define bounds including ghost cells
@@ -597,22 +595,13 @@ public:
                 
                 // Clamp the main index to ensure it's within bounds
                 ClampIndices(index, lower_bounds, upper_bounds);
-                
-                // Shift and clamp for left and right indices
-                int left_offset[3] = {0, 0, 0};
-                int right_offset[3] = {0, 0, 0};
-                left_offset[direction] = 0;    // Left cell interface
-                right_offset[direction] = 1;   // Right cell interface
 
-                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+
+                int right_offset[3] = {0, 0, 0};
+                right_offset[direction] = 1;  // Shift right
+
                 ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
                 
-                // Debug indices and bounds if enabled
-                if (enableDebug && Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface)) {
-                    Util::ScimitarX_Util::Debug::DebugIndicesAndBounds(
-                        iface, jface, kface, index, left_index, right_index,
-                        lower_bounds, upper_bounds, "WENO Reconstruction Setup");
-                }
 
                 // Process each component
                 for (int n = 0; n < solver->number_of_components; ++n) {
@@ -620,7 +609,7 @@ public:
                     std::array<Set::Scalar, Traits::TotalPoints> stencil;
                     
                     // Base stencil center point - the left interface point
-                    int center_idx[3] = {left_index[0], left_index[1], left_index[2]};
+                    int center_idx[3] = {index[0], index[1], index[2]};
                     
                     // Debug stencil center if enabled
                     if (enableDebug && Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface)) {
@@ -667,19 +656,68 @@ public:
                                 n      // Component
                             );
                         }
-                    }
-                    
+                    }                    
                     // Reconstruct left state (QL) at interface using WENO
-                    ql_arr(left_index[0], left_index[1], left_index[2], n) = 
-                        Policy::ReconstructValue(stencil, iface, jface, kface, enableDebug);
+                    ql_arr(index[0], index[1], index[2], n) = 
+                        Policy::ReconstructValue(stencil, iface, jface, kface, enableDebug);                    
+                }
+            });
+        }
+
+        // Process each grid patch
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+            
+            auto const& in_arr = working_buffer.const_array(mfi);
+            auto const& ql_arr = QL_stencil.array(mfi);
+            auto const& qr_arr = QR_stencil.array(mfi);
+            
+            // Find the min and max stencil offsets
+            int min_stencil_offset = 0;
+            int max_stencil_offset = 0;
+            
+            
+            // Process each cell in the valid box
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                // Construct index arrays with correct number of components
+                int index[3];
+                int right_index[3];
+                int lower_bounds[3];
+                int upper_bounds[3];
+                
+                // Set up indices and bounds
+                index[0] = iface; index[1] = jface; index[2] = kface;
+                right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+
+                // Define bounds including ghost cells
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+                lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) -1;
+                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) -1;
+                upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+                
+                
+                // Clamp the main index to ensure it's within bounds
+                ClampIndices(index, lower_bounds, upper_bounds);
+
+
+                int right_offset[3] = {0, 0, 0};
+                right_offset[direction] = 1;  // Shift right
+
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                
+
+                // Process each component
+                for (int n = 0; n < solver->number_of_components; ++n) {
                     
                     // Set QR state for the neighboring cell's left interface (which is our right interface)
-                    qr_arr(right_index[0], right_index[1], right_index[2], n) = 
-                        ql_arr(left_index[0], left_index[1], left_index[2], n);
+                    qr_arr(index[0], index[1], index[2], n) = 
+                        ql_arr(right_index[0], right_index[1], right_index[2], n);
                     
                     // Check for negative density or internal energy after reconstruction
                     if (n == solver->variableIndex.DENS || n == solver->variableIndex.IE) {
-                        Set::Scalar reconstructed_value = ql_arr(left_index[0], left_index[1], left_index[2], n);
+                        Set::Scalar reconstructed_value = ql_arr(index[0], index[1], index[2], n);
                         
                         // Apply a limiter to ensure physical values - prevent negative density/energy
                         if (reconstructed_value < 0.0) {
@@ -693,17 +731,17 @@ public:
                             
                             // Apply positivity-preserving limiter - use first-order reconstruction
                             // This is a simple fallback to first-order upwind in problematic regions
-                            //Set::Scalar first_order_value = in_arr(center_idx[0], center_idx[1], center_idx[2], n);
-                           // ql_arr(left_index[0], left_index[1], left_index[2], n) = 
-                           //     std::max(first_order_value, Util::ScimitarX_Util::Constants::TINYVAL);
+                               const Set::Scalar QL = in_arr(index[0], index[1], index[2], n);
+                               const Set::Scalar QR = in_arr(right_index[0], right_index[1], right_index[2], n);
                                 
-                            qr_arr(right_index[0], right_index[1], right_index[2], n) = 
-                                ql_arr(left_index[0], left_index[1], left_index[2], n);
+                                qr_arr(index[0], index[1], index[2], n) = QR;
+                                ql_arr(index[0], index[1], index[2], n) = QL;
                         }
                     }
                 }
             });
         }
+
     }    
 };
 

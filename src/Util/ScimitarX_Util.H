@@ -334,7 +334,139 @@ static void DebugIndicesAndBounds(int i, int j, int k,
     Util::Message(INFO, message.str());  // Print debug message to the log
 }
 
-    };
+// Add these debug functions to the ScimitarX_Util::Debug class in ScimitarX_Util.H
+
+template <typename MatrixType>
+static void DebugMatrixIfTarget(int i, int j, int k, const MatrixType& matrix, 
+                               const std::string& name, const std::string& context) {
+    if (IsTargetLocation(i, j, k)) {
+        // Print determinant
+        Set::Scalar det = matrix.determinant();
+        Util::Message(INFO, context + " - Matrix " + name + " at (" + 
+                     std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                     std::to_string(k) + "):");
+        Util::Message(INFO, "  Determinant: " + std::to_string(det));
+        
+        // Check if near-singular
+        if (std::abs(det) < 1e-10) {
+            Util::Warning(INFO, "Near-singular matrix detected in " + context);
+        }
+        
+        // Check condition number (approximate) using singular values
+        Eigen::JacobiSVD<MatrixType> svd(matrix);
+        Set::Scalar cond = svd.singularValues()(0) / 
+                         svd.singularValues()(svd.singularValues().size()-1);
+        Util::Message(INFO, "  Condition number: " + std::to_string(cond));
+        
+        // Print matrix entries
+        Util::Message(INFO, "  Matrix entries:");
+        for (int r = 0; r < matrix.rows(); r++) {
+            for (int c = 0; c < matrix.cols(); c++) {
+                Util::Message(INFO, "    [" + std::to_string(r) + "," + 
+                             std::to_string(c) + "]: " + std::to_string(matrix(r,c)));
+                CheckNaNAndAbort(i, j, k, matrix(r,c), 
+                               name + "[" + std::to_string(r) + "," + std::to_string(c) + "]", 
+                               context);
+            }
+        }
+    }
+}
+
+template <typename VectorType>
+static void DebugVectorIfTarget(int i, int j, int k, const VectorType& vector, 
+                               const std::string& name, const std::string& context,
+                               bool check_negative_values = false) {
+    if (IsTargetLocation(i, j, k)) {
+        Util::Message(INFO, context + " - Vector " + name + " at (" + 
+                     std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                     std::to_string(k) + "):");
+        
+        // Print vector entries
+        Util::Message(INFO, "  Vector entries:");
+        for (int r = 0; r < vector.size(); r++) {
+            Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
+                         std::to_string(vector(r)));
+            
+            // Check for NaN values
+            CheckNaNAndAbort(i, j, k, vector(r), 
+                           name + "[" + std::to_string(r) + "]", 
+                           context);
+            
+            // Optionally check for negative values
+            if (check_negative_values && vector(r) < 0.0) {
+                Util::Warning(INFO, "Negative value detected in " + name + 
+                            "[" + std::to_string(r) + "] = " + 
+                            std::to_string(vector(r)) + " at (" + 
+                            std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                            std::to_string(k) + ") in context " + context);
+            }
+        }
+    }
+}
+
+static void CheckDivisionBySmallandAbort(int i, int j, int k, 
+                                       const Set::Scalar& denominator, 
+                                       const std::string& field_name, 
+                                       const std::string& context, 
+                                       bool abort_if_small = true,
+                                       Set::Scalar threshold = 1e-10) {
+    // Only perform check if we're at the target location
+    if (IsTargetLocation(i, j, k)) {
+        // Check if the denominator is too small
+        if (std::abs(denominator) < threshold) {
+            std::string error_message = "Division by small value detected at (" + 
+                                      std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                                      std::to_string(k) + ") for field '" + field_name + 
+                                      "' in context '" + context + "'. Value = " + 
+                                      std::to_string(denominator);
+
+            if (abort_if_small) {
+                Util::Abort(INFO, error_message);
+            } else {
+                Util::Warning(INFO, error_message);
+            }
+        }
+    }
+}
+
+static void DebugCharacteristicTransformation(int i, int j, int k,
+                                            const Set::MultiVector& input_vars,
+                                            const Set::MultiMatrix& transform_matrix,
+                                            const Set::MultiVector& output_vars,
+                                            const std::string& transform_type,
+                                            const std::string& context) {
+    if (IsTargetLocation(i, j, k)) {
+        Util::Message(INFO, context + " - " + transform_type + " at (" + 
+                     std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                     std::to_string(k) + "):");
+        
+        // Print input variables
+        Util::Message(INFO, "  Input variables:");
+        for (int r = 0; r < input_vars.size(); r++) {
+            Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
+                         std::to_string(input_vars(r)));
+        }
+        
+        // Check transform matrix
+        Set::Scalar det = transform_matrix.determinant();
+        Util::Message(INFO, "  Transform matrix determinant: " + std::to_string(det));
+        CheckDivisionBySmallandAbort(i, j, k, det, "matrix_determinant", context, false);
+        
+        // Print output variables
+        Util::Message(INFO, "  Output variables:");
+        for (int r = 0; r < output_vars.size(); r++) {
+            Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
+                         std::to_string(output_vars(r)));
+            CheckNaNAndAbort(i, j, k, output_vars(r), 
+                           "output_var_" + std::to_string(r), context);
+        }
+    }
+}    
+
+
+
+
+};
 
 
 };

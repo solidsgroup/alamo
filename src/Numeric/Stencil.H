@@ -1104,18 +1104,16 @@ FieldToVector(const amrex::Array4<const Set::Scalar>& f,
 }
 
 [[nodiscard]] AMREX_FORCE_INLINE
-Set::Vector
-FieldToVector(const amrex::Array4<Set::Scalar>& f,
-    const int& i, const int& j, const int& k)
+Set::MultiVector 
+FieldToMultiVector(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k, const int num_components)
 {
-    Set::Vector ret;
-    ret(0) = f(i, j, k, 0);
-#if AMREX_SPACEDIM > 1
-    ret(1) = f(i, j, k, 1);
-#if AMREX_SPACEDIM > 2
-    ret(2) = f(i, j, k, 2);
-#endif
-#endif
+    Set::MultiVector ret(num_components);
+
+    for (int n = 0; n < num_components; ++n) {
+        ret(n) = f(i, j, k, n);
+    }
+
     return ret;
 }
 
@@ -1151,6 +1149,21 @@ VectorToField(const amrex::Array4<Set::Scalar>& f,
 #endif
 #endif
 }
+
+
+[[nodiscard]] AMREX_FORCE_INLINE
+void MultiVectorToField(const amrex::Array4<Set::Scalar>& f,
+    const int& i, const int& j, const int& k,
+    const Set::MultiVector vector, const int num_components)
+{
+
+    AMREX_ASSERT(vector.size() <= num_components);  // Ensure correct size
+
+    for (int n = 0; n < num_components; ++n) {
+        f(i, j, k, n) = vector(n);
+    }
+}
+
 
 template<int index, int SYM>
 [[nodiscard]] 

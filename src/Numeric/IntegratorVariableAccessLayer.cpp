@@ -201,7 +201,7 @@ void CompressibleEulerVariableAccessor::TransformVariables(
             
         case ReconstructionMode::Characteristic:
             // First copy primitive variables, then transform to characteristic
-            CopyPrimitiveVariablesToWorkingBuffer(lev, solver, working_buffer);
+            CopyConservativeVariablesToWorkingBuffer(lev, solver, working_buffer);
             ToCharacteristic(direction, lev, solver, working_buffer);
             break;
             
@@ -229,7 +229,8 @@ void CompressibleEulerVariableAccessor::ReverseTransform(
             break;
             
         case ReconstructionMode::Conservative:
-            // No transformation needed - the reconstructed values are already conservative
+            // Transform from Conservative to Primitive
+            FromConservative(direction, lev, solver, QL_stencil, QR_stencil);
             break;
             
         case ReconstructionMode::Characteristic:
@@ -241,10 +242,6 @@ void CompressibleEulerVariableAccessor::ReverseTransform(
             Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
     }
 }
-
-
-
-
 
 void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToWorkingBuffer(
     int lev,
@@ -285,76 +282,160 @@ void CompressibleEulerVariableAccessor::ToCharacteristic(
     amrex::MultiFab& input_mf
 ) const {
     for (amrex::MFIter mfi(input_mf, false); mfi.isValid(); ++mfi) {
-        const amrex::Box& box = mfi.validbox();
+        const amrex::Box& box = mfi.growntilebox();
         auto const& Q_arr = solver->QVec_mf.Patch(lev, mfi);
-        auto const& W_arr = input_mf.array(mfi);
+        auto const& W_arr  = input_mf.array(mfi);
         
         // Retrieve variable indices for better GPU performance
-        int indices[5];
-        indices[0] = solver->variableIndex.DENS;   // density
-        indices[1] = solver->variableIndex.IE;     // energy
-        indices[2] = solver->variableIndex.UVEL;   // x-momentum
-        indices[3] = solver->variableIndex.VVEL;   // y-momentum
+        int num_components = 5;
+        int solver_components = solver->number_of_components;   
+
+        int rho_idx = solver->variableIndex.DENS;   // density
+        int ie_idx  = solver->variableIndex.IE;     // energy
+        int u_idx   = solver->variableIndex.UVEL;   // x-momentum
+        int v_idx   = solver->variableIndex.VVEL;   // y-momentum
 #if AMREX_SPACEDIM == 3
-        indices[4] = solver->variableIndex.WVEL;   // z-momentum
+        int w_idx   = solver->variableIndex.WVEL;   // z-momentum
 #else
-        indices[4] = -1;                          // placeholder for 2D
+        int w_idx   = -1;                          // placeholder for 2D
 #endif
         
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+
             // Extract original conservative variables
-            Set::Vector U_orig = Numeric::FieldToVector(Q_arr, i, j, k);
+            Set::MultiVector U_orig = Numeric::FieldToMultiVector(Q_arr, i, j, k, solver_components);
             
             // Create primitive variables for eigenvector computation
-            Set::Vector W;
-            W(0) = U_orig(indices[0]);                         // density
-            W(1) = U_orig(indices[1]) / U_orig(indices[0]);    // internal energy
-            W(2) = U_orig(indices[2]) / U_orig(indices[0]);    // x-velocity
-            W(3) = U_orig(indices[3]) / U_orig(indices[0]);    // y-velocity
+            Set::MultiVector W(num_components);
+            W.setZero();
+
+            W(0) = U_orig(rho_idx);                         // density
+            W(1) = U_orig(ie_idx) / U_orig(rho_idx);    // internal energy
+            W(2) = U_orig(u_idx) / U_orig(rho_idx);    // x-velocity
+            W(3) = U_orig(v_idx) / U_orig(rho_idx);    // y-velocity
 #if AMREX_SPACEDIM == 3
-            W(4) = U_orig(indices[4]) / U_orig(indices[0]);    // z-velocity (3D)
+            W(4) = U_orig(w_idx) / U_orig(rho_idx);    // z-velocity (3D)
 #else
             W(4) = 0.0;                                        // z-velocity (2D)
 #endif
             
             // Compute right eigenvector matrix
-            Set::Matrix R_n = ComputeRightEigenvectorMatrix(W, direction);
+            Set::MultiMatrix R_n = ComputeRightEigenvectorMatrix(W, direction, num_components);
             
             // Create reordered conservative variables to match eigenvector matrix ordering
-            Set::Vector U_reordered;
+            Set::MultiVector U_reordered(num_components);
+            U_reordered.setZero();
             
             // Reordering
-            U_reordered(0) = U_orig(indices[0]);  // density 
-            U_reordered(1) = U_orig(indices[1]);  // energy
-            U_reordered(2) = U_orig(indices[2]);  // x-momentum
-            U_reordered(3) = U_orig(indices[3]);  // y-momentum
+            U_reordered(0) = U_orig(rho_idx);  // density 
+            U_reordered(1) = U_orig(ie_idx);  // energy
+            U_reordered(2) = U_orig(u_idx);  // x-momentum
+            U_reordered(3) = U_orig(v_idx);  // y-momentum
 #if AMREX_SPACEDIM == 3
-            U_reordered(4) = U_orig(indices[4]);  // z-momentum (3D)
+            U_reordered(4) = U_orig(w_idx);  // z-momentum (3D)
 #else
             U_reordered(4) = 0.0;                // z-momentum (2D)
 #endif
             
             // Compute characteristic variables
-            Set::Matrix L_n = R_n.inverse();  // Left eigenvector matrix
-            Set::Vector W_vec_reordered = L_n * U_reordered;
+            Set::MultiMatrix L_n = R_n.inverse();  // Left eigenvector matrix
+            Set::MultiVector W_vec_reordered = L_n * U_reordered;
             
             // Create vector for original-ordered characteristic variables
-            Set::Vector W_vec_original = Set::Vector::Zero();
+            Set::MultiVector W_vec_original(solver_components);
+            W_vec_original.setZero();
             
             // Unreordering
-            W_vec_original(indices[0]) = W_vec_reordered(0);  // density 
-            W_vec_original(indices[1]) = W_vec_reordered(1);  // energy
-            W_vec_original(indices[2]) = W_vec_reordered(2);  // x-momentum
-            W_vec_original(indices[3]) = W_vec_reordered(3);  // y-momentum
+            W_vec_original(rho_idx) = W_vec_reordered(0);  // density 
+            W_vec_original(ie_idx) = W_vec_reordered(1);  // energy
+            W_vec_original(u_idx) = W_vec_reordered(2);  // x-momentum
+            W_vec_original(v_idx) = W_vec_reordered(3);  // y-momentum
 #if AMREX_SPACEDIM == 3
-            W_vec_original(indices[4]) = W_vec_reordered(4);  // z-momentum
+            W_vec_original(w_idx) = W_vec_reordered(4);  // z-momentum
 #endif
             
             // Store transformed characteristic variables in original ordering
-            Numeric::VectorToField(W_arr, i, j, k, W_vec_original);
+            Numeric::MultiVectorToField(W_arr, i, j, k, W_vec_original, solver_components);
         });
     }
 }
+
+void CompressibleEulerVariableAccessor::FromConservative(
+    int direction, 
+    int lev, 
+    const Integrator::ScimitarX* solver,
+    amrex::MultiFab& QL_stencil, 
+    amrex::MultiFab& QR_stencil
+) const {
+
+    const int nghosts = solver->number_of_ghost_cells;
+
+    for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+        auto const& QL_arr = QL_stencil.array(mfi);
+        auto const& QR_arr = QR_stencil.array(mfi);
+        
+        int num_components = solver->number_of_components;   
+        
+        int rho_idx = solver->variableIndex.DENS;   // density
+        int ie_idx  = solver->variableIndex.IE;     // energy
+        int u_idx   = solver->variableIndex.UVEL;   // x-momentum
+        int v_idx   = solver->variableIndex.VVEL;   // y-momentum
+#if AMREX_SPACEDIM == 3
+        int w_idx = solver->variableIndex.WVEL;   // z-momentum
+#endif
+
+
+        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            // Extract conservative variables in original ordering
+            Set::MultiVector QCons_L = Numeric::FieldToMultiVector(QL_arr, i, j, k, num_components);
+            Set::MultiVector QCons_R = Numeric::FieldToMultiVector(QR_arr, i, j, k, num_components);
+            
+            // Create vector for storing Primitive QR and QL variables
+            Set::MultiVector QPrim_L(num_components);
+            QPrim_L.setZero();
+            Set::MultiVector QPrim_R(num_components);
+            QPrim_R.setZero();
+            
+            // Conversion of Left States
+            QPrim_L[rho_idx] = QCons_L(rho_idx);
+            QPrim_L[u_idx]   = QCons_L(u_idx)/QCons_L(rho_idx);
+            QPrim_L[v_idx]   = QCons_L(v_idx)/QCons_L(rho_idx);
+#if AMREX_SPACEDIM == 3
+            QPrim_L[w_idx]   = QCons_L(w_idx)/QCons_L(rho_idx);
+#endif
+            Set::Scalar KE_L = 0.5 * (QPrim_L[u_idx]*QPrim_L[u_idx] + QPrim_L[v_idx]*QPrim_L[v_idx]
+#if AMREX_SPACEDIM == 3
+                                    + QPrim_L[w_idx]*QPrim_L[w_idx]
+#endif                    
+                    );
+            Set::Scalar TE_L =  QCons_L(ie_idx)/QCons_L(rho_idx);
+
+            QPrim_L[ie_idx]   = TE_L - KE_L;
+            
+            // Conversion of Right States
+            QPrim_R[rho_idx] = QCons_R(rho_idx);
+            QPrim_R[u_idx]   = QCons_R(u_idx)/QCons_R(rho_idx);
+            QPrim_R[v_idx]   = QCons_R(v_idx)/QCons_R(rho_idx);
+#if AMREX_SPACEDIM == 3
+            QPrim_R[w_idx]   = QCons_R(w_idx)/QCons_R(rho_idx);
+#endif
+            Set::Scalar KE_R = 0.5 * (QPrim_R[u_idx]*QPrim_R[u_idx] + QPrim_R[v_idx]*QPrim_R[v_idx]
+#if AMREX_SPACEDIM == 3
+                                    + QPrim_R[w_idx]*QPrim_R[w_idx]
+#endif                    
+                    );
+            Set::Scalar TE_R =  QCons_R(ie_idx)/QCons_R(rho_idx);
+
+            QPrim_R[ie_idx]   = TE_R - KE_R;
+
+            Numeric::MultiVectorToField(QL_arr, i, j, k, QPrim_L, num_components); 
+            Numeric::MultiVectorToField(QR_arr, i, j, k, QPrim_R, num_components); 
+
+        });
+    }
+}
+
 
 void CompressibleEulerVariableAccessor::FromCharacteristic(
     int direction, 
@@ -363,81 +444,91 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
     amrex::MultiFab& QL_stencil, 
     amrex::MultiFab& QR_stencil
 ) const {
+     
+    const int nghosts = solver->number_of_ghost_cells;
+
     for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-        const amrex::Box& box = mfi.validbox();
+        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
         auto const& QL_arr = QL_stencil.array(mfi);
         auto const& QR_arr = QR_stencil.array(mfi);
         
+        //Characteristic Reconstruction is Performed through Fixed 5X5 Matrix
+        //This works for both 2D and 3D. 
+        //The matrix is re-arranged such that for 2D, last column, last row are zeros.
+        int num_components = 5; 
+        int solver_components = solver->number_of_components; 
         // Retrieve variable indices for better GPU performance
-        int indices[5];
-        indices[0] = solver->variableIndex.DENS;   // density
-        indices[1] = solver->variableIndex.IE;     // energy
-        indices[2] = solver->variableIndex.UVEL;   // x-momentum
-        indices[3] = solver->variableIndex.VVEL;   // y-momentum
+        int rho_idx = solver->variableIndex.DENS;   // density
+        int ie_idx = solver->variableIndex.IE;     // energy
+        int u_idx = solver->variableIndex.UVEL;   // x-momentum
+        int v_idx = solver->variableIndex.VVEL;   // y-momentum
 #if AMREX_SPACEDIM == 3
-        indices[4] = solver->variableIndex.WVEL;   // z-momentum
+        int w_idx = solver->variableIndex.WVEL;   // z-momentum
 #else
-        indices[4] = -1;                          // placeholder for 2D
+        int w_idx = -1;                          // placeholder for 2D
 #endif
         
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             // Extract characteristic variables in original ordering
-            Set::Vector W_L_orig = Numeric::FieldToVector(QL_arr, i, j, k);
-            Set::Vector W_R_orig = Numeric::FieldToVector(QR_arr, i, j, k);
+            Set::MultiVector W_L_orig = Numeric::FieldToMultiVector(QL_arr, i, j, k, solver_components);
+            Set::MultiVector W_R_orig = Numeric::FieldToMultiVector(QR_arr, i, j, k, solver_components);
             
             // Create reordered characteristic variables
-            Set::Vector W_L_reordered, W_R_reordered;
+            Set::MultiVector W_L_reordered(num_components);
+            W_L_reordered.setZero();
+            Set::MultiVector W_R_reordered(num_components);
+            W_R_reordered.setZero();
             
             // Reordering
-            W_L_reordered(0) = W_L_orig(indices[0]);
-            W_L_reordered(1) = W_L_orig(indices[1]);
-            W_L_reordered(2) = W_L_orig(indices[2]);
-            W_L_reordered(3) = W_L_orig(indices[3]);
+            W_L_reordered(0) = W_L_orig(rho_idx);
+            W_L_reordered(1) = W_L_orig(ie_idx);
+            W_L_reordered(2) = W_L_orig(u_idx);
+            W_L_reordered(3) = W_L_orig(v_idx);
 #if AMREX_SPACEDIM == 3
-            W_L_reordered(4) = W_L_orig(indices[4]);
+            W_L_reordered(4) = W_L_orig(w_idx);
 #else
             W_L_reordered(4) = 0.0;
 #endif
             
-            W_R_reordered(0) = W_R_orig(indices[0]);
-            W_R_reordered(1) = W_R_orig(indices[1]);
-            W_R_reordered(2) = W_R_orig(indices[2]);
-            W_R_reordered(3) = W_R_orig(indices[3]);
+            W_R_reordered(0) = W_R_orig(rho_idx);
+            W_R_reordered(1) = W_R_orig(ie_idx);
+            W_R_reordered(2) = W_R_orig(u_idx);
+            W_R_reordered(3) = W_R_orig(v_idx);
 #if AMREX_SPACEDIM == 3
-            W_R_reordered(4) = W_R_orig(indices[4]);
+            W_R_reordered(4) = W_R_orig(w_idx);
 #else
             W_R_reordered(4) = 0.0;
 #endif
             
             // Convert to conservative variables (in reordered space)
-            Set::Matrix R_n_L = ComputeRightEigenvectorMatrix(W_L_reordered, direction);
-            Set::Matrix R_n_R = ComputeRightEigenvectorMatrix(W_R_reordered, direction);
+            Set::MultiMatrix R_n_L = ComputeRightEigenvectorMatrix(W_L_reordered, direction, num_components);
+            Set::MultiMatrix R_n_R = ComputeRightEigenvectorMatrix(W_R_reordered, direction, num_components);
             
-            Set::Vector U_L_reordered = R_n_L * W_L_reordered;
-            Set::Vector U_R_reordered = R_n_R * W_R_reordered;
+            Set::MultiVector U_L_reordered = R_n_L * W_L_reordered;
+            Set::MultiVector U_R_reordered = R_n_R * W_R_reordered;
             
             // Unreordering and storing back in arrays
-            QL_arr(i, j, k, indices[0]) = U_L_reordered(0);
-            QL_arr(i, j, k, indices[1]) = U_L_reordered(1);
-            QL_arr(i, j, k, indices[2]) = U_L_reordered(2);
-            QL_arr(i, j, k, indices[3]) = U_L_reordered(3);
+            QL_arr(i, j, k, rho_idx) = U_L_reordered(0);
+            QL_arr(i, j, k, ie_idx)  = U_L_reordered(1);
+            QL_arr(i, j, k, u_idx)   = U_L_reordered(2);
+            QL_arr(i, j, k, v_idx)   = U_L_reordered(3);
 #if AMREX_SPACEDIM == 3
-            QL_arr(i, j, k, indices[4]) = U_L_reordered(4);
+            QL_arr(i, j, k, w_idx)   = U_L_reordered(4);
 #endif
             
-            QR_arr(i, j, k, indices[0]) = U_R_reordered(0);
-            QR_arr(i, j, k, indices[1]) = U_R_reordered(1);
-            QR_arr(i, j, k, indices[2]) = U_R_reordered(2);
-            QR_arr(i, j, k, indices[3]) = U_R_reordered(3);
+            QR_arr(i, j, k, rho_idx) = U_R_reordered(0);
+            QR_arr(i, j, k, ie_idx)  = U_R_reordered(1);
+            QR_arr(i, j, k, u_idx)   = U_R_reordered(2);
+            QR_arr(i, j, k, v_idx)   = U_R_reordered(3);
 #if AMREX_SPACEDIM == 3
-            QR_arr(i, j, k, indices[4]) = U_R_reordered(4);
+            QR_arr(i, j, k, w_idx)   = U_R_reordered(4);
 #endif
         });
     }
 }
 
-Set::Matrix 
-CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(const Set::Vector& W, int dir) {
+Set::MultiMatrix 
+CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(const Set::MultiVector& W, int dir, int num_components) {
     // Constants
     const Set::Scalar gamma = 1.4;
     
@@ -480,18 +571,18 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(const Set::Vect
     const Set::Scalar qm = u*m[0] + v*m[1] + w*m[2];
 
     // Initialize right eigenvector matrix
-    Set::Matrix R_n = Set::Matrix::Zero();
+    Set::MultiMatrix R_n = Set::MultiMatrix::Zero(num_components, num_components);
 
     // Row 1: Density (ρ)
-    R_n.row(0) << 1.0, 1.0, 0.0, 0.0, 1.0;
+    R_n.row(0) << 1.0, 1.0, 1.0, 0.0, 0.0;
 
     // Row 2: Energy (ρE)
-    R_n.row(1) << H - c*qn, 0.5*q2, ql, qm, H + c*qn;
+    R_n.row(1) << H - c*qn, 0.5*q2, H + c*qn, ql, qm;
 
     // Rows 3-5: Momentum components
-    R_n.row(2) << u - c*n[0], u, l[0], m[0], u + c*n[0];
-    R_n.row(3) << v - c*n[1], v, l[1], m[1], v + c*n[1];
-    R_n.row(4) << w - c*n[2], w, l[2], m[2], w + c*n[2];
+    R_n.row(2) << u - c*n[0], u, u + c*n[0], l[0], m[0];
+    R_n.row(3) << v - c*n[1], v, v + c*n[1], l[1], m[1];
+    R_n.row(4) << w - c*n[2], w, w + c*n[2], l[2], m[2];
 
     return R_n;
 }

@@ -171,11 +171,20 @@ private:
         amrex::MultiFab& QR_stencil
     ) const;
 
+
+    void FromConservative(
+        int direction, 
+        int lev, 
+        const Integrator::ScimitarX* solver,
+        amrex::MultiFab& QL_stencil, 
+        amrex::MultiFab& QR_stencil
+    ) const;
+
     // Companion method for matrix transformations
     AMREX_GPU_DEVICE AMREX_FORCE_INLINE
-    static Set::Matrix ComputeRightEigenvectorMatrix(
-        const Set::Vector& W, 
-        int direction
+    static Set::MultiMatrix ComputeRightEigenvectorMatrix(
+        const Set::MultiVector& W, 
+        int direction, int num_components
     );
 
     ReconstructionMode current_mode;
