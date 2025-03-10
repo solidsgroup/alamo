@@ -203,7 +203,27 @@ def extract(basefilename):
                     else: break
                 rets.append(input)
 
-            # Catch definition of a select_main function:
+            # Catch definition of a select_only function:
+            match = re.findall(r'pp\.select_only\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = "select_only"
+                input["class"] = match[0][0]
+                input["string"] = None 
+                input["doc"] = None 
+                input["file"] = filename
+                input["line"] = i+1
+
+                # # Check if previous lines have simple comments. Ignores "///" comments and
+                # # any comment beginning with [
+                # for j in reversed(range(0,i)):
+                #     docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                #     if docmatch:
+                #         input["doc"] = docmatch[0] + " " + input["doc"]
+                #     else: break
+                rets.append(input)
+
+            # Catch definition of a queryclass function:
             match = re.findall(r'pp\.queryclass\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()

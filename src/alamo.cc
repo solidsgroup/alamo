@@ -36,42 +36,23 @@ int main (int argc, char* argv[])
     {
         std::string model = "affine.cubic";
         pp_query("alamo.program.microstructure.model",model);
-        if      (model == "affine.cubic")       integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>(pp);
-        else if (model == "affine.hexagonal")   integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>(pp);
-        else if (model == "finite.pseudoaffine.cubic")   integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>(pp);
+        if (model == "affine.cubic")
+            pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
+        else if (model == "affine.hexagonal")
+            pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>>(integrator);
+        else if (model == "finite.pseudoaffine.cubic")
+            pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
         else Util::Abort(INFO,model," is not a valid model");
     }
-    else if (program == "flame")                integrator = new Integrator::Flame(pp);
-    else if (program == "heat")                 integrator = new Integrator::HeatConduction(pp);
-    else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
-    else if (program == "fracture")             integrator = new Integrator::Fracture();
-    else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
-    else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
-    else if (program == "cahnhilliard")         integrator = new Integrator::CahnHilliard(pp);
+    else if (program == "flame")                pp.select_only<Integrator::Flame>(integrator);
+    else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
+    else if (program == "thermoelastic")        pp.select_only<Integrator::ThermoElastic>(integrator);
+    //else if (program == "fracture")             pp.select_only<Integrator::Fracture>();
+    else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
+    else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
+    else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
-
-    // pp.select_main < Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>,
-    //                  Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>,
-    //                  Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>,
-    //                  Integrator::Flame,
-    //                  Integrator::HeatConduction,
-    //                  Integrator::ThermoElastic,
-    //                  Integrator::Dendrite,
-    //                  Integrator::AllenCahn,
-    //                  Integrator::CahnHilliard >(integrator);
-
-    pp.select_main < Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>,
-                     Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>,
-                     Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>,
-                     Integrator::Flame,
-                     Integrator::HeatConduction,
-                     Integrator::ThermoElastic,
-                     Integrator::Dendrite,
-                     Integrator::AllenCahn,
-                     Integrator::CahnHilliard
-                     >(integrator);
-    
     integrator->InitData();
     integrator->Evolve();
     delete integrator;

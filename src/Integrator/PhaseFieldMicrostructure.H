@@ -46,8 +46,7 @@ template<class model_type>
 class PhaseFieldMicrostructure : public Base::Mechanics<model_type>
 {
 public:
-    static constexpr const char *name = "phasefieldmicrostructure";
-
+    const std::string name = "phasefieldmicrostructure." + std::string(model_type::name);
 
     PhaseFieldMicrostructure() : Integrator() {};
     PhaseFieldMicrostructure(IO::ParmParse &pp) : Integrator() 

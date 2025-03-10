@@ -18,9 +18,9 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
-    
-    pp.select_main < Integrator::SFI<Integrator::AllenCahn>,
-                     Integrator::SFI<Integrator::Dendrite>> (integrator);
+
+    if      (program == "allencahn") pp.select_only<Integrator::SFI<Integrator::AllenCahn>>(integrator);
+    else if (program == "dendrite")  pp.select_only<Integrator::SFI<Integrator::Dendrite>>(integrator);
     
     integrator->InitData();
     integrator->Evolve();

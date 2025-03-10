@@ -101,7 +101,7 @@ template<class MODEL>
 class Mechanics : virtual public Base::Mechanics<MODEL>
 {
 public:
-    static constexpr const char *name = "mechanics" & "." & MODEL::name;
+    static constexpr const char *name = "mechanics";
 
     Mechanics() : Base::Mechanics<MODEL>() { }
     Mechanics(IO::ParmParse& pp) : Base::Mechanics<MODEL>()

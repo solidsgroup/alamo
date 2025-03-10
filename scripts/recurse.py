@@ -96,8 +96,8 @@ def getInputs(root,src,prefix=[],templates={},lev=0):
     classname = src.replace("../src/","")
     classname = classname.replace('/','::')
     for input in scraper.extract(f"{root}/{src}"):
-        if input['type'] == 'select_main':
-            for cl in input['classes']:
+        if input['type'] == 'select_only':
+            for cl in [input['class']]:
                 subclassname, subclasstemplates = extractTemplates(cl,classname)
 
                 if (len(subclasstemplates)):
@@ -107,7 +107,6 @@ def getInputs(root,src,prefix=[],templates={},lev=0):
                 getInputs(root,subclassname.replace("::","/"),prefix, subclasstemplates,lev+1)
         elif input['type'] == 'queryclass':
             subclassname, subclasstemplates = extractTemplates(templateReplace(input['class'],templates),classname)
-            print("  "*lev, input['string'],input['type'],input['string'])
             if input['string']:
                 getInputs(root,subclassname.replace("::","/"), prefix + [input['string']], subclasstemplates, lev+1)
             else:

@@ -594,7 +594,27 @@ public:
         if (!matched)
             Util::Exception(INFO,type," not a valid type for ",type);
     }
-    
+
+    //
+    // Similar to select_main but works for one function only
+    //
+
+    // with variadic arguments
+    template<typename INTEGRATOR, typename Args, typename PTRTYPE>
+    void select_only (PTRTYPE *& ic_eta, Args&& args)
+    {
+        std::string type = "";
+        ic_eta = new INTEGRATOR(std::forward<Args>(args), (*this));
+    }
+    // without variadic arguments
+    template<typename INTEGRATOR, typename PTRTYPE>
+    void select_only (PTRTYPE *& ic_eta)
+    {
+        std::string type = "";
+        ic_eta = new INTEGRATOR((*this));
+    }
+
+
 };
 }
 #endif
