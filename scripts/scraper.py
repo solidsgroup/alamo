@@ -254,15 +254,7 @@ def extract(basefilename):
 
     return rets
 
-def scrapeInputs(root="../../src/"):
-
-    srcfiles = set()
-    for dirname, subdirlist, filelist in sorted(os.walk(root)):
-        for f in filelist:
-            if f.endswith(".cpp"): srcfiles.add(dirname+"/"+f.replace(".cpp",""))
-            if f.endswith(".H"): srcfiles.add(dirname+"/"+f.replace(".H",""))
-    srcfiles = list(srcfiles)
-    
+def scrape(root="../src/"):
     headerchar = ["=","*","-","~","."]
     written_headers = []
     
@@ -282,7 +274,15 @@ def scrapeInputs(root="../../src/"):
             if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
         srcfilelist = list(srcfileset)
         
-        for f in sorted(srcfilelist):
+        #
+        # This function makes sure pure abstract classes get
+        # listed first.
+        #
+        def alphabetize_with_abstract_first(key):
+            if key == hdrname.split("::")[-1]:
+                return "0"
+            return(key[0])
+        for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
             classname = dirname.replace(root,"").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
             data[classname] = dict()
 
@@ -292,4 +292,14 @@ def scrapeInputs(root="../../src/"):
                 print("ERROR: problem reading",dirname)
                 raise
             data[classname]['documentation'] = getdocumentation(dirname+"/"+f)
+
+            data[classname]['srcfile'] = None
+            if os.path.isfile(f'{dirname}/{f}.cpp'):
+                data[classname]['srcfile'] = f'src/{dirname.replace(root,"")}/{f}.cpp'
+
+            data[classname]['hdrfile'] = None
+            if os.path.isfile(f'{dirname}/{f}.H'):
+                data[classname]['hdrfile'] = f'src/{dirname.replace(root,"")}/{f}.H'
+
     return data
+
