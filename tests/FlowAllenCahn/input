@@ -13,14 +13,14 @@ alamo.program = allencahn
 plot_file = ./output.allencahn
 amr.plot_dt = 0.1
 amr.max_grid_size = 500000
-amr.blocking_factor = 4
+amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 3
 timestep  = 1e-2
-amr.n_cell = 64 64
-geometry.prob_lo = -24.0 -24.0 0.0 # [ m ] 
-geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
+amr.n_cell = 64 8
+geometry.prob_lo = -24.0 -3
+geometry.prob_hi =  24.0  3
 geometry.is_periodic = 0 0 0
 stop_time = 12.0
 
@@ -186,11 +186,3 @@ dynamictimestep.min  = 1E-4
 hydro.cfl   = 10.0
 hydro.cfl_v   = 10.0
 #hydro.small=1E-4
-
-
-
-
-amr.n_cell = 64 8
-geometry.prob_lo = -24.0 -3 
-geometry.prob_hi =  24.0  3 
-amr.blocking_factor = 2
