@@ -4,44 +4,28 @@
 #ifndef INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 #define INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
 #include <random>
-#include <chrono>
 
-#include "AMReX.H"
 #include "AMReX_ParmParse.H"
-#include "AMReX_ParallelDescriptor.H"
 #include <AMReX_MLMG.H>
 
 #include "Integrator/Integrator.H"
-#include "Integrator/Mechanics.H"
-
 #include "BC/BC.H"
 #include "BC/Constant.H"
-#include "BC/Operator/Elastic/Constant.H"
 #include "IC/Constant.H"
-#include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 #include "IC/Expression.H"
 #include "IC/Ellipse.H"
 #include "IC/Random.H"
-
 #include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
 #include "Model/Interface/GB/SH.H"
-
-#include "Model/Solid/Linear/Cubic.H"
-#include "Model/Solid/Affine/Cubic.H"
-
 #include "Model/Defect/Disconnection.H"
-
-#include "Operator/Elastic.H"
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {

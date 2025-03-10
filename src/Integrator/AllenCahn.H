@@ -92,7 +92,7 @@ public:
         // Use a constant BC object for temperature
         value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
-        pp_queryclass("alpha.bc", *static_cast<BC::Constant*>(value.bc));
+        pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.

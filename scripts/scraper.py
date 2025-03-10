@@ -34,6 +34,7 @@ def geticon(classname):
     if classname.startswith("Util"): return ":fas:`sliders;fa-fw` "
     else: return ""
 
+
 def extract(basefilename):
     rets = list()
     class inputdoc: pass
@@ -44,29 +45,41 @@ def extract(basefilename):
 
         #group = None
         parsefn = False
-        switch = None
-        def reset():
-            False
-            #nonlocal rets, group, parsefn, switch
-            #if group:
-            #    rets.append(group)
-            #    group = None
-            #if switch:
-            #    rets.append(switch)
-            #    switch = None
-        def insert(val):
-            #nonlocal rets, group, parsefn, switch
-            val["parsefn"] = parsefn
-            #print(group)
-            #if group: group["inputs"].append(val)
-            #else:
-            rets.append(val)
 
-        for i, line in enumerate(lines):
+
+        i = -1
+        line = ""
+        multiline = True
+
+        for _i, _line in enumerate(lines):
+            #
+            # Logic to deal with multi-line expressions
+            #
+            if multiline: 
+                if ";" in _line:
+                    line += _line
+                    multiline = False
+                else:
+                    line += _line.split('//')[0].replace('\n','')
+                    continue
+            elif "pp." in _line or "pp_" in _line.split('//')[0]:
+                i = _i
+                if ";" in _line:
+                    line = _line
+                else:
+                    line = _line.split('//')[0].replace('\n','')
+                    multiline = True
+                    continue
+            else:
+                i = _i
+                line = _line
+            while "  " in line:
+                line = line.replace("  "," ")
+
+
             # Catch standard pp.query and pp.queryarr inputs
             match = re.findall(r'^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
-                #print(match)
                 query = dict()
                 query["type"] = match[0][0]
                 query["string"] = match[0][1]
@@ -80,13 +93,12 @@ def extract(basefilename):
                     match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
-                insert(query)
+                rets.append(query)
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
             match = re.findall(r'^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
-                #print(match)
                 query = dict()
                 query["type"] = match[0][0]
                 query["string"] = match[0][1]
@@ -101,13 +113,12 @@ def extract(basefilename):
                     match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
-                insert(query)
+                rets.append(query)
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
             match = re.findall(r'^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
-                #print(match)
                 query = dict()
                 query["type"] = match[0][0]
                 query["string"] = match[0][1]
@@ -123,7 +134,7 @@ def extract(basefilename):
                     match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: query["doc"] = match[0] + " " + query["doc"]
                     else: break
-                insert(query)
+                rets.append(query)
                 continue
 
             # Catch pp.queryclass inputs
@@ -143,25 +154,8 @@ def extract(basefilename):
                     match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
                     if match: queryclass["doc"] = match[0] + " " + queryclass["doc"]
                     else: break
-
-                insert(queryclass)
+                rets.append(queryclass)
                 continue
-
-            ## Catch ParmParse groups. This is old-fashioned but still supported.
-            ## All subsequent inputs will be nested under a group
-            #match = re.findall(r'^\s*(?:IO|amrex)::ParmParse\s*pp\s*(?:\(\s*"([^"]*)"\s*\))?\s*;\s*(?:\/\/\s*(.*))?',line)
-            #if match:
-            #    reset()
-            #    group = dict()
-            #    group["type"] = "group"
-            #    group["prefix"] = match[0][0]
-            #    group["doc"] = match[0][1]
-            #    if group["doc"] == "":
-            #        for j in reversed(range(0,i)):
-            #            match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-            #            if match: group["doc"] = match[0] + " " + group["doc"]
-            #            else: break
-            #    group["inputs"] = list()
 
             # Catch definition of a Parser function.
             if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
@@ -187,14 +181,14 @@ def extract(basefilename):
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
-                insert(input)
+                rets.append(input)
 
             # Catch definition of a select_main function:
-            match = re.findall(r'pp\.(select_main)<([^>]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(r'pp\.select_main\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
-                input["type"] = match[0][0]
-                input["classes"] = match[0][1].replace(' ','').split(',')
+                input["type"] = "select_main"
+                input["classes"] = match[0][0].replace(' ','').split(',')
                 input["string"] = None 
                 input["doc"] = None 
                 input["file"] = filename
@@ -207,7 +201,27 @@ def extract(basefilename):
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
-                insert(input)
+                rets.append(input)
+
+            # Catch definition of a select_main function:
+            match = re.findall(r'pp\.queryclass\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = "queryclass"
+                input["class"] = match[0][0]
+                input["string"] = None 
+                input["doc"] = None 
+                input["file"] = filename
+                input["line"] = i+1
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                rets.append(input)                
 
             # Catch a queryclass 
             match = re.findall(r'pp\.queryclass<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
@@ -225,7 +239,7 @@ def extract(basefilename):
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
-                insert(input)
+                rets.append(input)
                 continue
 
             # Catch a queryclass with no ID
@@ -243,38 +257,7 @@ def extract(basefilename):
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
-                insert(input)
-            
-
-
-            # Catch definition of a switch group
-            match =re.findall(r'^\s*\/\/\s*\[\s*switch\s*(\S*)\s*]\s*(.*)',line)
-            if match:
-                reset()
-                switch = dict()
-                switch["type"] = "switch"
-                switch["string"] = match[0][0]
-                switch["doc"] = match[0][1]
-                switch["inputs"] = list()
-                continue
-
-            if switch:
-                # If we are inside a switch block, look for matches like
-                #    else if (ic_type == "KEY") value.ic = new CLASS(args,"PREFIX")
-                match = re.findall(r'^\s*(?:else)*\s*if\s*\(\S*\s*==\s*"([^"]*)"\s*\).*new\s*([A-Z,:,a-z,0-9,_]*)[^"]*"(.*)"',line)
-                if match:
-                    input=dict()
-                    input["type"]="switchitem"
-                    input["string"]=match[0][0]
-                    input["class"]=match[0][1]
-                    input["prefix"]=match[0][2]
-                    switch["inputs"].append(input)
-
-            # Close a switch group
-            if re.match(r'^\s*\/\/\s*\[\s*end\s*(?:switch)?\s*]',line):
-                reset()
-            
-        reset()
+                rets.append(input)
 
     return rets
 

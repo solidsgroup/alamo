@@ -33,6 +33,20 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
+
+    pp.select_main<Integrator::Mechanics<Model::Solid::Linear::Isotropic>,
+                   Integrator::Mechanics<Model::Solid::Linear::Cubic>,
+                   Integrator::Mechanics<Model::Solid::Affine::Cubic>,
+                   Integrator::Mechanics<Model::Solid::Affine::Hexagonal>,
+                   Integrator::Mechanics<Model::Solid::Affine::Isotropic>,
+                   Integrator::Mechanics<Model::Solid::Linear::Laplacian>,
+                   Integrator::Mechanics<Model::Solid::Finite::NeoHookean>,
+                   Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>,
+                   Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>,
+                   Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>,
+                   Integrator::Mechanics<Model::Solid::Affine::J2>,
+                   Integrator::Mechanics<Model::Solid::Finite::CrystalPlastic> >(integrator);
+    
     if (program == "mechanics")
     {
         std::string model = "linear.isotropic";
