@@ -57,6 +57,9 @@ void Sphere::Parse(Sphere& value, IO::ParmParse& pp) {
 
 // Compute physical coordinates of the grid cell
 AMREX_GPU_HOST_DEVICE inline Set::Vector Sphere::computeCoordinates(int i, int j, int k, int lev, bool cellcentered) const {
+#if AMREX_SPACEDIM < 3
+    (void)k; // Suppress unused parameter warning in 2D
+#endif
     Set::Vector coords;
     const auto& DX = geom[lev].CellSize();
     const auto& prob_lo = geom[lev].ProbLo();

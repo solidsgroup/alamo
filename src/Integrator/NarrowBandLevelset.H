@@ -153,6 +153,7 @@ protected:
     // Variables (multi-fabs)
     Set::Field<Set::Scalar>    ls_mf;                   // Levelset field variable (current timestep)
     Set::Field<Set::Scalar>    ls_old_mf;               // Levelset field variable (previous timestep)
+    Set::Field<Set::Scalar>    iNarrowBandMask_mf;      // narrowband field variable
     Set::Field<Set::Scalar>    velocity_mf;             // Velocity field variable (Assumed constant for now)
     Set::Field<Set::Scalar>    XFlux_mf;                // X-direction flux field
     Set::Field<Set::Scalar>    YFlux_mf;                // Y-direction flux field
@@ -167,12 +168,12 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     
     // Additional functions
+    void ComputeAndSetNewTimeStep();
+    Set::Scalar GetTimeStep();
+    void UpdateNarrowBand(int lev);
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev, Set::Scalar time);
-    void ApplyNarrowBanding(int lev);
-    void ComputeAndSetNewTimeStep();
-    Set::Scalar GetTimeStep();
     void ApplyBoundaryConditions(int lev, Set::Scalar time);
 
     std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
