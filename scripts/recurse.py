@@ -59,10 +59,12 @@ for dirname, subdirlist, filelist in os.walk("../src/"):
         f = f.replace("../src/","")
         allnamespaces.add('::'.join(f.split('/')))
 def resolve(subname,classname):
+    if type(subname) != list:
+        subname = [subname]
     classname = classname.split("::")
     while len(classname):
         classname = classname[:-1]
-        tempname = '::'.join(classname + [subname])
+        tempname = '::'.join(classname + subname)
         if tempname in allnamespaces:
             return tempname
     return ""
@@ -105,16 +107,30 @@ def getInputs(root,src,prefix=[],templates={},lev=0):
                 else:
                     print("  "*lev,f"{subclassname}",)
                 getInputs(root,subclassname.replace("::","/"),prefix, subclasstemplates,lev+1)
+
+
+        elif input['type'] == 'select' or input['type'] == 'select_default':
+            print("  "*lev,'.'.join(prefix + [input['string'],"type"]))
+            for cl in input['classes']:
+                subclassname, subclasstemplates = extractTemplates(cl,classname)
+                name = subclassname.split('::')[-1].lower()
+                print("  "*lev,f"[ if type = {name} ]")
+                getInputs(root,
+                          subclassname.replace("::","/"),
+                          prefix + [input['string'], name],
+                          subclasstemplates,lev+1)
+
         elif input['type'] == 'queryclass':
             subclassname, subclasstemplates = extractTemplates(templateReplace(input['class'],templates),classname)
             if input['string']:
-                getInputs(root,subclassname.replace("::","/"), prefix + [input['string']], subclasstemplates, lev+1)
+                getInputs(root,subclassname.replace("::","/"), prefix + [input['string']], subclasstemplates, lev)
             else:
                 getInputs(root,subclassname.replace("::","/"), prefix, subclasstemplates, lev)
 
         else:
             if 'string' in input:
-                print("  "*lev,'.'.join(prefix + [input['string']]),input['type'])
+                if input['string']:
+                    print("  "*lev,'.'.join(prefix + [input['string']]),input['type'])
         
 getInputs("../src","alamo")
 

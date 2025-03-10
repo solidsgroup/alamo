@@ -164,12 +164,14 @@ def extract(basefilename):
 
 
             # Catch definition of a select function:
-            match = re.findall(r'pp\.(select[_default])<([^>]+)>\s*\("([^"]+)"\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+
+            match = re.findall(r'pp\.(select[_default]*)\s*<\s*([^.]+)>\s*\("([^"]+)"\s*,.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = match[0][0]
                 input["classes"] = match[0][1].replace(' ','').split(',')
                 input["string"] = match[0][2].replace(' ','')
+                input["doc"] = ""
                 input["doc"] = match[0][3]
                 input["file"] = filename
                 input["line"] = i+1
@@ -182,6 +184,7 @@ def extract(basefilename):
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
                 rets.append(input)
+
 
             # Catch definition of a select_main function:
             match = re.findall(r'pp\.select_main\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
