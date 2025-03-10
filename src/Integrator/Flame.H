@@ -33,6 +33,8 @@ class Flame : virtual public Integrator::Integrator,
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
 
 public:
+    static constexpr const char* name = "flame";
+
     Flame();
     Flame(IO::ParmParse& pp);
 

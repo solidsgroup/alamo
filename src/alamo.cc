@@ -50,6 +50,15 @@ int main (int argc, char* argv[])
     else if (program == "cahnhilliard")         integrator = new Integrator::CahnHilliard(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
+
+    pp.select_main < Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>,
+                     Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>,
+                     Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>,
+                     Integrator::Flame, Integrator::HeatConduction, Integrator::ThermoElastic,
+                     //Integrator::Fracture,
+                     Integrator::Dendrite, Integrator::AllenCahn,
+                     Integrator::CahnHilliard >(integrator);
+
     integrator->InitData();
     integrator->Evolve();
     delete integrator;

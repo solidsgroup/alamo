@@ -5,18 +5,21 @@ from os.path import isfile, join
 from glob import glob
 
 def getdocumentation(filename):
-    sourcefile = open(filename+".H")
-    ret = ""
-    for line in sourcefile.readlines():
-        if line.startswith(r"///"): # special provision for legacy doxygen comments
-            ret += line.split(r"///")[1]
-        elif line.startswith(r"// "):
-            ret += line.split(r"// ")[1]
-        elif line.startswith(r"//"):
-            ret += line.split(r"//")[1]
-        else:
-            return ret
-    return ret
+    if os.path.isfile(filename+".H"):
+	    sourcefile = open(filename+".H")
+	    ret = ""
+	    for line in sourcefile.readlines():
+	        if line.startswith(r"///"): # special provision for legacy doxygen comments
+	            ret += line.split(r"///")[1]
+	        elif line.startswith(r"// "):
+	            ret += line.split(r"// ")[1]
+	        elif line.startswith(r"//"):
+	            ret += line.split(r"//")[1]
+	        else:
+	            return ret
+	    return ret
+    else:
+        return None
 
 def geticon(classname):
     if classname.startswith("BC"): return ":fas:`border-top-left;fa-fw` "
@@ -34,30 +37,32 @@ def geticon(classname):
 def extract(basefilename):
     rets = list()
     class inputdoc: pass
-    for filename in [basefilename+".H",basefilename+".cpp"]:
+    for filename in [basefilename+".H",basefilename+".cpp",basefilename+".cc"]:
         if not os.path.isfile(filename): continue
         sourcefile = open(filename)
         lines = sourcefile.readlines()
 
-        group = None
+        #group = None
         parsefn = False
         switch = None
         def reset():
-            nonlocal rets, group, parsefn, switch
-            if group:
-                rets.append(group)
-                group = None
-            if switch:
-                rets.append(switch)
-                switch = None
+            False
+            #nonlocal rets, group, parsefn, switch
+            #if group:
+            #    rets.append(group)
+            #    group = None
+            #if switch:
+            #    rets.append(switch)
+            #    switch = None
         def insert(val):
-            nonlocal rets, group, parsefn, switch
+            #nonlocal rets, group, parsefn, switch
             val["parsefn"] = parsefn
-            if group: group["inputs"].append(val)
-            else: rets.append(val)
+            #print(group)
+            #if group: group["inputs"].append(val)
+            #else:
+            rets.append(val)
 
         for i, line in enumerate(lines):
-            
             # Catch standard pp.query and pp.queryarr inputs
             match = re.findall(r'^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
             if match:
@@ -142,21 +147,21 @@ def extract(basefilename):
                 insert(queryclass)
                 continue
 
-            # Catch ParmParse groups. This is old-fashioned but still supported.
-            # All subsequent inputs will be nested under a group
-            match = re.findall(r'^\s*(?:IO|amrex)::ParmParse\s*pp\s*(?:\(\s*"([^"]*)"\s*\))?\s*;\s*(?:\/\/\s*(.*))?',line)
-            if match:
-                reset()
-                group = dict()
-                group["type"] = "group"
-                group["prefix"] = match[0][0]
-                group["doc"] = match[0][1]
-                if group["doc"] == "":
-                    for j in reversed(range(0,i)):
-                        match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-                        if match: group["doc"] = match[0] + " " + group["doc"]
-                        else: break
-                group["inputs"] = list()
+            ## Catch ParmParse groups. This is old-fashioned but still supported.
+            ## All subsequent inputs will be nested under a group
+            #match = re.findall(r'^\s*(?:IO|amrex)::ParmParse\s*pp\s*(?:\(\s*"([^"]*)"\s*\))?\s*;\s*(?:\/\/\s*(.*))?',line)
+            #if match:
+            #    reset()
+            #    group = dict()
+            #    group["type"] = "group"
+            #    group["prefix"] = match[0][0]
+            #    group["doc"] = match[0][1]
+            #    if group["doc"] == "":
+            #        for j in reversed(range(0,i)):
+            #            match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+            #            if match: group["doc"] = match[0] + " " + group["doc"]
+            #            else: break
+            #    group["inputs"] = list()
 
             # Catch definition of a Parser function.
             if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
@@ -165,13 +170,33 @@ def extract(basefilename):
 
 
             # Catch definition of a select function:
-            match = re.findall(r'pp\.(select[_default]*)<([^>]+)>\s*\("([^"]+)"\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(r'pp\.(select[_default])<([^>]+)>\s*\("([^"]+)"\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = match[0][0]
                 input["classes"] = match[0][1].replace(' ','').split(',')
                 input["string"] = match[0][2].replace(' ','')
                 input["doc"] = match[0][3]
+                input["file"] = filename
+                input["line"] = i+1
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                insert(input)
+
+            # Catch definition of a select_main function:
+            match = re.findall(r'pp\.(select_main)<([^>]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = match[0][0]
+                input["classes"] = match[0][1].replace(' ','').split(',')
+                input["string"] = None 
+                input["doc"] = None 
                 input["file"] = filename
                 input["line"] = i+1
 
@@ -204,7 +229,6 @@ def extract(basefilename):
                 continue
 
             # Catch a queryclass with no ID
-            match = re.findall(r'pp\.queryclass<([^>]+)>\s*\([^\)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             match = re.findall(r'pp\.queryclass<([^\)_]+)>\s*\([^\)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
@@ -272,6 +296,7 @@ def scrape(root="../src/"):
         for f in filelist:
             if f.endswith(".cpp"): srcfileset.add(f.replace(".cpp",""))
             if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
+            if f.endswith(".cc"): srcfileset.add(f.replace(".cc",""))
         srcfilelist = list(srcfileset)
         
         #
@@ -283,23 +308,32 @@ def scrape(root="../src/"):
                 return "0"
             return(key[0])
         for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
-            classname = dirname.replace(root,"").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
+            path = []
+            if dirname.replace(root,"") != "":
+                path += dirname.replace(root,"").split('/')
+            basefilename = f.replace(".H","").replace(".cpp","").replace(".cc","")
+            path += [basefilename]
+            classname = '::'.join(path)
             data[classname] = dict()
 
             try:
-                data[classname]['inputs'] = extract(dirname+"/"+f)
+                data[classname]['inputs'] = extract(dirname+"/"+basefilename)
             except Exception as e:
                 print("ERROR: problem reading",dirname)
                 raise
-            data[classname]['documentation'] = getdocumentation(dirname+"/"+f)
+            data[classname]['documentation'] = getdocumentation(dirname+"/"+basefilename)
 
             data[classname]['srcfile'] = None
             if os.path.isfile(f'{dirname}/{f}.cpp'):
-                data[classname]['srcfile'] = f'src/{dirname.replace(root,"")}/{f}.cpp'
+                data[classname]['srcfile'] = f'src/{dirname.replace(root,"")}/{basefilename}.cpp'
 
             data[classname]['hdrfile'] = None
             if os.path.isfile(f'{dirname}/{f}.H'):
-                data[classname]['hdrfile'] = f'src/{dirname.replace(root,"")}/{f}.H'
+                data[classname]['hdrfile'] = f'src/{dirname.replace(root,"")}/{basefilename}.H'
+
+            data[classname]['mainfile'] = None
+            if os.path.isfile(f'{dirname}/{f}.cc'):
+                data[classname]['mainfile'] = f'src/{dirname.replace(root,"")}/{basefilename}.cc'
 
     return data
 

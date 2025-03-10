@@ -41,6 +41,9 @@ namespace Integrator
 class HeatConduction : virtual public Integrator
 {
 public:
+    static constexpr const char* name = "heatconduction";
+
+
     // Empty constructor
     HeatConduction(int a_nghost = 2) : 
         Integrator(),

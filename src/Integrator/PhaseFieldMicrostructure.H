@@ -62,6 +62,9 @@ template<class model_type>
 class PhaseFieldMicrostructure : public Base::Mechanics<model_type>
 {
 public:
+    static constexpr const char *name = "phasefieldmicrostructure";
+
+
     PhaseFieldMicrostructure() : Integrator() {};
     PhaseFieldMicrostructure(IO::ParmParse &pp) : Integrator() 
     {pp_queryclass(*this);}
