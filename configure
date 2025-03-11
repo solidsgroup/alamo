@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import re
-import subprocess
-import textwrap
-import sys
 import shutil
-#import ctypes.util
-import glob
-import json
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
+from typing import Tuple
 
 #
 # Configuration parameters, mainly to specify default values:
@@ -19,12 +18,6 @@ from pathlib import Path
 amrex_current_version = "25.03"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
-# Python versions
-python_minimum_major = 3
-python_minimum_minor = 5
-
-
-python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
 
 class color:
     reset = "\033[0m"
@@ -92,7 +85,51 @@ def shellmessage(title,cmd,env=None,message=None,hidecmd=False,cwd=None,shell=Fa
         raise e
     return p
 
-message("Python",python_version)
+def get_requires_python_version(pyproject_path: Path = Path("pyproject.toml")) -> Tuple[int, int]:
+    """Gets the required Python version from the pyproject.toml.
+
+    This uses a regex because TOML support wasn't added to the standard
+    library until Python 3.11 and we need to support Python >= 3.7. If
+    we increase the minimum Python version to >= 3.11, we can replace
+    this functionality using the much more Pythonic `toml` library.
+
+    Parameters
+    ----------
+    pyproject_path
+        Path to the `pyproject.toml`.
+
+    Returns
+    -------
+    Tuple[int, int]
+        The (<major version, <minor version>).
+
+    Raises
+    ------
+    ValueError
+        If `requires-python` cannot be parsed from `pyproject.toml`.
+    """
+    with open(pyproject_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    match = re.search(r'requires-python\s*=\s*["\']([^"\']+)["\']', content)
+    if not match:
+        raise ValueError("Could not find 'requires-python' in pyproject.toml.")
+
+    requires_python = match.group(1)
+    versions = re.findall(r'(\d+)\.(\d+)', requires_python)
+
+    if not versions:
+        raise ValueError(f"Invalid 'requires-python' format: {requires_python}")
+    
+    major, minor = map(int, versions[0])
+    assert isinstance(major, int) and isinstance(minor, int)
+
+    return major, minor
+
+python_minimum_major, python_minimum_minor = get_requires_python_version() 
+message("Requires Python", f">= {python_minimum_major}.{python_minimum_minor}")
+message("System Python", f"{sys.version_info.major}.{sys.version_info.minor}")
+
 if sys.version_info.major < python_minimum_major or sys.version_info.minor < python_minimum_minor:
     raise Exception(error("You need Python {}.{} or greater".format(python_minimum_major,python_minimum_minor)))
 

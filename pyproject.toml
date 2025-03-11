@@ -1,30 +1,6 @@
+[project]
+requires-python = ">= 3.7"
+
 [tool.pyright]
-exclude = [
-    "LICENSE",
-    "Makefile",
-    "README.rst",
-    "bin",
-    "compile_commands.json",
-    "ext",
-    "pyproject.toml",
-    "src",
-]
 extends = ".pyright-override.toml"
 pythonVersion = "3.7"
-
-[tool.ruff]
-target-version = "py37"
-exclude = [
-    "LICENSE",
-    "Makefile",
-    "README.rst",
-    "bin",
-    "compile_commands.json",
-    "ext",
-    "pyproject.toml",
-    "src",
-]
-line-length = 79
-
-[tool.ruff.format]
-preview = true
