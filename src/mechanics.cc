@@ -41,29 +41,29 @@ int main (int argc, char* argv[])
         // which mechanics model to use
         pp.query_default("alamo.program.mechanics.model",model,"linear.isotropic");
         if (model == "linear.isotropic")
-            integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Isotropic>>(integrator);
         else if (model == "linear.cubic")
-            integrator = new Integrator::Mechanics<Model::Solid::Linear::Cubic>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Cubic>>(integrator);
         else if (model == "affine.cubic")
-            integrator = new Integrator::Mechanics<Model::Solid::Affine::Cubic>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Cubic>>(integrator);
         else if (model == "affine.hexagonal")
-            integrator = new Integrator::Mechanics<Model::Solid::Affine::Hexagonal>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Hexagonal>>(integrator);
         else if (model == "affine.isotropic")
-            integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::Isotropic>>(integrator);
         else if (model == "linear.laplacian")
-            integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Laplacian>>(integrator);
         else if (model == "finite.neohookean")
-            integrator = new Integrator::Mechanics<Model::Solid::Finite::NeoHookean>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookean>>(integrator);
         else if (model == "finite.neohookeanpre")
-            integrator = new Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>>(integrator);
         else if (model == "finite.pseudolinear.cubic")
-            integrator = new Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>>(integrator);
         else if (model == "finite.pseudoaffine.cubic")
-            integrator = new Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
         else if (model == "affine.j2")
-            integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Affine::J2>>(integrator);
         else if (model == "finite.crystalplastic")
-            integrator = new Integrator::Mechanics<Model::Solid::Finite::CrystalPlastic>(pp);
+            pp.select_only<Integrator::Mechanics<Model::Solid::Finite::CrystalPlastic>>(integrator);
         else Util::Abort(INFO,model," is not a valid model");
     }
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
