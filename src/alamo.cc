@@ -26,16 +26,18 @@ int main (int argc, char* argv[])
 {
     Util::Initialize(argc,argv);
 
-    std::string program = "microstructure";
+    std::string program;
     IO::ParmParse pp;
-    pp_query("alamo.program",program);
+    // The integrator to select
+    pp.query_default("alamo.program",program,"microstructure");
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")
     {
-        std::string model = "affine.cubic";
-        pp_query("alamo.program.microstructure.model",model);
+        std::string model;
+        // which model to use (if using PFM with elasticity)
+        pp.query_default("alamo.program.microstructure.model",model,"affine.cubic");
         if (model == "affine.cubic")
             pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
         else if (model == "affine.hexagonal")

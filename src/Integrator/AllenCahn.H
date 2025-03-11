@@ -87,10 +87,11 @@ public:
         pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
 
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::Random,IC::PSRead>("alpha.ic",value.ic,value.geom);
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
+        
 
         // Use a constant BC object for temperature
-        value.bc = new BC::Constant(1);
+        // value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
         pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
 

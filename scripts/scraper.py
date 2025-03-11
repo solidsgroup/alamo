@@ -62,7 +62,8 @@ def extract(basefilename):
                 else:
                     line += _line.split('//')[0].replace('\n','')
                     continue
-            elif "pp." in _line or "pp_" in _line.split('//')[0]:
+            elif (("pp." in _line.split('//')[0] or "pp_" in _line.split('//')[0]) and
+                  "pp.contains" not in _line.split('//')[0]): # special case - don't care about contains stmts
                 i = _i
                 if ";" in _line:
                     line = _line

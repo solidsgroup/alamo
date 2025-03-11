@@ -17,13 +17,10 @@ int main (int argc, char* argv[])
 
     std::string program = "microstructure";
     IO::ParmParse pp;
-    pp_query("alamo.program",program);
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
-    if (program == "topop")                integrator = new Integrator::TopOp<Model::Solid::Linear::Isotropic>(pp);
-    else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
-
+    integrator = new Integrator::TopOp<Model::Solid::Linear::Isotropic>(pp);
     integrator->InitData();
     integrator->Evolve();
     delete integrator;

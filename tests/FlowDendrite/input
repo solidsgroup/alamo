@@ -44,18 +44,18 @@ dendrite.alpha = 0.9
 dendrite.gamma = 55.0
 dendrite.delta = 0.5
 dendrite.theta = 15.0
-dendrite.bc.temp.type.xhi = neumann
-dendrite.bc.temp.type.xlo = neumann
-dendrite.bc.temp.type.yhi = neumann
-dendrite.bc.temp.type.ylo = neumann
-dendrite.bc.temp.type.zhi = neumann
-dendrite.bc.temp.type.zlo = neumann
-dendrite.bc.phi.type.xhi = neumann
-dendrite.bc.phi.type.xlo = neumann
-dendrite.bc.phi.type.yhi = neumann
-dendrite.bc.phi.type.ylo = neumann
-dendrite.bc.phi.type.zhi = neumann
-dendrite.bc.phi.type.zlo = neumann
+dendrite.bc.temp.constant.type.xhi = neumann
+dendrite.bc.temp.constant.type.xlo = neumann
+dendrite.bc.temp.constant.type.yhi = neumann
+dendrite.bc.temp.constant.type.ylo = neumann
+dendrite.bc.temp.constant.type.zhi = neumann
+dendrite.bc.temp.constant.type.zlo = neumann
+dendrite.bc.phi.constant.type.xhi = neumann
+dendrite.bc.phi.constant.type.xlo = neumann
+dendrite.bc.phi.constant.type.yhi = neumann
+dendrite.bc.phi.constant.type.ylo = neumann
+dendrite.bc.phi.constant.type.zhi = neumann
+dendrite.bc.phi.constant.type.zlo = neumann
 
 
 

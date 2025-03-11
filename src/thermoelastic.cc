@@ -14,16 +14,14 @@ int main (int argc, char* argv[])
 {
     Util::Initialize(argc,argv);
 
-    std::string program = "microstructure";
     IO::ParmParse pp;
-    pp_query("alamo.program",program);
     srand(2);
 
-    {
-        Integrator::ThermoElastic integrator(pp);
-        integrator.InitData();
-        integrator.Evolve();
-    }
+    Integrator::Integrator *integrator;
+    integrator = new Integrator::ThermoElastic(pp);
+    integrator->InitData();
+    integrator->Evolve();
+    delete integrator;
     
     Util::Finalize();
 } 

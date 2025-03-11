@@ -528,28 +528,38 @@ public:
         {
             Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
-    }    
+    }
 
     //
     // Variadic template parsing operator to assign a pointer to
     // one of a set of possible class objects, then call that method's
     // Parse function.
     //
-    // This requires that a "type" be specified and will error if not.
+    // If there is more than one instantiating class, then type must be set.
+    // Otherwise, no type is necessary.
     //
     template<typename... IC, typename... Args, typename PTRTYPE>
     void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
     {
-        std::string type = "";
-
-        this->query_required(name + ".type", type);
-        
-        bool matched = ((type == IC::name 
-                        ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
-                        true
-                        : false) || ...);
-        if (!matched)
-            Util::Exception(INFO,type," not a valid type for ",name);
+        // if there is only one IC arg provided, we don't need to check the type - assume that
+        // it is the default.
+        if constexpr (sizeof...(IC) == 0)
+        {
+            using first_IC = std::tuple_element_t<0, std::tuple<IC...>>;
+            ic_eta = new first_IC(std::forward<Args>(args)..., (*this), name + "." + std::string(first_IC::name));
+        }
+        // otherwise, check the type.
+        else
+        {
+            std::string type = "";
+            this->query_required(name + ".type", type);
+            bool matched = ((   type == IC::name 
+                                ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                                true
+                                : false) || ...);
+            if (!matched)
+                Util::Exception(INFO, type, " not a valid type for ", name);
+        }
     }
 
     //
@@ -562,6 +572,7 @@ public:
         std::string type = "";
 
         this->query_default(name + ".type", type, FirstIC::name);
+        Util::Message(INFO,FirstIC::name);
 
         bool matched =
             ((  type == FirstIC::name 
@@ -597,20 +608,19 @@ public:
 
     //
     // Similar to select_main but works for one function only
+    // and doesn't require a type specifier.
     //
 
     // with variadic arguments
     template<typename INTEGRATOR, typename Args, typename PTRTYPE>
     void select_only (PTRTYPE *& ic_eta, Args&& args)
     {
-        std::string type = "";
         ic_eta = new INTEGRATOR(std::forward<Args>(args), (*this));
     }
     // without variadic arguments
     template<typename INTEGRATOR, typename PTRTYPE>
     void select_only (PTRTYPE *& ic_eta)
     {
-        std::string type = "";
         ic_eta = new INTEGRATOR((*this));
     }
 

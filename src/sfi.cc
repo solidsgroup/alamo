@@ -14,7 +14,8 @@ int main (int argc, char* argv[])
     #if AMREX_SPACEDIM==2
     IO::ParmParse pp;
     std::string program;
-    pp.query_default("alamo.program",program,"allencahn");
+    // which integrator to use with SFI
+    pp.query_validate("alamo.program",program,{"allencahn","dendrite"});
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;

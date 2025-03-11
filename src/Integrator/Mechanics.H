@@ -187,7 +187,7 @@ public:
         if (pp.contains("trac_normal.ic.type"))
         {
             // Read in IC for the "normal traction" field (applied at diffuse boundaries)
-            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom);
+            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom); 
 
             if (value.ic_trac_normal)
             {
