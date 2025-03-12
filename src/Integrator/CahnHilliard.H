@@ -55,6 +55,10 @@ protected:
     void Initialize (int lev) override;
     /// Integrate eta over one timestep on lev
     void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
+    /// spectral version of advance
+    void AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt);
+    /// realspace version of advance
+    void AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt);
     /// Mark any cells that need to be refined
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
@@ -71,6 +75,7 @@ private:
     Set::Scalar L     = NAN; 
     Set::Scalar refinement_threshold = NAN; 
 
+    std::string method; 
 };
 }
 #endif

@@ -1,12 +1,14 @@
 #include <AMReX_MLPoisson.H>
 
+#ifdef ALAMO_FFT
 #include <AMReX_FFT.H>
+#endif
+
 
 #include "PFC.H"
 #include "BC/Constant.H"
 #include "IO/ParmParse.H"
 #include "IC/Random.H"
-#include "Numeric/Stencil.H"
 #include "Set/Set.H"
 
 namespace Integrator
@@ -22,10 +24,10 @@ PFC::~PFC()
 
 void PFC::Parse(PFC &value, IO::ParmParse &pp)
 {
+    // frequency term
     pp.query_required("q0",value.q0);
-    pp.query_required("r",    value.r);
-    // Regridding criterion
-    pp.query_default("refinement_threshold",value.refinement_threshold, 1E100);
+    // chemical potential width
+    pp.query_required("eps",    value.eps);
 
     // initial condition for :math:`\eta`
     pp.select_default<IC::Random>("eta.ic", value.ic, value.geom);
@@ -33,7 +35,6 @@ void PFC::Parse(PFC &value, IO::ParmParse &pp)
     pp.select_default<BC::Constant>("eta.bc", value.bc, 1);
 
     value.RegisterNewFab(value.eta_mf, value.bc, 1, 1, "eta",true);
-    //value.RegisterNewFab(value.etaold_mf, value.bc, 1, 1, "eta_old",false);
     value.RegisterNewFab(value.grad_chempot_mf, value.bc, 1, 1, "grad_chempot",true);
 }
 
@@ -41,7 +42,7 @@ void PFC::Parse(PFC &value, IO::ParmParse &pp)
 void
 PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
 {
-
+#ifdef ALAMO_FFT
     //
     // FFT Boilerplate
     //
@@ -56,7 +57,6 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
     Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
     
-
     //
     // Compute the gradient of the chemical potential in realspace
     //
@@ -67,8 +67,6 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         amrex::Array4<amrex::Real> const& grad_chempot    = grad_chempot_mf[lev]->array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            // grad_chempot(i,j,k) = -eta(i,j,k)*eta(i,j,k)*eta(i,j,k);
-
             grad_chempot(i, j, k) = eta(i, j, k) * eta(i, j, k) * eta(i, j, k);
         });
     }
@@ -90,8 +88,7 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     //
     // Perform update in spectral coordinatees
     //
-    //for (amrex::MFIter mfi(eta_hat_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    for (amrex::MFIter mfi(eta_hat_mf, false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(eta_hat_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
 
@@ -112,23 +109,8 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             Set::Scalar omega4 = omega2*omega2;
             Set::Scalar omega6 = omega2*omega2*omega2;
 
-
             eta_hat(m, n, p) = eta_hat(m, n, p) - dt * omega2 * N_hat(m, n, p);
-
-            eta_hat(m,n,p) /= 1.0 + dt * ((q0*q0*q0*q0 - r)*omega2  - 2.0* q0*q0 * omega4 + omega6);
-            //Set::Scalar bilap = lap * lap;
-
-            //Set::Scalar L = -lap * (r + (q0*q0 - lap) * (q0*q0 - lap));
-            
-            //Set::Scalar exp_LdT = exp(L * dt);
-            // eta_hat(m, n, p) =  exp_LdT * eta_hat(m, n, p);
-            // if (L != 0)
-            //     eta_hat(m, n, p) += ( (exp_LdT - 1.0)/(L) ) * N_hat(m,n,p);
-
-                
-            
-
-
+            eta_hat(m,n,p) /= 1.0 + dt * ((q0*q0*q0*q0 - eps)*omega2  - 2.0* q0*q0 * omega4 + omega6);
             eta_hat(m,n,p) *= scaling;
         });
     }
@@ -138,37 +120,24 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     //
     my_fft.backward(eta_hat_mf, *eta_mf[lev]);
 
+#else
+    
+    Util::Abort(INFO,"Alamo must be compiled with fft");
 
+#endif 
 }
 
 void
 PFC::Initialize (int lev)
 {
-    grad_chempot_mf[lev]->setVal(0.0);
     ic->Initialize(lev,eta_mf);
-    //ic->Initialize(lev,etaold_mf);
+    grad_chempot_mf[lev]->setVal(0.0);
 }
 
 
 void
 PFC::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
 {
-        const Set::Scalar* DX = geom[lev].CellSize();
-        Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
-
-        for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.tilebox();
-            amrex::Array4<char> const&     tags = a_tags.array(mfi);
-            Set::Patch<const Set::Scalar>   eta = (*eta_mf[lev]).array(mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-                if (grad.lpNorm<2>() * dr > refinement_threshold)
-                    tags(i, j, k) = amrex::TagBox::SET;
-            });
-        }
 }
 
 

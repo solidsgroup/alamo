@@ -1,15 +1,15 @@
-#@  [2D-serial-level]
+#@  [2d-serial-level]
 #@  dim    = 2
 #@  nprocs = 1
 #@  check  = true
-#@  check-file = reference/reference-2d.csv
-#@  args   = stop_time=0.01
+#@  check-file = reference/reference.dat
+#@  fft = true
 
 alamo.program = pfc
 
 ### OUTPUT ###
 
-plot_file = output.pfc
+plot_file = tests/PFC/output
 
 ### MESHING ###
 
@@ -17,21 +17,19 @@ amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.grid_eff = 0.8
-amr.n_cell = 512 512 512 #256 256 256 #128 128 128
-
-#amr.n_cell = 128 128 128 #256 256 256 #128 128 128
+amr.n_cell = 256 256 256
 
 geometry.prob_lo = -0.5 -0.5 -0.5
 geometry.prob_hi =  0.5  0.5 0.5
 
 geometry.prob_lo = 0 0 0
-geometry.prob_hi =  402 402 402 #128 128 128 #256 256 256 #512 512 512
+geometry.prob_hi =  200 200 200
 
 geometry.is_periodic = 1 1 1
 
 timestep  = 0.1
-amr.plot_dt = 0.1
-stop_time = 10000.0
+amr.plot_dt = 10.0
+stop_time = 1000.0
 
 eta.bc.constant.type.xlo = periodic
 eta.bc.constant.type.xhi = periodic
@@ -43,8 +41,5 @@ eta.bc.constant.type.zhi = periodic
 eta.ic.random.offset = 0.245
 eta.ic.random.mult   = 0.01
 
-
 q0 = 1.0
-r = 0.6667
-
-refinement_threshold = 0.01
+eps = 0.6667
