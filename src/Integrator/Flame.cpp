@@ -640,9 +640,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     if (homogeneousSystem == 1) {
                         Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
                         Set::Scalar angle = acos(grad_eta[0] / grad_eta.lpNorm<2>()) * 180 / 3.1415;
-                        if (angle > 90) angle = angle - 90.0;
-                        if (angle > 180) angle = angle - 180.0;
                         if (angle > 270) angle = angle - 270.0;
+                        if (angle > 180) angle = angle - 180.0;
+                        if (angle > 90) angle = angle - 90.0;
                         L = pressure.power.a_fit + pressure.power.b_fit * exp(-pressure.power.c_fit * angle);
                     }
                     else {
