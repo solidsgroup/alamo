@@ -15,17 +15,17 @@
 #ifndef INTEGRATOR_HEATCONDUCTION_H // Include guards
 #define INTEGRATOR_HEATCONDUCTION_H // 
 
-// Standard library includes
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-
 // AMReX Includes
-#include "AMReX.H"
-#include "AMReX_ParallelDescriptor.H"
-#include "AMReX_ParmParse.H"
+#include <AMReX.H>
+#include <AMReX_ParallelDescriptor.H>
+#include <AMReX_ParmParse.H>
+#ifdef ALAMO_FFT
+#include <AMReX_FFT.H>
+#endif
 
 // Alamo Includes
+#include "Set/Base.H"
+#include "Integrator.H"
 #include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
 #include "BC/Constant.H"
@@ -88,6 +88,10 @@ public:
         // temp_mf and temp_old_mf are defined near the bottom of this Header file.
         value.RegisterNewFab(value.temp_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
+
+
+        value.RegisterNewFab(value.temp_fft_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "TempFFT", true);
+
     }
 
 protected:
@@ -96,7 +100,25 @@ protected:
     void Initialize(int lev)
     {
         ic->Initialize(lev, temp_old_mf);
+        ic->Initialize(lev, temp_mf);
+        temp_fft_mf[lev]->setVal(0.0);
     }
+
+    virtual void
+    TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
+    {
+        for (int lev = 0; lev <= finest_level; lev++)
+        {
+            amrex::FFT::R2C my_fft(this->geom[lev].Domain());
+            auto const& [cba, cdm] = my_fft.getSpectralDataLayout();
+            amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > Temp_hat(cba, cdm, 1, 0);
+            my_fft.forward(*temp_mf[lev], Temp_hat);
+
+            my_fft.backward(*temp_fft_mf[lev]);
+        }
+        
+    };
+
 
     // Integrate the heat equation
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
@@ -131,6 +153,7 @@ protected:
         }
     }
 
+
     // Tag cells for mesh refinement based on temperature gradient
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
     {
@@ -164,6 +187,8 @@ protected:
 protected:
     Set::Field<Set::Scalar> temp_mf;         // Temperature field variable (current timestep)
     Set::Field<Set::Scalar> temp_old_mf;     // Temperature field variable (previous timestep)
+
+    Set::Field<Set::Scalar> temp_fft_mf;
 
 private:
 
