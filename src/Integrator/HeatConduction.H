@@ -16,6 +16,9 @@
 #define INTEGRATOR_HEATCONDUCTION_H // 
 
 // AMReX Includes
+#include "AMReX_Array4.H"
+#include "AMReX_GpuComplex.H"
+#include "AMReX_MFIter.H"
 #include <AMReX.H>
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
@@ -101,20 +104,53 @@ protected:
     {
         ic->Initialize(lev, temp_old_mf);
         ic->Initialize(lev, temp_mf);
-        temp_fft_mf[lev]->setVal(0.0);
+        ic->Initialize(lev, temp_fft_mf);
     }
 
     virtual void
-    TimeStepBegin(Set::Scalar /*time*/, int /*iter*/)
+    TimeStepBegin(Set::Scalar /*time*/, int iter)
     {
+        if (iter % 10)
+            return;
+        Set::Scalar timestep = 10.0*this->timestep;
+
         for (int lev = 0; lev <= finest_level; lev++)
         {
             amrex::FFT::R2C my_fft(this->geom[lev].Domain());
             auto const& [cba, cdm] = my_fft.getSpectralDataLayout();
             amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > Temp_hat(cba, cdm, 1, 0);
-            my_fft.forward(*temp_mf[lev], Temp_hat);
+            my_fft.forward(*temp_fft_mf[lev], Temp_hat);
 
-            my_fft.backward(*temp_fft_mf[lev]);
+            const Set::Scalar* DX = geom[lev].CellSize();
+
+            Set::Scalar
+                pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
+                pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1];
+
+            Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
+            Util::Message(INFO,geom[lev].Domain().d_numPts());
+
+            for (amrex::MFIter mfi(Temp_hat, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box &bx = mfi.tilebox();
+                amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & T_hat =  Temp_hat.array(mfi);
+                Util::Message(INFO, bx);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
+                    Set::Scalar dt = timestep;
+                    Set::Scalar k1 = m * pi_Lx;
+
+                    Set::Scalar k2;
+                    if (n < bx.length(1)/2)
+                        k2 = n * pi_Ly;
+                    else
+                        k2 = (n - bx.length(1)) * pi_Ly;
+
+                    Set::Scalar factor = exp( - alpha * dt * (k1*k1 + k2*k2)); 
+                    T_hat(m,n,p) *= factor*scaling;
+                });
+            }
+
+            my_fft.backward(Temp_hat, *temp_fft_mf[lev]);
         }
         
     };
@@ -134,7 +170,8 @@ protected:
         for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             // Get the box (index dimensions) for this patch
-            const amrex::Box& bx = mfi.tilebox();
+            const amrex::Box &bx = mfi.tilebox();
+            Util::Message(INFO,bx);
 
             // Get an array-accessible handle to the data on this patch.
             // amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
