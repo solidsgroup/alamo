@@ -50,6 +50,7 @@ CahnHilliard::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     amrex::FFT::R2C my_fft(this->geom[lev].Domain());
     auto const &[cba, cdm] = my_fft.getSpectralDataLayout();
     const Set::Scalar* DX = geom[lev].CellSize();
+    amrex::Box const & domain = this->geom[lev].Domain();
     Set::Scalar
         AMREX_D_DECL(
             pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
@@ -105,8 +106,8 @@ CahnHilliard::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             // Get spectral coordinates
             AMREX_D_TERM(
                 Set::Scalar k1 = m * pi_Lx;,
-                Set::Scalar k2 = (n < bx.length(1)/2 ? n * pi_Ly : (n - bx.length(1)) * pi_Ly);,
-                Set::Scalar k3 = (p < bx.length(2)/2 ? p * pi_Lz : (p - bx.length(2)) * pi_Lz););
+                Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
+                Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
 
 
             Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);

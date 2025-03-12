@@ -22,6 +22,7 @@
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/Dendrite.H"
+#include "Integrator/PFC.H"
 
 int main (int argc, char* argv[])
 {
@@ -49,6 +50,7 @@ int main (int argc, char* argv[])
     else if (program == "dendrite")             integrator = new Integrator::Dendrite(pp);
     else if (program == "allencahn")            integrator = new Integrator::AllenCahn(pp);
     else if (program == "cahnhilliard")         integrator = new Integrator::CahnHilliard(pp);
+    else if (program == "pfc")                  integrator = new Integrator::PFC(pp);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();
