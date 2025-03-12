@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iomanip>
 
+#include "AMReX_ParallelDescriptor.H"
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 #include "IO/FileNameParse.H"
@@ -29,7 +30,7 @@ int main (int argc, char* argv[])
     std::string program = "microstructure";
     IO::ParmParse pp;
     pp_query("alamo.program",program);
-    srand(2);
+    srand(2 + amrex::ParallelDescriptor::MyProc());
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")

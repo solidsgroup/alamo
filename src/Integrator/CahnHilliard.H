@@ -21,18 +21,13 @@
 #ifndef INTEGRATOR_CAHNHILLIARD_H
 #define INTEGRATOR_CAHNHILLIARD_H
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-
-#include "AMReX.H"
-#include "AMReX_ParmParse.H"
-#include "AMReX_ParallelDescriptor.H"
+#include <AMReX.H>
 #include <AMReX_MLMG.H>
 
-#include "IC/Random.H"
+#include "IC/IC.H"
+#include "BC/BC.H"
+#include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
-#include "BC/Nothing.H"
 
 namespace Integrator
 {

@@ -1,43 +1,48 @@
-alamo.program = heat
+#@  [2D-serial-level]
+#@  dim    = 2
+#@  nprocs = 1
+#@  check  = true
+#@  check-file = reference/reference-2d.csv
+#@  args   = stop_time=0.01
 
-plot_file     = output
+alamo.program = cahnhilliard
 
-# Simulation length
-timestep = 0.000001
-stop_time = 0.05
+### OUTPUT ###
 
-# AMR parameters
-amr.plot_int = 10
+plot_file = output.cahnhilliard
+
+### MESHING ###
+
+amr.plot_dt = 0.001
 amr.max_level = 0
-amr.n_cell = 64 64 64
-amr.blocking_factor = 1
-amr.regrid_int = 10
-amr.grid_eff = 1.0
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+amr.grid_eff = 0.8
+amr.n_cell = 512 512 512 #256 256 256 #128 128 128
 
-# Specify geometry and unrefined mesh
-geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1 1 1
-geometry.is_periodic= 1 1 1
+amr.n_cell = 128 128 128 #256 256 256 #128 128 128
 
-# Criterion for mesh refinement
-heat.alpha = 1.0
-heat.refinement_threshold = 0.01
+geometry.prob_lo = -0.5 -0.5 -0.5
+geometry.prob_hi =  0.5  0.5 0.5
 
-# Specify initial conditions
-ic.type = sphere
-ic.sphere.center = 0.5 0.5 0.5
-ic.sphere.radius = 0.25
-ic.sphere.inside = 1.0
+geometry.is_periodic = 1 1 1
 
+timestep  = 0.00001
+stop_time = 10.0
 
-# Boundary conditions
-bc.temp.constant.type.xhi = periodic
-bc.temp.constant.type.xlo = periodic
-bc.temp.constant.type.yhi = periodic
-bc.temp.constant.type.ylo = periodic
-bc.temp.constant.type.zhi = periodic
-bc.temp.constant.type.zlo = periodic
+eta.bc.constant.type.xlo = periodic
+eta.bc.constant.type.xhi = periodic
+eta.bc.constant.type.ylo = periodic
+eta.bc.constant.type.yhi = periodic
+eta.bc.constant.type.zlo = periodic
+eta.bc.constant.type.zhi = periodic
+
+eta.ic.random.offset = -1.0
+eta.ic.random.mult   = 2.0
 
 
+gamma = 0.00001
 
+gamma = 0.0001
 
+refinement_threshold = 0.01

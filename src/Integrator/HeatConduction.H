@@ -127,29 +127,47 @@ protected:
 
             const Set::Scalar* DX = geom[lev].CellSize();
 
+            // Set::Scalar
+            //     pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
+            //     pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1];
+
             Set::Scalar
-                pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
-                pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1];
+                AMREX_D_DECL(
+                    pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
+                    pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1],
+                    pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
+
 
             Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
-            Util::Message(INFO,geom[lev].Domain().d_numPts());
+            //Util::Message(INFO,geom[lev].Domain().d_numPts());
 
-            for (amrex::MFIter mfi(Temp_hat, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            //for (amrex::MFIter mfi(Temp_hat, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            for (amrex::MFIter mfi(Temp_hat); mfi.isValid(); ++mfi)
             {
                 const amrex::Box &bx = mfi.tilebox();
                 amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & T_hat =  Temp_hat.array(mfi);
                 Util::Message(INFO, bx);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
                     Set::Scalar dt = timestep;
-                    Set::Scalar k1 = m * pi_Lx;
 
-                    Set::Scalar k2;
-                    if (n < bx.length(1)/2)
-                        k2 = n * pi_Ly;
-                    else
-                        k2 = (n - bx.length(1)) * pi_Ly;
+                    // Set::Scalar k1 = m * pi_Lx;
 
-                    Set::Scalar factor = exp( - alpha * dt * (k1*k1 + k2*k2)); 
+                    // Set::Scalar k2;
+                    // if (n < bx.length(1)/2)
+                    //     k2 = n * pi_Ly;
+                    // else
+                    //     k2 = (n - bx.length(1)) * pi_Ly;
+
+                    // Get spectral coordinates
+                    AMREX_D_TERM(
+                        Set::Scalar k1 = m * pi_Lx;,
+                        Set::Scalar k2 = (n < bx.length(1)/2 ? n * pi_Ly : (n - bx.length(1)) * pi_Ly);,
+                        Set::Scalar k3 = (p < bx.length(2)/2 ? p * pi_Lz : (p - bx.length(2)) * pi_Lz););
+
+                    Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);
+
+
+                    Set::Scalar factor = exp( - alpha * dt * lap); 
                     T_hat(m,n,p) *= factor*scaling;
                 });
             }
@@ -174,7 +192,7 @@ protected:
         {
             // Get the box (index dimensions) for this patch
             const amrex::Box &bx = mfi.tilebox();
-            Util::Message(INFO,bx);
+            //Util::Message(INFO,bx);
 
             // Get an array-accessible handle to the data on this patch.
             // amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
