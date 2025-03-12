@@ -48,6 +48,7 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     amrex::FFT::R2C my_fft(this->geom[lev].Domain());
     auto const &[cba, cdm] = my_fft.getSpectralDataLayout();
     const Set::Scalar* DX = geom[lev].CellSize();
+    amrex::Box const & domain = this->geom[lev].Domain();
     Set::Scalar
         AMREX_D_DECL(
             pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
@@ -66,7 +67,9 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         amrex::Array4<amrex::Real> const& grad_chempot    = grad_chempot_mf[lev]->array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            grad_chempot(i,j,k) = -eta(i,j,k)*eta(i,j,k)*eta(i,j,k);
+            // grad_chempot(i,j,k) = -eta(i,j,k)*eta(i,j,k)*eta(i,j,k);
+
+            grad_chempot(i, j, k) = eta(i, j, k) * eta(i, j, k) * eta(i, j, k);
         });
     }
 
@@ -83,8 +86,6 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     //
     amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > chempot_hat_mf(cba, cdm, 1, 0);
     my_fft.forward(*grad_chempot_mf[lev], chempot_hat_mf);
-
-    Set::Scalar small = 1.0E-12;
 
     //
     // Perform update in spectral coordinatees
@@ -104,19 +105,30 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             // Get spectral coordinates
             AMREX_D_TERM(
                 Set::Scalar k1 = m * pi_Lx;,
-                Set::Scalar k2 = (n < bx.length(1)/2 ? n * pi_Ly : (n - bx.length(1)) * pi_Ly);,
-                Set::Scalar k3 = (p < bx.length(2)/2 ? p * pi_Lz : (p - bx.length(2)) * pi_Lz););
+                Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
+                Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
 
-            Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);
+            Set::Scalar omega2 = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3 * k3);
+            Set::Scalar omega4 = omega2*omega2;
+            Set::Scalar omega6 = omega2*omega2*omega2;
 
-            Set::Scalar bilap = lap * lap;
 
-            Set::Scalar L = -bilap * (r + (q0*q0 - bilap) * (q0*q0 - bilap));
+            eta_hat(m, n, p) = eta_hat(m, n, p) - dt * omega2 * N_hat(m, n, p);
 
-            Set::Scalar exp_LdT = exp(L * dt);
+            eta_hat(m,n,p) /= 1.0 + dt * ((q0*q0*q0*q0 - r)*omega2  - 2.0* q0*q0 * omega4 + omega6);
+            //Set::Scalar bilap = lap * lap;
 
-            eta_hat(m, n, p) = exp_LdT * eta_hat(m, n, p) + ( (exp_LdT - 1.0)/(L+small) ) * N_hat(m,n,p);
+            //Set::Scalar L = -lap * (r + (q0*q0 - lap) * (q0*q0 - lap));
+            
+            //Set::Scalar exp_LdT = exp(L * dt);
+            // eta_hat(m, n, p) =  exp_LdT * eta_hat(m, n, p);
+            // if (L != 0)
+            //     eta_hat(m, n, p) += ( (exp_LdT - 1.0)/(L) ) * N_hat(m,n,p);
+
                 
+            
+
+
             eta_hat(m,n,p) *= scaling;
         });
     }
