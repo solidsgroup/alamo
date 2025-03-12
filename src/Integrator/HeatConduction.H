@@ -92,8 +92,9 @@ public:
         value.RegisterNewFab(value.temp_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
 
-
+        #ifdef ALAMO_FFT
         value.RegisterNewFab(value.temp_fft_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "TempFFT", true);
+        #endif
 
     }
 
@@ -104,9 +105,12 @@ protected:
     {
         ic->Initialize(lev, temp_old_mf);
         ic->Initialize(lev, temp_mf);
+        #ifdef ALAMO_FFT
         ic->Initialize(lev, temp_fft_mf);
+        #endif
     }
 
+#ifdef ALAMO_FFT
     virtual void
     TimeStepBegin(Set::Scalar /*time*/, int iter)
     {
@@ -152,9 +156,8 @@ protected:
 
             my_fft.backward(Temp_hat, *temp_fft_mf[lev]);
         }
-        
     };
-
+#endif
 
     // Integrate the heat equation
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
@@ -225,7 +228,9 @@ protected:
     Set::Field<Set::Scalar> temp_mf;         // Temperature field variable (current timestep)
     Set::Field<Set::Scalar> temp_old_mf;     // Temperature field variable (previous timestep)
 
+    #ifdef ALAMO_FFT
     Set::Field<Set::Scalar> temp_fft_mf;
+    #endif
 
 private:
 
