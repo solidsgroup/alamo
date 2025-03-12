@@ -42,6 +42,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query_default("p_refinement_criterion", value.p_refinement_criterion, 1e100);
         // density-based refinement
         pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e100);
+        // energy-based refinement
+        pp.query_default("energy_refinement_criterion", value.energy_refinement_criterion, 1e100);
 
         pp_query_required("gamma", value.gamma); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
@@ -58,7 +60,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("v.bc","--> velocity.bc");
         value.density_bc = new BC::Expression(1, pp, "density.bc");
         pp_forbid("pressure.bc","--> energy.bc");
-        value.energy_bc = new BC::Constant(1, pp, "energy.bc");
+        value.energy_bc = new BC::Expression(1, pp, "energy.bc");
         pp_forbid("velocity.bc","--> momentum.bc");
         value.momentum_bc = new BC::Expression(2, pp, "momentum.bc");
         value.eta_bc = new BC::Constant(1, pp, "pf.eta.bc");
@@ -93,7 +95,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, 1, 0, "m0",  true);
         value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, {"x","y"});
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, {"x","y"});
+        value.RegisterNewFab(value.q0_mf,           &value.bc_nothing, 1, 0, "q0",  true);
 
         value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true, {"x","y"});
         value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
@@ -110,6 +112,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp_forbid("Density.ic.type", "--> density.ic.type");
     pp_forbid("rho_injected.ic.type","no longer using rho_injected use m0 instead");
     pp.forbid("mdot.ic.type", "replace mdot with u0");
+    pp.forbid("q.ic", "replace q with q0");
 
 
     // ORDER PARAMETER
@@ -144,7 +147,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     // diffuse boundary prescribed velocity
     pp.select_default<IC::Constant,IC::Expression>("u0.ic",value.ic_u0,value.geom);
     // diffuse boundary prescribed heat flux 
-    pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("q0.ic",value.ic_q0,value.geom);
 
     // Riemann solver
     pp.select_default<Solver::Local::Riemann::Roe>("solver",value.roesolver);
@@ -163,18 +166,18 @@ void Hydro::Initialize(int lev)
 
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
-    density_ic       ->Initialize(lev, density_mf, 0.0);
+    density_ic       ->Initialize(lev, density_mf,  0.0);
 
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
 
 
-    solid.density_ic ->Initialize(lev, solid.density_mf, 0.0);
+    solid.density_ic ->Initialize(lev, solid.density_mf,  0.0);
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
-    solid.energy_ic  ->Initialize(lev, solid.energy_mf, 0.0);
+    solid.energy_ic  ->Initialize(lev, solid.energy_mf,   0.0);
 
     ic_m0            ->Initialize(lev, m0_mf, 0.0);
-    ic_u0            ->Initialize(lev, u0_mf,    0.0);
-    ic_q             ->Initialize(lev, q_mf,            0.0);
+    ic_u0            ->Initialize(lev, u0_mf, 0.0);
+    ic_q0            ->Initialize(lev, q0_mf, 0.0);
 
     Source_mf[lev]   ->setVal(0.0);
 
@@ -328,7 +331,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> q0        = q0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> _u0       = u0_mf.Patch(lev,mfi);
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
@@ -352,12 +355,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix hess_rho = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu   = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
-
-
-            Set::Scalar mdot0 = -m0(i,j,k) * grad_eta_mag;
+            Set::Scalar mdot0 = m0(i,j,k) * grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); 
-            Set::Scalar qdot0 = q0.dot(grad_eta);
+            Set::Scalar qdot0 = q0(i,j,k) * grad_eta_mag;
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
@@ -446,9 +446,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_ylo.mass - flux_yhi.mass) / DX[1] +
                 Source(i, j, k, 0);
 
+            Set::Scalar drhof_dt_eos = 0.0; //rho(i,j,k) * (pow(1.0 + Source(i,j,k,3)/E(i,j,k), 1.0/(gamma - 1.0)) - 1.0);
+
             rho_new(i, j, k) = rho(i, j, k) + 
                 (
-                    drhof_dt +
+                    drhof_dt + drhof_dt_eos +
                     // todo add drhos_dt term if want time-evolving rhos
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + small)
                     ) * dt;
@@ -512,14 +514,26 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
                 Source(i, j, k, 3);
+
+            //Set::Vector grad_eta_normalized = grad_eta/(grad_eta_mag + small);
+            //Set::Scalar dm = m0(i,j,k)*grad_eta_normalized(0) * dt + // x-component
+            //                 m0(i,j,k)*grad_eta_normalized(1) * dt;  // y-component
+            //Set::Scalar drho = dm/(DX[0]*DX[1]);
+            Set::Scalar drho = Source(i,j,k,0)*dt;
+            Set::Scalar dP = (E(i,j,k)*(gamma - 1.0) + pref)*(pow(1.0 + drho/rho(i,j,k), gamma) - 1.0);
+            Set::Scalar dEs = dP/(gamma - 1.0);
+            //Set::Scalar M_mag = sqrt(pow(M(i,j,k,0), 2.0) + pow(M(i,j,k,1), 2.0));
+            //Set::Scalar K = 0.5*pow(M_mag, 2)/rho(i,j,k);
+            //Set::Scalar U = E(i, j, k) - K + pref/(gamma - 1.0);
+            //Set::Scalar dEs = U*(pow(1.0 + drho/rho(i,j,k), gamma - 1.0) - 1.0 + drho/rho(i,j,k)) + M_mag + K/rho(i,j,k)*drho;
+            //std::cout << "dm: " << dm << "\tdrho: " << drho << "\trho1:" << rho(i,j,k) << "\tV: " << DX[0]*DX[1] << "\tE1: " << E(i,j,k) + pref/(gamma-1.0) << "\tdE: " << dEs << std::endl;
                 
-            E_new(i, j, k) = (E(i, j, k) + pref/(gamma - 1.0))*pow(rho_new(i,j,k)/rho(i,j,k),gamma-1.0) - pref/(gamma - 1.0) +
+            E_new(i, j, k) = E(i, j, k) + dEs +
                 ( 
                     dEf_dt +
                     // todo add dEs_dt term if want time-evolving Es
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+small)
                     ) * dt;
-
 
             if (eta(i,j,k) < cutoff)
             {
@@ -626,6 +640,19 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             auto sten = Numeric::GetStencil(i, j, k, bx);
             Set::Vector grad_rho = Numeric::Gradient(rho, i, j, k, 0, DX, sten);
             if (grad_rho.lpNorm<2>() * dr * 2 > rho_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
+
+    // Energy criterion for refinement
+    for (amrex::MFIter mfi(*energy_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& e = (*energy_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+            Set::Vector grad_energy = Numeric::Gradient(e, i, j, k, 0, DX, sten);
+            if (grad_energy.lpNorm<2>() * dr * 2 > energy_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
         });
     }
 

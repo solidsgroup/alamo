@@ -30,10 +30,8 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 stop_time = 1.0
 
-q.ic.type = expression
-q.ic.expression.region0 = "0.0"
-q.ic.expression.region1 = "0.0"
-
+q0.ic.type = expression
+q0.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
 eta.ic.expression.region0 = "1.0"

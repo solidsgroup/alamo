@@ -8,7 +8,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./tests/FlowViscous1D/output
+plot_file = output.mass_source
 
 ### MESHING ###
 
@@ -34,18 +34,19 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 0.5e-3
-stop_time = 0.5
+stop_time = 1.0
 
 ### ETA IC ###
 
-m0.ic.constant.value = "0.0"
+m0.ic.constant.value = -1.0
 
 u0.ic.type = expression
 u0.ic.expression.region0 = "0.0"
 u0.ic.expression.region1 = "0.0"
 
-q0.ic.type = expression
-q0.ic.expression.region0 = "0.0"
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.05
@@ -64,7 +65,7 @@ density.ic.type = expression
 density.ic.expression.region0 = "1.225"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
+velocity.ic.expression.region0 = "0.0" #"1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression

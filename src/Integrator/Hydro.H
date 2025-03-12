@@ -36,7 +36,7 @@ public:
 
         delete ic_m0;
         delete ic_u0;
-        delete ic_q;
+        delete ic_q0;
 
         delete eta_ic;
         delete etadot_ic;
@@ -91,7 +91,7 @@ private:
 
     Set::Field<Set::Scalar> m0_mf;
     Set::Field<Set::Scalar> u0_mf;
-    Set::Field<Set::Scalar> q_mf;
+    Set::Field<Set::Scalar> q0_mf;
     Set::Field<Set::Scalar> Source_mf;
     Set::Field<Set::Scalar> flux_mf;
 
@@ -106,7 +106,7 @@ private:
 
     IC::IC<Set::Scalar>* ic_m0 = nullptr;
     IC::IC<Set::Scalar>* ic_u0 = nullptr;
-    IC::IC<Set::Scalar>* ic_q = nullptr;
+    IC::IC<Set::Scalar>* ic_q0 = nullptr;
 
     IC::IC<Set::Scalar>* eta_ic = nullptr;
     IC::IC<Set::Scalar>* etadot_ic = nullptr;
@@ -120,7 +120,8 @@ private:
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-    Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
+    Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN;
+    Set::Scalar p_refinement_criterion=NAN, rho_refinement_criterion, energy_refinement_criterion;
     Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  pref=NAN;
 
     Set::Scalar small=NAN;

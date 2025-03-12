@@ -165,7 +165,7 @@ hydro.solid.energy.ic.constant.value = 0.0
 
 hydro.m0.ic.constant.value = 0.0
 hydro.u0.ic.constant.value = 0.0
-hydro.q.ic.constant.value = 0.0
+hydro.q0.ic.constant.value = 0.0
 
 hydro.small=1E-8
 hydro.cutoff=0.2

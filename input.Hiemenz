@@ -8,17 +8,17 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./tests/FlowViscous1D/output
+plot_file = ./output.Hiemenz
 
 ### MESHING ###
 
-#amr.plot_dt = 1.0
-amr.plot_int = 100
+amr.plot_dt = 0.01
+#amr.plot_int = 100
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.8
-amr.n_cell = 64 8 0
+amr.n_cell = 64 72 0
 
 # Uncomment to test AMR
 amr.max_level = 2
@@ -26,15 +26,17 @@ amr.max_level = 2
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = 0.0  0.0 0.0 # [ m ] 
-geometry.prob_hi = 5.0  0.625 0.0 # [ m ]
+geometry.prob_lo = 0.0  0.5 0.0 # [ m ] 
+geometry.prob_hi = 6.0  7.0 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 0.5e-3
-stop_time = 0.5
+timestep  = 0.1e-6
+stop_time = 5.0
+#solver.roe.entropy_fix=2
+#lagrange=200
 
 ### ETA IC ###
 
@@ -44,28 +46,29 @@ u0.ic.type = expression
 u0.ic.expression.region0 = "0.0"
 u0.ic.expression.region1 = "0.0"
 
-q0.ic.type = expression
-q0.ic.expression.region0 = "0.0"
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.05
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
-eta.ic.expression.region0        = "0.5*tanh((4.0-x)/eps) + 0.5"
+eta.ic.expression.region0        = "0.5*tanh((-1.0+y)/eps) + 0.5"
 
 ### HYDRO PARAM ###
 
 gamma = 1.4
 cfl   = 0.4
 mu    = 0.5
-pref = 100.0
+pref = 1000.0
 
 density.ic.type = expression
-density.ic.expression.region0 = "1.225"
+density.ic.expression.region0 = "1.0"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
-velocity.ic.expression.region1 = "0.0"
+velocity.ic.expression.region0 = "x"
+velocity.ic.expression.region1 = "-5.0"
 
 pressure.ic.type = expression
 pressure.ic.expression.region0 = "0.0" 
@@ -73,7 +76,7 @@ pressure.ic.expression.region0 = "0.0"
 ### SOLID ###
 
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "1.225"
+solid.density.ic.expression.region0 = "1.0"
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.0"
@@ -103,11 +106,11 @@ pf.eta.bc.val.zhi = 0.0
 density.bc.type.xhi = neumann
 density.bc.type.xlo = neumann
 density.bc.type.ylo = neumann
-density.bc.type.yhi = neumann
+density.bc.type.yhi = dirichlet
 density.bc.val.xhi = 0.0
 density.bc.val.xlo = 0.0
 density.bc.val.ylo = 0.0 
-density.bc.val.yhi = 0.0
+density.bc.val.yhi = 1.0
 
 energy.bc.type.xhi = neumann
 energy.bc.type.xlo = neumann
@@ -118,14 +121,14 @@ energy.bc.val.xlo = 0.0
 energy.bc.val.ylo = 0.0 
 energy.bc.val.yhi = 0.0
 
-momentum.bc.type.xlo = neumann neumann
-momentum.bc.type.xhi = neumann neumann
+momentum.bc.type.xlo = dirichlet neumann
+momentum.bc.type.xhi = dirichlet dirichlet
 momentum.bc.type.ylo = neumann neumann
-momentum.bc.type.yhi = neumann neumann
+momentum.bc.type.yhi = dirichlet dirichlet
 momentum.bc.val.xlo = 0.0 0.0
-momentum.bc.val.xhi = 0.0 0.0
+momentum.bc.val.xhi = (0.0153*y^5-0.3565*y^4+3.2313*y^3-14.1856*y^2+30.1171*y-18.7392) (0.0015*y^5-0.0342*y^4+0.3018*y^3-1.2805*y^2+1.6063*y-0.5753)
 momentum.bc.val.ylo = 0.0 0.0
-momentum.bc.val.yhi = 0.0 0.0
+momentum.bc.val.yhi = x -5.54
 
 ### HYDRO REFINEMENT CRITERIA ###
 
@@ -136,3 +139,8 @@ eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
 
 #TODO
+#dynamictimestep.on = 1
+#dynamictimestep.verbose = 1
+#dynamictimestep.max  = 0.01
+#dynamictimestep.min  = 1E-5
+##dynamictimestep.cfl = 0.005

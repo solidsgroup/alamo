@@ -65,9 +65,8 @@ u0.ic.type = expression
 u0.ic.expression.region0 = "0.001*(y>1.5)"
 u0.ic.expression.region1 = "0.0"
 
-q.ic.type = expression
-q.ic.expression.region0 = "0.0"
-q.ic.expression.region1 = "0.0"
+q0.ic.type = expression
+q0.ic.expression.region0 = "0.0"
 
 density.ic.type = expression
 density.ic.expression.region0 = "100.0"

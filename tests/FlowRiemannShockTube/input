@@ -54,8 +54,8 @@ stop_time = 0.01
 m0.ic.constant.value = 0.0 
 u0.ic.constant.value = 0.0 
 
-q.ic.type = constant
-q.ic.constant.value = 0.0
+q0.ic.type = constant
+q0.ic.constant.value = 0.0
 
 #deltapInterface.ic.type = expression
 #deltapInterface.ic.expression.region0 = "0.0"
