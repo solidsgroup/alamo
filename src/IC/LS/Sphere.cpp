@@ -25,7 +25,7 @@ Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::
 void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
     bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
     const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar Narrow_Band_Width = 6.0 * DX[0];
+    const Set::Scalar Narrow_Band_Width = 7.0 * DX[0];
     const Set::Scalar InnerTube = -Narrow_Band_Width;
     const Set::Scalar OuterTube = Narrow_Band_Width;
 
@@ -36,6 +36,7 @@ void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             auto coords = computeCoordinates(i, j, k, lev, cellcentered);
             Set::Scalar rsq = computeRSquared(coords, type, center);
+            //field(i, j, k, 0) = std::sqrt(rsq) - radius;
             Set::Scalar distance = std::sqrt(rsq) - radius;
             field(i, j, k, 0) = computeLevelSetValue(distance, Narrow_Band_Width, InnerTube, OuterTube);
         });
