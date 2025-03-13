@@ -1,13 +1,14 @@
 
 # Run by using this line in the alamo directory
 # ./bin/alamo-2d-g++ ./gaj/pfmicromechanics/input
+# ./bin/thermomechanics-2d-g++ ./gaj/pfmicromechanics/input
 # 
 # TODO:
 # 1. How to do initial conditions, especially for phasefield
 # 2. 
 #
 # Current Error:
-# 1. Get the heat conduction to work
+# 1. Get microstructure to work
 # 
 #
 #
@@ -17,7 +18,7 @@ alamo.program		= thermomechanics # would the program be thermomechanics?
 plot_file			= gaj/pfmicromechanics/output
 
 timestep			= 0.0001
-stop_time 			= 0.5
+stop_time 			= 0.08
 
 amr.plot_dt			= 0.01
 amr.max_level		= 2
@@ -103,9 +104,15 @@ pfm.bc.eta.constant.type.ylo	= neumann
 pfm.bc.eta.constant.type.zhi	= neumann
 pfm.bc.eta.constant.type.zlo	= neumann
 
-
+# Microstructure Model Information
+pfm.pf.M 		= 1.0
+pfm.pf.mu 		= 10.0
+pfm.pf.gamma	= 1.0
+pfm.pf.l_gb		= 0.05
+pfm.pf.sigma0	= 0.075
 
 # Mechanics Boundary Conditions
+mechanics.model = affine.cubic
 mechanics.bc.type					= constant
 mechanics.bc.constant.type.xlo		= neumann neumann neumann # How do I make this so that there is no displacement? Neumann? Help
 mechanics.bc.constant.type.xhi		= neumann neumann neumann
@@ -124,12 +131,7 @@ mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
 mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
 
 
-# Microstructure Model Information
-pfm.pf.M 		= 1.0
-pfm.pf.mu 		= 10.0
-pfm.pf.gamma	= 1.0
-pfm.pf.l_gb		= 0.05
-pfm.pf.sigma0	= 0.075
+
 
 
 # Mechanics Model Information
@@ -141,12 +143,12 @@ mechanics.model.C44	= 0.75
 # Mechanics Solver Information
 # mechanics.solver.fixed_iter			= 100 # Why is this line commented out?
 mechanics.solver.verbose				= 3
-mechancis.print_model					= 1
+mechanics.print_model					= 1
 mechanics.print_residual				= 1
 mechanics.solver.tol_rel				= 1E-8
 mechanics.solver.tol_abs				= 1E-8
 mechanics.solver.average_down_coeffs 	= 0
-mechanics.time_evolving					= 0 # Should this be 1 or 0? Help
+mechanics.time_evolving					= 1 # Should this be 1 or 0? Help
 mechanics.tstart						= 0
 
 

@@ -14,11 +14,13 @@ namespace Integrator
 class ThermoMechanics :
     virtual public HeatConduction,
     virtual public PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>
+   	//virtual public Mechanics<Model::Solid::Affine::Cubic>
 {
 public:
 	ThermoMechanics():
 		HeatConduction(3),
 		PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>()
+		//Mechanics<Model::Solid::Affine:Cubic>()
 	{ }
 	ThermoMechanics(IO::ParmParse &pp) : ThermoMechanics()
   {Parse(*this,pp);}
@@ -26,6 +28,7 @@ public:
 	{
 		pp.queryclass<HeatConduction>("hc",value);
 		pp.queryclass<PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>("pfm",value);
+		//pp.queryclass<Mechanics<Model::Solid::Affine::Cubic>>("mech",value);
 		
 		pp_queryarr("alpha",value.alpha); // Diffusion coefficient (heat conduction?)
 	}
@@ -35,11 +38,14 @@ protected:
     {
         HeatConduction::Initialize(lev);
         PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>::Initialize(lev);
+        //Mechanics<Model::Solid::Affine:Cubic>::Initialize(lev);
     }
 
     void UpdateModel(int a_step, Set::Scalar a_time) override
     {
         PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>::UpdateModel(a_step, a_time);
+        
+        //Mechanics<Model::Solid::Affine::Cubic>::UpdateModel(a_step, a_time);
 
         //Set::Scalar alpha[2];
         //alpha[0] = 0.001; alpha[1] = 0.002;
@@ -72,18 +78,21 @@ protected:
     {
         HeatConduction::TimeStepBegin(a_time, a_step);
         PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>::TimeStepBegin(a_time, a_step);
+        //Mechanics<Model::Solid::Affine::Cubic>::TimeStepBegin(a_time, a_step);
     }
 
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         HeatConduction::Advance(a_lev, a_time, a_dt);
         PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>::Advance(a_lev, a_time, a_dt);
+        //Mechanics<Model::Solid::Affine::Cubic>::Advance(a_lev, a_time, a_dt);
     }
 
     void TagCellsForRefinement(int a_lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
     {
         HeatConduction::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
         PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
+        //Mechanics<Model::Solid::Affine::Cubic>::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
     }
 
     std::vector<Set::Scalar> alpha;
