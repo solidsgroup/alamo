@@ -130,7 +130,6 @@ protected:
         {
             // Get the box (index dimensions) for this patch
             const amrex::Box &bx = mfi.tilebox();
-            //Util::Message(INFO,bx);
 
             // Get an array-accessible handle to the data on this patch.
             Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
