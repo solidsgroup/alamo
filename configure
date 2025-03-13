@@ -570,5 +570,3 @@ if not args.compile_commands:
     with open(Path("compile_commands.json"), "w") as f:
         json.dump(command_objects, f, indent=4)
 
-
-    

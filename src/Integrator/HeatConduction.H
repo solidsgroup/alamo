@@ -87,15 +87,16 @@ public:
         // Select BC object for temperature
         pp.select_default<BC::Constant,BC::Expression>("bc.temp",value.bc,1);
 
+        // Select between using a realspace solve or the spectral method
+        pp.query_validate("method",value.method,{"realspace","spectral"});
+
         // Register the temperature and old temperature fields.
         // temp_mf and temp_old_mf are defined near the bottom of this Header file.
         value.RegisterNewFab(value.temp_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
-        value.RegisterNewFab(value.temp_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
-
-        #ifdef ALAMO_FFT
-        value.RegisterNewFab(value.temp_fft_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "TempFFT", true);
-        #endif
-
+        if (value.method == "realspace")
+        {
+            value.RegisterNewFab(value.temp_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
+        }
     }
 
 protected:
@@ -103,85 +104,20 @@ protected:
     // Use the ic object to initialize the temperature field
     void Initialize(int lev)
     {
-        ic->Initialize(lev, temp_old_mf);
         ic->Initialize(lev, temp_mf);
-        #ifdef ALAMO_FFT
-        ic->Initialize(lev, temp_fft_mf);
-        #endif
+        if (method == "realspace") ic->Initialize(lev, temp_old_mf);
     }
 
-#ifdef ALAMO_FFT
-    virtual void
-    TimeStepBegin(Set::Scalar /*time*/, int iter)
-    {
-        if (iter % 10)
-            return;
-        Set::Scalar timestep = 10.0*this->timestep;
-
-        for (int lev = 0; lev <= finest_level; lev++)
-        {
-            amrex::Box const & domain = this->geom[lev].Domain();
-
-            amrex::FFT::R2C my_fft(this->geom[lev].Domain());
-            auto const& [cba, cdm] = my_fft.getSpectralDataLayout();
-            amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > Temp_hat(cba, cdm, 1, 0);
-            my_fft.forward(*temp_fft_mf[lev], Temp_hat);
-
-            const Set::Scalar* DX = geom[lev].CellSize();
-
-            // Set::Scalar
-            //     pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
-            //     pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1];
-
-            Set::Scalar
-                AMREX_D_DECL(
-                    pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
-                    pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1],
-                    pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
-
-
-            Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
-            //Util::Message(INFO,geom[lev].Domain().d_numPts());
-
-            //for (amrex::MFIter mfi(Temp_hat, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            for (amrex::MFIter mfi(Temp_hat); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box &bx = mfi.tilebox();
-                amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & T_hat =  Temp_hat.array(mfi);
-                Util::Message(INFO, bx);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
-                    Set::Scalar dt = timestep;
-
-                    // Set::Scalar k1 = m * pi_Lx;
-
-                    // Set::Scalar k2;
-                    // if (n < bx.length(1)/2)
-                    //     k2 = n * pi_Ly;
-                    // else
-                    //     k2 = (n - bx.length(1)) * pi_Ly;
-
-                    // Get spectral coordinates
-                    AMREX_D_TERM(
-                        Set::Scalar k1 = m * pi_Lx;,
-                        Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
-                        Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
-
-                    Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);
-
-
-                    Set::Scalar factor = exp( - alpha * dt * lap); 
-                    T_hat(m,n,p) *= factor*scaling;
-                });
-            }
-
-            my_fft.backward(Temp_hat, *temp_fft_mf[lev]);
-        }
-    };
-#endif
-
     // Integrate the heat equation
-    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
+        // If we are solving using the spectral method, go there instead.
+        if (method == "spectral")
+        {
+            AdvanceSpectral(lev,time,dt);
+            return;
+        }
+
         // Swap the old temp fab and the new temp fab so we use
         // the new one.
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
@@ -197,8 +133,6 @@ protected:
             //Util::Message(INFO,bx);
 
             // Get an array-accessible handle to the data on this patch.
-            // amrex::Array4<const Set::Scalar> const& temp_old = (*temp_old_mf[lev]).array(mfi);
-            // amrex::Array4<Set::Scalar>       const& temp = temp_mf.Patch(lev,mfi);//(*temp_mf[lev]).array(mfi);
             Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
 
@@ -214,9 +148,59 @@ protected:
     }
 
 
+    void
+    AdvanceSpectral(int lev, Set::Scalar /*time*/, Set::Scalar dt)
+    {
+#ifdef ALAMO_FFT
+        Util::Assert(INFO,TEST(lev == 0), "Only single level currently supported");
+        
+        amrex::Box const & domain = this->geom[lev].Domain();
+
+        amrex::FFT::R2C my_fft(this->geom[lev].Domain());
+        auto const& [cba, cdm] = my_fft.getSpectralDataLayout();
+        amrex::FabArray<amrex::BaseFab<amrex::GpuComplex<Set::Scalar> > > Temp_hat(cba, cdm, 1, 0);
+        my_fft.forward(*temp_mf[lev], Temp_hat);
+
+        const Set::Scalar* DX = geom[lev].CellSize();
+
+        Set::Scalar
+            AMREX_D_DECL(
+                pi_Lx = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(0) / DX[0],
+                pi_Ly = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(1) / DX[1],
+                pi_Lz = 2.0 * Set::Constant::Pi / geom[lev].Domain().length(2) / DX[2]);
+
+        Set::Scalar scaling = 1.0 / geom[lev].Domain().d_numPts();
+
+        for (amrex::MFIter mfi(Temp_hat, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box &bx = mfi.tilebox();
+            amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & T_hat =  Temp_hat.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int m, int n, int p) {
+
+                AMREX_D_TERM(
+                    Set::Scalar k1 = m * pi_Lx;,
+                    Set::Scalar k2 = (n < domain.length(1)/2 ? n * pi_Ly : (n - domain.length(1)) * pi_Ly);,
+                    Set::Scalar k3 = (p < domain.length(2)/2 ? p * pi_Lz : (p - domain.length(2)) * pi_Lz););
+
+                Set::Scalar lap = AMREX_D_TERM(k1 * k1, + k2 * k2, + k3*k3);
+
+                Set::Scalar factor = exp( - alpha * dt * lap); 
+                T_hat(m,n,p) *= factor*scaling;
+            });
+        }
+
+        my_fft.backward(Temp_hat, *temp_mf[lev]);
+#else
+        Util::Abort(INFO,"Alamo must be configured with --fft");
+#endif
+    }
+
+
     // Tag cells for mesh refinement based on temperature gradient
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
     {
+        if (method=="spectral") return;
+
         // Get cell dimensions as done above.
         const Set::Scalar* DX = geom[lev].CellSize();
         // Calculate the diagonal.
@@ -248,9 +232,7 @@ protected:
     Set::Field<Set::Scalar> temp_mf;         // Temperature field variable (current timestep)
     Set::Field<Set::Scalar> temp_old_mf;     // Temperature field variable (previous timestep)
 
-    #ifdef ALAMO_FFT
-    Set::Field<Set::Scalar> temp_fft_mf;
-    #endif
+    std::string method; // determine whether to use realspace or spectral method
 
 private:
 

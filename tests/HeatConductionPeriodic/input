@@ -1,6 +1,19 @@
+#@
+#@ [2d-serial]
+#@ dim=2
+#@ 
+#@
+#@ [2d-serial-fft]
+#@ dim=2
+#@ fft = true
+#@ args = method=spectral
+#@ args = timestep=0.05
+#@ 
+
+
 alamo.program = heat
 
-plot_file     = output.heatconduction
+plot_file     = tests/HeatConductionPeriodic/output
 
 # Simulation length
 timestep = 0.000001
@@ -28,7 +41,6 @@ ic.type = sphere
 ic.sphere.center = 0.5 0.5 0.5
 ic.sphere.radius = 0.25
 ic.sphere.inside = 1.0
-
 
 # Boundary conditions
 bc.temp.constant.type.xhi = periodic
