@@ -136,7 +136,7 @@ PFC::Initialize (int lev)
 
 
 void
-PFC::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
+PFC::TagCellsForRefinement (int /*lev*/, amrex::TagBoxArray& /*a_tags*/, Set::Scalar /*time*/, int /*ngrow*/)
 {
 }
 
