@@ -92,8 +92,6 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
         const amrex::Box &bx = mfi.tilebox();
 
-        Util::Message(INFO, bx);
-        
         amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & eta_hat   =  eta_hat_mf.array(mfi);
         amrex::Array4<amrex::GpuComplex<Set::Scalar>> const & N_hat     =  chempot_hat_mf.array(mfi);
 
