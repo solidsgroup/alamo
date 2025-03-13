@@ -9,24 +9,7 @@ schema = dict()
 allclassnames = None
 templateclasses = None
 
-def recurse(root,srcfile,f=None):
-    
-    intable = False
-    def starttable():
-        nonlocal intable
-        if not intable:
-            print("<table class='api-inputs-table'>", file=f)
-            print(f"<thead><tr>", file=f)
-            print(f"<th>Input name</th>", file=f)
-            print(f"<th>Description</th>", file=f)
-            print(f"</tr></thead>", file=f)
-
-        intable=True
-    def endtable():
-        nonlocal intable
-        if intable:
-            print("</table><br/><br/>",file=f)
-        intable=False
+def recurse(root,srcfile,printer,f=None):
 
     global allclassnames, templateclasses
 
@@ -44,8 +27,7 @@ def recurse(root,srcfile,f=None):
                 return tempname
         return ""
     
-    if not templateclasses:
-        templateclasses = myast.scan(f"{root}/{srcfile}.cc")
+    templateclasses = myast.scan(f"{root}/{srcfile}.cc")
 
     def extractTemplates(cl,fullclassname):
         classname = cl
@@ -77,11 +59,11 @@ def recurse(root,srcfile,f=None):
                     if (len(subclasstemplates)):
                         inputname += f"<{','.join(subclasstemplates[c] for c in subclasstemplates)}>"
     
-                    endtable()
+                    printer.endtable()
 
-                    print("  "*lev,"<h3>" + inputname.replace('<','&lt;').replace('>','&gt;') + "</h3>", file=f)
+                    printer.printtablename(inputname,lev)
 
-                    starttable()
+                    printer.starttable()
 
                     getInputs(root,subclassname.replace("::","/"),prefix, subclasstemplates,lev+1)
     
@@ -91,15 +73,8 @@ def recurse(root,srcfile,f=None):
                 for cl in input['classes']:
                     subclassname, subclasstemplates = extractTemplates(cl,classname)
                     inputvalue = subclassname.split('::')[-1].lower()
-                    ####print("  "*lev,f"[ if type = {name} ]")
     
-                    print("  "*lev,f"<tr>", file=f)
-                    print("  "*lev,f"  <td style='padding-left: {10*lev}px' colspan=2>", file=f)
-                    print("  "*lev,f"     <b> if </b>", file=f)
-                    print("  "*lev,f"     {inputname}", file=f)
-                    print("  "*lev,f"     = {inputvalue}", file=f)
-                    print("  "*lev,f"  </td>", file=f)
-                    print("  "*lev,f"</tr>", file=f)
+                    printer.printconditional(inputname,inputvalue,lev)
     
                     getInputs(root,
                               subclassname.replace("::","/"),
@@ -115,20 +90,10 @@ def recurse(root,srcfile,f=None):
     
             else:
                 if 'string' in input:
-                    if input['string']:
-                        name = f'.'.join(prefix + [input['string']])
-                        print("  "*lev,f"<tr>", file=f)
-                        print("  "*lev,f"  <td style='padding-left: {10*lev}px'>", file=f)
-                        print("  "*lev,f"    {name}", file=f)
-                        print("  "*lev,f"  </td>", file=f)
-                        print("  "*lev,f"  <td>", file=f)
-                        print("  "*lev,f"    {input['doc']}", file=f)
-                        print("  "*lev,f"  </td>", file=f)
-                        print("  "*lev,f"</tr>", file=f)
-    
+                    printer.printinput(input,prefix,lev)    
 
-    starttable()
+    printer.starttable()
 
     getInputs(root,srcfile)
     
-    endtable()
+    printer.endtable()

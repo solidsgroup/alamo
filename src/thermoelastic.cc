@@ -18,7 +18,7 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator;
-    integrator = new Integrator::ThermoElastic(pp);
+    pp.select_only<Integrator::ThermoElastic>(integrator);
     integrator->InitData();
     integrator->Evolve();
     delete integrator;

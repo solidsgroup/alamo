@@ -1,14 +1,11 @@
-.. role:: cpp(code)
-   :language: c++
-
-.. _simba:
-
 ======================================
 :fas:`indent;fa-fw` Input Index
 ======================================
 
-
-
-
-.. raw:: html
-    :file: InputIndex.html
+.. toctree::
+   InputIndex_alamo
+   InputIndex_mechanics
+   InputIndex_hydro
+   InputIndex_sfi
+   InputIndex_thermoelastic
+   InputIndex_topop

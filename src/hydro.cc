@@ -21,7 +21,7 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
-    pp.select_main<Integrator::Hydro>(integrator);
+    pp.select_only<Integrator::Hydro>(integrator);
 
     integrator->InitData();
     integrator->Evolve();

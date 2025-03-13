@@ -20,7 +20,7 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
-    integrator = new Integrator::TopOp<Model::Solid::Linear::Isotropic>(pp);
+    pp.select_only<Integrator::TopOp<Model::Solid::Linear::Isotropic>>(integrator);
     integrator->InitData();
     integrator->Evolve();
     delete integrator;

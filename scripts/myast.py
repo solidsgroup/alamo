@@ -1,7 +1,6 @@
 import clang.cindex
 from clang.cindex import CursorKind
 
-print("AAAA")
 def scan(path):
     
     idx = clang.cindex.Index.create()
@@ -48,4 +47,3 @@ def scan(path):
     extract_template_arguments(tu.cursor)
     return templateclasses
     
-print("BBB")
