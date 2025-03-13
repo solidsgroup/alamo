@@ -257,7 +257,7 @@ def write(root="../../src/"):
                 input_html_row = """      <tr> \n"""
 
                 global num_tot, num_doc
-                if input["parsefn"]: prefix = ["[prefix]"] + prefix
+                #if input["parsefn"]: prefix = ["[prefix]"] + prefix
                 num_tot += 1
 
                 # update the selects to derive the "type" that they should be

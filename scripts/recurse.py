@@ -1,14 +1,37 @@
 import scraper
 import json
-import ast
+import myast
 import os
+import glob
 
 schema = dict()
 
+allclassnames = None
+templateclasses = None
 
-def recurse(root,srcfile, printer):
+def recurse(root,srcfile,f=None):
+    
+    intable = False
+    def starttable():
+        nonlocal intable
+        if not intable:
+            print("<table class='api-inputs-table'>", file=f)
+            print(f"<thead><tr>", file=f)
+            print(f"<th>Input name</th>", file=f)
+            print(f"<th>Description</th>", file=f)
+            print(f"</tr></thead>", file=f)
 
-    allclassnames = scraper.allclassnames(root)
+        intable=True
+    def endtable():
+        nonlocal intable
+        if intable:
+            print("</table><br/><br/>",file=f)
+        intable=False
+
+    global allclassnames, templateclasses
+
+    if not allclassnames:
+        allclassnames = scraper.allclassnames(root)
     
     def resolve(subname,classname):
         if type(subname) != list:
@@ -21,7 +44,9 @@ def recurse(root,srcfile, printer):
                 return tempname
         return ""
     
-    templateclasses = ast.scan(f"{root}/{srcfile}.cc")
+    if not templateclasses:
+        templateclasses = myast.scan(f"{root}/{srcfile}.cc")
+
     def extractTemplates(cl,fullclassname):
         classname = cl
         templates = {}
@@ -41,7 +66,7 @@ def recurse(root,srcfile, printer):
         return string
     
     def getInputs(root,src,prefix=[],templates={},lev=0):
-        classname = src.replace("../src/","")
+        classname = src.replace(root,"")
         classname = classname.replace('/','::')
         for input in scraper.extract(f"{root}/{src}"):
             if input['type'] == 'select_only':
@@ -52,10 +77,12 @@ def recurse(root,srcfile, printer):
                     if (len(subclasstemplates)):
                         inputname += f"<{','.join(subclasstemplates[c] for c in subclasstemplates)}>"
     
-                    print("  "*lev,f"<thead>")
-                    print("  "*lev,f"<th colspan=2>")
-                    print("  "*lev,inputname.replace('<','&lt;').replace('>','&gt;'))
-                    print("  "*lev,f"</th>")
+                    endtable()
+
+                    print("  "*lev,"<h3>" + inputname.replace('<','&lt;').replace('>','&gt;') + "</h3>", file=f)
+
+                    starttable()
+
                     getInputs(root,subclassname.replace("::","/"),prefix, subclasstemplates,lev+1)
     
             elif input['type'] == 'select' or input['type'] == 'select_default':
@@ -66,12 +93,13 @@ def recurse(root,srcfile, printer):
                     inputvalue = subclassname.split('::')[-1].lower()
                     ####print("  "*lev,f"[ if type = {name} ]")
     
-                    print("  "*lev,f"<tr>")
-                    print("  "*lev,f"  <td style='padding-left: {10*lev}px'>")
-                    print("  "*lev,f"     {inputname}")
-                    print("  "*lev,f"     = {inputvalue}")
-                    print("  "*lev,f"  </td>")
-                    print("  "*lev,f"</tr>")
+                    print("  "*lev,f"<tr>", file=f)
+                    print("  "*lev,f"  <td style='padding-left: {10*lev}px' colspan=2>", file=f)
+                    print("  "*lev,f"     <b> if </b>", file=f)
+                    print("  "*lev,f"     {inputname}", file=f)
+                    print("  "*lev,f"     = {inputvalue}", file=f)
+                    print("  "*lev,f"  </td>", file=f)
+                    print("  "*lev,f"</tr>", file=f)
     
                     getInputs(root,
                               subclassname.replace("::","/"),
@@ -87,32 +115,20 @@ def recurse(root,srcfile, printer):
     
             else:
                 if 'string' in input:
-                    printer.printinput(input)
                     if input['string']:
                         name = f'.'.join(prefix + [input['string']])
-                        print("  "*lev,f"<tr>")
-                        print("  "*lev,f"  <td style='padding-left: {10*lev}px'>")
-                        print("  "*lev,f"    {name}")
-                        print("  "*lev,f"  </td>")
-                        print("  "*lev,f"  <td>")
-                        print("  "*lev,f"    {input['doc']}")
-                        print("  "*lev,f"  </td>")
-                        print("  "*lev,f"</tr>")
+                        print("  "*lev,f"<tr>", file=f)
+                        print("  "*lev,f"  <td style='padding-left: {10*lev}px'>", file=f)
+                        print("  "*lev,f"    {name}", file=f)
+                        print("  "*lev,f"  </td>", file=f)
+                        print("  "*lev,f"  <td>", file=f)
+                        print("  "*lev,f"    {input['doc']}", file=f)
+                        print("  "*lev,f"  </td>", file=f)
+                        print("  "*lev,f"</tr>", file=f)
     
-    print("<html>")
-    print("<table>")
-    
+
+    starttable()
+
     getInputs(root,srcfile)
     
-    print("</table>")
-    print("</html>")
-
-
-
-class htmlprinter:
-    def printinput(input):
-        print(input)
-    
-
-recurse("../src/","alamo",htmlprinter)
-
+    endtable()

@@ -7,13 +7,13 @@ from glob import glob
 
 def allclassnames(root = "../src/"):
     allclassnames = set()
-    for dirname, subdirlist, filelist in os.walk("../src/"):
+    for dirname, subdirlist, filelist in os.walk(root):
         for f in filelist:
             f = dirname + '/' + f
             f = f.replace(".cpp","")
             f = f.replace(".H","")
             f = f.replace(".cc","")
-            f = f.replace("../src/","")
+            f = f.replace(root,"")
             allclassnames.add('::'.join(f.split('/')))
     return allclassnames
 

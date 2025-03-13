@@ -43,7 +43,9 @@ def printInputs(classname,indent="",prefix=""):
             html +=     indent + """</div>\n"""
             #html     += indent + """<input type='hidden' name='{}' value='[not completed yet - please enter manually]' >\n""".format(id+".type")
         elif (input["type"] == "queryclass"):
-            id = prefix + input["string"]
+            if not input["string"]:
+                continue
+            id = str(prefix) + input["string"]
             html     += indent + """<div class="card mb-3" >\n"""
             html     += indent + """  <div class="card-header">\n"""
             html     += indent + """    <h3 class="card-title mt-3 mb-1">{}</h3>\n""".format(id)
