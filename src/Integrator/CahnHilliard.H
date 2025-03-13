@@ -21,18 +21,13 @@
 #ifndef INTEGRATOR_CAHNHILLIARD_H
 #define INTEGRATOR_CAHNHILLIARD_H
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-
-#include "AMReX.H"
-#include "AMReX_ParmParse.H"
-#include "AMReX_ParallelDescriptor.H"
+#include <AMReX.H>
 #include <AMReX_MLMG.H>
 
-#include "IC/Random.H"
+#include "IC/IC.H"
+#include "BC/BC.H"
+#include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
-#include "BC/Nothing.H"
 
 namespace Integrator
 {
@@ -61,6 +56,10 @@ protected:
     void Initialize (int lev) override;
     /// Integrate eta over one timestep on lev
     void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
+    /// spectral version of advance
+    void AdvanceSpectral (int lev, Set::Scalar time, Set::Scalar dt);
+    /// realspace version of advance
+    void AdvanceReal (int lev, Set::Scalar time, Set::Scalar dt);
     /// Mark any cells that need to be refined
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
@@ -77,6 +76,7 @@ private:
     Set::Scalar L     = NAN; 
     Set::Scalar refinement_threshold = NAN; 
 
+    std::string method; 
 };
 }
 #endif

@@ -95,3 +95,19 @@ jobs:
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace
     - name: parallelism check
       run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --comp=clang++ --no-backspace --mpirun-flags="--oversubscribe"
+  test-2d-24-04-clang-fft:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: installing clang
+      run: sudo apt install clang
+    - name: installing fftw3
+      run: sudo apt install libfftw3-dev
+    - name: configure (2d)
+      run: ./configure --dim=2 --comp=clang++ --fft
+    - name: make
+      run: make
+    - name: regression tests
+      run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only

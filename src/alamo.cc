@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iomanip>
 
+#include "AMReX_ParallelDescriptor.H"
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 #include "IO/FileNameParse.H"
@@ -21,6 +22,7 @@
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/Dendrite.H"
+#include "Integrator/PFC.H"
 
 int main (int argc, char* argv[])
 {
@@ -30,7 +32,7 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     // The integrator to select
     pp.query_default("alamo.program",program,"microstructure");
-    srand(2);
+    srand(2 + amrex::ParallelDescriptor::MyProc());
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")
@@ -53,6 +55,7 @@ int main (int argc, char* argv[])
     else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
+    else if (program == "pfc")                  pp.select_only<Integrator::PFC>(integrator);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();
