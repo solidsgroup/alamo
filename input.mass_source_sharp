@@ -33,8 +33,8 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1e-4
-stop_time = 0.25
+timestep  = 1e-3
+stop_time = 0.35
 
 #dynamictimestep.on = 1
 #dynamictimestep.verbose = 1
@@ -50,9 +50,8 @@ u0.ic.type = expression
 u0.ic.expression.region0 = "0.0"
 u0.ic.expression.region1 = "0.0"
 
-q.ic.type = expression
-q.ic.expression.region0 = "0.0"
-q.ic.expression.region1 = "0.0"
+q0.ic.type = expression
+q0.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.05
@@ -141,6 +140,6 @@ e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
-energy_refinement_criterion = 0.1
+energy_refinement_criterion = 0.05
 
 #TODO

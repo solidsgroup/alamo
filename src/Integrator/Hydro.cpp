@@ -355,7 +355,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix hess_rho = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu   = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            Set::Scalar mdot0 = m0(i,j,k) * grad_eta_mag;
+            Set::Scalar dS = (grad_eta/(grad_eta_mag+small)).lpNorm<2>()/(grad_eta_mag+small);
+            std::cout << dS << "\t" << DX[0] << std::endl;
+            Set::Scalar mdot0 = m0(i,j,k) * grad_eta_mag * dS;
             Set::Vector Pdot0 = Set::Vector::Zero(); 
             Set::Scalar qdot0 = q0(i,j,k) * grad_eta_mag;
 
@@ -489,7 +491,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //(mu * (lap_ux * eta(i, j, k))) +
                 Source(i, j, k, 1);
 
-            M_new(i, j, k, 0) = M(i, j, k, 0) +
+           
+            Set::Scalar pressure = (gamma - 1.0)*(E(i,j,k) - pow(M(i,j,k,0), 2.0)/2.0/rho(i,j,k)) + pref;
+            Set::Scalar soundspeed_sq = gamma*pressure/rho(i,j,k);
+            M_new(i, j, k, 0) = M(i, j, k, 0) - Source(i,j,k,0)*dt/rho(i,j,k)*gamma*pressure/M(i,j,k,0)*dt  +
                 ( 
                     dMxf_dt + 
                     // todo add dMs_dt term if want time-evolving Ms

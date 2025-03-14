@@ -34,7 +34,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 1e-4
-stop_time = 0.25
+stop_time = 0.35
 
 #dynamictimestep.on = 1
 #dynamictimestep.verbose = 1
@@ -44,7 +44,7 @@ stop_time = 0.25
 ### ETA IC ###
 
 m0.ic.type = expression
-m0.ic.expression.region0 = "0.1*0.0816"
+m0.ic.expression.region0 = "1.225"
 
 u0.ic.type = expression
 u0.ic.expression.region0 = "0.0"
