@@ -32,5 +32,6 @@ pip3 install sphinx sphinx_rtd_theme sphinx_design
 pip3 install sphinx-copybutton sphinxcontrib-bibtex xmltodict
 
 # Needed for editorconfig linting
+pip3 install clang
 npm install -g eclint
 
