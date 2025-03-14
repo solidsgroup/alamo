@@ -128,6 +128,9 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
 void NarrowBandLevelset::Initialize(int lev){
     // Initialize levelset fields
     ic_ls->Initialize(lev, ls_old_mf);
+    
+    // COPY INSTEAD OF INITIALIZE!
+    //amrex::multifab::Copy(ls_mf, ls_old_mf, 0, 0, number_of_components, number_of_ghost_cells);
     ic_ls->Initialize(lev, ls_mf);
     
     // Initialize narrowband
@@ -177,8 +180,8 @@ void NarrowBandLevelset::UpdateNarrowBand(int lev) {
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             // Get current level set value and clamp it
             Set::Scalar phi = ls_arr(i, j, k);
-            phi = std::clamp(phi, -tube_buffer, tube_buffer);
-            ls_arr(i, j, k) = phi;
+            //phi = std::clamp(phi, -tube_buffer, tube_buffer);
+            //ls_arr(i, j, k) = phi;
 
             // Compute |phi|
             Set::Scalar abs_phi = std::abs(phi);
@@ -559,14 +562,11 @@ Set::Scalar NarrowBandLevelset::GetTimeStep() {
 
 void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) 
 {
-    // Advance time step
-    current_timestep++;
-    
     // Apply boundary conditions
-    ApplyBoundaryConditions(lev, time);
+    //ApplyBoundaryConditions(lev, time);
     
     // Advect
-    Advect(lev, time, dt);
+    //Advect(lev, time, dt);
     
     // Update narrowband
     UpdateNarrowBand(lev);
@@ -633,7 +633,7 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt)
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                ApplyBoundaryConditions(lev, time);
+                //ApplyBoundaryConditions(lev, time);
 
                 // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
@@ -942,15 +942,15 @@ void NarrowBandLevelset::Regrid(int lev, Set::Scalar time) {
 void NarrowBandLevelset::ApplyBoundaryConditions(int lev, Set::Scalar time) {
 
     Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, 0);        
-    Integrator::ApplyPatch(lev, time, ls_old_mf, *ls_old_mf[lev], *bc_ls, 0); 
+    //Integrator::ApplyPatch(lev, time, ls_old_mf, *ls_old_mf[lev], *bc_ls, 0); 
     Integrator::ApplyPatch(lev, time, iNarrowBandMask_mf, *iNarrowBandMask_mf[lev], *bc_ls, 0);
         
     Integrator::ApplyPatch(lev, time, velocity_mf, *velocity_mf[lev], *bc_velocity, 0);        
  
-    Integrator::ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev], bc_nothing, 0);        
-    Integrator::ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], bc_nothing, 0);
+    //Integrator::ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev], bc_nothing, 0);        
+    //Integrator::ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], bc_nothing, 0);
 #if AMREX_SPACEDIM == 3        
-    Integrator::ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], bc_nothing, 0);        
+    //Integrator::ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], bc_nothing, 0);        
 #endif
 
 }
