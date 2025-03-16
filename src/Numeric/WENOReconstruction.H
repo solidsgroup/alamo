@@ -540,7 +540,7 @@ public:
      * @param QL_stencil MultiFab to store left-biased reconstructed values
      * @param QR_stencil MultiFab to store right-biased reconstructed values
      */
-    void ReconstructFlux(
+    void ReconstructFluxVariables(
         int direction, 
         int lev, 
         IntegratorDerivedClass* solver,

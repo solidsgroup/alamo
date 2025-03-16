@@ -144,13 +144,15 @@ public:
 
 private:
     // Private helper methods
-    void CopyPrimitiveVariablesToWorkingBuffer(
+    void CopyPrimitiveFluxVariablesToWorkingBuffer(
+        int direction,    
         int lev,
         Integrator::ScimitarX* solver,
         amrex::MultiFab& working_buffer
     ) const;
 
-    void CopyConservativeVariablesToWorkingBuffer(
+    void CopyConservativeFluxVariablesToWorkingBuffer(
+        int direction,    
         int lev,
         Integrator::ScimitarX* solver,
         amrex::MultiFab& working_buffer
@@ -185,6 +187,23 @@ private:
     static Set::MultiMatrix ComputeRightEigenvectorMatrix(
         const Set::MultiVector& W, 
         int direction, int num_components
+    );
+
+
+    // Companion method for matrix transformations
+    AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+    static Set::MultiMatrix ComputeLeftEigenvectorMatrix(
+        const Set::MultiVector& W, 
+        int direction, int num_components
+    );
+
+
+    // Computing Roe Averages
+    AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+    static Set::MultiVector ComputeRoeAverages(
+        const Set::MultiVector& WL, 
+        const Set::MultiVector& WR,
+        int num_components
     );
 
     ReconstructionMode current_mode;

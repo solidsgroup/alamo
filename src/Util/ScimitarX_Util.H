@@ -90,7 +90,7 @@ public:
         // Inline debug function that checks the current cell's value
         template <typename T>
         static void DebugValuesIfTarget(int i, int j, int k, const T& value, const std::string& field_name,
-                                        const std::string& context, bool abort_if_nan, int component = -1) {
+                                        const std::string& context, bool abort_if_nan = false, int component = -1) {
             if (IsTargetLocation(i, j, k)) {
                 // Build debug message
                 std::string debug_message = "Debug at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
