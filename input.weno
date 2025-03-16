@@ -1,9 +1,9 @@
 # Simulation output
-plot_file = output_sodshock_Characteristic_WENOJS5_RK3
+plot_file = output_Characteristic_WENOZ5_RK3_sodshock
 
 # Simulation length
 timestep = 0.001
-stop_time = 0.125
+stop_time = 0.25
 max_step = 1000
 
 # AMR parameters
@@ -36,7 +36,7 @@ FluxScheme = LocalLaxFriedrichs
 FluxReconstruction = WENO
 
 #WenoVariant
-WenoVariant = WENOJS5
+WenoVariant = WENOZ5
 
 #Reconstruction Mode
 ReconstructionMode = Characteristic

@@ -41,7 +41,7 @@ ScimitarX::ScimitarX() : Integrator()
     // Set default numerical method configurations
     reconstruction_method = Numeric::FluxReconstructionType::FirstOrder;
     flux_scheme = Numeric::FluxScheme::LocalLaxFriedrichs;
-    temporal_scheme = Numeric::TimeSteppingSchemeType::ForwardEuler;
+    temporal_scheme = Numeric::TimeSteppingSchemeType::RK3;
     variable_space = Numeric::ReconstructionMode::Conservative;
     weno_variant = Numeric::WenoVariant::WENOJS5;
     
@@ -451,6 +451,8 @@ void ScimitarX::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
         // Advance the solution without stiff source terms
         AdvanceInTimeWithoutStiffTerms(lev, time, dt);
 
+       // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
+        std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
 }
 
 // Function to advance hyperbolic balance equations without stiff terms
@@ -507,8 +509,6 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
 
                 ApplyBoundaryConditions(lev, time);
 
-                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
-                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
             }
             break;
         }

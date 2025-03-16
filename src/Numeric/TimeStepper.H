@@ -151,8 +151,8 @@ class RK3Scheme : public TimeSteppingScheme<IntegratorDerivedClass> {
 public:
     struct RK3Constants {
         static constexpr int stages = 3;  // RK3 has 3 stages
-        static constexpr Set::Scalar a[] = {1.0, 0.25, 2.0 / 3.0};  // Coefficients
-        static constexpr Set::Scalar b[] = {0.0, 0.75, 1.0 / 3.0};
+        static constexpr Set::Scalar a[] = {1.0, 0.75, 1.0 / 3.0};  // Coefficients
+        static constexpr Set::Scalar b[] = {0.0, 0.25, 2.0 / 3.0};
         static constexpr Set::Scalar c[] = {1.0, 0.25, 2.0 / 3.0};
     };
 
@@ -182,26 +182,20 @@ public:
                     Set::Scalar zflux_front = 0.0, zflux_back = 0.0;
 
                     // X-direction flux divergence
-                    if (solver->XFlux_mf[lev]) {
                         xflux_right = xflux_arr(i, j, k, n);  // Right face flux
                         xflux_left = xflux_arr(i - 1, j, k, n);  // Left face flux
                         flux_div += (xflux_right - xflux_left) / DX[0];
-                    }
 
                     // Y-direction flux divergence (if 2D or 3D)
-                    if (solver->YFlux_mf[lev]) {
                         yflux_top = yflux_arr(i, j, k, n);  // Top face flux
                         yflux_bottom = yflux_arr(i, j - 1, k, n);  // Bottom face flux
                         flux_div += (yflux_top - yflux_bottom) / DX[1];
-                    }
 
                     // Z-direction flux divergence (if 3D)
 #if (AMREX_SPACEDIM == 3)
-                    if (solver->ZFlux_mf[lev]) {
                         zflux_front = zflux_arr(i, j, k, n);  // Front face flux
                         zflux_back = zflux_arr(i, j, k - 1, n);  // Back face flux
                         flux_div += (zflux_front - zflux_back) / DX[2];
-                    }
 #endif
 
                     // **Runge-Kutta 3rd order update formula**
