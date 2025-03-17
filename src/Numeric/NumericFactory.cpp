@@ -20,6 +20,7 @@ namespace Numeric {
         switch(variant) {
             case WenoVariant::WENOJS5: return "WENOJS5";
             case WenoVariant::WENOZ5: return "WENOZ5";
+            case WenoVariant::WENOJS3: return "WENOJS3";
             default: throw std::runtime_error("Unknown WENO Variant");
         }
     }
@@ -59,6 +60,7 @@ namespace Numeric {
     WenoVariant NumericFactory::parseWenoVariant(const std::string& str) {
         if (str == "WENOJS5") return WenoVariant::WENOJS5;
         if (str == "WENOZ5") return WenoVariant::WENOZ5;
+        if (str == "WENOJS3") return WenoVariant::WENOZ5;
         throw std::runtime_error("Invalid WENO Variant: " + str);
     }
 

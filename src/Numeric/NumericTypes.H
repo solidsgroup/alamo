@@ -29,17 +29,18 @@ namespace Numeric {
     // Enum Classes
     enum class FluxReconstructionType {
         FirstOrder,    // Basic first-order upwind reconstruction
-        WENO,          // Weighted Essentially Non-Oscillatory
+        WENO          // Weighted Essentially Non-Oscillatory
     };
 
     enum class WenoVariant {
         WENOJS5,       // WENO Jiang-Shu 5th Order
         WENOZ5,        // WENO Z 5th Order
+        WENOJS3        // WENO JS 3rd Order
     };
 
     enum class FluxScheme {
         LocalLaxFriedrichs,  // Local Lax-Friedrichs (Rusanov) flux
-        HLLC,                // Harten-Lax-van Leer Contact flux
+        HLLC                // Harten-Lax-van Leer Contact flux
     };
 
     enum class TimeSteppingSchemeType {

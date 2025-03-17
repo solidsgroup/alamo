@@ -179,7 +179,7 @@ struct WENOJS3Traits {
  */
 struct WENOJS5Traits {
     static constexpr int OrderValue = 5;
-    static constexpr Set::Scalar Epsilon = 1.0e-6;  // Small parameter to avoid division by zero
+    static constexpr Set::Scalar Epsilon = 1.0e-40;  // Small parameter to avoid division by zero
     static constexpr int NumCandidateStencils = 3;  // Number of candidate stencils
     static constexpr int PointsPerStencil = 3;      // Points per candidate stencil
     static constexpr int TotalPoints = 5;           // Total points in the full stencil
@@ -376,7 +376,7 @@ public:
             indicators[r] = 0.0;
             
             // Loop over each difference term in the smoothness indicator
-            for (int term = 0; term < Traits::DifferenceOperators::TermWeights.size(); ++term) {
+            for (int term = 0; term < static_cast<int>(Traits::DifferenceOperators::TermWeights.size()); ++term) {
                 // Compute the weighted squared difference for this term
                 Set::Scalar diff_value = 0.0;
                 
@@ -542,7 +542,7 @@ public:
      */
     void ReconstructFluxVariables(
         int direction, 
-        int lev, 
+        int /*lev*/, 
         IntegratorDerivedClass* solver,
         amrex::MultiFab& working_buffer,
         amrex::MultiFab& QL_stencil, 
@@ -551,13 +551,14 @@ public:
         const int nghosts = solver->number_of_ghost_cells;
         const bool enableDebug = false;  // Enable detailed debugging
 
+        Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(100,5,0);     
+
         // Process each grid patch
         for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
             const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
             
             auto const& in_arr = working_buffer.const_array(mfi);
             auto const& ql_arr = QL_stencil.array(mfi);
-            auto const& qr_arr = QR_stencil.array(mfi);
             
             // Find the min and max stencil offsets
             int min_stencil_offset = 0;
@@ -672,11 +673,7 @@ public:
             auto const& ql_arr = QL_stencil.array(mfi);
             auto const& qr_arr = QR_stencil.array(mfi);
             
-            // Find the min and max stencil offsets
-            int min_stencil_offset = 0;
-            int max_stencil_offset = 0;
-            
-            
+                        
             // Process each cell in the valid box
             amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                 // Construct index arrays with correct number of components
@@ -716,7 +713,7 @@ public:
                         ql_arr(right_index[0], right_index[1], right_index[2], n);
                     
                     // Check for negative density or internal energy after reconstruction
-                    if (n == solver->variableIndex.DENS || n == solver->variableIndex.IE) {
+                   /* if (n == solver->variableIndex.DENS || n == solver->variableIndex.IE) {
                         Set::Scalar reconstructed_value = ql_arr(index[0], index[1], index[2], n);
                         
                         // Apply a limiter to ensure physical values - prevent negative density/energy
@@ -737,7 +734,7 @@ public:
                                 qr_arr(index[0], index[1], index[2], n) = QR;
                                 ql_arr(index[0], index[1], index[2], n) = QL;
                         }
-                    }
+                    }*/
                 }
             });
         }

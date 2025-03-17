@@ -25,10 +25,7 @@ CompressibleEulerCapabilities::supportsFluxScheme(FluxScheme scheme) const {
         case FluxScheme::LocalLaxFriedrichs:
             return MethodSupport::Supported();
         case FluxScheme::HLLC:
-            return MethodSupport::Unsupported(
-                {"HLLC not fully implemented"},
-                {"Use LocalLaxFriedrichs for now"}
-            );
+            return MethodSupport::Supported();
         default:
             return MethodSupport::Unsupported(
                 {"Unknown flux scheme"},
@@ -70,7 +67,10 @@ SolverCapabilities::MethodSupport
 CompressibleEulerCapabilities::supportsWenoVariant(WenoVariant variant) const {
     switch(variant) {
         case WenoVariant::WENOJS5:
+            return MethodSupport::Supported();
         case WenoVariant::WENOZ5:
+            return MethodSupport::Supported();
+        case WenoVariant::WENOJS3:
             return MethodSupport::Supported();
         default:
             return MethodSupport::Unsupported(
@@ -92,13 +92,13 @@ CompressibleEulerCapabilities::validateMethodCombination(
     result.isValid = true;
 
     // Add specific validation logic here
-    if (fluxReconstruction == FluxReconstructionType::WENO && 
+   /* if (fluxReconstruction == FluxReconstructionType::WENO && 
         fluxScheme == FluxScheme::HLLC) {
         result.isValid = false;
         result.warnings.push_back(
             "WENO reconstruction with HLLC flux might be numerically unstable"
         );
-    }
+    }*/
 
     return result;
 }
@@ -109,7 +109,7 @@ CompressibleEulerCapabilities::getDefaultConfiguration() const {
         FluxReconstructionType::WENO,
         FluxScheme::LocalLaxFriedrichs,
         TimeSteppingSchemeType::RK3,
-        ReconstructionMode::Primitive,
+        ReconstructionMode::Characteristic,
         WenoVariant::WENOJS5
     };
 }

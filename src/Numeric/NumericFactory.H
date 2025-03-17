@@ -58,6 +58,8 @@ public:
                         return std::make_shared<Numeric::WENOJS5<SolverType>>();
                     case WenoVariant::WENOZ5:
                         return std::make_shared<Numeric::WENOZ5<SolverType>>();
+                    case WenoVariant::WENOJS3:
+                        return std::make_shared<Numeric::WENOJS3<SolverType>>();
                     default:
                         throw std::runtime_error("Unsupported WENO variant");
                 }
@@ -98,8 +100,7 @@ public:
             case FluxScheme::LocalLaxFriedrichs:
                 return std::make_shared<Numeric::LocalLaxFriedrichsMethod<SolverType>>();
             case FluxScheme::HLLC:
-                // TODO: Implement HLLC method
-                throw std::runtime_error("HLLC method not yet implemented");
+                return std::make_shared<Numeric::HLLCMethod<SolverType>>();
             default:
                 throw std::runtime_error("Unsupported flux method");
         }

@@ -39,8 +39,8 @@ ScimitarX::ScimitarX() : Integrator()
     solverCapabilities = nullptr;
     
     // Set default numerical method configurations
-    reconstruction_method = Numeric::FluxReconstructionType::FirstOrder;
-    flux_scheme = Numeric::FluxScheme::LocalLaxFriedrichs;
+    reconstruction_method = Numeric::FluxReconstructionType::WENO;
+    flux_scheme = Numeric::FluxScheme::HLLC;
     temporal_scheme = Numeric::TimeSteppingSchemeType::RK3;
     variable_space = Numeric::ReconstructionMode::Conservative;
     weno_variant = Numeric::WenoVariant::WENOJS5;
@@ -143,7 +143,11 @@ void ScimitarX::SetupNumericComponents()
         }
         
         // Set up flux method
-        fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+        if (flux_scheme == Numeric::FluxScheme::LocalLaxFriedrichs) {
+               fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+        } else {
+               fluxHandler->SetFluxMethod(std::make_shared<Numeric::HLLCMethod<ScimitarX>>());
+        }       
         
         // Set up time stepping scheme
         if (temporal_scheme == Numeric::TimeSteppingSchemeType::ForwardEuler) {
@@ -166,10 +170,6 @@ void ScimitarX::SetupNumericComponents()
         // Update flux handler with accessor
         fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(variable_accessor);
         
-        // Set up defaults for other solver types
-        fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
-        fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
-        timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
     }
     
     Util::Message(INFO, "Numeric components set up successfully.");
@@ -384,8 +384,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
        Util::Abort(__FILE__, __func__, __LINE__, 
            "Invalid WenoVariant parameter: " + weno_str + "\n" + e.what());
    }
-   
-   
+      
     // Read CFL number
     pp.query_required("cflNumber", value.cflNumber);
     
@@ -484,8 +483,6 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
 
                 //ApplyBoundaryConditions(lev, time);
 
-                // 5. Swap the old QVec Fab with new one so that we can use the new one for next substep
-                std::swap(*QVec_old_mf[lev], *QVec_mf[lev]);
             }
             break;
         }

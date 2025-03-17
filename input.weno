@@ -1,36 +1,36 @@
 # Simulation output
-plot_file = output_Characteristic_WENOZ5_RK3_sodshock
+plot_file = output_test
 
 # Simulation length
 timestep = 0.001
 stop_time = 0.25
-max_step = 1000
+max_step = 1
 
 # AMR parameters
-amr.plot_int = 50
+amr.plot_int = 10
 amr.max_level = 0
-amr.n_cell = 200 50 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.n_cell = 200 10 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 1
 amr.regrid_int = -1  # No regridding for uniform grid
 amr.grid_eff = 1.0
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1.0 0.25 1  # Set height proportionally to match reduced y-cells
+geometry.prob_hi = 1.0 0.05 1  # Set height proportionally to match reduced y-cells
 geometry.is_periodic = 0 0 0
 
 #SolverType
 SolverType = SolveCompressibleEuler
 
 #cflNumber
-cflNumber = 0.2
+cflNumber = 0.5
 
 #TimeSteppingScheme
 TimeSteppingScheme = RK3
 
 
 #FluxMethod
-FluxScheme = LocalLaxFriedrichs
+FluxScheme = HLLC
 
 #FluxReconstruction
 FluxReconstruction = WENO

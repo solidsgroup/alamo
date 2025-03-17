@@ -37,6 +37,7 @@ namespace Numeric {
     template<typename IntegratorDerivedClass> class FirstOrderReconstruction;
     template<typename IntegratorDerivedClass, typename VariantTraits> class WENOReconstruction;
     template<typename IntegratorDerivedClass> class LocalLaxFriedrichsMethod;
+    template<typename IntegratorDerivedClass> class HLLCMethod;
     template<typename IntegratorDerivedClass> class TimeSteppingScheme;
     template<typename IntegratorDerivedClass> class EulerForwardScheme;
     template<typename IntegratorDerivedClass> class RK3Scheme;
@@ -322,16 +323,11 @@ protected:
     BC::Nothing bc_nothing;                            // Default "do-nothing" boundary condition
 
     // Numeric method configuration 
-    Numeric::FluxReconstructionType reconstruction_method = 
-        Numeric::FluxReconstructionType::FirstOrder;
-    Numeric::FluxScheme flux_scheme = 
-        Numeric::FluxScheme::LocalLaxFriedrichs;
-    Numeric::TimeSteppingSchemeType temporal_scheme = 
-        Numeric::TimeSteppingSchemeType::ForwardEuler;
-    Numeric::ReconstructionMode variable_space = 
-        Numeric::ReconstructionMode::Primitive;
-    Numeric::WenoVariant weno_variant = 
-        Numeric::WenoVariant::WENOJS5;
+    Numeric::FluxReconstructionType reconstruction_method;
+    Numeric::FluxScheme flux_scheme;
+    Numeric::TimeSteppingSchemeType temporal_scheme;
+    Numeric::ReconstructionMode variable_space;
+    Numeric::WenoVariant weno_variant;
 
 private:
     // Helper method to setup numeric components based on solverType
@@ -359,6 +355,9 @@ private:
     template <typename IntegratorDerivedClass>
     friend class Numeric::LocalLaxFriedrichsMethod;
 
+    template <typename IntegratorDerivedClass>
+    friend class Numeric::HLLCMethod;
+    
     template <typename IntegratorDerivedClass>
     friend class Numeric::TimeSteppingScheme;
 

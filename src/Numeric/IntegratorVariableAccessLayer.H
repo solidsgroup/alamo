@@ -142,6 +142,13 @@ public:
         return current_mode;
     }
 
+    // Computing Roe Averages
+    static Set::MultiVector ComputeRoeAverages(
+        const Set::MultiVector& WL, 
+        const Set::MultiVector& WR,
+        int num_components
+    );
+
 private:
     // Private helper methods
     void CopyPrimitiveFluxVariablesToWorkingBuffer(
@@ -197,14 +204,6 @@ private:
         int direction, int num_components
     );
 
-
-    // Computing Roe Averages
-    AMREX_GPU_DEVICE AMREX_FORCE_INLINE
-    static Set::MultiVector ComputeRoeAverages(
-        const Set::MultiVector& WL, 
-        const Set::MultiVector& WR,
-        int num_components
-    );
 
     ReconstructionMode current_mode;
     int total_ghost_cells;

@@ -183,18 +183,18 @@ public:
 
                     // X-direction flux divergence
                         xflux_right = xflux_arr(i, j, k, n);  // Right face flux
-                        xflux_left = xflux_arr(i - 1, j, k, n);  // Left face flux
+                        xflux_left = xflux_arr(i-1, j, k, n);  // Left face flux
                         flux_div += (xflux_right - xflux_left) / DX[0];
 
                     // Y-direction flux divergence (if 2D or 3D)
                         yflux_top = yflux_arr(i, j, k, n);  // Top face flux
-                        yflux_bottom = yflux_arr(i, j - 1, k, n);  // Bottom face flux
+                        yflux_bottom = yflux_arr(i, j-1, k, n);  // Bottom face flux
                         flux_div += (yflux_top - yflux_bottom) / DX[1];
 
                     // Z-direction flux divergence (if 3D)
 #if (AMREX_SPACEDIM == 3)
                         zflux_front = zflux_arr(i, j, k, n);  // Front face flux
-                        zflux_back = zflux_arr(i, j, k - 1, n);  // Back face flux
+                        zflux_back = zflux_arr(i, j, k-1, n);  // Back face flux
                         flux_div += (zflux_front - zflux_back) / DX[2];
 #endif
 

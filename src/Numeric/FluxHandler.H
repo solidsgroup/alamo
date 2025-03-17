@@ -418,6 +418,279 @@ public:
     }
 };
 
+// HLLC flux method
+template <typename IntegratorDerivedClass>
+class HLLCMethod : public FluxMethod<IntegratorDerivedClass> {
+public:
+    void ComputeFlux(int direction, int lev, IntegratorDerivedClass* solver, 
+                    const amrex::MultiFab& QL_stencil, 
+                    const amrex::MultiFab& QR_stencil) const override {
+
+        const Set::Scalar gamma = 1.4;  // Ratio of specific heats
+
+        const int nghosts = solver->number_of_ghost_cells;
+
+        // Loop through the grid
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+
+            // Get appropriate flux array based on direction
+            auto const& flux_arr = (direction == FluxHandler<IntegratorDerivedClass>::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
+                                  (direction == FluxHandler<IntegratorDerivedClass>::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                   solver->ZFlux_mf.Patch(lev, mfi);
+            
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
+            auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
+
+            // Direction-dependent indices
+            int normal = direction;  // Normal velocity component
+            int trans1 = (direction + 1) % AMREX_SPACEDIM;  // First transverse velocity
+#if AMREX_SPACEDIM == 3
+            int trans2 = (direction + 2) % AMREX_SPACEDIM;  // Second transverse velocity (3D only)
+#endif
+            // Map direction to velocity components
+            int velocity_component[3] = {
+                solver->variableIndex.UVEL,  // X-direction -> UVEL
+                solver->variableIndex.VVEL,  // Y-direction -> VVEL
+                solver->variableIndex.WVEL   // Z-direction -> WVEL
+            };
+
+            int num_components = 5;
+
+            // Parallel loop over cells
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                // Setup indices
+                int index[3];
+                int left_index[3];
+                int right_index[3];
+                int lower_bounds[3];
+                int upper_bounds[3];
+                
+                // Initialize index arrays
+                index[0] = iface; index[1] = jface; index[2] = kface;
+                left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+                right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+                
+                // Define bounds including ghost cells
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+                lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+                upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+                
+                // Clamp indices to ensure they're within bounds
+                ClampIndices(index, lower_bounds, upper_bounds);
+                
+                // Shift and clamp for left and right indices
+                int left_offset[3] = {0, 0, 0};
+                int right_offset[3] = {0, 0, 0};
+                right_offset[direction] = 1;  // Shift right
+                
+                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                
+                // Get primitive variables for left and right states
+                // Left state
+                Set::Scalar rho_L = p_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.DENS);
+                rho_L = std::max(rho_L, 1e-8);  // Avoid zero density
+                
+                Set::Scalar e_L = std::max(p_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE), 1e-8);
+                Set::Scalar pressure_L = (gamma - 1.0) * rho_L * e_L;
+                
+                Set::Scalar vel_L[3] = {0.0, 0.0, 0.0};
+                vel_L[normal] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[normal]);
+#if AMREX_SPACEDIM >= 2    
+                vel_L[trans1] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[trans1]);
+#endif
+#if AMREX_SPACEDIM == 3    
+                vel_L[trans2] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[trans2]);
+#endif
+                
+                // Right state
+                Set::Scalar rho_R = p_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.DENS);
+                rho_R = std::max(rho_R, 1e-8);  // Avoid zero density
+                
+                Set::Scalar e_R = std::max(p_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE), 1e-8);
+                Set::Scalar pressure_R = (gamma - 1.0) * rho_R * e_R;
+                
+                Set::Scalar vel_R[3] = {0.0, 0.0, 0.0};
+                vel_R[normal] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[normal]);
+#if AMREX_SPACEDIM >= 2    
+                vel_R[trans1] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[trans1]);
+#endif
+#if AMREX_SPACEDIM == 3    
+                vel_R[trans2] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[trans2]);
+#endif
+                
+                // Compute kinetic energy
+                Set::Scalar KE_L = 0.5 * (vel_L[0] * vel_L[0] + vel_L[1] * vel_L[1] + vel_L[2] * vel_L[2]);
+                Set::Scalar KE_R = 0.5 * (vel_R[0] * vel_R[0] + vel_R[1] * vel_R[1] + vel_R[2] * vel_R[2]);
+                
+                // Total energy
+                Set::Scalar E_L = e_L + KE_L;
+                Set::Scalar E_R = e_R + KE_R;
+                
+                // Sound speeds
+                Set::Scalar c_L = std::sqrt(gamma * pressure_L / rho_L);
+                Set::Scalar c_R = std::sqrt(gamma * pressure_R / rho_R);
+                
+                // Create vectors for Roe averaging
+                Set::MultiVector WL(num_components);  // num_components is a local variable and is set to 5
+                Set::MultiVector WR(num_components);
+                WL.setZero();
+                WR.setZero();
+                
+                // Fill left state vector
+                WL(0) = rho_L;
+                WL(1) = vel_L[0];
+                WL(2) = vel_L[1];
+                WL(3) = vel_L[2] * (AMREX_SPACEDIM == 3 ? 1.0 : 0.0);
+                WL(4) = e_L;
+                
+                // Fill right state vector
+                WR(0) = rho_R;
+                WR(1) = vel_R[0];
+                WR(2) = vel_R[1];
+                WR(3) = vel_R[2] * (AMREX_SPACEDIM == 3 ? 1.0 : 0.0);
+                WR(4) = e_R;
+                
+                // Compute Roe averages using the function from IntegratorVariableAccessLayer
+                Set::MultiVector Wavg = Numeric::CompressibleEuler::CompressibleEulerVariableAccessor::ComputeRoeAverages(WL, WR, num_components);
+                
+                // Extract Roe-averaged values
+                Set::Scalar u_Roe = Wavg(1);
+                Set::Scalar c_Roe = std::sqrt(gamma * (gamma - 1.0) * (Wavg(4) - 0.5 * 
+                                   (Wavg(1)*Wavg(1) + Wavg(2)*Wavg(2) + Wavg(3)*Wavg(3))));
+                
+                // Compute wave speeds using Batten approach
+                Set::Scalar SL = std::min(vel_L[normal] - c_L, u_Roe - c_Roe);
+                Set::Scalar SR = std::max(vel_R[normal] + c_R, u_Roe + c_Roe);
+                
+                // Calculate middle wave speed (S*)
+                Set::Scalar rho_L_inv = 1.0 / rho_L;
+                Set::Scalar rho_R_inv = 1.0 / rho_R;
+                Set::Scalar S_star = (pressure_R - pressure_L + 
+                                    rho_L * vel_L[normal] * (SL - vel_L[normal]) - 
+                                    rho_R * vel_R[normal] * (SR - vel_R[normal])) / 
+                                   (rho_L * (SL - vel_L[normal]) - rho_R * (SR - vel_R[normal]));
+                
+                // Conservative variables for left and right states
+                std::vector<Set::Scalar> QL_cons(solver->number_of_components, 0.0);
+                std::vector<Set::Scalar> QR_cons(solver->number_of_components, 0.0);
+                
+                // Convert primitive to conservative variables
+                QL_cons[solver->variableIndex.DENS] = rho_L;  // Density
+                QR_cons[solver->variableIndex.DENS] = rho_R;
+                
+                QL_cons[solver->variableIndex.UVEL + normal] = rho_L * vel_L[normal];  // Normal momentum
+                QR_cons[solver->variableIndex.UVEL + normal] = rho_R * vel_R[normal];
+                
+#if AMREX_SPACEDIM >= 2
+                QL_cons[solver->variableIndex.UVEL + trans1] = rho_L * vel_L[trans1];  // Transverse momentum 1
+                QR_cons[solver->variableIndex.UVEL + trans1] = rho_R * vel_R[trans1];
+#endif
+                
+#if AMREX_SPACEDIM == 3
+                QL_cons[solver->variableIndex.UVEL + trans2] = rho_L * vel_L[trans2];  // Transverse momentum 2
+                QR_cons[solver->variableIndex.UVEL + trans2] = rho_R * vel_R[trans2];
+#endif
+                
+                QL_cons[solver->variableIndex.IE] = rho_L * E_L;  // Total energy
+                QR_cons[solver->variableIndex.IE] = rho_R * E_R;
+                
+                // Compute physical fluxes for left and right states
+                std::vector<Set::Scalar> FL(solver->number_of_components, 0.0);
+                std::vector<Set::Scalar> FR(solver->number_of_components, 0.0);
+                
+                // Mass flux
+                FL[solver->variableIndex.DENS] = rho_L * vel_L[normal];
+                FR[solver->variableIndex.DENS] = rho_R * vel_R[normal];
+                
+                // Momentum fluxes
+                FL[solver->variableIndex.UVEL + normal] = rho_L * vel_L[normal] * vel_L[normal] + pressure_L;
+                FR[solver->variableIndex.UVEL + normal] = rho_R * vel_R[normal] * vel_R[normal] + pressure_R;
+                
+#if AMREX_SPACEDIM >= 2
+                FL[solver->variableIndex.UVEL + trans1] = rho_L * vel_L[normal] * vel_L[trans1];
+                FR[solver->variableIndex.UVEL + trans1] = rho_R * vel_R[normal] * vel_R[trans1];
+#endif
+                
+#if AMREX_SPACEDIM == 3
+                FL[solver->variableIndex.UVEL + trans2] = rho_L * vel_L[normal] * vel_L[trans2];
+                FR[solver->variableIndex.UVEL + trans2] = rho_R * vel_R[normal] * vel_R[trans2];
+#endif
+                
+                // Energy flux
+                FL[solver->variableIndex.IE] = (rho_L * E_L + pressure_L) * vel_L[normal];
+                FR[solver->variableIndex.IE] = (rho_R * E_R + pressure_R) * vel_R[normal];
+                
+                // Compute star state variables
+                std::vector<Set::Scalar> QL_star(solver->number_of_components, 0.0);
+                std::vector<Set::Scalar> QR_star(solver->number_of_components, 0.0);
+                
+                // Density ratios for star states
+                Set::Scalar rho_L_star_factor = (SL - vel_L[normal]) / (SL - S_star);
+                Set::Scalar rho_R_star_factor = (SR - vel_R[normal]) / (SR - S_star);
+                
+                // Left star state
+                QL_star[solver->variableIndex.DENS] = rho_L * rho_L_star_factor;
+                QL_star[solver->variableIndex.UVEL + normal] = QL_star[solver->variableIndex.DENS] * S_star;
+#if AMREX_SPACEDIM >= 2
+                QL_star[solver->variableIndex.UVEL + trans1] = QL_star[solver->variableIndex.DENS] * vel_L[trans1];
+#endif
+#if AMREX_SPACEDIM == 3
+                QL_star[solver->variableIndex.UVEL + trans2] = QL_star[solver->variableIndex.DENS] * vel_L[trans2];
+#endif
+                QL_star[solver->variableIndex.IE] = QL_star[solver->variableIndex.DENS] * 
+                                                   (E_L + (S_star - vel_L[normal]) * 
+                                                   (S_star + pressure_L / (rho_L * (SL - vel_L[normal]))));
+                
+                // Right star state
+                QR_star[solver->variableIndex.DENS] = rho_R * rho_R_star_factor;
+                QR_star[solver->variableIndex.UVEL + normal] = QR_star[solver->variableIndex.DENS] * S_star;
+#if AMREX_SPACEDIM >= 2
+                QR_star[solver->variableIndex.UVEL + trans1] = QR_star[solver->variableIndex.DENS] * vel_R[trans1];
+#endif
+#if AMREX_SPACEDIM == 3
+                QR_star[solver->variableIndex.UVEL + trans2] = QR_star[solver->variableIndex.DENS] * vel_R[trans2];
+#endif
+                QR_star[solver->variableIndex.IE] = QR_star[solver->variableIndex.DENS] * 
+                                                   (E_R + (S_star - vel_R[normal]) * 
+                                                   (S_star + pressure_R / (rho_R * (SR - vel_R[normal]))));
+                
+                // Compute fluxes for star states
+                std::vector<Set::Scalar> FL_star(solver->number_of_components, 0.0);
+                std::vector<Set::Scalar> FR_star(solver->number_of_components, 0.0);
+                
+                for (int n = 0; n < solver->number_of_components; ++n) {
+                    FL_star[n] = FL[n] + SL * (QL_star[n] - QL_cons[n]);
+                    FR_star[n] = FR[n] + SR * (QR_star[n] - QR_cons[n]);
+                }
+                
+                // Apply HLLC flux based on wave speeds
+                std::vector<Set::Scalar> HLLC_flux(solver->number_of_components, 0.0);
+                
+                for (int n = 0; n < solver->number_of_components; ++n) {
+                    if (SL >= 0.0) {
+                        HLLC_flux[n] = FL[n];
+                    } else if (S_star >= 0.0) {
+                        HLLC_flux[n] = FL_star[n];
+                    } else if (SR >= 0.0) {
+                        HLLC_flux[n] = FR_star[n];
+                    } else {
+                        HLLC_flux[n] = FR[n];
+                    }
+                    
+                    // Store computed flux
+                    flux_arr(index[0], index[1], index[2], n) = HLLC_flux[n];
+                }
+            });
+        }
+    }
+};
+
 }  // namespace Numeric
 
 #endif  // NUMERIC_FLUXHANDLER_H
