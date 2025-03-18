@@ -70,6 +70,9 @@ def recurse(root,srcfile,printer,f=None):
             elif input['type'] == 'select' or input['type'] == 'select_default':
     
                 inputname = '.'.join(prefix + [input['string'],"type"])
+
+                printer.printconditionalstart(input,prefix,lev)
+
                 for cl in input['classes']:
                     subclassname, subclasstemplates = extractTemplates(cl,classname)
                     inputvalue = subclassname.split('::')[-1].lower()
