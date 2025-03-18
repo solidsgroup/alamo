@@ -15,29 +15,6 @@ class ScimitarX_Util
 public:
     ScimitarX_Util () {};
 
-    struct Constants {
-        static constexpr double zeroval = 0.0;
-        static constexpr double one = 1.0;
-        static constexpr double two = 2.0;
-        static constexpr double three = 3.0;
-        static constexpr double four = 4.0;
-        static constexpr double five = 5.0;
-        static constexpr double twothird = 0.6666666666666666667;
-        static constexpr double half = 0.5;
-        static constexpr double third = twothird * half;
-        static constexpr double sixth = twothird * half * half;
-        static constexpr double eighth = 0.125;
-        static constexpr double sixteenth = 0.0625;
-        static constexpr double twelveth = 0.08333333333;
-        static constexpr double fourth = 0.25;
-        static constexpr double tenth = 0.1;
-        static constexpr double threetenth = 0.3;
-        static constexpr double threefourth = 0.75;
-        static constexpr double PI = 3.14159265358979323846264338327950288;
-        static constexpr double TINYVAL = 1e-10;
-        static constexpr double HUGEVAL = 1e+10;
-    };
-
     // NOTE: When modifying solver types, ensure the corresponding variables are added here to enable dynamic indexing.
     struct getVariableIndex {
         std::map<int, int> variableIndexMap; // Mapping from variable enums to indices
@@ -47,425 +24,667 @@ public:
         int VVEL = -1;                       // Index for V-velocity
         int WVEL = -1;                       // Index for W-velocity
         int IE = -1;                         // Index for Internal Energy
-    };
+    }; // End of Debug class
 
     // Nested Debug class containing debug APIs
     class Debug {
-    
-    private:
-        static amrex::IntVect target_location;  // Store target cell index (i, j, k)
-    
+        
     public:
-        // 1. Function to set the target debug location
-        static void SetTargetDebugLocation(double x, double y, [[maybe_unused]] double z, const amrex::Geometry& geom) {
-        // Create a RealVect using AMREX_D_DECL to handle different dimensions
-        amrex::Array<amrex::Real, AMREX_SPACEDIM> pos = {AMREX_D_DECL(x, y, z)};
-    
-        // Convert to cell index (i, j, k)
-        target_location = geom.CellIndex(pos.data());  // Use .getVect() to pass the internal pointer
 
-        Util::Message(INFO, "Target debug location set to: (" +
-                            std::to_string(target_location[0]) + ", " +
-                            std::to_string(target_location[1]) + ", " +
-                            (AMREX_SPACEDIM == 3 ? std::to_string(target_location[2]) : "N/A") + ")");
+        static amrex::IntVect& GetTargetLocation() {
+                static amrex::IntVect target_location = amrex::IntVect::TheZeroVector();
+                return target_location;
         }
 
-        static void SetTargetDebugLocationIndices(int i, int j, [[maybe_unused]] int k) {
-        // Set the target location directly using grid indices (i, j, k)
-        target_location = amrex::IntVect(AMREX_D_DECL(i, j, k));  // Create IntVect with (i, j, k)
+        // 1. Function to set the target debug location
+        static void SetTargetDebugLocation(double x, double y, [[maybe_unused]] double z, const amrex::Geometry& geom, bool enableDebug = true) {
+            if (!enableDebug) return;
+            
+            // Create a RealVect using AMREX_D_DECL to handle different dimensions
+            amrex::Array<amrex::Real, AMREX_SPACEDIM> pos = {AMREX_D_DECL(x, y, z)};
+        
+            // Convert to cell index (i, j, k)
+            GetTargetLocation() = geom.CellIndex(pos.data());  // Use .getVect() to pass the internal pointer
 
-        Util::Message(INFO, "Target debug location set using indices: (" +
-                            std::to_string(target_location[0]) + ", " +
-                            std::to_string(target_location[1]) + ", " +
-                            (AMREX_SPACEDIM == 3 ? std::to_string(target_location[2]) : "N/A") + ")");
+            Util::Message(INFO, "Target debug location set to: (" +
+                                std::to_string(GetTargetLocation()[0]) + ", " +
+                                std::to_string(GetTargetLocation()[1]) + ", " +
+                                (AMREX_SPACEDIM == 3 ? std::to_string(GetTargetLocation()[2]) : "N/A") + ")");
+        }
+
+        static void SetTargetDebugLocationIndices(int i, int j, [[maybe_unused]] int k, bool enableDebug = true) {
+            if (!enableDebug) return;
+            
+            // Set the target location directly using grid indices (i, j, k)
+            GetTargetLocation() = amrex::IntVect(AMREX_D_DECL(i, j, k));  // Create IntVect with (i, j, k)
+
+            Util::Message(INFO, "Target debug location set using indices: (" +
+                                std::to_string(GetTargetLocation()[0]) + ", " +
+                                std::to_string(GetTargetLocation()[1]) + ", " +
+                                (AMREX_SPACEDIM == 3 ? std::to_string(GetTargetLocation()[2]) : "N/A") + ")");
         }
 
         static bool IsTargetLocation(int i, int j, int k) {
-            if (AMREX_SPACEDIM >= 1 && target_location[0] != i) return false;
-            if (AMREX_SPACEDIM >= 2 && target_location[1] != j) return false;
-            if (AMREX_SPACEDIM == 3 && target_location[2] != k) return false;
-        return true;
+            if (AMREX_SPACEDIM >= 1 && GetTargetLocation()[0] != i) return false;
+            if (AMREX_SPACEDIM >= 2 && GetTargetLocation()[1] != j) return false;
+            if (AMREX_SPACEDIM == 3 && GetTargetLocation()[2] != k) return false;
+            return true;
         }
 
         // Inline debug function that checks the current cell's value
         template <typename T>
         static void DebugValuesIfTarget(int i, int j, int k, const T& value, const std::string& field_name,
-                                        const std::string& context, bool abort_if_nan = false, int component = -1) {
-            if (IsTargetLocation(i, j, k)) {
-                // Build debug message
-                std::string debug_message = "Debug at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                            ") in context '" + context + "' for field '" + field_name + "'";
-        
-                // Add component information if applicable
-                if (component >= 0) {
-                    debug_message += " (Component: " + std::to_string(component) + ")";
+                                        const std::string& context, bool abort_if_nan = false, int component = -1,
+                                        bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+                                            
+            // Build debug message
+            std::string debug_message = "Debug at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                        ") in context '" + context + "' for field '" + field_name + "'";
+    
+            // Add component information if applicable
+            if (component >= 0) {
+                debug_message += " (Component: " + std::to_string(component) + ")";
+            }
+    
+            // Append the value
+            debug_message += " = " + std::to_string(value);
+    
+            // Print debug message
+            Util::Message(INFO, debug_message);
+    
+            // Check for NaN or invalid value (only for floating-point types)
+            if constexpr (std::is_floating_point<T>::value) {
+                if (std::isnan(value) || std::isinf(value)) {
+                    std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                                ") for field '" + field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
+                    if (component >= 0) {
+                        error_message += " (Component: " + std::to_string(component) + ")";
+                    }
+    
+                    if (abort_if_nan) {
+                        Util::Abort(INFO, error_message);
+                    } else {
+                        Util::Warning(INFO, error_message);
+                    }
                 }
+            }
+        }
+
+
+        static void CheckNaNAndAbort(int i, int j, int k, const Set::Scalar& value, const std::string& field_name, 
+                                    const std::string& context, bool abort_if_nan = true, bool enableDebug = false) {
+            if (!enableDebug) return;
+            
+            // Check if the value is NaN or Inf
+            if (std::isnan(value) || std::isinf(value)) {
+                std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                            ") for field '" + field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
+
+                if (abort_if_nan) {
+                    Util::Abort(INFO, error_message);  // Abort with the error message
+                } else {
+                    Util::Warning(INFO, error_message);  // Print a warning instead of aborting
+                }
+            }   
+        }
+
+        // API to debug internal energy computation
+        static void DebugComputeInternalEnergyFromDensityAndPressure(int i, int j, int k, int lev,
+                                                                    Set::Scalar pressure, Set::Scalar density, Set::Scalar gamma,
+                                                                    bool abort_on_checkpoint, const std::string& mode = "check",
+                                                                    const std::string& context = "Unknown", bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            std::ostringstream message;
+            message << "Debugging ComputeInternalEnergyFromDensityAndPressure (" << context << ") at cell: (" 
+                    << i << ", " << j << ", " << k << ") at level " << lev << "\n";
+            message << "Context: " << context << "\n";
+            message << "Density: " << density << "\n";
+            message << "Pressure: " << pressure << "\n";
+            message << "Gamma: " << gamma << "\n";
+
+            if (mode == "print") {
+                Util::Message(INFO, message.str());
+            } else if (mode == "check") {
+                if (density <= 0.0 || pressure < 0.0 || std::isnan(pressure) || std::isnan(density) || std::isnan(gamma)) {
+                    message << "Error: Invalid values detected in context: " << context << "\n";
+                    if (abort_on_checkpoint) {
+                        Util::Abort(INFO, message.str(), "Checkpoint reached. Aborting.");
+                    } else {
+                        Util::Warning(INFO, message.str());
+                    }
+                } else {
+                    Util::Message(INFO, "Values are valid: " + message.str());
+                }
+            } else {
+                Util::Warning(INFO, "Unknown debug mode specified. Defaulting to 'print'.");
+                Util::Message(INFO, message.str());
+            }
+
+            if (abort_on_checkpoint) {
+                Util::Abort(INFO, message.str(), "Checkpoint reached. Aborting as requested.");
+            }
+        }
         
-                // Append the value
-                debug_message += " = " + std::to_string(value);
+        static void DebugEulerForwardStep(int i, int j, int k,
+                                Set::Scalar xflux_right, Set::Scalar xflux_left,
+                                Set::Scalar yflux_top, Set::Scalar yflux_bottom,
+                                Set::Scalar zflux_front, Set::Scalar zflux_back,
+                                Set::Scalar q_old, Set::Scalar dt,
+                                const std::string& context, bool abort_if_nan = true, bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+
+            // Compute the flux divergence
+            Set::Scalar flux_div_x = (xflux_right - xflux_left);
+            Set::Scalar flux_div_y = (yflux_top - yflux_bottom);
+            Set::Scalar flux_div_z = (AMREX_SPACEDIM == 3) ? (zflux_front - zflux_back) : 0.0;
         
-                // Print debug message
-                Util::Message(INFO, debug_message);
+            Set::Scalar total_flux_div = flux_div_x + flux_div_y + flux_div_z;
         
-                // Check for NaN or invalid value (only for floating-point types)
-                if constexpr (std::is_floating_point<T>::value) {
+            // Compute the new value
+            Set::Scalar new_value = q_old - dt * total_flux_div;
+        
+            // Print the debug message
+            Util::Message(INFO, "EulerForward Debug - Context: '" + context + "'");
+            Util::Message(INFO, "Index: (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + ")");
+            Util::Message(INFO, "  xflux_right = " + std::to_string(xflux_right) + ", xflux_left = " + std::to_string(xflux_left));
+            Util::Message(INFO, "  yflux_top = " + std::to_string(yflux_top) + ", yflux_bottom = " + std::to_string(yflux_bottom));
+            if (AMREX_SPACEDIM == 3) {
+                Util::Message(INFO, "  zflux_front = " + std::to_string(zflux_front) + ", zflux_back = " + std::to_string(zflux_back));
+            }
+            Util::Message(INFO, "  q_old = " + std::to_string(q_old));
+            Util::Message(INFO, "  dt = " + std::to_string(dt));
+            Util::Message(INFO, "  Total Flux Divergence: " + std::to_string(total_flux_div));
+            Util::Message(INFO, "  New Value: " + std::to_string(new_value));
+        
+            // Check for NaN or Inf and abort if required
+            if (std::isnan(new_value) || std::isinf(new_value)) {
+                std::string error_message = "Invalid value detected during EulerForward at (" +
+                                            std::to_string(i) + ", " + std::to_string(j) + ", " +
+                                            std::to_string(k) + "). Context: '" + context +
+                                            "', New Value = " + std::to_string(new_value);
+        
+                if (abort_if_nan) {
+                    Util::Abort(INFO, error_message);  // Abort if NaN/Inf
+                } else {
+                    Util::Warning(INFO, error_message);  // Print warning instead of aborting
+                }
+            }
+        }
+            
+        static void DebugLocalLaxFriedrichsFlux(int i, int j, int k, Set::Scalar number_of_components,
+                                                Set::Scalar rho_L, Set::Scalar u_L, Set::Scalar v_L, Set::Scalar w_L, Set::Scalar e_L, Set::Scalar pressure_L,
+                                                Set::Scalar rho_R, Set::Scalar u_R, Set::Scalar v_R, Set::Scalar w_R, Set::Scalar e_R, Set::Scalar pressure_R,
+                                                Set::Scalar c_L, Set::Scalar c_R, Set::Scalar lambda_max,
+                                                Set::Scalar flux_L[], Set::Scalar flux_R[],
+                                                const std::string& context, bool abort_if_nan = true, bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+
+            // Print debug information for left and right states
+            Util::Message(INFO, "Local Lax-Friedrichs Flux Debug - Context: '" + context + "'");
+            Util::Message(INFO, "Index: (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + ")");
+            Util::Message(INFO, "  Left State (QL):");
+            Util::Message(INFO, "    rho_L = " + std::to_string(rho_L) + ", u_L = " + std::to_string(u_L) + ", v_L = " + std::to_string(v_L) +
+                                    ", w_L = " + std::to_string(w_L) + ", e_L = " + std::to_string(e_L) +
+                                    ", pressure_L = " + std::to_string(pressure_L));
+            Util::Message(INFO, "  Right State (QR):");
+            Util::Message(INFO, "    rho_R = " + std::to_string(rho_R) + ", u_R = " + std::to_string(u_R) + ", v_R = " + std::to_string(v_R) +
+                                    ", w_R = " + std::to_string(w_R) + ", e_R = " + std::to_string(e_R) +
+                                    ", pressure_R = " + std::to_string(pressure_R));
+            Util::Message(INFO, "  Wave Speeds:");
+            Util::Message(INFO, "    c_L = " + std::to_string(c_L) + ", c_R = " + std::to_string(c_R) + ", lambda_max = " + std::to_string(lambda_max));
+        
+            // Print fluxes
+            Util::Message(INFO, "  Flux Components (F_L, F_R):");
+            for (int n = 0; n < number_of_components; ++n) {
+                Util::Message(INFO, "    Flux component " + std::to_string(n) +
+                                        ": F_L[" + std::to_string(n) + "] = " + std::to_string(flux_L[n]) +
+                                        ", F_R[" + std::to_string(n) + "] = " + std::to_string(flux_R[n]));
+            }
+        
+            // Check for NaN or Inf in lambda_max and fluxes
+            if (std::isnan(lambda_max) || std::isinf(lambda_max)) {
+                std::string error_message = "Invalid wave speed detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                            ") in context '" + context + "'. lambda_max = " + std::to_string(lambda_max);
+        
+                if (abort_if_nan) {
+                    Util::Abort(INFO, error_message);  // Abort if NaN or Inf
+                } else {
+                    Util::Warning(INFO, error_message);  // Print warning instead of aborting
+                }
+            }
+        
+            // Check for NaN or Inf in the fluxes
+            for (int n = 0; n < number_of_components; ++n) {
+                if (std::isnan(flux_L[n]) || std::isinf(flux_L[n]) || std::isnan(flux_R[n]) || std::isinf(flux_R[n])) {
+                    std::string error_message = "Invalid flux component detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
+                                                std::to_string(k) + ") in context '" + context + "'. Flux component " + std::to_string(n);
+                    if (abort_if_nan) {
+                        Util::Abort(INFO, error_message);
+                    } else {
+                        Util::Warning(INFO, error_message);
+                    }
+                }
+            }
+        }
+
+        static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int /*lev*/, 
+                                             const std::string& field_name, const std::string& context, 
+                                             bool abort_if_nan = true, bool enableDebug = false) {
+            if (!enableDebug) return;
+            
+            const amrex::Box& domain = geom.Domain();  // Physical domain without ghost cells
+
+            for (amrex::MFIter mfi(mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+                const amrex::Box& bx = mfi.growntilebox();  // Tile box including ghost cells
+                auto const& arr = mf.array(mfi);  // Access the MultiFab array
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                    bool is_ghost = (i < domain.smallEnd(0) || i > domain.bigEnd(0) ||
+                                    j < domain.smallEnd(1) || j > domain.bigEnd(1) ||
+                                    (AMREX_SPACEDIM == 3 && (k < domain.smallEnd(2) || k > domain.bigEnd(2))));
+
+                    bool is_boundary = !is_ghost &&  // Must be inside the domain
+                                        (i == domain.smallEnd(0) || i == domain.bigEnd(0) ||
+                                        j == domain.smallEnd(1) || j == domain.bigEnd(1) ||
+                                        (AMREX_SPACEDIM == 3 && (k == domain.smallEnd(2) || k == domain.bigEnd(2))));
+
+                    amrex::Real value = arr(i, j, k);
+
+                    if (is_ghost) {
+                        Util::Message(INFO, "Debug (Ghost Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
+                                                (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
+                                                field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
+                    }
+                    else if (is_boundary) {
+                        Util::Message(INFO, "Debug (Boundary Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
+                                                (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
+                                                field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
+                    }
+
+                    // Check for NaN or Inf values
                     if (std::isnan(value) || std::isinf(value)) {
-                        std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                                    ") for field '" + field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
-                        if (component >= 0) {
-                            error_message += " (Component: " + std::to_string(component) + ")";
-                        }
-        
+                        std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " +
+                                                    std::to_string(j) + ", " + (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") +
+                                                    ") for field '" + field_name + "' in context '" + context +
+                                                    "'. Value = " + std::to_string(value);
                         if (abort_if_nan) {
                             Util::Abort(INFO, error_message);
                         } else {
                             Util::Warning(INFO, error_message);
                         }
                     }
+                });
+            }
+
+            Util::Message(INFO, "Completed debug of ghost and boundary cells for field: " + field_name);
+        }
+
+        static void CheckNegativePressureAndAbort(int i, int j, int k, const Set::Scalar& pressure, const std::string& field_name, 
+                                                const std::string& context, bool abort_if_negative = true, bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            // Check if the pressure value is negative
+            if (pressure < 0.0) {
+                std::string error_message = "Negative pressure detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
+                                            ") for field '" + field_name + "' in context '" + context + "'. Pressure = " + std::to_string(pressure);
+
+                if (abort_if_negative) {
+                    Util::Abort(INFO, error_message);  // Abort with the error message if pressure is negative
+                } else {
+                    Util::Warning(INFO, error_message);  // Print a warning instead of aborting
                 }
             }
         }
 
+        static void DebugIndicesAndBounds(int i, int j, int k,
+                                        const int index[3], const int left_index[3], const int right_index[3],
+                                        const int lower_bounds[3], const int upper_bounds[3],
+                                        const std::string& context, bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            std::ostringstream message;
+            message << "=== Debug Indices and Bounds in Context: " << context << " ===\n";
+            message << "Cell Center Indices (i, j, k): (" << i << ", " << j << ", " << k << ")\n";
 
-    static void CheckNaNAndAbort(int i, int j, int k, const Set::Scalar& value, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
-        // Check if the value is NaN or Inf
-        if (std::isnan(value) || std::isinf(value)) {
-        std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                    ") for field '" + field_name + "' in context '" + context + "'. Value = " + std::to_string(value);
+            message << "Index: (" << index[0] << ", " << index[1] << ", " << index[2] << ")\n";
+            message << "Left Index: (" << left_index[0] << ", " << left_index[1] << ", " << left_index[2] << ")\n";
+            message << "Right Index: (" << right_index[0] << ", " << right_index[1] << ", " << right_index[2] << ")\n";
 
-        if (abort_if_nan) {
-            Util::Abort(INFO, error_message);  // Abort with the error message
-        } else {
-            Util::Warning(INFO, error_message);  // Print a warning instead of aborting
+            message << "Lower Bounds: (" << lower_bounds[0] << ", " << lower_bounds[1] << ", " << lower_bounds[2] << ")\n";
+            message << "Upper Bounds: (" << upper_bounds[0] << ", " << upper_bounds[1] << ", " << upper_bounds[2] << ")\n";
+
+            message << "==========================================\n";
+
+            Util::Message(INFO, message.str());  // Print debug message to the log
         }
-        }   
-    }
 
-        // API to debug internal energy computation
-        static void DebugComputeInternalEnergyFromDensityAndPressure(int i, int j, int k, int lev,
-                                                                    Set::Scalar pressure, Set::Scalar density, Set::Scalar gamma,
-                                                                    bool abort_on_checkpoint, const std::string& mode = "check",
-                                                                    const std::string& context = "Unknown");
-        static void DebugEulerForwardStep(int i, int j, int k,
-                                Set::Scalar xflux_right, Set::Scalar xflux_left,
-                                Set::Scalar yflux_top, Set::Scalar yflux_bottom,
-                                Set::Scalar zflux_front, Set::Scalar zflux_back,
-                                Set::Scalar q_old, Set::Scalar dt,
-                                const std::string& context, bool abort_if_nan = true) {
+        // Add these debug functions to the ScimitarX_Util::Debug class in ScimitarX_Util.H
 
-            if (IsTargetLocation(i, j, k)) {
-                // Compute the flux divergence
-                Set::Scalar flux_div_x = (xflux_right - xflux_left);
-                Set::Scalar flux_div_y = (yflux_top - yflux_bottom);
-                Set::Scalar flux_div_z = (AMREX_SPACEDIM == 3) ? (zflux_front - zflux_back) : 0.0;
+        template <typename MatrixType>
+        static void DebugMatrixIfTarget(int i, int j, int k, const MatrixType& matrix, 
+                                       const std::string& name, const std::string& context, bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
-                Set::Scalar total_flux_div = flux_div_x + flux_div_y + flux_div_z;
+            // Print determinant
+            Set::Scalar det = matrix.determinant();
+            Util::Message(INFO, context + " - Matrix " + name + " at (" + 
+                         std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                         std::to_string(k) + "):");
+            Util::Message(INFO, "  Determinant: " + std::to_string(det));
             
-                // Compute the new value
-                Set::Scalar new_value = q_old - dt * total_flux_div;
+            // Check if near-singular
+            if (std::abs(det) < 1e-10) {
+                Util::Warning(INFO, "Near-singular matrix detected in " + context);
+            }
             
-                // Print the debug message
-                Util::Message(INFO, "EulerForward Debug - Context: '" + context + "'");
-                Util::Message(INFO, "Index: (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + ")");
-                Util::Message(INFO, "  xflux_right = " + std::to_string(xflux_right) + ", xflux_left = " + std::to_string(xflux_left));
-                Util::Message(INFO, "  yflux_top = " + std::to_string(yflux_top) + ", yflux_bottom = " + std::to_string(yflux_bottom));
-                if (AMREX_SPACEDIM == 3) {
-                    Util::Message(INFO, "  zflux_front = " + std::to_string(zflux_front) + ", zflux_back = " + std::to_string(zflux_back));
+            // Check condition number (approximate) using singular values
+            Eigen::JacobiSVD<MatrixType> svd(matrix);
+            Set::Scalar cond = svd.singularValues()(0) / 
+                             svd.singularValues()(svd.singularValues().size()-1);
+            Util::Message(INFO, "  Condition number: " + std::to_string(cond));
+            
+            // Print matrix entries
+            Util::Message(INFO, "  Matrix entries:");
+            for (int r = 0; r < matrix.rows(); r++) {
+                for (int c = 0; c < matrix.cols(); c++) {
+                    Util::Message(INFO, "    [" + std::to_string(r) + "," + 
+                                 std::to_string(c) + "]: " + std::to_string(matrix(r,c)));
+                    CheckNaNAndAbort(i, j, k, matrix(r,c), 
+                                   name + "[" + std::to_string(r) + "," + std::to_string(c) + "]", 
+                                   context);
                 }
-                Util::Message(INFO, "  q_old = " + std::to_string(q_old));
-                Util::Message(INFO, "  dt = " + std::to_string(dt));
-                Util::Message(INFO, "  Total Flux Divergence: " + std::to_string(total_flux_div));
-                Util::Message(INFO, "  New Value: " + std::to_string(new_value));
-            
-                // Check for NaN or Inf and abort if required
-                if (std::isnan(new_value) || std::isinf(new_value)) {
-                    std::string error_message = "Invalid value detected during EulerForward at (" +
-                                                std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                                std::to_string(k) + "). Context: '" + context +
-                                                "', New Value = " + std::to_string(new_value);
-            
-                        if (abort_if_nan) {
-                            Util::Abort(INFO, error_message);  // Abort if NaN/Inf
-                        } else {
-                            Util::Warning(INFO, error_message);  // Print warning instead of aborting
-                        }
-                    }
-                }  
             }
-            
-            static void DebugLocalLaxFriedrichsFlux(int i, int j, int k, Set::Scalar number_of_components,
-                                                    Set::Scalar rho_L, Set::Scalar u_L, Set::Scalar v_L, Set::Scalar w_L, Set::Scalar e_L, Set::Scalar pressure_L,
-                                                    Set::Scalar rho_R, Set::Scalar u_R, Set::Scalar v_R, Set::Scalar w_R, Set::Scalar e_R, Set::Scalar pressure_R,
-                                                    Set::Scalar c_L, Set::Scalar c_R, Set::Scalar lambda_max,
-                                                    Set::Scalar flux_L[], Set::Scalar flux_R[],
-                                                    const std::string& context, bool abort_if_nan = true) {
+        }
 
-            if (IsTargetLocation(i, j, k)) {
-                // Print debug information for left and right states
-                Util::Message(INFO, "Local Lax-Friedrichs Flux Debug - Context: '" + context + "'");
-                Util::Message(INFO, "Index: (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + ")");
-                Util::Message(INFO, "  Left State (QL):");
-                Util::Message(INFO, "    rho_L = " + std::to_string(rho_L) + ", u_L = " + std::to_string(u_L) + ", v_L = " + std::to_string(v_L) +
-                                        ", w_L = " + std::to_string(w_L) + ", e_L = " + std::to_string(e_L) +
-                                        ", pressure_L = " + std::to_string(pressure_L));
-                Util::Message(INFO, "  Right State (QR):");
-                Util::Message(INFO, "    rho_R = " + std::to_string(rho_R) + ", u_R = " + std::to_string(u_R) + ", v_R = " + std::to_string(v_R) +
-                                        ", w_R = " + std::to_string(w_R) + ", e_R = " + std::to_string(e_R) +
-                                        ", pressure_R = " + std::to_string(pressure_R));
-                Util::Message(INFO, "  Wave Speeds:");
-                Util::Message(INFO, "    c_L = " + std::to_string(c_L) + ", c_R = " + std::to_string(c_R) + ", lambda_max = " + std::to_string(lambda_max));
+        template <typename VectorType>
+        static void DebugVectorIfTarget(int i, int j, int k, const VectorType& vector, 
+                                       const std::string& name, const std::string& context,
+                                       bool check_negative_values = false, bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
-                // Print fluxes
-                Util::Message(INFO, "  Flux Components (F_L, F_R):");
-                for (int n = 0; n < number_of_components; ++n) {
-                    Util::Message(INFO, "    Flux component " + std::to_string(n) +
-                                            ": F_L[" + std::to_string(n) + "] = " + std::to_string(flux_L[n]) +
-                                            ", F_R[" + std::to_string(n) + "] = " + std::to_string(flux_R[n]));
+            Util::Message(INFO, context + " - Vector " + name + " at (" + 
+                         std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                         std::to_string(k) + "):");
+            
+            // Print vector entries
+            Util::Message(INFO, "  Vector entries:");
+            for (int r = 0; r < vector.size(); r++) {
+                Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
+                             std::to_string(vector(r)));
+                
+                // Check for NaN values
+                CheckNaNAndAbort(i, j, k, vector(r), 
+                               name + "[" + std::to_string(r) + "]", 
+                               context);
+                
+                // Optionally check for negative values
+                if (check_negative_values && vector(r) < 0.0) {
+                    Util::Warning(INFO, "Negative value detected in " + name + 
+                                "[" + std::to_string(r) + "] = " + 
+                                std::to_string(vector(r)) + " at (" + 
+                                std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                                std::to_string(k) + ") in context " + context);
                 }
-            
-                // Check for NaN or Inf in lambda_max and fluxes
-                if (std::isnan(lambda_max) || std::isinf(lambda_max)) {
-                    std::string error_message = "Invalid wave speed detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                                ") in context '" + context + "'. lambda_max = " + std::to_string(lambda_max);
-            
-                    if (abort_if_nan) {
-                        Util::Abort(INFO, error_message);  // Abort if NaN or Inf
-                    } else {
-                        Util::Warning(INFO, error_message);  // Print warning instead of aborting
-                    }
-                }
-            
-                // Check for NaN or Inf in the fluxes
-                for (int n = 0; n < number_of_components; ++n) {
-                    if (std::isnan(flux_L[n]) || std::isinf(flux_L[n]) || std::isnan(flux_R[n]) || std::isinf(flux_R[n])) {
-                        std::string error_message = "Invalid flux component detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                                    std::to_string(k) + ") in context '" + context + "'. Flux component " + std::to_string(n);
-                            if (abort_if_nan) {
-                                Util::Abort(INFO, error_message);
-                            } else {
-                                Util::Warning(INFO, error_message);
-                            }
-                        }
-                    }
-                } 
             }
+        }
 
+        static void CheckDivisionBySmallandAbort(int i, int j, int k, 
+                                               const Set::Scalar& denominator, 
+                                               const std::string& field_name, 
+                                               const std::string& context, 
+                                               bool abort_if_small = true,
+                                               Set::Scalar threshold = 1e-10,
+                                               bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            // Check if the denominator is too small
+            if (std::abs(denominator) < threshold) {
+                std::string error_message = "Division by small value detected at (" + 
+                                          std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                                          std::to_string(k) + ") for field '" + field_name + 
+                                          "' in context '" + context + "'. Value = " + 
+                                          std::to_string(denominator);
 
-
-static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int /*lev*/, const std::string& field_name, const std::string& context, bool abort_if_nan = true) {
-    const amrex::Box& domain = geom.Domain();  // Physical domain without ghost cells
-
-    for (amrex::MFIter mfi(mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.growntilebox();  // Tile box including ghost cells
-        auto const& arr = mf.array(mfi);  // Access the MultiFab array
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-            bool is_ghost = (i < domain.smallEnd(0) || i > domain.bigEnd(0) ||
-                            j < domain.smallEnd(1) || j > domain.bigEnd(1) ||
-                            (AMREX_SPACEDIM == 3 && (k < domain.smallEnd(2) || k > domain.bigEnd(2))));
-
-            bool is_boundary = !is_ghost &&  // Must be inside the domain
-                                (i == domain.smallEnd(0) || i == domain.bigEnd(0) ||
-                                j == domain.smallEnd(1) || j == domain.bigEnd(1) ||
-                                (AMREX_SPACEDIM == 3 && (k == domain.smallEnd(2) || k == domain.bigEnd(2))));
-
-            amrex::Real value = arr(i, j, k);
-
-            if (is_ghost) {
-                Util::Message(INFO, "Debug (Ghost Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                        (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
-                                        field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
-            }
-            else if (is_boundary) {
-                Util::Message(INFO, "Debug (Boundary Cell) at (" + std::to_string(i) + ", " + std::to_string(j) + ", " +
-                                        (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") + ") for field '" +
-                                        field_name + "' in context '" + context + "'. Value: " + std::to_string(value));
-            }
-
-            // Check for NaN or Inf values
-            if (std::isnan(value) || std::isinf(value)) {
-                std::string error_message = "Invalid value detected at (" + std::to_string(i) + ", " +
-                                            std::to_string(j) + ", " + (AMREX_SPACEDIM == 3 ? std::to_string(k) : "N/A") +
-                                            ") for field '" + field_name + "' in context '" + context +
-                                            "'. Value = " + std::to_string(value);
-                if (abort_if_nan) {
+                if (abort_if_small) {
                     Util::Abort(INFO, error_message);
                 } else {
                     Util::Warning(INFO, error_message);
                 }
             }
-        });
-    }
-
-    Util::Message(INFO, "Completed debug of ghost and boundary cells for field: " + field_name);
-}
-
-static void CheckNegativePressureAndAbort(int i, int j, int k, const Set::Scalar& pressure, const std::string& field_name, const std::string& context, bool abort_if_negative = true) {
-    // Check if the pressure value is negative
-    if (pressure < 0.0) {
-        std::string error_message = "Negative pressure detected at (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) +
-                                    ") for field '" + field_name + "' in context '" + context + "'. Pressure = " + std::to_string(pressure);
-
-        if (abort_if_negative) {
-            Util::Abort(INFO, error_message);  // Abort with the error message if pressure is negative
-        } else {
-            Util::Warning(INFO, error_message);  // Print a warning instead of aborting
         }
-    }
-}
 
-static void DebugIndicesAndBounds(int i, int j, int k,
-                                const int index[3], const int left_index[3], const int right_index[3],
-                                const int lower_bounds[3], const int upper_bounds[3],
-                                const std::string& context) {
-    std::ostringstream message;
-    message << "=== Debug Indices and Bounds in Context: " << context << " ===\n";
-    message << "Cell Center Indices (i, j, k): (" << i << ", " << j << ", " << k << ")\n";
-
-    message << "Index: (" << index[0] << ", " << index[1] << ", " << index[2] << ")\n";
-    message << "Left Index: (" << left_index[0] << ", " << left_index[1] << ", " << left_index[2] << ")\n";
-    message << "Right Index: (" << right_index[0] << ", " << right_index[1] << ", " << right_index[2] << ")\n";
-
-    message << "Lower Bounds: (" << lower_bounds[0] << ", " << lower_bounds[1] << ", " << lower_bounds[2] << ")\n";
-    message << "Upper Bounds: (" << upper_bounds[0] << ", " << upper_bounds[1] << ", " << upper_bounds[2] << ")\n";
-
-    message << "==========================================\n";
-
-    Util::Message(INFO, message.str());  // Print debug message to the log
-}
-
-// Add these debug functions to the ScimitarX_Util::Debug class in ScimitarX_Util.H
-
-template <typename MatrixType>
-static void DebugMatrixIfTarget(int i, int j, int k, const MatrixType& matrix, 
-                               const std::string& name, const std::string& context) {
-    if (IsTargetLocation(i, j, k)) {
-        // Print determinant
-        Set::Scalar det = matrix.determinant();
-        Util::Message(INFO, context + " - Matrix " + name + " at (" + 
-                     std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                     std::to_string(k) + "):");
-        Util::Message(INFO, "  Determinant: " + std::to_string(det));
-        
-        // Check if near-singular
-        if (std::abs(det) < 1e-10) {
-            Util::Warning(INFO, "Near-singular matrix detected in " + context);
-        }
-        
-        // Check condition number (approximate) using singular values
-        Eigen::JacobiSVD<MatrixType> svd(matrix);
-        Set::Scalar cond = svd.singularValues()(0) / 
-                         svd.singularValues()(svd.singularValues().size()-1);
-        Util::Message(INFO, "  Condition number: " + std::to_string(cond));
-        
-        // Print matrix entries
-        Util::Message(INFO, "  Matrix entries:");
-        for (int r = 0; r < matrix.rows(); r++) {
-            for (int c = 0; c < matrix.cols(); c++) {
-                Util::Message(INFO, "    [" + std::to_string(r) + "," + 
-                             std::to_string(c) + "]: " + std::to_string(matrix(r,c)));
-                CheckNaNAndAbort(i, j, k, matrix(r,c), 
-                               name + "[" + std::to_string(r) + "," + std::to_string(c) + "]", 
-                               context);
-            }
-        }
-    }
-}
-
-template <typename VectorType>
-static void DebugVectorIfTarget(int i, int j, int k, const VectorType& vector, 
-                               const std::string& name, const std::string& context,
-                               bool check_negative_values = false) {
-    if (IsTargetLocation(i, j, k)) {
-        Util::Message(INFO, context + " - Vector " + name + " at (" + 
-                     std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                     std::to_string(k) + "):");
-        
-        // Print vector entries
-        Util::Message(INFO, "  Vector entries:");
-        for (int r = 0; r < vector.size(); r++) {
-            Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
-                         std::to_string(vector(r)));
+        static void DebugCharacteristicTransformation(int i, int j, int k,
+                                                    const Set::MultiVector& input_vars,
+                                                    const Set::MultiMatrix& transform_matrix,
+                                                    const Set::MultiVector& output_vars,
+                                                    const std::string& transform_type,
+                                                    const std::string& context,
+                                                    bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
-            // Check for NaN values
-            CheckNaNAndAbort(i, j, k, vector(r), 
-                           name + "[" + std::to_string(r) + "]", 
-                           context);
+            Util::Message(INFO, context + " - " + transform_type + " at (" + 
+                         std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                         std::to_string(k) + "):");
             
-            // Optionally check for negative values
-            if (check_negative_values && vector(r) < 0.0) {
-                Util::Warning(INFO, "Negative value detected in " + name + 
-                            "[" + std::to_string(r) + "] = " + 
-                            std::to_string(vector(r)) + " at (" + 
-                            std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                            std::to_string(k) + ") in context " + context);
+            // Print input variables
+            Util::Message(INFO, "  Input variables:");
+            for (int r = 0; r < input_vars.size(); r++) {
+                Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
+                             std::to_string(input_vars(r)));
+            }
+            
+            // Check transform matrix
+            Set::Scalar det = transform_matrix.determinant();
+            Util::Message(INFO, "  Transform matrix determinant: " + std::to_string(det));
+            CheckDivisionBySmallandAbort(i, j, k, det, "matrix_determinant", context, false, 1e-10, enableDebug);
+            
+            // Print output variables
+            Util::Message(INFO, "  Output variables:");
+            for (int r = 0; r < output_vars.size(); r++) {
+                Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
+                             std::to_string(output_vars(r)));
+                CheckNaNAndAbort(i, j, k, output_vars(r), 
+                               "output_var_" + std::to_string(r), context, true, enableDebug);
             }
         }
-    }
-}
-
-static void CheckDivisionBySmallandAbort(int i, int j, int k, 
-                                       const Set::Scalar& denominator, 
-                                       const std::string& field_name, 
-                                       const std::string& context, 
-                                       bool abort_if_small = true,
-                                       Set::Scalar threshold = 1e-10) {
-    // Only perform check if we're at the target location
-    if (IsTargetLocation(i, j, k)) {
-        // Check if the denominator is too small
-        if (std::abs(denominator) < threshold) {
-            std::string error_message = "Division by small value detected at (" + 
-                                      std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                                      std::to_string(k) + ") for field '" + field_name + 
-                                      "' in context '" + context + "'. Value = " + 
-                                      std::to_string(denominator);
-
-            if (abort_if_small) {
-                Util::Abort(INFO, error_message);
-            } else {
-                Util::Warning(INFO, error_message);
+    
+        // Debug WENO smoothness indicators calculation
+        template <typename StencilArray, typename IndicatorArray>
+        AMREX_GPU_DEVICE
+        static void DebugWENOSmoothnessIndicators(
+            int i, int j, int k,
+            const StencilArray& stencil,
+            const IndicatorArray& indicators,
+            const std::vector<Set::MultiMatrix>& coeffMatrices,
+            const std::array<Set::Scalar, 2>& termWeights,
+            const Set::MultiMatrix& stencilOffsets,
+            bool enableDebug = false
+        ) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            // Print stencil values
+            Util::Message(INFO, "WENO Stencil Values at (" + 
+                std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
+                
+            for (int idx = 0; idx < 5; ++idx) { // For 5th order WENO
+                int rel_idx = idx - 2;  // Relative position
+                Util::Message(INFO, "  Stencil[" + std::to_string(rel_idx) + "] = " + 
+                       std::to_string(stencil[idx]));
+            }
+            
+            // Print indicator details for each stencil
+            for (int r = 0; r < 3; ++r) {
+                Util::Message(INFO, "WENO Stencil " + std::to_string(r) + " Smoothness: " + 
+                       std::to_string(indicators[r]));
+                
+                // Check for potential issues
+                if (indicators[r] < 1e-10) {
+                    Util::Message(INFO, "  WARNING: Very small smoothness indicator detected!");
+                }
+                else if (indicators[r] > 1e10) {
+                    Util::Message(INFO, "  WARNING: Very large smoothness indicator detected!");
+                }
+            }
+            
+            // Print coefficient matrices if available
+            if (!coeffMatrices.empty()) {
+                for (size_t r = 0; r < coeffMatrices.size(); ++r) {
+                    Util::Message(INFO, "  Coefficient Matrix for Stencil " + std::to_string(r) + ":");
+                    for (int row = 0; row < coeffMatrices[r].rows(); ++row) {
+                        std::string row_str = "    [";
+                        for (int col = 0; col < coeffMatrices[r].cols(); ++col) {
+                            row_str += std::to_string(coeffMatrices[r](row, col));
+                            if (col < coeffMatrices[r].cols() - 1) row_str += ", ";
+                        }
+                        row_str += "]";
+                        Util::Message(INFO, row_str);
+                    }
+                }
+            }
+            
+            // Print stencil offsets
+            Util::Message(INFO, "  Stencil Offsets:");
+            for (int r = 0; r < stencilOffsets.rows(); ++r) {
+                std::string offset_str = "    Stencil " + std::to_string(r) + ": [";
+                for (int p = 0; p < stencilOffsets.cols(); ++p) {
+                    offset_str += std::to_string(static_cast<int>(stencilOffsets(r, p)));
+                    if (p < stencilOffsets.cols() - 1) offset_str += ", ";
+                }
+                offset_str += "]";
+                Util::Message(INFO, offset_str);
+            }
+            
+            // Print term weights
+            std::string weights_str = "  Term Weights: [";
+            for (size_t t = 0; t < 2; ++t) {
+                weights_str += std::to_string(termWeights[t]);
+                if (t < 1) weights_str += ", ";
+            }
+            weights_str += "]";
+            Util::Message(INFO, weights_str);
+        }
+        
+        // Debug WENO weights calculation
+        template <typename IndicatorArray, typename WeightArray>
+        AMREX_GPU_DEVICE
+        static void DebugWENOWeights(
+            int i, int j, int k,
+            const IndicatorArray& indicators,
+            const WeightArray& weights,
+            const Set::MultiVector& optimalWeights,
+            Set::Scalar epsilon,
+            int power,
+            bool enableDebug = false
+        ) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            Util::Message(INFO, "WENO Weights at (" + 
+                std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
+                
+            Util::Message(INFO, "  Parameters: ε = " + std::to_string(epsilon) + 
+                   ", Power = " + std::to_string(power));
+            
+            // Print indicator, weight, and deviation information
+            for (int r = 0; r < 3; ++r) {
+                Set::Scalar deviation = weights[r] - optimalWeights(r);
+                Set::Scalar rel_deviation = deviation / optimalWeights(r);
+                
+                Util::Message(INFO, "  Stencil " + std::to_string(r) + 
+                       ": β = " + std::to_string(indicators[r]) + 
+                       ", ω = " + std::to_string(weights[r]) + 
+                       ", Deviation: " + std::to_string(rel_deviation * 100.0) + "%");
+                
+                if (std::abs(rel_deviation) > 1.0) {
+                    Util::Message(INFO, "    WARNING: Weight significantly deviates from optimal!");
+                }
             }
         }
-    }
-}
-
-static void DebugCharacteristicTransformation(int i, int j, int k,
-                                            const Set::MultiVector& input_vars,
-                                            const Set::MultiMatrix& transform_matrix,
-                                            const Set::MultiVector& output_vars,
-                                            const std::string& transform_type,
-                                            const std::string& context) {
-    if (IsTargetLocation(i, j, k)) {
-        Util::Message(INFO, context + " - " + transform_type + " at (" + 
-                     std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                     std::to_string(k) + "):");
         
-        // Print input variables
-        Util::Message(INFO, "  Input variables:");
-        for (int r = 0; r < input_vars.size(); r++) {
-            Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
-                         std::to_string(input_vars(r)));
+        // Debug WENO final reconstruction
+        template <typename FluxArray>
+        AMREX_GPU_DEVICE
+        static void DebugWENOReconstruction(
+            int i, int j, int k,
+            const FluxArray& candidateFluxes,
+            const std::array<Set::Scalar, 3>& weights,
+            const Set::MultiVector& optimalWeights,
+            Set::Scalar reconstructedValue,
+            bool enableDebug = false
+        ) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            // Calculate linear reconstruction for comparison
+            Set::Scalar linearValue = 0.0;
+            for (int r = 0; r < 3; ++r) {
+                linearValue += optimalWeights(r) * candidateFluxes[r];
+            }
+            
+            Util::Message(INFO, "WENO Reconstruction at (" + 
+                std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
+                
+            Util::Message(INFO, "  WENO value: " + std::to_string(reconstructedValue));
+            Util::Message(INFO, "  Linear value: " + std::to_string(linearValue));
+            
+            // Diffusion metric
+            Set::Scalar diff = reconstructedValue - linearValue;
+            Set::Scalar rel_diff = (std::abs(linearValue) > 1.0e-10) ? 
+                                  (diff / std::abs(linearValue)) : 0.0;
+            
+            Util::Message(INFO, "  Numerical diffusion: " + std::to_string(diff) + 
+                   " (" + std::to_string(rel_diff * 100.0) + "%)");
+            
+            if (std::abs(rel_diff) > 0.1) {
+                Util::Message(INFO, "  WARNING: Potential excessive numerical diffusion!");
+            }
         }
         
-        // Check transform matrix
-        Set::Scalar det = transform_matrix.determinant();
-        Util::Message(INFO, "  Transform matrix determinant: " + std::to_string(det));
-        CheckDivisionBySmallandAbort(i, j, k, det, "matrix_determinant", context, false);
-        
-        // Print output variables
-        Util::Message(INFO, "  Output variables:");
-        for (int r = 0; r < output_vars.size(); r++) {
-            Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
-                         std::to_string(output_vars(r)));
-            CheckNaNAndAbort(i, j, k, output_vars(r), 
-                           "output_var_" + std::to_string(r), context);
+        // Debug WENO candidate fluxes calculation
+        template <typename StencilArray, typename FluxArray>
+        AMREX_GPU_DEVICE 
+        static void DebugWENOCandidateFluxes(
+            int i, int j, int k,
+            const StencilArray& stencil,
+            const FluxArray& candidateFluxes,
+            const Set::MultiMatrix& coefficients,
+            const Set::MultiMatrix& stencilOffsets,
+            bool enableDebug = false
+        ) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+            
+            Util::Message(INFO, "WENO Candidate Fluxes at (" + 
+                std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
+            
+            for (int r = 0; r < 3; ++r) {
+                // Collect stencil points for this candidate stencil
+                Set::MultiVector stencil_values(3);
+                for (int p = 0; p < 3; ++p) {
+                    int stencil_idx = static_cast<int>(stencilOffsets(r, p)) + 2; // Assuming TotalPoints/2 = 2
+                    stencil_values(p) = stencil[stencil_idx];
+                }
+                
+                Util::Message(INFO, "  Stencil " + std::to_string(r) + ":");
+                std::string points_str = "    Points: [";
+                for (int p = 0; p < 3; ++p) {
+                    points_str += std::to_string(stencil_values(p));
+                    if (p < 2) points_str += ", ";
+                }
+                points_str += "]";
+                Util::Message(INFO, points_str);
+                
+                std::string coef_str = "    Coefficients: [";
+                for (int p = 0; p < 3; ++p) {
+                    coef_str += std::to_string(coefficients(r, p));
+                    if (p < 2) coef_str += ", ";
+                }
+                coef_str += "]";
+                Util::Message(INFO, coef_str);
+                
+                Util::Message(INFO, "    Flux: " + std::to_string(candidateFluxes[r]));
+            }
         }
-    }
-}    
-
-
-
-
+        
 };
 
 

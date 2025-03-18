@@ -604,27 +604,26 @@ public:
                 std::vector<Set::Scalar> FL(solver->number_of_components, 0.0);
                 std::vector<Set::Scalar> FR(solver->number_of_components, 0.0);
                 
-                // Mass flux
-                FL[solver->variableIndex.DENS] = rho_L * vel_L[normal];
-                FR[solver->variableIndex.DENS] = rho_R * vel_R[normal];
-                
-                // Momentum fluxes
-                FL[solver->variableIndex.UVEL + normal] = rho_L * vel_L[normal] * vel_L[normal] + pressure_L;
-                FR[solver->variableIndex.UVEL + normal] = rho_R * vel_R[normal] * vel_R[normal] + pressure_R;
-                
+            // Mass flux
+            FL[solver->variableIndex.DENS] = QL_arr(index[0], index[1], index[2], solver->variableIndex.DENS);
+            FR[solver->variableIndex.DENS] = QR_arr(index[0], index[1], index[2], solver->variableIndex.DENS);
+        
+            // Momentum fluxes
+            FL[solver->variableIndex.UVEL + normal] = QL_arr(index[0], index[1], index[2], solver->variableIndex.UVEL + normal);
+            FR[solver->variableIndex.UVEL + normal] = QR_arr(index[0], index[1], index[2], solver->variableIndex.UVEL + normal);
+
 #if AMREX_SPACEDIM >= 2
-                FL[solver->variableIndex.UVEL + trans1] = rho_L * vel_L[normal] * vel_L[trans1];
-                FR[solver->variableIndex.UVEL + trans1] = rho_R * vel_R[normal] * vel_R[trans1];
+            FL[solver->variableIndex.UVEL + trans1] = QL_arr(index[0], index[1], index[2], solver->variableIndex.UVEL + trans1);
+            FR[solver->variableIndex.UVEL + trans1] = QR_arr(index[0], index[1], index[2], solver->variableIndex.UVEL + trans1);
 #endif
-                
 #if AMREX_SPACEDIM == 3
-                FL[solver->variableIndex.UVEL + trans2] = rho_L * vel_L[normal] * vel_L[trans2];
-                FR[solver->variableIndex.UVEL + trans2] = rho_R * vel_R[normal] * vel_R[trans2];
+            FL[solver->variableIndex.UVEL + trans2] = QL_arr(index[0], index[1], index[2], solver->variableIndex.UVEL + trans2);
+            FR[solver->variableIndex.UVEL + trans2] = QR_arr(index[0], index[1], index[2], solver->variableIndex.UVEL + trans2);
 #endif
-                
-                // Energy flux
-                FL[solver->variableIndex.IE] = (rho_L * E_L + pressure_L) * vel_L[normal];
-                FR[solver->variableIndex.IE] = (rho_R * E_R + pressure_R) * vel_R[normal];
+                    
+            // Energy flux
+            FL[solver->variableIndex.IE] = QL_arr(index[0], index[1], index[2], solver->variableIndex.IE);
+            FR[solver->variableIndex.IE] = QR_arr(index[0], index[1], index[2], solver->variableIndex.IE);
                 
                 // Compute star state variables
                 std::vector<Set::Scalar> QL_star(solver->number_of_components, 0.0);

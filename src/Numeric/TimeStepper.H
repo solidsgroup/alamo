@@ -163,7 +163,8 @@ public:
 
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
 
-        for (amrex::MFIter mfi(*solver->QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        //for (amrex::MFIter mfi(*solver->QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(*solver->QVec_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
             auto const& q_arr = solver->QVec_mf.Patch(lev, mfi);  // Updated conserved variables
             auto const& q_old_arr = solver->QVec_old_mf.Patch(lev, mfi);  // Old conserved variables
