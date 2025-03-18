@@ -272,7 +272,7 @@ class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReco
 public:
     void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
                          amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
-        const int nghosts = solver->GetNumGhostCells();
+        const int nghosts = solver->number_of_ghost_cells;
         //printf("direction: %d\n", direction);
 
         for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
@@ -537,7 +537,7 @@ public:
     void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
                      const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil) const override {
         
-        const int nghosts = solver->GetNumGhostCells();  // Get number of ghost cells
+        const int nghosts = solver->number_of_ghost_cells;  // Get number of ghost cells
 
         for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
             // Use a face-centered box to compute fluxes

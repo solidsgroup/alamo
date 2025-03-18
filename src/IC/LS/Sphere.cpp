@@ -3,6 +3,7 @@
 #include <cmath>
 #include "IC/IC.H"
 #include "Util/Util.H"
+#include "Util/NarrowBandLevelset_Util.H"
 
 namespace IC {
 namespace LS {
@@ -36,7 +37,6 @@ void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             auto coords = computeCoordinates(i, j, k, lev, cellcentered);
             Set::Scalar rsq = computeRSquared(coords, type, center);
-            //field(i, j, k, 0) = std::sqrt(rsq) - radius;
             Set::Scalar distance = std::sqrt(rsq) - radius;
             field(i, j, k, 0) = computeLevelSetValue(distance, Narrow_Band_Width, InnerTube, OuterTube);
         });

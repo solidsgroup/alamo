@@ -60,7 +60,7 @@ public:
     }
     
     // Public getters to access protected/private members in Numeric templates
-    int GetNumGhostCells() const { return number_of_ghost_cells; }
+    /*int GetNumGhostCells() const { return number_of_ghost_cells; }
     const Set::Field<Set::Scalar>& GetLevelSetField() const { return ls_mf; }
     const Set::Field<Set::Scalar>& GetLevelSetFieldOld() const { return ls_old_mf; }
     const Set::Field<Set::Scalar>& GetVelocityField() const { return velocity_mf; }
@@ -70,7 +70,7 @@ public:
 #endif
 #if AMREX_SPACEDIM == 3
     const Set::Field<Set::Scalar>& GetZFluxField() const { return ZFlux_mf; }
-#endif
+#endif*/
     
     // Flux Reconstruction Schemes
     enum class FluxReconstruction {

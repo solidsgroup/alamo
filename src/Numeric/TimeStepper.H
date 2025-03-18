@@ -162,16 +162,16 @@ public:
 
         for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();  // Valid region of the box
-            auto const& ls_arr = solver->GetLevelSetField().Patch(lev, mfi);
-            auto const& ls_old_arr = solver->GetLevelSetFieldOld().Patch(lev, mfi);
+            auto const& ls_arr = solver->ls_mf.Patch(lev, mfi);
+            auto const& ls_old_arr = solver->ls_old_mf.Patch(lev, mfi);
 
             // Get face-centered flux fields
-            auto const& xflux_arr = solver->GetXFluxField().Patch(lev, mfi);;  // X-direction flux
+            auto const& xflux_arr = solver->XFlux_mf.Patch(lev, mfi);;  // X-direction flux
 #if AMREX_SPACEDIM >= 2
-            auto const& yflux_arr = solver->GetYFluxField().Patch(lev, mfi);  // Y-direction flux
+            auto const& yflux_arr = solver->YFlux_mf.Patch(lev, mfi);  // Y-direction flux
 #endif
 #if AMREX_SPACEDIM == 3
-            auto const& zflux_arr = solver->GetZFluxField().Patch(lev, mfi);  // Z-direction flux
+            auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
 #endif
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
