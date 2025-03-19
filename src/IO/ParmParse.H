@@ -388,8 +388,8 @@ public:
         return 0;
     }
     template<typename T>
-    int queryarr_required(   std::string name, std::vector<T> & value,
-                    std::string file, std::string func, int line)
+    int queryarr_required(  std::string name, std::vector<T> & value,
+                            std::string file, std::string func, int line)
     {
         if (!contains(name.c_str()))
         {
@@ -399,8 +399,8 @@ public:
     }
 
 
-    int queryarr_default(  std::string name, std::vector<std::string> & value, std::string defaultvalue,
-                           std::string = "", std::string = "", int = -1)
+    int queryarr_default(   std::string name, std::vector<std::string> & value, std::string defaultvalue,
+                            std::string = "", std::string = "", int = -1)
     {
         if (!contains(name.c_str()))
         {

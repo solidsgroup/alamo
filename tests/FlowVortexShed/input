@@ -98,12 +98,12 @@ solid.energy.ic.expression.region0 = "0.0"
 
 ### ETA BC  ###
 
-pf.eta.constant.bc.type.xlo = neumann
-pf.eta.constant.bc.type.xhi = neumann
-pf.eta.constant.bc.type.ylo = neumann
-pf.eta.constant.bc.type.yhi = neumann
-pf.eta.constant.bc.type.zlo = neumann
-pf.eta.constant.bc.type.zhi = neumann
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
 
 pf.eta.bc.constant.val.xlo = 0.0
 pf.eta.bc.constant.val.xhi = 0.0
