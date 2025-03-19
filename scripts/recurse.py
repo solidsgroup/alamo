@@ -47,7 +47,7 @@ def recurse(root,srcfile,printer,f=None):
             string = string.replace(key,template_dict[key])
         return string
     
-    def getInputs(root,src,prefix=[],templates={},lev=0):
+    def getInputs(root,src,prefix=[],templates={},lev=0, classes=[]):
         classname = src.replace(root,"")
         classname = classname.replace('/','::')
         for input in scraper.extract(f"{root}/{src}"):
@@ -78,11 +78,16 @@ def recurse(root,srcfile,printer,f=None):
                     inputvalue = subclassname.split('::')[-1].lower()
     
                     printer.printconditional(inputname,inputvalue,lev)
+
+                    #print(">>>",inputname,inputvalue)
     
                     getInputs(root,
                               subclassname.replace("::","/"),
                               prefix + [input['string'], inputvalue],
                               subclasstemplates,lev+1)
+
+                    printer.printconditionalend(input,prefix,lev)
+
     
             elif input['type'] == 'queryclass':
                 subclassname, subclasstemplates = extractTemplates(templateReplace(input['class'],templates),classname)

@@ -34,6 +34,8 @@ def codetarget(file,line):
 
 
 class HTMLPrinter:
+    tbody_cntr = 0
+
     f = None
     intable = False
     mypr = "     "
@@ -45,6 +47,19 @@ class HTMLPrinter:
         print("",file=self.f)
         print(".. raw:: html",file=self.f)
         print("",file=self.f)
+
+        print(self.mypr,"""<script>""",file=self.f)
+        print(self.mypr,"""function showTab(allName,tabName, button) {""",file=self.f)
+        print(self.mypr,"""    document.querySelectorAll('.' + allName).forEach(tbody => tbody.classList.remove('active')); """,file=self.f)
+        print(self.mypr,"""    document.querySelector('.' + tabName).classList.add('active'); """,file=self.f)
+        print(self.mypr,"""    console.log(tabName) """,file=self.f)
+        print(self.mypr,"""    document.querySelectorAll('.btn-' + allName).forEach(btn => btn.classList.remove('active')); """,file=self.f)
+        print(self.mypr,"""    button.classList.add('active');""",file=self.f)
+        print(self.mypr,"""}""",file=self.f)
+        print(self.mypr,"""</script>""",file=self.f)
+
+
+
     def __del__(self):
         if self.intable:
             print(self.mypr,"</table>", file=self.f)
@@ -62,7 +77,7 @@ class HTMLPrinter:
         if self.intable:
             print(self.mypr,"</table><br/><br/>",file=self.f)
         self.intable=False
-    def printinput(self,input,prefix,lev):
+    def printinput(self,input,prefix,lev,classes=[]):
         if input['string']:
             name = f'.'.join(prefix + [input['string']])
             input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
@@ -81,7 +96,7 @@ class HTMLPrinter:
 
 
             print(self.mypr,"  "*lev,f"<tr>", file=self.f)
-            print(self.mypr,"  "*lev,f"  <td style='padding-left: {10*(lev+1)}px'>", file=self.f)
+            print(self.mypr,"  "*lev,f"  <td class='input-col' style='padding-left: {10*(lev+1)}px'>", file=self.f)
             print(self.mypr,"  "*lev,f'    <a href="{codetarget(srcfile,line)}" class="{input_classes}"><span>{name}</span></a>',file=self.f)
             print(self.mypr,"  "*lev,f"  </td>", file=self.f)
             print(self.mypr,"  "*lev,f"  <td>", file=self.f)
@@ -122,7 +137,9 @@ class HTMLPrinter:
 
             print(self.mypr,"  "*lev,f"</tr>", file=self.f)
 
-    def printconditionalstart(self,input,prefix,lev):
+    def printconditionalstart(self,input,prefix,lev,classes=[]):
+        self.tbody_cntr += 1
+
         name = f'.'.join(prefix + [input['string']])
         input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
         bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
@@ -134,37 +151,59 @@ class HTMLPrinter:
         srcfile = input['file']
         line = input['line']
 
-        print(self.mypr,"  "*lev,f"<tr>", file=self.f)
+        print(self.mypr,"  "*lev,f"<tr class='conditional-start-first'>", file=self.f)
         print(self.mypr,"  "*lev,f"  <td style='padding-left: {10*(lev+1)}px'>", file=self.f)
         print(self.mypr,"  "*lev,f'    <a href="{codetarget(srcfile,line)}" class="{input_classes}"><span>{name}.type</span></a>',file=self.f)
         print(self.mypr,"  "*lev,f"  </td>", file=self.f)
-        print(self.mypr,"  "*lev,f"  <td>", file=self.f)
+        print(self.mypr,"  "*lev,f"  <td colspan=2>", file=self.f)
         print(self.mypr,"  "*lev,f"    {input['doc']}", file=self.f)
         print(self.mypr,"  "*lev,f"  </td>", file=self.f)
+        print(self.mypr,"  "*lev,f"<tr>", file=self.f)
 
         things = input['possibles']
-        print(self.mypr,"  "*lev,f"  <td><p>", file=self.f)
-        for thing in things:
-            print(self.mypr,"  "*lev,f"    <span class='{bdg_primary}'>{thing}</span>", file=self.f)
-        print(self.mypr,"  "*lev,f"  </p></td>", file=self.f)
+        print(self.mypr,"  "*lev,f"<tr class='conditional-start-second'>", file=self.f)
 
+        print(self.mypr,"  "*lev,f"  <td colspan=3><p>", file=self.f)
+
+        for thing in things:
+            conditional_class_all = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-') + "-type"
+            conditional_class_thing = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-') + "-type-" + thing
+            jscript_cmd = f"""showTab("{conditional_class_all}\",\"{conditional_class_thing}",this)"""
+            print(self.mypr,"  "*lev,f"     <button class='btn-{conditional_class_all} {bdg_primary}' onclick='{jscript_cmd}'>{thing}</button>", file=self.f)
+        print(self.mypr,"  "*lev,f"  </p></td>", file=self.f)
         print(self.mypr,"  "*lev,f"</tr>", file=self.f)
 
-    def printconditional(self,inputname,inputvalue,lev):
+
+
+    def printconditional(self,inputname,inputvalue,lev,classes=[]):
         input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
         bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
         bdg_primary   = "sd-sphinx-override sd-badge sd-outline-primary sd-text-primary"
         bdg_secondary = "sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary"
         bdg_danger    = "sd-sphinx-override sd-badge sd-outline-danger sd-text-danger"
 
-        print(self.mypr,"  "*lev,f"<tr>", file=self.f)
-        print(self.mypr,"  "*lev,f"  <td style='padding-left: {10*(lev+1)}px' colspan=3>", file=self.f)
-        print(self.mypr,"  "*lev,f"     <b> if </b>", file=self.f)
-        print(self.mypr,"  "*lev,f"     <a class='{input_classes}'><span>{inputname}</span></a>", file=self.f)
-        print(self.mypr,"  "*lev,f"     = ", file=self.f)
-        print(self.mypr,"  "*lev,f"     <span class='{bdg_primary}'>{inputvalue}</span>", file=self.f)
-        print(self.mypr,"  "*lev,f"  </td>", file=self.f)
-        print(self.mypr,"  "*lev,f"</tr>", file=self.f)
+        conditional_class_all = "n" + str(self.tbody_cntr) + "-" + inputname.replace('.','-')
+        conditional_class_thing = "n" + str(self.tbody_cntr) + "-" + inputname.replace('.','-') + "-" + inputvalue
+
+        print(self.mypr,"  "*lev,f"<tbody class='conditional_class_inputs {conditional_class_all} {conditional_class_thing}'>",file=self.f)
+
+        #print(self.mypr,"  "*lev,f"<tr style='background-color:#b0b8c1; max-height: 1px;'>", file=self.f)
+        #print(self.mypr,"  "*lev,f"  <td style='background-color:#b0b8c1;' colspan=3>", file=self.f)
+        #print(self.mypr,"  "*lev,f"     <b> if </b>", file=self.f)
+        #print(self.mypr,"  "*lev,f"     <a class='{input_classes}'><span>{inputname}</span></a>", file=self.f)
+        #print(self.mypr,"  "*lev,f"     = ", file=self.f)
+        #print(self.mypr,"  "*lev,f"     <button class='{bdg_primary}' onclick='showTab({conditional_class_all},{conditional_class_thing},this)'>{inputvalue}</span>", file=self.f)
+        #print(self.mypr,"  "*lev,f"  </td>", file=self.f)
+        #print(self.mypr,"  "*lev,f"</tr>", file=self.f)
+
+    def printconditionalend(self,inputname,inputvalue,lev,classes=[]):
+        input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
+        bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
+        bdg_primary   = "sd-sphinx-override sd-badge sd-outline-primary sd-text-primary"
+        bdg_secondary = "sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary"
+        bdg_danger    = "sd-sphinx-override sd-badge sd-outline-danger sd-text-danger"
+
+        print(self.mypr,"  "*lev,f"</tbody>",file=self.f)
 
     def printtablename(self,inputname,lev):
         sanitizedname = inputname.replace('<','&lt;').replace('>','&gt;')
