@@ -64,7 +64,6 @@ public:
         // Number of grain fields (may be more if using different IC)
         pp_query_default("pf.number_of_grains", value.number_of_grains,2);     
         pp_query_required("pf.M", value.pf.M);                         // Mobility
-        //pp_query_required("pf.mu", value.pf.mu);                       // Phase field :math:`\mu`
         pp_query_required("pf.gamma", value.pf.gamma);                 // Phase field :math:`\gamma`
         pp_query_required("pf.sigma0", value.pf.sigma0);               // Initial GB energy if not using  anisotropy
         pp_query_required("pf.l_gb", value.pf.l_gb);                   // Mobility

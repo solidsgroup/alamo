@@ -3,6 +3,7 @@ import os
 sys.path.append(os.path.abspath('../../scripts/'))
 import glob
 import recurse
+import re
 
 
 src2url = {}
@@ -73,12 +74,18 @@ class HTMLPrinter:
             srcfile = input['file']
             line = input['line']
 
+            # Convert RST math directeves to plain mathjax
+            processed_doc = re.sub(r":math:`(.*?)`", r"\\(\1\\)", input['doc'].replace('\n',''))
+            # Convert RST code directives to <code>
+            processed_doc = re.sub(r":code:`(.*?)`", r"<code>\1</code>", processed_doc)
+
+
             print(self.mypr,"  "*lev,f"<tr>", file=self.f)
             print(self.mypr,"  "*lev,f"  <td style='padding-left: {10*(lev+1)}px'>", file=self.f)
             print(self.mypr,"  "*lev,f'    <a href="{codetarget(srcfile,line)}" class="{input_classes}"><span>{name}</span></a>',file=self.f)
             print(self.mypr,"  "*lev,f"  </td>", file=self.f)
             print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-            print(self.mypr,"  "*lev,f"    {input['doc']}", file=self.f)
+            print(self.mypr,"  "*lev,f"    {processed_doc}", file=self.f)
             print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
 
@@ -88,11 +95,17 @@ class HTMLPrinter:
                 print(self.mypr,"  "*lev,f"    <p><span title='{msg}' class='fas fa-exclamation-triangle fa-fw'></span> </p>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
-            if input['type'] == "query_required":
+            if input['type'] in ["query_required","queryarr_required"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
                 print(self.mypr,"  "*lev,f"    <p><span class='{bdg_danger}'>required</span></p>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
                 
+            if input['type'] in ["query_file"]:
+                print(self.mypr,"  "*lev,f"  <td>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <p><span class='{bdg_secondary}'>file path</span></p>", file=self.f)
+                print(self.mypr,"  "*lev,f"  </td>", file=self.f)
+
+
             if input['type'] in ["query_default","queryarr_default"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
                 print(self.mypr,"  "*lev,f"    <p><span class='{bdg_success}'>{input['default']}</span></p>", file=self.f)
@@ -117,12 +130,13 @@ class HTMLPrinter:
         bdg_secondary = "sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary"
         bdg_danger    = "sd-sphinx-override sd-badge sd-outline-danger sd-text-danger"
         
-        print(input['classes'])
         input['possibles'] = [str(cl).split('::')[-1].lower() for cl in input["classes"]]
+        srcfile = input['file']
+        line = input['line']
 
         print(self.mypr,"  "*lev,f"<tr>", file=self.f)
         print(self.mypr,"  "*lev,f"  <td style='padding-left: {10*(lev+1)}px'>", file=self.f)
-        print(self.mypr,"  "*lev,f'    <a class="{input_classes}"><span>{name}.type</span></a>',file=self.f)
+        print(self.mypr,"  "*lev,f'    <a href="{codetarget(srcfile,line)}" class="{input_classes}"><span>{name}.type</span></a>',file=self.f)
         print(self.mypr,"  "*lev,f"  </td>", file=self.f)
         print(self.mypr,"  "*lev,f"  <td>", file=self.f)
         print(self.mypr,"  "*lev,f"    {input['doc']}", file=self.f)

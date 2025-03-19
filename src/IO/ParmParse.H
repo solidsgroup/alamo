@@ -102,6 +102,7 @@
 #define pp_query_file(...) pp.query_file(__VA_ARGS__,INFO)
 #define pp_queryarr(...) pp.queryarr(__VA_ARGS__,INFO)
 #define pp_queryarr_required(...) pp.queryarr_required(__VA_ARGS__,INFO)
+#define pp_queryarr_default(...) pp.queryarr_default(__VA_ARGS__,INFO)
 #define pp_query(...) pp.query(__VA_ARGS__)
 #define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
 #define pp_forbid(...) pp.forbid(__VA_ARGS__,INFO)
@@ -396,6 +397,17 @@ public:
         }        
         return queryarr(name,value,file,func,line);
     }
+
+
+    int queryarr_default(  std::string name, std::vector<std::string> & value, std::string defaultvalue,
+                           std::string = "", std::string = "", int = -1)
+    {
+        if (!contains(name.c_str()))
+        {
+            add(name.c_str(),defaultvalue);
+        }
+        return queryarr(name.c_str(),value);
+    } 
 
     int AnyUnusedInputs()
     {
