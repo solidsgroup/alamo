@@ -1,5 +1,5 @@
 # Simulation output
-plot_file = output_test_Conservative_WENO_RK3
+plot_file = output_test_LLF_Characteristic_WENO_RK3
 
 # Simulation length
 timestep = 0.001
@@ -30,7 +30,7 @@ TimeSteppingScheme = RK3
 
 
 #FluxMethod
-FluxScheme = HLLC
+FluxScheme = LocalLaxFriedrichs
 
 #FluxReconstruction
 FluxReconstruction = WENO

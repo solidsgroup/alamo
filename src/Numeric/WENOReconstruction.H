@@ -627,31 +627,31 @@ public:
         int direction, 
         int /*lev*/, 
         IntegratorDerivedClass* solver,
-        amrex::MultiFab& working_buffer,
-        amrex::MultiFab& QL_stencil, 
-        amrex::MultiFab& QR_stencil
+        const amrex::MultiFab& Flux_Negative,
+        const amrex::MultiFab& Flux_Positive, 
+        amrex::MultiFab& SummedFlux
     ) const override {
         const int nghosts = solver->number_of_ghost_cells;
+        const int num_components = solver->number_of_components;
         const bool enableDebug = false;  // Enable detailed debugging
 
         // Process each grid patch
-        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
             const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
             
-            auto const& in_arr = working_buffer.const_array(mfi);
-            auto const& ql_arr = QL_stencil.array(mfi);
+            auto const& FluxNeg_arr = Flux_Negative.const_array(mfi);
+            auto const& FluxPos_arr = Flux_Positive.const_array(mfi);
+            auto const& TotalFlux_arr = SummedFlux.array(mfi);
             
             // Process each cell in the valid box
             amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                 // Construct index arrays with correct number of components
                 int index[3];
-                int right_index[3];
                 int lower_bounds[3];
                 int upper_bounds[3];
                 
                 // Set up indices and bounds
                 index[0] = iface; index[1] = jface; index[2] = kface;
-                right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
 
                 // Define bounds including ghost cells
                 lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
@@ -664,20 +664,19 @@ public:
                 // Clamp the main index to ensure it's within bounds
                 ClampIndices(index, lower_bounds, upper_bounds);
 
-                int right_offset[3] = {0, 0, 0};
-                right_offset[direction] = 1;  // Shift right
+                std::vector<Set::Scalar> Fpos_reconstructed(num_components, 0.0);
+                std::vector<Set::Scalar> Fneg_reconstructed(num_components, 0.0);
 
-                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-                
                 // Process each component
                 for (int n = 0; n < solver->number_of_components; ++n) {
                     // Extract stencil values based on direction
-                    std::array<Set::Scalar, Traits::TotalPoints> stencil;
+                    std::array<Set::Scalar, Traits::TotalPoints> stencil_pos;
+                    std::array<Set::Scalar, Traits::TotalPoints> stencil_neg;
                     
                     // Base stencil center point - the left interface point
                     int center_idx[3] = {index[0], index[1], index[2]};
                     
-                    // Extract the full stencil
+                    // Extract the full stencil for negative flux
                     for (int s = 0; s < Traits::TotalPoints; ++s) {
                         // Calculate stencil point index with proper offset
                         int stencil_idx[3] = {center_idx[0], center_idx[1], center_idx[2]};
@@ -691,59 +690,24 @@ public:
                         ClampIndices(stencil_idx, lower_bounds, upper_bounds);
                         
                         // Extract data value for this stencil point
-                        stencil[s] = in_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                        stencil_neg[s] = FluxNeg_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                        stencil_pos[s] = FluxPos_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
                     }
                     
                     // Reconstruct left state (QL) at interface using WENO
-                    ql_arr(index[0], index[1], index[2], n) = 
-                        Policy::ReconstructValue(stencil, iface, jface, kface, enableDebug);
+                    Fpos_reconstructed[n] = Policy::ReconstructValue(stencil_pos, index[0], index[1], index[2], enableDebug);
+                    Fneg_reconstructed[n] = Policy::ReconstructValue(stencil_neg, index[0], index[1], index[2], enableDebug);
                 }
-            });
-        }
 
-        // Process each grid patch to set QR_stencil
-        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
-            
-            auto const& ql_arr = QL_stencil.array(mfi);
-            auto const& qr_arr = QR_stencil.array(mfi);
-            
-            // Process each cell in the valid box
-            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                // Construct index arrays with correct number of components
-                int index[3];
-                int right_index[3];
-                int lower_bounds[3];
-                int upper_bounds[3];
-                
-                // Set up indices and bounds
-                index[0] = iface; index[1] = jface; index[2] = kface;
-                right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
-
-                // Define bounds including ghost cells
-                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-                lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) -1;
-                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) -1;
-                upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
-                
-                // Clamp the main index to ensure it's within bounds
-                ClampIndices(index, lower_bounds, upper_bounds);
-
-                int right_offset[3] = {0, 0, 0};
-                right_offset[direction] = 1;  // Shift right
-
-                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-                
-                // Process each component
+                // Compute final summed flux at face center
                 for (int n = 0; n < solver->number_of_components; ++n) {
-                    // Set QR state for the neighboring cell's left interface (which is our right interface)
-                    qr_arr(index[0], index[1], index[2], n) = 
-                        ql_arr(right_index[0], right_index[1], right_index[2], n);
+                    TotalFlux_arr(index[0], index[1], index[2], n) = 
+                    Fpos_reconstructed[n] + Fneg_reconstructed[n];
                 }
+
             });
         }
+
     }    
 };
 

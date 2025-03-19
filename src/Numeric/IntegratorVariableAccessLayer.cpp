@@ -43,10 +43,7 @@ CompressibleEulerVariableAccessor::getSolverCapabilities() const {
                 case FluxScheme::LocalLaxFriedrichs:
                     return MethodSupport::Supported();
                 case FluxScheme::HLLC:
-                    return MethodSupport::Unsupported(
-                        {"HLLC not fully implemented"},
-                        {"Use LocalLaxFriedrichs for now"}
-                    );
+                    return MethodSupport::Supported();
                 default:
                     return MethodSupport::Unsupported(
                         {"Unknown flux scheme"},
@@ -167,7 +164,7 @@ CompressibleEulerVariableAccessor::getRequiredGhostCells(
         case FluxReconstructionType::FirstOrder:
             return 1;
         case FluxReconstructionType::WENO:
-            return 3;  // WENO5 requires 3 ghost cells
+            return 4;  // WENO5 requires 3 ghost cells
         default:
             return total_ghost_cells;
     }
@@ -177,12 +174,12 @@ CompressibleEulerVariableAccessor::getRequiredGhostCells(
 // Add these implementations to IntegratorVariableAccessLayer.cpp
 
 void CompressibleEulerVariableAccessor::TransformVariables(
+    int direction,
     int lev, 
     void* solver_void,
-    amrex::MultiFab& working_buffer,
+    amrex::MultiFab& VariableBuffer,
     ReconstructionMode mode, 
-    const SolverCapabilities::MethodValidationResult& validationResult,
-    int direction
+    const SolverCapabilities::MethodValidationResult& validationResult
 ) const {
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
@@ -190,19 +187,19 @@ void CompressibleEulerVariableAccessor::TransformVariables(
     // Handle different reconstruction modes
     switch(mode) {
         case ReconstructionMode::Primitive:
-            // Copy primitive variables to the working buffer
-            CopyPrimitiveFluxVariablesToWorkingBuffer(direction, lev, solver, working_buffer);
+            // Copy primitive variables and fluxes to the working buffer
+            CopyPrimitiveVariablesToVariableBuffer(lev, solver, VariableBuffer);
             break;
             
         case ReconstructionMode::Conservative:
             // Copy conservative variables to the working buffer
-            CopyConservativeFluxVariablesToWorkingBuffer(direction, lev, solver, working_buffer);
+            CopyConservativeVariablesToVariableBuffer(lev, solver, VariableBuffer);
             break;
             
         case ReconstructionMode::Characteristic:
             // transform to characteristic from primitive space
-            CopyConservativeFluxVariablesToWorkingBuffer(direction, lev, solver, working_buffer);
-            ToCharacteristic(direction, lev, solver, working_buffer);
+            CopyConservativeVariablesToVariableBuffer(lev, solver, VariableBuffer);
+            ToCharacteristic(direction, lev, solver, VariableBuffer);
             break;
             
         default:
@@ -210,14 +207,47 @@ void CompressibleEulerVariableAccessor::TransformVariables(
     }
 }
 
-void CompressibleEulerVariableAccessor::ReverseTransform(
+void CompressibleEulerVariableAccessor::TransformFluxes(
+    int direction,
+    int lev, 
+    void* solver_void,
+    amrex::MultiFab& CellFluxBuffer,
+    ReconstructionMode mode, 
+    const SolverCapabilities::MethodValidationResult& validationResult
+) const {
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    
+    // Handle different reconstruction modes
+    switch(mode) {
+        case ReconstructionMode::Primitive:
+            // Copy primitive variables and fluxes to the working buffer
+            //CopyPrimitiveFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
+            break;
+            
+        case ReconstructionMode::Conservative:
+            // Copy conservative variables to the working buffer
+            CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
+            break;
+            
+        case ReconstructionMode::Characteristic:
+            // transform to characteristic from primitive space
+            CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
+            ToCharacteristic(direction, lev, solver, CellFluxBuffer);
+            break;
+            
+        default:
+            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
+    }
+}
+
+void CompressibleEulerVariableAccessor::ReverseTransformFluxes(
+    int direction,
     int lev,
     void* solver_void,
-    amrex::MultiFab& QL_stencil,
-    amrex::MultiFab& QR_stencil, 
+    amrex::MultiFab& SummedFlux,
     ReconstructionMode mode, 
-    const SolverCapabilities::MethodValidationResult& validationResult,
-    int direction
+    const SolverCapabilities::MethodValidationResult& validationResult
 ) const {
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
@@ -230,12 +260,12 @@ void CompressibleEulerVariableAccessor::ReverseTransform(
             
         case ReconstructionMode::Conservative:
             // Transform from Conservative to Primitive
-            //FromConservative(direction, lev, solver, QL_stencil, QR_stencil);
+            FromConservative(direction, lev, solver, SummedFlux);
             break;
             
         case ReconstructionMode::Characteristic:
             // Transform from characteristic variables back to primitive/conservative
-            FromCharacteristic(direction, lev, solver, QL_stencil, QR_stencil);
+            FromCharacteristic(direction, lev, solver, SummedFlux);
             break;
             
         default:
@@ -243,44 +273,64 @@ void CompressibleEulerVariableAccessor::ReverseTransform(
     }
 }
 
-void CompressibleEulerVariableAccessor::CopyPrimitiveFluxVariablesToWorkingBuffer(
-    int direction,    
+void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
     int lev,
     Integrator::ScimitarX* solver,
-    amrex::MultiFab& working_buffer
+    amrex::MultiFab& VariableBuffer
 ) const {
     // Copy from PVec_mf to working buffer
     amrex::MultiFab::Copy(
-        working_buffer, 
+        VariableBuffer, 
         *(solver->PVec_mf[lev]),
         0, 0, 
         solver->number_of_components, 
-        working_buffer.nGrow()
+        VariableBuffer.nGrow()
     );
-    working_buffer.FillBoundary(solver->geom[lev].periodicity());
+
+    VariableBuffer.FillBoundary();
 }
 
-void CompressibleEulerVariableAccessor::CopyConservativeFluxVariablesToWorkingBuffer(
+
+void CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& VariableBuffer
+) const {
+    // Copy from PVec_mf to working buffer
+    amrex::MultiFab::Copy(
+        VariableBuffer, 
+        *(solver->QVec_mf[lev]),
+        0, 0, 
+        solver->number_of_components, 
+        VariableBuffer.nGrow()
+    );
+
+    VariableBuffer.FillBoundary();
+}
+
+/*void CompressibleEulerVariableAccessor::CopyPrimitiveFluxVariablesToWorkingBuffer(
     int direction,    
     int lev,
     Integrator::ScimitarX* solver,
-    amrex::MultiFab& working_buffer
+    amrex::MultiFab& CellFluxBuffer
 ) const {
-    // Copy from QVec_mf to working buffer
-//    amrex::MultiFab::Copy(
-//        working_buffer, 
-//        *(solver->QVec_mf[lev]),
-//        0, 0, 
-//        solver->number_of_components, 
-//        working_buffer.nGrow()
-//    );
-//    working_buffer.FillBoundary(solver->geom[lev].periodicity());
 
-    for (amrex::MFIter mfi(working_buffer, false); mfi.isValid(); ++mfi) {
+    //Requires Primitive Flux Variable Implementation Here   
+    CellFluxBuffer.FillBoundary();
+}*/
+
+void CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
+    int direction,    
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& CellFluxBuffer
+) const {
+
+    for (amrex::MFIter mfi(CellFluxBuffer, false); mfi.isValid(); ++mfi) {
         const amrex::Box& box = mfi.growntilebox();
         auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
        // auto const& pres_arr = solver->Pressure_mf.Patch(lev, mfi);
-        auto const& W_arr  = working_buffer.array(mfi);
+        auto const& W_arr  = CellFluxBuffer.array(mfi);
         
         const Set::Scalar gamma = 1.4;  // Ratio of specific heats
 
@@ -374,7 +424,6 @@ void CompressibleEulerVariableAccessor::ToCharacteristic(
         int w_idx   = -1;                          // placeholder for 2D
 #endif
         
-
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
 
             // Construct index arrays with correct number of components
@@ -487,95 +536,70 @@ void CompressibleEulerVariableAccessor::FromConservative(
     int direction, 
     int lev, 
     const Integrator::ScimitarX* solver,
-    amrex::MultiFab& QL_stencil, 
-    amrex::MultiFab& QR_stencil
+    amrex::MultiFab& SummedFlux
 ) const {
 
     const int nghosts = solver->number_of_ghost_cells;
+    const int num_components = solver->number_of_components; 
 
-    for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
-        auto const& QL_arr = QL_stencil.array(mfi);
-        auto const& QR_arr = QR_stencil.array(mfi);
+    for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
+        auto const& TotalFlux_arr = SummedFlux.array(mfi);
+        auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
+                                 (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                 solver->ZFlux_mf.Patch(lev, mfi);
         
-        int num_components = solver->number_of_components;   
         
-        int rho_idx = solver->variableIndex.DENS;   // density
-        int ie_idx  = solver->variableIndex.IE;     // energy
-        int u_idx   = solver->variableIndex.UVEL;   // x-momentum
-        int v_idx   = solver->variableIndex.VVEL;   // y-momentum
-#if AMREX_SPACEDIM == 3
-        int w_idx = solver->variableIndex.WVEL;   // z-momentum
-#endif
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
+    
+            // Construct index arrays with correct number of components
+            int index[3];
+            int lower_bounds[3];
+            int upper_bounds[3];
 
-        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-            // Extract conservative variables in original ordering
-            Set::MultiVector QCons_L = Numeric::FieldToMultiVector(QL_arr, i, j, k, num_components);
-            Set::MultiVector QCons_R = Numeric::FieldToMultiVector(QR_arr, i, j, k, num_components);
-            
-            // Create vector for storing Primitive QR and QL variables
-            Set::MultiVector QPrim_L(num_components);
-            QPrim_L.setZero();
-            Set::MultiVector QPrim_R(num_components);
-            QPrim_R.setZero();
-            
-            // Conversion of Left States
-            QPrim_L[rho_idx] = QCons_L(rho_idx);
-            QPrim_L[u_idx]   = QCons_L(u_idx)/QCons_L(rho_idx);
-            QPrim_L[v_idx]   = QCons_L(v_idx)/QCons_L(rho_idx);
-#if AMREX_SPACEDIM == 3
-            QPrim_L[w_idx]   = QCons_L(w_idx)/QCons_L(rho_idx);
-#endif
-            Set::Scalar KE_L = 0.5 * (QPrim_L[u_idx]*QPrim_L[u_idx] + QPrim_L[v_idx]*QPrim_L[v_idx]
-#if AMREX_SPACEDIM == 3
-                                    + QPrim_L[w_idx]*QPrim_L[w_idx]
-#endif                    
-                    );
-            Set::Scalar TE_L =  QCons_L(ie_idx)/QCons_L(rho_idx);
+            // Set up indices
+            index[0] = iface; index[1] = jface; index[2] = kface;
 
-            QPrim_L[ie_idx]   = TE_L - KE_L;
-            
-            // Conversion of Right States
-            QPrim_R[rho_idx] = QCons_R(rho_idx);
-            QPrim_R[u_idx]   = QCons_R(u_idx)/QCons_R(rho_idx);
-            QPrim_R[v_idx]   = QCons_R(v_idx)/QCons_R(rho_idx);
-#if AMREX_SPACEDIM == 3
-            QPrim_R[w_idx]   = QCons_R(w_idx)/QCons_R(rho_idx);
-#endif
-            Set::Scalar KE_R = 0.5 * (QPrim_R[u_idx]*QPrim_R[u_idx] + QPrim_R[v_idx]*QPrim_R[v_idx]
-#if AMREX_SPACEDIM == 3
-                                    + QPrim_R[w_idx]*QPrim_R[w_idx]
-#endif                    
-                    );
-            Set::Scalar TE_R =  QCons_R(ie_idx)/QCons_R(rho_idx);
+            // Define bounds including ghost cells
+            lower_bounds[0] = bx.smallEnd(0); 
+            lower_bounds[1] = bx.smallEnd(1); 
+            lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx.smallEnd(2) : 0;
+            upper_bounds[0] = bx.bigEnd(0) - 1;
+            upper_bounds[1] = bx.bigEnd(1) - 1;
+            upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx.bigEnd(2) - 1 : 0;
+                  
+      
+            // Clamp the main index
+            ClampIndices(index, lower_bounds, upper_bounds);
 
-            QPrim_R[ie_idx]   = TE_R - KE_R;
-
-            Numeric::MultiVectorToField(QL_arr, i, j, k, QPrim_L, num_components); 
-            Numeric::MultiVectorToField(QR_arr, i, j, k, QPrim_R, num_components); 
+            for (int n = 0; n < num_components; ++n) { 
+            flux_arr(index[0], index[1], index[2], n) = TotalFlux_arr(index[0], index[1], index[2], n);
+            }
 
         });
-    }
+
+    } 
+
 }
 
 void CompressibleEulerVariableAccessor::FromCharacteristic(
     int direction, 
     int lev, 
     const Integrator::ScimitarX* solver,
-    amrex::MultiFab& QL_stencil, 
-    amrex::MultiFab& QR_stencil
+    amrex::MultiFab& SummedFlux
 ) const {
      
     const int nghosts = solver->number_of_ghost_cells;
 
 
-    for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
-        auto const& QL_arr = QL_stencil.array(mfi);
-        auto const& QR_arr = QR_stencil.array(mfi);
-        auto const& p_arr  = solver->PVec_mf.Patch(lev, mfi);
-        
+    for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
+        auto const& TotalFlux_arr = SummedFlux.array(mfi);
+        auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
+                                 (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                 solver->ZFlux_mf.Patch(lev, mfi);
+        auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
         //Characteristic Reconstruction is Performed through Fixed 5X5 Matrix
         //This works for both 2D and 3D. 
         //The matrix is re-arranged such that for 2D, last column, last row are zeros.
@@ -592,7 +616,7 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
         int w_idx = -1;                          // placeholder for 2D
 #endif
         
-        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
     
             // Construct index arrays with correct number of components
@@ -601,22 +625,20 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
             int right_index[3];
             int lower_bounds[3];
             int upper_bounds[3];
-          
-#if AMREX_SPACEDIM == 2
+
+            // Set up indices
             index[0] = iface; index[1] = jface; index[2] = kface;
             left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
             right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
-          
-            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = 0;
-            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1; upper_bounds[2] = 0;
-#else
-            index[0] = iface; index[1] = jface; index[2] = kface;
-            left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
-            right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
-          
-            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
-            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0)-1; upper_bounds[1] = face_bx_with_ghosts.bigEnd(1)-1; upper_bounds[2] = face_bx_with_ghosts.bigEnd(2)-1;
-#endif
+
+            // Define bounds including ghost cells
+            lower_bounds[0] = bx.smallEnd(0); 
+            lower_bounds[1] = bx.smallEnd(1); 
+            lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx.smallEnd(2) : 0;
+            upper_bounds[0] = bx.bigEnd(0)-1;
+            upper_bounds[1] = bx.bigEnd(1)-1;
+            upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx.bigEnd(2) - 1 : 0;
+                  
       
             // Clamp the main index
             ClampIndices(index, lower_bounds, upper_bounds);
@@ -631,8 +653,7 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
             ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
     
             // Extract characteristic variables in original ordering
-            Set::MultiVector W_L_orig = Numeric::FieldToMultiVector(QL_arr, index[0], index[1], index[2], solver_components);
-            Set::MultiVector W_R_orig = Numeric::FieldToMultiVector(QR_arr, index[0], index[1], index[2], solver_components);
+            Set::MultiVector W_orig = Numeric::FieldToMultiVector(TotalFlux_arr, index[0], index[1], index[2], solver_components);
 
 
             // Extract original Current Index primitive variables
@@ -677,52 +698,33 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
             Set::MultiMatrix R_n = ComputeRightEigenvectorMatrix(Wavg, direction, num_components);
 
             // Create reordered characteristic variables
-            Set::MultiVector W_L_reordered(num_components);
-            W_L_reordered.setZero();
-            Set::MultiVector W_R_reordered(num_components);
-            W_R_reordered.setZero();
+            Set::MultiVector W_reordered(num_components);
+            W_reordered.setZero();
 
             // Reordering
-            W_L_reordered(0) = W_L_orig(rho_idx);
-            W_L_reordered(1) = W_L_orig(u_idx);
-            W_L_reordered(2) = W_L_orig(v_idx);
+            W_reordered(0) = W_orig(rho_idx);
+            W_reordered(1) = W_orig(u_idx);
+            W_reordered(2) = W_orig(v_idx);
 #if AMREX_SPACEDIM == 3
-            W_L_reordered(3) = W_L_orig(w_idx);
+            W_reordered(3) = W_orig(w_idx);
 #else
-            W_L_reordered(3) = 0.0;
+            W_reordered(3) = 0.0;
 #endif
-            W_L_reordered(4) = W_L_orig(ie_idx);
+            W_reordered(4) = W_orig(ie_idx);
             
-            W_R_reordered(0) = W_R_orig(rho_idx);
-            W_R_reordered(1) = W_R_orig(u_idx);
-            W_R_reordered(2) = W_R_orig(v_idx);
-#if AMREX_SPACEDIM == 3
-            W_R_reordered(3) = W_R_orig(w_idx);
-#else
-            W_R_reordered(3) = 0.0;
-#endif
-            W_R_reordered(4) = W_R_orig(ie_idx);
                                     
             // Convert to conservative variables (in reordered space)
-            Set::MultiVector U_L_reordered = R_n * W_L_reordered;
-            Set::MultiVector U_R_reordered = R_n * W_R_reordered;
+            Set::MultiVector U_reordered = R_n * W_reordered;
                         
             // Unreordering and storing back in arrays
-            QL_arr(index[0], index[1], index[2], rho_idx) = U_L_reordered(0);
-            QL_arr(index[0], index[1], index[2], u_idx)   = U_L_reordered(1);
-            QL_arr(index[0], index[1], index[2], v_idx)   = U_L_reordered(2);
+            flux_arr(index[0], index[1], index[2], rho_idx) = U_reordered(0);
+            flux_arr(index[0], index[1], index[2], u_idx)   = U_reordered(1);
+            flux_arr(index[0], index[1], index[2], v_idx)   = U_reordered(2);
 #if AMREX_SPACEDIM == 3
-            QL_arr(index[0], index[1], index[2], w_idx)   = U_L_reordered(3);
+            flux_arr(index[0], index[1], index[2], w_idx)   = U_reordered(3);
 #endif
-            QL_arr(index[0], index[1], index[2], ie_idx)  = U_L_reordered(4);
+            flux_arr(index[0], index[1], index[2], ie_idx)  = U_reordered(4);
             
-            QR_arr(index[0], index[1], index[2], rho_idx) = U_R_reordered(0);
-            QR_arr(index[0], index[1], index[2], u_idx)   = U_R_reordered(1);
-            QR_arr(index[0], index[1], index[2], v_idx)   = U_R_reordered(2);
-#if AMREX_SPACEDIM == 3
-            QR_arr(index[0], index[1], index[2], w_idx)   = U_R_reordered(3);
-#endif
-            QR_arr(index[0], index[1], index[2], ie_idx)  = U_R_reordered(4);
         });
     }
 }

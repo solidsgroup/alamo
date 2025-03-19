@@ -37,22 +37,31 @@ public:
 
     // Enhanced variable transformation methods
     virtual void TransformVariables(
+        int direction, 
         int lev, 
         void* solver, 
-        amrex::MultiFab& working_buffer, 
+        amrex::MultiFab& VariableBuffer,
         ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult,
-        int direction = 0
+        const SolverCapabilities::MethodValidationResult& validationResult
     ) const = 0;
 
-    virtual void ReverseTransform(
+    // Enhanced variable transformation methods
+    virtual void TransformFluxes(
+        int direction,
         int lev, 
         void* solver, 
-        amrex::MultiFab& QL_stencil,
-        amrex::MultiFab& QR_stencil, 
+        amrex::MultiFab& CellFluxBuffer,
         ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult,
-        int direction = 0
+        const SolverCapabilities::MethodValidationResult& validationResult
+    ) const = 0;
+
+    virtual void ReverseTransformFluxes(
+        int direction,
+        int lev, 
+        void* solver, 
+        amrex::MultiFab& SummedFlux,
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult
     ) const = 0;
 
     // More comprehensive ghost cell management
@@ -63,6 +72,7 @@ public:
 
     // Current reconstruction mode accessor
     virtual ReconstructionMode getCurrentReconstructionMode() const = 0;
+
 };
 
 // Specific implementation for Compressible Euler flows
@@ -115,22 +125,30 @@ public:
     ) const override;
 
     void TransformVariables(
+        int direction, 
         int lev, 
         void* solver_void,
-        amrex::MultiFab& working_buffer,
+        amrex::MultiFab& VariableBuffer,
         ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult,
-        int direction = 0
+        const SolverCapabilities::MethodValidationResult& validationResult
     ) const override;
 
-    void ReverseTransform(
+    void TransformFluxes(
+        int direction,
+        int lev, 
+        void* solver_void,
+        amrex::MultiFab& CellFluxBuffer,
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult
+    ) const override;
+
+    void ReverseTransformFluxes(
+        int direction,
         int lev,
         void* solver_void,
-        amrex::MultiFab& QL_stencil,
-        amrex::MultiFab& QR_stencil, 
+        amrex::MultiFab& SummedFlux,
         ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult,
-        int direction = 0
+        const SolverCapabilities::MethodValidationResult& validationResult
     ) const override;
 
     int getRequiredGhostCells(
@@ -151,18 +169,30 @@ public:
 
 private:
     // Private helper methods
-    void CopyPrimitiveFluxVariablesToWorkingBuffer(
-        int direction,    
+    void CopyPrimitiveVariablesToVariableBuffer(
         int lev,
         Integrator::ScimitarX* solver,
-        amrex::MultiFab& working_buffer
+        amrex::MultiFab& VariableBuffer
     ) const;
 
-    void CopyConservativeFluxVariablesToWorkingBuffer(
+    void CopyConservativeVariablesToVariableBuffer(
+        int lev,
+        Integrator::ScimitarX* solver,
+        amrex::MultiFab& VariableBuffer
+    ) const;
+
+    void CopyPrimitiveFluxesToCellFluxBuffer(
         int direction,    
         int lev,
         Integrator::ScimitarX* solver,
-        amrex::MultiFab& working_buffer
+        amrex::MultiFab& CellFluxBuffer
+    ) const;
+
+    void CopyConservativeFluxesToCellFluxBuffer(
+        int direction,    
+        int lev,
+        Integrator::ScimitarX* solver,
+        amrex::MultiFab& CellFluxBuffer
     ) const;
 
     void ToCharacteristic(
@@ -176,17 +206,14 @@ private:
         int direction, 
         int lev, 
         const Integrator::ScimitarX* solver,
-        amrex::MultiFab& QL_stencil, 
-        amrex::MultiFab& QR_stencil
+        amrex::MultiFab& SummedFlux 
     ) const;
-
 
     void FromConservative(
         int direction, 
         int lev, 
         const Integrator::ScimitarX* solver,
-        amrex::MultiFab& QL_stencil, 
-        amrex::MultiFab& QR_stencil
+        amrex::MultiFab& SummedFlux 
     ) const;
 
     // Companion method for matrix transformations
@@ -195,7 +222,6 @@ private:
         const Set::MultiVector& W, 
         int direction, int num_components
     );
-
 
     // Companion method for matrix transformations
     AMREX_GPU_DEVICE AMREX_FORCE_INLINE
@@ -207,6 +233,9 @@ private:
 
     ReconstructionMode current_mode;
     int total_ghost_cells;
+
+    enum Directions { Xdir = 0, Ydir = 1, Zdir = 2 };
+
 };
 
 } // namespace CompressibleEuler

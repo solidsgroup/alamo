@@ -418,10 +418,9 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
         amrex::Array4<Set::Scalar> const& pressure = (*Pressure_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=](int i, int j, int k) {
-            Set::Vector grad = Numeric::Gradient(pressure, i, j, k, 0, DX);
-            Set::Scalar grad_magnitude = grad.lpNorm<2>();
-
-            if (grad_magnitude * dr > refinement_threshold) {
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+            Set::Vector grad_p = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
+            if (grad_p.lpNorm<2>() * dr * 2 > refinement_threshold) {
                 tags(i, j, k) = amrex::TagBox::SET;
             }
         });
