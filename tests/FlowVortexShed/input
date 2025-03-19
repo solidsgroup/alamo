@@ -98,48 +98,48 @@ solid.energy.ic.expression.region0 = "0.0"
 
 ### ETA BC  ###
 
-pf.eta.bc.type.xlo = neumann
-pf.eta.bc.type.xhi = neumann
-pf.eta.bc.type.ylo = neumann
-pf.eta.bc.type.yhi = neumann
-pf.eta.bc.type.zlo = neumann
-pf.eta.bc.type.zhi = neumann
+pf.eta.constant.bc.type.xlo = neumann
+pf.eta.constant.bc.type.xhi = neumann
+pf.eta.constant.bc.type.ylo = neumann
+pf.eta.constant.bc.type.yhi = neumann
+pf.eta.constant.bc.type.zlo = neumann
+pf.eta.constant.bc.type.zhi = neumann
 
-pf.eta.bc.val.xlo = 0.0
-pf.eta.bc.val.xhi = 0.0
-pf.eta.bc.val.ylo = 0.0
-pf.eta.bc.val.yhi = 0.0
-pf.eta.bc.val.zlo = 0.0
-pf.eta.bc.val.zhi = 0.0
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
 
 ### HYDRO BC ###
 
-density.bc.type.xhi = neumann
-density.bc.type.xlo = dirichlet
-density.bc.type.ylo = neumann
-density.bc.type.yhi = neumann
-density.bc.val.xhi = 0.0
-density.bc.val.xlo = 100.0
-density.bc.val.ylo = 0.0 
-density.bc.val.yhi = 0.0
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.xlo = dirichlet
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+density.bc.constant.val.xhi = 0.0
+density.bc.constant.val.xlo = 100.0
+density.bc.constant.val.ylo = 0.0 
+density.bc.constant.val.yhi = 0.0
 
-energy.bc.type.xhi = neumann
-energy.bc.type.xlo = neumann
-energy.bc.type.ylo = neumann
-energy.bc.type.yhi = neumann
-energy.bc.val.xhi = 0.0
-energy.bc.val.xlo = 0.0
-energy.bc.val.ylo = 0.0 
-energy.bc.val.yhi = 0.0
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0 
+energy.bc.constant.val.yhi = 0.0
 
-momentum.bc.type.xlo = dirichlet neumann
-momentum.bc.type.xhi = neumann neumann
-momentum.bc.type.ylo = neumann dirichlet
-momentum.bc.type.yhi = neumann dirichlet
-momentum.bc.val.xlo = 100.0 0.0
-momentum.bc.val.xhi = 0.0 0.0
-momentum.bc.val.ylo = 0.0 0.0
-momentum.bc.val.yhi = 0.0 0.0
+momentum.bc.constant.type.xlo = dirichlet neumann
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.ylo = neumann dirichlet
+momentum.bc.constant.type.yhi = neumann dirichlet
+momentum.bc.constant.val.xlo = 100.0 0.0
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 

@@ -584,7 +584,6 @@ public:
         std::string type = "";
 
         this->query_default(name + ".type", type, FirstIC::name);
-        Util::Message(INFO,FirstIC::name);
 
         bool matched =
             ((  type == FirstIC::name 

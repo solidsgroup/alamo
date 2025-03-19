@@ -98,25 +98,25 @@ solid.energy.ic.constant.value = 0.0
 
 ### ETA BC  ###
 
-pf.eta.bc.type.xlo = neumann
-pf.eta.bc.type.xhi = neumann
-pf.eta.bc.type.ylo = neumann
-pf.eta.bc.type.yhi = neumann
+pf.eta.constant.bc.type.xlo = neumann
+pf.eta.constant.bc.type.xhi = neumann
+pf.eta.constant.bc.type.ylo = neumann
+pf.eta.constant.bc.type.yhi = neumann
 
 ### HYDRO BC ###
 
-density.bc.type.xhi = neumann
-density.bc.type.xlo = neumann
-density.bc.type.ylo = neumann
-density.bc.type.yhi = neumann
-energy.bc.type.xhi = neumann
-energy.bc.type.xlo = neumann
-energy.bc.type.ylo = neumann
-energy.bc.type.yhi = neumann
-momentum.bc.type.xhi = neumann neumann
-momentum.bc.type.xlo = neumann neumann
-momentum.bc.type.ylo = neumann neumann
-momentum.bc.type.yhi = neumann neumann
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.xlo = neumann
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
 
 ### HYDRO REFINEMENT CRITERIA ###
 

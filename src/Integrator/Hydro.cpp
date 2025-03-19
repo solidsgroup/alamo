@@ -60,13 +60,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("velocity.bc","--> momentum.bc");
 
         // Boundary condition for density
-        pp.select_default<BC::Expression>("density.bc",value.density_bc,1);
+        pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc,1);
         // Boundary condition for energy
-        pp.select_default<BC::Constant>("energy.bc",value.energy_bc,1);
+        pp.select_default<BC::Constant,BC::Expression>("energy.bc",value.energy_bc,1);
         // Boundary condition for momentum
-        pp.select_default<BC::Expression>("momentum.bc",value.momentum_bc,1);
+        pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,2);
         // Boundary condition for phase field order parameter
-        pp.select_default<BC::Constant>("pf.eta.bc",value.eta_bc,1);
+        pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,1);
 
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
