@@ -9,7 +9,6 @@ def scan(root,path):
     absroot = Path(root).resolve()
 
     args = f'-xc++ --std=c++17 -I../src/ -DAMREX_SPACEDIM=2 -fimplicit-modules -fimplicit-module-maps'.split()
-    #args += [f'-include{H}' for H in absroot.rglob("*.H")]
 
     idx = clang.cindex.Index.create()
     tu = idx.parse(root+"/"+path, args=args)

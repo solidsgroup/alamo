@@ -158,19 +158,19 @@ class HTMLPrinter:
         srcfile = input['file']
         line = input['line']
 
+        # Convert RST math directeves to plain mathjax
+        processed_doc = re.sub(r":math:`(.*?)`", r"\\(\1\\)", input['doc'].replace('\n',''))
+        # Convert RST code directives to <code>
+        processed_doc = re.sub(r":code:`(.*?)`", r"<code>\1</code>", processed_doc)
+
         print(self.mypr,"  "*lev,f"<tr class='conditional-start-first'>", file=self.f)
         print(self.mypr,"  "*lev,f"  <td rowspan=2 style='padding-left: {10*(lev+1)}px'>", file=self.f)
         print(self.mypr,"  "*lev,f'    <a href="{codetarget(srcfile,line)}" class="{input_classes}"><span>{name}.type</span></a>',file=self.f)
         print(self.mypr,"  "*lev,f"  </td>", file=self.f)
         print(self.mypr,"  "*lev,f"  <td colspan=2>", file=self.f)
-        print(self.mypr,"  "*lev,f"    <p>{input['doc']}</p>", file=self.f)
-        #print(self.mypr,"  "*lev,f"  </td>", file=self.f)
-        #print(self.mypr,"  "*lev,f"<tr>", file=self.f)
+        print(self.mypr,"  "*lev,f"    {processed_doc}<br/>", file=self.f)
 
         things = input['possibles']
-        #print(self.mypr,"  "*lev,f"<tr class='conditional-start-second'>", file=self.f)
-
-        #print(self.mypr,"  "*lev,f"  <td colspan=2><p>", file=self.f)
 
         for thing in things:
             conditional_class_all = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-') + "-type"
