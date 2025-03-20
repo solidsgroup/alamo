@@ -38,9 +38,8 @@ int main (int argc, char* argv[])
     std::string program;
     IO::ParmParse pp;
     // This input determines which integrator is used.
-    pp.query_validate("alamo.program", program,
-                      {"microstructure", "flame", "heat",
-                       "dendrite","allencahn","cahnhilliard","pfc"});
+    pp.query_validate(  "alamo.program", program,
+                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
     srand(2 + amrex::ParallelDescriptor::MyProc());
 
     Integrator::Integrator *integrator = nullptr;
@@ -49,8 +48,8 @@ int main (int argc, char* argv[])
         std::string model;
         // This input determines which elastic model is used - only if using
         // the PhaseFieldMicrostructure integrator.
-        pp.query_validate("alamo.program.microstructure.model",model,
-                          {"affine.cubic","affine.hexagonal","finite.pseudoaffine.cubic"});
+        pp.query_validate(  "alamo.program.microstructure.model",model,
+                            {"affine.cubic","affine.hexagonal","finite.pseudoaffine.cubic"});
         if (model == "affine.cubic")
             pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
         else if (model == "affine.hexagonal")
