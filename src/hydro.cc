@@ -1,3 +1,8 @@
+//
+// This initializes and runs the Alamo hydrodynamic solver implemented in the
+// :ref:`Integrator::Hydro` integrator.
+//
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>

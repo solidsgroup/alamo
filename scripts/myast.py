@@ -1,10 +1,18 @@
 import clang.cindex
 from clang.cindex import CursorKind
+import pathlib
+from pathlib import Path
+from glob import glob
 
-def scan(path):
-    
+
+def scan(root,path):
+    absroot = Path(root).resolve()
+
+    args = f'-xc++ --std=c++17 -I../src/ -DAMREX_SPACEDIM=2 -fimplicit-modules -fimplicit-module-maps'.split()
+    #args += [f'-include{H}' for H in absroot.rglob("*.H")]
+
     idx = clang.cindex.Index.create()
-    tu = idx.parse(path, args='-xc++ --std=c++17 -I./src/ -DAMREX_SPACEDIM=2'.split())
+    tu = idx.parse(root+"/"+path, args=args)
 
     templateclasses = dict()
 
@@ -21,7 +29,9 @@ def scan(path):
             if not node.location.file:
                 return
 
-            if "../src" not in node.location.file.name:
+            absfilename = str(Path(node.location.file.name).resolve())
+
+            if str(absroot) not in absfilename:
                 return
 
         if "../src" in str(node.location):

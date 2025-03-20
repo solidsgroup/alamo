@@ -9,6 +9,7 @@
 #include "AMReX_ParmParse.H"
 
 #include "Integrator/ThermoElastic.H"
+#include "Integrator/Mechanics.H"
 
 int main (int argc, char* argv[])
 {

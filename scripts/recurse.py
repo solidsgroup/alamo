@@ -9,7 +9,28 @@ schema = dict()
 allclassnames = None
 templateclasses = None
 
-def recurse(root,srcfile,printer,f=None):
+class DefaultPrinter:
+    def __init__(self):
+        True
+    def __del__(self):
+        True
+    def starttable(self):
+        True
+    def endtable(self):
+        True
+    def printinput(self,input,prefix,lev,classes=[]):
+        True
+    def printconditionalstart(self,input,prefix,lev,classes=[]):
+        True
+    def printconditional(self,inputname,inputvalue,lev,classes=[]):
+        True
+    def printconditionalend(self,inputname,inputvalue,lev,classes=[]):
+        True
+    def printtablename(self,inputname,lev):
+        True
+
+
+def recurse(root,srcfile,printer=DefaultPrinter(),f=None):
 
     global allclassnames, templateclasses
 
@@ -27,7 +48,7 @@ def recurse(root,srcfile,printer,f=None):
                 return tempname
         return ""
     
-    templateclasses = myast.scan(f"{root}/{srcfile}.cc")
+    templateclasses = myast.scan(root,f"{srcfile}.cc")
 
     def extractTemplates(cl,fullclassname):
         classname = cl
@@ -78,8 +99,6 @@ def recurse(root,srcfile,printer,f=None):
                     inputvalue = subclassname.split('::')[-1].lower()
     
                     printer.printconditional(inputname,inputvalue,lev)
-
-                    #print(">>>",inputname,inputvalue)
     
                     getInputs(root,
                               subclassname.replace("::","/"),

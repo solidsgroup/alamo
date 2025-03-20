@@ -188,6 +188,9 @@ def write(root="../../src/"):
     num_doc = 0
 
     for classname in docs:
+        if not (docs[classname]['srcfile'] or docs[classname]['hdrfile']):
+            continue
+
         inputs = docs[classname]['inputs']
         documentation = docs[classname]['documentation']
     

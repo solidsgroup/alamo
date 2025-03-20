@@ -4,7 +4,7 @@ sys.path.append(os.path.abspath('../../scripts/'))
 import glob
 import recurse
 import re
-
+import scraper
 
 src2url = {}
 try:
@@ -45,6 +45,9 @@ class HTMLPrinter:
         print("--------------------------",file=self.f)
         print("",file=self.f)
         print("",file=self.f)
+        print(scraper.getdocumentation(f"../../src/{exe}"), file=self.f)
+        print("",file=self.f)
+        print("",file=self.f)
         print(".. raw:: html",file=self.f)
         print("",file=self.f)
 
@@ -59,10 +62,14 @@ class HTMLPrinter:
         print(self.mypr,"""</script>""",file=self.f)
 
 
-
     def __del__(self):
         if self.intable:
             print(self.mypr,"</table>", file=self.f)
+        print(r"",file=self.f) 
+        # apparently sphinx won't include mathjax unless there is an RST math directive.
+        # So we have to put this in to make sure mathjax renders.
+        print(r":math:`\quad`",file=self.f) 
+        print(r"",file=self.f) 
         self.f.close()
     def starttable(self):
         if not self.intable:
@@ -152,18 +159,18 @@ class HTMLPrinter:
         line = input['line']
 
         print(self.mypr,"  "*lev,f"<tr class='conditional-start-first'>", file=self.f)
-        print(self.mypr,"  "*lev,f"  <td style='padding-left: {10*(lev+1)}px'>", file=self.f)
+        print(self.mypr,"  "*lev,f"  <td rowspan=2 style='padding-left: {10*(lev+1)}px'>", file=self.f)
         print(self.mypr,"  "*lev,f'    <a href="{codetarget(srcfile,line)}" class="{input_classes}"><span>{name}.type</span></a>',file=self.f)
         print(self.mypr,"  "*lev,f"  </td>", file=self.f)
         print(self.mypr,"  "*lev,f"  <td colspan=2>", file=self.f)
-        print(self.mypr,"  "*lev,f"    {input['doc']}", file=self.f)
-        print(self.mypr,"  "*lev,f"  </td>", file=self.f)
-        print(self.mypr,"  "*lev,f"<tr>", file=self.f)
+        print(self.mypr,"  "*lev,f"    <p>{input['doc']}</p>", file=self.f)
+        #print(self.mypr,"  "*lev,f"  </td>", file=self.f)
+        #print(self.mypr,"  "*lev,f"<tr>", file=self.f)
 
         things = input['possibles']
-        print(self.mypr,"  "*lev,f"<tr class='conditional-start-second'>", file=self.f)
+        #print(self.mypr,"  "*lev,f"<tr class='conditional-start-second'>", file=self.f)
 
-        print(self.mypr,"  "*lev,f"  <td colspan=3><p>", file=self.f)
+        #print(self.mypr,"  "*lev,f"  <td colspan=2><p>", file=self.f)
 
         for thing in things:
             conditional_class_all = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-') + "-type"
@@ -187,15 +194,6 @@ class HTMLPrinter:
 
         print(self.mypr,"  "*lev,f"<tbody class='conditional_class_inputs {conditional_class_all} {conditional_class_thing}'>",file=self.f)
 
-        #print(self.mypr,"  "*lev,f"<tr style='background-color:#b0b8c1; max-height: 1px;'>", file=self.f)
-        #print(self.mypr,"  "*lev,f"  <td style='background-color:#b0b8c1;' colspan=3>", file=self.f)
-        #print(self.mypr,"  "*lev,f"     <b> if </b>", file=self.f)
-        #print(self.mypr,"  "*lev,f"     <a class='{input_classes}'><span>{inputname}</span></a>", file=self.f)
-        #print(self.mypr,"  "*lev,f"     = ", file=self.f)
-        #print(self.mypr,"  "*lev,f"     <button class='{bdg_primary}' onclick='showTab({conditional_class_all},{conditional_class_thing},this)'>{inputvalue}</span>", file=self.f)
-        #print(self.mypr,"  "*lev,f"  </td>", file=self.f)
-        #print(self.mypr,"  "*lev,f"</tr>", file=self.f)
-
     def printconditionalend(self,inputname,inputvalue,lev,classes=[]):
         input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
         bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
@@ -218,5 +216,6 @@ for exe in ["alamo","mechanics","hydro","sfi","thermoelastic","topop"]:
         del printer
         print("Problem writing file for ",exe)
         print(e)
+        raise(e)
 
 

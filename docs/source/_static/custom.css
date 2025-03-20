@@ -307,8 +307,8 @@ hr {
     background-color: var(--bs-blue) !important;
     color: white !important;
     font-weight:bold !important;
-    margin-bottom: -15px;
-    padding-bottom: 15px;
+    margin-bottom: -18px;
+    padding-bottom: 18px;
     border-color: var(--bs-blue) !important;
     border-bottom-right-radius: 0px;
     border-bottom-left-radius: 0px;
@@ -321,7 +321,6 @@ hr {
 
 .conditional_class_inputs {
     display:none !important;
-    color:green !important;
 }
 
 .conditional_class_inputs.active {
@@ -343,11 +342,15 @@ hr {
 
 
 .conditional_class_inputs tr:first-child  td{
-    border-top: 2px solid var(--bs-blue) !important; /* Clear separation line */
+    border-top: 3px solid var(--bs-blue) !important; /* Clear separation line */
 }
 
 .conditional_class_inputs tr:last-child  td{
-    border-bottom: 2px solid var(--bs-blue) !important; /* Clear separation line */
+    border-bottom: 3px solid var(--bs-blue) !important; /* Clear separation line */
+}
+
+.conditional_class_inputs tr  td:last-child{
+    border-right: 3px solid var(--bs-blue) !important; /* Clear separation line */
 }
 
 .conditional-start-second td {

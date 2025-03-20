@@ -1,3 +1,10 @@
+//
+// This is the main entry point for alamo and is a general-purpose launcher for
+// many of the main integrators.
+// Check the possible values for :code:`alamo.program` below to see the possible
+// integrators that can be launched.
+//
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -30,16 +37,20 @@ int main (int argc, char* argv[])
 
     std::string program;
     IO::ParmParse pp;
-    // The integrator to select
-    pp.query_default("alamo.program",program,"microstructure");
+    // This input determines which integrator is used.
+    pp.query_validate("alamo.program", program,
+                      {"microstructure", "flame", "heat",
+                       "dendrite","allencahn","cahnhilliard","pfc"});
     srand(2 + amrex::ParallelDescriptor::MyProc());
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")
     {
         std::string model;
-        // which model to use (if using PFM with elasticity)
-        pp.query_default("alamo.program.microstructure.model",model,"affine.cubic");
+        // This input determines which elastic model is used - only if using
+        // the PhaseFieldMicrostructure integrator.
+        pp.query_validate("alamo.program.microstructure.model",model,
+                          {"affine.cubic","affine.hexagonal","finite.pseudoaffine.cubic"});
         if (model == "affine.cubic")
             pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
         else if (model == "affine.hexagonal")
@@ -50,8 +61,6 @@ int main (int argc, char* argv[])
     }
     else if (program == "flame")                pp.select_only<Integrator::Flame>(integrator);
     else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
-    else if (program == "thermoelastic")        pp.select_only<Integrator::ThermoElastic>(integrator);
-    //else if (program == "fracture")             pp.select_only<Integrator::Fracture>();
     else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);

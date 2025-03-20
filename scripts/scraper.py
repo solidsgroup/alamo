@@ -19,21 +19,24 @@ def allclassnames(root = "../src/"):
 
 
 def getdocumentation(filename):
+    sourcefile = None
     if os.path.isfile(filename+".H"):
-	    sourcefile = open(filename+".H")
-	    ret = ""
-	    for line in sourcefile.readlines():
-	        if line.startswith(r"///"): # special provision for legacy doxygen comments
-	            ret += line.split(r"///")[1]
-	        elif line.startswith(r"// "):
-	            ret += line.split(r"// ")[1]
-	        elif line.startswith(r"//"):
-	            ret += line.split(r"//")[1]
-	        else:
-	            return ret
-	    return ret
+        sourcefile = open(filename+".H")
+    elif os.path.isfile(filename+".cc"):
+        sourcefile = open(filename+".cc")
     else:
         return None
+    ret = ""
+    for line in sourcefile.readlines():
+        if line.startswith(r"///"): # special provision for legacy doxygen comments
+            ret += line.split(r"///")[1]
+        elif line.startswith(r"// "):
+            ret += line.split(r"// ")[1]
+        elif line.startswith(r"//"):
+            ret += line.split(r"//")[1]
+        else:
+            return ret
+    return ret
 
 def geticon(classname):
     if classname.startswith("BC"): return ":fas:`border-top-left;fa-fw` "
@@ -91,9 +94,8 @@ def extract(basefilename):
             while "  " in line:
                 line = line.replace("  "," ")
 
-
             # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall(r'^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall(r'^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 query = dict()
                 query["type"] = match[0][0]
@@ -112,7 +114,7 @@ def extract(basefilename):
                 continue
 
             # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall(r'^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            match = re.findall(r'^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 query = dict()
                 query["type"] = match[0][0]
@@ -131,14 +133,14 @@ def extract(basefilename):
                 rets.append(query)
                 continue
 
-            # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall(r'^\s*pp.(query_validate)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',lines[i])
+            # Catch standard pp.query_validate
+            match = re.findall(r'^\s*pp.query_validate\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 query = dict()
-                query["type"] = match[0][0]
-                query["string"] = match[0][1]
-                query["possibles"] = match[0][2]
-                query["doc"] = match[0][3]
+                query["type"] = "query_validate"
+                query["string"] = match[0][0]
+                query["possibles"] = match[0][1]
+                query["doc"] = match[0][2]
                 query["file"] = filename
                 query["line"] = i+1
                 query["default"] = True
