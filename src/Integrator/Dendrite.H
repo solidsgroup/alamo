@@ -74,9 +74,6 @@ public:
         value.ic_temp = new IC::Expression(value.geom, pp, "ic.temp");
         value.ic_phi = new IC::Expression(value.geom, pp, "ic.phi");
 
-        // Use a constant BC object for temperature
-        value.bc_temp = new BC::Constant(1);
-        value.bc_phi = new BC::Constant(1);
         // boundary conditions for temperature field
         pp.select_default<BC::Constant>("bc.temp", value.bc_temp, 1);
         // boundary conditions for :math:`\phi` field
