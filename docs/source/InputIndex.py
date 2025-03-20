@@ -215,7 +215,7 @@ for exe in ["alamo","mechanics","hydro","sfi","thermoelastic","topop"]:
     except Exception as e:
         del printer
         print("Problem writing file for ",exe)
-        print(e)
+        print(e) 
         raise(e)
 
 
