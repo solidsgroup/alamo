@@ -4,44 +4,28 @@
 #ifndef INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 #define INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
 #include <random>
-#include <chrono>
 
-#include "AMReX.H"
 #include "AMReX_ParmParse.H"
-#include "AMReX_ParallelDescriptor.H"
 #include <AMReX_MLMG.H>
 
 #include "Integrator/Integrator.H"
-#include "Integrator/Mechanics.H"
-
 #include "BC/BC.H"
 #include "BC/Constant.H"
-#include "BC/Operator/Elastic/Constant.H"
 #include "IC/Constant.H"
-#include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 #include "IC/Expression.H"
 #include "IC/Ellipse.H"
 #include "IC/Random.H"
-
 #include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
 #include "Model/Interface/GB/SH.H"
-
-#include "Model/Solid/Linear/Cubic.H"
-#include "Model/Solid/Affine/Cubic.H"
-
 #include "Model/Defect/Disconnection.H"
-
-#include "Operator/Elastic.H"
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {
@@ -62,6 +46,8 @@ template<class model_type>
 class PhaseFieldMicrostructure : public Base::Mechanics<model_type>
 {
 public:
+    const std::string name = "phasefieldmicrostructure." + std::string(model_type::name);
+
     PhaseFieldMicrostructure() : Integrator() {};
     PhaseFieldMicrostructure(IO::ParmParse &pp) : Integrator() 
     {pp_queryclass(*this);}
@@ -78,7 +64,6 @@ public:
         // Number of grain fields (may be more if using different IC)
         pp_query_default("pf.number_of_grains", value.number_of_grains,2);     
         pp_query_required("pf.M", value.pf.M);                         // Mobility
-        //pp_query_required("pf.mu", value.pf.mu);                       // Phase field :math:`\mu`
         pp_query_required("pf.gamma", value.pf.gamma);                 // Phase field :math:`\gamma`
         pp_query_required("pf.sigma0", value.pf.sigma0);               // Initial GB energy if not using  anisotropy
         pp_query_required("pf.l_gb", value.pf.l_gb);                   // Mobility

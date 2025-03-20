@@ -35,6 +35,7 @@ namespace Integrator
 class CahnHilliard : public Integrator
 {
 public:
+    static constexpr const char* name = "cahnhilliard";
 
     /// Basic constructor (don't use)
     CahnHilliard();

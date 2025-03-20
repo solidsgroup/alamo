@@ -13,6 +13,8 @@ class ThermoElastic :
     virtual public Mechanics<Model::Solid::Affine::Isotropic>
 {
 public:
+    static constexpr const char* name = "thermoelastic";
+
     ThermoElastic():
         HeatConduction(3),
         Mechanics<Model::Solid::Affine::Isotropic>()

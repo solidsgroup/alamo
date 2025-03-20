@@ -93,7 +93,7 @@
 #include "Solver/Nonlocal/Newton.H"
 
 #include "Operator/Operator.H"
-
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {
@@ -101,6 +101,7 @@ template<class MODEL>
 class Mechanics : virtual public Base::Mechanics<MODEL>
 {
 public:
+    static constexpr const char *name = "mechanics";
 
     Mechanics() : Base::Mechanics<MODEL>() { }
     Mechanics(IO::ParmParse& pp) : Base::Mechanics<MODEL>()
@@ -186,7 +187,7 @@ public:
         if (pp.contains("trac_normal.ic.type"))
         {
             // Read in IC for the "normal traction" field (applied at diffuse boundaries)
-            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom);
+            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom); 
 
             if (value.ic_trac_normal)
             {
