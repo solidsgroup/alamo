@@ -48,3 +48,8 @@ ext/
 *_LOCAL_*
 *_REMOTE_*
 von-mises.xml
+compile_commands.json
+.cache/
+.python-version
+.clangd
+.DS_Store

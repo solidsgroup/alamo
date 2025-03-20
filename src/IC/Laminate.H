@@ -12,7 +12,7 @@
 namespace IC
 {
 /// Initialize Laminates in a matrix
-class Laminate: public IC
+class Laminate: public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "laminate";

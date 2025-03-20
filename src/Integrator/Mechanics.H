@@ -352,9 +352,9 @@ protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Scalar m_eta_ref_threshold = NAN;
     std::vector<MODEL> models;
-    IC::IC* ic_eta = nullptr;
-    IC::IC* ic_psi = nullptr;
-    IC::IC* ic_trac_normal = nullptr;
+    IC::IC<Set::Scalar>* ic_eta = nullptr;
+    IC::IC<Set::Scalar>* ic_psi = nullptr;
+    IC::IC<Set::Scalar>* ic_trac_normal = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
     bool psi_reset_on_regrid = false;

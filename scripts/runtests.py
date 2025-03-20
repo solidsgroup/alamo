@@ -10,6 +10,7 @@ import time
 import re
 import pathlib
 import threading
+import signal
 
 from sympy import capture
 
@@ -100,6 +101,10 @@ parser.add_argument('--no-clean', dest='clean', default=False, action='store_fal
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
+parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
+parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
+parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
+parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -259,8 +264,18 @@ def test(testdir):
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
                 continue
+
+            # Skip all non-fft tests if --fft-only 
+            if args.fft_only and 'fft' not in config[desc].keys():
+                continue
+
+            # Otherwise, skip fft tests unless passing in -fft flag
+            if 'fft' in config[desc].keys():
+                if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
+                    if not args.fft and not args.fft_only: continue
+
             # If not running in serial, specify mpirun command
-            if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
+            if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
             # Specify alamo command.
             
             exestr = "./bin/{}-{}d".format(exe,dim)
@@ -357,6 +372,18 @@ def test(testdir):
             retcode = proc.returncode
             if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
 
+            if args.check_mpi:
+                pattern = r"MPI initialized with (\d+) MPI processes"
+                match = re.search(pattern, stdout.decode('utf-8'))
+                if match:
+                    actual_nprocs = int(match.group(1))
+                    if nprocs != actual_nprocs:
+                        raise subprocess.CalledProcessError(retcode, proc.args, output=stdout,
+                                                            stderr=f"MPI is not working: should run with {nprocs} procs but is running with {actual_nprocs}!".encode('utf-8'))
+                else:
+                    raise subprocess.CalledProcessError(retcode, proc.args, output=stdout,
+                                                        stderr=f"Could not tell if MPI is working!".encode('utf-8'))
+
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
@@ -392,7 +419,24 @@ def test(testdir):
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
         except subprocess.TimeoutExpired as e:
+
+            #
+            # Attempt to kill the program gracefully ith SIGINT so that it has a chance to
+            # write .gcda files (for coverage report)
+            #
+            if not args.no_backspace:
+                print(bs+"[kill]",end="")
+            proc.send_signal(signal.SIGINT)
+            for i in range(10): # Give it about 20 seconds...
+                if proc.poll() is None:
+                    time.sleep(2)
+                else: break
+                    
+            #
+            # Time's up!
+            #
             proc.kill()
+
             print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
             try:

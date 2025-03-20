@@ -2,19 +2,17 @@ name: Linux
 
 on:
   push:
-    branches-ignore: ["candidate-install"]
+    branches-ignore: []
 
 jobs:
-  tabs:
-    name: Style Check
-    runs-on: ubuntu-latest
+  style-check:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Tabs
         run: .github/workflows/style/check_tabs.py
   editorconfig-compliance:
-    name: Editorconfig Compliance
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: update aptitude
@@ -26,80 +24,67 @@ jobs:
       - name: EditorConfigCompliance
         run: eclint check src/
   documentation-check:
-    name: Make sure all inputs are documented
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: checking documentation coverage
         run: python3 scripts/checkdoc.py
-  docs:
-    name: Build Docs
-    runs-on: ubuntu-latest
+  build-docs:
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: make
-      run: make docs
-  test-2d-20-04:
-    name: 2D g++ Build & Test (20.04)
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
-    - name: configure (2d)
-      run: ./configure --dim=2 
-    - name: make
-      run: make
-    - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --timeout=200 --no-backspace
-  test-3d-20-04:
-    name: 3D g++ Build & Test (20.04)
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
-    - name: configure
-      run: ./configure --dim=3 
-    - name: make
-      run: make
-    - name: regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github --timeout=200 --no-backspace
+      run: bash .github/workflows/build-docs.sh
   test-2d-22-04:
-    name: 2D g++ Build & Test (22.04)
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
+      run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d)
       run: ./configure --dim=2 
     - name: make
       run: make
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
-  test-3d-22-04:
-    name: 3D g++ Build & Test (22.04)
-    runs-on: ubuntu-22.04
+    - name: parallelism check
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace
+  test-2d-24-04:
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: configure (2d)
+      run: ./configure --dim=2 
+    - name: make
+      run: make
+    - name: regression tests
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
+    - name: parallelism check
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe"
+  test-3d-24-04:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure
       run: ./configure --dim=3 
     - name: make
       run: make
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace
-  test-2d-22-04-clang:
-    name: 2D Clang Build & Test (22.04)
-    runs-on: ubuntu-22.04
+    - name: parallelism check
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe"
+  test-2d-24-04-clang:
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: installing clang
       run: sudo apt install clang
     - name: configure (2d)
@@ -108,3 +93,21 @@ jobs:
       run: make
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace
+    - name: parallelism check
+      run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --comp=clang++ --no-backspace --mpirun-flags="--oversubscribe"
+  test-2d-24-04-clang-fft:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: installing clang
+      run: sudo apt install clang
+    - name: installing fftw3
+      run: sudo apt install libfftw3-dev
+    - name: configure (2d)
+      run: ./configure --dim=2 --comp=clang++ --fft
+    - name: make
+      run: make
+    - name: regression tests
+      run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only
