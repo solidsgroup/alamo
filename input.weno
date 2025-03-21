@@ -39,7 +39,7 @@ FluxReconstruction = WENO
 WenoVariant = WENOZ5
 
 #Reconstruction Mode
-ReconstructionMode = Conservative
+ReconstructionMode = Characteristic
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
