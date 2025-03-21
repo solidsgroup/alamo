@@ -623,7 +623,7 @@ public:
      * @param QL_stencil MultiFab to store left-biased reconstructed values
      * @param QR_stencil MultiFab to store right-biased reconstructed values
      */
-    void ReconstructFluxVariables(
+    void ReconstructFlux(
         int direction, 
         int /*lev*/, 
         IntegratorDerivedClass* solver,
@@ -709,6 +709,128 @@ public:
         }
 
     }    
+
+void ReconstructVariables(
+    int direction, 
+    int lev, 
+    IntegratorDerivedClass* solver,
+    const amrex::MultiFab& VariableBuffer,
+    amrex::MultiFab& LeftStates, 
+    amrex::MultiFab& RightStates
+) const override {
+    const int nghosts = solver->number_of_ghost_cells;
+    const int num_components = solver->number_of_components;
+    const bool enableDebug = false;  // Enable detailed debugging
+
+    // First pass: Compute left states using WENO reconstruction
+    for (amrex::MFIter mfi(VariableBuffer, false); mfi.isValid(); ++mfi) {
+        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+        
+        auto const& Var_arr = VariableBuffer.const_array(mfi);
+        auto const& LeftStates_arr = LeftStates.array(mfi);
+        
+        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+            // Construct index arrays
+            int index[3];
+            int lower_bounds[3];
+            int upper_bounds[3];
+            
+            // Set up indices
+            index[0] = iface; index[1] = jface; index[2] = kface;
+            
+            // Define bounds including ghost cells
+            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+            lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+            upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+            
+            // Clamp the main index
+            ClampIndices(index, lower_bounds, upper_bounds);
+            
+            // Process each component
+            for (int n = 0; n < num_components; ++n) {
+                // Extract stencil values based on direction
+                std::array<Set::Scalar, Traits::TotalPoints> stencil;
+                
+                // Base stencil center point
+                int center_idx[3] = {index[0], index[1], index[2]};
+                
+                // Fill the stencil
+                for (int s = 0; s < Traits::TotalPoints; ++s) {
+                    // Calculate stencil point index with proper offset
+                    int stencil_idx[3] = {center_idx[0], center_idx[1], center_idx[2]};
+                    
+                    // Apply offset in the reconstruction direction
+                    // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
+                    int offset = s - Traits::TotalPoints/2;
+                    stencil_idx[direction] += offset;
+                    
+                    // Clamp indices to ensure they're within bounds
+                    ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                    
+                    // Extract data value for this stencil point
+                    stencil[s] = Var_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                }
+                
+                // Reconstruct left state at interface using WENO
+                Set::Scalar left_value = Policy::ReconstructValue(stencil, index[0], index[1], index[2], enableDebug);
+                
+                // Store reconstructed left state
+                LeftStates_arr(index[0], index[1], index[2], n) = left_value;
+            }
+        });
+    }
+    
+    // Synchronize to ensure all left states are computed
+    LeftStates.FillBoundary();
+    
+    // Second pass: Set right states by shifting left states
+    for (amrex::MFIter mfi(RightStates, false); mfi.isValid(); ++mfi) {
+        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+        
+        auto const& LeftStates_arr = LeftStates.const_array(mfi);
+        auto const& RightStates_arr = RightStates.array(mfi);
+        
+        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+            // Construct index arrays
+            int index[3];
+            int next_index[3];
+            int lower_bounds[3];
+            int upper_bounds[3];
+            
+            // Set up indices
+            index[0] = iface; index[1] = jface; index[2] = kface;
+            next_index[0] = iface; next_index[1] = jface; next_index[2] = kface;
+            next_index[direction]++;  // Next index in the direction
+            
+            // Define bounds including ghost cells
+            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+            lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+            upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+            
+            // Clamp the indices
+            ClampIndices(index, lower_bounds, upper_bounds);
+            ClampIndices(next_index, lower_bounds, upper_bounds);
+            
+            // Set right state at current interface to left state at next interface
+            for (int n = 0; n < num_components; ++n) {
+                RightStates_arr(index[0], index[1], index[2], n) = 
+                    LeftStates_arr(next_index[0], next_index[1], next_index[2], n);
+            }
+        });
+    }
+}
+
+
+
+
+
+
 };
 
 //==============================================================================

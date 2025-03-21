@@ -46,24 +46,51 @@ inline void ShiftAndClampIndices(int indices[3], const int offsets[3],
 template <typename IntegratorDerivedClass>
 class FluxReconstruction {
 public:
+    // Enum to identify what type of entities we're reconstructing
+    enum class EntityType {
+        Variables,  // Reconstruct variables (for HLLC-like methods)
+        Fluxes      // Reconstruct fluxes (for LLF-like methods)
+    };
+
     virtual ~FluxReconstruction() = default;
 
-    /**
-    * @brief Perform flux reconstruction for the specified direction.
-    */
-    virtual void ReconstructFluxVariables(int direction, int lev, IntegratorDerivedClass* solver, const amrex::MultiFab& Flux_Negative, const amrex::MultiFab& Flux_Positive, amrex::MultiFab& SummedFlux) const = 0;
+    // Original method for flux-based reconstruction (for LLF-like methods)
+    virtual void ReconstructFluxes(int direction, int lev, IntegratorDerivedClass* solver,
+                                  const amrex::MultiFab& Flux_Negative, 
+                                  const amrex::MultiFab& Flux_Positive,
+                                  amrex::MultiFab& SummedFlux) const = 0;
+    
+    // New method for variable-based reconstruction (for HLLC-like methods)
+    virtual void ReconstructVariables(int direction, int lev, IntegratorDerivedClass* solver,
+                                     const amrex::MultiFab& VariableBuffer,
+                                     amrex::MultiFab& LeftStates, 
+                                     amrex::MultiFab& RightStates) const = 0;
 };
 
-// Base class for flux method (e.g., Local Lax-Friedrichs, HLLC)
+// Base class for flux methods (e.g., Local Lax-Friedrichs, HLLC)
 template <typename IntegratorDerivedClass>
 class FluxMethod {
 public:
+    // Enum to determine reconstruction approach based on method requirements
+    enum class ReconstructionTarget {
+        Variables,  // Reconstruct variables first (for HLLC-like methods)
+        Fluxes      // Reconstruct fluxes first (for LLF-like methods)
+    };
+
     virtual ~FluxMethod() = default;
 
-    /**
-    * @brief Compute the flux for the specified direction.
-    */
-    virtual void SplitFluxes(int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& VariableBuffer, amrex::MultiFab& CellFluxBuffer, amrex::MultiFab& Flux_Negative, amrex::MultiFab& Flux_Positive) const = 0;
+    // Return whether this method requires reconstructing variables or fluxes first
+    virtual ReconstructionTarget getReconstructionTarget() const = 0;
+
+    // Method-specific flux computation implementations
+    virtual void SplitFluxes(int direction, int lev, IntegratorDerivedClass* solver, 
+                             amrex::MultiFab& VariableBuffer, amrex::MultiFab& CellFluxBuffer, 
+                             amrex::MultiFab& Flux_Negative, amrex::MultiFab& Flux_Positive) const = 0;
+    
+    // New method for directly computing fluxes from reconstructed states (for HLLC-like methods)
+    virtual void ComputeFluxes(int direction, int lev, IntegratorDerivedClass* solver,
+                              const amrex::MultiFab& LeftStates, const amrex::MultiFab& RightStates, 
+                              amrex::MultiFab& SummedFlux) const = 0;
 };
 
 // FluxHandler class for managing reconstruction and flux computation
@@ -90,7 +117,7 @@ public:
         flux_method = std::move(method);
     }
 
-    // ConstructFluxes method with improved validation and error handling
+    // Main method for constructing fluxes
     void ConstructFluxes(int lev, IntegratorDerivedClass* solver) const {
         // Validate reconstruction and flux method are set
         if (!reconstruction || !flux_method) {
@@ -108,68 +135,25 @@ public:
             Util::Abort(INFO, "FluxHandler: Unable to retrieve solver capabilities.");
         }
 
-        // Get current reconstruction mode
-        ReconstructionMode mode = variable_accessor->getCurrentReconstructionMode();
-
-        // Validate method combinations through solver capabilities
-        auto validationResult = solverCapabilities->validateMethodCombination(
-            FluxReconstructionType::WENO,  // Default assumption, could be parameterized
-            FluxScheme::LocalLaxFriedrichs, // Default assumption, could be parameterized
-            TimeSteppingSchemeType::RK3,    // Default assumption, could be parameterized
-            mode
-        ); 
-    
-    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
-
-        int ghost_cells = solver->number_of_ghost_cells;
-
-        // Create stencil MultiFabs for positive and negative fluxes
-        amrex::MultiFab Flux_Negative(solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells);
-        amrex::MultiFab Flux_Positive(solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells);
-
-        {  
-            // Create VariableBuffer outside the loop for reuse across all directions
-            amrex::MultiFab VariableBuffer = variable_accessor->CreateWorkingBuffer(
+        // Create VariableBuffer for reuse across all directions
+        int ghost_cells = solver->number_of_ghost_cells;  
+        amrex::MultiFab VariableBuffer = variable_accessor->CreateWorkingBuffer(
             solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
-            );
+        );
 
-            // Transform Variables and store in VariableBuffer
-            variable_accessor->TransformVariables(dir, lev, solver, VariableBuffer, mode, validationResult);
-            
-            // Create CellFluxBuffer inside the loop (direction-specific)
-            amrex::MultiFab CellFluxBuffer = variable_accessor->CreateWorkingBuffer(
-                solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
-            );
+        // Process each direction
+        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+            // Choose processing path based on the flux method's reconstruction target
+            if (flux_method->getReconstructionTarget() == FluxMethod<IntegratorDerivedClass>::ReconstructionTarget::Variables) {
+                // For methods like HLLC that reconstruct variables first
+                ProcessVariableBasedReconstruction(dir, lev, solver, VariableBuffer);
+            } else {
+                // For methods like LLF that reconstruct fluxes first
+                ProcessFluxBasedReconstruction(dir, lev, solver, VariableBuffer);
+            }
+        }
+    }
 
-            // Transform fluxes and store in VariableBuffer
-            variable_accessor->TransformFluxes(dir, lev, solver, CellFluxBuffer, mode, validationResult);
-
-            // Compute Split Fluxes
-            flux_method->SplitFluxes(dir, lev, solver, VariableBuffer, CellFluxBuffer, Flux_Negative, Flux_Positive);
-
-        }  
-
-        {  
-            // Create face-centered BoxArray
-            amrex::BoxArray face_ba = solver->grids[lev];
-            amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
-            face_type[dir] = 1;  
-            face_ba.convert(face_type);
-
-            // Create Face-Centered MultiFab for Reconstructed Fluxes
-            amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
-
-            // Pass Split Fluxes to Reconstruction
-            reconstruction->ReconstructFluxVariables(dir, lev, solver, Flux_Negative, Flux_Positive, SummedFlux);
-
-            // Pass SummedFlux to Reverse Transform to populate XFlux, YFlux, ZFlux
-            variable_accessor->ReverseTransformFluxes(dir, lev, solver, SummedFlux, mode, validationResult);
-
-        }  
-
-    }  
-
-} // Construct Fluxes 
     // Get the current variable accessor
     std::shared_ptr<GenericVariableAccessor> GetVariableAccessor() const {
         return variable_accessor;
@@ -180,81 +164,302 @@ private:
     std::shared_ptr<FluxReconstruction<IntegratorDerivedClass>> reconstruction;
     std::shared_ptr<FluxMethod<IntegratorDerivedClass>> flux_method;
     std::shared_ptr<GenericVariableAccessor> variable_accessor;
+
+    // For variable-based reconstruction methods like HLLC
+    void ProcessVariableBasedReconstruction(
+        int direction, int lev, IntegratorDerivedClass* solver, 
+        amrex::MultiFab& VariableBuffer) const;
+
+    // For flux-based reconstruction methods like LLF
+    void ProcessFluxBasedReconstruction(
+        int direction, int lev, IntegratorDerivedClass* solver, 
+        amrex::MultiFab& VariableBuffer) const;
 };
+
+// For variable-based reconstruction methods like HLLC
+template <typename IntegratorDerivedClass>
+void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
+    int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& VariableBuffer) const {
+    
+    // Validate inputs and components
+    if (!reconstruction || !flux_method || !variable_accessor) {
+        Util::Abort(INFO, "FluxHandler: Required components not initialized");
+    }
+    
+    // Get solver capabilities for validation
+    auto solverCapabilities = variable_accessor->getSolverCapabilities();
+    if (!solverCapabilities) {
+        Util::Abort(INFO, "FluxHandler: Unable to retrieve solver capabilities");
+    }
+    
+    // Get current reconstruction mode
+    ReconstructionMode mode = variable_accessor->getCurrentReconstructionMode();
+    
+    // Validate method combinations
+    auto validationResult = solverCapabilities->validateMethodCombination(
+        FluxReconstructionType::WENO,  // Assume WENO, could be parameterized
+        FluxScheme::HLLC,             // For this path, we're using HLLC
+        TimeSteppingSchemeType::RK3,  // Assume RK3, could be parameterized
+        mode
+    );
+    
+    // 1. Transform variables if needed (based on reconstruction mode)
+    variable_accessor->TransformVariables(direction, lev, solver, VariableBuffer, 
+                                         mode, validationResult);
+    
+    // 2. Create intermediate buffers for reconstructed left/right states
+    int ghost_cells = solver->number_of_ghost_cells;
+
+
+    // 3. Create a face-centered BoxArray for the flux
+    amrex::BoxArray face_ba = solver->grids[lev];
+    amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
+    face_type[direction] = 1;  // Set face-centered in the specified direction
+    face_ba.convert(face_type);
+
+
+    amrex::MultiFab LeftStates = variable_accessor->CreateWorkingBuffer(
+        face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
+    
+    amrex::MultiFab RightStates = variable_accessor->CreateWorkingBuffer(
+        face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
+    
+    // 4. Perform reconstruction on variables to get left/right states
+    reconstruction->ReconstructVariables(direction, lev, solver, 
+                                       VariableBuffer, LeftStates, RightStates);
+    
+    // 5. Transform reconstructed states back if needed (for characteristic mode)
+    variable_accessor->ReverseTransformVariables(direction, lev, solver, 
+                                                  LeftStates, RightStates, 
+                                                  mode, validationResult);
+    
+    
+    // 6. Create MultiFab for the computed flux
+    amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
+                              solver->number_of_components, ghost_cells);
+    
+    // 7. Compute fluxes from reconstructed states
+    flux_method->ComputeFluxes(direction, lev, solver, 
+                             LeftStates, RightStates, SummedFlux);
+    
+    // 8. Store fluxes in the appropriate directional flux arrays
+    variable_accessor->StoreDirectionalFlux(direction, lev, solver, 
+                                          SummedFlux, mode, validationResult);
+}
+
+// For flux-based reconstruction methods like LLF
+template <typename IntegratorDerivedClass>
+void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
+    int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& VariableBuffer) const {
+    
+    // Validate inputs and components
+    if (!reconstruction || !flux_method || !variable_accessor) {
+        Util::Abort(INFO, "FluxHandler: Required components not initialized");
+    }
+    
+    // Get solver capabilities for validation
+    auto solverCapabilities = variable_accessor->getSolverCapabilities();
+    if (!solverCapabilities) {
+        Util::Abort(INFO, "FluxHandler: Unable to retrieve solver capabilities");
+    }
+    
+    // Get current reconstruction mode
+    ReconstructionMode mode = variable_accessor->getCurrentReconstructionMode();
+    
+    // Validate method combinations
+    auto validationResult = solverCapabilities->validateMethodCombination(
+        FluxReconstructionType::WENO,  // Assume WENO, could be parameterized
+        FluxScheme::LocalLaxFriedrichs,  // For this path, we're using LLF
+        TimeSteppingSchemeType::RK3,   // Assume RK3, could be parameterized
+        mode
+    );
+    
+    // 1. Transform variables if needed (based on reconstruction mode)
+    variable_accessor->TransformVariables(direction, lev, solver, VariableBuffer, 
+                                         mode, validationResult);
+    
+    // 2. Create a cell flux buffer for storing computed fluxes
+    amrex::MultiFab CellFluxBuffer = variable_accessor->CreateWorkingBuffer(
+        solver->grids[lev], solver->dmap[lev], solver->number_of_components, 
+        solver->number_of_ghost_cells);
+    
+    // 3. Compute and transform fluxes if needed
+    variable_accessor->TransformFluxes(direction, lev, solver, CellFluxBuffer, 
+                                      mode, validationResult);
+    
+    // 4. Create buffers for split fluxes (positive and negative)
+    int ghost_cells = solver->number_of_ghost_cells;
+    amrex::MultiFab Flux_Negative = variable_accessor->CreateWorkingBuffer(
+        solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells);
+    
+    amrex::MultiFab Flux_Positive = variable_accessor->CreateWorkingBuffer(
+        solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells);
+    
+    // 5. Split fluxes into positive and negative components
+    flux_method->SplitFluxes(direction, lev, solver, VariableBuffer, 
+                           CellFluxBuffer, Flux_Negative, Flux_Positive);
+    
+    // 6. Create a face-centered BoxArray for the flux
+    amrex::BoxArray face_ba = solver->grids[lev];
+    amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
+    face_type[direction] = 1;  // Set face-centered in the specified direction
+    face_ba.convert(face_type);
+    
+    // 7. Create MultiFab for the reconstructed summed flux
+    amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
+                              solver->number_of_components, ghost_cells);
+    
+    // 8. Perform reconstruction on fluxes
+    reconstruction->ReconstructFluxes(direction, lev, solver, 
+                                    Flux_Negative, Flux_Positive, SummedFlux);
+    
+    // 9. Transform fluxes back if needed
+    variable_accessor->ReverseTransformFluxes(direction, lev, solver, SummedFlux, 
+                                           mode, validationResult);
+    
+    // 10. Store fluxes in the appropriate directional flux arrays
+    variable_accessor->StoreDirectionalFlux(direction, lev, solver, 
+                                          SummedFlux, mode, validationResult);
+}
 
 // First-order upwind reconstruction
 template <typename IntegratorDerivedClass>
 class FirstOrderReconstruction : public FluxReconstruction<IntegratorDerivedClass> {
 public:
-// ReconstructFlux: First-order upwind flux reconstruction with branch-free framework
-void ReconstructFluxVariables(int direction, int lev, IntegratorDerivedClass* solver, const amrex::MultiFab& Flux_Negative, const amrex::MultiFab& Flux_Positive, amrex::MultiFab& SummedFlux) const override {
-    
-    const int nghosts = solver->number_of_ghost_cells; 
-// Loop through face-centered indices for flux reconstruction
-//for (amrex::MFIter mfi(QL_stencil, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
-    const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+    // Implement flux-based reconstruction (for LLF-like methods)
+    void ReconstructFluxes(int direction, int lev, IntegratorDerivedClass* solver,
+                         const amrex::MultiFab& Flux_Negative, const amrex::MultiFab& Flux_Positive,
+                         amrex::MultiFab& SummedFlux) const override {
+        
+        const int nghosts = solver->number_of_ghost_cells; 
 
-    auto const& FluxNeg_arr = Flux_Negative.array(mfi);  // Left reconstructed state
-    auto const& FluxPos_arr = Flux_Positive.array(mfi);  // Right reconstructed state
-    auto const& TotalFlux_arr = SummedFlux.array(mfi);  // Primitive variables
+        // Loop through face-centered indices for flux reconstruction
+        for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
-    const int num_components = solver->number_of_components;  // Number of components (e.g., rho, u, v, E)
+            auto const& FluxNeg_arr = Flux_Negative.array(mfi);  // Left reconstructed state
+            auto const& FluxPos_arr = Flux_Positive.array(mfi);  // Right reconstructed state
+            auto const& TotalFlux_arr = SummedFlux.array(mfi);  // Summed flux
 
+            const int num_components = solver->number_of_components;  // Number of components
 
-    amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                // Construct index arrays with correct number of components
+                int index[3];
+                int left_index[3];
+                int right_index[3];
+                int lower_bounds[3];
+                int upper_bounds[3];
 
-    // Construct index arrays with correct number of components
-    int index[3];
-    int left_index[3];
-    int right_index[3];
-    int lower_bounds[3];
-    int upper_bounds[3];
+                // Set up indices
+                index[0] = iface; index[1] = jface; index[2] = kface;
+                left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+                right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
 
-    // Set up indices
-    index[0] = iface; index[1] = jface; index[2] = kface;
-    left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
-    right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+                // Define bounds including ghost cells
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+                lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+                upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
 
-    // Define bounds including ghost cells
-    lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-    lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-    lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-    upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) -1;
-    upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) -1;
-    upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+                // Clamp the main index
+                ClampIndices(index, lower_bounds, upper_bounds);
 
-    // Clamp the main index
-    ClampIndices(index, lower_bounds, upper_bounds);
+                // Shift and clamp for left and right indices
+                int left_offset[3] = {0, 0, 0};
+                int right_offset[3] = {0, 0, 0};
+                left_offset[direction] = 0;  // Shift left
+                right_offset[direction] = 1;  // Shift right
 
-    // Shift and clamp for left and right indices
-    int left_offset[3] = {0, 0, 0};
-    int right_offset[3] = {0, 0, 0};
-    left_offset[direction] = 0;  // Shift left
-    right_offset[direction] = 1;  // Shift right
-
-    ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-    ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-    
-
-        for (int n = 0; n < num_components; ++n) {
-            
-            const Set::Scalar FL = FluxNeg_arr(left_index[0], left_index[1], left_index[2], n);
-            const Set::Scalar FR = FluxPos_arr(right_index[0], right_index[1], right_index[2], n);  // Since we are using first-order upwinding  
-            // Assign values to the stencil arrays
-            TotalFlux_arr(index[0], index[1], index[2], n) = FL + FR;
+                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                
+                for (int n = 0; n < num_components; ++n) {
+                    const Set::Scalar FL = FluxNeg_arr(left_index[0], left_index[1], left_index[2], n);
+                    const Set::Scalar FR = FluxPos_arr(right_index[0], right_index[1], right_index[2], n);  
+                    // Assign values to the stencil arrays
+                    TotalFlux_arr(index[0], index[1], index[2], n) = FL + FR;
+                }
+            });
         }
-    });
-}
+    }
+    
+    // Implement variable-based reconstruction (for HLLC-like methods)
+    void ReconstructVariables(int direction, int lev, IntegratorDerivedClass* solver,
+                            const amrex::MultiFab& VariableBuffer,
+                            amrex::MultiFab& LeftStates, amrex::MultiFab& RightStates) const override {
+        
+        const int nghosts = solver->number_of_ghost_cells;
+        
+        // Loop through grid cells to reconstruct left/right states at interfaces
+        for (amrex::MFIter mfi(VariableBuffer, false); mfi.isValid(); ++mfi) {
+            const amrex::Box& bx_with_ghosts = mfi.growntilebox();
+            
+            auto const& Var_arr = VariableBuffer.array(mfi);
+            auto const& LeftStates_arr = LeftStates.array(mfi);
+            auto const& RightStates_arr = RightStates.array(mfi);
+            
+            const int num_components = solver->number_of_components;
+            
+            amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                // Construct index arrays
+                int index[3];
+                int left_cell[3];
+                int right_cell[3];
+                int lower_bounds[3];
+                int upper_bounds[3];
 
-}
+                // Set up indices
+                index[0] = i; index[1] = j; index[2] = k;
+                left_cell[0] = i; left_cell[1] = j; left_cell[2] = k;
+                right_cell[0] = i; right_cell[1] = j; right_cell[2] = k;
+                
+                // Define bounds including ghost cells
+                lower_bounds[0] = bx_with_ghosts.smallEnd(0); 
+                lower_bounds[1] = bx_with_ghosts.smallEnd(1); 
+                lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.smallEnd(2) : 0;
+                upper_bounds[0] = bx_with_ghosts.bigEnd(0);
+                upper_bounds[1] = bx_with_ghosts.bigEnd(1);
+                upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.bigEnd(2) : 0;
+                
+                // Clamp the main index
+                ClampIndices(index, lower_bounds, upper_bounds);
+                
+                // Shift and clamp for left and right indices
+                int left_offset[3] = {0, 0, 0};
+                int right_offset[3] = {0, 0, 0};
+                left_offset[direction] = 0;  // Shift left
+                right_offset[direction] = 1;  // Shift right
 
+                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                
+                for (int n = 0; n < num_components; ++n) {
+                    // First-order reconstruction simply uses the cell values directly
+                    LeftStates_arr(index[0], index[1], index[2], n) = 
+                        Var_arr(left_cell[0], left_cell[1], left_cell[2], n);
+                    
+                    RightStates_arr(index[0], index[1], index[2], n) = 
+                        Var_arr(right_cell[0], right_cell[1], right_cell[2], n);
+                }
+            });
+        }
+    }
 };
 
 // Local Lax-Friedrichs flux method
 template <typename IntegratorDerivedClass>
 class LocalLaxFriedrichsMethod : public FluxMethod<IntegratorDerivedClass> {
 public:
+   using typename FluxMethod<IntegratorDerivedClass>::ReconstructionTarget;
+
+      // Indicate that LLF works with flux-based reconstruction
+    ReconstructionTarget getReconstructionTarget() const override {
+        return ReconstructionTarget::Fluxes;
+    }
+
     void SplitFluxes(int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& VariableBuffer, amrex::MultiFab& CellFluxBuffer, amrex::MultiFab& Flux_Negative, amrex::MultiFab& Flux_Positive) const override {
 
         const Set::Scalar gamma = 1.4;  // Ratio of specific heats
@@ -409,28 +614,56 @@ public:
         }
         
     }
+
+    // Implement ComputeFluxes for completeness (though it won't be used for LLF)
+    void ComputeFluxes(int direction, int lev, IntegratorDerivedClass* solver,
+                      const amrex::MultiFab& LeftStates, const amrex::MultiFab& RightStates,
+                      amrex::MultiFab& SummedFlux) const override {
+        // This is not the primary pathway for LLF, but provide an implementation
+        // for completeness or potential future use
+        Util::Warning(INFO, "LLF ComputeFluxes called directly - not optimal path");
+        
+        // If needed, a direct implementation could be added here
+    }    
+
 };
 
 // HLLC flux method
 template <typename IntegratorDerivedClass>
 class HLLCMethod : public FluxMethod<IntegratorDerivedClass> {
 public:
-    void SplitFluxes(int direction, int lev, IntegratorDerivedClass* solver, amrex::MultiFab& VariableBuffer, amrex::MultiFab& CellFluxBuffer, amrex::MultiFab& Flux_Negative, amrex::MultiFab& Flux_Positive) const override {
+    
+   using typename FluxMethod<IntegratorDerivedClass>::ReconstructionTarget;
 
+   ReconstructionTarget getReconstructionTarget() const override {
+       return ReconstructionTarget::Variables;
+   }
+   
+   void SplitFluxes(int direction, int lev, IntegratorDerivedClass* solver, 
+                   amrex::MultiFab& VariableBuffer, amrex::MultiFab& CellFluxBuffer,
+                   amrex::MultiFab& Flux_Negative, amrex::MultiFab& Flux_Positive) const override {
+       // Not the primary pathway for HLLC
+       Util::Warning(INFO, "HLLC SplitFluxes called - not optimal path");
+   }
+   
+   void ComputeFluxes(int direction, int lev, IntegratorDerivedClass* solver,
+                  const amrex::MultiFab& LeftStates, const amrex::MultiFab& RightStates,
+                  amrex::MultiFab& SummedFlux) const override {
+    
         const Set::Scalar gamma = 1.4;  // Ratio of specific heats
         const int nghosts = solver->number_of_ghost_cells;
 
         // Loop through the grid
-        for (amrex::MFIter mfi(Flux_Negative, false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx_with_ghosts = mfi.growntilebox();
 
-            auto const& FluxNeg_arr = Flux_Negative.array(mfi);
-            auto const& FluxPos_arr = Flux_Positive.array(mfi);
-            auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
+
+            // Updated array references for LeftStates, RightStates, and SummedFlux
+            auto const& Left_arr = LeftStates.array(mfi);
+            auto const& Right_arr = RightStates.array(mfi);
+            auto const& TotalFlux_arr = SummedFlux.array(mfi);
             auto const& pres_arr = solver->Pressure_mf.Patch(lev, mfi);
-            auto const& q_arr = VariableBuffer.array(mfi);
-            auto const& flux_arr = CellFluxBuffer.array(mfi);
-            
+                  
             // Direction-dependent indices
             int normal = direction;  // Normal velocity component
             int trans1 = (direction + 1) % AMREX_SPACEDIM;  // First transverse velocity
@@ -447,71 +680,59 @@ public:
             int num_components = solver->number_of_components;
 
             // Parallel loop over cells
-            amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 // Setup indices
                 int index[3];
-                int left_index[3];
-                int right_index[3];
                 int lower_bounds[3];
                 int upper_bounds[3];
                 
                 // Initialize index arrays
                 index[0] = i; index[1] = j; index[2] = k;
-                left_index[0] = i; left_index[1] = j; left_index[2] = k;
-                right_index[0] = i; right_index[1] = j; right_index[2] = k;
                 
                 // Define bounds including ghost cells
-                lower_bounds[0] = bx_with_ghosts.smallEnd(0); 
-                lower_bounds[1] = bx_with_ghosts.smallEnd(1); 
-                lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.smallEnd(2) : 0;
-                upper_bounds[0] = bx_with_ghosts.bigEnd(0);
-                upper_bounds[1] = bx_with_ghosts.bigEnd(1);
-                upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.bigEnd(2) : 0;
+                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+                lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+                upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
                 
                 // Clamp indices to ensure they're within bounds
                 ClampIndices(index, lower_bounds, upper_bounds);
-                
-                // Shift and clamp for left and right indices
-                int left_offset[3] = {0, 0, 0};
-                int right_offset[3] = {0, 0, 0};
-                right_offset[direction] = 1;  // Shift right
-                
-                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-                
+                                
                 // Get primitive variables for left and right states
                 // Left state
-                Set::Scalar rho_L = p_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.DENS);
+                Set::Scalar rho_L = Left_arr(index[0], index[1], index[2], solver->variableIndex.DENS);
                 rho_L = std::max(rho_L, 1e-8);  // Avoid zero density
                 
-                Set::Scalar e_L = p_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE);
-                Set::Scalar pressure_L = pres_arr(left_index[0], left_index[1], left_index[2]);
+                Set::Scalar e_L = Left_arr(index[0], index[1], index[2], solver->variableIndex.IE);
+                Set::Scalar pressure_L = pres_arr(index[0], index[1], index[2]);
                 pressure_L = std::max(pressure_L, 1e-8);  // Avoid zero pressure
                 
                 Set::Scalar vel_L[3] = {0.0, 0.0, 0.0};
-                vel_L[normal] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[normal]);
+                vel_L[normal] = Left_arr(index[0], index[1], index[2], velocity_component[normal]);
 #if AMREX_SPACEDIM >= 2    
-                vel_L[trans1] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[trans1]);
+                vel_L[trans1] = Left_arr(index[0], index[1], index[2], velocity_component[trans1]);
 #endif
 #if AMREX_SPACEDIM == 3    
-                vel_L[trans2] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[trans2]);
+                vel_L[trans2] = Left_arr(index[0], index[1], index[2], velocity_component[trans2]);
 #endif
                 
                 // Right state
-                Set::Scalar rho_R = p_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.DENS);
+                Set::Scalar rho_R = Right_arr(index[0], index[1], index[2], solver->variableIndex.DENS);
                 rho_R = std::max(rho_R, 1e-8);  // Avoid zero density
                 
-                Set::Scalar e_R = p_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE);
-                Set::Scalar pressure_R = pres_arr(right_index[0], right_index[1], right_index[2]);
+                Set::Scalar e_R = Right_arr(index[0], index[1], index[2], solver->variableIndex.IE);
+                Set::Scalar pressure_R = pres_arr(index[0], index[1], index[2]);
                 pressure_R = std::max(pressure_R, 1e-8);  // Avoid zero pressure
                 
                 Set::Scalar vel_R[3] = {0.0, 0.0, 0.0};
-                vel_R[normal] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[normal]);
+                vel_R[normal] = Right_arr(index[0], index[1], index[2], velocity_component[normal]);
 #if AMREX_SPACEDIM >= 2    
-                vel_R[trans1] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[trans1]);
+                vel_R[trans1] = Right_arr(index[0], index[1], index[2], velocity_component[trans1]);
 #endif
 #if AMREX_SPACEDIM == 3    
-                vel_R[trans2] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[trans2]);
+                vel_R[trans2] = Right_arr(index[0], index[1], index[2], velocity_component[trans2]);
 #endif
                                 
                // Compute kinetic energy
@@ -650,21 +871,15 @@ public:
                 Set::Scalar HR = 0.5 * (1.0 + std::copysign(1.0, SR));  // H(SR)
                 
 
-                Set::Scalar weight_L = 0.5 * (1.0 + std::copysign(1.0, S_star));
-                Set::Scalar weight_R = 1.0 - weight_L;
-
-
                 for (int n = 0; n < num_components; ++n) {
                     // Branch-free HLLC flux calculation
-                    Set::Scalar hllc_flux = 
+                    Set::Scalar HLLC_flux = 
                         HL * FL[n] + 
                         (1.0 - HL) * HS * FL_star[n] + 
                         (1.0 - HS) * HR * FR_star[n] + 
                         (1.0 - HR) * FR[n];
-                    
-                    // Split fluxes for WENO reconstruction based on wave direction
-                    FluxPos_arr(index[0], index[1], index[2], n) = weight_L * hllc_flux;
-                    FluxNeg_arr(index[0], index[1], index[2], n) = weight_R * hllc_flux;
+
+                    TotalFlux_arr(index[0], index[1], index[2], n) = HLLC_flux;                    
                 }
             });
         }
