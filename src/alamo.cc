@@ -40,7 +40,7 @@ int main (int argc, char* argv[])
     // This input determines which integrator is used.
     pp.query_validate(  "alamo.program", program,
                         {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
-    srand(2 + amrex::ParallelDescriptor::MyProc());
+    srand(2);
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")
