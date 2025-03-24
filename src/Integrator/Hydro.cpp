@@ -494,7 +494,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
            
             Set::Scalar pressure = (gamma - 1.0)*(E(i,j,k) - pow(M(i,j,k,0), 2.0)/2.0/rho(i,j,k)) + pref;
             Set::Scalar soundspeed_sq = gamma*pressure/rho(i,j,k);
-            M_new(i, j, k, 0) = M(i, j, k, 0) - Source(i,j,k,0)*dt/rho(i,j,k)*gamma*pressure/M(i,j,k,0)*dt  +
+            M_new(i, j, k, 0) = M(i, j, k, 0) + //- Source(i,j,k,0)*dt/rho(i,j,k)*gamma*pressure/M(i,j,k,0)*dt  +
                 ( 
                     dMxf_dt + 
                     // todo add dMs_dt term if want time-evolving Ms

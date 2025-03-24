@@ -1,6 +1,6 @@
 ### OUTPUT ###
 
-plot_file = output.mass_source_sharp
+plot_file = output.momentum_source_sharp
 
 ### MESHING ###
 
@@ -98,11 +98,11 @@ pf.eta.bc.val.zhi = 0.0
 
 ### HYDRO BC ###
 
-density.bc.type.xhi = dirichlet
+density.bc.type.xhi = neumann
 density.bc.type.xlo = neumann
 density.bc.type.ylo = neumann
 density.bc.type.yhi = neumann
-density.bc.val.xhi = 1.25
+density.bc.val.xhi = 0.0
 density.bc.val.xlo = 0.0
 density.bc.val.ylo = 0.0 
 density.bc.val.yhi = 0.0
@@ -117,11 +117,11 @@ energy.bc.val.ylo = 0.0
 energy.bc.val.yhi = 0.0
 
 momentum.bc.type.xlo = neumann neumann
-momentum.bc.type.xhi = neumann neumann
+momentum.bc.type.xhi = dirichlet neumann
 momentum.bc.type.ylo = neumann dirichlet
 momentum.bc.type.yhi = neumann dirichlet
 momentum.bc.val.xlo = 0.0 0.0
-momentum.bc.val.xhi = 0.0 0.0
+momentum.bc.val.xhi = -0.1 0.0
 momentum.bc.val.ylo = 0.0 0.0
 momentum.bc.val.yhi = 0.0 0.0
 
