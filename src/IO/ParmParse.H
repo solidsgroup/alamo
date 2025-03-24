@@ -407,7 +407,73 @@ public:
             add(name.c_str(),defaultvalue);
         }
         return queryarr(name.c_str(),value);
-    } 
+    }
+
+    template <typename T>
+    int
+    queryclass_enumerate(std::string a_name, std::vector<T> &value, int number = 1)
+    {
+        value.clear();
+
+        //
+        // If only one is present with no subscript, then read
+        // it only and return.
+        //
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            for (int n = 0; n < number; n++)
+            {
+                T tmp;
+                this->queryclass<T>(name, tmp);
+                value.push_back(tmp);
+            }
+            return 0;
+        }
+
+        //
+        // Some logic to determine whether we are starting with zero
+        // (model0, model1, model2, ...)
+        // or one
+        // (model1, model2, model3, ...)
+        // since both are supported
+        //
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+        }
+
+        //
+        // Iterate over items called (model0), model1, model2, etc
+        // until no more are found then exit. 
+        //
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            if (this->contains(name.c_str()))
+            {
+                T tmp;
+                this->queryclass<T>(name, tmp);
+                value.push_back(tmp);
+            }
+            name = a_name + std::to_string(cntr+1);
+        }
+
+        return 0;
+    }
+
 
     int AnyUnusedInputs()
     {
