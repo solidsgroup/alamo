@@ -180,7 +180,9 @@ public:
                     Set::Scalar flux_div = 0.0;
                     Set::Scalar xflux_right = 0.0, xflux_left = 0.0;
                     Set::Scalar yflux_top = 0.0, yflux_bottom = 0.0;
+#if (AMREX_SPACEDIM == 3)
                     Set::Scalar zflux_front = 0.0, zflux_back = 0.0;
+#endif
 
                     // X-direction flux divergence
                         xflux_right = xflux_arr(i, j, k, n);  // Right face flux

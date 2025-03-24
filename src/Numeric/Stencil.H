@@ -1151,8 +1151,9 @@ VectorToField(const amrex::Array4<Set::Scalar>& f,
 }
 
 
-[[nodiscard]] AMREX_FORCE_INLINE
-void MultiVectorToField(const amrex::Array4<Set::Scalar>& f,
+AMREX_FORCE_INLINE
+void 
+MultiVectorToField(const amrex::Array4<Set::Scalar>& f,
     const int& i, const int& j, const int& k,
     const Set::MultiVector vector, const int num_components)
 {

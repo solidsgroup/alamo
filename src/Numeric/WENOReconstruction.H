@@ -74,7 +74,7 @@ struct DifferenceOperator {
  */
 struct WENOJS3Traits {
     static constexpr int OrderValue = 3;
-    static constexpr Set::Scalar Epsilon = 1.0e-6;  // Small parameter to avoid division by zero
+    static constexpr Set::Scalar Epsilon = 1.0e-40;  // Small parameter to avoid division by zero
     static constexpr int NumCandidateStencils = 2;  // Number of candidate stencils
     static constexpr int PointsPerStencil = 2;      // Points per candidate stencil
     static constexpr int TotalPoints = 3;           // Total points in the full stencil
@@ -446,7 +446,7 @@ public:
         
         // Debug call for the final reconstruction
         Util::ScimitarX_Util::Debug::DebugWENOReconstruction(
-            i, j, k, candidate_fluxes, weights, 
+            i, j, k, candidate_fluxes, 
             Traits::GetOptimalWeights(), reconstructed_value,
             enableDebug
         );
@@ -581,7 +581,7 @@ public:
         
         // Debug call for the final reconstruction
         Util::ScimitarX_Util::Debug::DebugWENOReconstruction(
-            i, j, k, candidate_fluxes, weights, 
+            i, j, k, candidate_fluxes, 
             Traits::GetOptimalWeights(), reconstructed_value,
             enableDebug
         );
@@ -623,7 +623,7 @@ public:
      * @param QL_stencil MultiFab to store left-biased reconstructed values
      * @param QR_stencil MultiFab to store right-biased reconstructed values
      */
-    void ReconstructFlux(
+    void ReconstructFluxes(
         int direction, 
         int /*lev*/, 
         IntegratorDerivedClass* solver,
@@ -712,7 +712,7 @@ public:
 
 void ReconstructVariables(
     int direction, 
-    int lev, 
+    int /*lev*/, 
     IntegratorDerivedClass* solver,
     const amrex::MultiFab& VariableBuffer,
     amrex::MultiFab& LeftStates, 
@@ -825,11 +825,6 @@ void ReconstructVariables(
         });
     }
 }
-
-
-
-
-
 
 };
 

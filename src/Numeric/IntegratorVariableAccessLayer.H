@@ -64,6 +64,25 @@ public:
         const SolverCapabilities::MethodValidationResult& validationResult
     ) const = 0;
 
+    // Enhanced variable transformation methods for reconstructed states
+    virtual void ReverseTransformVariables(
+        int direction, 
+        int lev, 
+        void* solver, 
+        amrex::MultiFab& LeftStates,
+        amrex::MultiFab& RightStates,
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult
+    ) const = 0;
+    
+    // Store directional flux to appropriate arrays
+    virtual void StoreDirectionalFlux(
+        int direction,
+        int lev, 
+        void* solver, 
+        amrex::MultiFab& SummedFlux
+    ) const = 0;
+    
     // More comprehensive ghost cell management
     virtual int getRequiredGhostCells(
         ReconstructionMode mode, 
@@ -151,6 +170,23 @@ public:
         const SolverCapabilities::MethodValidationResult& validationResult
     ) const override;
 
+    void ReverseTransformVariables(
+        int direction, 
+        int lev, 
+        void* solver_void,
+        amrex::MultiFab& LeftStates,
+        amrex::MultiFab& RightStates,
+        ReconstructionMode mode, 
+        const SolverCapabilities::MethodValidationResult& validationResult
+    ) const override;
+
+    void StoreDirectionalFlux(
+        int direction,
+        int lev, 
+        void* solver_void,
+        amrex::MultiFab& SummedFlux
+    ) const override;
+
     int getRequiredGhostCells(
         ReconstructionMode mode, 
         FluxReconstructionType reconstructionType
@@ -206,15 +242,9 @@ private:
         int direction, 
         int lev, 
         const Integrator::ScimitarX* solver,
-        amrex::MultiFab& SummedFlux 
+        amrex::MultiFab& input_mf 
     ) const;
 
-    void FromConservative(
-        int direction, 
-        int lev, 
-        const Integrator::ScimitarX* solver,
-        amrex::MultiFab& SummedFlux 
-    ) const;
 
     // Companion method for matrix transformations
     AMREX_GPU_DEVICE AMREX_FORCE_INLINE
@@ -229,7 +259,6 @@ private:
         const Set::MultiVector& W, 
         int direction, int num_components
     );
-
 
     ReconstructionMode current_mode;
     int total_ghost_cells;

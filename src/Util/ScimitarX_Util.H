@@ -608,7 +608,6 @@ public:
         static void DebugWENOReconstruction(
             int i, int j, int k,
             const FluxArray& candidateFluxes,
-            const std::array<Set::Scalar, 3>& weights,
             const Set::MultiVector& optimalWeights,
             Set::Scalar reconstructedValue,
             bool enableDebug = false

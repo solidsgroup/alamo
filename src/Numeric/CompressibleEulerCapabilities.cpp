@@ -8,7 +8,6 @@ SolverCapabilities::MethodSupport
 CompressibleEulerCapabilities::supportsFluxReconstruction(FluxReconstructionType method) const {
     switch(method) {
         case FluxReconstructionType::FirstOrder:
-            return MethodSupport::Supported();
         case FluxReconstructionType::WENO:
             return MethodSupport::Supported();
         default:
@@ -23,7 +22,6 @@ SolverCapabilities::MethodSupport
 CompressibleEulerCapabilities::supportsFluxScheme(FluxScheme scheme) const {
     switch(scheme) {
         case FluxScheme::LocalLaxFriedrichs:
-            return MethodSupport::Supported();
         case FluxScheme::HLLC:
             return MethodSupport::Supported();
         default:
@@ -67,15 +65,13 @@ SolverCapabilities::MethodSupport
 CompressibleEulerCapabilities::supportsWenoVariant(WenoVariant variant) const {
     switch(variant) {
         case WenoVariant::WENOJS5:
-            return MethodSupport::Supported();
         case WenoVariant::WENOZ5:
-            return MethodSupport::Supported();
         case WenoVariant::WENOJS3:
             return MethodSupport::Supported();
         default:
             return MethodSupport::Unsupported(
                 {"Unsupported WENO variant"},
-                {"Use WENOJS5 or WENOZ5"}
+                {"Use WENOJS5 or WENOZ5 or WENOJS3"}
             );
     }
 }
@@ -84,22 +80,24 @@ SolverCapabilities::MethodValidationResult
 CompressibleEulerCapabilities::validateMethodCombination(
     FluxReconstructionType fluxReconstruction,
     FluxScheme fluxScheme,
-    TimeSteppingSchemeType timeSteppingScheme,
+    TimeSteppingSchemeType timeSteppingScheme [[maybe_unused]],
     ReconstructionMode reconstructionMode,
-    WenoVariant wenoVariant) const 
-{
+    WenoVariant wenoVariant [[maybe_unused]]
+    ) const {
+
+
     MethodValidationResult result;
     result.isValid = true;
-
-    // Add specific validation logic here
-   /* if (fluxReconstruction == FluxReconstructionType::WENO && 
-        fluxScheme == FluxScheme::HLLC) {
+                
+    // Check for unsupported Primitive reconstruction mode with certain flux schemes
+    if ((fluxScheme == FluxScheme::HLLC || fluxScheme == FluxScheme::LocalLaxFriedrichs) &&
+        reconstructionMode == ReconstructionMode::Primitive) {
         result.isValid = false;
         result.warnings.push_back(
-            "WENO reconstruction with HLLC flux might be numerically unstable"
+        "No implementation of primitive variable reconstruction is available for HLLC or Local Lax-Friedrichs flux schemes."
         );
-    }*/
-
+    }
+        
     return result;
 }
 
@@ -107,7 +105,7 @@ SolverCapabilities::DefaultConfiguration
 CompressibleEulerCapabilities::getDefaultConfiguration() const {
     return {
         FluxReconstructionType::WENO,
-        FluxScheme::LocalLaxFriedrichs,
+        FluxScheme::HLLC,
         TimeSteppingSchemeType::RK3,
         ReconstructionMode::Characteristic,
         WenoVariant::WENOJS5

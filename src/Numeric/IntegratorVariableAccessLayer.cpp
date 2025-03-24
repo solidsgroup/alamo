@@ -1,4 +1,5 @@
 #include "Numeric/IntegratorVariableAccessLayer.H"
+#include "Numeric/SymmetryPreservingRoeAveragingOperations.H"
 #include "Integrator/ScimitarX.H"
 #include "Numeric/Stencil.H"
 
@@ -14,126 +15,7 @@ CompressibleEulerVariableAccessor::CompressibleEulerVariableAccessor(
 std::shared_ptr<SolverCapabilities> 
 CompressibleEulerVariableAccessor::getSolverCapabilities() const {
     // Create a detailed solver capabilities object for Compressible Euler solver
-    class CompressibleEulerCapabilities : public SolverCapabilities {
-    public:
-        std::string getIdentifier() const override { 
-            return "CompressibleEuler"; 
-        }
-
-        std::string getDescription() const override { 
-            return "Compressible Euler Equations Solver"; 
-        }
-
-        MethodSupport supportsFluxReconstruction(FluxReconstructionType method) const override {
-            switch(method) {
-                case FluxReconstructionType::FirstOrder:
-                    return MethodSupport::Supported();
-                case FluxReconstructionType::WENO:
-                    return MethodSupport::Supported();
-                default:
-                    return MethodSupport::Unsupported(
-                        {"Unsupported reconstruction method"},
-                        {"Use FirstOrder or WENO reconstruction"}
-                    );
-            }
-        }
-
-        MethodSupport supportsFluxScheme(FluxScheme scheme) const override {
-            switch(scheme) {
-                case FluxScheme::LocalLaxFriedrichs:
-                    return MethodSupport::Supported();
-                case FluxScheme::HLLC:
-                    return MethodSupport::Supported();
-                default:
-                    return MethodSupport::Unsupported(
-                        {"Unknown flux scheme"},
-                        {"Use standard flux methods"}
-                    );
-            }
-        }
-
-        MethodSupport supportsTimeSteppingScheme(TimeSteppingSchemeType scheme) const override {
-            switch(scheme) {
-                case TimeSteppingSchemeType::ForwardEuler:
-                case TimeSteppingSchemeType::RK3:
-                    return MethodSupport::Supported();
-                default:
-                    return MethodSupport::Unsupported(
-                        {"Unsupported time stepping scheme"},
-                        {"Use ForwardEuler or RK3"}
-                    );
-            }
-        }
-
-        MethodSupport supportsReconstructionMode(ReconstructionMode mode) const override {
-            switch(mode) {
-                case ReconstructionMode::Primitive:
-                case ReconstructionMode::Conservative:
-                case ReconstructionMode::Characteristic:
-                    return MethodSupport::Supported();
-                default:
-                    return MethodSupport::Unsupported(
-                        {"Unsupported reconstruction mode"},
-                        {"Use Primitive, Conservative, or Characteristic"}
-                    );
-            }
-        }
-
-        MethodSupport supportsWenoVariant(WenoVariant variant) const override {
-            switch(variant) {
-                case WenoVariant::WENOJS5:
-                case WenoVariant::WENOZ5:
-                    return MethodSupport::Supported();
-                default:
-                    return MethodSupport::Unsupported(
-                        {"Unsupported WENO variant"},
-                        {"Use WENOJS5 or WENOZ5"}
-                    );
-            }
-        }
-
-        MethodValidationResult validateMethodCombination(
-            FluxReconstructionType fluxReconstruction,
-            FluxScheme fluxScheme,
-            TimeSteppingSchemeType timeSteppingScheme,
-            ReconstructionMode reconstructionMode,
-            WenoVariant wenoVariant = WenoVariant::WENOJS5
-        ) const override {
-            MethodValidationResult result;
-            result.isValid = true;
-
-            // Add specific validation logic here
-            if (fluxReconstruction == FluxReconstructionType::WENO && 
-                fluxScheme == FluxScheme::HLLC) {
-                result.isValid = false;
-                result.warnings.push_back(
-                    "WENO reconstruction with HLLC flux might be numerically unstable"
-                );
-            }
-
-            return result;
-        }
-
-        DefaultConfiguration getDefaultConfiguration() const override {
-            return {
-                FluxReconstructionType::WENO,
-                FluxScheme::LocalLaxFriedrichs,
-                TimeSteppingSchemeType::RK3,
-                ReconstructionMode::Primitive,
-                WenoVariant::WENOJS5
-            };
-        }
-
-        std::shared_ptr<GenericVariableAccessor> createVariableAccessor(
-            ReconstructionMode mode,
-            int numGhostCells = 2
-        ) const override {
-            return std::make_shared<CompressibleEulerVariableAccessor>(
-                numGhostCells, mode);
-        }
-    };
-
-    return std::make_shared<CompressibleEulerCapabilities>();
+    return std::make_shared<CompressibleEuler::CompressibleEulerCapabilities>();
 }
 
 amrex::MultiFab 
@@ -157,7 +39,7 @@ CompressibleEulerVariableAccessor::CreateWorkingBuffer(
 
 int 
 CompressibleEulerVariableAccessor::getRequiredGhostCells(
-    ReconstructionMode mode, 
+    ReconstructionMode mode [[maybe_unused]], 
     FluxReconstructionType reconstructionType
 ) const {
     switch(reconstructionType) {
@@ -173,13 +55,14 @@ CompressibleEulerVariableAccessor::getRequiredGhostCells(
 
 // Add these implementations to IntegratorVariableAccessLayer.cpp
 
-void CompressibleEulerVariableAccessor::TransformVariables(
+void 
+CompressibleEulerVariableAccessor::TransformVariables(
     int direction,
     int lev, 
     void* solver_void,
     amrex::MultiFab& VariableBuffer,
     ReconstructionMode mode, 
-    const SolverCapabilities::MethodValidationResult& validationResult
+    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
 ) const {
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
@@ -207,13 +90,14 @@ void CompressibleEulerVariableAccessor::TransformVariables(
     }
 }
 
-void CompressibleEulerVariableAccessor::TransformFluxes(
+void 
+CompressibleEulerVariableAccessor::TransformFluxes(
     int direction,
     int lev, 
     void* solver_void,
     amrex::MultiFab& CellFluxBuffer,
     ReconstructionMode mode, 
-    const SolverCapabilities::MethodValidationResult& validationResult
+    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
 ) const {
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
@@ -241,13 +125,15 @@ void CompressibleEulerVariableAccessor::TransformFluxes(
     }
 }
 
-void CompressibleEulerVariableAccessor::ReverseTransformFluxes(
+void 
+CompressibleEulerVariableAccessor::ReverseTransformVariables(
     int direction,
     int lev,
     void* solver_void,
-    amrex::MultiFab& SummedFlux,
+    amrex::MultiFab& LeftStates,
+    amrex::MultiFab& RightStates,
     ReconstructionMode mode, 
-    const SolverCapabilities::MethodValidationResult& validationResult
+    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
 ) const {
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
@@ -260,7 +146,42 @@ void CompressibleEulerVariableAccessor::ReverseTransformFluxes(
             
         case ReconstructionMode::Conservative:
             // Transform from Conservative to Primitive
-            FromConservative(direction, lev, solver, SummedFlux);
+            //FromConservative(direction, lev, solver, SummedFlux);
+            break;
+            
+        case ReconstructionMode::Characteristic:
+            // Transform from characteristic variables back to primitive/conservative
+            FromCharacteristic(direction, lev, solver, LeftStates);
+            FromCharacteristic(direction, lev, solver, RightStates);
+            break;
+            
+        default:
+            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
+    }
+}
+
+
+void 
+CompressibleEulerVariableAccessor::ReverseTransformFluxes(
+    int direction,
+    int lev,
+    void* solver_void,
+    amrex::MultiFab& SummedFlux,
+    ReconstructionMode mode, 
+    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
+) const {
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    
+    // Handle different reconstruction modes
+    switch(mode) {
+        case ReconstructionMode::Primitive:
+            // No transformation needed - the reconstructed values are already primitive
+            break;
+            
+        case ReconstructionMode::Conservative:
+            // Transform from Conservative to Primitive
+            //FromConservative(direction, lev, solver, SummedFlux);
             break;
             
         case ReconstructionMode::Characteristic:
@@ -273,7 +194,7 @@ void CompressibleEulerVariableAccessor::ReverseTransformFluxes(
     }
 }
 
-void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
+/*void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
     int lev,
     Integrator::ScimitarX* solver,
     amrex::MultiFab& VariableBuffer
@@ -288,10 +209,42 @@ void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
     );
 
     VariableBuffer.FillBoundary();
+}*/
+
+void 
+CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& VariableBuffer
+) const {
+    // Loop through all valid regions of the MultiFab
+    for (amrex::MFIter mfi(VariableBuffer); mfi.isValid(); ++mfi) {
+        const amrex::Box& box = mfi.validbox();
+        
+        // Get data arrays for the primitive variables, pressure, and the destination buffer
+        auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);   // Primitive variables
+        auto const& press_arr = solver->Pressure_mf.Patch(lev, mfi); // Pressure
+        auto var_arr = VariableBuffer.array(mfi);             // Destination buffer
+        
+        // Get number of components
+        int num_components = solver->number_of_components;
+        
+        // Parallel loop over the valid box
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            // Copy primitive variables (density, velocity components)
+            for (int n = 0; n < num_components - 1; ++n) {
+                var_arr(i, j, k, n) = p_arr(i, j, k, n);
+            }
+            
+            // Copy pressure as the last component
+            var_arr(i, j, k, num_components - 1) = press_arr(i, j, k);
+        });
+    }
 }
 
 
-void CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
+void 
+CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
     int lev,
     Integrator::ScimitarX* solver,
     amrex::MultiFab& VariableBuffer
@@ -308,6 +261,7 @@ void CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffe
     VariableBuffer.FillBoundary();
 }
 
+
 /*void CompressibleEulerVariableAccessor::CopyPrimitiveFluxVariablesToWorkingBuffer(
     int direction,    
     int lev,
@@ -319,7 +273,8 @@ void CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffe
     CellFluxBuffer.FillBoundary();
 }*/
 
-void CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
+void 
+CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
     int direction,    
     int lev,
     Integrator::ScimitarX* solver,
@@ -399,7 +354,8 @@ void CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
 
 }
 
-void CompressibleEulerVariableAccessor::ToCharacteristic(
+void 
+CompressibleEulerVariableAccessor::ToCharacteristic(
     int direction, 
     int lev, 
     const Integrator::ScimitarX* solver, 
@@ -420,8 +376,6 @@ void CompressibleEulerVariableAccessor::ToCharacteristic(
         int v_idx   = solver->variableIndex.VVEL;   // y-momentum
 #if AMREX_SPACEDIM == 3
         int w_idx   = solver->variableIndex.WVEL;   // z-momentum
-#else
-        int w_idx   = -1;                          // placeholder for 2D
 #endif
         
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
@@ -500,7 +454,8 @@ void CompressibleEulerVariableAccessor::ToCharacteristic(
 
             // Compute right eigenvector matrix
             Set::MultiMatrix L_n = ComputeLeftEigenvectorMatrix(Wavg, direction, num_components);
-                        
+
+
             // Create reordered conservative variables to match eigenvector matrix ordering
             Set::MultiVector U_reordered(num_components);
             U_reordered.setZero();
@@ -516,7 +471,8 @@ void CompressibleEulerVariableAccessor::ToCharacteristic(
 #endif
             U_reordered(4) = U_orig(ie_idx);  // energy
                         
-            Set::MultiVector W_vec_reordered = L_n * U_reordered;
+           // Use consistent matrix-vector multiplication
+            Set::MultiVector W_vec_reordered = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(L_n, U_reordered);
                                     
             // Unreordering
             W_arr(index[0], index[1], index[2], rho_idx) = W_vec_reordered(0);  // density 
@@ -532,12 +488,16 @@ void CompressibleEulerVariableAccessor::ToCharacteristic(
 }
 
 
-void CompressibleEulerVariableAccessor::FromConservative(
+void 
+CompressibleEulerVariableAccessor::StoreDirectionalFlux(
     int direction, 
     int lev, 
-    const Integrator::ScimitarX* solver,
+    void* solver_void,
     amrex::MultiFab& SummedFlux
 ) const {
+
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
 
     const int nghosts = solver->number_of_ghost_cells;
     const int num_components = solver->number_of_components; 
@@ -583,22 +543,23 @@ void CompressibleEulerVariableAccessor::FromConservative(
 
 }
 
-void CompressibleEulerVariableAccessor::FromCharacteristic(
+void 
+CompressibleEulerVariableAccessor::FromCharacteristic(
     int direction, 
     int lev, 
     const Integrator::ScimitarX* solver,
-    amrex::MultiFab& SummedFlux
+    amrex::MultiFab& WorkingBuffer
 ) const {
      
     const int nghosts = solver->number_of_ghost_cells;
 
 
-    for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(WorkingBuffer, false); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
-        auto const& TotalFlux_arr = SummedFlux.array(mfi);
-        auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
-                                 (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
-                                 solver->ZFlux_mf.Patch(lev, mfi);
+        auto const& in_arr = WorkingBuffer.array(mfi);
+       // auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
+       //                          (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+       //                          solver->ZFlux_mf.Patch(lev, mfi);
         auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
         //Characteristic Reconstruction is Performed through Fixed 5X5 Matrix
         //This works for both 2D and 3D. 
@@ -612,8 +573,6 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
         int v_idx = solver->variableIndex.VVEL;   // y-momentum
 #if AMREX_SPACEDIM == 3
         int w_idx = solver->variableIndex.WVEL;   // z-momentum
-#else
-        int w_idx = -1;                          // placeholder for 2D
 #endif
         
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
@@ -653,7 +612,7 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
             ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
     
             // Extract characteristic variables in original ordering
-            Set::MultiVector W_orig = Numeric::FieldToMultiVector(TotalFlux_arr, index[0], index[1], index[2], solver_components);
+            Set::MultiVector W_orig = Numeric::FieldToMultiVector(in_arr, index[0], index[1], index[2], solver_components);
 
 
             // Extract original Current Index primitive variables
@@ -711,45 +670,48 @@ void CompressibleEulerVariableAccessor::FromCharacteristic(
             W_reordered(3) = 0.0;
 #endif
             W_reordered(4) = W_orig(ie_idx);
-            
-                                    
-            // Convert to conservative variables (in reordered space)
-            Set::MultiVector U_reordered = R_n * W_reordered;
+                                                
+            // Use consistent matrix-vector multiplication
+            Set::MultiVector U_reordered = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(R_n, W_reordered);
                         
             // Unreordering and storing back in arrays
-            flux_arr(index[0], index[1], index[2], rho_idx) = U_reordered(0);
-            flux_arr(index[0], index[1], index[2], u_idx)   = U_reordered(1);
-            flux_arr(index[0], index[1], index[2], v_idx)   = U_reordered(2);
+            in_arr(index[0], index[1], index[2], rho_idx) = U_reordered(0);
+            in_arr(index[0], index[1], index[2], u_idx)   = U_reordered(1);
+            in_arr(index[0], index[1], index[2], v_idx)   = U_reordered(2);
 #if AMREX_SPACEDIM == 3
-            flux_arr(index[0], index[1], index[2], w_idx)   = U_reordered(3);
+            in_arr(index[0], index[1], index[2], w_idx)   = U_reordered(3);
 #endif
-            flux_arr(index[0], index[1], index[2], ie_idx)  = U_reordered(4);
+            in_arr(index[0], index[1], index[2], ie_idx)  = U_reordered(4);
             
         });
     }
 }
 
-Set::MultiMatrix 
+Set::MultiMatrix
 CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
     const Set::MultiVector& W, int dir, int num_components) {
     // Constants
     const Set::Scalar gamma = 1.4;
     const Set::Scalar g = gamma - 1.0;  // g = gamma - 1.0
-    
-    // Extract primitive variables from W    
+
+    // Extract primitive variables from W with consistent ordering
     const Set::Scalar u = W(1);
     const Set::Scalar v = W(2);
-    const Set::Scalar w = W(3) * (AMREX_SPACEDIM == 3 ? 1.0 : 0.0);
+    const Set::Scalar w = (num_components > 3 && AMREX_SPACEDIM == 3) ? W(3) : 0.0;
     const Set::Scalar H = W(4);  // Total enthalpy
 
-    // Derived quantities
-    const Set::Scalar Va = std::sqrt(u*u + v*v + w*w);  // Velocity magnitude
-    const Set::Scalar a = std::sqrt(g * (H - 0.5*Va*Va));  // Sound speed
-    
+    // Derived quantities with consistent ordering
+    // Use symmetry-preserving operations for velocity magnitude calculations
+    const Set::Scalar Va2 = Numeric::SymmetryPreserving::ConsistentVelocityMagnitudeSquared(u, v, w);
+
+    // Sound speed with consistent ordering
+    const Set::Scalar a2 = g * (H - 0.5*Va2);  // Sound speed squared
+    const Set::Scalar a = std::sqrt(a2);       // Sound speed
+
     // Initialize right eigenvector matrix
     Set::MultiMatrix R_n = Set::MultiMatrix::Zero(num_components, num_components);
-    
-    // Use switch for better GPU performance than if-else chain
+
+    // Fill matrix based on direction with consistent ordering of operations
     switch(dir) {
     case 0:  // X-direction
         // Column 1: First acoustic wave
@@ -758,28 +720,28 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
         R_n(2, 0) = v;
         R_n(3, 0) = w;
         R_n(4, 0) = H - u*a;
-        
+
         // Column 2: Entropy wave
         R_n(0, 1) = 1.0;
         R_n(1, 1) = u;
         R_n(2, 1) = v;
         R_n(3, 1) = w;
-        R_n(4, 1) = 0.5*Va*Va;
-        
+        R_n(4, 1) = 0.5*Va2;
+
         // Column 3: First shear wave
         R_n(0, 2) = 0.0;
         R_n(1, 2) = 0.0;
         R_n(2, 2) = 1.0;
         R_n(3, 2) = 0.0;
         R_n(4, 2) = v;
-        
+
         // Column 4: Second shear wave
         R_n(0, 3) = 0.0;
         R_n(1, 3) = 0.0;
         R_n(2, 3) = 0.0;
         R_n(3, 3) = 1.0;
         R_n(4, 3) = w;
-        
+
         // Column 5: Second acoustic wave
         R_n(0, 4) = 1.0;
         R_n(1, 4) = u + a;
@@ -787,7 +749,7 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
         R_n(3, 4) = w;
         R_n(4, 4) = H + u*a;
         break;
-        
+
     case 1:  // Y-direction
         // Column 1: First acoustic wave
         R_n(0, 0) = 1.0;
@@ -795,28 +757,28 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
         R_n(2, 0) = v - a;
         R_n(3, 0) = w;
         R_n(4, 0) = H - v*a;
-        
+
         // Column 2: First shear wave
         R_n(0, 1) = 0.0;
         R_n(1, 1) = 1.0;
         R_n(2, 1) = 0.0;
         R_n(3, 1) = 0.0;
         R_n(4, 1) = u;
-        
+
         // Column 3: Entropy wave
         R_n(0, 2) = 1.0;
         R_n(1, 2) = u;
         R_n(2, 2) = v;
         R_n(3, 2) = w;
-        R_n(4, 2) = 0.5*Va*Va;
-        
+        R_n(4, 2) = 0.5*Va2;
+
         // Column 4: Second shear wave
         R_n(0, 3) = 0.0;
         R_n(1, 3) = 0.0;
         R_n(2, 3) = 0.0;
         R_n(3, 3) = 1.0;
         R_n(4, 3) = w;
-        
+
         // Column 5: Second acoustic wave
         R_n(0, 4) = 1.0;
         R_n(1, 4) = u;
@@ -824,7 +786,7 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
         R_n(3, 4) = w;
         R_n(4, 4) = H + v*a;
         break;
-        
+
     case 2:  // Z-direction
         // Column 1: First acoustic wave
         R_n(0, 0) = 1.0;
@@ -832,28 +794,28 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
         R_n(2, 0) = v;
         R_n(3, 0) = w - a;
         R_n(4, 0) = H - w*a;
-        
+
         // Column 2: First shear wave
         R_n(0, 1) = 0.0;
         R_n(1, 1) = 1.0;
         R_n(2, 1) = 0.0;
         R_n(3, 1) = 0.0;
         R_n(4, 1) = u;
-        
+
         // Column 3: Second shear wave
         R_n(0, 2) = 0.0;
         R_n(1, 2) = 0.0;
         R_n(2, 2) = 1.0;
         R_n(3, 2) = 0.0;
         R_n(4, 2) = v;
-        
+
         // Column 4: Entropy wave
         R_n(0, 3) = 1.0;
         R_n(1, 3) = u;
         R_n(2, 3) = v;
         R_n(3, 3) = w;
-        R_n(4, 3) = 0.5*Va*Va;
-        
+        R_n(4, 3) = 0.5*Va2;
+
         // Column 5: Second acoustic wave
         R_n(0, 4) = 1.0;
         R_n(1, 4) = u;
@@ -862,11 +824,9 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
         R_n(4, 4) = H + w*a;
         break;
     }
-    
+
     return R_n;
 }
-
-
 
 Set::MultiMatrix 
 CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
@@ -875,22 +835,27 @@ CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
     const Set::Scalar gamma = 1.4;
     const Set::Scalar g = gamma - 1.0;  // g = gamma - 1.0
     
-    // Extract primitive variables from W    
+    // Extract primitive variables from W with consistent ordering
     const Set::Scalar u = W(1);
     const Set::Scalar v = W(2);
-    const Set::Scalar w = W(3) * (AMREX_SPACEDIM == 3 ? 1.0 : 0.0);
+    const Set::Scalar w = (num_components > 3 && AMREX_SPACEDIM == 3) ? W(3) : 0.0;
     const Set::Scalar H = W(4);  // Total enthalpy
 
-    // Derived quantities
-    const Set::Scalar Va = std::sqrt(u*u + v*v + w*w);  // Velocity magnitude
-    const Set::Scalar a = std::sqrt(g * (H - 0.5*Va*Va));  // Sound speed
-    const Set::Scalar a2 = a * a;
-    const Set::Scalar M = (0.5*g)/(a2);  // Scaling factor from Fortran code
+    // Derived quantities with consistent ordering using symmetry-preserving operations
+    // Use the consistent sum function for velocity magnitude calculation
+    const Set::Scalar Va2 = Numeric::SymmetryPreserving::ConsistentVelocityMagnitudeSquared(u, v, w);
+    
+    // Sound speed with consistent ordering
+    const Set::Scalar a2 = g * (H - 0.5*Va2);  // Sound speed squared
+    const Set::Scalar a = std::sqrt(a2);       // Sound speed
+    
+    // Scaling factor used in eigenvector computation
+    const Set::Scalar M = (0.5*g)/(a2);  // Scaling factor 
     
     // Initialize left eigenvector matrix
     Set::MultiMatrix L_n = Set::MultiMatrix::Zero(num_components, num_components);
     
-    // Use switch for better GPU performance than if-else chain
+    // Fill matrix based on direction with consistent ordering of operations
     switch(dir) {
     case 0:  // X-direction
         // Row 1: First acoustic wave - λ₁
@@ -1006,6 +971,7 @@ CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
     
     return L_n;
 }
+
     
 Set::MultiVector
 CompressibleEulerVariableAccessor::ComputeRoeAverages(
@@ -1013,40 +979,9 @@ CompressibleEulerVariableAccessor::ComputeRoeAverages(
     const Set::MultiVector& WR,
     int num_components)
 {
-        
-    const Set::Scalar gamma = 1.4;  // Ratio of specific heats (hardcoded for now)
-    Set::Scalar Va_L = std::sqrt(WL(1)*WL(1) + WL(2)*WL(2) + WL(3)*WL(3));
-    Set::Scalar p_L = (gamma - 1.0) * WL(0) * WL(4);
-    Set::Scalar c_L = std::sqrt(gamma * p_L / WL(0));  // Sound speed
-    Set::Scalar h_L = 0.5*Va_L*Va_L + c_L*c_L/(gamma - 1.0);  // Specific enthalpy
-        
-    Set::Scalar Va_R = std::sqrt(WR(1)*WR(1) + WR(2)*WR(2) + WR(3)*WR(3));
-    Set::Scalar p_R = (gamma - 1.0) * WR(0) * WR(4);
-    Set::Scalar c_R = std::sqrt(gamma * p_R / WR(0));  // Sound speed
-    Set::Scalar h_R = 0.5*Va_R*Va_R + c_R * c_R / (gamma - 1.0);  // Specific enthalpy
-    
-    // Compute Roe weights
-    Set::Scalar sqrt_rho_L = std::sqrt(WL(0));
-    Set::Scalar sqrt_rho_R = std::sqrt(WR(0));
-    Set::Scalar inv_sqrt_sum = 1.0 / (sqrt_rho_L + sqrt_rho_R);
-
-    Set::MultiVector W_avg(num_components);
-    W_avg.setZero();
-    
-    // Compute Roe-averaged values using weighting formula
-    W_avg(0) = sqrt_rho_L * sqrt_rho_R;  // Roe-averaged density (geometric mean)
-    W_avg(1) = (sqrt_rho_L * WL(1) + sqrt_rho_R * WR(1)) * inv_sqrt_sum;  // X-velocity
-    W_avg(2) = (sqrt_rho_L * WL(2) + sqrt_rho_R * WR(2)) * inv_sqrt_sum;  // Y-velocity
-    W_avg(3) = (sqrt_rho_L * WL(3) + sqrt_rho_R * WR(3)) * inv_sqrt_sum;  // Z-velocity
-    
-    // Compute Roe-averaged enthalpy and use it to derive sound speed and internal energy
-    Set::Scalar h_avg = (sqrt_rho_L * h_L + sqrt_rho_R * h_R) * inv_sqrt_sum;
-    
-    // Store total enthalpy
-    W_avg(4) = h_avg;
-    
-    return W_avg;
-}
+    // Simply delegate to the symmetry-preserving templated implementation
+    return Numeric::SymmetryPreserving::ConsistentRoeAverage(WL, WR, num_components);
+}        
 
 } // namespace CompressibleEuler
 

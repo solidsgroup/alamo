@@ -1,5 +1,5 @@
 # Simulation output
-plot_file = output_test_LLF_Characteristic_WENO_RK3
+plot_file = output_LLF_Characteristic_WENO_RK3
 
 # Simulation length
 timestep = 0.001
@@ -23,7 +23,7 @@ geometry.is_periodic = 0 0 0
 SolverType = SolveCompressibleEuler
 
 #cflNumber
-cflNumber = 0.5
+cflNumber = 0.3
 
 #TimeSteppingScheme
 TimeSteppingScheme = RK3
