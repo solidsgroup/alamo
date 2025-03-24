@@ -95,19 +95,11 @@ public:
 
         // Elasticity
         pp_query_default("mechanics.tstart",value.mechanics.tstart, 0.0);
-        value.mechanics.model.clear();
-        value.mechanics.model.resize(value.number_of_grains,model_type::Zero());
-        for (int i=0; i < value.number_of_grains; i++)
-        {
-            // By default, read in the model specified by "mechanics.model"
-            if (pp.getEntries("mechanics.model").size())
-            pp_queryclass("mechanics.model", value.mechanics.model[i]);
 
-            // If individual models are specified, read those in and overwrite
-            std::string name = "mechanics.model" + std::to_string(i+1);
-            if (pp.getEntries(name).size())
-                pp_queryclass(std::string(name.data()), value.mechanics.model[i]);
-        }
+        // Read in models - either one model for all grains, or
+        // individual models, one for each grain.
+        pp.queryclass_enumerate("mechanics.model",value.mechanics.model, value.number_of_grains);
+        
         // Mixing order 
         pp_query_validate("mechanics.mix_order",value.mechanics.model_mix_order,{1,2});
         // Force Neumann BCs on the model

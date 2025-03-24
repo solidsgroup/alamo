@@ -271,6 +271,49 @@ def extract(basefilename):
                 input["class"] = match[0][0].replace(' ','') 
                 input["string"] = match[0][1].replace(' ','')
                 input["doc"] = match[0][2]
+                input["file"] = filename
+                input["line"] = i+1
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                rets.append(input)
+                continue
+
+            # Catch a query_enumerate
+            match = re.findall(r'pp\.query_enumerate\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = "query_enumerate"
+                input["string"] = match[0][0].replace(' ','')
+                input["doc"] = match[0][1]
+                input["file"] = filename
+                input["line"] = i+1
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                rets.append(input)
+                continue
+
+            # Catch a queryclass_enumerate
+            match = re.findall(r'pp\.queryclass_enumerate<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            if match:
+                input = dict()
+                input["type"] = "queryclass_enumerate"
+                input["class"] = match[0][0].replace(' ','') 
+                input["string"] = match[0][1].replace(' ','')
+                input["doc"] = match[0][2]
+                input["file"] = filename
+                input["line"] = i+1
 
                 # Check if previous lines have simple comments. Ignores "///" comments and
                 # any comment beginning with [

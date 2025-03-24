@@ -139,23 +139,22 @@ public:
 
     static void Parse(Expression& value, IO::ParmParse& pp)
     {
-        for (int i = 0; true; i++)
+
+        std::string coordstr = "";
+        // coordinate system to use
+        pp_query_validate("coord", coordstr, {"cartesian","polar"}); 
+        if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
+        else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
+        else Util::Abort(INFO, "unsupported coordinates ", coordstr);
+
+        std::vector<std::string> expression_strs;
+        // Mathematical expression in terms of x,y,z,t (if coord=cartesian)
+        // or r,theta,z,t (if coord=polar) and any defined constants.
+        pp.query_enumerate("region", expression_strs);
+
+        for (unsigned int i = 0; i < expression_strs.size(); i++)
         {
-            std::string coordstr = "cartesian";
-            // coordinate system to use: "cartesian" (for x,y,z,t) and 
-            // "polar" (for r, theta, z, t)
-            pp_query("coord", coordstr); 
-            if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
-            else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
-            else Util::Abort(INFO, "unsupported coordinates ", coordstr);
-
-            std::string func = "0.0";
-            std::string name = "region" + std::to_string(i);
-
-            if (!pp.contains(name.data())) break;
-            pp_query(name.data(), func);
-
-            value.parser.push_back(amrex::Parser(func));
+            value.parser.push_back(amrex::Parser(expression_strs[i]));
 
             //
             // Read in user-defined constants and add them to the parser

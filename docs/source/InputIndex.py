@@ -86,7 +86,12 @@ class HTMLPrinter:
         self.intable=False
     def printinput(self,input,prefix,lev,classes=[]):
         if input['string']:
+
             name = f'.'.join(prefix + [input['string']])
+
+            if input['type'] in ["query_enumerate"]:
+                name += "#"
+
             input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
             bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
             bdg_primary   = "sd-sphinx-override sd-badge sd-outline-primary sd-text-primary"
@@ -114,33 +119,39 @@ class HTMLPrinter:
             if input['type'] in ["query","queryarr"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
                 msg = "Input does not have default or requirement indicator and may be undefind if not specified."
-                print(self.mypr,"  "*lev,f"    <p><span title='{msg}' class='fas fa-exclamation-triangle fa-fw'></span> </p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span title='{msg}' class='fas fa-exclamation-triangle fa-fw'></span>", file=self.f)
+                print(self.mypr,"  "*lev,f"  </td>", file=self.f)
+
+            if input['type'] in ["query_enumerate"]:
+                print(self.mypr,"  "*lev,f"  <td>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_secondary}'> # = 0,1,2,...</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
             if input['type'] in ["query_required","queryarr_required"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-                print(self.mypr,"  "*lev,f"    <p><span class='{bdg_danger}'>required</span></p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_danger}'>required</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
                 
             if input['type'] in ["query_file"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-                print(self.mypr,"  "*lev,f"    <p><span class='{bdg_secondary}'>file path</span></p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_secondary}'>file path</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
 
             if input['type'] in ["query_default","queryarr_default"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-                print(self.mypr,"  "*lev,f"    <p><span class='{bdg_success}'>{input['default']}</span></p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_success}'>{input['default']}</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
             if input['type'] in ["query_validate"]:
                 things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
-                print(self.mypr,"  "*lev,f"  <td><p>", file=self.f)
+                print(self.mypr,"  "*lev,f"  <td>", file=self.f)
                 print(self.mypr,"  "*lev,f"    <span class='{bdg_success}'>{things[0]}</span>", file=self.f)
                 for thing in things[1:]:
                     print(self.mypr,"  "*lev,f"    <span class='{bdg_primary}'>{thing}</span>", file=self.f)
-                print(self.mypr,"  "*lev,f"  </p></td>", file=self.f)
+                print(self.mypr,"  "*lev,f"  </td>", file=self.f)
             
+
 
             print(self.mypr,"  "*lev,f"</tr>", file=self.f)
 
