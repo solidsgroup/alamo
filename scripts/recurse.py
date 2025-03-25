@@ -119,8 +119,7 @@ def recurse(root,srcfile,printer=DefaultPrinter(),f=None):
                 getInputs(root,subclassname.replace("::","/"), prefix + [input['string']+r'#'], subclasstemplates, lev)
 
             else:
-                if 'string' in input:
-                    printer.printinput(input,prefix,lev)    
+                printer.printinput(input,prefix,lev)    
 
     printer.starttable()
 

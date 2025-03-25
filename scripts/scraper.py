@@ -154,6 +154,28 @@ def extract(basefilename):
                 rets.append(query)
                 continue
 
+            # Catch standard pp.query_validate
+            match = re.findall(r'pp\s*\.\s*query_exactly\s*<\s*(\d+)\s*>\s*\(\s*\{([^}]*)\}\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?',line)
+            if match:
+                query = dict()
+                query["type"] = "query_exactly"
+                query["number"] = match[0][0]
+                query["possibles"] = match[0][1]
+                query["doc"] = match[0][2]
+                query["file"] = filename
+                query["line"] = i+1
+                query["default"] = True
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if match: query["doc"] = match[0] + " " + query["doc"]
+                    else: break
+                rets.append(query)
+                continue
+
+
             # Catch pp.queryclass inputs
             match = re.findall(r'^\s*pp.queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*,*\s*[INFO]*\s*\);\s*(?:\/\/\s*(.*)$)?',line)
             if match:
@@ -174,11 +196,16 @@ def extract(basefilename):
                 rets.append(queryclass)
                 continue
 
-            # Catch definition of a Parser function.
-            if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
-                if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
-                parsefn = True
+            # # Catch definition of a Parser function.
+            # if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
+            #    if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
+            #    parsefn = True
 
+
+            ## Catch definition of a Parser function.
+            #if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
+            #    if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
+            #    parsefn = True
 
             # Catch definition of a select function:
 

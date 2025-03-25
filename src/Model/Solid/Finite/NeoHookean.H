@@ -142,27 +142,40 @@ public:
     }
     static void Parse(NeoHookean& value, IO::ParmParse& pp)
     {
-        //Set::Scalar mu = NAN, kappa = NAN;
-        if (pp.contains("shear") && pp.contains("kappa")) {
-            pp_query("shear", value.mu); // Shear modulus
-            pp_query("kappa", value.kappa); // Bulk modulus
+
+        std::pair<std::string, Set::Scalar> moduli[2];
+
+        pp.forbid("lame","Use 'lambda' instead for lame constant");
+        pp.forbid("shear","Use 'mu' instead for shear modulus");
+        pp.forbid("bulk","Use 'K' instead for bulk modulus");
+
+        // Lame constant \(\lambda\),
+        // shear modulus \(\mu\), Young's modulus \(E\), Poisson's ratio \(\nu\),
+        // bulk modulus \(K\).
+        // You can currently specify (mu and kappa), (lambda and mu), or (E and nu).
+        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli);
+
+
+        if (moduli[0].first == "mu" && moduli[1].first == "kappa")
+        {
+            value.mu = moduli[0].second;
+            value.kappa =  moduli[1].second;
         }
-        else if (pp.contains("mu") && pp.contains("kappa")) {
-            pp_query("mu", value.mu); // Alternative input for shear modulus
-            pp_query("kappa", value.kappa); // Bulk modulus
-        }
-        else if (pp.contains("lame") && pp.contains("shear")) {
-            Set::Scalar lame;
-            pp_query("shear", value.mu); // Shear modulus
-            pp_query("lame", lame); // Lame parameter
-            value.kappa = lame + (2.0 * value.mu) / 3.0;
+        else if (moduli[0].first == "lambda" && moduli[1].first == "mu")
+        {
+            Set::Scalar lambda = moduli[0].second;
+            value.mu = moduli[1].second;
+            value.kappa = lambda + (2.0 * value.mu) / 3.0;
         }
         else if (pp.contains("E") && pp.contains("nu")) {
-            Set::Scalar E, nu;
-            pp_query("E", E); // Young's modulus
-            pp_query("nu", nu); // Poisson's ratio
+            Set::Scalar E = moduli[0].second;
+            Set::Scalar nu = moduli[1].second;
             value.kappa = E / (3.0 - 6.0 * nu);
             value.mu = E / (2.0 + 2.0 * nu);
+        }
+        else
+        {
+            Util::Exception(INFO,"Haven't implemented",moduli[0].first," and ",moduli[1].first," yet (sorry!)");
         }
     }
 

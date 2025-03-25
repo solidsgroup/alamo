@@ -82,6 +82,7 @@ def printInputs(classname,indent="",prefix=""):
             html += indent + """  </select>"""
             html += indent + "</div>"
         else:
+            if "string" not in input: continue
             id = prefix + input["string"]
             html += '<div class="input-group mb-3">'
             html += '  <div class="input-group-prepend">'

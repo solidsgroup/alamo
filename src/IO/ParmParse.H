@@ -774,6 +774,30 @@ public:
     }
 
 
+    template <int N>
+    void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
+    {
+        int cnt = 0;
+        for (unsigned int n = 0; n < names.size(); n++)
+            if (this->contains(names[n]))
+                cnt++;
+        Util::Assert(INFO, TEST(cnt == N), "incorrect number of values specified");
+
+        cnt = 0;
+        for (unsigned int n = 0; n < names.size(); n++)
+        {
+            if (this->contains(names[n]))
+            {
+                values[cnt].first = names[n];
+                query_required(names[n],values[cnt].second);
+                cnt++;
+            }
+        }
+    }
+
+
+
+
 };
 }
 #endif
