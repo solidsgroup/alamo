@@ -307,12 +307,16 @@ hr {
     background-color: var(--bs-blue) !important;
     color: white !important;
     font-weight:bold !important;
-    margin-bottom: -18px;
-    padding-bottom: 18px;
+    margin-bottom: -50px;
+    padding-bottom: 50px;
     border-color: var(--bs-blue) !important;
     border-bottom-right-radius: 0px;
     border-bottom-left-radius: 0px;
     border-bottom-width: 0px !important;
+}
+
+.api-inputs-table td {
+    overflow: hidden;
 }
 
 .conditional_class_inputs .input-col {

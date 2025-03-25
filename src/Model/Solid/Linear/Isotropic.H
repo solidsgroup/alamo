@@ -114,38 +114,76 @@ public:
     }
     static void Parse(Isotropic & value, IO::ParmParse & pp)
     {
-        Set::Scalar mu, lambda;
+        Set::Scalar mu = NAN, lambda = NAN;
         bool planestress = false;
+        std::pair<std::string, Set::Scalar> moduli[2];
+
+        pp.forbid("lame","Use 'lambda' instead for lame constant");
+        pp.forbid("shear","Use 'mu' instead for shear modulus");
+        pp.forbid("bulk","Use 'kappa' instead for bulk modulus");
+
+        // Specify exactly two of: lame constant \(\lambda\),
+        // shear modulus \(\mu\), Young's modulus \(E\), Poisson's ratio \(\nu\),
+        // bulk modulus \(\kappa\).
+        // \(\mu\) and \(\lambda\) are how the final values are stored.
+        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli);
+
+        if      (moduli[0].first == "lambda" && moduli[1].first == "mu")
+        {
+            lambda = moduli[0].second;
+            mu = moduli[1].second;
+        }
+        else if (moduli[0].first == "lambda" && moduli[1].first == "E")
+        {
+            lambda = moduli[0].second;
+            Set::Scalar E = moduli[1].second;
+            mu = (E - 3.0 * lambda + sqrt(E * E + 9.0 * lambda * lambda + 2.0 * E * lambda)) / 4.0;
+        }
+        else if (moduli[0].first == "lambda" && moduli[1].first == "nu")
+        {
+            lambda = moduli[0].second;
+            Set::Scalar nu = moduli[1].second;
+            mu = lambda * (1.0 - 2.0 * nu) / 2.0 / nu;
+        }
+        else if (moduli[0].first == "mu" && moduli[1].first == "E")
+        {
+            mu = moduli[0].second;
+            Set::Scalar E = moduli[1].second;
+            lambda = mu * (E - 2.0 * mu) / (3.0 * mu - E);
+        }
+        else if (moduli[0].first == "mu" && moduli[1].first == "nu")
+        {
+            mu = moduli[0].second;
+            Set::Scalar nu = moduli[1].second;
+            lambda = 2.0 * mu * nu / (1.0 - 2.0 * nu);
+        }
+        else if (moduli[0].first == "mu" && moduli[1].first == "K")
+        {
+            mu = moduli[0].second;
+            Set::Scalar K = moduli[1].second;
+            lambda = K - (2.0 * mu / 3.0);
+        }
+        else if (moduli[0].first == "E" && moduli[1].first == "nu")
+        {
+            Set::Scalar E = moduli[0].second, nu = moduli[1].second;
+            lambda = E * nu / (1.0 + nu) / (1.0 - 2.0 * nu);
+            mu = E / 2.0 / (1.0 + nu);
+        }
+        else
+        {
+            Util::Exception(INFO,"Haven't implemented ",moduli[0].first," and ",moduli[1].first," (sorry!)");
+        }
         
         // Whether or not to use the
         // `plane stress <https://en.wikipedia.org/wiki/Plane_stress>`_ 
         // approximation.
         pp_query("planestress",planestress); 
-        if (pp.contains("lame") && pp.contains("shear"))
-        {
-            pp_query("lame",lambda); // Lame parameter
-            pp_query("shear",mu); // Shear modulus (redundant with "mu")
-        }
-        if (pp.contains("lambda") && pp.contains("mu"))
-        {
-            pp_query("lambda",lambda); // Lame parameter
-            pp_query("mu",mu); // Shear modulus (redundant with "shear")
-        }
-        else if (pp.contains("E") && pp.contains("nu"))
-        {
-            Set::Scalar E, nu;
-            pp_query("E",E); // Elastic modulus
-            pp_query("nu",nu); // Poisson's ratio
-            lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
-            mu = E / 2.0 / (1.0 + nu);
-        }
-        else Util::Abort(INFO,"Invalid elastic constants specified");
+
 
         if (AMREX_SPACEDIM==2 && planestress)
             value.Define(mu,lambda*(1.0 - lambda/(2.*mu + lambda)));
         else
             value.Define(mu,lambda);
-        Util::Message(INFO,value);
     }
 
     #define OP_CLASS Isotropic
