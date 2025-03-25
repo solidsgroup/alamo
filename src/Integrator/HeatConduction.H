@@ -198,8 +198,8 @@ protected:
     AdvanceSpectral(int, Set::Scalar, Set::Scalar)
     {
         Util::Abort(INFO,"Alamo must be configured with --fft");
-#endif
     }
+#endif
 
 
     // Tag cells for mesh refinement based on temperature gradient
