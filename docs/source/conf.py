@@ -24,6 +24,7 @@ sys.path.append(os.path.abspath('.'))
 import Inputs
 import Tests
 import Builder
+import InputIndex
 # -- Project information ----------------------------------------------------
 
 

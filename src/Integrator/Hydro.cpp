@@ -58,12 +58,17 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
         pp_forbid("v.bc","--> velocity.bc");
-        value.density_bc = new BC::Expression(1, pp, "density.bc");
         pp_forbid("pressure.bc","--> energy.bc");
-        value.energy_bc = new BC::Expression(1, pp, "energy.bc");
         pp_forbid("velocity.bc","--> momentum.bc");
-        value.momentum_bc = new BC::Expression(2, pp, "momentum.bc");
-        value.eta_bc = new BC::Constant(1, pp, "pf.eta.bc");
+
+        // Boundary condition for density
+        pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc,1);
+        // Boundary condition for energy
+        pp.select_default<BC::Constant,BC::Expression>("energy.bc",value.energy_bc,1);
+        // Boundary condition for momentum
+        pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,2);
+        // Boundary condition for phase field order parameter
+        pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,1);
 
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
@@ -455,7 +460,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_ylo.mass - flux_yhi.mass) / DX[1] +
                 Source(i, j, k, 0);
 
-
             rho_new(i, j, k) = rho(i, j, k) + 
                 (
                     drhof_dt +
@@ -488,6 +492,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Util::ParallelMessage(INFO,"state_ylo_solid",state_ylo_solid);
                 Util::Exception(INFO);
             }
+
                 
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
@@ -495,7 +500,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 div_tau(0) * eta(i,j,k) +
                 //(mu * (lap_ux * eta(i, j, k))) +
                 Source(i, j, k, 1);
-           
+
             M_new(i, j, k, 0) = M(i, j, k, 0) +
                 ( 
                     dMxf_dt + 
@@ -528,6 +533,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     // todo add dEs_dt term if want time-evolving Es
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta(i,j,k)+small)
                     ) * dt;
+
 
             if (eta(i,j,k) < cutoff)
             {

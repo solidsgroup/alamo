@@ -58,33 +58,33 @@ pref = 103320.0
 
 ### ETA BC  ###
 
-pf.eta.bc.type.xlo = neumann
-pf.eta.bc.type.xhi = neumann
-pf.eta.bc.type.ylo = neumann
-pf.eta.bc.type.yhi = neumann
-pf.eta.bc.type.zlo = neumann
-pf.eta.bc.type.zhi = neumann
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
 
 ### HYDRO BC ###
 
-density.bc.type.xhi = neumann
-density.bc.type.xlo = neumann
-density.bc.type.ylo = neumann
-density.bc.type.yhi = neumann
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.xlo = neumann
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
 
-energy.bc.type.xhi = neumann
-energy.bc.type.xlo = neumann
-energy.bc.type.ylo = neumann
-energy.bc.type.yhi = neumann
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
 
-momentum.bc.type.xhi = dirichlet dirichlet
-momentum.bc.type.xlo = dirichlet dirichlet
-momentum.bc.type.ylo = dirichlet dirichlet
-momentum.bc.type.yhi = dirichlet dirichlet
-momentum.bc.val.xhi = 0.0 0.0
-momentum.bc.val.xlo = 0.0 0.0
-momentum.bc.val.ylo = 0.0 0.0
-momentum.bc.val.yhi = 500.0 0.0
+momentum.bc.constant.type.xhi = dirichlet dirichlet
+momentum.bc.constant.type.xlo = dirichlet dirichlet
+momentum.bc.constant.type.ylo = dirichlet dirichlet
+momentum.bc.constant.type.yhi = dirichlet dirichlet
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 500.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 

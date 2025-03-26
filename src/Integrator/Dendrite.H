@@ -74,11 +74,10 @@ public:
         value.ic_temp = new IC::Expression(value.geom, pp, "ic.temp");
         value.ic_phi = new IC::Expression(value.geom, pp, "ic.phi");
 
-        // Use a constant BC object for temperature
-        value.bc_temp = new BC::Constant(1);
-        value.bc_phi = new BC::Constant(1);
-        pp_queryclass("bc.temp", *static_cast<BC::Constant*>(value.bc_temp));
-        pp_queryclass("bc.phi", *static_cast<BC::Constant*>(value.bc_phi));
+        // boundary conditions for temperature field
+        pp.select_default<BC::Constant>("bc.temp", value.bc_temp, 1);
+        // boundary conditions for :math:`\phi` field
+        pp.select_default<BC::Constant>("bc.phi", value.bc_phi, 1);
 
         value.RegisterNewFab(value.temp_mf, value.bc_temp, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
