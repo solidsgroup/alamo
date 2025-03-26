@@ -196,17 +196,6 @@ def extract(basefilename):
                 rets.append(queryclass)
                 continue
 
-            # # Catch definition of a Parser function.
-            # if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
-            #    if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
-            #    parsefn = True
-
-
-            ## Catch definition of a Parser function.
-            #if re.match(r'^\s*(?!\/\/).*Parse\(.*(?:IO|amrex)::ParmParse\s*&\s*(pp)\)(?!\s*;)',line):
-            #    if parsefn: raise Exception(filename,i,"Multiple Parse functions cannot be declared in a single file")
-            #    parsefn = True
-
             # Catch definition of a select function:
 
             match = re.findall(r'pp\.(select[_default]*)\s*<\s*([^.]+)>\s*\("([^"]+)"\s*,.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
