@@ -58,7 +58,7 @@ public:
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
 
-        pp_queryclass("model", value.model);
+        pp.queryclass<MODEL>("model", value.model);
         // Read in IC for psi
         if (pp.contains("psi.ic.type"))
         {

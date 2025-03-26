@@ -2,12 +2,17 @@
 #@ exe=hydro
 #@ dim=2
 
-#@ [roe-fix]
+#@ [roe-fix1]
 #@ exe=hydro
 #@ dim=2
-#@ roefix=1
+#@ args= solver.roe.entropy_fix=1
 
-alamo.program = hydro
+#@ [roe-fix2]
+#@ exe=hydro
+#@ dim=2
+#@ args= solver.roe.entropy_fix=2
+
+# alamo.program = hydro
 
 ### OUTPUT ###
 
@@ -84,8 +89,6 @@ pressure.ic.expression.region0 = "p_L*(x<0) + p_R*(x>0)"
 
 solid.density.ic.type = constant
 solid.density.ic.constant.value = 0.0
-solid.velocity.ic.type = constant
-solid.velocity.ic.constant.value = 0.0 0.0
 solid.momentum.ic.type = constant
 solid.momentum.ic.constant.value = 0.0
 solid.energy.ic.type = constant
@@ -93,42 +96,39 @@ solid.energy.ic.constant.value = 0.0
 
 ### ETA BC  ###
 
-pf.eta.bc.type.xlo = neumann
-pf.eta.bc.type.xhi = neumann
-pf.eta.bc.type.ylo = neumann
-pf.eta.bc.type.yhi = neumann
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
 
 ### HYDRO BC ###
 
-density.bc.type.xhi = neumann
-density.bc.type.xlo = neumann
-density.bc.type.ylo = neumann
-density.bc.type.yhi = neumann
-energy.bc.type.xhi = neumann
-energy.bc.type.xlo = neumann
-energy.bc.type.ylo = neumann
-energy.bc.type.yhi = neumann
-momentum.bc.type.xhi = neumann neumann
-momentum.bc.type.xlo = neumann neumann
-momentum.bc.type.ylo = neumann neumann
-momentum.bc.type.yhi = neumann neumann
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.xlo = neumann
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-r_refinement_criterion   = 100000.1
-e_refinement_criterion   = 100000.1
-m_refinement_criterion   = 100000.1
 eta_refinement_criterion = 100000.1
 
 #TODO
 
-momentum.bc.type.xlo = neumann
-momentum.bc.type.xhi = neumann
-momentum.bc.type.ylo = neumann
-momentum.bc.type.yhi = neumann
-energy.bc.type.xlo = neumann
-energy.bc.type.xhi = neumann
-energy.bc.type.ylo = neumann
-energy.bc.type.yhi = neumann
+momentum.bc.constant.type.xlo = neumann
+momentum.bc.constant.type.xhi = neumann
+momentum.bc.constant.type.ylo = neumann
+momentum.bc.constant.type.yhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
 
 
