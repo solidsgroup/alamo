@@ -125,26 +125,9 @@ public:
 
         int nmodels;
         pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
-        for (int i = 0; i < nmodels; i++)
-        {
-            bool init = false;
-            MODEL tmp_model;
-            if (pp.contains("model"))
-            {
-                pp_queryclass("model", tmp_model);
-                init = true;
-            }
-            std::string name = "model" + std::to_string(i + 1);
-            if (pp.contains(name.c_str()))
-            {
-                pp_queryclass(std::string(name.data()), tmp_model);
-                init = true;
-            }
 
-            if (!init) Util::Exception(INFO,"No way to initialize ",pp.full(name));
+        pp.queryclass_enumerate<MODEL>("model",value.models,nmodels);
 
-            value.models.push_back(tmp_model);
-        }
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field

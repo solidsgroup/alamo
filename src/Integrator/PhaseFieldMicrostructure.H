@@ -29,15 +29,11 @@
 
 namespace Integrator
 {
-//using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
     Wilmore = 1,
     K12 = 2};
 
-///
-/// \class PhaseFieldMicrostructure
-/// \brief Microstructure evolution with grain boundary anisotropy
 ///
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
@@ -93,30 +89,31 @@ public:
         pp_query_required("amr.max_level", value.max_level);            // Maximum AMR level
         pp_query_default("amr.ref_threshold", value.ref_threshold, 0.1);    // Phase field refinement threshold
 
-        // Elasticity
-        pp_query_default("mechanics.tstart",value.mechanics.tstart, 0.0);
-        value.mechanics.model.clear();
-        value.mechanics.model.resize(value.number_of_grains,model_type::Zero());
-        for (int i=0; i < value.number_of_grains; i++)
-        {
-            // By default, read in the model specified by "mechanics.model"
-            if (pp.getEntries("mechanics.model").size())
-            pp_queryclass("mechanics.model", value.mechanics.model[i]);
 
-            // If individual models are specified, read those in and overwrite
-            std::string name = "mechanics.model" + std::to_string(i+1);
-            if (pp.getEntries(name).size())
-                pp_queryclass(std::string(name.data()), value.mechanics.model[i]);
-        }
-        // Mixing order 
-        pp_query_validate("mechanics.mix_order",value.mechanics.model_mix_order,{1,2});
-        // Force Neumann BCs on the model
-        pp_query_default("mechanics.model_neuman_boundary",value.mechanics.model_neumann_boundary,false);
-
+        std::string type_str;
+        // Reading this is redundant but necessary because of the way the code was originally structured
+        // (need to fix eventually)
+        pp.query_validate("mechanics.type", type_str, {"disable","static","dynamic"}); 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
-        pp.queryclass<Base::Mechanics<model_type>>("mechanics",value);
-        if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
-            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
+
+        if (type_str != "disable") // do this only if mechanics is activated
+        {
+            // Elasticity
+            pp_query_default("mechanics.tstart",value.mechanics.tstart, 0.0);
+
+            // Read in models - either one model for all grains, or
+            // individual models, one for each grain.
+            pp.queryclass_enumerate("mechanics.model",value.mechanics.model, value.number_of_grains);
+        
+            // Mixing order 
+            pp_query_validate("mechanics.mix_order",value.mechanics.model_mix_order,{1,2});
+            // Force Neumann BCs on the model
+            pp_query_default("mechanics.model_neuman_boundary",value.mechanics.model_neumann_boundary,false);
+
+            pp.queryclass<Base::Mechanics<model_type>>("mechanics",value);
+            if (value.m_type == Base::Mechanics<model_type>::Type::Static)
+                value.number_of_ghost_cells = std::max(value.number_of_ghost_cells, 3);
+        }
 
 
         // Lagrange multiplier method for enforcing volumes

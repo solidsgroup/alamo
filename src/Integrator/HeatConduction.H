@@ -150,10 +150,10 @@ protected:
     }
 
 
+#ifdef ALAMO_FFT
     void
     AdvanceSpectral(int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
-#ifdef ALAMO_FFT
         Util::Assert(INFO,TEST(lev == 0), "Only single level currently supported");
         
         amrex::Box const & domain = this->geom[lev].Domain();
@@ -192,10 +192,14 @@ protected:
         }
 
         my_fft.backward(Temp_hat, *temp_mf[lev]);
-#else
-        Util::Abort(INFO,"Alamo must be configured with --fft");
-#endif
     }
+#else
+    void
+    AdvanceSpectral(int, Set::Scalar, Set::Scalar)
+    {
+        Util::Abort(INFO,"Alamo must be configured with --fft");
+    }
+#endif
 
 
     // Tag cells for mesh refinement based on temperature gradient

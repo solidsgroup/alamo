@@ -85,13 +85,17 @@ class HTMLPrinter:
             print(self.mypr,"</table><br/><br/>",file=self.f)
         self.intable=False
     def printinput(self,input,prefix,lev,classes=[]):
-        if input['string']:
+        input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
+        bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
+        bdg_primary   = "sd-sphinx-override sd-badge sd-outline-primary sd-text-primary"
+        bdg_secondary = "sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary"
+        bdg_danger    = "sd-sphinx-override sd-badge sd-outline-danger sd-text-danger"
+
+        if 'string' in input:
             name = f'.'.join(prefix + [input['string']])
-            input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
-            bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
-            bdg_primary   = "sd-sphinx-override sd-badge sd-outline-primary sd-text-primary"
-            bdg_secondary = "sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary"
-            bdg_danger    = "sd-sphinx-override sd-badge sd-outline-danger sd-text-danger"
+            if input['type'] in ["query_enumerate"]:
+                name += "#"
+
 
             srcfile = input['file']
             line = input['line']
@@ -114,35 +118,61 @@ class HTMLPrinter:
             if input['type'] in ["query","queryarr"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
                 msg = "Input does not have default or requirement indicator and may be undefind if not specified."
-                print(self.mypr,"  "*lev,f"    <p><span title='{msg}' class='fas fa-exclamation-triangle fa-fw'></span> </p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span title='{msg}' class='fas fa-exclamation-triangle fa-fw'></span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
-            if input['type'] in ["query_required","queryarr_required"]:
+            elif input['type'] in ["query_enumerate"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-                print(self.mypr,"  "*lev,f"    <p><span class='{bdg_danger}'>required</span></p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_secondary}'> # = 0,1,2,...</span>", file=self.f)
+                print(self.mypr,"  "*lev,f"  </td>", file=self.f)
+
+            elif input['type'] in ["query_required","queryarr_required"]:
+                print(self.mypr,"  "*lev,f"  <td>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_danger}'>required</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
                 
-            if input['type'] in ["query_file"]:
+            elif input['type'] in ["query_file"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-                print(self.mypr,"  "*lev,f"    <p><span class='{bdg_secondary}'>file path</span></p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_secondary}'>file path</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
 
-            if input['type'] in ["query_default","queryarr_default"]:
+            elif input['type'] in ["query_default","queryarr_default"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-                print(self.mypr,"  "*lev,f"    <p><span class='{bdg_success}'>{input['default']}</span></p>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_success}'>{input['default']}</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
-            if input['type'] in ["query_validate"]:
+            elif input['type'] in ["query_validate"]:
                 things = [d.replace('"',"").replace("'","").strip() for d in input['possibles'].split(',')]
-                print(self.mypr,"  "*lev,f"  <td><p>", file=self.f)
+                print(self.mypr,"  "*lev,f"  <td>", file=self.f)
                 print(self.mypr,"  "*lev,f"    <span class='{bdg_success}'>{things[0]}</span>", file=self.f)
                 for thing in things[1:]:
                     print(self.mypr,"  "*lev,f"    <span class='{bdg_primary}'>{thing}</span>", file=self.f)
-                print(self.mypr,"  "*lev,f"  </p></td>", file=self.f)
+                print(self.mypr,"  "*lev,f"  </td>", file=self.f)
             
-
             print(self.mypr,"  "*lev,f"</tr>", file=self.f)
+
+        elif input['type'] in ["query_exactly"]:
+            names = [f'.'.join(prefix + [s]) for s in input['possibles'].replace('"','').replace(' ','').split(',')]
+            srcfile = input['file']
+            line = input['line']
+
+            # Convert RST math directeves to plain mathjax
+            processed_doc = re.sub(r":math:`(.*?)`", r"\\(\1\\)", input['doc'].replace('\n',''))
+            # Convert RST code directives to <code>
+            processed_doc = re.sub(r":code:`(.*?)`", r"<code>\1</code>", processed_doc)
+
+
+            print(self.mypr,"  "*lev,f"<tr>", file=self.f)
+            print(self.mypr,"  "*lev,f"  <td class='input-col' style='padding-left: {10*(lev+1)}px'>", file=self.f)
+            for name in names:
+                print(self.mypr,"  "*lev,f'    <a href="{codetarget(srcfile,line)}" class="{input_classes}"><span>{name}</span></a>',file=self.f)
+            print(self.mypr,"  "*lev,f"  </td>", file=self.f)
+            print(self.mypr,"  "*lev,f"  <td colspan=2>", file=self.f)
+            print(self.mypr,"  "*lev,f"    <b>Specify exactly {input['number']}:</b>", file=self.f)
+            print(self.mypr,"  "*lev,f"    <span class='{bdg_danger}'>required</span><br/>", file=self.f)
+            print(self.mypr,"  "*lev,f"    {processed_doc}", file=self.f)
+            print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
     def printconditionalstart(self,input,prefix,lev,classes=[]):
         self.tbody_cntr += 1

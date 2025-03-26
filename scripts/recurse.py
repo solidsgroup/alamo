@@ -88,7 +88,7 @@ def recurse(root,srcfile,printer=DefaultPrinter(),f=None):
 
                     getInputs(root,subclassname.replace("::","/"),prefix, subclasstemplates,lev+1)
     
-            elif input['type'] == 'select' or input['type'] == 'select_default':
+            elif input['type'] in ['select', 'select_default']:
     
                 inputname = '.'.join(prefix + [input['string'],"type"])
 
@@ -106,18 +106,20 @@ def recurse(root,srcfile,printer=DefaultPrinter(),f=None):
                               subclasstemplates,lev+1)
 
                     printer.printconditionalend(input,prefix,lev)
-
     
-            elif input['type'] == 'queryclass':
+            elif input['type'] in ['queryclass']:
                 subclassname, subclasstemplates = extractTemplates(templateReplace(input['class'],templates),classname)
                 if input['string']:
                     getInputs(root,subclassname.replace("::","/"), prefix + [input['string']], subclasstemplates, lev)
                 else:
                     getInputs(root,subclassname.replace("::","/"), prefix, subclasstemplates, lev)
-    
+                    
+            elif input['type'] in ['queryclass_enumerate']:
+                subclassname, subclasstemplates = extractTemplates(templateReplace(input['class'],templates),classname)
+                getInputs(root,subclassname.replace("::","/"), prefix + [input['string']+r'#'], subclasstemplates, lev)
+
             else:
-                if 'string' in input:
-                    printer.printinput(input,prefix,lev)    
+                printer.printinput(input,prefix,lev)    
 
     printer.starttable()
 
