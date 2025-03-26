@@ -4,6 +4,7 @@
 #include "Set/Set.H"
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
+#include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 
 

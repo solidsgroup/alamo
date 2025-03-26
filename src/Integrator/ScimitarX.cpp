@@ -15,9 +15,7 @@
 namespace Integrator
 {
 
-// Define the static member variable
-Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;
-
+Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;    
 
 ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 {

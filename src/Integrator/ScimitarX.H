@@ -68,19 +68,19 @@ public:
 
     // Enum for ElatoPlastic Field Variables
     enum class ElastoPlasticFieldVariables {
-	DENS,         // Density
+	    DENS,         // Density
         UVEL,         // U-velocity
         VVEL,         // V-velocity
         WVEL,         // W-velocity
         IE,           // Specific Internal Energy    
-	SXX,          //Sxx scalar
-	SXY,          //Sxy scalar
-	SYY,          //Syy scalar
-	SXZ,          //Sxz scalar
-	SYZ,          //Syz scalar
-	SZZ,          //Szz scalar
-	EPSBAR,       //Effective Plastic Strain
-	IE_ELASTIC    //Elastic energy for temperature calculations
+	    SXX,          //Sxx scalar
+	    SXY,          //Sxy scalar
+	    SYY,          //Syy scalar
+	    SXZ,          //Sxz scalar
+	    SYZ,          //Syz scalar
+	    SZZ,          //Szz scalar
+	    EPSBAR,       //Effective Plastic Strain
+	    IE_ELASTIC    //Elastic energy for temperature calculations
     };
 
     // Flux Reconstruction Schemes
@@ -102,6 +102,8 @@ public:
         RK3                    // Third-order Runge-Kutta method
     };
 
+
+    
     // Maps for SolverTypes string to Enum conversions
     static const std::map<std::string, SolverType> stringToSolverType;
 
@@ -120,168 +122,178 @@ public:
             static SolverTypeManager instance; // Thread-safe in C++11 and later
             return instance;
         }
-	// Get Variables Mapped to Euler Solver Type
-	const std::vector<ScimitarX::EulerFieldVariables>& getEulerVariables(ScimitarX::SolverType solverType) const {
-		auto it = solverTypeVariables.find(solverType);
-		if (it == solverTypeVariables.end()) {
-			throw std::runtime_error("Invalid SolverType: No variables mapped.");
-		}
-		return it->second;
-	}
-	// Get Variables Mapped to ElastoPlastic Solver
-	const std::vector<ScimitarX::ElastoPlasticFieldVariables>& getElastoPlasticVariables(ScimitarX::SolverType solverType) const {
-		auto it = solverTypeVariables.find(solverType);
-		if (it == solverTypeVariables.end()) {
-			throw std::runtime_error("Invalid SolverType: No variables mapped.");
-		}
-		return it->second;
-	}
 
-        Util::ScimitarX_Util::getVariableIndex computeAndAssignVariableIndices(ScimitarX::SolverType& solverType) {
-            Util::ScimitarX_Util::getVariableIndex result;
-            std::set<int> allVariables;
 
-            // Retrieve variables for the given solver type
-            const auto& variables = getVariables(solverType);
-            for (const auto& var : variables) {
-                allVariables.insert(ScimitarX::toInt(var));
-            }
-
-            // Assign indices dynamically
-            int index = 0;
-            for (int var : allVariables) {
-                result.variableIndexMap[var] = index++;
-            }
-
-	    void usesolvertype(SolverType solver) {
-	    switch (solver) {
-		    case SolverType::SolveCompressibleEuler:
-			    // Cache toInt results for clarity
-			    const int dens_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::DENS);
-			    const int uvel_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::UVEL);
-#if AMREX_SPACEDIM >= 2
-			    const int vvel_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::VVEL);
-#endif
-#if AMREX_SPACEDIM == 3
-			    const int wvel_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::WVEL);
-#endif
-			    const int ie_idx = ScimitarX::toInt(ScimitarX::EulerFieldVariables::IE);
-
-			    result.NVAR_MAX = index;
-			    result.DENS = result.variableIndexMap[dens_idx];
-			    result.UVEL = result.variableIndexMap[uvel_idx];
-#if AMREX_SPACEDIM >= 2
-			    result.VVEL = result.variableIndexMap[vvel_idx];
-#endif
-#if AMREX_SPACEDIM == 3
-			    result.WVEL = result.variableIndexMap[wvel_idx];
-#endif
-			    result.IE = result.variableIndexMap[ie_idx];
-			    break;
-
-		   case SolverType::SolveElastoPlastic:
-			    // Cache toInt results for clarity
-			    const int dens_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::DENS);
-			    const int uvel_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::UVEL);
-#if AMREX_SPACEDIM >= 2
-			    const int vvel_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::VVEL);
-#endif
-#if AMREX_SPACEDIM == 3
-			    const int wvel_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::WVEL);
-#endif
-			    const int ie_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::IE);
-			    const int sxx_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::SXX);
-			    const int sxy_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::SXY);
-			    const int syy_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::SYY);
-#if AMREX_SPACEDIM == 3
-			    const int sxz_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::SXZ);
-			    const int syz_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::SYZ);
-			    const int szz_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::SZZ);
-#endif
-			    const int epsbar_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::EPSBAR);
-			    const int ie_elastic_idx = ScimitarX::toInt(ScimitarX::ElastoPlasticFieldVariables::IE_ELASTIC);
-			    
-			    result.NVAR_MAX = index;
-			    result.DENS = result.variableIndexMap[dens_idx];
-			    result.UVEL = result.variableIndexMap[uvel_idx];
-#if AMREX_SPACEDIM >= 2
-			    result.VVEL = result.variableIndexMap[vvel_idx];
-#endif
-#if AMREX_SPACEDIM == 3
-			    result.WVEL = result.variableIndexMap[wvel_idx];
-#endif
-			    result.IE = result.variableIndexMap[ie_idx];
-			    result.SXX = result.variableIndexMap[sxx_idx];
-			    result.SXY = result.variableIndexMap[sxy_idx];
-			    result.SYY = result.variableIndexMap[syy_idx];
-#if AMREX_SPACEDIM == 3
-			    result.SXZ = result.variableIndexMap[sxz_idx];
-			    result.SYZ = result.variableIndexMap[syz_idx];
-			    result.SZZ = result.variableIndexMap[szz_idx];
-#endif
-			    result.EPSBAR = result.variableIndexMap[epsbar_idx];
-			    result.IE_ELASTIC = result.variableIndexMap[ie_elastic_idx];
-			    break;
-	    }
-	  }
-            return result;
+    // Get Variables Mapped to Solver Type - simplified with type-safe vector
+    template<typename EnumType>
+    const std::vector<EnumType>& getVariablesForType(SolverType solverType) const {
+        switch (solverType) {
+            case SolverType::SolveCompressibleEuler:
+                return getEulerVariables();
+            case SolverType::SolveElastoPlastic:
+                return getElastoPlasticVariables();
+            case SolverType::SolveFiveEquationModel:
+                throw std::runtime_error("Five equation model not yet implemented");
+            default:
+                throw std::runtime_error("Invalid SolverType: No variables mapped.");
         }
+    }
+
+
+    Util::ScimitarX_Util::getVariableIndex computeAndAssignVariableIndices(SolverType& solverType) {
+        Util::ScimitarX_Util::getVariableIndex result;
+        
+        switch (solverType) {
+            case SolverType::SolveCompressibleEuler:
+                computeEulerIndices(result);
+                break;
+                
+            case SolverType::SolveElastoPlastic:
+                computeElastoPlasticIndices(result);
+                break;
+                
+            case SolverType::SolveFiveEquationModel:
+                throw std::runtime_error("Five equation model not yet implemented");
+                
+            default:
+                throw std::runtime_error("Unsupported solver type for variable indexing");
+        }
+
+        return result;
+    }
 
     private:
-        SolverTypeManager() {
-            // Initialize the map of solver type to variables
-            solverTypeVariables[ScimitarX::SolverType::SolveCompressibleEuler] = {
-                ScimitarX::EulerFieldVariables::DENS,
-                ScimitarX::EulerFieldVariables::UVEL,
-#if AMREX_SPACEDIM >= 2
-                ScimitarX::EulerFieldVariables::VVEL,
-#endif
-#if AMREX_SPACEDIM == 3
-                ScimitarX::EulerFieldVariables::WVEL,
-#endif
-                ScimitarX::EulerFieldVariables::IE
-            };
 
-	    // Initialize the map of ElastoPlastic solver type to variables
-            solverTypeVariables[ScimitarX::SolverType::SolveElastoPlastic] = {
-                ScimitarX::ElastoPlasticFieldVariables::DENS,
-                ScimitarX::ElastoPlasticFieldVariables::UVEL,
+    SolverTypeManager() {
+        // Initialize the vectors of variables for each solver type
+        initializeEulerVariables();
+        initializeElastoPlasticVariables();
+    }
+
+    SolverTypeManager(const SolverTypeManager&) = delete; // Prevent copy
+    SolverTypeManager& operator=(const SolverTypeManager&) = delete; // Prevent assignment
+
+    void initializeEulerVariables() {
+        eulerVariables = {
+            EulerFieldVariables::DENS,
+            EulerFieldVariables::UVEL,
 #if AMREX_SPACEDIM >= 2
-                ScimitarX::ElastoPlasticFieldVariables::VVEL,
+            EulerFieldVariables::VVEL,
 #endif
 #if AMREX_SPACEDIM == 3
-                ScimitarX::ElastoPlasticFieldVariables::WVEL,
+            EulerFieldVariables::WVEL,
 #endif
-                ScimitarX::ElastoPlasticFieldVariables::IE
-                ScimitarX::ElastoPlasticFieldVariables::SXX
-                ScimitarX::ElastoPlasticFieldVariables::SXY
-                ScimitarX::ElastoPlasticFieldVariables::SYY
+            EulerFieldVariables::IE
+        };
+    }
+
+    void initializeElastoPlasticVariables() {
+        elastoPlasticVariables = {
+            ElastoPlasticFieldVariables::DENS,
+            ElastoPlasticFieldVariables::UVEL,
+#if AMREX_SPACEDIM >= 2
+            ElastoPlasticFieldVariables::VVEL,
+#endif
 #if AMREX_SPACEDIM == 3
-                ScimitarX::ElastoPlasticFieldVariables::SXZ
-                ScimitarX::ElastoPlasticFieldVariables::SYZ
-                ScimitarX::ElastoPlasticFieldVariables::SZZ
+            ElastoPlasticFieldVariables::WVEL,
 #endif
-                ScimitarX::ElastoPlasticFieldVariables::EPSBAR
-                ScimitarX::ElastoPlasticFieldVariables::IE_ELASTIC
-            };
+            ElastoPlasticFieldVariables::IE,
+            ElastoPlasticFieldVariables::SXX,
+            ElastoPlasticFieldVariables::SYY,
+            ElastoPlasticFieldVariables::SZZ,
+            ElastoPlasticFieldVariables::SXY,
+#if AMREX_SPACEDIM == 3
+            ElastoPlasticFieldVariables::SXZ,
+            ElastoPlasticFieldVariables::SYZ,
+#endif
+            ElastoPlasticFieldVariables::EPSBAR,
+            ElastoPlasticFieldVariables::IE_ELASTIC
+        };
+    }
+
+    void computeEulerIndices(Util::ScimitarX_Util::getVariableIndex& result) {
+        std::set<int> allVariables;
+        
+        // Add all Euler variables to the set
+        for (const auto& var : eulerVariables) {
+            allVariables.insert(toInt(var));
         }
 
-        SolverTypeManager(const SolverTypeManager&) = delete; // Prevent copy
-        SolverTypeManager& operator=(const SolverTypeManager&) = delete; // Prevent assignment
+        // Assign indices dynamically
+        int index = 0;
+        for (int var : allVariables) {
+            result.variableIndexMap[var] = index++;
+        }
 
-	void usetypesolver(SolverType solver) {
-	switch (solver) {
-		case SolverType::SolveCompressibleEuler:
-			std::map<ScimitarX::SolverType, std::vector<ScimitarX::EulerFieldVariables>> solverTypeVariables;
-			break;
-		case SolverType::SolveElastoPlastic:
-			std::map<ScimitarX::SolverType, std::vector<ScimitarX::ElastoPlasticFieldVariables>> solverTypeVariables;
-			break;
-	}
-      }
+        // Set up specific indices
+        result.NVAR_MAX = index;
+        result.DENS = result.variableIndexMap[toInt(EulerFieldVariables::DENS)];
+        result.UVEL = result.variableIndexMap[toInt(EulerFieldVariables::UVEL)];
+#if AMREX_SPACEDIM >= 2
+        result.VVEL = result.variableIndexMap[toInt(EulerFieldVariables::VVEL)];
+#endif
+#if AMREX_SPACEDIM == 3
+        result.WVEL = result.variableIndexMap[toInt(EulerFieldVariables::WVEL)];
+#endif
+        result.IE = result.variableIndexMap[toInt(EulerFieldVariables::IE)];
+    }
+
+
+    void computeElastoPlasticIndices(Util::ScimitarX_Util::getVariableIndex& result) {
+        std::set<int> allVariables;
+        
+        // Add all ElastoPlastic variables to the set
+        for (const auto& var : elastoPlasticVariables) {
+            allVariables.insert(toInt(var));
+        }
+
+        // Assign indices dynamically
+        int index = 0;
+        for (int var : allVariables) {
+            result.variableIndexMap[var] = index++;
+        }
+
+        // Set up specific indices
+        result.NVAR_MAX = index;
+        result.DENS = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::DENS)];
+        result.UVEL = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::UVEL)];
+#if AMREX_SPACEDIM >= 2
+        result.VVEL = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::VVEL)];
+#endif
+#if AMREX_SPACEDIM == 3
+        result.WVEL = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::WVEL)];
+#endif
+        result.IE = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::IE)];
+        
+        // ElastoPlastic specific variables
+        result.SXX = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::SXX)];
+        result.SYY = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::SYY)];
+        result.SZZ = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::SZZ)];
+        result.SXY = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::SXY)];
+#if AMREX_SPACEDIM == 3
+        result.SXZ = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::SXZ)];
+        result.SYZ = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::SYZ)];
+#endif
+        result.EPSBAR = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::EPSBAR)];
+        result.IE_ELASTIC = result.variableIndexMap[toInt(ElastoPlasticFieldVariables::IE_ELASTIC)];
+    }
+    
+
+    const std::vector<EulerFieldVariables>& getEulerVariables() const {
+        return eulerVariables;
+    }
+
+    const std::vector<ElastoPlasticFieldVariables>& getElastoPlasticVariables() const {
+        return elastoPlasticVariables;
+    }
+
+    // Member variables
+    std::vector<EulerFieldVariables> eulerVariables;
+    std::vector<ElastoPlasticFieldVariables> elastoPlasticVariables;
+
     };
 
-    static Util::ScimitarX_Util::getVariableIndex variableIndex; // 
+    static Util::ScimitarX_Util::getVariableIndex variableIndex; //variableIndex is now a static member of ScimitarX 
 
     static IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, const Util::ScimitarX_Util::getVariableIndex& variableIndex);
 
