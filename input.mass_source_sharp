@@ -13,7 +13,7 @@ amr.grid_eff = 0.8
 amr.n_cell = 64 8 0
 
 # Uncomment to test AMR
-amr.max_level = 2
+amr.max_level = 3
 #amr.n_cell = 128 32 0
 
 ### DIMENSIONS ###
@@ -25,7 +25,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1e-3
+timestep  = 1e-4
 stop_time = 0.35
 
 #dynamictimestep.on = 1
@@ -98,40 +98,41 @@ pf.eta.bc.val.zhi = 0.0
 
 ### HYDRO BC ###
 
-density.bc.type.xhi = dirichlet
+# mass inflow of 1.225 kg/m2/s, rho=1.225, u=1.0, p=pref
 density.bc.type.xlo = neumann
+density.bc.type.xhi = dirichlet
 density.bc.type.ylo = neumann
 density.bc.type.yhi = neumann
-density.bc.val.xhi = 1.25
 density.bc.val.xlo = 0.0
+density.bc.val.xhi = 1.225
 density.bc.val.ylo = 0.0 
 density.bc.val.yhi = 0.0
 
-energy.bc.type.xhi = neumann
-energy.bc.type.xlo = neumann
-energy.bc.type.ylo = neumann
-energy.bc.type.yhi = neumann
-energy.bc.val.xhi = 0.0
-energy.bc.val.xlo = 0.0
-energy.bc.val.ylo = 0.0 
-energy.bc.val.yhi = 0.0
-
 momentum.bc.type.xlo = neumann neumann
-momentum.bc.type.xhi = neumann neumann
+momentum.bc.type.xhi = dirichlet neumann
 momentum.bc.type.ylo = neumann dirichlet
 momentum.bc.type.yhi = neumann dirichlet
 momentum.bc.val.xlo = 0.0 0.0
-momentum.bc.val.xhi = 0.0 0.0
+momentum.bc.val.xhi = -1.225 0.0
 momentum.bc.val.ylo = 0.0 0.0
 momentum.bc.val.yhi = 0.0 0.0
 
+energy.bc.type.xlo = neumann
+energy.bc.type.xhi = neumann
+energy.bc.type.ylo = neumann
+energy.bc.type.yhi = neumann
+energy.bc.val.xlo = 0.0
+energy.bc.val.xhi = 0.0
+energy.bc.val.ylo = 0.0 
+energy.bc.val.yhi = 0.0
+
 ### HYDRO REFINEMENT CRITERIA ###
 
-r_refinement_criterion   = 0.1
+rho_refinement_criterion   = 0.1
 e_refinement_criterion   = 0.1
 m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
-energy_refinement_criterion = 0.05
+energy_refinement_criterion = 0.1
 
 #TODO

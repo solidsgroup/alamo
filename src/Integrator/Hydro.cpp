@@ -350,15 +350,22 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
             Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
 
+            //Set::Scalar M_mag        = sqrt(pow(M(i,j,k,0) - M_solid(i,j,k,0), 2.0) + pow(M(i,j,k,1) - M_solid(i,j,k,1), 2.0));
+            Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta(i,j,k)) * M_solid(i,j,k,0),
+                                    M(i,j,k,1) - (1.-eta(i,j,k)) * M_solid(i,j,k,1) );
+            Set::Scalar M_mag = sqrt(pow(etaM_fluid(0)/(eta(i,j,k) + small), 2.0) + pow(etaM_fluid(1)/(eta(i,j,k) + small), 2.0));
+
+
             Set::Matrix gradM   = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho = Numeric::Gradient(rho,i,j,k,0,DX);
             Set::Matrix hess_rho = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu   = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            Set::Scalar dS = (grad_eta/(grad_eta_mag+small)).lpNorm<2>()/(grad_eta_mag+small);
-            std::cout << dS << "\t" << DX[0] << std::endl;
-            Set::Scalar mdot0 = m0(i,j,k) * grad_eta_mag * dS;
+            Set::Scalar mdot0 = m0(i,j,k) * grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); 
+            Pdot0 = (mdot0*u0 - M_mag*u) * grad_eta_mag;
+            Pdot0(0) = (mdot0*u0(0) - (M(i,j,k,0) - M_solid(i,j,k,0))*u(0));
+            Pdot0(1) = (mdot0*u0(1) - (M(i,j,k,1) - M_solid(i,j,k,1))*u(1));
             Set::Scalar qdot0 = q0(i,j,k) * grad_eta_mag;
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
@@ -392,8 +399,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             // Lagrange terms to enforce no-penetration
-            Source(i,j,k,1) -= lagrange*u.dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,2) -= lagrange*u.dot(grad_eta)*grad_eta(1);
+            //Source(i,j,k,1) -= lagrange*u.dot(grad_eta)*grad_eta(0);
+            //Source(i,j,k,2) -= lagrange*u.dot(grad_eta)*grad_eta(1);
 
             //Godunov flux
             //states of total fields
@@ -448,11 +455,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_ylo.mass - flux_yhi.mass) / DX[1] +
                 Source(i, j, k, 0);
 
-            Set::Scalar drhof_dt_eos = 0.0; //rho(i,j,k) * (pow(1.0 + Source(i,j,k,3)/E(i,j,k), 1.0/(gamma - 1.0)) - 1.0);
 
             rho_new(i, j, k) = rho(i, j, k) + 
                 (
-                    drhof_dt + drhof_dt_eos +
+                    drhof_dt +
                     // todo add drhos_dt term if want time-evolving rhos
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + small)
                     ) * dt;
@@ -482,7 +488,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Util::ParallelMessage(INFO,"state_ylo_solid",state_ylo_solid);
                 Util::Exception(INFO);
             }
-
                 
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
@@ -490,11 +495,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 div_tau(0) * eta(i,j,k) +
                 //(mu * (lap_ux * eta(i, j, k))) +
                 Source(i, j, k, 1);
-
            
-            Set::Scalar pressure = (gamma - 1.0)*(E(i,j,k) - pow(M(i,j,k,0), 2.0)/2.0/rho(i,j,k)) + pref;
-            Set::Scalar soundspeed_sq = gamma*pressure/rho(i,j,k);
-            M_new(i, j, k, 0) = M(i, j, k, 0) + //- Source(i,j,k,0)*dt/rho(i,j,k)*gamma*pressure/M(i,j,k,0)*dt  +
+            M_new(i, j, k, 0) = M(i, j, k, 0) +
                 ( 
                     dMxf_dt + 
                     // todo add dMs_dt term if want time-evolving Ms
@@ -520,20 +522,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
                 Source(i, j, k, 3);
 
-            //Set::Vector grad_eta_normalized = grad_eta/(grad_eta_mag + small);
-            //Set::Scalar dm = m0(i,j,k)*grad_eta_normalized(0) * dt + // x-component
-            //                 m0(i,j,k)*grad_eta_normalized(1) * dt;  // y-component
-            //Set::Scalar drho = dm/(DX[0]*DX[1]);
-            Set::Scalar drho = Source(i,j,k,0)*dt;
-            Set::Scalar dP = (E(i,j,k)*(gamma - 1.0) + pref)*(pow(1.0 + drho/rho(i,j,k), gamma) - 1.0);
-            Set::Scalar dEs = dP/(gamma - 1.0);
-            //Set::Scalar M_mag = sqrt(pow(M(i,j,k,0), 2.0) + pow(M(i,j,k,1), 2.0));
-            //Set::Scalar K = 0.5*pow(M_mag, 2)/rho(i,j,k);
-            //Set::Scalar U = E(i, j, k) - K + pref/(gamma - 1.0);
-            //Set::Scalar dEs = U*(pow(1.0 + drho/rho(i,j,k), gamma - 1.0) - 1.0 + drho/rho(i,j,k)) + M_mag + K/rho(i,j,k)*drho;
-            //std::cout << "dm: " << dm << "\tdrho: " << drho << "\trho1:" << rho(i,j,k) << "\tV: " << DX[0]*DX[1] << "\tE1: " << E(i,j,k) + pref/(gamma-1.0) << "\tdE: " << dEs << std::endl;
-                
-            E_new(i, j, k) = E(i, j, k) + dEs +
+            E_new(i, j, k) = E(i, j, k) +
                 ( 
                     dEf_dt +
                     // todo add dEs_dt term if want time-evolving Es
