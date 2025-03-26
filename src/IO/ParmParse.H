@@ -423,7 +423,7 @@ public:
         // it only and return.
         //
         std::string name = a_name;
-        if (amrex::ParmParse::contains(name.c_str()))
+        if (this->contains(name))
         {
             for (int n = 0; n < number; n++)
             {
@@ -444,12 +444,12 @@ public:
         int start = -1;
         std::string name0 = a_name + std::to_string(0);
         std::string name1 = a_name + std::to_string(1);
-        if (amrex::ParmParse::contains(name0.c_str()))
+        if (this->contains(name0.c_str()))
         {
             start = 0;
             name = name0;
         }
-        else if (amrex::ParmParse::contains(name1.c_str()))
+        else if (this->contains(name1.c_str()))
         {
             start = 1;
             name = name1;
@@ -465,7 +465,7 @@ public:
         //
         for (int cntr = start; this->contains(name.c_str()); cntr++)
         {
-            if (amrex::ParmParse::contains(name.c_str()))
+            if (this->contains(name.c_str()))
             {
                 T tmp;
                 this->queryclass<T>(name, tmp, file, func, line);
@@ -490,7 +490,7 @@ public:
         // it only and return.
         //
         std::string name = a_name;
-        if (amrex::ParmParse::contains(name.c_str()))
+        if (this->contains(name))
         {
             for (int n = 0; n < number; n++)
             {
@@ -511,12 +511,12 @@ public:
         int start = -1;
         std::string name0 = a_name + std::to_string(0);
         std::string name1 = a_name + std::to_string(1);
-        if (amrex::ParmParse::contains(name0.c_str()))
+        if (this->contains(name0.c_str()))
         {
             start = 0;
             name = name0;
         }
-        else if (amrex::ParmParse::contains(name1.c_str()))
+        else if (this->contains(name1.c_str()))
         {
             start = 1;
             name = name1;
@@ -532,7 +532,7 @@ public:
         //
         for (int cntr = start; this->contains(name.c_str()); cntr++)
         {
-            if (amrex::ParmParse::contains(name.c_str()))
+            if (this->contains(name.c_str()))
             {
                 T tmp;
                 this->query_required(name, tmp, file, func, line);
