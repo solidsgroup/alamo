@@ -779,14 +779,18 @@ public:
     {
         int cnt = 0;
         for (unsigned int n = 0; n < names.size(); n++)
-            if (this->contains(names[n]))
+        {
+            if (amrex::ParmParse::contains(names[n].c_str()))
+            {
                 cnt++;
+            }
+        }
         Util::Assert(INFO, TEST(cnt == N), "incorrect number of values specified");
 
         cnt = 0;
         for (unsigned int n = 0; n < names.size(); n++)
         {
-            if (this->contains(names[n]))
+            if (amrex::ParmParse::contains(names[n].c_str()))
             {
                 values[cnt].first = names[n];
                 query_required(names[n],values[cnt].second);

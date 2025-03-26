@@ -177,8 +177,7 @@ public:
         // Whether or not to use the
         // `plane stress <https://en.wikipedia.org/wiki/Plane_stress>`_ 
         // approximation.
-        pp_query("planestress",planestress); 
-
+        pp.query_default("planestress",planestress, false); 
 
         if (AMREX_SPACEDIM==2 && planestress)
             value.Define(mu,lambda*(1.0 - lambda/(2.*mu + lambda)));
