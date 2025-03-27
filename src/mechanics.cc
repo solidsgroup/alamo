@@ -57,7 +57,7 @@ int main (int argc, char* argv[])
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookean>>(integrator);
         else if (model == "finite.neohookeanpre")
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>>(integrator);
-	    else if (model == "finite.adhesion")
+        else if (model == "finite.adhesion")
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::Adhesion>>(integrator);
         else if (model == "finite.pseudolinear.cubic")
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>>(integrator);
