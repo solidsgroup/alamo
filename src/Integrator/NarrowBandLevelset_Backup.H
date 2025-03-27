@@ -1,5 +1,5 @@
-#ifndef INTEGRATOR_NARROWBANDLEVELSET_H // Include guards
-#define INTEGRATOR_NARROWBANDLEVELSET_H // 
+#ifndef INTEGRATOR_NARROWBANDLEVELSET_BACKUP_H // Include guards
+#define INTEGRATOR_NARROWBANDLEVELSET_BACKUP_H // 
 
 // Standard library includes
 #include <iostream>
@@ -21,6 +21,9 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 
+// Numeric includes
+//#include "Numeric/FluxHandler.H"
+//#include "Numeric/TimeStepper.H"
 #include "Numeric/Stencil.H"
 
 namespace Numeric {
@@ -37,19 +40,21 @@ namespace Numeric {
 
 namespace Integrator
 {
-class NarrowBandLevelset : virtual public Integrator
+class NarrowBandLevelset_Backup : virtual public Integrator
 {
 public:
 
     // Constructors
-    NarrowBandLevelset(int a_nghost = 2); // Default constructor
-    NarrowBandLevelset(IO::ParmParse& pp); // Constructor that triggers parse
-    static void Parse(NarrowBandLevelset& value, IO::ParmParse& pp);
+    NarrowBandLevelset_Backup(int a_nghost = 2); // Default constructor
+    NarrowBandLevelset_Backup(IO::ParmParse& pp); // Constructor that triggers parse
+    static void Parse(NarrowBandLevelset_Backup& value, IO::ParmParse& pp);
 
     // Destructor
-    virtual ~NarrowBandLevelset()
+    virtual ~NarrowBandLevelset_Backup()
     {
         delete ic_ls;
+        delete ic_velocity;
+        
         delete bc_ls;
         
     }
@@ -143,14 +148,16 @@ protected:
         
         // KEY CONCEPT: Each level set tracks its own narrow band region
         // as a collection of boxes - enabling quick intersection tests
-        bool has_narrowband;
         amrex::BoxArray narrowband_boxes;
         amrex::DistributionMapping narrowband_dm;
     };
-    
+
     // Variables (multi-fabs)
     Set::Field<Set::Scalar>    ls_mf;                   // Levelset field variable (current timestep)
     Set::Field<Set::Scalar>    ls_old_mf;               // Levelset field variable (previous timestep)
+    Set::Field<Set::Scalar>    iNarrowBandMask_mf;      // narrowband field variable
+    //Set::Field<Set::Vector>    velocity_mf;             // Velocity field variable (Assumed constant for now)
+    Set::Field<Set::Scalar>    velocity_mf;             // Velocity field variable (Assumed constant for now)
     Set::Field<Set::Scalar>    XFlux_mf;                // X-direction flux field
     Set::Field<Set::Scalar>    YFlux_mf;                // Y-direction flux field
     Set::Field<Set::Scalar>    ZFlux_mf;                // Z-direction flux field
@@ -162,17 +169,18 @@ protected:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
-
-    // Class specific functions
-    void ComputeNarrowBandBox(int lev, int ls_id);
-    void ComputeNarrowBandMapping(int ls_id);
+    
+    // Additional functions
     void ComputeAndSetNewTimeStep();
     Set::Scalar GetTimeStep();
+    void UpdateNarrowBand(int lev);
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
+    void Reinitialize(int lev, Set::Scalar time);
+    void ApplyBoundaryConditions(int lev, Set::Scalar time);
 
-    std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
-    std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;
+    std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset_Backup>> fluxHandler;
+    std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset_Backup>> timeStepper;
 
     template <typename T>
     friend class Numeric::FluxReconstruction;
@@ -196,7 +204,7 @@ protected:
     friend class Numeric::EulerForwardScheme;
 
     template <typename T>
-    friend class Numeric::RK3Scheme;  
+    friend class Numeric::RK3Scheme;    
 
 private:
     //
@@ -213,22 +221,21 @@ private:
     // Define size for narrowband
     Set::Scalar narrow_band_width = 6.0;
 
-    // Define constant velocity array
-    Set::Vector constant_velocity = Set::Vector::Zero();
-
     //
     // Definition of user-determined pointer variables.
     //
 
-    IC::IC<Set::Scalar>* ic_ls = nullptr;        // Object used to initialize levelset field
+    IC::IC<Set::Scalar>* ic_ls = nullptr;                     // Object used to initialize levelset field
+    IC::IC<Set::Scalar>* ic_velocity = nullptr;               // Object used to initialize velocity field
     BC::BC<Set::Scalar>* bc_ls = nullptr;        // Object used to update temp levelset field boundary ghost cells
+    BC::BC<Set::Scalar>* bc_velocity = nullptr;  // Object used to update temp velocity field boundary ghost cells
     BC::Nothing bc_nothing;
     
     FluxReconstruction reconstruction_method;    // Selected flux reconstruction scheme
     FluxScheme flux_scheme;                      // Selected flux scheme
     TimeSteppingScheme temporal_scheme;          // Selected time-stepping scheme
-
-    Set::Scalar cflNumber = 0.5;                 // CFL number (read from input)
+    
+    Set::Scalar cflNumber;                       // CFL number (read from input)
 
 }; //NarrowBandLevelset Class
 

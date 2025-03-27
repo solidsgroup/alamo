@@ -6,12 +6,9 @@
 // Alamo Includes
 #include "IO/ParmParse.H"
 #include "Integrator/NarrowBandLevelset.H"
-#include "Numeric/FluxHandler.H"
-#include "Numeric/TimeStepper.H"
 
 // BC
 #include "BC/BC.H"
-#include "BC/Nothing.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
 
@@ -19,10 +16,10 @@
 #include "IC/Constant.H"
 #include "IC/LS/Sphere.H"
 #include "IC/LS/Zalesak.H"
+#include "NarrowBandLevelset.H"
 
-// Numeric
-#include "Util/Util.H"
-#include "Util/NarrowBandLevelset_Util.H"
+#include "Numeric/FluxHandler.H"
+#include "Numeric/TimeStepper.H"
 
 namespace Integrator
 {
@@ -57,36 +54,42 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     {// Define levelset multifab objects - only old and new domain levelset fields
     value.RegisterNewFab(value.ls_mf, value.bc_ls, value.number_of_components, value.number_of_ghost_cells, "LS", true);
     value.RegisterNewFab(value.ls_old_mf, value.bc_ls, value.number_of_components, value.number_of_ghost_cells, "LS_old", false);
-    
-    // Define narrowband multifab to track tube
-    value.RegisterNewFab(value.iNarrowBandMask_mf, value.bc_ls, value.number_of_components, value.number_of_ghost_cells, "NBand", true);
     }
-    
-    {// Following section will be deleted when velocity is taken from ScimitarX integrator class
-    
-    // Initialize velocity IC and BC 
-    value.ic_velocity = new IC::Constant(value.geom, pp, "ic.velocity");
-    value.bc_velocity = new BC::Constant(AMREX_SPACEDIM, pp, "bc.velocity");
-    
-    // Define velocity multifab
-    value.RegisterNewFab(value.velocity_mf, value.bc_velocity, AMREX_SPACEDIM, value.number_of_ghost_cells, "velocity", false); 
-    }
-    
-    // Register face-centered flux fields
-    value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "xflux", false);
-#if AMREX_SPACEDIM >= 2
-    value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "yflux", false);
-#endif
-#if AMREX_SPACEDIM == 3
-    value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "zflux", false);
-#endif
 
-    {
-    // Access the maps from the FeatureMaps singleton
+    // Define levelset data structure
+    value.level_sets.resize(value.number_of_components);
+    
+    {// Initialize constant velocity. Will be removed once integrated with ScimitarX integrator
+    // Define constant velocity vector
+    pp_queryarr("ic.velocity.value", value.constant_velocity);
+
+    // Define velocity, normal, and curvature multifabs
+    for (int ils=0; ils < value.number_of_components; ils++){
+        value.RegisterGeneralFab(value.level_sets[ils].velocity_mf, AMREX_SPACEDIM, value.number_of_ghost_cells, "velocity", false); 
+        value.RegisterGeneralFab(value.level_sets[ils].normal_mf, AMREX_SPACEDIM, value.number_of_ghost_cells, "normal", false);
+        value.RegisterNewFab(value.level_sets[ils].curvature_mf, value.bc_ls, 1, value.number_of_ghost_cells, "curvature", false);   
+    }
+    }
+
+    {// Create zero levelset tube
+    //amrex::iMultiFab izerols(value.geom, value.dmap, value.number_of_components, 0);
+    }
+
+    {// Register face-centered flux fields
+    value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
+    #if AMREX_SPACEDIM >= 2
+    value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
+    #endif
+    #if AMREX_SPACEDIM == 3
+    value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
+    #endif
+    }
+
+    {// Access the maps from the FeatureMaps singleton
     auto& fluxReconstructionMap = getFeatureMaps().getFluxReconstructionMap();
     auto& fluxSchemeMap = getFeatureMaps().getFluxSchemeMap();
     auto& timeSteppingSchemeMap = getFeatureMaps().getTimeSteppingSchemeMap();
-
+    
     // Flux Reconstruction parsing
     std::string fluxReconstructionStr;
     if (pp.query("FluxReconstruction", fluxReconstructionStr)) {
@@ -97,7 +100,7 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxReconstruction value: " + fluxReconstructionStr);
         }
     }
-
+    
     // Flux Scheme parsing
     std::string fluxSchemeStr;
     if (pp.query("FluxScheme", fluxSchemeStr)) {
@@ -108,7 +111,7 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid FluxScheme value: " + fluxSchemeStr);
         }
     }
-
+    
     // Time-Stepping Scheme parsing
     std::string timeSteppingSchemeStr;
     if (pp.query("TimeSteppingScheme", timeSteppingSchemeStr)) {
@@ -120,7 +123,7 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
         }
     }
     }
-    
+
     // Read CFL number and initial time step
     pp.query_required("cflNumber", value.cflNumber);
 }
@@ -129,341 +132,98 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
 void NarrowBandLevelset::Initialize(int lev){
     // Initialize levelset fields
     ic_ls->Initialize(lev, ls_old_mf);
-    
-    // COPY INSTEAD OF INITIALIZE!
     ic_ls->Initialize(lev, ls_mf);
-    
-    // Debug
-    //Util::NarrowBandLevelset_Util::Debug::printNeighbors2D(124, 126, 251, 252, *ls_mf[lev], geom[lev], lev, "ls", "After Initialize");
-    
-    // Initialize narrowband
-    UpdateNarrowBand(lev);
-    //Util::NarrowBandLevelset_Util::Debug::printNeighbors2D(124, 126, 251, 252, *iNarrowBandMask_mf[lev], geom[lev], lev, "NB", "After NarrowBand");
-    //Util::NarrowBandLevelset_Util::Debug::printNeighbors2D(124, 126, 251, 252, *ls_mf[lev], geom[lev], lev, "ls", "After NarrowBand");
-    
-    // Initialize velocity field -- will be deleted
-    ic_velocity->Initialize(lev, velocity_mf); 
+
+    // Loop through all levelsets
+    for (int ils=0; ils < number_of_components; ils++){
+        // Get structure id number
+        level_sets[ils].id = ils;
+
+        // Define velocity_mf containing velocity vector
+        level_sets[ils].velocity_mf[lev] -> setVal(constant_velocity);
+
+        // Define normal_mf containing normal vectors
+        
+
+        // Define curvature_mf
+        
+
+        // Define initial narrowband boxarray and distribution mapping
+        ComputeNarrowBandBox(lev, ils);
+        ComputeNarrowBandMapping(ils);
+    } 
 }
 
-void NarrowBandLevelset::UpdateNarrowBand(int lev) {
-    // Define grid spacing min_DX to find 0 cells 
+void NarrowBandLevelset::ComputeNarrowBandBox(int lev, int ls_id){
+    // Access structure
+    auto & ls_data = level_sets[ls_id];
+
+    // Define narrowband variables
+    amrex::BoxList narrow_band_boxes;
+
     const Set::Scalar* DX = geom[lev].CellSize();
     const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
+    const Set::Scalar threshold = narrow_band_width * min_DX;
 
-    // Define tube widths similar to Fortran
-    const Set::Scalar inner_tube = 4.0 * min_DX;
-    const Set::Scalar outer_tube = 6.0 * min_DX;
-    const Set::Scalar tube_buffer = 7.0 * min_DX;  
+    // Loop through boxes to find narrow band regions
+    for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi) {
+        const amrex::Box& tilebox = mfi.tilebox();
+        auto const& phi_arr = ls_mf.Patch(lev, mfi);
 
-    // Define neighbor offsets based on dimension
-    #if AMREX_SPACEDIM == 1
-    constexpr int num_neighbors = 2;
-    const int dx[] = {-1, 1};
-    #endif
+        // Initialize min/max bounds to track narrow band region
+        amrex::IntVect min_idx = tilebox.bigEnd();
+        amrex::IntVect max_idx = tilebox.smallEnd();
+        bool has_narrow_band = false;
 
-    #if AMREX_SPACEDIM == 2
-    constexpr int num_neighbors = 8;
-    const int dx[] = {-1, 1,  0, 0, -1, -1,  1,  1};
-    const int dy[] = { 0, 0, -1, 1, -1,  1, -1,  1};
-    #endif
-
-    #if AMREX_SPACEDIM == 3
-    constexpr int num_neighbors = 26;
-    const int dx[] = {-1, 1,  0, 0,  0, 0, -1, -1,  1,  1, -1,  1, -1,  1, -1, -1,  1,  1,  0,  0,  0,  0, -1,  1, -1,  1};
-    const int dy[] = { 0, 0, -1, 1,  0, 0, -1,  1, -1,  1,  0,  0,  0,  0, -1,  1, -1,  1, -1, -1,  1,  1, -1, -1,  1,  1};
-    const int dz[] = { 0, 0,  0, 0, -1, 1,  0,  0,  0,  0, -1, -1,  1,  1,  0,  0,  0,  0, -1,  1, -1,  1, -1, -1,  1,  1};
-    #endif
-    
-    // Update ghost cells before iterating over tileboxes
-    ls_mf[lev]->FillBoundary();
-    
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
-        auto const& ls_arr = ls_mf.Patch(lev, mfi);
-        auto const& nbmask_arr = iNarrowBandMask_mf.Patch(lev, mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // Get current level set value
-            Set::Scalar phi = ls_arr(i, j, k);
-            phi = std::clamp(phi, -tube_buffer, tube_buffer);
-            ls_arr(i, j, k) = phi;
-
-            // Compute |phi|
-            Set::Scalar abs_phi = std::abs(phi);
-
-            // **If outside the tube, assign ±3 and return early**
-            if (abs_phi > outer_tube) {
-                nbmask_arr(i, j, k) = (phi > 0) ? 3 : -3;
-                return;
+        // Scan through the box to find narrow band region
+        amrex::ParallelFor(tilebox, [=, &has_narrow_band, &min_idx, &max_idx] 
+            AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        {
+            if (std::abs(phi_arr(i, j, k, ls_id)) <= threshold) {
+                has_narrow_band = true;
+                min_idx[0] = std::min(min_idx[0], i);
+                max_idx[0] = std::max(max_idx[0], i);
+#if (AMREX_SPACEDIM >= 2)
+                min_idx[1] = std::min(min_idx[1], j);
+                max_idx[1] = std::max(max_idx[1], j);
+#endif
+#if (AMREX_SPACEDIM == 3)
+                min_idx[2] = std::min(min_idx[2], k);
+                max_idx[2] = std::max(max_idx[2], k);
+#endif
             }
-
-            // **Detect interface cells (zero-crossing)**
-            bool is_interface = abs_phi <= min_DX; 
-
-            // Get box limits for bounds checking
-            const amrex::Box domain = bx;
-            
-            // **Loop through neighbors to check for opposite sign**
-            for (int n = 0; n < num_neighbors; ++n) {
-                #if AMREX_SPACEDIM == 1
-                int ni = i + dx[n];
-                int nj = j;  
-                int nk = k;  
-                #endif
-
-                #if AMREX_SPACEDIM == 2
-                int ni = i + dx[n];
-                int nj = j + dy[n];
-                int nk = k;  
-                #endif
-
-                #if AMREX_SPACEDIM == 3
-                int ni = i + dx[n];
-                int nj = j + dy[n];
-                int nk = k + dz[n];
-                #endif
-
-                // **Check if neighbor is inside the computational domain**
-                if (!domain.contains(amrex::IntVect(AMREX_D_DECL(ni, nj, nk)))) {
-                    continue;  // Skip out-of-bounds neighbors
-                }
-
-                // Check if a neighbor has an opposite sign
-                if ((phi) * (ls_arr(ni, nj, nk)) < 0) {
-                    is_interface = true;
-                    break;  // Stop checking once we find an interface
-                }
-            }
-
-            // **Assign `nbmask = 0` only for true zero-crossings**
-            if (is_interface) {
-                nbmask_arr(i, j, k) = 0;
-                return;
-            }
-
-            // **Otherwise, assign narrowband values**
-            int sign_phi = (phi > 0) - (phi < 0);
-            int inside_inner_tube = (abs_phi <= inner_tube);
-            int inside_outer_tube = (abs_phi > inner_tube) & (abs_phi <= outer_tube);
-
-            nbmask_arr(i, j, k) = inside_inner_tube * (sign_phi * 1) +
-                                  inside_outer_tube * (sign_phi * 2);
         });
+
+        // If narrow band cells found, create a box for them
+        if (has_narrow_band) {
+            amrex::Box nb_box(min_idx, max_idx);
+            nb_box = nb_box.grow(1); // Add small buffer
+            narrow_band_boxes.push_back(nb_box);
+        }
     }
+    
+    // Update the level set's narrow band boxes
+    ls_data.narrowband_boxes = amrex::BoxArray(narrow_band_boxes); 
 }
 
-/*void NarrowBandLevelset::UpdateNarrowBand(int lev) {
-    // Define grid spacing min_DX to find 0 cells 
-    const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
+void NarrowBandLevelset::ComputeNarrowBandMapping(int ls_id){
+    auto& ls_data = level_sets[ls_id];
 
-    // Define tube widths similar to Fortran
-    const Set::Scalar inner_tube = 4.0 * min_DX;
-    const Set::Scalar outer_tube = 6.0 * min_DX;
-    const Set::Scalar tube_buffer = 7.0 * min_DX;  
-    
-    // Define neighbor offsets based on dimension
-    #if AMREX_SPACEDIM == 1
-    constexpr int num_neighbors = 2;
-    const int dx[] = {-1, 1};
-    #endif
-
-    #if AMREX_SPACEDIM == 2
-    constexpr int num_neighbors = 8;
-    const int dx[] = {-1, 1,  0, 0, -1, -1,  1,  1};
-    const int dy[] = { 0, 0, -1, 1, -1,  1, -1,  1};
-    #endif
-
-    #if AMREX_SPACEDIM == 3
-    constexpr int num_neighbors = 26;
-    const int dx[] = {-1, 1,  0, 0,  0, 0, -1, -1,  1,  1, -1,  1, -1,  1, -1, -1,  1,  1,  0,  0,  0,  0, -1,  1, -1,  1};
-    const int dy[] = { 0, 0, -1, 1,  0, 0, -1,  1, -1,  1,  0,  0,  0,  0, -1,  1, -1,  1, -1, -1,  1,  1, -1, -1,  1,  1};
-    const int dz[] = { 0, 0,  0, 0, -1, 1,  0,  0,  0,  0, -1, -1,  1,  1,  0,  0,  0,  0, -1,  1, -1,  1, -1, -1,  1,  1};
-    #endif
-    
-    // Update boundaries for ghost cells **before** iterating over tileboxes
-    ls_mf[lev]->FillBoundary(geom[lev].periodicity());
-    
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
-        auto const& ls_arr = ls_mf.Patch(lev, mfi);
-        auto const& nbmask_arr = iNarrowBandMask_mf.Patch(lev, mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // Get current level set value and clamp it
-            Set::Scalar phi = ls_arr(i, j, k);
-            phi = std::clamp(phi, -tube_buffer, tube_buffer);
-            ls_arr(i, j, k) = phi;
-
-            // Compute |phi|
-            Set::Scalar abs_phi = std::abs(phi);
-
-            // **If outside the tube, assign ±3 and return early**
-            if (abs_phi > outer_tube) {
-                nbmask_arr(i, j, k) = (phi > 0) ? 3 : -3;
-                return;
-            }
-
-            // **Detect interface cells (zero-crossing)**
-            bool is_interface = abs_phi <= min_DX; 
-
-            // **Loop through neighbors to check for opposite sign (Fortran logic)**
-            for (int n = 0; n < num_neighbors; ++n) {
-                #if AMREX_SPACEDIM == 1
-                int ni = i + dx[n];
-                int nj = j;  // Fixed for 1D
-                int nk = k;  // Fixed for 1D
-                #endif
-
-                #if AMREX_SPACEDIM == 2
-                int ni = i + dx[n];
-                int nj = j + dy[n];
-                int nk = k;  // Fixed for 2D (k should not change)
-                #endif
-
-                #if AMREX_SPACEDIM == 3
-                int ni = i + dx[n];
-                int nj = j + dy[n];
-                int nk = k + dz[n];  // 3D neighbors include `k`
-                #endif
-
-                // Check if a neighbor has an opposite sign
-                if ((phi) * (ls_arr(ni, nj, nk)) < 0) {
-                    is_interface = true;
-                    break;  // Stop checking once we find an interface
-                }
-            }
-
-            // **Assign `nbmask = 0` only for true zero-crossings**
-            if (is_interface) {
-                nbmask_arr(i, j, k) = 0;
-                return;
-            }
-
-            // **Otherwise, assign narrowband values**
-            int sign_phi = (phi > 0) - (phi < 0);
-            int inside_inner_tube = (abs_phi <= inner_tube);
-            int inside_outer_tube = (abs_phi > inner_tube) & (abs_phi <= outer_tube);
-
-            nbmask_arr(i, j, k) = inside_inner_tube * (sign_phi * 1) +
-                                  inside_outer_tube * (sign_phi * 2);
-        });
+    // Check if there are any narrowband boxes
+    if (ls_data.narrowband_boxes.size() > 0) {
+        ls_data.narrowband_dm = amrex::DistributionMapping(ls_data.narrowband_boxes);
+        ls_data.has_narrowband = true;  // Flag indicating valid narrowband
+    } else {
+        ls_data.has_narrowband = false; // No narrowband region found
     }
-}*/
-
-/*void NarrowBandLevelset::UpdateNarrowBand(int lev) {
-    // Define grid spacing min_DX to find 0 cells 
-    const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
-
-    // Define tube widths similar to Fortran
-    const Set::Scalar inner_tube = 4.0 * min_DX;
-    const Set::Scalar outer_tube = 6.0 * min_DX;
-    const Set::Scalar tube_buffer = 7.0 * min_DX;  
-    
-    // Define neighbor offsets based on dimension
-    #if AMREX_SPACEDIM == 1
-    constexpr int num_neighbors = 2;
-    const int dx[] = {-1, 1};
-    #endif
-
-    #if AMREX_SPACEDIM == 2
-    constexpr int num_neighbors = 8;
-    const int dx[] = {-1, 1,  0, 0, -1, -1,  1,  1};
-    const int dy[] = { 0, 0, -1, 1, -1,  1, -1,  1};
-    #endif
-
-    #if AMREX_SPACEDIM == 3
-    constexpr int num_neighbors = 26;
-    const int dx[] = {-1, 1,  0, 0,  0, 0, -1, -1,  1,  1, -1,  1, -1,  1, -1, -1,  1,  1,  0,  0,  0,  0, -1,  1, -1,  1};
-    const int dy[] = { 0, 0, -1, 1,  0, 0, -1,  1, -1,  1,  0,  0,  0,  0, -1,  1, -1,  1, -1, -1,  1,  1, -1, -1,  1,  1};
-    const int dz[] = { 0, 0,  0, 0, -1, 1,  0,  0,  0,  0, -1, -1,  1,  1,  0,  0,  0,  0, -1,  1, -1,  1, -1, -1,  1,  1};
-    #endif
-    
-    // Create copy of ls_multifab to ensure
-
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
-        auto const& ls_arr = ls_mf.Patch(lev, mfi);
-        auto const& nbmask_arr = iNarrowBandMask_mf.Patch(lev, mfi);
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // Get current level set value and clamp it
-            Set::Scalar phi = ls_arr(i, j, k);
-            phi = std::clamp(phi, -tube_buffer, tube_buffer);
-            ls_arr(i, j, k) = phi;
-
-            // Compute |phi|
-            Set::Scalar abs_phi = std::abs(phi);
-
-            // **If outside the tube, assign ±3 and return early**
-            if (abs_phi > outer_tube) {
-                nbmask_arr(i, j, k) = (phi > 0) ? 3 : -3;
-                return;
-            }
-
-            // **Detect interface cells (zero-crossing)**
-            bool is_interface = abs_phi <= min_DX; 
-
-            // **Loop through neighbors to check for opposite sign (Fortran logic)**
-            for (int n = 0; n < num_neighbors; ++n) {
-                #if AMREX_SPACEDIM == 1
-                int ni = i + dx[n];
-                int nj = j;  // Fixed for 1D
-                int nk = k;  // Fixed for 1D
-                #endif
-
-                #if AMREX_SPACEDIM == 2
-                int ni = i + dx[n];
-                int nj = j + dy[n];
-                int nk = k;  // Fixed for 2D (k should not change)
-                #endif
-
-                #if AMREX_SPACEDIM == 3
-                int ni = i + dx[n];
-                int nj = j + dy[n];
-                int nk = k + dz[n];  // 3D neighbors include `k`
-                #endif
-
-                // Check if a neighbor has an opposite sign
-                if ((phi) * (ls_arr(ni, nj, nk)) < 0) {
-                    is_interface = true;
-                    break;  // Stop checking once we find an interface
-                }
-            }
-            
-            if (i >= 124 && i <= 126){
-                if (j >= 251 && j <= 252){
-                    printf("i: %d, j: %d, phi: %f\n", i, j, phi);
-                    printf("phi(i-1,j+1): %f, phi(i,j+1): %f, phi(i+1,j+1): %f\n", ls_arr(i-1,j+1,k), ls_arr(i,j+1,k), ls_arr(i+1,j+1,k));
-                    printf("phi(i-1,j): %f, phi(i+1,j): %f\n", ls_arr(i-1,j,k), ls_arr(i+1,j,k));
-                    printf("phi(i-1,j-1): %f, phi(i,j-1): %f, phi(i+1,j-1): %f\n", ls_arr(i-1,j-1,k), ls_arr(i,j-1,k), ls_arr(i+1,j-1,k));  
-                }
-            } 
-
-            // **Assign `nbmask = 0` only for true zero-crossings**
-            if (is_interface) {
-                nbmask_arr(i, j, k) = 0;
-                return;
-            }
-
-            // **Otherwise, assign narrowband values**
-            int sign_phi = (phi > 0) - (phi < 0);
-            int inside_inner_tube = (abs_phi <= inner_tube);
-            int inside_outer_tube = (abs_phi > inner_tube) & (abs_phi <= outer_tube);
-
-            nbmask_arr(i, j, k) = inside_inner_tube * (sign_phi * 1) +
-                                  inside_outer_tube * (sign_phi * 2);
-        });
-    }
-}*/
+}
 
 void NarrowBandLevelset::TimeStepBegin(Set::Scalar time, int lev) {
 
 }
 
-void NarrowBandLevelset::TimeStepComplete(Set::Scalar time, int lev) {
-    ComputeAndSetNewTimeStep(); // Compute dt based on global `minDt   
+void NarrowBandLevelset::TimeStepComplete(Set::Scalar time, int lev) { 
+    ComputeAndSetNewTimeStep();
 }
 
 void NarrowBandLevelset::ComputeAndSetNewTimeStep() {
@@ -484,51 +244,58 @@ void NarrowBandLevelset::ComputeAndSetNewTimeStep() {
 }
 
 Set::Scalar NarrowBandLevelset::GetTimeStep() {
-    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value       
-
-    for (int lev = 0; lev <= maxLevel(); ++lev) {  // Iterate over AMR levels
-        const Set::Scalar* dx = geom[lev].CellSize();  // Access the geometry at level `lev`
-
-        for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.tilebox();  // Iterate over tiles in the multifab
-            auto const& velocity_arr = velocity_mf.Patch(lev, mfi);  // Velocity field
-
-            Set::Scalar minDt_local = std::numeric_limits<Set::Scalar>::max();  // Thread-local minDt
-
-            amrex::ParallelFor(bx, [=, &minDt_local](int i, int j, int k) noexcept {
-                // Extract velocity components
-                Set::Scalar u = velocity_arr(i, j, k, 0);
-#if (AMREX_SPACEDIM >= 2)
-                Set::Scalar v = velocity_arr(i, j, k, 1);
-#endif
-#if (AMREX_SPACEDIM == 3)
-                Set::Scalar w = velocity_arr(i, j, k, 2);
-#endif
-
-                // Compute the maximum velocity magnitude
-                Set::Scalar maxSpeed = std::abs(u);
-#if (AMREX_SPACEDIM >= 2)
-                maxSpeed = std::max(maxSpeed, std::abs(v));
-#endif
-#if (AMREX_SPACEDIM == 3)
-                maxSpeed = std::max(maxSpeed, std::abs(w));
-#endif
-
-                // Compute local CFL time step restriction
-                if (maxSpeed > 1e-8) {  // Avoid division by zero
-                    Set::Scalar dtLocal = dx[0] / maxSpeed;
-#if (AMREX_SPACEDIM >= 2)
-                    dtLocal = std::min(dtLocal, dx[1] / maxSpeed);
-#endif
-#if (AMREX_SPACEDIM == 3)
-                    dtLocal = std::min(dtLocal, dx[2] / maxSpeed);
-#endif
-                    minDt_local = std::min(minDt_local, dtLocal);
-                }
-            });
-
-            // Update the global minDt
-            minDt = std::min(minDt, minDt_local);
+    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value 
+    
+    // Loop through all levelsets
+    for (int ils=0; ils < number_of_components; ils++){
+        for (int lev = 0; lev <= maxLevel(); ++lev) {  // Iterate over AMR levels
+            const Set::Scalar* dx = geom[lev].CellSize();  // Access the geometry at level `lev`
+            const Set::Scalar min_DX = *std::min_element(dx, dx + AMREX_SPACEDIM);
+    
+            for (amrex::MFIter mfi(*level_sets[ils].velocity_mf[lev], false); mfi.isValid(); ++mfi) {
+                const amrex::Box& bx = mfi.tilebox();  // Iterate over tiles in the multifab
+                auto const& velocity_arr = level_sets[ils].velocity_mf.Patch(lev, mfi);  // Velocity field
+    
+                Set::Scalar minDt_local = std::numeric_limits<Set::Scalar>::max();  // Thread-local minDt
+    
+                amrex::ParallelFor(bx, [=, &minDt_local](int i, int j, int k) noexcept {
+                    // Extract velocity components
+                    Set::Scalar u = velocity_arr(i, j, k)[0];
+    #if (AMREX_SPACEDIM >= 2)
+                    Set::Scalar v = velocity_arr(i, j, k)[1];
+    #endif
+    #if (AMREX_SPACEDIM == 3)
+                    Set::Scalar w = velocity_arr(i, j, k)[2];
+    #endif
+    
+                    // Compute the maximum velocity magnitude
+                    Set::Scalar maxSpeed = std::abs(u);
+    #if (AMREX_SPACEDIM >= 2)
+                    maxSpeed = std::max(maxSpeed, std::abs(v));
+    #endif
+    #if (AMREX_SPACEDIM == 3)
+                    maxSpeed = std::max(maxSpeed, std::abs(w));
+    #endif
+    
+                    // Compute local CFL time step restriction
+                    if (maxSpeed > 1e-8) {  // Avoid division by zero
+                        Set::Scalar dtLocal = dx[0] / maxSpeed;
+    #if (AMREX_SPACEDIM >= 2)
+                        dtLocal = std::min(dtLocal, dx[1] / maxSpeed);
+    #endif
+    #if (AMREX_SPACEDIM == 3)
+                        dtLocal = std::min(dtLocal, dx[2] / maxSpeed);
+    #endif
+                        minDt_local = std::min(minDt_local, dtLocal);
+                    }
+                    else {
+                         minDt_local = min_DX;
+                    }
+                });
+    
+                // Update the global minDt
+                minDt = std::min(minDt, minDt_local);
+            }
         }
     }
 
@@ -542,58 +309,16 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     // Update current timestep (for reinitialize)
     current_timestep ++;
-    
+
     // Advect
-    //Advect(lev, time, dt);
-    
-    // Update narrowband
-    //UpdateNarrowBand(lev);
-    
-    /*printf("After Advect: \n");
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& ghost_bx = mfi.growntilebox(1);//ls_mf[lev]->nGrow());
-        Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> nb = iNarrowBandMask_mf.Patch(lev, mfi);
-
-        amrex::ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            printf("ls(%d, %d, %d) = %f\n", i, j, k, ls(i,j,k,0));
-            printf("nb(%d, %d, %d) = %f\n", i, j, k, nb(i,j,k,0));
-        });
-    }*/
-    
-    // Reinitialize the level set function
-    if(current_timestep % 100 == 0) {
-        Reinitialize(lev, time);
-
-        // Update narrowband after reinitialization
-        UpdateNarrowBand(lev);
-    }     
-
-    /*printf("After Reinitialize: \n");
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& ghost_bx = mfi.growntilebox(1); //ls_mf[lev]->nGrow());
-        Set::Patch<Set::Scalar> ls = ls_mf.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> nb = iNarrowBandMask_mf.Patch(lev, mfi);
-
-        amrex::ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            printf("ls(%d, %d, %d) = %f\n", i, j, k, ls(i,j,k,0));
-            printf("nb(%d, %d, %d) = %f\n", i, j, k, nb(i,j,k,0));
-        });
-    }*/
-    
+    Advect(lev, time, dt);
 }
 
-void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt)
-{
-    // Swap the old ls fab and the new ls fab so we use
-    // the new one.
+void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt){
+    // Swap the levelsets
     std::swap(*ls_mf[lev], *ls_old_mf[lev]);
 
-    // Update the velocity
+    // Update the interface velocity
     UpdateInterfaceVelocity(lev);
 
     // Compute the flux
@@ -612,329 +337,32 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt)
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                //ApplyBoundaryConditions(lev, time);
-
                 // 3. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
             }
             break;
         }
-    
     } 
 }
 
-void NarrowBandLevelset::UpdateInterfaceVelocity(int lev)
-{
-    // Loop through and set all velocity components
-    for (amrex::MFIter mfi(*velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        Set::Patch<Set::Scalar>  velocity = velocity_mf.Patch(lev,mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            // Do computation here - right now placeholder to keep velocity constant
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-                velocity(i,j,k,d) = velocity(i,j,k,d);
-            }
-        });
+void NarrowBandLevelset::UpdateInterfaceVelocity(int lev){
+    for (int ils=0; ils < number_of_components; ils++){
+        for (amrex::MFIter mfi(*level_sets[ils].velocity_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            const amrex::Box& bx = mfi.tilebox();
+            auto const& vel_arr = level_sets[ils].velocity_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                Set::Vector velocity = vel_arr(i,j,k);
+                vel_arr(i,j,k) = velocity;
+            });
+        }
     }
 }
 
-/*void NarrowBandLevelset::Reinitialize(int lev, Set::Scalar time) {
-    const Set::Scalar reinit_tolerance = 1e-3;
-    const int max_iterations = 50; 
-
-    // Grid spacing
-    const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
-
-    // Time step constraint for reinitialization PDE
-    const Set::Scalar tau = cflNumber * min_DX;
-
-    // Create alias for in-place update
-    amrex::MultiFab ls_reinit(*ls_mf[lev], amrex::make_alias, 0, 1);
-
-    for (int iter = 0; iter < max_iterations; ++iter) {
-        printf("iter: %d\n", iter);
-
-        // Device scalar for GPU atomic convergence check
-        amrex::Gpu::DeviceScalar<int> d_converged(1);  // Start as converged (1)
-        int* d_converged_ptr = d_converged.dataPtr();
-
-        for (amrex::MFIter mfi(ls_reinit, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& valid_bx = mfi.tilebox();
-            auto const& ls_arr = ls_mf.Patch(lev, mfi);
-            auto const& nbmask_arr = iNarrowBandMask_mf.Patch(lev, mfi);
-
-            amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                int nbmask_val = nbmask_arr(i, j, k, 0);
-
-                // **Skip cells outside the narrowband (`nbmask == ±3`) and interface (`nbmask == 0`)**
-                if (std::abs(nbmask_val) > 2 || nbmask_val == 0) return;
-
-                // **Compute sign of phi (avoid zero cases)**
-                Set::Scalar phi_val = ls_arr(i, j, k, 0);
-                Set::Scalar sign_phi = (phi_val > 0) - (phi_val < 0); // Ensures ±1, avoids zero issues
-
-                // **Compute first-order upwind gradients**
-                Set::Scalar dx_p = (ls_arr(i + 1, j, k, 0) - phi_val) / DX[0];
-                Set::Scalar dx_m = (phi_val - ls_arr(i - 1, j, k, 0)) / DX[0];
-
-                Set::Scalar a_p = std::max(sign_phi * dx_m, 0.0);
-                Set::Scalar a_m = std::min(sign_phi * dx_p, 0.0);
-
-                Set::Scalar b_p = 0.0, b_m = 0.0, c_p = 0.0, c_m = 0.0;
-                #if AMREX_SPACEDIM >= 2
-                Set::Scalar dy_p = (ls_arr(i, j + 1, k, 0) - phi_val) / DX[1];
-                Set::Scalar dy_m = (phi_val - ls_arr(i, j - 1, k, 0)) / DX[1];
-
-                b_p = std::max(sign_phi * dy_m, 0.0);
-                b_m = std::min(sign_phi * dy_p, 0.0);
-                #endif
-
-                #if AMREX_SPACEDIM == 3
-                Set::Scalar dz_p = (ls_arr(i, j, k + 1, 0) - phi_val) / DX[2];
-                Set::Scalar dz_m = (phi_val - ls_arr(i, j, k - 1, 0)) / DX[2];
-
-                c_p = std::max(sign_phi * dz_m, 0.0);
-                c_m = std::min(sign_phi * dz_p, 0.0);
-                #endif
-
-                // **Compute gradient magnitude**
-                Set::Scalar nablaG = std::sqrt(
-                    std::max(a_p * a_p, a_m * a_m) +
-                    std::max(b_p * b_p, b_m * b_m) +
-                    std::max(c_p * c_p, c_m * c_m)
-                );
-
-                // **Update level set function using PDE**
-                Set::Scalar phi_new = phi_val - tau * sign_phi * (nablaG - 1.0);
-
-                // **Compute local convergence check**
-                int local_converged = (std::abs(phi_new - phi_val) <= reinit_tolerance) ? 1 : 0;
-
-                // **Atomic update: Track if any thread detects non-convergence**
-                amrex::Gpu::Atomic::Min(d_converged_ptr, local_converged);
-
-                ls_arr(i, j, k, 0) = phi_new;
-            });
-        }
-
-        // Check convergence across processors
-        int converged = d_converged.dataValue();
-        if (converged) break;  // Stop early if converged
-
-        // Apply boundary conditions to ghost cells
-        Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, 0);
-    }
-}*/
-
-void NarrowBandLevelset::Reinitialize(int lev, Set::Scalar time) {
-    const Set::Scalar reinit_tolerance = 1e-3;
-    const int max_iterations = 50; 
-
-    // Grid spacing
-    const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
-
-    // Time constraint for PDE update
-    const Set::Scalar tau = cflNumber * min_DX;
-
-    // Create alias for in-place update
-    amrex::MultiFab ls_reinit(*ls_mf[lev], amrex::make_alias, 0, 1);
-
-    for (int iter = 0; iter < max_iterations; ++iter) {
-        printf("iter: %d\n", iter);
-
-        // Use integer flag for convergence: 0 (not converged), 1 (converged)
-        amrex::Gpu::DeviceScalar<int> d_converged(1);  // Start as converged (1)
-        int* d_converged_ptr = d_converged.dataPtr();
-        
-        // Update boundaries for ghost cells **before** iterating over tileboxes
-        ls_mf[lev]->FillBoundary(geom[lev].periodicity());
-
-        for (amrex::MFIter mfi(ls_reinit, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& valid_bx = mfi.tilebox();
-            auto const& ls_arr = ls_mf.Patch(lev, mfi);
-            auto const& nbmask_arr = iNarrowBandMask_mf.Patch(lev, mfi);
-
-            amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                int nbmask_val = nbmask_arr(i, j, k, 0);
-
-                // **Skip cells outside the narrowband (`nbmask == ±3`)**
-                if (std::abs(nbmask_val) > 2 || nbmask_val == 0) return;
-
-                // **Compute sign of phi (avoid 0 cases)**
-                Set::Scalar phi_val = ls_arr(i, j, k, 0);
-                Set::Scalar sign_phi = (phi_val > 0) ? 1.0 : -1.0;
-                
-                // Compute first-order upwind gradients
-                Set::Scalar a_p = std::max(sign_phi * (phi_val - ls_arr(i - 1, j, k, 0)) / DX[0], 0.0);
-                Set::Scalar a_m = std::min(sign_phi * (ls_arr(i + 1, j, k, 0) - phi_val) / DX[0], 0.0);
-
-                Set::Scalar b_p = 0.0, b_m = 0.0, c_p = 0.0, c_m = 0.0;
-                #if AMREX_SPACEDIM >= 2
-                b_p = std::max(sign_phi * (phi_val - ls_arr(i, j - 1, k, 0)) / DX[1], 0.0);
-                b_m = std::min(sign_phi * (ls_arr(i, j + 1, k, 0) - phi_val) / DX[1], 0.0);
-                #endif
-                #if AMREX_SPACEDIM == 3
-                c_p = std::max(sign_phi * (phi_val - ls_arr(i, j, k - 1, 0)) / DX[2], 0.0);
-                c_m = std::min(sign_phi * (ls_arr(i, j, k + 1, 0) - phi_val) / DX[2], 0.0);
-                #endif
-
-                // **Compute gradient magnitude**
-                Set::Scalar nablaG = std::sqrt(
-                    std::max(a_p * a_p, a_m * a_m) +
-                    std::max(b_p * b_p, b_m * b_m) +
-                    std::max(c_p * c_p, c_m * c_m)
-                );
-
-                // **Update level set function**
-                Set::Scalar phi_new = phi_val - tau * sign_phi * (nablaG - 1.0);
-
-                // **Compute local convergence check**
-                int local_converged = (std::abs(phi_new - phi_val) <= reinit_tolerance) ? 1 : 0;
-
-                // **Atomic update: Track if any thread detects non-convergence**
-                amrex::Gpu::Atomic::Max(d_converged_ptr, local_converged);
-
-                ls_arr(i, j, k, 0) = phi_new;
-            });
-        }
-
-        // Check convergence across processors
-        int converged = d_converged.dataValue();
-        if (converged) break;  // Stop early if converged
-
-        // Apply BCs to ghost cells
-        Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, 0);
-    }
-}
-
-/*void NarrowBandLevelset::Reinitialize(int lev, Set::Scalar time) {
-    const Set::Scalar reinit_tolerance = 1e-3;
-    const int max_iterations = 50; 
-
-    // Grid spacing
-    const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
-
-    // Time constraint for PDE
-    const Set::Scalar tau = cflNumber * min_DX;
-
-    // Create alias for in-place update
-    amrex::MultiFab ls_reinit(*ls_mf[lev], amrex::make_alias, 0, 1);
-
-    for (int iter = 0; iter < max_iterations; ++iter) {
-        printf("iter: %d\n", iter);
-        bool converged = true;
-        amrex::Gpu::DeviceScalar<bool> d_converged(true);
-        bool* d_converged_ptr = d_converged.dataPtr();
-
-        for (amrex::MFIter mfi(ls_reinit, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& valid_bx = mfi.tilebox();
-            auto const& ls_arr = ls_mf.Patch(lev, mfi);
-            auto const& nbmask_arr = iNarrowBandMask_mf.Patch(lev, mfi);
-
-            amrex::ParallelFor(valid_bx, [=, &converged] AMREX_GPU_DEVICE(int i, int j, int k) {
-                // **Only update cells inside the narrowband (`-1, 0, 1`)**
-                int nbmask_val = nbmask_arr(i, j, k, 0);
-                if (std::abs(nbmask_val) > 2) return;  // Skip outside region
-
-                // **Ensure interface (`nbmask == 0`) maintains correct sign**
-                Set::Scalar phi_val = ls_arr(i, j, k, 0);
-                if (nbmask_val == 0) {
-                    ls_arr(i, j, k, 0) = 0.0;
-                    return;  // No further processing for zero-crossing cells
-                }
-
-                Set::Scalar sign_phi = std::copysign(1.0, phi_val);
-
-                // Compute first-order upwind gradients
-                Set::Scalar a_p = std::max(sign_phi * (phi_val - ls_arr(i - 1, j, k, 0)) / DX[0], 0.0);
-                Set::Scalar a_m = std::min(sign_phi * (ls_arr(i + 1, j, k, 0) - phi_val) / DX[0], 0.0);
-
-                Set::Scalar b_p = 0.0, b_m = 0.0, c_p = 0.0, c_m = 0.0;
-                #if AMREX_SPACEDIM >= 2
-                b_p = std::max(sign_phi * (phi_val - ls_arr(i, j - 1, k, 0)) / DX[1], 0.0);
-                b_m = std::min(sign_phi * (ls_arr(i, j + 1, k, 0) - phi_val) / DX[1], 0.0);
-                #endif
-                #if AMREX_SPACEDIM == 3
-                c_p = std::max(sign_phi * (phi_val - ls_arr(i, j, k - 1, 0)) / DX[2], 0.0);
-                c_m = std::min(sign_phi * (ls_arr(i, j, k + 1, 0) - phi_val) / DX[2], 0.0);
-                #endif
-
-                // Compute gradient magnitude
-                Set::Scalar nablaG = std::sqrt(
-                    std::max(a_p * a_p, a_m * a_m) +
-                    std::max(b_p * b_p, b_m * b_m) +
-                    std::max(c_p * c_p, c_m * c_m)
-                );
-
-                // **Reinitialize Level Set Function**
-                Set::Scalar phi_new = phi_val - tau * sign_phi * (nablaG - 1.0);
-                if (std::abs(phi_new - phi_val) > reinit_tolerance) converged = false;
-                ls_arr(i, j, k, 0) = phi_new;
-                
-                // Debug
-                printf("i: %d, j: %d\n", i, j);
-                printf("phi(i,j): %f, phi(i-1,j): %f, phi(i+1,j): %f, phi(i,j-1): %f, phi(i,j+1): %f\n",
-                    phi_val, ls_arr(i-1,j,k,0), ls_arr(i+1,j,k,0), ls_arr(i,j-1,k,0), ls_arr(i,j+1,k,0));
-                printf("a_p: %f, a_m: %f, b_p: %f, b_m: %f c_p: %f, c_m: %f\n", a_p, a_m, b_p, b_m, c_p, c_m); 
-                printf("nablaG: %f, sign_phi: %f, phi_new %f\n", nablaG, sign_phi, phi_new);
-            });
-        }
-
-        // Check convergence across processors
-        converged = d_converged.dataValue();
-        if (converged) break;
-
-        // Apply BCs to ghost cells
-        Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, 0);
-    }
-}*/
- 
-void NarrowBandLevelset::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
-{
-    const Set::Scalar* DX = geom[lev].CellSize();
-    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], + DX[1] * DX[1], + DX[2] * DX[2]));
-    Set::Scalar refinement_threshold = 10.0; // Set refinement threshold to 10
-
-    //for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-    for (amrex::MFIter mfi(*ls_mf[lev], false); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<char> const& tags = a_tags.array(mfi);
-        amrex::Array4<Set::Scalar> const& levelset = (*ls_mf[lev]).array(mfi);
-
-        amrex::ParallelFor(bx, [=](int i, int j, int k) {
-            Set::Vector grad = Numeric::Gradient(levelset, i, j, k, 0, DX);
-            Set::Scalar grad_magnitude = grad.lpNorm<2>();
-
-            if (grad_magnitude * dr > refinement_threshold) {
-                tags(i, j, k) = amrex::TagBox::SET;
-            }
-        });
-    }
+void NarrowBandLevelset::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow){
 }
 
 void NarrowBandLevelset::Regrid(int lev, Set::Scalar time) {
-
-}
-
-void NarrowBandLevelset::ApplyBoundaryConditions(int lev, Set::Scalar time) {
-
-    Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, 0);        
-    //Integrator::ApplyPatch(lev, time, ls_old_mf, *ls_old_mf[lev], *bc_ls, 0); 
-    Integrator::ApplyPatch(lev, time, iNarrowBandMask_mf, *iNarrowBandMask_mf[lev], *bc_ls, 0);
-        
-    Integrator::ApplyPatch(lev, time, velocity_mf, *velocity_mf[lev], *bc_velocity, 0);        
- 
-    //Integrator::ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev], bc_nothing, 0);        
-    //Integrator::ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], bc_nothing, 0);
-#if AMREX_SPACEDIM == 3        
-    //Integrator::ApplyPatch(lev, time, ZFlux_mf, *ZFlux_mf[lev], bc_nothing, 0);        
-#endif
-
 }
 
 } // namespace Integrator

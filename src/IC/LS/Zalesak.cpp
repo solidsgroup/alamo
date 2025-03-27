@@ -20,7 +20,7 @@ Zalesak::Zalesak(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, const
 void Zalesak::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
     bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
     const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar Narrow_Band_Width = 6.0 * DX[0];
+    const Set::Scalar Narrow_Band_Width = 7.0 * DX[0];
     const Set::Scalar InnerTube = -Narrow_Band_Width;
     const Set::Scalar OuterTube = Narrow_Band_Width;
 

@@ -1,15 +1,15 @@
-# Simulation output
-plot_file = output_levelset_disk_2D
+## Simulation output
+plot_file = output_levelset_circle_Struct
 
 # Simulation length
-timestep = 0.005
-stop_time = 0.250
+timestep = 0.05
+stop_time = 0.50
 max_step = 1
 
 # AMR parameters
 amr.plot_int = 1
 amr.max_level = 0
-amr.n_cell = 500 500 100
+amr.n_cell = 100 100 100
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -62,16 +62,16 @@ bc.ls.val.zhi  = 0.0
 bc.ls.val.zlo  = 0.0
 
 # Boundary conditions for velocity [UVel, VVel, WVel]
-bc.velocity.type.xhi = neumann neumann #neumann 
-bc.velocity.type.xlo = neumann neumann #neumann
-bc.velocity.type.yhi = neumann neumann #neumann
-bc.velocity.type.ylo = neumann neumann #neumann
-bc.velocity.type.zhi = neumann neumann #neumann
-bc.velocity.type.zlo = neumann neumann #neumann
+#bc.velocity.type.xhi = neumann neumann #neumann 
+#bc.velocity.type.xlo = neumann neumann #neumann
+#bc.velocity.type.yhi = neumann neumann #neumann
+#bc.velocity.type.ylo = neumann neumann #neumann
+#bc.velocity.type.zhi = neumann neumann #neumann
+#bc.velocity.type.zlo = neumann neumann #neumann
 
-bc.velocity.val.xhi = 0.0 0.0 #0.0
-bc.velocity.val.xlo = 0.0 0.0 #0.0
-bc.velocity.val.yhi = 0.0 0.0 #0.0
-bc.velocity.val.ylo = 0.0 0.0 #0.0
-bc.velocity.val.zhi = 0.0 0.0 #0.0
-bc.velocity.val.zlo = 0.0 0.0 #0.0 
+#bc.velocity.val.xhi = 0.0 0.0 #0.0
+#bc.velocity.val.xlo = 0.0 0.0 #0.0
+#bc.velocity.val.yhi = 0.0 0.0 #0.0
+#bc.velocity.val.ylo = 0.0 0.0 #0.0
+#bc.velocity.val.zhi = 0.0 0.0 #0.0
+#bc.velocity.val.zlo = 0.0 0.0 #0.0 
