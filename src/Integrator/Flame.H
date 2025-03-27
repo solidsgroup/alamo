@@ -1,27 +1,16 @@
 #ifndef INTEGRATOR_FLAME_H
 #define INTEGRATOR_FLAME_H
 
-#include <string>
 #include <limits>
-#include <memory>
 
-#include "Util/Util.H"
 #include "Integrator/Integrator.H"
-#include "Integrator/Mechanics.H"
 #include "BC/BC.H"
-#include "IC/Voronoi.H"
 #include "IC/IC.H"
-#include "IC/Constant.H"
-#include "IC/Expression.H"
-#include "IC/PSRead.H" 
 #include "Set/Set.H"
-#include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
-#include "BC/Operator/Elastic/Constant.H"
-#include "Solver/Nonlocal/Newton.H"
 
-
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {
@@ -33,6 +22,8 @@ class Flame : virtual public Integrator::Integrator,
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
 
 public:
+    static constexpr const char* name = "flame";
+
     Flame();
     Flame(IO::ParmParse& pp);
 

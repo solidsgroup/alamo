@@ -103,6 +103,8 @@ parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, ac
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
+parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
+parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -262,6 +264,16 @@ def test(testdir):
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
                 continue
+
+            # Skip all non-fft tests if --fft-only 
+            if args.fft_only and 'fft' not in config[desc].keys():
+                continue
+
+            # Otherwise, skip fft tests unless passing in -fft flag
+            if 'fft' in config[desc].keys():
+                if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
+                    if not args.fft and not args.fft_only: continue
+
             # If not running in serial, specify mpirun command
             if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
             # Specify alamo command.

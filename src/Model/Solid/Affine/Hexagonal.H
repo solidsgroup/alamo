@@ -24,6 +24,7 @@ namespace Affine
 class Hexagonal : public Linear::Hexagonal
 {
 public:
+    static constexpr const char *name = "hexagonal";
 
     Hexagonal() {};
     Hexagonal(Linear::Hexagonal base) : Linear::Hexagonal(base) {};

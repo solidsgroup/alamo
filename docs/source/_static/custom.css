@@ -301,3 +301,59 @@ hr {
   font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
   font-size: 0.95em;
 }
+
+
+.api-inputs-table button.active {
+    background-color: var(--bs-blue) !important;
+    color: white !important;
+    font-weight:bold !important;
+    margin-bottom: -18px;
+    padding-bottom: 18px;
+    border-color: var(--bs-blue) !important;
+    border-bottom-right-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-bottom-width: 0px !important;
+}
+
+.conditional_class_inputs .input-col {
+    border-left-width: 20px;
+}
+
+.conditional_class_inputs {
+    display:none !important;
+}
+
+.conditional_class_inputs.active {
+    display:table-row-group !important;
+}
+
+
+.api-inputs-table button:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+
+.conditional_class_inputs .input-col {
+    border-left: 3px solid #007bff; /* Highlight with a blue left border */
+    padding-left: 15px; /* Ensure text doesn’t overlap */
+    background-color: #f5f7fa; /* Light background for better distinction */
+}
+
+
+.conditional_class_inputs tr:first-child  td{
+    border-top: 3px solid var(--bs-blue) !important; /* Clear separation line */
+}
+
+.conditional_class_inputs tr:last-child  td{
+    border-bottom: 3px solid var(--bs-blue) !important; /* Clear separation line */
+}
+
+.conditional_class_inputs tr  td:last-child{
+    border-right: 3px solid var(--bs-blue) !important; /* Clear separation line */
+}
+
+.conditional-start-second td {
+    align-content: center;
+    border-top-style: none;
+}

@@ -19,6 +19,7 @@ namespace Affine
 class Cubic : public Linear::Cubic
 {
 public:
+    static constexpr const char *name = "cubic";
 
     Cubic() {};
     Cubic(Linear::Cubic base) : Linear::Cubic(base) {};

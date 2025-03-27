@@ -33,7 +33,8 @@ sudo apt install python3-sphinx-rtd-theme python3-sphinx-design
 sudo apt install python3-sphinx-copybutton python3-sphinxcontrib.bibtex
 sudo apt install python3-xmltodict
 
-# Needed for editorconfig linting
+# Needed for linting and code scraping
+sudo apt install python3-clang
 sudo apt install npm
 npm install -g eclint
 
