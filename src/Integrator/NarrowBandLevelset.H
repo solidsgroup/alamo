@@ -166,10 +166,16 @@ protected:
     // Class specific functions
     void ComputeNarrowBandBox(int lev, int ls_id);
     void ComputeNarrowBandMapping(int ls_id);
+    void UpdateNarrowband(int lev, int ls_id);
+    bool BoxIntersectsNarrowBand(const amrex::Box& box, int ls_id, int lev) const;
+    void ComputeNormal(int lev, int ls_id);
+    void ComputeCurvature(int lev, int ls_id);
+    void ComputeGeometryQuantities(int lev, int ls_id);
     void ComputeAndSetNewTimeStep();
     Set::Scalar GetTimeStep();
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
+    void Reinitialize(int lev);
 
     std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;
