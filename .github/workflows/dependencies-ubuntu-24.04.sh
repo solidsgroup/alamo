@@ -33,14 +33,8 @@ sudo apt install python3-sphinx-rtd-theme python3-sphinx-design
 sudo apt install python3-sphinx-copybutton python3-sphinxcontrib.bibtex
 sudo apt install python3-xmltodict
 
-# We will eventually **remove** the linuxdoc dependency and these two
-# lines will not be necessary - these steps are currently a stopgap are 
-# only needed if you are building documentation.
-sudo apt install python3-pip
-pip3 install linuxdoc --break-system-packages
-
-
-# Needed for editorconfig linting
+# Needed for linting and code scraping
+sudo apt install python3-clang
 sudo apt install npm
 npm install -g eclint
 

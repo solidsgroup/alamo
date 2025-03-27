@@ -3,6 +3,8 @@
 #ifndef INTEGRATOR_SFI_H
 #define INTEGRATOR_SFI_H
 
+#include "Hydro.H"
+
 namespace Integrator
 {
 template<class PF>

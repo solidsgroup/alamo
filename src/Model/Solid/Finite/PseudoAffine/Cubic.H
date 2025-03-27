@@ -15,6 +15,8 @@ namespace PseudoAffine
 class Cubic : public PseudoLinear::Cubic
 {
 public:
+    static constexpr const char *name = "cubic";
+    
     Cubic() {};
     Cubic(PseudoLinear::Cubic base) : PseudoLinear::Cubic(base) {};
     virtual ~Cubic() {};

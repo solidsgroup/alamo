@@ -122,6 +122,7 @@ parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_tru
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
+parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
 parser.set_defaults(debug=False)
 
 #
@@ -276,6 +277,8 @@ if args.buildamrex and not args.amrex:
     if args.debug: amrex_configure += ' --debug=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
+    if args.fft: amrex_configure += " --enable-fft=yes"
+
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
@@ -486,7 +489,9 @@ if args.comp == 'icc':
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 
-
+if args.fft:
+    f.write("MPI_LIB += -lfftw3 -lfftw3f\n")
+    f.write("CXX_COMPILE_FLAGS += -DALAMO_FFT\n")
 
 #
 # DIFF
@@ -544,6 +549,9 @@ if not args.compile_commands:
 
     projectdir = os.getcwd()
 
+    otherflags = ""
+    if args.fft: otherflags += "-DALAMO_FFT"
+
     cc = compmpicmd
     command_objects = []
     command_objects = [{
@@ -551,6 +559,7 @@ if not args.compile_commands:
         "file": srcfile,
         "arguments": [
             *cc.split(" "),
+            *otherflags.split(" "),
             "-std=c++17",
             "-I./src/",
             srcfile,
