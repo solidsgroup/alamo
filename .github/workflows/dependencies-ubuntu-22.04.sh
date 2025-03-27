@@ -28,9 +28,13 @@ sudo apt install python3-pip npm lcov doxygen
 pip3 install yt matplotlib numpy pandas
 
 # Needed to build documentation
-pip3 install sphinx sphinx_rtd_theme linuxdoc sphinx_design
+pip3 install sphinx sphinx_rtd_theme sphinx_design
 pip3 install sphinx-copybutton sphinxcontrib-bibtex xmltodict
 
-# Needed for editorconfig linting
+# Needed for linting and code scraping
+# You need to install python clang with apt, otherwise you must manually
+# provide the clang library location in the python script.
+sudo apt install python3-clang
+sudo apt install npm
 npm install -g eclint
 

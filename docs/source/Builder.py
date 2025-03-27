@@ -1,10 +1,14 @@
-from scraper import getdocumentation, geticon, extract, scrapeInputs
+import sys
+sys.path.insert(0,"../../scripts")
+import scraper
+from scraper import scrape
 
 
 
-data = scrapeInputs()
 
 def printInputs(classname,indent="",prefix=""):
+    data = scrape("../../src/")
+
     if classname not in data.keys(): return ""
     html = ""
     for input in data[classname]["inputs"]:
@@ -39,7 +43,9 @@ def printInputs(classname,indent="",prefix=""):
             html +=     indent + """</div>\n"""
             #html     += indent + """<input type='hidden' name='{}' value='[not completed yet - please enter manually]' >\n""".format(id+".type")
         elif (input["type"] == "queryclass"):
-            id = prefix + input["string"]
+            if not input["string"]:
+                continue
+            id = str(prefix) + input["string"]
             html     += indent + """<div class="card mb-3" >\n"""
             html     += indent + """  <div class="card-header">\n"""
             html     += indent + """    <h3 class="card-title mt-3 mb-1">{}</h3>\n""".format(id)
@@ -51,7 +57,6 @@ def printInputs(classname,indent="",prefix=""):
             cls = cls.split("<")[0] # remove template args for now
             if not cls in data.keys(): # if it's not an actual classname then
                 cls = "::".join(classname.split("::")[:-1])+"::"+cls
-            print(cls)
             name = cls.split("::")[-1].lower()
             html += printInputs(cls,indent+"      ",
                                 prefix = input["string"] + ".")
@@ -63,7 +68,6 @@ def printInputs(classname,indent="",prefix=""):
             cls = cls.split("<")[0] # remove template args for now
             if not cls in data.keys(): # if it's not an actual classname then
                 cls = "::".join(classname.split("::")[:-1])+"::"+cls
-            print(cls)
             html += printInputs(cls,indent=indent, prefix=prefix)
         elif "validate" in input["type"]:
             id = prefix + input["string"]
@@ -73,12 +77,12 @@ def printInputs(classname,indent="",prefix=""):
             html += indent + "  </div>\n"
             html += indent + """  <select class="form-select" id="{}"  name="{}">""".format(id,id)
             html += indent + """  <option selected disabled value="">Choose...</option>"""
-            print(input["possibles"].split(','))
             for option in input["possibles"].replace('"','').split(','):
                 html += indent + """  <option>{}</option>""".format(option)
             html += indent + """  </select>"""
             html += indent + "</div>"
         else:
+            if "string" not in input: continue
             id = prefix + input["string"]
             html += '<div class="input-group mb-3">'
             html += '  <div class="input-group-prepend">'
@@ -286,4 +290,3 @@ const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstra
 f = open("Builder.html",'w')
 f.write(html)
 f.close()
-#print(html)

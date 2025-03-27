@@ -2,7 +2,7 @@
 // A basic and relatively untested implementation of finite-deformation FCC crystal plasticity.
 // Use with caution.
 //
-// Inherits from :ref:`PseudoLinear::Cubic` to provide elastic response.
+// Inherits from :ref:`Model::Solid::Finite::PseudoLinear::Cubic` to provide elastic response.
 //
 // Plastic flow modeled as:
 //

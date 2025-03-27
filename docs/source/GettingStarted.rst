@@ -14,7 +14,7 @@
  
 
 System Install Scripts
-======================
+----------------------
 
 .. dropdown:: Table of contents
 

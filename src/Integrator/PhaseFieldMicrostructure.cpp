@@ -256,7 +256,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 template <class model_type>
 void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
 {
-    if (this->m_type == Mechanics<model_type>::Disable) return;
+    if (this->m_type == Base::Mechanics<model_type>::Disable) return;
     eta_mf[lev]->FillBoundary();
     eta_old_mf[lev]->FillBoundary();
 
