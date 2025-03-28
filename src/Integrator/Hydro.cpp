@@ -358,6 +358,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Scalar M_mag        = sqrt(pow(M(i,j,k,0) - M_solid(i,j,k,0), 2.0) + pow(M(i,j,k,1) - M_solid(i,j,k,1), 2.0));
             Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta(i,j,k)) * M_solid(i,j,k,0),
                                     M(i,j,k,1) - (1.-eta(i,j,k)) * M_solid(i,j,k,1) );
+            Set::Vector M_fluid = etaM_fluid/(eta(i,j,k) + small);
             Set::Scalar M_mag = sqrt(pow(etaM_fluid(0)/(eta(i,j,k) + small), 2.0) + pow(etaM_fluid(1)/(eta(i,j,k) + small), 2.0));
 
 
@@ -368,9 +369,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Set::Scalar mdot0 = m0(i,j,k) * grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); 
-            Pdot0 = (mdot0*u0 - M_mag*u) * grad_eta_mag;
-            Pdot0(0) = (mdot0*u0(0) - (M(i,j,k,0) - M_solid(i,j,k,0))*u(0));
-            Pdot0(1) = (mdot0*u0(1) - (M(i,j,k,1) - M_solid(i,j,k,1))*u(1));
+            //Pdot0 = mdot0*u0 - M_mag*u*grad_eta_mag;
+            //Pdot0(0) = (mdot0*u0(0) - (M_fluid(0))*grad_eta_mag*u(0));
+            //Pdot0(1) = (mdot0*u0(1) - (M_fluid(1))*grad_eta_mag*u(1));
             Set::Scalar qdot0 = q0(i,j,k) * grad_eta_mag;
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);

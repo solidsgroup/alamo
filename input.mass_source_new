@@ -1,0 +1,150 @@
+#@ [normal-into-wall]
+#@ exe=hydro
+#@ dim=2
+#@ check-file = reference/normalintowall.dat
+
+
+alamo.program = hydro
+
+### OUTPUT ###
+
+plot_file = output.mass_source
+
+### MESHING ###
+
+amr.plot_dt = 1E-2
+#amr.plot_int = 100
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+amr.regrid_int = 100
+amr.grid_eff = 0.8
+amr.n_cell = 64 8 0
+
+# Uncomment to test AMR
+amr.max_level = 4
+#amr.n_cell = 128 32 0
+
+### DIMENSIONS ###
+
+geometry.prob_lo = 0.0  0.0 0.0 # [ m ] 
+geometry.prob_hi = 5.0  0.625 0.0 # [ m ]
+
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 1e-4
+stop_time = 0.35
+solver.roe.entropy_fix=0
+
+#dynamictimestep.on = 1
+#dynamictimestep.verbose = 1
+#dynamictimestep.max  = 1E-4
+#dynamictimestep.min  = 1E-8
+
+### ETA IC ###
+
+m0.ic.type = expression
+m0.ic.expression.region0 = "1.225"
+
+u0.ic.type = expression
+u0.ic.expression.region0 = "-1.0"
+u0.ic.expression.region1 = "0.0"
+
+q0.ic.type = expression
+q0.ic.expression.region0 = "0.0"
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.02
+eta.ic.expression.constant.vel_x = 0.0 
+eta.ic.expression.constant.vel_y = 0.0 
+eta.ic.expression.region0        = "0.5*tanh((4.0-x)/eps) + 0.5"
+
+### HYDRO PARAM ###
+
+gamma = 1.4
+cfl   = 0.4
+mu    = 0.5
+pref = 100.0
+
+density.ic.type = expression
+density.ic.expression.region0 = "1.225"
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "0.0" #"1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.region0 = "0.0" 
+
+### SOLID ###
+
+solid.density.ic.type = expression
+solid.density.ic.expression.region0 = "1.225"
+
+solid.momentum.ic.type = expression
+solid.momentum.ic.expression.region0 = "-1.225"
+solid.momentum.ic.expression.region1 = "0.0"
+
+solid.energy.ic.type = expression
+solid.energy.ic.expression.region0 = "0.0" 
+
+### ETA BC  ###
+
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+
+density.bc.type = constant
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.xlo = neumann
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+density.bc.constant.val.xhi = 0.0
+density.bc.constant.val.xlo = 0.0
+density.bc.constant.val.ylo = 0.0 
+density.bc.constant.val.yhi = 0.0
+
+momentum.bc.type = constant
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.ylo = neumann dirichlet
+momentum.bc.constant.type.yhi = neumann dirichlet
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.type = constant
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0 
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+r_refinement_criterion   = 0.1
+e_refinement_criterion   = 0.1
+m_refinement_criterion   = 0.1
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 0.1
+energy_refinement_criterion = 0.1
+
+#TODO
