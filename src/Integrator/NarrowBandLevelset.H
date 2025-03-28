@@ -155,6 +155,8 @@ protected:
     Set::Field<Set::Scalar>    YFlux_mf;                // Y-direction flux field
     Set::Field<Set::Scalar>    ZFlux_mf;                // Z-direction flux field
 
+    std::unique_ptr<amrex::iMultiFab> Zerols_imf;  // Testing iMultiFab Object by declaring it directly without wrapper 
+
     // Solver setup and control functions (override)
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar time, int iter) override;
@@ -176,6 +178,7 @@ protected:
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev);
+    void ClearZerols();
 
     std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;

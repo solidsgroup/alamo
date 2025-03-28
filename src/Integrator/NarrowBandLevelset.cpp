@@ -71,9 +71,6 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     }
     }
 
-    {// Create zero levelset tube
-    //amrex::iMultiFab izerols(value.geom, value.dmap, value.number_of_components, 0);
-    }
 
     {// Register face-centered flux fields
     value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
@@ -130,9 +127,12 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
 
 // Define required override functions
 void NarrowBandLevelset::Initialize(int lev){
+         
     // Initialize levelset fields
     ic_ls->Initialize(lev, ls_old_mf);
     ic_ls->Initialize(lev, ls_mf);
+
+    Zerols_imf.reset(new amrex::iMultiFab(grids[lev], dmap[lev], 1, number_of_ghost_cells));
 
     // Loop through all levelsets
     for (int ils=0; ils < number_of_components; ils++){
@@ -148,6 +148,10 @@ void NarrowBandLevelset::Initialize(int lev){
         // Define Geometric quantities - must be after narrowband to update narrowband boxes!
         ComputeGeometryQuantities(lev, ils);
     } 
+}
+
+void NarrowBandLevelset::ClearZerols(){
+    Zerols_imf.reset();
 }
 
 void NarrowBandLevelset::ComputeNarrowBandBox(int lev, int ls_id){
