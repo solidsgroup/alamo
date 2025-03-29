@@ -144,8 +144,9 @@ protected:
         // KEY CONCEPT: Each level set tracks its own narrow band region
         // as a collection of boxes - enabling quick intersection tests
         bool has_narrowband;
-        amrex::BoxArray narrowband_boxes;
+        amrex::BoxList narrowband_boxes;
         amrex::DistributionMapping narrowband_dm;
+        amrex::Vector<int> narrowband_flags;
     };
     
     // Variables (multi-fabs)
@@ -166,20 +167,26 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
 
     // Class specific functions
-    void ComputeNarrowBandBox(int lev, int ls_id);
-    void ComputeNarrowBandMapping(int ls_id);
+    // Narrowband functions
+    void ClearZerols();
+
+    void UpdateZerols(int lev, int ls_id);
+    void ComputeNarrowBandBoxList(int lev, int ls_id);
+    void ComputeNarrowBandMapping(int lev, int ls_id);
+    void UpdateNarrowBandFlags(int lev, int ls_id);
     void UpdateNarrowband(int lev, int ls_id);
-    bool BoxIntersectsNarrowBand(const amrex::Box& box, int ls_id, int lev) const;
+    // Geometries
     void ComputeNormal(int lev, int ls_id);
     void ComputeCurvature(int lev, int ls_id);
     void ComputeGeometryQuantities(int lev, int ls_id);
+    // Timestepping
     void ComputeAndSetNewTimeStep();
     Set::Scalar GetTimeStep();
+    // Advance
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev);
-    void ClearZerols();
-
+    
     std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;
 

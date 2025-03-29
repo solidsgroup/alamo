@@ -19,6 +19,33 @@ public:
     class Debug {
     
     public:
+
+    /*static void PrintZeroLS(const amrex::iMultiFab& imf, const std::string& context) {
+        // Print the debug context
+        printf("%s\n", context.c_str());
+    
+        for (amrex::MFIter mfi(imf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            const amrex::Box& bx = mfi.tilebox();
+            auto const& arr = imf.const_array(mfi);  // Use `const_array` since imf is `const`
+    
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                printf("i: %d, j: %d, Zerols_imf(i,j,k): %d\n", i, j, k, arr(i, j, k));
+            });
+        }
+    }*/   
+
+    /*for (amrex::MFIter mfi(*Zerols_imf, false); mfi.isValid(); ++mfi) { 
+        const amrex::Box& bx = mfi.validbox();
+        auto const& zerols_arr = Zerols_imf->array(mfi);
+        auto const& ls_arr = ls_mf[lev]->array(mfi);
+    
+        for (int j = bx.smallEnd(1); j <= bx.bigEnd(1); ++j) {
+            for (int i = bx.smallEnd(0); i <= bx.bigEnd(0); ++i) {
+                printf("After Update: Zerols_imf(%d, %d, 0) = %d\n", i, j, zerols_arr(i, j, 0));
+                printf("After Update: ls_mf(%d, %d, 0) = %f\n", i, j, ls_arr(i, j, 0, ls_id));
+            }
+        }
+    }*/
     
     static void CheckTileBoundaryNeighbors(){
     }
@@ -51,15 +78,11 @@ public:
                     }
                 }
             });
-        }
-                               
+        }                       
     }
 
-
-    };
-
-
-};
-}
+    }; // end class Debug
+}; // end class NarrowBandLevelset_Util
+} // end namespace util
 
 #endif // UTIL_NarrowBandLevelset_UTIL_H
