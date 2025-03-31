@@ -584,9 +584,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     dTdt += grad_alpha.dot(eta(i, j, k) * grad_temp);
                     dTdt += eta(i, j, k) * alpha(i, j, k) * lap_temp;
                     dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
-                    Set::Scalar Tsolid;
-                    Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
-                    tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
+                    //Set::Scalar Tsolid;
+                    //Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
+                    tempsnew(i, j, k) = temps(i, j, k) + (dTdt * dt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)));
                     tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
                     if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
                         Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, " j= ", j, ")");
