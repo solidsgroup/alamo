@@ -248,6 +248,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_void", value.elastic.model_void);
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
@@ -357,8 +358,13 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_htpb.F0 -= Set::Matrix::Identity();
                     model_htpb.F0 *= (temp_avg - elastic.Tref);
                     model_htpb.F0 += Set::Matrix::Identity();
+                    model_type model_void = elastic.model_void;
+                    model_void.F0 -= Set::Matrix::Identity();
+                    model_void.F0 *= (temp_avg - elastic.Tref);
+                    model_void.F0 += Set::Matrix::Identity();
 
-                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    if (!homogeneousSystem) model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    else model(i, j, k) = (model_ap * thermal.massfraction + model_htpb * (1. - thermal.massfraction)) * phi_avg + model_void * (1. - phi_avg);
                 });
             }
             else
@@ -514,10 +520,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     }
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
+
                     if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
 
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
-                    mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
+
+                    mdot(i, j, k) = rho * mob(i, j, k) * fabs(df_deta); // deta/dt  
 
                     if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
                         Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
@@ -576,9 +584,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     dTdt += grad_alpha.dot(eta(i, j, k) * grad_temp);
                     dTdt += eta(i, j, k) * alpha(i, j, k) * lap_temp;
                     dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
-                    Set::Scalar Tsolid;
-                    Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
-                    tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
+                    //Set::Scalar Tsolid;
+                    //Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
+                    tempsnew(i, j, k) = temps(i, j, k) + (dTdt * dt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)));
                     tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
                     if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
                         Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, " j= ", j, ")");
