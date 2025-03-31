@@ -514,10 +514,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     }
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
+
                     if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
 
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
-                    mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
+
+                    mdot(i, j, k) = rho * mob(i, j, k) * fabs(df_deta); // deta/dt  
 
                     if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
                         Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
