@@ -62,24 +62,25 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     
     {// Initialize constant velocity. Will be removed once integrated with ScimitarX integrator
     // Define constant velocity vector
-    pp_queryarr("ic.velocity.value", value.constant_velocity);
+    value.ic_velocity = new IC::Constant(value.geom, pp, "ic.velocity");
+    value.bc_velocity = new BC::Constant(AMREX_SPACEDIM, pp, "bc.velocity");
+    //pp_queryarr("ic.velocity.value", value.constant_velocity);
 
     // Define velocity, normal, and curvature multifabs
     for (int ils=0; ils < value.number_of_components; ils++){
-        value.RegisterGeneralFab(value.level_sets[ils].velocity_mf, AMREX_SPACEDIM, value.number_of_ghost_cells, "velocity", false); 
-        value.RegisterGeneralFab(value.level_sets[ils].normal_mf, AMREX_SPACEDIM, value.number_of_ghost_cells, "normal", false);
-        value.RegisterNewFab(value.level_sets[ils].curvature_mf, value.bc_ls, 1, value.number_of_ghost_cells, "curvature", false);   
+        value.RegisterNewFab(value.level_sets[ils].velocity_mf, value.bc_velocity, AMREX_SPACEDIM, value.number_of_ghost_cells, "velocity", true); 
+        value.RegisterNewFab(value.level_sets[ils].normal_mf, value.bc_velocity, AMREX_SPACEDIM, value.number_of_ghost_cells, "normal", true);
+        value.RegisterNewFab(value.level_sets[ils].curvature_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "curvature", true);   
     }
     }
-
 
     {// Register face-centered flux fields
-    value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", false);
+    value.RegisterFaceFab<0>(value.XFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "xflux", true);
     #if AMREX_SPACEDIM >= 2
-    value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", false);
+    value.RegisterFaceFab<1>(value.YFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "yflux", true);
     #endif
     #if AMREX_SPACEDIM == 3
-    value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false);
+    value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", true);
     #endif
     }
 
@@ -143,12 +144,15 @@ void NarrowBandLevelset::Initialize(int lev){
         level_sets[ils].id = ils;
 
         // Define velocity_mf containing velocity vector
-        level_sets[ils].velocity_mf[lev] -> setVal(constant_velocity);
+        ic_velocity->Initialize(lev, level_sets[ils].velocity_mf);
+        //level_sets[ils].velocity_mf[lev] -> setVal(constant_velocity);
 
         // Define initial narrowband boxarray and distribution mapping
         UpdateNarrowband(lev, ils);
 
         // Define Geometric quantities - must be after narrowband to update narrowband boxes!
+        level_sets[ils].normal_mf[lev]->setVal(0.0);
+        level_sets[ils].curvature_mf[lev]->setVal(0.0);
         ComputeGeometryQuantities(lev, ils);
     } 
 }
@@ -403,15 +407,19 @@ void NarrowBandLevelset::ComputeNormal(int lev, int ls_id){
         if (narrowband_flags[idx] == 0) continue;  // Skip non-narrowband boxes
 
         // Add a ghost layer for central differencing scheme
-        const amrex::Box& grown_bx = mfi.growntilebox(1);
+        const amrex::Box& valid_bx = mfi.tilebox();
         auto const& phi_arr = ls_mf.Patch(lev, mfi);
         auto const& normal = level_sets[ls_id].normal_mf.Patch(lev, mfi); 
 
-        amrex::ParallelFor(grown_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             // Utilize Numeric::Gradient for simplified computations
-            Set::Vector gradient = Numeric::Gradient(phi_arr, i, j, k, ls_id, DX);
+            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::GetStencil(i, j, k, valid_bx);
+            Set::Vector gradient = Numeric::Gradient(phi_arr, i, j, k, ls_id, DX, stencil);
             Set::Scalar grad_mag = gradient.norm();
-            normal(i, j, k) = gradient / grad_mag;
+
+            for (int dim = 0; dim < AMREX_SPACEDIM; ++dim) {
+                normal(i, j, k, dim) = (grad_mag > 0.0) ? (gradient[dim] / grad_mag) : 0.0;
+            }
         });
     }
 }
@@ -423,7 +431,7 @@ void NarrowBandLevelset::ComputeCurvature(int lev, int ls_id){
     // Update boundaries for ghost cells **before** iterating over tileboxes
     level_sets[ls_id].normal_mf[lev]->FillBoundary();
     
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*level_sets[ls_id].curvature_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         // Only perform computations in narrowband
         const int idx = mfi.index();  // Index into box array
         amrex::Vector<int> narrowband_flags = level_sets[ls_id].narrowband_flags; // flags
@@ -431,18 +439,20 @@ void NarrowBandLevelset::ComputeCurvature(int lev, int ls_id){
         if (narrowband_flags[idx] == 0) continue;  // Skip non-narrowband boxes
         
         // Add a ghost layer for central differencing scheme
-        const amrex::Box& grown_bx = mfi.growntilebox(1);
+        const amrex::Box& valid_bx = mfi.tilebox();
         auto const& normal = level_sets[ls_id].normal_mf.Patch(lev, mfi); 
         auto const& curvature = level_sets[ls_id].curvature_mf.Patch(lev, mfi);
 
-        amrex::ParallelFor(grown_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // Utilize Numeric::Gradient for simplified computations
-            Set::Matrix gradient_matrix = Numeric::Gradient(normal, i, j, k, DX);
-
+        amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             // Get diagonals of matrix
+            Set::Scalar sum = 0;
+            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::GetStencil(i, j, k, valid_bx);
             for (int dim=0; dim < AMREX_SPACEDIM; dim++){
-                curvature(i, j, k) += gradient_matrix(dim, dim);
+                // Utilize Numeric::Gradient for simplified computations
+                Set::Vector gradient = Numeric::Gradient(normal, i, j, k, dim, DX, stencil);
+                sum += gradient[dim];
             }
+            curvature(i,j,k) = sum;
         });
     }  
 }
@@ -494,12 +504,12 @@ Set::Scalar NarrowBandLevelset::GetTimeStep() {
     
                 amrex::ParallelFor(bx, [=, &minDt_local](int i, int j, int k) noexcept {
                     // Extract velocity components
-                    Set::Scalar u = velocity_arr(i, j, k)[0];
+                    Set::Scalar u = velocity_arr(i, j, k, 0);
     #if (AMREX_SPACEDIM >= 2)
-                    Set::Scalar v = velocity_arr(i, j, k)[1];
+                    Set::Scalar v = velocity_arr(i, j, k, 1);
     #endif
     #if (AMREX_SPACEDIM == 3)
-                    Set::Scalar w = velocity_arr(i, j, k)[2];
+                    Set::Scalar w = velocity_arr(i, j, k, 2);
     #endif
     
                     // Compute the maximum velocity magnitude
@@ -544,8 +554,8 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Update current timestep (for reinitialize)
     current_timestep ++;
 
-    // Advect
-    Advect(lev, time, dt);
+    /*// Advect
+    //Advect(lev, time, dt);
 
     // Clear the zero levelset
     ClearZerols();
@@ -565,7 +575,7 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             UpdateNarrowband(lev, ls_id);
             ComputeGeometryQuantities(lev, ls_id);
         }
-    }
+    }*/
 }
 
 void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt){
@@ -606,8 +616,9 @@ void NarrowBandLevelset::UpdateInterfaceVelocity(int lev){
             auto const& vel_arr = level_sets[ils].velocity_mf.Patch(lev,mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                Set::Vector velocity = vel_arr(i,j,k);
-                vel_arr(i,j,k) = velocity;
+                for (int dim=0; dim < AMREX_SPACEDIM; ++dim){
+                   vel_arr(i,j,k,dim) = vel_arr(i,j,k,dim);
+                }
             });
         }
     }

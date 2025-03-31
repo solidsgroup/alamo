@@ -50,7 +50,9 @@ public:
     virtual ~NarrowBandLevelset()
     {
         delete ic_ls;
+        delete ic_velocity;
         delete bc_ls;
+        delete bc_velocity;
         
     }
     
@@ -137,8 +139,8 @@ protected:
     {
         int id = -1;
         int material_id = -1;
-        Set::Field<Set::Vector> velocity_mf;
-        Set::Field<Set::Vector> normal_mf;
+        Set::Field<Set::Scalar> velocity_mf;
+        Set::Field<Set::Scalar> normal_mf;
         Set::Field<Set::Scalar> curvature_mf;
         
         // KEY CONCEPT: Each level set tracks its own narrow band region
@@ -230,14 +232,16 @@ private:
     Set::Scalar narrow_band_width = 6.0;
 
     // Define constant velocity array
-    Set::Vector constant_velocity = Set::Vector::Zero();
+    //Set::Vector constant_velocity = Set::Vector::Zero();
 
     //
     // Definition of user-determined pointer variables.
     //
 
     IC::IC<Set::Scalar>* ic_ls = nullptr;        // Object used to initialize levelset field
+    IC::IC<Set::Scalar>* ic_velocity = nullptr;
     BC::BC<Set::Scalar>* bc_ls = nullptr;        // Object used to update temp levelset field boundary ghost cells
+    BC::BC<Set::Scalar>* bc_velocity = nullptr;
     BC::Nothing bc_nothing;
     
     FluxReconstruction reconstruction_method;    // Selected flux reconstruction scheme

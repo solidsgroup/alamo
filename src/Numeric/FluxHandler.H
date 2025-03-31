@@ -320,7 +320,7 @@ public:
                     ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
     
                     // Compute velocity and its sign (branch-free)
-                    Set::Scalar vel = vel_arr(index[0], index[1], index[2])[direction];
+                    Set::Scalar vel = vel_arr(index[0], index[1], index[2], direction);
                     int sigma = vel >= 0 ? 1 : 0;
     
                     // First-order upwind reconstruction
@@ -661,8 +661,8 @@ public:
                     ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
 
                     // Get velocities at left and right faces
-                    Set::Scalar vel_L = velocity_arr(left_index[0], left_index[1], left_index[2])[direction];
-                    Set::Scalar vel_R = velocity_arr(right_index[0], right_index[1], right_index[2])[direction];
+                    Set::Scalar vel_L = velocity_arr(left_index[0], left_index[1], left_index[2], direction);
+                    Set::Scalar vel_R = velocity_arr(right_index[0], right_index[1], right_index[2], direction);
                     
                     // Compute max wave speed λ for LF flux
                     Set::Scalar lambda_max = std::max(std::abs(vel_L), std::abs(vel_R));
