@@ -248,6 +248,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_void", value.elastic.model_void);
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
@@ -357,8 +358,13 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_htpb.F0 -= Set::Matrix::Identity();
                     model_htpb.F0 *= (temp_avg - elastic.Tref);
                     model_htpb.F0 += Set::Matrix::Identity();
+                    model_type model_void = elastic.model_void;
+                    model_void.F0 -= Set::Matrix::Identity();
+                    model_void.F0 *= (temp_avg - elastic.Tref);
+                    model_void.F0 += Set::Matrix::Identity();
 
-                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    if (!homogeneousSystem) model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    else model(i, j, k) = (model_ap * thermal.massfraction + model_htpb * (1. - thermal.massfraction)) * phi_avg + model_void * (1. - phi_avg);
                 });
             }
             else
