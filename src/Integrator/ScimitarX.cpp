@@ -133,9 +133,14 @@ void ScimitarX::SetupNumericComponents()
         
         // Set up flux reconstruction method based on configuration
         if (reconstruction_method == Numeric::FluxReconstructionType::WENO) {
-            if (weno_variant == Numeric::WenoVariant::WENOJS5) {
+            if (weno_variant == Numeric::WenoVariant::WENOJS3) {
+                Util::Message(INFO, "Creating WENOJS3 reconstruction");                
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS3<ScimitarX>>());
+            } else if (weno_variant == Numeric::WenoVariant::WENOJS5) {
+                Util::Message(INFO, "Creating WENOJS5 reconstruction");                
                 fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS5<ScimitarX>>());
             } else {
+                Util::Message(INFO, "Creating WENOZ5 reconstruction");                
                 fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOZ5<ScimitarX>>());
             }
         } else {
@@ -172,6 +177,17 @@ void ScimitarX::SetupNumericComponents()
         
     }
     
+    // Additional validation logging
+    Util::Message(INFO, "Final Numeric Method Configuration:");
+    Util::Message(INFO, "  Flux Reconstruction: " + 
+        Numeric::NumericFactory::toString(reconstruction_method));
+    Util::Message(INFO, "  Flux Scheme: " + 
+        Numeric::NumericFactory::toString(flux_scheme));
+    Util::Message(INFO, "  WENO Variant: " + 
+        Numeric::NumericFactory::toString(weno_variant));
+    Util::Message(INFO, "  Temporal Scheme: " + 
+        Numeric::NumericFactory::toString(temporal_scheme));
+
     Util::Message(INFO, "Numeric components set up successfully.");
 }
 
@@ -181,6 +197,21 @@ void ScimitarX::ValidateAndSetupNumerics(IO::ParmParse& pp) {
     if (!solverCapabilities) {
         RegisterSolverCapabilities();
     }
+
+
+
+        Util::Message(INFO, "Configuration Before Validate Method:");
+        Util::Message(INFO, "  Flux Reconstruction: " + 
+            Numeric::NumericFactory::toString(reconstruction_method));
+        Util::Message(INFO, "  Flux Scheme: " + 
+            Numeric::NumericFactory::toString(flux_scheme));
+        Util::Message(INFO, "  Time Stepping: " + 
+            Numeric::NumericFactory::toString(temporal_scheme));
+        Util::Message(INFO, "  Reconstruction Mode: " + 
+            Numeric::NumericFactory::toString(variable_space));
+        Util::Message(INFO, "  WENO Variant: " + 
+            Numeric::NumericFactory::toString(weno_variant));
+
 
     // Perform comprehensive configuration validation
     auto validationResult = solverCapabilities->validateMethodCombination(
@@ -228,12 +259,18 @@ void ScimitarX::ValidateAndSetupNumerics(IO::ParmParse& pp) {
         weno_variant = defaultConfig.wenoVariant;
     }
 
-    // Additional validation logging
-    Util::Message(INFO, "Final Numeric Method Configuration:");
-    Util::Message(INFO, "  Flux Reconstruction: " + 
-        Numeric::NumericFactory::toString(reconstruction_method));
-    Util::Message(INFO, "  Flux Scheme: " + 
-        Numeric::NumericFactory::toString(flux_scheme));
+    
+        Util::Message(INFO, "Configuration After Validate Method:");
+        Util::Message(INFO, "  Flux Reconstruction: " + 
+            Numeric::NumericFactory::toString(reconstruction_method));
+        Util::Message(INFO, "  Flux Scheme: " + 
+            Numeric::NumericFactory::toString(flux_scheme));
+        Util::Message(INFO, "  Time Stepping: " + 
+            Numeric::NumericFactory::toString(temporal_scheme));
+        Util::Message(INFO, "  Reconstruction Mode: " + 
+            Numeric::NumericFactory::toString(variable_space));
+        Util::Message(INFO, "  WENO Variant: " + 
+            Numeric::NumericFactory::toString(weno_variant));
     
     // Proceed with setting up numeric components
     SetupNumericComponents();

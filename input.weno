@@ -1,5 +1,5 @@
 # Simulation output
-plot_file = output_LLF_Characteristic_WENO_RK3
+plot_file = output_HLLC_Conservative_WENOZ5_RK3
 
 # Simulation length
 timestep = 0.001
@@ -9,7 +9,7 @@ max_step = 1000
 # AMR parameters
 amr.plot_int = 10
 amr.max_level = 0
-amr.n_cell = 200 10 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.n_cell = 400 20 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 1
 amr.regrid_int = -1  # No regridding for uniform grid
 amr.grid_eff = 1.0
@@ -30,7 +30,7 @@ TimeSteppingScheme = RK3
 
 
 #FluxMethod
-FluxScheme = LocalLaxFriedrichs
+FluxScheme = HLLC #LocalLaxFriedrichs
 
 #FluxReconstruction
 FluxReconstruction = WENO
@@ -39,7 +39,7 @@ FluxReconstruction = WENO
 WenoVariant = WENOZ5
 
 #Reconstruction Mode
-ReconstructionMode = Characteristic
+ReconstructionMode = Conservative
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]

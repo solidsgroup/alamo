@@ -74,7 +74,7 @@ struct DifferenceOperator {
  */
 struct WENOJS3Traits {
     static constexpr int OrderValue = 3;
-    static constexpr Set::Scalar Epsilon = 1.0e-40;  // Small parameter to avoid division by zero
+    static constexpr Set::Scalar Epsilon = 1e-40;  // Small parameter to avoid division by zero
     static constexpr int NumCandidateStencils = 2;  // Number of candidate stencils
     static constexpr int PointsPerStencil = 2;      // Points per candidate stencil
     static constexpr int TotalPoints = 3;           // Total points in the full stencil
@@ -149,7 +149,7 @@ struct WENOJS3Traits {
  */
 struct WENOJS5Traits {
     static constexpr int OrderValue = 5;
-    static constexpr Set::Scalar Epsilon = 1.0e-40;  // Small parameter to avoid division by zero
+    static constexpr Set::Scalar Epsilon = 1e-40;  // Small parameter to avoid division by zero
     static constexpr int NumCandidateStencils = 3;  // Number of candidate stencils
     static constexpr int PointsPerStencil = 3;      // Points per candidate stencil
     static constexpr int TotalPoints = 5;           // Total points in the full stencil
@@ -270,7 +270,7 @@ public:
     static auto ComputeSmoothnessIndicators(
         const StencilArray& stencil, 
         int i, int j, int k,  // Cell indices for debug output
-        bool enableDebug = false
+        bool enableDebug
     ) {
         std::array<Set::Scalar, Traits::NumCandidateStencils> indicators;
         
@@ -307,9 +307,12 @@ public:
             stencilCoefficients,
             termWeights,
             subStencilOffsets, 
+            Traits::NumCandidateStencils,
+            Traits::TotalPoints,
+            Traits::NumDifferenceTerms,
             enableDebug
-        );
-        
+        );        
+                
         return indicators;
     }
     
@@ -326,7 +329,7 @@ public:
     static auto ComputeCandidateFluxes(
         const StencilArray& stencil,
         int i, int j, int k,  // Cell indices for debug output
-        bool enableDebug = false
+        bool enableDebug
     ) {
         std::array<Set::Scalar, Traits::NumCandidateStencils> fluxes;
         
@@ -357,6 +360,9 @@ public:
             i, j, k, stencil, fluxes,
             candidateStencilCoefficients,
             subStencilOffsets,
+            Traits::NumCandidateStencils,
+            Traits::PointsPerStencil,
+            Traits::TotalPoints,
             enableDebug
         );
         
@@ -376,7 +382,7 @@ public:
     static auto ComputeNonlinearWeights(
         const IndicatorArray& indicators,
         int i, int j, int k,  // Cell indices for debug output
-        bool enableDebug = false
+        bool enableDebug
     ) {
         std::array<Set::Scalar, Traits::NumCandidateStencils> weights;
         
@@ -407,7 +413,8 @@ public:
         // Debug call - separated from the main algorithm logic
         Util::ScimitarX_Util::Debug::DebugWENOWeights(
             i, j, k, indicators, weights, 
-            optimalWeights, Traits::Epsilon, Traits::Power, 
+            optimalWeights, Traits::Epsilon, Traits::Power,
+            Traits::NumCandidateStencils,
             enableDebug
         );
         
@@ -427,7 +434,7 @@ public:
     static Set::Scalar ReconstructValue(
         const StencilArray& stencil,
         int i, int j, int k,  // Cell indices for debugging
-        bool enableDebug = false
+        bool enableDebug
     ) {
         // 1. Compute smoothness indicators
         auto indicators = ComputeSmoothnessIndicators(stencil, i, j, k, enableDebug);
@@ -446,8 +453,9 @@ public:
         
         // Debug call for the final reconstruction
         Util::ScimitarX_Util::Debug::DebugWENOReconstruction(
-            i, j, k, candidate_fluxes, 
+            i, j, k, candidate_fluxes, weights, 
             Traits::GetOptimalWeights(), reconstructed_value,
+            Traits::NumCandidateStencils,
             enableDebug
         );
         
@@ -473,7 +481,7 @@ public:
     static auto ComputeSmoothnessIndicators(
         const StencilArray& stencil, 
         int i, int j, int k,
-        bool enableDebug = false
+        bool enableDebug
     ) {
         return WENOReconstructionPolicy<WENOJS5Traits>::ComputeSmoothnessIndicators(
             stencil, i, j, k, enableDebug);
@@ -484,7 +492,7 @@ public:
     static auto ComputeCandidateFluxes(
         const StencilArray& stencil,
         int i, int j, int k,
-        bool enableDebug = false
+        bool enableDebug
     ) {
         return WENOReconstructionPolicy<WENOJS5Traits>::ComputeCandidateFluxes(
             stencil, i, j, k, enableDebug);
@@ -506,7 +514,7 @@ public:
     static auto ComputeNonlinearWeights(
         const IndicatorArray& indicators,
         int i, int j, int k,
-        bool enableDebug = false
+        bool enableDebug
     ) {
         std::array<Set::Scalar, Traits::NumCandidateStencils> weights;
         
@@ -542,7 +550,8 @@ public:
         // Debug call - separated from the main algorithm logic
         Util::ScimitarX_Util::Debug::DebugWENOWeights(
             i, j, k, indicators, weights, 
-            optimalWeights, Traits::Epsilon, Traits::Power, 
+            optimalWeights, Traits::Epsilon, Traits::Power,
+            Traits::NumCandidateStencils, 
             enableDebug
         );
         
@@ -562,7 +571,7 @@ public:
     static Set::Scalar ReconstructValue(
         const StencilArray& stencil,
         int i, int j, int k,
-        bool enableDebug = false
+        bool enableDebug
     ) {
         // 1. Compute smoothness indicators
         auto indicators = ComputeSmoothnessIndicators(stencil, i, j, k, enableDebug);
@@ -581,8 +590,9 @@ public:
         
         // Debug call for the final reconstruction
         Util::ScimitarX_Util::Debug::DebugWENOReconstruction(
-            i, j, k, candidate_fluxes, 
+            i, j, k, candidate_fluxes, weights, 
             Traits::GetOptimalWeights(), reconstructed_value,
+            Traits::NumCandidateStencils,
             enableDebug
         );
         
@@ -613,6 +623,21 @@ public:
     
     WENOReconstruction() {}
 
+    // Helper function to get variant name, only used when debug is enabled
+    std::string GetVariantName() const {
+        if constexpr (std::is_same_v<VariantTraits, WENOJS3Traits>) {
+            return "WENOJS3";
+        } else if constexpr (std::is_same_v<VariantTraits, WENOJS5Traits> && 
+                           !std::is_same_v<VariantTraits, WENOZ5Traits>) {
+            return "WENOJS5";
+        } else if constexpr (std::is_same_v<VariantTraits, WENOZ5Traits>) {
+            return "WENOZ5";
+        } else {
+            return "Unknown";
+        }
+    }
+
+
     /**
      * Reconstruct flux at cell interfaces using WENO scheme
      * 
@@ -634,6 +659,12 @@ public:
         const int nghosts = solver->number_of_ghost_cells;
         const int num_components = solver->number_of_components;
         const bool enableDebug = false;  // Enable detailed debugging
+
+        //Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
+        // Only log the variant when debug is enabled
+        if (enableDebug) {
+            Util::Message(INFO, "ReconstructFluxes using WENO variant: " + GetVariantName());
+        }
 
         // Process each grid patch
         for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
@@ -721,6 +752,12 @@ void ReconstructVariables(
     const int nghosts = solver->number_of_ghost_cells;
     const int num_components = solver->number_of_components;
     const bool enableDebug = false;  // Enable detailed debugging
+
+    //Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
+    // Only log the variant when debug is enabled
+    if (enableDebug) {
+        Util::Message(INFO, "ReconstructFluxes using WENO variant: " + GetVariantName());
+    }
 
     // First pass: Compute left states using WENO reconstruction
     for (amrex::MFIter mfi(VariableBuffer, false); mfi.isValid(); ++mfi) {

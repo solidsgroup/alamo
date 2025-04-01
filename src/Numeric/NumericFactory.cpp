@@ -60,7 +60,7 @@ namespace Numeric {
     WenoVariant NumericFactory::parseWenoVariant(const std::string& str) {
         if (str == "WENOJS5") return WenoVariant::WENOJS5;
         if (str == "WENOZ5") return WenoVariant::WENOZ5;
-        if (str == "WENOJS3") return WenoVariant::WENOZ5;
+        if (str == "WENOJS3") return WenoVariant::WENOJS3;
         throw std::runtime_error("Invalid WENO Variant: " + str);
     }
 

@@ -490,203 +490,206 @@ public:
             }
         }
     
+
         // Debug WENO smoothness indicators calculation
-        template <typename StencilArray, typename IndicatorArray>
+        template <typename StencilArray, typename IndicatorArray, typename OffsetArray, typename TermWeightArray>
         AMREX_GPU_DEVICE
         static void DebugWENOSmoothnessIndicators(
             int i, int j, int k,
             const StencilArray& stencil,
             const IndicatorArray& indicators,
             const std::vector<Set::MultiMatrix>& coeffMatrices,
-            const std::array<Set::Scalar, 2>& termWeights,
-            const Set::MultiMatrix& stencilOffsets,
+            const TermWeightArray& termWeights,
+            const OffsetArray& stencilOffsets,
+            int numCandidateStencils,
+            int totalPoints,
+            int numDifferenceTerms,
             bool enableDebug = false
-        ) {
+        )
+        {
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
-            // Print stencil values
-            Util::Message(INFO, "WENO Stencil Values at (" + 
+            // Print stencil values with dynamic size
+            Message(INFO, "WENO Stencil Values at (" + 
                 std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
                 
-            for (int idx = 0; idx < 5; ++idx) { // For 5th order WENO
-                int rel_idx = idx - 2;  // Relative position
-                Util::Message(INFO, "  Stencil[" + std::to_string(rel_idx) + "] = " + 
+            for (int idx = 0; idx < totalPoints; ++idx) {
+                int rel_idx = idx - totalPoints/2;  // Relative position
+                Message(INFO, "  Stencil[" + std::to_string(rel_idx) + "] = " + 
                        std::to_string(stencil[idx]));
             }
             
             // Print indicator details for each stencil
-            for (int r = 0; r < 3; ++r) {
-                Util::Message(INFO, "WENO Stencil " + std::to_string(r) + " Smoothness: " + 
+            for (int r = 0; r < numCandidateStencils; ++r) {
+                Message(INFO, "WENO Stencil " + std::to_string(r) + " Smoothness: " + 
                        std::to_string(indicators[r]));
                 
                 // Check for potential issues
                 if (indicators[r] < 1e-10) {
-                    Util::Message(INFO, "  WARNING: Very small smoothness indicator detected!");
+                    Message(INFO, "  WARNING: Very small smoothness indicator detected!");
                 }
                 else if (indicators[r] > 1e10) {
-                    Util::Message(INFO, "  WARNING: Very large smoothness indicator detected!");
+                    Message(INFO, "  WARNING: Very large smoothness indicator detected!");
                 }
-            }
-            
-            // Print coefficient matrices if available
-            if (!coeffMatrices.empty()) {
-                for (size_t r = 0; r < coeffMatrices.size(); ++r) {
-                    Util::Message(INFO, "  Coefficient Matrix for Stencil " + std::to_string(r) + ":");
-                    for (int row = 0; row < coeffMatrices[r].rows(); ++row) {
-                        std::string row_str = "    [";
-                        for (int col = 0; col < coeffMatrices[r].cols(); ++col) {
-                            row_str += std::to_string(coeffMatrices[r](row, col));
-                            if (col < coeffMatrices[r].cols() - 1) row_str += ", ";
-                        }
-                        row_str += "]";
-                        Util::Message(INFO, row_str);
+                
+                // Print details about the terms used in this smoothness indicator
+                if (numDifferenceTerms > 0) {
+                    Message(INFO, "  Difference terms weights:");
+                    for (int term = 0; term < numDifferenceTerms; ++term) {
+                        Message(INFO, "    Term " + std::to_string(term) + 
+                               " weight: " + std::to_string(termWeights[term]));
                     }
                 }
             }
-            
-            // Print stencil offsets
-            Util::Message(INFO, "  Stencil Offsets:");
-            for (int r = 0; r < stencilOffsets.rows(); ++r) {
-                std::string offset_str = "    Stencil " + std::to_string(r) + ": [";
-                for (int p = 0; p < stencilOffsets.cols(); ++p) {
-                    offset_str += std::to_string(static_cast<int>(stencilOffsets(r, p)));
-                    if (p < stencilOffsets.cols() - 1) offset_str += ", ";
-                }
-                offset_str += "]";
-                Util::Message(INFO, offset_str);
-            }
-            
-            // Print term weights
-            std::string weights_str = "  Term Weights: [";
-            for (size_t t = 0; t < 2; ++t) {
-                weights_str += std::to_string(termWeights[t]);
-                if (t < 1) weights_str += ", ";
-            }
-            weights_str += "]";
-            Util::Message(INFO, weights_str);
         }
         
-        // Debug WENO weights calculation
-        template <typename IndicatorArray, typename WeightArray>
+        // Debug WENO weights calculation - generalized for any number of candidate stencils
+        template <typename IndicatorArray, typename WeightArray, typename OptimalWeightArray>
         AMREX_GPU_DEVICE
         static void DebugWENOWeights(
             int i, int j, int k,
             const IndicatorArray& indicators,
             const WeightArray& weights,
-            const Set::MultiVector& optimalWeights,
+            const OptimalWeightArray& optimalWeights,
             Set::Scalar epsilon,
             int power,
+            int numCandidateStencils,
             bool enableDebug = false
-        ) {
+        )
+        {
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
-            Util::Message(INFO, "WENO Weights at (" + 
+            Message(INFO, "WENO Weights at (" + 
                 std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
                 
-            Util::Message(INFO, "  Parameters: ε = " + std::to_string(epsilon) + 
+            Message(INFO, "  Parameters: ε = " + std::to_string(epsilon) + 
                    ", Power = " + std::to_string(power));
             
-            // Print indicator, weight, and deviation information
-            for (int r = 0; r < 3; ++r) {
-                Set::Scalar deviation = weights[r] - optimalWeights(r);
-                Set::Scalar rel_deviation = deviation / optimalWeights(r);
+            // Print indicator, weight, and deviation information for each stencil
+            Set::Scalar totalWeight = 0.0;
+            for (int r = 0; r < numCandidateStencils; ++r) {
+                Set::Scalar deviation = weights[r] - optimalWeights[r];
+                Set::Scalar rel_deviation = (std::abs(optimalWeights[r]) > 1e-10) ? 
+                                           (deviation / optimalWeights[r]) : deviation;
                 
-                Util::Message(INFO, "  Stencil " + std::to_string(r) + 
+                Message(INFO, "  Stencil " + std::to_string(r) + 
                        ": β = " + std::to_string(indicators[r]) + 
                        ", ω = " + std::to_string(weights[r]) + 
+                       ", Optimal ω = " + std::to_string(optimalWeights[r]) +
                        ", Deviation: " + std::to_string(rel_deviation * 100.0) + "%");
                 
                 if (std::abs(rel_deviation) > 1.0) {
-                    Util::Message(INFO, "    WARNING: Weight significantly deviates from optimal!");
+                    Message(INFO, "    WARNING: Weight significantly deviates from optimal!");
                 }
+                
+                totalWeight += weights[r];
+            }
+            
+            // Check if weights sum to 1 (convexity property)
+            Set::Scalar weightSumDeviation = std::abs(totalWeight - 1.0);
+            if (weightSumDeviation > 1e-10) {
+                Message(INFO, "  WARNING: Weights sum to " + std::to_string(totalWeight) + 
+                       " (deviation from 1.0: " + std::to_string(weightSumDeviation) + ")");
+            } else {
+                Message(INFO, "  Weight sum check: OK (sum = " + std::to_string(totalWeight) + ")");
             }
         }
         
-        // Debug WENO final reconstruction
-        template <typename FluxArray>
+        // Debug WENO final reconstruction - generalized for any number of candidate fluxes
+        template <typename FluxArray, typename WeightArray, typename OptimalWeightArray>
         AMREX_GPU_DEVICE
         static void DebugWENOReconstruction(
             int i, int j, int k,
             const FluxArray& candidateFluxes,
-            const Set::MultiVector& optimalWeights,
+            const WeightArray& weights,
+            const OptimalWeightArray& optimalWeights,
             Set::Scalar reconstructedValue,
+            int numCandidateStencils,
             bool enableDebug = false
-        ) {
+        )
+        {
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
             // Calculate linear reconstruction for comparison
             Set::Scalar linearValue = 0.0;
-            for (int r = 0; r < 3; ++r) {
-                linearValue += optimalWeights(r) * candidateFluxes[r];
+            for (int r = 0; r < numCandidateStencils; ++r) {
+                linearValue += optimalWeights[r] * candidateFluxes[r];
             }
             
-            Util::Message(INFO, "WENO Reconstruction at (" + 
+            Message(INFO, "WENO Reconstruction at (" + 
                 std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
                 
-            Util::Message(INFO, "  WENO value: " + std::to_string(reconstructedValue));
-            Util::Message(INFO, "  Linear value: " + std::to_string(linearValue));
+            Message(INFO, "  WENO value: " + std::to_string(reconstructedValue));
+            Message(INFO, "  Linear value: " + std::to_string(linearValue));
             
             // Diffusion metric
             Set::Scalar diff = reconstructedValue - linearValue;
             Set::Scalar rel_diff = (std::abs(linearValue) > 1.0e-10) ? 
                                   (diff / std::abs(linearValue)) : 0.0;
             
-            Util::Message(INFO, "  Numerical diffusion: " + std::to_string(diff) + 
+            Message(INFO, "  Numerical diffusion: " + std::to_string(diff) + 
                    " (" + std::to_string(rel_diff * 100.0) + "%)");
             
             if (std::abs(rel_diff) > 0.1) {
-                Util::Message(INFO, "  WARNING: Potential excessive numerical diffusion!");
+                Message(INFO, "  WARNING: Potential excessive numerical diffusion!");
+            }
+            
+            // Print detailed contribution of each candidate flux
+            Message(INFO, "  Flux contributions:");
+            for (int r = 0; r < numCandidateStencils; ++r) {
+                Message(INFO, "    Stencil " + std::to_string(r) + 
+                       ": flux = " + std::to_string(candidateFluxes[r]) + 
+                       ", weight = " + std::to_string(weights[r]) + 
+                       ", contribution = " + std::to_string(weights[r] * candidateFluxes[r]));
             }
         }
         
-        // Debug WENO candidate fluxes calculation
-        template <typename StencilArray, typename FluxArray>
+        // Debug WENO candidate fluxes calculation - generalized for any stencil configuration
+        template <typename StencilArray, typename FluxArray, typename CoeffArray, typename OffsetArray>
         AMREX_GPU_DEVICE 
         static void DebugWENOCandidateFluxes(
             int i, int j, int k,
             const StencilArray& stencil,
             const FluxArray& candidateFluxes,
-            const Set::MultiMatrix& coefficients,
-            const Set::MultiMatrix& stencilOffsets,
+            const CoeffArray& coefficients,
+            const OffsetArray& stencilOffsets,
+            int numCandidateStencils,
+            int pointsPerStencil,
+            int totalPoints,
             bool enableDebug = false
-        ) {
+        )
+        {
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
-            Util::Message(INFO, "WENO Candidate Fluxes at (" + 
+            Message(INFO, "WENO Candidate Fluxes at (" + 
                 std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
             
-            for (int r = 0; r < 3; ++r) {
+            for (int r = 0; r < numCandidateStencils; ++r) {
                 // Collect stencil points for this candidate stencil
-                Set::MultiVector stencil_values(3);
-                for (int p = 0; p < 3; ++p) {
-                    int stencil_idx = static_cast<int>(stencilOffsets(r, p)) + 2; // Assuming TotalPoints/2 = 2
-                    stencil_values(p) = stencil[stencil_idx];
+                Message(INFO, "  Stencil " + std::to_string(r) + ":");
+                
+                // Print stencil points
+                Message(INFO, "    Points:");
+                for (int p = 0; p < pointsPerStencil; ++p) {
+                    int stencil_idx = stencilOffsets(r, p) + totalPoints/2; // Assuming TotalPoints/2 center
+                    Message(INFO, "      Point " + std::to_string(p) + 
+                           " (offset " + std::to_string(stencilOffsets(r, p)) + "): " +
+                           std::to_string(stencil[stencil_idx]));
                 }
                 
-                Util::Message(INFO, "  Stencil " + std::to_string(r) + ":");
-                std::string points_str = "    Points: [";
-                for (int p = 0; p < 3; ++p) {
-                    points_str += std::to_string(stencil_values(p));
-                    if (p < 2) points_str += ", ";
+                // Print coefficients for this stencil if available
+                Message(INFO, "    Coefficients:");
+                for (int p = 0; p < pointsPerStencil; ++p) {
+                    Message(INFO, "      Coeff " + std::to_string(p) + ": " +
+                           std::to_string(coefficients(r, p)));
                 }
-                points_str += "]";
-                Util::Message(INFO, points_str);
                 
-                std::string coef_str = "    Coefficients: [";
-                for (int p = 0; p < 3; ++p) {
-                    coef_str += std::to_string(coefficients(r, p));
-                    if (p < 2) coef_str += ", ";
-                }
-                coef_str += "]";
-                Util::Message(INFO, coef_str);
-                
-                Util::Message(INFO, "    Flux: " + std::to_string(candidateFluxes[r]));
+                // Print the resulting candidate flux
+                Message(INFO, "    Flux: " + std::to_string(candidateFluxes[r]));
             }
         }
-        
-};
 
-
+    };     
 };
 }
 

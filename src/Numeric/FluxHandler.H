@@ -605,8 +605,8 @@ public:
 
             // **Local Lax-Friedrichs flux calculation**
             for (int n = 0; n < num_components; ++n) {
-              FluxNeg_arr(index[0], index[1], index[2], n) =  0.5 * FL[n] + 0.5 * lambda_max * QL_cons[n];
-              FluxPos_arr(index[0], index[1], index[2], n) =  0.5 * FR[n] - 0.5 * lambda_max * QR_cons[n];
+              FluxPos_arr(index[0], index[1], index[2], n) =  0.5 * FL[n] + 0.5 * lambda_max * QL_cons[n];
+              FluxNeg_arr(index[0], index[1], index[2], n) =  0.5 * FR[n] - 0.5 * lambda_max * QR_cons[n];
             }
         
         });
