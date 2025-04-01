@@ -1,3 +1,33 @@
+//
+// This models a finite-strain, solid with adhesion behavior governed by 
+// a combination of elastic energy and an adhesion decay term.
+//
+// The energy and derivatives are:
+//
+// .. math::
+//    :nowrap:
+//
+//    \begin{gather}
+//    W = d \left[ \frac{\mu}{2J^{2/3}}(F^T F : I - 3) + \frac{\kappa}{2}(J - 1)^2 \right] + \frac{\zeta}{J^n} \\
+//    DW = \text{(first Piola-Kirchhoff stress)} \\
+//    DDW = \text{(tangent stiffness tensor)}
+//    \end{gather}
+//
+// where:
+// - :math:`d` is the adhesion strength,
+// - :math:`\mu` is the shear modulus,
+// - :math:`\kappa` is the bulk modulus,
+// - :math:`\zeta` is the adhesion decay coefficient,
+// - :math:`n` is the decay exponent,
+// - :math:`F` is the deformation gradient,
+// - :math:`J = \det(F)` is the volume ratio,
+// - :math:`F^T F : I = \text{trace}(F^T F)` is used to capture isochoric deformation.
+//
+// Notes:
+//
+// * The model does not include rate-dependence or plasticity directly,
+//   and is suitable for modeling reversible adhesion and separation under deformation.
+//
 
 #ifndef MODEL_SOLID_FINITE_ADHESION_H_
 #define MODEL_SOLID_FINITE_ADHESION_H_
