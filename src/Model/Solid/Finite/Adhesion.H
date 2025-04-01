@@ -189,8 +189,8 @@ public:
         Eigen::Matrix3d FinvT = F.inverse().transpose();
 
         Eigen::Matrix3d dw = d * mu * (F / J23 - (1.0 / 3.0) * (((F.transpose() * F).trace()) - 3) * FinvT / J23)
-                             + d * kappa * (J - 1.0) * J * FinvT
-                             - zeta * n * std::pow(J, -n) * FinvT;
+                            + d * kappa * (J - 1.0) * J * FinvT
+                            - zeta * n * std::pow(J, -n) * FinvT;
 #if AMREX_SPACEDIM == 2
         Set::Matrix r_dw;
         r_dw(0, 0) = dw(0, 0);
@@ -242,10 +242,10 @@ public:
                         t1 += (1.0 / 3.0) * (trace_FTF - 3) * FinvT(i, l) * FinvT(k, j);
                         // Bulk-related term (kappa)
                         t2 += (2.0 * J * J - J) * FinvT(i, j) * FinvT(k, l)
-                              + (J - J * J) * FinvT(i, l) * FinvT(k, j);
+                                + (J - J * J) * FinvT(i, l) * FinvT(k, j);
                         // Adhesion-related term (zeta)
                         t3 += (n * n) * std::pow(J, -n) * FinvT(i, j) * FinvT(k, l)
-                              + n * std::pow(J, -n) * FinvT(i, l) * FinvT(k, j);
+                                + n * std::pow(J, -n) * FinvT(i, l) * FinvT(k, j);
                         ddw(i, j, k, l) = d * mu * t1 / J23 + d * kappa * t2 + zeta * t3;
                     }
                 }
