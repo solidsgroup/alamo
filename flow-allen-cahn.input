@@ -1,0 +1,123 @@
+alamo.program = allencahn
+plot_file = ./output.allencahn
+amr.plot_dt = 1e-1
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.regrid_int = 100
+amr.grid_eff = 0.7
+amr.max_level = 4
+timestep  = 1e-2
+amr.n_cell = 64 8
+geometry.prob_lo = -24 -6
+geometry.prob_hi = 24 6
+geometry.is_periodic = 0 0 0
+stop_time = 20
+
+### ALlEN CHAN PARAM ##
+allencahn.ch.direction = 1
+allencahn.ch.direction_tstart = 10
+tstart = 10
+
+allencahn.alpha.bc.constant.type.xlo = neumann
+allencahn.alpha.bc.constant.type.xhi = neumann
+allencahn.alpha.bc.constant.type.ylo = neumann
+allencahn.alpha.bc.constant.type.yhi = neumann
+allencahn.alpha.bc.constant.val.xlo = 0.0
+allencahn.alpha.bc.constant.val.xhi = 0.0
+allencahn.alpha.bc.constant.val.ylo = 0.0
+allencahn.alpha.bc.constant.val.yhi = 0.0
+allencahn.alpha.ic.type = png
+allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
+allencahn.alpha.ic.png.fit = coord
+allencahn.alpha.ic.png.coord.lo = -38 -38
+allencahn.alpha.ic.png.coord.hi = 38 38
+allencahn.alpha.ic.png.max = 0
+allencahn.alpha.ic.png.min = 255
+allencahn.refinement_threshold = 0.1
+allencahn.ch.L = 10.0
+allencahn.ch.eps = 0.2
+allencahn.ch.grad = 0.01
+allencahn.ch.chempot = 0.01
+allencahn.ch.direction = 0
+
+### HYDRO PARAM ###
+hydro.gamma = 1.4
+hydro.mu    = 5.0
+hydro.pref    = 10000
+hydro.density.ic.constant.value = 40.0
+hydro.velocity.ic.type = expression
+hydro.velocity.ic.expression.constant.eps   = 0.1
+hydro.velocity.ic.expression.constant.x0    = -2.0
+hydro.velocity.ic.expression.region0 = "0.0"
+hydro.velocity.ic.expression.region1 = "0.0"
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 5.0
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+
+### ETA BC ###
+hydro.pf.eta.bc.constant.type.xlo = neumann
+hydro.pf.eta.bc.constant.type.xhi = neumann
+hydro.pf.eta.bc.constant.type.ylo = neumann
+hydro.pf.eta.bc.constant.type.yhi = neumann
+hydro.pf.eta.bc.constant.type.zlo = neumann
+hydro.pf.eta.bc.constant.type.zhi = neumann
+hydro.pf.eta.bc.constant.val.xlo = 0.0
+hydro.pf.eta.bc.constant.val.xhi = 0.0
+hydro.pf.eta.bc.constant.val.ylo = 0.0
+hydro.pf.eta.bc.constant.val.yhi = 0.0
+hydro.pf.eta.bc.constant.val.zlo = 0.0
+hydro.pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+hydro.density.bc.constant.type.xhi = neumann
+hydro.density.bc.constant.type.xlo = dirichlet
+hydro.density.bc.constant.type.ylo = neumann
+hydro.density.bc.constant.type.yhi = neumann
+hydro.density.bc.constant.val.xhi = 0.0
+hydro.density.bc.constant.val.xlo = 42.0
+hydro.density.bc.constant.val.ylo = 0.0 
+hydro.density.bc.constant.val.yhi = 0.0
+hydro.energy.bc.constant.type.xhi = neumann
+hydro.energy.bc.constant.type.xlo = dirichlet #neumann
+hydro.energy.bc.constant.type.ylo = neumann
+hydro.energy.bc.constant.type.yhi = neumann
+hydro.energy.bc.constant.val.xhi = 0.0
+hydro.energy.bc.constant.val.xlo = 1000.0 #0.0
+hydro.energy.bc.constant.val.ylo = 0.0 
+hydro.energy.bc.constant.val.yhi = 0.0
+hydro.momentum.bc.constant.type.xhi = neumann neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
+hydro.momentum.bc.constant.type.ylo = neumann dirichlet
+hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.momentum.bc.constant.val.xhi = 0.0 0.0
+hydro.momentum.bc.constant.val.xlo = 0.0  0.0 #10. 0.0
+hydro.momentum.bc.constant.val.ylo = 0.0 0.0
+hydro.momentum.bc.constant.val.yhi = 0.0 0.0
+hydro.eta.ic.constant.value = 1.0
+
+### HYDRO REFINEMENT CRITERIA ###
+hydro.eta_refinement_criterion = 0.1
+hydro.omega_refinement_criterion = 10000000
+hydro.gradu_refinement_criterion = 10000000
+
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.density.ic.constant.value = 40.0
+hydro.solid.energy.ic.constant.value = 0.0
+
+hydro.m0.ic.constant.value = 0.0
+hydro.u0.ic.constant.value = 0.0
+hydro.q.ic.constant.value = 0.0
+
+hydro.small=1E-8
+hydro.cutoff=0.2
+hydro.lagrange=2000.0
+
+amr.abort_on_nan = 0
+
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.max  = 0.01
+dynamictimestep.min  = 1E-4
+hydro.cfl   = 10.0
+hydro.cfl_v   = 10.0
