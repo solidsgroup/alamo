@@ -53,6 +53,7 @@
 
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
+#include "IC/Ellipse.H"
 #include "IC/Notch.H"
 #include "IC/Laminate.H"
 #include "IC/PerturbedInterface.H"
@@ -102,7 +103,7 @@ public:
         }
         else if(mat_ic_type == "ellipse")
         {
-            IC::Ellipse *tmpic = new IC::Ellipse(value.geom);
+            IC::Ellipsoid *tmpic = new IC::Ellipsoid(value.geom);
             pp.queryclass("material.ic.ellipse", *tmpic);   // get parameters of elliptical inclusion
             value.material.num_mat = 2;
             value.material.ic = tmpic;
@@ -185,6 +186,12 @@ public:
                     pp.queryclass("crack.ic.ellipsoid",*tmpic); // get parameters of ellipsoidal crack
                     value.crack.ic.push_back(tmpic);
                 }
+                else if(value.crack.ic_type[i] == "ellipse")
+                {
+                    IC::Ellipse *tmpic = new IC::Ellipse(value.geom);
+                    pp.queryclass("crack.ic.ellipse",*tmpic); // get parameters of ellipsoidal crack
+                    value.crack.ic.push_back(tmpic);
+                }
                 else if(value.crack.ic_type[i] == "expression")
                 {
                     IC::Expression *tmpic = new IC::Expression(value.geom);
@@ -200,7 +207,7 @@ public:
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
         value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
         value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", true);
-        value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", false);
+        value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", true);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm),"driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
@@ -299,6 +306,7 @@ public:
                 amrex::Array4<const Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
+                                            // psi(i,j,k,0) = crack.cracktype[0].g_phi(c(i,j,k,0));
                                             psi(i,j,k,0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c,i,j,k,0));
                                         });
             }
@@ -326,7 +334,8 @@ public:
             elastic_do_solve_now = true;
             crack.crack_prop_iter = 0;
             increase_load_step = false;
-            if (loadstep > 0) set_initial_df_once = true; 
+            set_new_reference = true;
+            // if (loadstep == 0) set_initial_df_once = true; 
             loadstep ++;
         }
         
@@ -434,54 +443,133 @@ public:
                         if (eValues(0) > eValues(1))    { sig1 = eValues(0); sig2 = eValues(1); vec1 = eVectors.col(0); vec2 = eVectors.col(1); }
                         else                            { sig1 = eValues(1); sig2 = eValues(0); vec1 = eVectors.col(1); vec2 = eVectors.col(0); }
 
+                        // First compute normal to the crack surface to find sig_nn
+                        Set::Vector crack_grad      =  Numeric::Gradient(c, i, j, k, 0, DX.data());
+                        Set::Vector crack_normal    = -crack_grad / (crack_grad.lpNorm<2>() + 1.e-6) ; 
+                        Set::Scalar sig_nn_old      = (sig * (crack_normal * crack_normal.transpose()).transpose()).trace(); 
+
+                        if (crack_grad.lpNorm<2>() > 1.e-4)
+                        {
+
                         // We can use this to determin the initial angle theta_0
                         Set::Scalar theta_0 = std::atan2(vec1(1), vec1(0));
+                        bool second_sol     = false;
 
                         // Now we can determine the new angle of propagation based on principal stresses.
                         Set::Scalar mohr_center = 0.5 * (sig1 + sig2);
                         Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
-                        Set::Scalar chi = crack.cracktype[0].chi();
+                        Set::Scalar chi         = crack.cracktype[0].chi();
+                        // Set::Scalar beta        = sig_nn_old > 0 ? 1.0 : crack.cracktype[0].beta_bar(); 
                         Set::Scalar beta = mohr_center >=0 ? 1.0 : crack.cracktype[0].beta_bar();
-                        Set::Scalar theta = 0.0;
+                        Set::Scalar theta       = 0.0;
 
-                        Set::Scalar temp = (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi));
+                        Set::Scalar temp = (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - (beta*chi*chi)));
                         // if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp);
                         // else theta = 0.0;
 
                         if (mohr_center >= 0 && chi*chi <= (mohr_radius/sig1)) 
-                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
-                              else theta = 0.0; }
-                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 1 nan"); }
+                        {
+                            // beta = 1.0;
+                            temp = (mohr_center / mohr_radius) * (chi*chi / (1.0 - (chi*chi)));
+                            theta = (std::abs(temp) <= 1) ? 0.5 * std::acos(temp) : 0.0;
+
+                            Set::Vector normal_1 = Set::Vector::Zero();
+                            normal_1(0) = -std::cos(theta_0 + theta); normal_1(1) = -std::sin(theta_0 + theta);
+                            Set::Scalar sig_nn1 = crack.el_mult * normal_1.transpose() * sig * normal_1;
+                            Set::Scalar sig_n1 = mohr_center + mohr_radius*std::cos(2.*theta);
+                            Set::Scalar tau_n1 = mohr_radius * std::sin(2.0*theta);
+                            Set::Scalar f_n1 = beta * (crack.el_mult * crack.el_mult * sig_n1 * sig_n1 / (crack.cracktype[0].sig_t()*crack.cracktype[0].sig_t()) )
+                                + (tau_n1 * tau_n1 * crack.el_mult * crack.el_mult / (crack.cracktype[0].tau_s() * crack.cracktype[0].tau_s()));
+
+                            Util::Message(INFO, "Case 1: sig_nn_old = ", sig_nn_old, ", sig_nn1 = ", sig_nn1, ", f_n1 = ", f_n1);
+                        }
+
                         else if (mohr_center >= 0 && chi*chi >= (mohr_radius/sig1)) 
-                            { theta = 0.0; }
+                        {
+                            // beta = 1.0;
+                            theta = 0.0;
+                            Set::Vector normal_1 = Set::Vector::Zero();
+                            normal_1(0) = -std::cos(theta_0 + theta); normal_1(1) = -std::sin(theta_0 + theta);
+                            Set::Scalar sig_nn1 = crack.el_mult * normal_1.transpose() * sig * normal_1;
+                            Set::Scalar sig_n1 = mohr_center + mohr_radius*std::cos(2.*theta);
+                            Set::Scalar tau_n1 = mohr_radius * std::sin(2.0*theta);
+                            Set::Scalar f_n1 = beta * (crack.el_mult * crack.el_mult * sig_n1 * sig_n1 / (crack.cracktype[0].sig_t()*crack.cracktype[0].sig_t()) )
+                                + (tau_n1 * tau_n1 * crack.el_mult * crack.el_mult / (crack.cracktype[0].tau_s() * crack.cracktype[0].tau_s()));
+
+                            Util::Message(INFO, "Case 2: sig_nn_old = ", sig_nn_old, ", sig_nn1 = ", sig_nn1, ", f_n1 = ", f_n1);
+                        }
+
                         else if (mohr_center < 0 && sig1 > 0 && chi*chi < (mohr_radius/sig1)) 
-                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
-                              else theta = 0.0; }
-                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 3 nan"); }
+                        {
+                            // beta = crack.cracktype[0].beta_bar();
+                            temp = (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - (beta*chi*chi)));
+                            if (std::abs(temp) > 1) Util::Message(INFO,"Case 3, temp > 1");
+                            theta = ((std::abs(temp) <= 1) ? 0.5 * std::acos(temp) : 0.0);
+
+                            Set::Vector normal_1 = Set::Vector::Zero();
+                            normal_1(0) = -std::cos(theta_0 + theta); normal_1(1) = -std::sin(theta_0 + theta);
+                            Set::Scalar sig_nn1 = crack.el_mult * normal_1.transpose() * sig * normal_1;
+                            Set::Scalar sig_n1 = mohr_center + mohr_radius*std::cos(2.*theta);
+                            Set::Scalar tau_n1 = mohr_radius * std::sin(2.0*theta);
+                            Set::Scalar f_n1 = beta * (crack.el_mult * crack.el_mult * sig_n1 * sig_n1 / (crack.cracktype[0].sig_t()*crack.cracktype[0].sig_t()) )
+                                + (tau_n1 * tau_n1 * crack.el_mult * crack.el_mult / (crack.cracktype[0].tau_s() * crack.cracktype[0].tau_s()));
+
+                            Util::Message(INFO, "Case 3: sig_nn_old = ", sig_nn_old, ", sig_nn1 = ", sig_nn1, ", f_n1 = ", f_n1);
+                        }
+                        
                         else if (mohr_center < 0 && sig1 > 0 && chi*chi >= (mohr_radius/sig1)) 
-                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
-                              else theta = 0.0; }
-                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 4 nan"); }
+                        { 
+                            // second_sol = true; 
+                            
+                            // beta = sig_nn_old < 0 ? crack.cracktype[0].beta_bar() : 1.0;
+                            temp = (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - (beta*chi*chi)));
+                            if (std::abs(temp) > 1) Util::Message(INFO,"Case 4, temp > 1");
+                            theta = ((std::abs(temp) <= 1) ? 0.5 * std::acos(temp) : 0.0);
+
+                            Set::Vector normal_1 = Set::Vector::Zero();
+                            normal_1(0) = -std::cos(theta_0 + theta); normal_1(1) = -std::sin(theta_0 + theta);
+                            Set::Scalar sig_nn1 = crack.el_mult * normal_1.transpose() * sig * normal_1;
+                            Set::Scalar sig_n1 = mohr_center + mohr_radius*std::cos(2.*theta);
+                            Set::Scalar tau_n1 = mohr_radius * std::sin(2.0*theta);
+                            Set::Scalar f_n1 = beta * (crack.el_mult * crack.el_mult * sig_n1 * sig_n1 / (crack.cracktype[0].sig_t()*crack.cracktype[0].sig_t()) )
+                                + (tau_n1 * tau_n1 * crack.el_mult * crack.el_mult / (crack.cracktype[0].tau_s() * crack.cracktype[0].tau_s()));
+
+                            Util::Message(INFO, "Case 4: sig_nn_old = ", sig_nn_old, ", sig_nn1 = ", sig_nn1, ", f_n1 = ", f_n1);
+                        }
+
                         else if (sig1 < 0)
-                            { if (std::abs(temp) < 1) theta = 0.5 * std::acos(temp); 
-                              else theta = 0.0; }
-                            //   if (std::isnan(theta)) Util::Message(INFO, "Case 5 nan ", (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - beta*chi*chi))); 
-                            // }
+                        {
+                            // beta = crack.cracktype[0].beta_bar();
+                            temp = (mohr_center / mohr_radius) * (beta*chi*chi / (1.0 - (beta*chi*chi)));
+                            theta = ((std::abs(temp) <= 1) ? 0.5 * std::acos(temp) : 0.0);
+
+                            Set::Vector normal_1 = Set::Vector::Zero();
+                            normal_1(0) = -std::cos(theta_0 + theta); normal_1(1) = -std::sin(theta_0 + theta);
+                            Set::Scalar sig_nn1 = crack.el_mult * normal_1.transpose() * sig * normal_1;
+                            Set::Scalar sig_n1 = mohr_center + mohr_radius*std::cos(2.*theta);
+                            Set::Scalar tau_n1 = mohr_radius * std::sin(2.0*theta);
+                            Set::Scalar f_n1 = beta * (crack.el_mult * crack.el_mult * sig_n1 * sig_n1 / (crack.cracktype[0].sig_t()*crack.cracktype[0].sig_t()) )
+                                + (tau_n1 * tau_n1 * crack.el_mult * crack.el_mult / (crack.cracktype[0].tau_s() * crack.cracktype[0].tau_s()));
+
+                            Util::Message(INFO, "Case 5: sig_nn_old = ", sig_nn_old, ", sig_nn1 = ", sig_nn1, ", f_n1 = ", f_n1);
+                        }
 
                         // Now we compute the new normal and tangent vector
-                        Set::Vector normal = Set::Vector::Zero();
+                        Set::Vector normal  = Set::Vector::Zero();
                         Set::Vector tangent = Set::Vector::Zero();
-                        normal(0) = std::cos(theta_0+theta); normal(1) = std::sin(theta_0+theta);
-                        tangent(0) = -normal(1); tangent(1) = normal(0);
+                        normal(0)   = -std::cos(theta_0+theta); normal(1) = -std::sin(theta_0+theta);
+                        tangent(0)  = -normal(1); tangent(1) = normal(0);
 
                         // Next we compute some useful standard tensors
-                        Set::Matrix n_o_n = normal * normal.transpose();
-                        Set::Matrix m_o_m = tangent * tangent.transpose();
-                        Set::Matrix n_o_m = normal * tangent.transpose();
-                        Set::Matrix m_o_n = tangent * normal.transpose();
-                        Set::Scalar sig_nn = (sig * n_o_n.transpose()).trace();
-                        Set::Scalar sig_mm = (sig * m_o_m.transpose()).trace();
-                        Set::Scalar tau_nm = 0.5*((sig*n_o_m.transpose()).trace() + (sig*m_o_n.transpose()).trace());
+                        // Set::Matrix n_o_n = normal * normal.transpose();
+                        // Set::Matrix m_o_m = tangent * tangent.transpose();
+                        // Set::Matrix n_o_m = normal * tangent.transpose();
+                        // Set::Matrix m_o_n = tangent * normal.transpose();
+                        Set::Scalar sig_nn = normal.transpose() * sig * normal; //(sig * n_o_n.transpose()).trace();
+                        Set::Scalar sig_mm = tangent.transpose() * sig * tangent; //(sig * m_o_m.transpose()).trace();
+                        Set::Scalar tau_nm = ((normal.transpose() * sig * tangent)); // 
+                        tau_nm += (tangent.transpose() * sig * normal); 
+                        tau_nm *= 0.5;
 
                         // Let's make sure things are compressive.
                         // sig_nn = (sig_nn >= 0) ? sig_nn : 0.0;
@@ -489,8 +577,29 @@ public:
                         
                         // Now we find psi_1 and psi_2
                         Set::Scalar psi_1 = 0.5 * sig_nn * sig_nn / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
-                        psi_1 += 0.5 * sig_mm * sig_mm / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
-                        psi_1 -= sig_nn * sig_mm * (material.models[0].DDW(Set::Matrix::Zero()).Nu()) / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+                        // psi_1 += 0.5 * sig_mm * sig_mm / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+                        // psi_1 -= sig_nn * sig_mm * (material.models[0].DDW(Set::Matrix::Zero()).Nu()) / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+
+                        if (second_sol)
+                        {
+                            Set::Vector normal2 = Set::Vector::Zero();
+                            Set::Vector tangent2 = Set::Vector::Zero();
+
+                            normal2(0) = -std::cos(theta_0); normal2(1) = -std::sin(theta_0);
+                            tangent2(0) = -normal2(1); tangent2(1) = normal2(0);
+
+                            Set::Matrix n_o_n_2 = normal2 * normal2.transpose();
+                            Set::Matrix m_o_m_2 = tangent2 * tangent2.transpose();
+
+                            Set::Scalar sig_nn_2 = (sig * n_o_n_2.transpose()).trace();
+                            Set::Scalar sig_mm_2 = (sig * m_o_m_2.transpose()).trace();
+
+                            psi_1 *= 0.5;
+
+                            psi_1 += 0.5 * 0.5 * sig_nn_2 * sig_nn_2 / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+                            psi_1 += 0.5 * 0.5 * sig_mm_2 * sig_mm_2 / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+                            psi_1 -= 0.5 * sig_nn_2 * sig_mm_2 * (material.models[0].DDW(Set::Matrix::Zero()).Nu()) / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+                        }
 
                         Set::Scalar psi_2 = 0.5 * tau_nm * tau_nm / (material.models[0].DDW(Set::Matrix::Zero()).Mu());
 
@@ -518,6 +627,7 @@ public:
                         {
                             history_var(i,j,k,0) = energy(i,j,k,0);
                             history_var(i,j,k,1) = energy(i,j,k,1);
+                        }
                         }
                     }
                     //=====================================================================
@@ -668,6 +778,20 @@ public:
             });
         }
 
+        for (amrex::MFIter mfi(*psi_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.tilebox();
+            bx.convert(amrex::IntVect::TheCellVector());
+            amrex::Array4<char> const& tags = a_tags.array(mfi);
+            amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Vector grad = Numeric::Gradient(psi, i, j, k, 0, DX.data());
+                if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
+                        tags(i, j, k) = amrex::TagBox::SET;
+            });
+        }
+
         if (material.num_mat > 1)
         {
             for (amrex::MFIter mfi(*material.eta_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -714,10 +838,15 @@ public:
             set_initial_df_once = false;
         }
             
-        if (crack.driving_force_reference / crack.driving_force_reference_prev < crack.tol_rel)
+        if (crack.driving_force_reference / crack.driving_force_reference_prev < 0.1)
         {
             increase_load_step = true;
+            // crack.driving_force_reference_prev = crack.driving_force_reference;
+        }
+        if (set_new_reference)
+        {
             crack.driving_force_reference_prev = crack.driving_force_reference;
+            set_new_reference = false;
         }
         
         elastic_do_solve_now = false;
@@ -768,7 +897,8 @@ protected:
 
     bool elastic_do_solve_now = true;
     bool increase_load_step = true;
-    bool set_initial_df_once = true;
+    bool set_initial_df_once = false;
+    bool set_new_reference = true;
     int loadstep = 0;
 
     BC::BC<Set::Scalar> *bc_psi = nullptr;

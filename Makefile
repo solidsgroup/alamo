@@ -2,7 +2,7 @@
 -include .make/Makefile.pre.conf
 
 AMREX_TARGET ?= 
-CC ?= mpicxx -cxx=g++
+CC ?= mpicxx -cxx=g++ -std=c++17
 MPI_LIB ?= -lmpich
 
 RESET              = \033[0m

@@ -32,6 +32,9 @@ public:
     Set::Scalar chi() { return _chi; }
     Set::Scalar beta_bar() { return _beta_bar; }
 
+    Set::Scalar sig_t() { return _sig_t; }
+    Set::Scalar tau_s() { return _tau_s; }
+
     // For now, we are storing things like youngs modulus stuff here.
     // ideally, they should be moved to Material -> Solid -> Affine.
     
@@ -62,6 +65,9 @@ private:
     Set::Scalar k1 = 1.0;
     Set::Scalar k2 = 1.0;
     Set::Scalar _beta_bar = -1.0;
+
+    Set::Scalar _sig_t = 1.0;
+    Set::Scalar _tau_s = 1.0;
 
 public:
     static void Parse(PFCZM & value, IO::ParmParse & pp)
@@ -122,6 +128,9 @@ public:
             Util::Message(INFO, "sig_t = ", tensile_strength);
             Util::Message(INFO, "tau_s = ", shear_strength);
 
+            value._sig_t = tensile_strength;
+            value._tau_s = shear_strength;
+
         }
         else
         {
@@ -130,7 +139,7 @@ public:
         }
         
         Set::Scalar irwing_length = youngs * value._Gc / (fracture_strength * fracture_strength);
-        value.czm_a0 = 2.0 * irwing_length / (pi * value.zeta);
+        value.czm_a0 = 4.0 * irwing_length / (pi * value.zeta);
         Util::Message(INFO, "irwing_length = ", irwing_length, ", a0 = ", value.czm_a0);
 
         if (value.zeta > 0.33 * irwing_length) Util::Warning(INFO, "Zeta value is greater than irwing length. Consider reducing it.");
@@ -140,11 +149,12 @@ public:
 
         std::string gtype = "";
         std::string wtype = "";
-        pp.query_validate("gtype", gtype, {"wu_linear"}); // degradation function. For now, we only have linear softening
+        pp.query_validate("gtype", gtype, {"wu_linear", "ai_cubic"}); // degradation function. For now, we only have linear softening
         pp.query_validate("wtype", wtype, {"wu"}); // geometric function. no choice except for the optimal one for now.
         
         std::map<std::string,Model::Interface::Crack::Crack::GType>  g_map;
         g_map["wu_linear"] = Model::Interface::Crack::Crack::GType::GWULINEAR;
+        g_map["ai_cubic"] = Model::Interface::Crack::Crack::GType::GAICUBIC;
         
         std::map<std::string,Model::Interface::Crack::Crack::WType>  w_map;
         w_map["wu"] = Model::Interface::Crack::Crack::WType::WU;
