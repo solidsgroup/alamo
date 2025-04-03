@@ -115,7 +115,6 @@
 #@  args = model1.kappa=6.5
 #@  args = model1.zeta=0.01
 #@  args = model1.d=0.01
-#@  args = model1.n=1
 #@  args = bc.tensiontest.disp=(0,1:0,1)
 #@  args = solver.nriters=10
 #@  ignore = model1.E model1.nu
