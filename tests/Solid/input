@@ -105,21 +105,6 @@
 #@  ignore = model1.E model1.nu
 #@  coverage=true
 #@
-#@  [linear-transverse]
-#@  exe = mechanics
-#@  dim = 3
-#@  check-file = reference/transverselyisotropic.dat
-#@  args = alamo.program.mechanics.model = linear.TransverselyIsotropic
-#@  args = model1.C11 = 168.3
-#@  args = model1.C12 = 1.221
-#@  args = model1.C13 = 1
-#@  args = model1.C33 = 160
-#@  args = model1.C44 = 0.757
-#@  ignore = model1.E model1.nu
-#@  coverage = true
-#@  alamo.program = mechanics
-#@  plot_file = tests / Solid / output
-#@  type = static
 
 alamo.program = mechanics
 

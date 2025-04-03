@@ -69,3 +69,5 @@ if (error > tolerance): raise Exception("Error in stress calculation")
 #
 #if u1_err > tolerance: raise(Exception("Error in u1"))
                                
+
+
