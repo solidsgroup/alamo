@@ -9,6 +9,7 @@ alamo.program = hydro
 ### OUTPUT ###
 
 plot_file = output.mass_source
+restart = output.mass_source/03500cell
 
 ### MESHING ###
 

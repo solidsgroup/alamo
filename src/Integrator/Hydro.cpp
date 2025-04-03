@@ -360,11 +360,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix hess_rho = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu   = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            Set::Scalar mdot0 = m0(i,j,k) * grad_eta_mag;
-            Set::Vector Pdot0 = Set::Vector::Zero(); 
+            Set::Vector normal = grad_eta/(grad_eta_mag + small);
+            Set::Vector Momentum ( M(i,j,k,0), M(i,j,k,1) );
+            Set::Scalar mdot0 = (m0(i,j,k) - Momentum.dot(normal)) * grad_eta_mag;
+            Set::Vector Pdot0 = (u*u.transpose()*rho(i,j,k) - u0*Momentum.transpose())*grad_eta;
             //Pdot0 = mdot0*u0 + (-M_fluid.dot(u) + pref)*grad_eta;
-            //Pdot0(0) = -grad_eta.dot(rho(i,j,k)*u - rho0*u0)*grad_eta(0);
-            //Pdot0(1) = -grad_eta.dot(rho(i,j,k)*u - rho0*u0)*grad_eta(1);
+            //Pdot0(0) = (u*u.transpose()*rho(i,j,k) - u0*u0.transpose()*rho0)*grad_eta(0);
+            //Pdot0(1) = (u*u.transpose()*rho(i,j,k) - u0*u0.transpose()*rho0)*grad_eta(1);
             Set::Scalar qdot0 = q0(i,j,k) * grad_eta_mag;
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
