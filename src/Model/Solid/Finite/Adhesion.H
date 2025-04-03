@@ -1,4 +1,3 @@
-//
 // This models a finite-strain, solid with adhesion behavior governed by
 // a combination of elastic energy and an adhesion decay term.
 //
@@ -30,7 +29,6 @@
 //   1. Degradable (elastic shear + volumetric terms)
 //   2. Non-degradable (adhesion term decaying with volume expansion)
 // This model is rate-independent, reversible, and purely elastic.
-//
 
 #ifndef MODEL_SOLID_FINITE_ADHESION_H_
 #define MODEL_SOLID_FINITE_ADHESION_H_
@@ -39,7 +37,7 @@
 #include "Model/Solid/Solid.H"
 #include "Set/Set.H"
 #include <array>              // For std::array to represent fourth-order tensors
-#include <cmath>              // For std::pow and std::exp
+#include <cmath>              // For std::pow and std::abs
 #include <eigen3/Eigen/Dense> // For Eigen::Matrix3d
 
 namespace Set
@@ -88,12 +86,13 @@ public:
     virtual ~Adhesion() {}
 
     // Material parameters (declared in order)
-    Set::Scalar d = NAN;     ///< Adhesion strength
+    Set::Scalar d = NAN;     ///< Adhesion strength (degradable part coefficient)
     Set::Scalar mu = NAN;    ///< Shear modulus
     Set::Scalar kappa = NAN; ///< Bulk modulus
-    Set::Scalar zeta = NAN;  ///< Adhesion decay parameter
+    Set::Scalar zeta = NAN;  ///< Adhesion decay parameter (non-degradable part)
     Set::Scalar n = NAN;     ///< Decay exponent
 
+    // Return a zero-parameter adhesion model.
     static Adhesion
     Zero()
     {
@@ -106,6 +105,7 @@ public:
         return adhesion;
     }
 
+    // Return a random-parameter adhesion model.
     static Adhesion
     Random()
     {
@@ -129,7 +129,7 @@ public:
             Set::Scalar E, nu;
             pp_query("E", E);   // Elastic modulus
             pp_query("nu", nu); // Poisson's ratio
-            // Map E and nu to shear and bulk moduli (using a convention similar to NeoHookean citeturn0file2)
+            // Map E and nu to shear and bulk moduli (using a convention similar to NeoHookean :contentReference[oaicite:0]{index=0})
             value.mu = E / (2.0 * (1.0 + nu));
             value.kappa = E / (3.0 * (1.0 - 2.0 * nu));
             // Consume F0 if provided, even though Adhesion does not use it.
@@ -150,6 +150,8 @@ public:
         pp_query("n", value.n);       // Decay exponent
     }
 
+    // Strain energy function:
+    // W = d * [ 0.5*mu*(trace(F^T F)-3)/J^(2/3) + 0.5*kappa*(J-1)^2 ] + zeta/J^n
     Set::Scalar
     W(const Set::Matrix &a_F) const override
     {
@@ -163,15 +165,16 @@ public:
         Eigen::Matrix3d F = a_F;
 #endif
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
-        Set::Scalar w = 0.0;
-        // Shear and bulk contributions (scaled by adhesion factor d)
-        w += d * (0.5 * mu * (((F.transpose() * F).trace()) - 3) / J23 + 0.5 * kappa * (J - 1.0) * (J - 1.0));
-        // Adhesion decay term
-        w += zeta / std::pow(J, n);
-        return w;
+        Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
+        Set::Scalar energy = 0.0;
+        // Degradable part: shear and volumetric terms (scaled by d)
+        energy += d * (0.5 * mu * ((F.transpose() * F).trace() - 3.0) / J23 + 0.5 * kappa * (J - 1.0) * (J - 1.0));
+        // Non-degradable (adhesion) part: decays with volume expansion
+        energy += zeta / std::pow(J, n);
+        return energy;
     }
 
+    // First Piola-Kirchhoff stress (derivative of W)
     Set::Matrix
     DW(const Set::Matrix &a_F) const override
     {
@@ -185,24 +188,27 @@ public:
         Eigen::Matrix3d F = a_F;
 #endif
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
+        Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
         Eigen::Matrix3d FinvT = F.inverse().transpose();
 
-        Eigen::Matrix3d dw = d * mu * (F / J23 - (1.0 / 3.0) * (((F.transpose() * F).trace()) - 3) * FinvT / J23)
-                            + d * kappa * (J - 1.0) * J * FinvT
-                            - zeta * n * std::pow(J, -n) * FinvT;
+        // Derivative from degradable elastic part and bulk contribution
+        Eigen::Matrix3d stress = d * mu * (F / J23 - (1.0 / 3.0) * (((F.transpose() * F).trace()) - 3.0) * FinvT / J23)
+                                 + d * kappa * (J - 1.0) * J * FinvT;
+        // Adhesion term contribution
+        stress -= zeta * n * std::pow(J, -n) * FinvT;
 #if AMREX_SPACEDIM == 2
-        Set::Matrix r_dw;
-        r_dw(0, 0) = dw(0, 0);
-        r_dw(0, 1) = dw(0, 1);
-        r_dw(1, 0) = dw(1, 0);
-        r_dw(1, 1) = dw(1, 1);
-        return r_dw;
+        Set::Matrix r_stress;
+        r_stress(0, 0) = stress(0, 0);
+        r_stress(0, 1) = stress(0, 1);
+        r_stress(1, 0) = stress(1, 0);
+        r_stress(1, 1) = stress(1, 1);
+        return r_stress;
 #elif AMREX_SPACEDIM == 3
-        return dw;
+        return stress;
 #endif
     }
 
+    // Tangent stiffness tensor (second derivative of W)
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>
     DDW(const Set::Matrix &a_F) const override
     {
@@ -216,13 +222,14 @@ public:
         Eigen::Matrix3d F = a_F;
 #endif
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(fabs(J), 2.0 / 3.0);
+        Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
         Eigen::Matrix3d FinvT = F.inverse().transpose();
         Set::Scalar trace_FTF = (F.transpose() * F).trace();
 
+        // Precompute derivative helper for FinvT
         auto Deriv = ::Set::Derivative(FinvT);
 
-        Set::Matrix4<3, Set::Sym::Major> ddw;
+        Set::Matrix4<3, Set::Sym::Major> stiffness;
         for (int i = 0; i < 3; ++i)
         {
             for (int j = 0; j < 3; ++j)
@@ -231,39 +238,40 @@ public:
                 {
                     for (int l = 0; l < 3; ++l)
                     {
-                        ddw(i, j, k, l) = 0.0;
+                        stiffness(i, j, k, l) = 0.0;
                         Set::Scalar t1 = 0.0, t2 = 0.0, t3 = 0.0;
                         // Shear-related term (mu)
                         if (i == k && j == l)
                             t1 += 1.0;
                         t1 -= (2.0 / 3.0) * F(i, j) * FinvT(k, l);
                         t1 -= (2.0 / 3.0) * FinvT(i, j) * F(k, l);
-                        t1 += (2.0 / 9.0) * (trace_FTF - 3) * FinvT(i, j) * FinvT(k, l);
-                        t1 += (1.0 / 3.0) * (trace_FTF - 3) * FinvT(i, l) * FinvT(k, j);
+                        t1 += (2.0 / 9.0) * (trace_FTF - 3.0) * FinvT(i, j) * FinvT(k, l);
+                        t1 += (1.0 / 3.0) * (trace_FTF - 3.0) * FinvT(i, l) * FinvT(k, j);
                         // Bulk-related term (kappa)
                         t2 += (2.0 * J * J - J) * FinvT(i, j) * FinvT(k, l)
-                                + (J - J * J) * FinvT(i, l) * FinvT(k, j);
+                              + (J - J * J) * FinvT(i, l) * FinvT(k, j);
                         // Adhesion-related term (zeta)
                         t3 += (n * n) * std::pow(J, -n) * FinvT(i, j) * FinvT(k, l)
-                                + n * std::pow(J, -n) * FinvT(i, l) * FinvT(k, j);
-                        ddw(i, j, k, l) = d * mu * t1 / J23 + d * kappa * t2 + zeta * t3;
+                              + n * std::pow(J, -n) * FinvT(i, l) * FinvT(k, j);
+                        stiffness(i, j, k, l) = d * mu * t1 / J23 + d * kappa * t2 + zeta * t3;
                     }
                 }
             }
         }
 #if AMREX_SPACEDIM == 2
-        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> r_ddw;
+        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> r_stiffness;
         for (int i = 0; i < 2; i++)
             for (int j = 0; j < 2; j++)
                 for (int k = 0; k < 2; k++)
                     for (int l = 0; l < 2; l++)
-                        r_ddw(i, j, k, l) = ddw(i, j, k, l);
-        return r_ddw;
+                        r_stiffness(i, j, k, l) = stiffness(i, j, k, l);
+        return r_stiffness;
 #elif AMREX_SPACEDIM == 3
-        return ddw;
+        return stiffness;
 #endif
     }
 
+    // Print material parameters
     virtual void
     Print(std::ostream &out) const override
     {
@@ -282,4 +290,4 @@ public:
 } // namespace Solid
 } // namespace Model
 
-#endif
+#endif // MODEL_SOLID_FINITE_ADHESION_H_
