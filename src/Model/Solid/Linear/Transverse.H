@@ -1,7 +1,7 @@
 /**
  * Transversely Isotropic Elasticity Model.
  *
- * This file implements a transversely isotropic elasticity model for materials that exhibit
+ * This file implements a transversely isotropic elasticity model for the materials that exhibit
  * isotropic behavior in a plane and a distinct response in the perpendicular direction.
  * The stiffness tensor is defined using elastic constants (C11, C12, C13, C33, C44) and an
  * orientation provided either by Bunge Euler angles (phi1, Phi, phi2) or a rotation matrix.

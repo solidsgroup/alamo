@@ -312,7 +312,7 @@ public:
             }
         }
 
-        // Assign the special term for (6,6) in Voigt notation: 0.5 * (C11 -
+        // Assign the special term for (6,6) in the Voigt notation: 0.5 * (C11 -
         // C12)
         Ctmp[0][1][0][1] = 0.5 * (C11 - C12); // C66 for (6,6)
         Ctmp[1][0][1][0] = 0.5 * (C11 - C12); // Symmetric assignment for C66
