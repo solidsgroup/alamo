@@ -17,6 +17,7 @@ namespace Util
 {
 
 std::string filename = "";
+std::string restartfilename = "";
 std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
 bool initialized = false;
@@ -48,6 +49,22 @@ std::string GetFileName()
         // Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
     }
     return filename;
+}
+std::string GetRestartFileName()
+{
+    if (restartfilename == "")
+    {
+        IO::ParmParse pp;
+        if (pp.contains("restart"))
+        {
+            pp_query("restart", restartfilename); // Name of directory containing restart data to load from
+        }
+        IO::FileNameParse(restartfilename);
+        // else
+        // if (amrex::ParallelDescriptor::IOProcessor())
+        // Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
+    }
+    return restartfilename;
 }
 void CopyFileToOutputDir(std::string a_path, bool fullpath, std::string prefix)
 {
@@ -147,8 +164,15 @@ void Initialize (int argc, char* argv[])
     signal(SIGABRT, Util::SignalHandler);
 
     std::string filename = GetFileName();
-
-    if (amrex::ParallelDescriptor::IOProcessor() && filename != "")
+    std::string restartfilename = GetRestartFileName();
+    std::filesystem::path outputpath = std::filesystem::current_path() / filename;
+    std::filesystem::path restartpath = std::filesystem::current_path() / restartfilename;
+    bool newdir = true;
+    if (std::filesystem::exists(outputpath) && std::filesystem::exists(restartpath.parent_path()))
+        if (std::filesystem::equivalent(outputpath, restartpath.parent_path()))
+            newdir = false;
+    
+    if (amrex::ParallelDescriptor::IOProcessor() && filename != "" && newdir)
     {
         file_overwrite = Util::CreateCleanDirectory(filename, false);
         IO::WriteMetaData(filename);
