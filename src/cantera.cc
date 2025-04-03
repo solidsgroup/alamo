@@ -27,8 +27,8 @@ void simple_demo()
     // Constant volume adiabatic flame temperature of stoichiometric
     // hydrogen and oxygen is ~3500K
     Cantera::AnyMap state;
-    state["U"] = 1.5e5;
-    state["V"] = 2.6e-0;
+    state["U"] = 1.0e6;
+    state["V"] = 7.0e-0;
     state["Y"] = "H2:1.0, O2:8.0";
     
     gas->setState(state);
@@ -38,9 +38,8 @@ void simple_demo()
     reactor.setSolution(sol);
     Cantera::ReactorNet reactor_net;
     reactor_net.addReactor(reactor);
-    double dt = 1e2;
     double t = 0.0;
-    double tend = 1e12;
+    double tend = 2.72e-3;
     while (t < tend) {
       t = reactor_net.step();
     }
