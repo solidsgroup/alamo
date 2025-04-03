@@ -498,21 +498,24 @@ if args.fft:
 #
 if args.diff:
     try: shellmessage("diff2html","diff2html --version")
-    except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
+    except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html")))
     f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff/{}.diff.html)\"'.format(postfix)+'\n')
-    f.write("DEP_EXTRA += .diff/{}.diff.html\n".format(postfix))
+    f.write("DEP_DIFF += .diff/{}.diff.html\n".format(postfix))
     f2.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
     f2.write("\t-@mkdir -p .diff\n".format(postfix))
     f2.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
     f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt .simba/diff-template.html --output stdout --style side >/dev/null 2>/dev/null\n".format(postfix))
 
-f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
-f.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
-f2.write(".diff/{}.diff.patch: .FORCE\n".format(postfix))
-f2.write("\t-@mkdir -p .diff\n".format(postfix))
-f2.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
-f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
+f.write( f'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\\"$(abspath .diff/{format(postfix)}.diff.patch)\\"\n')
+f.write( f"DEP_DIFF += .diff/{format(postfix)}.diff.patch\n")
 
+f2.write(f".diff/{format(postfix)}.diff.patch: .FORCE\n")
+f2.write(f"\t@mkdir -p .diff\n")
+f2.write(f"\t@rm -rf .diff/{format(postfix)}.diff.patch\n")
+f2.write(f"\t@if ! git diff --quiet; then \\\n")
+f2.write(f"\t   echo '$(B_ON)$(FG_MAGENTA)DIFF$(RESET)            ==>   $(FG_MAGENTA)$@$(RESET)';\\\n")
+f2.write(f"\t fi\n")
+f2.write(f"\t$(QUIET)git diff > $@\n")
 
 #
 # Documentation check
