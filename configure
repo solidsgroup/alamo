@@ -16,7 +16,7 @@ from pathlib import Path
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.03"
+amrex_current_version = "25.04"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -122,6 +122,7 @@ parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_tru
 parser.add_argument('--link',default=None, nargs='+', help='Additional link paths')
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
+parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
 parser.set_defaults(debug=False)
 
 #
@@ -276,6 +277,8 @@ if args.buildamrex and not args.amrex:
     if args.debug: amrex_configure += ' --debug=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
+    if args.fft: amrex_configure += " --enable-fft=yes"
+
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
@@ -486,28 +489,33 @@ if args.comp == 'icc':
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 
-
+if args.fft:
+    f.write("MPI_LIB += -lfftw3 -lfftw3f\n")
+    f.write("CXX_COMPILE_FLAGS += -DALAMO_FFT\n")
 
 #
 # DIFF
 #
 if args.diff:
     try: shellmessage("diff2html","diff2html --version")
-    except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
+    except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html")))
     f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff/{}.diff.html)\"'.format(postfix)+'\n')
-    f.write("DEP_EXTRA += .diff/{}.diff.html\n".format(postfix))
+    f.write("DEP_DIFF += .diff/{}.diff.html\n".format(postfix))
     f2.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
     f2.write("\t-@mkdir -p .diff\n".format(postfix))
     f2.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
     f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt .simba/diff-template.html --output stdout --style side >/dev/null 2>/dev/null\n".format(postfix))
 
-f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
-f.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
-f2.write(".diff/{}.diff.patch: .FORCE\n".format(postfix))
-f2.write("\t-@mkdir -p .diff\n".format(postfix))
-f2.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
-f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
+f.write( f'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\\"$(abspath .diff/{format(postfix)}.diff.patch)\\"\n')
+f.write( f"DEP_DIFF += .diff/{format(postfix)}.diff.patch\n")
 
+f2.write(f".diff/{format(postfix)}.diff.patch: .FORCE\n")
+f2.write(f"\t@mkdir -p .diff\n")
+f2.write(f"\t@rm -rf .diff/{format(postfix)}.diff.patch\n")
+f2.write(f"\t@if ! git diff --quiet; then \\\n")
+f2.write(f"\t   echo '$(B_ON)$(FG_MAGENTA)DIFF$(RESET)            ==>   $(FG_MAGENTA)$@$(RESET)';\\\n")
+f2.write(f"\t fi\n")
+f2.write(f"\t$(QUIET)git diff > $@\n")
 
 #
 # Documentation check
@@ -544,6 +552,9 @@ if not args.compile_commands:
 
     projectdir = os.getcwd()
 
+    otherflags = ""
+    if args.fft: otherflags += "-DALAMO_FFT"
+
     cc = compmpicmd
     command_objects = []
     command_objects = [{
@@ -551,6 +562,7 @@ if not args.compile_commands:
         "file": srcfile,
         "arguments": [
             *cc.split(" "),
+            *otherflags.split(" "),
             "-std=c++17",
             "-I./src/",
             srcfile,

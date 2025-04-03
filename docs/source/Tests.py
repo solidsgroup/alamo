@@ -152,9 +152,9 @@ for testdirname in sorted(glob.glob("../../tests/*")):
         docfile.write("\n")
 
     if len(config) <= 1 and len(readmes) == 0:
-        docfile.write("      - {}\n".format(testname))
-        docfile.write("      - {}\n".format(testname))
-        docfile.write("      - {}\n".format(testname))
+        docfile.write("      - \n")
+        docfile.write("      - \n")
+        docfile.write("      - \n")
         continue
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)

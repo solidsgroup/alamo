@@ -19,6 +19,7 @@ namespace Affine
 class Cubic : public Linear::Cubic
 {
 public:
+    static constexpr const char *name = "cubic";
 
     Cubic() {};
     Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
@@ -79,7 +80,7 @@ public:
     // an eigenstrain. (See the Linear::Cubic class for more inputs for this model)
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
-        Linear::Cubic::Parse(value,pp);
+        pp.queryclass<Linear::Cubic>(value);
         if (pp.contains("F0"))
             pp_queryarr("F0",value.F0); // Eigenstrain
     }
