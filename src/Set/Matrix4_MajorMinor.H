@@ -88,7 +88,7 @@ public:
                         {
                             const Set::Scalar &val = (*this)(i, j, k, l);
                             os << std::scientific << std::setw(11)
-                               << val; //(fabs(val)>1E-10 ? val : 0);
+                                << val; //(fabs(val)>1E-10 ? val : 0);
                             os << " ";
                         }
                         os << "│ ";
@@ -363,19 +363,19 @@ public:
 
     friend Eigen::Matrix<Set::Scalar, 2, 2>
     operator*(Matrix4<2, Sym::MajorMinor> a,
-              Eigen::Matrix<Set::Scalar, 2, 2> b);
+                Eigen::Matrix<Set::Scalar, 2, 2> b);
     friend bool operator==(Matrix4<2, Sym::MajorMinor> a,
-                           Matrix4<2, Sym::MajorMinor> b);
+                            Matrix4<2, Sym::MajorMinor> b);
     friend Matrix4<2, Sym::MajorMinor> operator+(Matrix4<2, Sym::MajorMinor> a,
-                                                 Matrix4<2, Sym::MajorMinor> b);
+                                                Matrix4<2, Sym::MajorMinor> b);
     friend Matrix4<2, Sym::MajorMinor> operator-(Matrix4<2, Sym::MajorMinor> a,
-                                                 Matrix4<2, Sym::MajorMinor> b);
+                                                Matrix4<2, Sym::MajorMinor> b);
     friend Matrix4<2, Sym::MajorMinor> operator*(Matrix4<2, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Matrix4<2, Sym::MajorMinor> operator*(Set::Scalar b,
-                                                 Matrix4<2, Sym::MajorMinor> a);
+                                                Matrix4<2, Sym::MajorMinor> a);
     friend Matrix4<2, Sym::MajorMinor> operator/(Matrix4<2, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Set::Vector operator*(Matrix4<2, Sym::MajorMinor> a, Set::Matrix3 b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE bool
@@ -435,7 +435,7 @@ operator*(Matrix4<2, Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar, 2, 2> b)
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real, 2, 1>
 operator*(Matrix4<2, Sym::MajorMinor> a,
-          std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
+            std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Set::Vector
 operator*(Matrix4<2, Sym::MajorMinor> a, Set::Matrix3 b)
@@ -636,7 +636,7 @@ public:
                         {
                             const Set::Scalar &val = (*this)(i, j, k, l);
                             os << std::scientific << std::setw(11)
-                               << val; //(fabs(val)>1E-10 ? val : 0);
+                                << val; //(fabs(val)>1E-10 ? val : 0);
                             os << " ";
                         }
                         os << "│ ";
@@ -944,21 +944,21 @@ public:
     }
 
     friend bool operator==(Matrix4<3, Sym::MajorMinor> a,
-                           Matrix4<3, Sym::MajorMinor> b);
+                            Matrix4<3, Sym::MajorMinor> b);
     friend Matrix4<3, Sym::MajorMinor> operator+(Matrix4<3, Sym::MajorMinor> a,
-                                                 Matrix4<3, Sym::MajorMinor> b);
+                                                Matrix4<3, Sym::MajorMinor> b);
     friend Matrix4<3, Sym::MajorMinor> operator-(Matrix4<3, Sym::MajorMinor> a,
-                                                 Matrix4<3, Sym::MajorMinor> b);
+                                                Matrix4<3, Sym::MajorMinor> b);
     friend Matrix4<3, Sym::MajorMinor> operator*(Matrix4<3, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Matrix4<3, Sym::MajorMinor> operator*(Set::Scalar b,
-                                                 Matrix4<3, Sym::MajorMinor> a);
+                                                Matrix4<3, Sym::MajorMinor> a);
     friend Matrix4<3, Sym::MajorMinor> operator/(Matrix4<3, Sym::MajorMinor> a,
-                                                 Set::Scalar b);
+                                                Set::Scalar b);
     friend Set::Vector operator*(Matrix4<3, Sym::MajorMinor> a, Set::Matrix3 b);
     friend Eigen::Matrix<amrex::Real, 3, 3>
     operator*(Matrix4<3, Sym::MajorMinor> a,
-              Eigen::Matrix<amrex::Real, 3, 3> b);
+                Eigen::Matrix<amrex::Real, 3, 3> b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE bool
 operator==(Matrix4<3, Sym::MajorMinor> a, Matrix4<3, Sym::MajorMinor> b)
@@ -1035,11 +1035,11 @@ operator*(Matrix4<3, Sym::MajorMinor> a, Eigen::Matrix<amrex::Real, 2, 2> b)
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real, 3, 1>
 operator*(Matrix4<3, Sym::MajorMinor> a,
-          std::array<Eigen::Matrix<amrex::Real, 3, 3>, 3> b);
+            std::array<Eigen::Matrix<amrex::Real, 3, 3>, 3> b);
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real, 2, 1>
 operator*(Matrix4<3, Sym::MajorMinor> a,
-          std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
+            std::array<Eigen::Matrix<amrex::Real, 2, 2>, 2> b);
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Set::Vector
 operator*(Matrix4<3, Sym::MajorMinor> a, Set::Matrix3 b)
