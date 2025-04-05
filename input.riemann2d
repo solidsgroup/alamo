@@ -1,5 +1,5 @@
 # Simulation output
-plot_file = output_riemann_2d
+plot_file = output_riemann_2d_WENOZ5_Conservative
 
 # Simulation length
 timestep = 0.001
@@ -7,9 +7,9 @@ stop_time = 0.35
 max_step = 3000
 
 # AMR parameters
-amr.plot_int = 5
+amr.plot_int = 50
 amr.max_level = 0
-amr.n_cell = 400 400 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.n_cell = 200 200 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 1
 amr.regrid_int = -1  # No regridding for uniform grid
 amr.grid_eff = 1.0
@@ -23,7 +23,7 @@ geometry.is_periodic = 0 0 0
 SolverType = SolveCompressibleEuler
 
 #cflNumber
-cflNumber = 0.5
+cflNumber = 0.8
 
 #TimeSteppingScheme
 TimeSteppingScheme = RK3
@@ -38,7 +38,7 @@ FluxReconstruction = WENO
 WenoVariant = WENOZ5
 
 #Reconstruction Mode
-ReconstructionMode = Characteristic
+ReconstructionMode = Conservative
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
