@@ -104,10 +104,11 @@ Set::Scalar Sphere::computeRSquared(const Set::Vector& coords, Type type, const 
 
 // Compute level set value
 AMREX_GPU_HOST_DEVICE inline Set::Scalar Sphere::computeLevelSetValue(Set::Scalar distance, Set::Scalar Narrow_Band_Width, Set::Scalar InnerTube, Set::Scalar OuterTube) const {
-    if (std::abs(distance) <= Narrow_Band_Width) return distance;
+    /*if (std::abs(distance) <= Narrow_Band_Width) return distance;
     if (distance < -Narrow_Band_Width) return InnerTube;
     if (distance > Narrow_Band_Width) return OuterTube;
-    return NAN;
+    return NAN;*/
+    return distance;
 }
 
 } // namespace LS

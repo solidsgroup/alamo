@@ -1,10 +1,10 @@
 ## Simulation output
-plot_file = output_levelset_circle_Struct_norm_100_BC
+plot_file = output_levelset_circle_Curve_Tube_Reinit
 
 # Simulation length
 timestep = 0.05
-stop_time = 0.50
-max_step = 1
+stop_time = 0.250
+max_step = 5
 
 # AMR parameters
 amr.plot_int = 1

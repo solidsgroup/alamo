@@ -277,15 +277,23 @@ public:
         const int nghosts = solver->number_of_ghost_cells;
         const int ncomp = solver->number_of_components;
 
-        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+        // Define OutsideNarrowband
+        //const auto& NarrowbandTubeType = solver.NarrowBandTubeType;
 
-            auto const& QL_arr = QL_stencil.array(mfi);
-            auto const& QR_arr = QR_stencil.array(mfi);
-            auto const& ls = solver->ls_mf.Patch(lev, mfi);
+        // Loop through all the levelset fields
+        for (int ils; ils < ncomp; ils++){
+            for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+                // Only perform computations in narrowband
+                const int idx = mfi.index();  // Index into box array
+                //amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags; // flags
 
-            // Loop through all the levelset fields
-            for (int ils; ils < ncomp; ils++){
+                //if (narrowband_flags[idx] == 0) continue;  // Skip non-narrowband boxes
+                const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+
+                auto const& QL_arr = QL_stencil.array(mfi);
+                auto const& QR_arr = QR_stencil.array(mfi);
+                auto const& ls = solver->ls_mf.Patch(lev, mfi);
+
                 auto const& vel_arr = solver->level_sets[ils].velocity_mf.Patch(lev, mfi);  
 
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
@@ -318,7 +326,9 @@ public:
     
                     ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                     ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-    
+                    
+                    // Compute lower/upper bound for NB tube
+
                     // Compute velocity and its sign (branch-free)
                     Set::Scalar vel = vel_arr(index[0], index[1], index[2], direction);
                     int sigma = vel >= 0 ? 1 : 0;

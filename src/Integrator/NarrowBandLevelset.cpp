@@ -84,6 +84,11 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     #endif
     }
 
+    {// Store Newfab to plot Zerols and Tube imfs
+    value.RegisterNewFab(value.Zerols_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "ZEROLS", true);
+    value.RegisterNewFab(value.Tube_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "NB_Tube", true);
+    }
+
     {// Access the maps from the FeatureMaps singleton
     auto& fluxReconstructionMap = getFeatureMaps().getFluxReconstructionMap();
     auto& fluxSchemeMap = getFeatureMaps().getFluxSchemeMap();
@@ -134,7 +139,6 @@ void NarrowBandLevelset::Initialize(int lev){
     ic_ls->Initialize(lev, ls_mf);
 
     // Initialize the zero levelset imf
-    //Zerols_imf.reset(new amrex::iMultiFab(grids[lev], dmap[lev], 1, number_of_ghost_cells));
     Zerols_imf.reset(new amrex::iMultiFab(ls_mf[lev]->boxArray(), ls_mf[lev]->DistributionMap(), 1, number_of_ghost_cells));
     ClearZerols();
 
@@ -147,14 +151,25 @@ void NarrowBandLevelset::Initialize(int lev){
         ic_velocity->Initialize(lev, level_sets[ils].velocity_mf);
         //level_sets[ils].velocity_mf[lev] -> setVal(constant_velocity);
 
+        // Initialize the narrowband tube
+        auto& tube_imf = level_sets[ils].Tube_imf;
+        tube_imf.reset(new amrex::iMultiFab(ls_mf[lev]->boxArray(), ls_mf[lev]->DistributionMap(), 1, number_of_ghost_cells));
+        tube_imf->setVal(NarrowBandTubeType::OutsideNarrowBandNeg);
+
         // Define initial narrowband boxarray and distribution mapping
-        UpdateNarrowband(lev, ils);
+        UpdateNarrowbandTubeandMapping(lev, ils);
+
+        // Save Tube_imf to Tube_imf
+        CopyTubeIMFtoMF(lev, ils);
 
         // Define Geometric quantities - must be after narrowband to update narrowband boxes!
         level_sets[ils].normal_mf[lev]->setVal(0.0);
         level_sets[ils].curvature_mf[lev]->setVal(0.0);
         ComputeGeometryQuantities(lev, ils);
     } 
+
+    // Save Zerols_imf to Zerols_mf
+    CopyZerolsIMFtoMF(lev);
 }
 
 void NarrowBandLevelset::ClearZerols(){;
@@ -165,7 +180,7 @@ void NarrowBandLevelset::UpdateZerols(int lev, int ls_id) {
     // Define grid spacing min_DX to find zero-crossing cells
     const Set::Scalar* DX = geom[lev].CellSize();
     const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
-    const Set::Scalar threshold = (narrow_band_width + 1) * min_DX;
+    const Set::Scalar tube_width = narrow_band_width * min_DX;
 
     // Define neighbor offsets based on dimension
     #if AMREX_SPACEDIM == 1
@@ -186,38 +201,38 @@ void NarrowBandLevelset::UpdateZerols(int lev, int ls_id) {
     const int dz[] = { 0, 0,  0, 0, -1, 1};
     #endif
 
+    // Define variables from enum class for narrowband
+    const int Interface = NarrowBandTubeType::Interface;
+    const int InnerTube = NarrowBandTubeType::InnerTube;
+    const int OuterTube = NarrowBandTubeType::OuterTube;
+    const int OuterBandNeg = NarrowBandTubeType::OutsideNarrowBandNeg;
+    const int OuterBandPos = NarrowBandTubeType::OutsideNarrowBandPos;
+
     // Update ghost cells before iterating over tileboxes
     ls_mf[lev]->FillBoundary();
 
-    for (amrex::MFIter mfi(*Zerols_imf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         const amrex::Box& domain_box = geom[lev].Domain();
 
         // Get arrays for MultiFabs
-        auto const& ls_arr = ls_mf[lev]->array(mfi);
-        auto const& zerols_arr = Zerols_imf->array(mfi);  // FIXED ACCESS
+        auto const& ls_arr = ls_mf.Patch(lev,mfi);
+        auto const& zerols_arr = Zerols_imf->array(mfi);  
+        auto const& nb_arr = level_sets[ls_id].Tube_imf->array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // Clamp phi values
+            // Read phi value and compute absolute value
             Set::Scalar phi = ls_arr(i, j, k, ls_id);
-            phi = std::clamp(phi, -threshold, threshold);
-            ls_arr(i, j, k, ls_id) = phi;
-
-            // Compute |phi|
             Set::Scalar abs_phi = std::abs(phi);
 
-            // Early exit: If already a zero-cell, store ls_id and return
-            if (abs_phi <= min_DX) {
-                zerols_arr(i, j, k) = ls_id;
-                return;
-            }
+            // Detect zero-crossing in one pass
+            int zero_cell = (abs_phi <= min_DX);  
 
             // Check neighbors for sign change (zero-crossing)
             for (int n = 0; n < num_neighbors; ++n) {
                 int ni = i + dx[n];
                 int nj = j;
                 int nk = k;
-
                 #if AMREX_SPACEDIM >= 2
                 nj = j + dy[n];
                 #endif
@@ -225,119 +240,138 @@ void NarrowBandLevelset::UpdateZerols(int lev, int ls_id) {
                 nk = k + dz[n];
                 #endif
 
-                // Ensure neighbor is inside domain
-                if (!domain_box.contains(ni, nj, nk)) {
-                    continue;
-                }
-
-                Set::Scalar phi_neighbor = ls_arr(ni, nj, nk, ls_id);
-                if (phi * phi_neighbor < 0) {
-                    zerols_arr(i, j, k) = ls_id;
-                    return;  // No need to check more neighbors
-                }
+                // Ensure neighbor is inside domain and check for sign change
+                zero_cell |= (domain_box.contains(ni, nj, nk) && (phi * ls_arr(ni, nj, nk, ls_id) < 0));
             }
+
+            // Compute narrowband classification
+            int inside_band = (abs_phi <= tube_width);
+            int outside_band = 1 - inside_band; 
+            int inner_mask = (phi < 0);  
+            int outer_mask = (phi > 0);
+            int outer_band_pos = phi > tube_width;
+            int outer_band_neg = phi < -tube_width;
+
+            // Assign values without branching
+            nb_arr(i, j, k) = inside_band * (inner_mask * InnerTube +
+                                             outer_mask * OuterTube) +
+                              outside_band * (outer_band_pos * OuterBandPos + 
+                                              outer_band_neg * OuterBandNeg);
+
+            // Assign `zerols_arr` and `nb_arr` without overwriting non-zero values
+            zerols_arr(i, j, k) = zero_cell * ls_id + (1 - zero_cell) * zerols_arr(i, j, k);
+            nb_arr(i, j, k) = zero_cell * Interface + (1 - zero_cell) * nb_arr(i, j, k);
+        });
+    }
+}
+
+void NarrowBandLevelset::CopyZerolsIMFtoMF(int lev){
+    for (amrex::MFIter mfi(*Zerols_imf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& valid_box = mfi.validbox();
+        auto const& zerols_imf_arr = Zerols_imf->array(mfi);  // FIXED ACCESS
+        auto const& zerols_mf_arr = Zerols_mf.Patch(lev, mfi);
+
+        // Scan through the box to find narrow band region
+        amrex::ParallelFor(valid_box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+            // Convert integer to double
+            zerols_mf_arr(i,j,k) = static_cast<Set::Scalar>(zerols_imf_arr(i,j,k));
+        });
+    }
+}
+
+void NarrowBandLevelset::CopyTubeIMFtoMF(int lev, int ls_id) {
+    auto const& tube_imf = level_sets[ls_id].Tube_imf;
+
+    for (amrex::MFIter mfi(*tube_imf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& valid_box = mfi.validbox();
+        auto const& Tube_imf_arr = tube_imf->array(mfi);
+        auto const& Tube_mf_arr = Tube_mf.Patch(lev, mfi);
+
+        // Convert and copy values
+        amrex::ParallelFor(valid_box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+            Tube_mf_arr(i,j,k) = static_cast<amrex::Real>(Tube_imf_arr(i,j,k));  // Ensure type conversion
         });
     }
 }
 
 void NarrowBandLevelset::ComputeNarrowBandBoxList(int lev, int ls_id) {
-    // Access structure
-    auto & ls_data = level_sets[ls_id];
+    auto& ls_data = level_sets[ls_id];
+    auto& tube_imf = ls_data.Tube_imf;
 
-    // Define narrowband variables
     amrex::BoxList narrow_band_boxes;
-
-    const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
-    const Set::Scalar tube_width = narrow_band_width * min_DX;
-
-    amrex::Gpu::DeviceVector<int> narrow_band_flags(ls_mf[lev]->local_size(), 0);
+    amrex::Gpu::DeviceVector<int> narrow_band_flags(tube_imf->local_size(), 0);
     auto* d_narrow_band_flags = narrow_band_flags.data();
 
     amrex::Vector<amrex::Box> temp_boxes;
     int box_index = 0;
 
-    for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*tube_imf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& valid_box = mfi.tilebox();
-        auto const& phi_arr = ls_mf.Patch(lev, mfi);
-
+        auto const& nb_arr = tube_imf->array(mfi);
         int* flag_ptr = d_narrow_band_flags + box_index;
 
-        // Scan through the box to find narrow band region
-        amrex::ParallelFor(valid_box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-            Set::Scalar phi = phi_arr(i, j, k, ls_id);
+        // Define OutsideNarrowband value
+        const int OutsideNarrowband = NarrowBandTubeType::OutsideNarrowBandPos;
 
-            #ifdef AMREX_USE_GPU
-                if (std::abs(phi) <= tube_width) {
-                    amrex::Gpu::Atomic::Or(flag_ptr, 1);  // GPU-safe atomic operation
-                }
-            #else
-                if (std::abs(phi) <= tube_width) {
-                    *flag_ptr = 1;  // Direct assignment for CPU
-                }
-            #endif
+#ifdef AMREX_USE_GPU
+        // GPU path — search entire tile in parallel
+        amrex::ParallelFor(valid_box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            if (nb_arr(i, j, k) != OutsideNarrowband)) {
+                amrex::Gpu::Atomic::Or(flag_ptr, 1);
+            }
         });
+#else
+        // CPU path — loop based on AMREX_SPACEDIM
+        const auto& lo = valid_box.smallEnd();
+        const auto& hi = valid_box.bigEnd();
 
+#if (AMREX_SPACEDIM == 1)
+        for (int i = lo[0]; i <= hi[0]; ++i) {
+            if (std::abs(nb_arr(i, 0, 0)) < OutsideNarrowband) {
+                *flag_ptr = 1;
+                goto done;
+            }
+        }
+#elif (AMREX_SPACEDIM == 2)
+        for (int j = lo[1]; j <= hi[1]; ++j) {
+            for (int i = lo[0]; i <= hi[0]; ++i) {
+                if (std::abs(nb_arr(i, j, 0)) < OutsideNarrowband) {
+                    *flag_ptr = 1;
+                    goto done;
+                }
+            }
+        }
+#elif (AMREX_SPACEDIM == 3)
+        for (int k = lo[2]; k <= hi[2]; ++k) {
+            for (int j = lo[1]; j <= hi[1]; ++j) {
+                for (int i = lo[0]; i <= hi[0]; ++i) {
+                    if (std::abs(nb_arr(i, j, k)) < OutsideNarrowband) {
+                        *flag_ptr = 1;
+                        goto done;
+                    }
+                }
+            }
+        }
+#endif
+done:;
+#endif
         temp_boxes.push_back(valid_box);
-        box_index++;
+        ++box_index;
     }
 
-    // Copy back results to check which boxes contain the narrow band
     amrex::Gpu::Device::synchronize();
-    std::vector<int> h_narrow_band_flags(narrow_band_flags.size());
-    amrex::Gpu::copy(amrex::Gpu::deviceToHost, narrow_band_flags.begin(), narrow_band_flags.end(), h_narrow_band_flags.begin());
 
-    for (int i = 0; i < temp_boxes.size(); i++) {
-        if (h_narrow_band_flags[i] != 0) {
+    std::vector<int> h_flags(narrow_band_flags.size());
+    amrex::Gpu::copy(amrex::Gpu::deviceToHost, narrow_band_flags.begin(), narrow_band_flags.end(), h_flags.begin());
+
+    for (int i = 0; i < temp_boxes.size(); ++i) {
+        if (h_flags[i] != 0) {
             narrow_band_boxes.push_back(temp_boxes[i]);
         }
     }
 
-    // Update the level set's narrow band boxes
     ls_data.narrowband_boxes = narrow_band_boxes;
 }
-
-/*void NarrowBandLevelset::ComputeNarrowBandBoxList(int lev, int ls_id){
-    // Access structure
-    auto & ls_data = level_sets[ls_id];
-
-    // Define narrowband variables
-    amrex::BoxList narrow_band_boxes;
-
-    const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
-    const Set::Scalar tube_width = narrow_band_width * min_DX;
-
-    // Loop through boxes to find narrow band regions
-    for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi) {
-        const amrex::Box& valid_box = mfi.validbox();
-        auto const& phi_arr = ls_mf.Patch(lev, mfi);
-
-        // Initialize min/max bounds to track narrow band region
-        bool has_narrow_band = false;
-
-        // Scan through the box to find narrow band region
-        amrex::ParallelFor(valid_box, [=, &has_narrow_band] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-        {
-            // Get phi
-            Set::Scalar phi = phi_arr(i, j, k, ls_id);
-            if (std::abs(phi) <= tube_width) {
-                has_narrow_band = true;
-            }
-        });
-
-        // If narrow band cells found, create a box for them
-        if (has_narrow_band) {
-            amrex::IntVect min_ind = valid_box.smallEnd();
-            amrex::IntVect max_ind = valid_box.bigEnd();
-            amrex::Box nb_box(min_ind, max_ind);
-            narrow_band_boxes.push_back(nb_box);
-        }
-    }
-    
-    // Update the level set's narrow band boxes
-    ls_data.narrowband_boxes = narrow_band_boxes; 
-}*/
 
 void NarrowBandLevelset::ComputeNarrowBandMapping(int lev, int ls_id){
     auto& ls_data = level_sets[ls_id];
@@ -345,15 +379,16 @@ void NarrowBandLevelset::ComputeNarrowBandMapping(int lev, int ls_id){
     // Check if there are any narrowband boxes
     amrex::BoxList narrowband_boxes = ls_data.narrowband_boxes;
     if (narrowband_boxes.size()> 0) {
-        amrex::BoxArray ba(narrowband_boxes);
-        ls_data.narrowband_dm = amrex::DistributionMapping(ba);
         ls_data.has_narrowband = true;  // Flag indicating valid narrowband
+        amrex::BoxArray ba(narrowband_boxes);
+        ls_data.narrowband_ba = ba;
+        ls_data.narrowband_dm = amrex::DistributionMapping(ba);
     } else {
         ls_data.has_narrowband = false; // No narrowband region found
     }
 }
 
-void NarrowBandLevelset::UpdateNarrowBandFlags(int lev, int ls_id){
+/*void NarrowBandLevelset::UpdateNarrowBandFlags(int lev, int ls_id){
     // Get the size of the box array
     int ba_size = ls_mf[lev]->boxArray().size();
 
@@ -376,9 +411,9 @@ void NarrowBandLevelset::UpdateNarrowBandFlags(int lev, int ls_id){
 
     // Save to level_sets
     level_sets[ls_id].narrowband_flags = narrowband_flags;
-}
+}*/
 
-void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id){
+void NarrowBandLevelset::UpdateNarrowbandTubeandMapping(int lev, int ls_id){
     // Tag 0 levelset gridpoints - zero will be done outside loop
     UpdateZerols(lev, ls_id);
 
@@ -389,15 +424,70 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id){
     ComputeNarrowBandMapping(lev, ls_id);
 
     // Get the narrowband flags
-    UpdateNarrowBandFlags(lev, ls_id);
+    //UpdateNarrowBandFlags(lev, ls_id);
 }
 
-void NarrowBandLevelset::ComputeNormal(int lev, int ls_id){
+void NarrowBandLevelset::ComputeNormal(int lev, int ls_id) {
+    // Define DX for gradient
+    const Set::Scalar* DX = geom[lev].CellSize();
+
+    // Define OutsideNarrowband constant
+    const int OutsideNarrowband = NarrowBandTubeType::OutsideNarrowBandPos;
+
+    // Create a temporary narrowband MultiFab
+    amrex::BoxArray narrowband_ba = level_sets[ls_id].narrowband_ba;
+    amrex::DistributionMapping narrowband_dm = level_sets[ls_id].narrowband_dm;
+    amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  
+    amrex::MultiFab narrowband_phi(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  // Level set values
+    amrex::MultiFab narrowband_normal(narrowband_ba, narrowband_dm, AMREX_SPACEDIM, number_of_ghost_cells); // Normal field
+
+    // Initialize narrowband_normal
+    narrowband_normal.setVal(0.0);
+
+    // Copy narrowband and level set values from full level set to narrowband (including ghost cells)
+    narrowband.ParallelCopy(*level_sets[ls_id].Tube_imf, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+    narrowband_phi.ParallelCopy(*ls_mf[lev], ls_id, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+
+    // Fill ghost cells
+    narrowband_phi.FillBoundary();
+
+    // Iterate over only the narrowband cells
+    for (amrex::MFIter mfi(narrowband_phi, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& valid_bx = mfi.tilebox();
+        auto const& phi_arr = narrowband_phi.array(mfi);
+        auto const& normal = narrowband_normal.array(mfi);
+        auto const& nb = narrowband.array(mfi);
+
+        amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            if (std::abs(nb(i,j,k)) == OutsideNarrowband) return; // Skip non-narrowband cells
+ 
+            // Utilize Numeric::Gradient for simplified computations
+            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::GetStencil(i, j, k, valid_bx);
+            Set::Vector gradient = Numeric::Gradient(phi_arr, i, j, k, 0, DX, stencil);
+            Set::Scalar grad_mag = gradient.norm();
+
+            for (int dim = 0; dim < AMREX_SPACEDIM; ++dim) {
+                normal(i, j, k, dim) = (grad_mag > 0.0) ? (gradient[dim] / grad_mag) : 0.0;
+            }
+        });
+    }
+
+    // Fill boundary before copying back
+    narrowband_normal.FillBoundary();
+
+    // Copy computed normals back to the full normal MultiFab (including ghost cells)
+    level_sets[ls_id].normal_mf[lev]->ParallelCopy(narrowband_normal, 0, 0, AMREX_SPACEDIM, number_of_ghost_cells, number_of_ghost_cells);
+}
+
+/*void NarrowBandLevelset::ComputeNormal(int lev, int ls_id){
     // Define DX for gradient
     const Set::Scalar* DX = geom[lev].CellSize();
 
     // Update boundaries for ghost cells **before** iterating over tileboxes
     ls_mf[lev]->FillBoundary();
+
+    // Define OutsideNarrowband
+    const int OutsideNarrowband = NarrowBandTubeType::OutsideNarrowBandPos;
 
     for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         // Only perform computations in narrowband
@@ -410,8 +500,12 @@ void NarrowBandLevelset::ComputeNormal(int lev, int ls_id){
         const amrex::Box& valid_bx = mfi.tilebox();
         auto const& phi_arr = ls_mf.Patch(lev, mfi);
         auto const& normal = level_sets[ls_id].normal_mf.Patch(lev, mfi); 
+        auto const& nb = level_sets[ls_id].Tube_imf->array(mfi);
 
         amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            // skip if not within narowband
+            if (std::abs(nb(i,j,k)) == OutsideNarrowband) return;
+
             // Utilize Numeric::Gradient for simplified computations
             std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::GetStencil(i, j, k, valid_bx);
             Set::Vector gradient = Numeric::Gradient(phi_arr, i, j, k, ls_id, DX, stencil);
@@ -422,11 +516,66 @@ void NarrowBandLevelset::ComputeNormal(int lev, int ls_id){
             }
         });
     }
-}
+}*/
 
 void NarrowBandLevelset::ComputeCurvature(int lev, int ls_id){
     // Define DX for gradient
     const Set::Scalar* DX = geom[lev].CellSize();
+
+    // Define OutsideNarrowband constant
+    const int OutsideNarrowband = NarrowBandTubeType::OutsideNarrowBandPos;
+
+    // Create a temporary narrowband MultiFab
+    amrex::BoxArray narrowband_ba = level_sets[ls_id].narrowband_ba;
+    amrex::DistributionMapping narrowband_dm = level_sets[ls_id].narrowband_dm;
+    amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);
+    amrex::MultiFab narrowband_normal(narrowband_ba, narrowband_dm, AMREX_SPACEDIM, number_of_ghost_cells); 
+    amrex::MultiFab narrowband_curve(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells); 
+
+    // Initialize narrowband_normal
+    narrowband_curve.setVal(0.0);
+
+    // Copy narrowband and normal
+    narrowband.ParallelCopy(*level_sets[ls_id].Tube_imf, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+    narrowband_normal.ParallelCopy(*level_sets[ls_id].normal_mf[lev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells, number_of_ghost_cells);
+    
+    // Fill ghost cells
+    narrowband_normal.FillBoundary();
+    
+    for (amrex::MFIter mfi(narrowband_curve, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& valid_bx = mfi.tilebox();
+        auto const& normal = narrowband_normal.array(mfi); 
+        auto const& curvature = narrowband_curve.array(mfi);
+        auto const& nb = narrowband.array(mfi);
+
+        amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            // skip if not within narowband
+            if (std::abs(nb(i,j,k)) == OutsideNarrowband) return;
+            
+            // Get diagonals of matrix
+            Set::Scalar sum = 0;
+            std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::GetStencil(i, j, k, valid_bx);
+            for (int dim=0; dim < AMREX_SPACEDIM; dim++){
+                // Utilize Numeric::Gradient for simplified computations
+                Set::Vector gradient = Numeric::Gradient(normal, i, j, k, dim, DX, stencil);
+                sum += gradient[dim];
+            }
+            curvature(i,j,k) = sum;
+        });
+    }  
+
+    // Fill boundary before copying back
+    narrowband_curve.FillBoundary();
+
+    // Copy computed normals back to the full normal MultiFab (including ghost cells)
+    level_sets[ls_id].curvature_mf[lev]->ParallelCopy(narrowband_curve, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+}
+
+/*void NarrowBandLevelset::ComputeCurvature(int lev, int ls_id){
+    // Define DX for gradient
+    const Set::Scalar* DX = geom[lev].CellSize();
+    //const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
+    //const Set::Scalar tube_width = narrow_band_width * min_DX;
 
     // Update boundaries for ghost cells **before** iterating over tileboxes
     level_sets[ls_id].normal_mf[lev]->FillBoundary();
@@ -440,10 +589,17 @@ void NarrowBandLevelset::ComputeCurvature(int lev, int ls_id){
         
         // Add a ghost layer for central differencing scheme
         const amrex::Box& valid_bx = mfi.tilebox();
+        //auto const& phi_arr = ls_mf.Patch(lev, mfi);
         auto const& normal = level_sets[ls_id].normal_mf.Patch(lev, mfi); 
         auto const& curvature = level_sets[ls_id].curvature_mf.Patch(lev, mfi);
+        auto const& nb = level_sets[ls_id].Tube_imf->array(mfi);
 
         amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            // skip if not within narowband
+            //Set::Scalar abs_phi = std::abs(phi_arr(i,j,k,ls_id));
+            //if (abs_phi > tube_width) return;
+            if (nb(i,j,k) == -2) return;
+            
             // Get diagonals of matrix
             Set::Scalar sum = 0;
             std::array<Numeric::StencilType, AMREX_SPACEDIM> stencil = Numeric::GetStencil(i, j, k, valid_bx);
@@ -455,7 +611,7 @@ void NarrowBandLevelset::ComputeCurvature(int lev, int ls_id){
             curvature(i,j,k) = sum;
         });
     }  
-}
+}*/
 
 void NarrowBandLevelset::ComputeGeometryQuantities(int lev, int ls_id){
     ComputeNormal(lev, ls_id);
@@ -555,27 +711,33 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     current_timestep ++;
 
     /*// Advect
-    //Advect(lev, time, dt);
+    Advect(lev, time, dt);
 
     // Clear the zero levelset
     ClearZerols();
 
     // Update the narrowband
     for (int ls_id = 0; ls_id < number_of_components; ls_id++){
-        UpdateNarrowband(lev, ls_id);
+        UpdateNarrowbandTubeandMapping(lev, ls_id);
         ComputeGeometryQuantities(lev, ls_id);
     }
 
+    // Copy the zero
+    CopyZerolsIMFtoMF(lev);*/
+
     // Reinitialize
-    if(current_timestep % 5 == 0) {
+    if(current_timestep % 1 == 0) {
         Reinitialize(lev);
 
         // Update the narrowband
         for (int ls_id = 0; ls_id < number_of_components; ls_id++){
-            UpdateNarrowband(lev, ls_id);
+            UpdateNarrowbandTubeandMapping(lev, ls_id);
             ComputeGeometryQuantities(lev, ls_id);
         }
-    }*/
+
+        // Copy the zero
+        CopyZerolsIMFtoMF(lev);
+    }
 }
 
 void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt){
@@ -635,6 +797,106 @@ void NarrowBandLevelset::Reinitialize(int lev) {
     // Time constraint for PDE update
     const Set::Scalar tau = cflNumber * min_DX;
 
+    // Define Interface and OutsideNarrowband constants for narrowband loop
+    const int Interface = NarrowBandTubeType::Interface;
+    const int OutsideNarrowband = NarrowBandTubeType::OutsideNarrowBandPos;
+
+    // Loop through all components
+    for (int ils=0; ils < number_of_components; ils++){
+        // Create temporary multifab for the levelset field within narrowband distribution
+        amrex::BoxArray narrowband_ba = level_sets[ils].narrowband_ba;
+        amrex::DistributionMapping narrowband_dm = level_sets[ils].narrowband_dm;
+        amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells); 
+        amrex::MultiFab narrowband_phi(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  // Level set values
+
+        // Copy level set values from full level set to narrowband (including ghost cells)
+        narrowband.ParallelCopy(*level_sets[ils].Tube_imf, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+        narrowband_phi.ParallelCopy(*ls_mf[lev], ils, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+    
+        // Loop through each iteration
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            // Use integer flag for convergence: 0 (not converged), 1 (converged)
+            amrex::Gpu::DeviceScalar<int> d_converged(1);  // Start as converged (1)
+            int* d_converged_ptr = d_converged.dataPtr();
+            
+            // Update boundaries for ghost cells **before** iterating over tileboxes
+            narrowband_phi.FillBoundary();
+    
+            // Loop through temporary phi field
+            for (amrex::MFIter mfi(narrowband_phi, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+                // Define valid box and arrays
+                const amrex::Box& valid_bx = mfi.tilebox();
+                auto const& ls_arr = narrowband_phi.array(mfi);
+                auto const& nb = narrowband.array(mfi);
+
+                amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    // Skip interface/outside band cells
+                    int nb_val = nb(i, j, k);
+                    if (nb_val == Interface || std::abs(nb_val) == OutsideNarrowband) return;
+  
+                    // **Compute sign of phi (avoid 0 cases)**
+                    Set::Scalar phi_val = ls_arr(i, j, k, ils);
+                    Set::Scalar sign_phi = (phi_val > 0) ? 1.0 : -1.0;
+                    
+                    // Compute first-order upwind gradients
+                    Set::Scalar a_p = std::max(sign_phi * (phi_val - ls_arr(i - 1, j, k, ils)) / DX[0], 0.0);
+                    Set::Scalar a_m = std::min(sign_phi * (ls_arr(i + 1, j, k, ils) - phi_val) / DX[0], 0.0);
+    
+                    Set::Scalar b_p = 0.0, b_m = 0.0, c_p = 0.0, c_m = 0.0;
+                    #if AMREX_SPACEDIM >= 2
+                    b_p = std::max(sign_phi * (phi_val - ls_arr(i, j - 1, k, ils)) / DX[1], 0.0);
+                    b_m = std::min(sign_phi * (ls_arr(i, j + 1, k, ils) - phi_val) / DX[1], 0.0);
+                    #endif
+                    #if AMREX_SPACEDIM == 3
+                    c_p = std::max(sign_phi * (phi_val - ls_arr(i, j, k - 1, ils)) / DX[2], 0.0);
+                    c_m = std::min(sign_phi * (ls_arr(i, j, k + 1, ils) - phi_val) / DX[2], 0.0);
+                    #endif
+    
+                    // **Compute gradient magnitude**
+                    Set::Scalar nablaG = std::sqrt(
+                        std::max(a_p * a_p, a_m * a_m) +
+                        std::max(b_p * b_p, b_m * b_m) +
+                        std::max(c_p * c_p, c_m * c_m)
+                    );
+    
+                    // **Update level set function**
+                    Set::Scalar phi_new = phi_val - tau * sign_phi * (nablaG - 1.0);
+    
+                    // **Compute local convergence check**
+                    int local_converged = (std::abs(phi_new - phi_val) <= reinit_tolerance) ? 1 : 0;
+    
+                    // **Atomic update: Track if any thread detects non-convergence**
+                    amrex::Gpu::Atomic::Max(d_converged_ptr, local_converged);
+    
+                    ls_arr(i, j, k, ils) = phi_new;
+                });
+            }
+
+            // Check convergence across processors
+            int converged = d_converged.dataValue();
+            if (converged) break;  // Stop early if converged
+        }
+        
+        // Fill ghost cells
+        narrowband_phi.FillBoundary();
+
+        // Copy narrowband levelset values back to ls_mf
+        ls_mf[lev]->ParallelCopy(narrowband_phi, 0, ils, 1, number_of_ghost_cells, number_of_ghost_cells);
+    }
+}
+
+/*void NarrowBandLevelset::Reinitialize(int lev) {
+    const Set::Scalar reinit_tolerance = 1e-3;
+    const int max_iterations = 50; 
+
+    // Grid spacing
+    const Set::Scalar* DX = geom[lev].CellSize();
+    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
+    const Set::Scalar tube_width = narrow_band_width * min_DX;
+
+    // Time constraint for PDE update
+    const Set::Scalar tau = cflNumber * min_DX;
+
     // Loop through all components
     for (int ils=0; ils < number_of_components; ils++){
         for (int iter = 0; iter < max_iterations; ++iter) {
@@ -648,16 +910,18 @@ void NarrowBandLevelset::Reinitialize(int lev) {
             for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
                 // Only perform computations in narrowband
                 const int idx = mfi.index();  // Index into box array
-                amrex::Vector<int> narrowband_flags = level_sets[ils].narrowband_flags; // flags
+                //amrex::Vector<int> narrowband_flags = level_sets[ils].narrowband_flags; // flags
         
-                if (narrowband_flags[idx] == 0) continue;  // Skip non-narrowband boxes
+                //if (narrowband_flags[idx] == 0) continue;  // Skip non-narrowband boxes
 
                 const amrex::Box& valid_bx = mfi.tilebox();
                 auto const& ls_arr = ls_mf.Patch(lev, mfi);
-                auto const& zerols_arr = Zerols_imf->array(mfi);  // FIXED ACCESS
+                //auto const& zerols_arr = Zerols_imf->array(mfi);  // FIXED ACCESS
+                auto const& nb = level_sets[ils].Tube_imf->array(mfi);
 
                 amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    if (zerols_arr(i,j,k) == ils) return;
+                    //if (zerols_arr(i,j,k) == ils || std::abs(ls_arr(i,j,k,ils)) > tube_width) return;
+                    if (nb(i,j,k) == -2 || nb(i,j,k) == 0) return;
   
                     // **Compute sign of phi (avoid 0 cases)**
                     Set::Scalar phi_val = ls_arr(i, j, k, ils);
@@ -702,7 +966,7 @@ void NarrowBandLevelset::Reinitialize(int lev) {
             if (converged) break;  // Stop early if converged
         }
     }
-}
+}*/
 
 void NarrowBandLevelset::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow){
 }

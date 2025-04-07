@@ -153,6 +153,12 @@ public:
     }
 };
 
+inline void FillBoundaryField(Set::Field<Set::Scalar>& field, int level) {
+    if (field.size() > level && field[level]) {
+        field[level]->FillBoundary();
+    }
+}
+
 template <>
 class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
 public:
@@ -162,6 +168,15 @@ public:
         }
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
         const int ncomp = solver->number_of_components;
+
+        // Fill the boundaries
+        FillBoundaryField(solver->XFlux_mf, lev);
+#if (AMREX_SPACEDIM >= 2)
+        FillBoundaryField(solver->YFlux_mf, lev);
+#endif
+#if (AMREX_SPACEDIM == 3)
+        FillBoundaryField(solver->ZFlux_mf, lev);
+#endif
 
         for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();  // Valid region of the box

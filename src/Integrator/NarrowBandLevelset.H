@@ -146,9 +146,22 @@ protected:
         // KEY CONCEPT: Each level set tracks its own narrow band region
         // as a collection of boxes - enabling quick intersection tests
         bool has_narrowband;
+
+        std::unique_ptr<amrex::iMultiFab> Tube_imf;
         amrex::BoxList narrowband_boxes;
+        amrex::BoxArray narrowband_ba;
         amrex::DistributionMapping narrowband_dm;
-        amrex::Vector<int> narrowband_flags;
+        //amrex::Vector<int> narrowband_flags;
+    };
+
+    // Define a structure for the values of the narrowband
+    struct NarrowBandTubeType
+    {
+        static constexpr int Interface = 0;             // 0 level set
+        static constexpr int InnerTube = -1;            // phi < 0 && phi >= -6.0 * min_DX
+        static constexpr int OuterTube = 1;             // phi > 0 && phi <= 6.0 * min_DX
+        static constexpr int OutsideNarrowBandNeg = -2; // phi > 6.0 * min_DX
+        static constexpr int OutsideNarrowBandPos = 2;  // Phi < -6.0 * min_DX
     };
     
     // Variables (multi-fabs)
@@ -157,6 +170,8 @@ protected:
     Set::Field<Set::Scalar>    XFlux_mf;                // X-direction flux field
     Set::Field<Set::Scalar>    YFlux_mf;                // Y-direction flux field
     Set::Field<Set::Scalar>    ZFlux_mf;                // Z-direction flux field
+    Set::Field<Set::Scalar>    Zerols_mf;               // Zero levelset field variable for plotting
+    Set::Field<Set::Scalar>    Tube_mf;                 // Narrowband Tube field variable for plotting
 
     std::unique_ptr<amrex::iMultiFab> Zerols_imf;  // Testing iMultiFab Object by declaring it directly without wrapper 
 
@@ -171,12 +186,14 @@ protected:
     // Class specific functions
     // Narrowband functions
     void ClearZerols();
-
     void UpdateZerols(int lev, int ls_id);
+    void CopyZerolsIMFtoMF(int lev);
+    void CopyTubeIMFtoMF(int lev, int ls_id);
+
     void ComputeNarrowBandBoxList(int lev, int ls_id);
     void ComputeNarrowBandMapping(int lev, int ls_id);
-    void UpdateNarrowBandFlags(int lev, int ls_id);
-    void UpdateNarrowband(int lev, int ls_id);
+    //void UpdateNarrowBandFlags(int lev, int ls_id);
+    void UpdateNarrowbandTubeandMapping(int lev, int ls_id);
     // Geometries
     void ComputeNormal(int lev, int ls_id);
     void ComputeCurvature(int lev, int ls_id);
