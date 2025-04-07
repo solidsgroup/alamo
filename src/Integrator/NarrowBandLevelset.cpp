@@ -147,14 +147,16 @@ void NarrowBandLevelset::Initialize(int lev){
         // Get structure id number
         level_sets[ils].id = ils;
 
+        // Apply boundary conditions for ls ghost cells
+        Integrator::ApplyPatch(lev, 0, ls_mf, *ls_mf[lev], *bc_ls, ils);
+
         // Define velocity_mf containing velocity vector
         ic_velocity->Initialize(lev, level_sets[ils].velocity_mf);
-        //level_sets[ils].velocity_mf[lev] -> setVal(constant_velocity);
 
         // Initialize the narrowband tube
         auto& tube_imf = level_sets[ils].Tube_imf;
         tube_imf.reset(new amrex::iMultiFab(ls_mf[lev]->boxArray(), ls_mf[lev]->DistributionMap(), 1, number_of_ghost_cells));
-        tube_imf->setVal(NarrowBandTubeType::OutsideNarrowBandNeg);
+        tube_imf->setVal(NarrowBandTubeType::OutsideNarrowBandNeg, number_of_ghost_cells);
 
         // Define initial narrowband boxarray and distribution mapping
         UpdateNarrowbandTubeandMapping(lev, ils);
@@ -163,8 +165,8 @@ void NarrowBandLevelset::Initialize(int lev){
         CopyTubeIMFtoMF(lev, ils);
 
         // Define Geometric quantities - must be after narrowband to update narrowband boxes!
-        level_sets[ils].normal_mf[lev]->setVal(0.0);
-        level_sets[ils].curvature_mf[lev]->setVal(0.0);
+        level_sets[ils].normal_mf[lev]->setVal(0.0, number_of_ghost_cells);
+        level_sets[ils].curvature_mf[lev]->setVal(0.0, number_of_ghost_cells);
         ComputeGeometryQuantities(lev, ils);
     } 
 
@@ -173,7 +175,7 @@ void NarrowBandLevelset::Initialize(int lev){
 }
 
 void NarrowBandLevelset::ClearZerols(){;
-    Zerols_imf->setVal(-1);
+    Zerols_imf->setVal(-1, number_of_ghost_cells);
 }
 
 void NarrowBandLevelset::UpdateZerols(int lev, int ls_id) {
@@ -182,25 +184,6 @@ void NarrowBandLevelset::UpdateZerols(int lev, int ls_id) {
     const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
     const Set::Scalar tube_width = narrow_band_width * min_DX;
 
-    // Define neighbor offsets based on dimension
-    #if AMREX_SPACEDIM == 1
-    constexpr int num_neighbors = 2;
-    const int dx[] = {-1, 1};
-    #endif
-
-    #if AMREX_SPACEDIM == 2
-    constexpr int num_neighbors = 4;
-    const int dx[] = {-1, 1,  0, 0};
-    const int dy[] = { 0, 0, -1, 1};
-    #endif
-
-    #if AMREX_SPACEDIM == 3
-    constexpr int num_neighbors = 6;
-    const int dx[] = {-1, 1,  0, 0,  0, 0};
-    const int dy[] = { 0, 0, -1, 1,  0, 0};
-    const int dz[] = { 0, 0,  0, 0, -1, 1};
-    #endif
-
     // Define variables from enum class for narrowband
     const int Interface = NarrowBandTubeType::Interface;
     const int InnerTube = NarrowBandTubeType::InnerTube;
@@ -208,41 +191,24 @@ void NarrowBandLevelset::UpdateZerols(int lev, int ls_id) {
     const int OuterBandNeg = NarrowBandTubeType::OutsideNarrowBandNeg;
     const int OuterBandPos = NarrowBandTubeType::OutsideNarrowBandPos;
 
-    // Update ghost cells before iterating over tileboxes
+    // Fill Ghost cells
     ls_mf[lev]->FillBoundary();
 
     for (amrex::MFIter mfi(*ls_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
-        const amrex::Box& domain_box = geom[lev].Domain();
+        const amrex::Box& grown_bx = mfi.growntilebox(number_of_ghost_cells);
 
         // Get arrays for MultiFabs
         auto const& ls_arr = ls_mf.Patch(lev,mfi);
         auto const& zerols_arr = Zerols_imf->array(mfi);  
         auto const& nb_arr = level_sets[ls_id].Tube_imf->array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::ParallelFor(grown_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             // Read phi value and compute absolute value
             Set::Scalar phi = ls_arr(i, j, k, ls_id);
             Set::Scalar abs_phi = std::abs(phi);
 
             // Detect zero-crossing in one pass
             int zero_cell = (abs_phi <= min_DX);  
-
-            // Check neighbors for sign change (zero-crossing)
-            for (int n = 0; n < num_neighbors; ++n) {
-                int ni = i + dx[n];
-                int nj = j;
-                int nk = k;
-                #if AMREX_SPACEDIM >= 2
-                nj = j + dy[n];
-                #endif
-                #if AMREX_SPACEDIM == 3
-                nk = k + dz[n];
-                #endif
-
-                // Ensure neighbor is inside domain and check for sign change
-                zero_cell |= (domain_box.contains(ni, nj, nk) && (phi * ls_arr(ni, nj, nk, ls_id) < 0));
-            }
 
             // Compute narrowband classification
             int inside_band = (abs_phi <= tube_width);
@@ -644,7 +610,10 @@ void NarrowBandLevelset::ComputeAndSetNewTimeStep() {
 }
 
 Set::Scalar NarrowBandLevelset::GetTimeStep() {
-    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value 
+    Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value
+    Set::Scalar maxU = 0;
+    Set::Scalar maxV = 0;
+    Set::Scalar maxW = 0;
     
     // Loop through all levelsets
     for (int ils=0; ils < number_of_components; ils++){
@@ -661,11 +630,14 @@ Set::Scalar NarrowBandLevelset::GetTimeStep() {
                 amrex::ParallelFor(bx, [=, &minDt_local](int i, int j, int k) noexcept {
                     // Extract velocity components
                     Set::Scalar u = velocity_arr(i, j, k, 0);
+                    if (std::abs(u) > maxU) max_velocity[0] = u;
     #if (AMREX_SPACEDIM >= 2)
                     Set::Scalar v = velocity_arr(i, j, k, 1);
+                    if (std::abs(v) > maxV) max_velocity[1] = v;
     #endif
     #if (AMREX_SPACEDIM == 3)
                     Set::Scalar w = velocity_arr(i, j, k, 2);
+                    if (std::abs(w) > maxW) max_velocity[2] = w;
     #endif
     
                     // Compute the maximum velocity magnitude
@@ -710,7 +682,7 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Update current timestep (for reinitialize)
     current_timestep ++;
 
-    /*// Advect
+    // Advect
     Advect(lev, time, dt);
 
     // Clear the zero levelset
@@ -720,13 +692,16 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     for (int ls_id = 0; ls_id < number_of_components; ls_id++){
         UpdateNarrowbandTubeandMapping(lev, ls_id);
         ComputeGeometryQuantities(lev, ls_id);
+
+        // Save Tube_imf to Tube_imf
+        CopyTubeIMFtoMF(lev, ls_id);
     }
 
     // Copy the zero
-    CopyZerolsIMFtoMF(lev);*/
+    CopyZerolsIMFtoMF(lev);
 
     // Reinitialize
-    if(current_timestep % 1 == 0) {
+    if(current_timestep % 5 == 0) {
         Reinitialize(lev);
 
         // Update the narrowband

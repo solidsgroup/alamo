@@ -1,10 +1,10 @@
 ## Simulation output
-plot_file = output_levelset_circle_Curve_Tube_Reinit
+plot_file = output_levelset_circle_Advect_Test_100_NB_10Steps_reinit
 
 # Simulation length
-timestep = 0.05
+timestep = 0.005
 stop_time = 0.250
-max_step = 5
+max_step = 10
 
 # AMR parameters
 amr.plot_int = 1
@@ -45,7 +45,7 @@ ic.ls.sphere.type   = "xy"
 #ic.ls.zalesak.type          = "xy"
 
 # Initial velocity field (constant)
-ic.velocity.value = 0.0 0.0 #0.0
+ic.velocity.value = 1.0 0.0 #0.0
 
 # Boundary conditions for levelset field
 bc.ls.type.xhi = neumann

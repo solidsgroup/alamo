@@ -268,32 +268,56 @@ public:
     }
 };*/
 
+inline void FillBoundaryField(Set::Field<Set::Scalar>& field, int level) {
+    if (field.size() > level && field[level]) {
+        field[level]->FillBoundary();
+    }
+}
+
 // First-order specific to NarrowBandLevelset integrator class
 template <>
 class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
 public:
     void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
                          amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
+        // Define constants 
         const int nghosts = solver->number_of_ghost_cells;
         const int ncomp = solver->number_of_components;
 
         // Define OutsideNarrowband
-        //const auto& NarrowbandTubeType = solver.NarrowBandTubeType;
+        const int OutsideNarrowband = solver->GetOutsideNarrowBandPos();
+
+        // Fill levelset boundary for indexing neighboring cells properly
+        FillBoundaryField(solver->ls_mf, lev);
 
         // Loop through all the levelset fields
-        for (int ils; ils < ncomp; ils++){
-            for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-                // Only perform computations in narrowband
-                const int idx = mfi.index();  // Index into box array
-                //amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags; // flags
+        for (int ils=0; ils < ncomp; ils++){
+            // Fill narrowband (for checking neighbors)
+            solver->level_sets[ils].Tube_imf->FillBoundary();
 
-                //if (narrowband_flags[idx] == 0) continue;  // Skip non-narrowband boxes
+            for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+                // Extend the box to access ghost cells
                 const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
+                // Compute valid index bounds
+                int lower_bounds[3] = {
+                    face_bx_with_ghosts.smallEnd(0), 
+                    (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.smallEnd(1) : 0,
+                    (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.smallEnd(2) : 0
+                };
+                                    
+                int upper_bounds[3] = {
+                    face_bx_with_ghosts.bigEnd(0) - 1, 
+                    (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.bigEnd(1) - 1 : 0,
+                    (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.bigEnd(2) - 1 : 0
+                };
+
+                // Define multifab arrayss
                 auto const& QL_arr = QL_stencil.array(mfi);
                 auto const& QR_arr = QR_stencil.array(mfi);
                 auto const& ls = solver->ls_mf.Patch(lev, mfi);
-
+                auto const& nb_imf = solver->level_sets[ils].Tube_imf;
+                auto const& nb = (*nb_imf).array(mfi);
                 auto const& vel_arr = solver->level_sets[ils].velocity_mf.Patch(lev, mfi);  
 
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
@@ -301,23 +325,10 @@ public:
                     int index[3] = {iface, jface, kface};
                     int left_index[3] = {iface, jface, kface};
                     int right_index[3] = {iface, jface, kface};
-                    
-                    // Compute valid index bounds
-                    int lower_bounds[3] = {
-                        face_bx_with_ghosts.smallEnd(0), 
-                        (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.smallEnd(1) : 0,
-                        (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.smallEnd(2) : 0
-                    };
-                    
-                    int upper_bounds[3] = {
-                        face_bx_with_ghosts.bigEnd(0) - 1, 
-                        (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.bigEnd(1) - 1 : 0,
-                        (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.bigEnd(2) - 1 : 0
-                    };
-    
+
                     // Clamp the main index
                     ClampIndices(index, lower_bounds, upper_bounds);
-    
+
                     // Define offsets (modular for future higher-order schemes)
                     int left_offset[3] = {0, 0, 0};
                     int right_offset[3] = {0, 0, 0};
@@ -327,7 +338,14 @@ public:
                     ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                     ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
                     
-                    // Compute lower/upper bound for NB tube
+                    // Exit early if not narrowband cell
+                    int nb_val = nb(index[0], index[1], index[2]);
+                    int nb_left = nb(left_index[0], left_index[1], left_index[2]);
+                    int nb_right = nb(right_index[0], right_index[1], right_index[2]);
+                    bool is_narrowband = (nb_val < OutsideNarrowband || 
+                                          nb_left < OutsideNarrowband ||
+                                          nb_right < OutsideNarrowband);
+                    if (!is_narrowband) return;
 
                     // Compute velocity and its sign (branch-free)
                     Set::Scalar vel = vel_arr(index[0], index[1], index[2], direction);
@@ -338,7 +356,7 @@ public:
                                      (1.0 - sigma) * ls(left_index[0], left_index[1], left_index[2], ils);
                     Set::Scalar QR = sigma * ls(right_index[0], right_index[1], right_index[2], ils) + 
                                      (1.0 - sigma) * ls(index[0], index[1], index[2], ils);
-    
+                    
                     // Store results
                     QL_arr(index[0], index[1], index[2], ils) = QL;
                     QR_arr(index[0], index[1], index[2], ils) = QR;
@@ -623,9 +641,25 @@ public:
         const int nghosts = solver->number_of_ghost_cells;  // Get number of ghost cells
         const int ncomp = solver->number_of_components;
 
+        // Define OutsideNarrowband
+        const int OutsideNarrowband = solver->GetOutsideNarrowBandPos();
+
         for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
             // Use a face-centered box to compute fluxes
             const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+
+            // Compute valid index bounds
+            int lower_bounds[3] = {
+                face_bx_with_ghosts.smallEnd(0), 
+                (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.smallEnd(1) : 0,
+                (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.smallEnd(2) : 0
+            };
+            
+            int upper_bounds[3] = {
+                face_bx_with_ghosts.bigEnd(0) - 1, 
+                (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.bigEnd(1) - 1 : 0,
+                (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.bigEnd(2) - 1 : 0
+            };
 
             // Select the correct flux MultiFab based on direction
             auto const& flux_arr = (direction == 0) ? solver->XFlux_mf.Patch(lev, mfi) :
@@ -637,25 +671,18 @@ public:
 
             // Loop through all levels
             for (int ils=0; ils < ncomp; ils++){
+                // Fill levelset boundary for indexing neighboring cells properly
+                solver->level_sets[ils].Tube_imf->FillBoundary();
+                FillBoundaryField(solver->level_sets[ils].velocity_mf, lev);
+
+                auto const& nb_imf = solver->level_sets[ils].Tube_imf;
+                auto const& nb = (*nb_imf).array(mfi);
                 auto const& velocity_arr = solver->level_sets[ils].velocity_mf.Patch(lev, mfi);
 
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                     int index[3] = {iface, jface, kface};
                     int left_index[3] = {iface, jface, kface};
                     int right_index[3] = {iface, jface, kface};
-
-                    // Compute valid index bounds
-                    int lower_bounds[3] = {
-                        face_bx_with_ghosts.smallEnd(0), 
-                        (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.smallEnd(1) : 0,
-                        (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.smallEnd(2) : 0
-                    };
-
-                    int upper_bounds[3] = {
-                        face_bx_with_ghosts.bigEnd(0) - 1, 
-                        (AMREX_SPACEDIM > 1) ? face_bx_with_ghosts.bigEnd(1) - 1 : 0,
-                        (AMREX_SPACEDIM > 2) ? face_bx_with_ghosts.bigEnd(2) - 1 : 0
-                    };
 
                     // Clamp the main index to valid bounds
                     ClampIndices(index, lower_bounds, upper_bounds);
@@ -669,6 +696,15 @@ public:
                     // Shift and clamp left/right indices
                     ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                     ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+
+                    // Exit early if not narrowband cell
+                    int nb_val = nb(index[0], index[1], index[2]);
+                    int nb_left = nb(left_index[0], left_index[1], left_index[2]);
+                    int nb_right = nb(right_index[0], right_index[1], right_index[2]);
+                    bool is_narrowband = (nb_val < OutsideNarrowband || 
+                                          nb_left < OutsideNarrowband ||
+                                          nb_right < OutsideNarrowband);
+                    if (!is_narrowband) return;
 
                     // Get velocities at left and right faces
                     Set::Scalar vel_L = velocity_arr(left_index[0], left_index[1], left_index[2], direction);

@@ -55,6 +55,11 @@ public:
         delete bc_velocity;
         
     }
+
+    // Getter for Narrowband tube type
+    AMREX_FORCE_INLINE static int GetOutsideNarrowBandPos() {
+        return NarrowBandTubeType::OutsideNarrowBandPos;
+    }
     
     // Flux Reconstruction Schemes
     enum class FluxReconstruction {
@@ -248,8 +253,8 @@ private:
     // Define size for narrowband
     Set::Scalar narrow_band_width = 6.0;
 
-    // Define constant velocity array
-    //Set::Vector constant_velocity = Set::Vector::Zero();
+    // Define maximum velocity across grid per dimension
+    Set::Vector max_velocity = Set::Vector::Zero();
 
     //
     // Definition of user-determined pointer variables.

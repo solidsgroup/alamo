@@ -31,7 +31,7 @@ void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) 
     const Set::Scalar OuterTube = Narrow_Band_Width;
 
     for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        amrex::Box bx = mfi.tilebox();
+        amrex::Box bx = mfi.growntilebox(number_of_ghost_cells);
         auto field = a_field[lev]->array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
