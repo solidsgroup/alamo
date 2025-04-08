@@ -105,29 +105,41 @@
 #@  ignore = model1.E model1.nu
 #@  coverage=true
 #@
+#@ [linear-transverse]
+#@ exe=mechanics
+#@ dim = 3
+#@ check-file = reference/transverselyisotropic.dat
+#@ args = alamo.program.mechanics.model=linear.TransverselyIsotropic
+#@ args = model1.C11 = 168.3
+#@ args = model1.C12 = 1.221
+#@ args = model1.C13 = 1
+#@ args = model1.C33 = 160
+#@ args = model1.C44 = 0.757
+#@ ignore = model1.E model1.nu
+#@ coverage=true
+#@
 
 alamo.program = mechanics
 
-
-plot_file		    = tests/Solid/output
+plot_file = tests/Solid/output
 
 type=static
 
-timestep		    = 0.01
-stop_time		    = 1.0
+timestep = 0.01
+stop_time = 1
 
 # amr parameters
-amr.plot_dt		    = 0.1
-amr.max_level		    = 0
-amr.n_cell		    = 4 4 4
-amr.blocking_factor         = 2
+amr.plot_dt = 0.1
+amr.max_level = 0
+amr.n_cell = 4 4 4
+amr.blocking_factor = 2
 
 amr.thermo.int = 1
 amr.thermo.plot_int = 1
 
 # geometry
-geometry.prob_lo	    = 0 0 0
-geometry.prob_hi	    = 1 1 1
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 1
 
 nmodels = 1
 model1.E=210 
