@@ -55,6 +55,12 @@ protected:
         if (hydro_initialized) Hydro::TimeStepBegin(a_time, a_step);
     }
 
+    void TimeStepComplete(Set::Scalar a_time, int a_iter) override
+    {
+        PF::TimeStepComplete(a_time, a_iter);
+        Hydro::TimeStepComplete(a_time, a_iter);
+    }
+
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         PF::Advance(a_lev, a_time, a_dt);
@@ -65,6 +71,12 @@ protected:
     {
         PF::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
         if (hydro_initialized) Hydro::TagCellsForRefinement(a_lev, a_tags, a_time, a_ngrow);
+    }
+
+    void Regrid(int lev, Set::Scalar time) override
+    {
+        PF::Regrid(lev, time);
+        Hydro::Regrid(lev, time);
     }
 
     void UpdateEta(int lev, Set::Scalar /*time*/) override
