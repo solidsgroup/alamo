@@ -1,38 +1,40 @@
-#include "Util/Util.H"
 #include "IO/ParmParse.H"
-#include "Integrator/Dendrite.H"
 #include "Integrator/AllenCahn.H"
+#include "Integrator/Dendrite.H"
+#include "Util/Util.H"
 
-#if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM == 2
 #include "Integrator/SFI.H"
 #endif
 
-int main (int argc, char* argv[])
+int
+main(int argc, char *argv[])
 {
-    Util::Initialize(argc,argv);
+    Util::Initialize(argc, argv);
 
-    #if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM == 2
     IO::ParmParse pp;
     std::string program;
     // which integrator to use with SFI
-    pp.query_validate("alamo.program",program,{"allencahn","dendrite"});
+    pp.query_validate("alamo.program", program, { "allencahn", "dendrite" });
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
 
-    if      (program == "allencahn") pp.select_only<Integrator::SFI<Integrator::AllenCahn>>(integrator);
-    else if (program == "dendrite")  pp.select_only<Integrator::SFI<Integrator::Dendrite>>(integrator);
-    
+    if (program == "allencahn")
+        pp.select_only<Integrator::SFI<Integrator::AllenCahn> >(integrator);
+    else if (program == "dendrite")
+        pp.select_only<Integrator::SFI<Integrator::Dendrite> >(integrator);
+
     integrator->InitData();
     integrator->Evolve();
 
     delete integrator;
-    #else
+#else
 
-    Util::Abort(INFO,"This integrator works in 2D only");
+    Util::Abort(INFO, "This integrator works in 2D only");
 
-    #endif
+#endif
 
-    
     Util::Finalize();
-} 
+}
