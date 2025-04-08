@@ -19,6 +19,7 @@ geometry.is_periodic = 0 1 1
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1.0e-5 # 0.00005 # [s]
+tstart = 0.02
 stop_time = 0.03
 small = 1.0e-8
 
@@ -130,3 +131,78 @@ laser.ic.constant.value = 1.0e6
 plot_field = 0
 
 amr.abort_on_nan = 0
+
+## HYDRO VARIABLES ########################################################### HYDRO
+hydro.gamma = 1.4
+hydro.mu = 5.0
+
+hydro.pref = 10000
+
+hydro.density.ic.constant.value = 40.0
+
+hydro.velocity.ic.type = expression
+hydro.velocity.ic.expression.constant.eps = 0.1
+hydro.velocity.ic.expression.constant.x0 = -2.0
+hydro.velocity.ic.expression.region0 = "0.0"
+hydro.velocity.ic.expression.region1 = "0.0"
+
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 5.0
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+
+hydro.pf.eta.bc.constant.type.xhi = neumann
+hydro.pf.eta.bc.constant.type.ylo = neumann
+hydro.pf.eta.bc.constant.type.yhi = neumann
+hydro.pf.eta.bc.constant.type.zlo = neumann
+hydro.pf.eta.bc.constant.type.zhi = neumann
+hydro.pf.eta.bc.constant.val.xlo = 0.0
+hydro.pf.eta.bc.constant.val.xhi = 0.0
+hydro.pf.eta.bc.constant.val.ylo = 0.0
+hydro.pf.eta.bc.constant.val.yhi = 0.0
+hydro.pf.eta.bc.constant.val.zlo = 0.0
+hydro.pf.eta.bc.constant.val.zhi = 0.0
+
+hydro.density.bc.constant.type.xhi = neumann
+hydro.density.bc.constant.type.xlo = dirichlet
+hydro.density.bc.constant.type.ylo = neumann
+hydro.density.bc.constant.type.yhi = neumann
+hydro.density.bc.constant.val.xhi = 0.0
+hydro.density.bc.constant.val.xlo = 42.0
+hydro.density.bc.constant.val.ylo = 0.0 
+hydro.density.bc.constant.val.yhi = 0.0
+
+hydro.energy.bc.constant.type.xhi = neumann
+hydro.energy.bc.constant.type.xlo = dirichlet
+hydro.energy.bc.constant.type.ylo = neumann
+hydro.energy.bc.constant.type.yhi = neumann
+hydro.energy.bc.constant.val.xhi = 0.0
+hydro.energy.bc.constant.val.xlo = 1000.0
+hydro.energy.bc.constant.val.ylo = 0.0 
+hydro.energy.bc.constant.val.yhi = 0.0
+
+hydro.momentum.bc.constant.type.xhi = neumann neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann
+hydro.momentum.bc.constant.type.ylo = neumann dirichlet
+hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.momentum.bc.constant.val.xhi = 0.0 0.0
+hydro.momentum.bc.constant.val.xlo = 0.0 0.0
+hydro.momentum.bc.constant.val.ylo = 0.0 0.0
+hydro.momentum.bc.constant.val.yhi = 0.0 0.0
+hydro.eta.ic.constant.value = 1.0
+
+hydro.eta_refinement_criterion = 0.1
+hydro.omega_refinement_criterion = 10000000
+hydro.gradu_refinement_criterion = 10000000
+
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.density.ic.constant.value = 40.0
+hydro.solid.energy.ic.constant.value = 0.0
+
+hydro.m0.ic.constant.value = 0.0
+hydro.u0.ic.constant.value = 0.0
+hydro.q.ic.constant.value = 0.0
+
+hydro.small = 1e-8
+hydro.cutoff = 0.2
+hydro.lagrange = 2000.0
