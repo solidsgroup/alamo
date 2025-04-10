@@ -9,6 +9,7 @@
 #include "Set/Set.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
+#include "Model/Regression/PowerLaw.H"
 
 #include "Base/Mechanics.H"
 
@@ -155,7 +156,9 @@ private:
     Set::Scalar x_len = NAN;
     Set::Scalar y_len = NAN;
 
-    BC::BC<Set::Scalar>* bc_psi = nullptr;
+    BC::BC<Set::Scalar> *bc_psi = nullptr;
+
+    Model::Regression::Regression *rate_model;
 };
 }
 

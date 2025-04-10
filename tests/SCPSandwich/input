@@ -47,15 +47,16 @@ pf.w1 = 1.0
 pf.w12 = 2.0
 pf.w0 = 0.0
 
+rate.type = "powerlaw"
 # AP / HTPB regression rate params 
-pressure.r_ap = 1.222 # [ mm / s ]
-pressure.n_ap = 1.042 # [ 1 ]
-pressure.r_htpb = 0.1 # [ mm / s]
-pressure.r_comb = 10.0 # [ mm / s]
-pressure.n_htpb = 0.0 # [ 1 ]
-pressure.n_comb = 0.0 # [ 1 ]
+rate.powerlaw.r_ap = 1.222 # [ mm / s ]
+rate.powerlaw.n_ap = 1.042 # [ 1 ]
+rate.powerlaw.r_htpb = 0.1 # [ mm / s]
+rate.powerlaw.r_comb = 10.0 # [ mm / s]
+rate.powerlaw.n_htpb = 0.0 # [ 1 ]
+rate.powerlaw.n_comb = 0.0 # [ 1 ]
 # Pressure used in regression rate calc
-pressure.P = 0.2
+rate.powerlaw.pressure = 0.2
 
 # Phase field IC
 pf.eta.ic.type = constant
