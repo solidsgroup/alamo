@@ -28,9 +28,10 @@ public:
 	{
 		pp.queryclass<HeatConduction>("hc",value);
 		pp.queryclass<PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>("pfm",value);
+		
 		//pp.queryclass<Mechanics<Model::Solid::Affine::Cubic>>("mech",value);
 		
-		pp_queryarr("alpha",value.alpha); // Diffusion coefficient (heat conduction?)
+		pp.queryarr("alpha",value.alpha); // Diffusion coefficient (heat conduction?)
 	}
 
 protected:

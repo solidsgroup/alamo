@@ -8,17 +8,19 @@
 # 2. 
 #
 # Current Error:
-# 1. Get microstructure to work
-# 
+# 1. Get mechanics to work
+# 1.1 A lot of unused variables
 #
 #
 
 
 alamo.program		= thermomechanics # would the program be thermomechanics?
+# alamo.program.thermomechanics.model = finite.affine.cubic
 plot_file			= gaj/pfmicromechanics/output
 
 timestep			= 0.0001
-stop_time 			= 0.08
+#stop_time 			= 0.08
+stop_time			= 0.01
 
 amr.plot_dt			= 0.01
 amr.max_level		= 2
@@ -112,7 +114,8 @@ pfm.pf.l_gb		= 0.05
 pfm.pf.sigma0	= 0.075
 
 # Mechanics Boundary Conditions
-mechanics.model = affine.cubic
+pfm.pf.threshold.mechanics = 1
+pf.mechanics.model = affine.cubic
 mechanics.bc.type					= constant
 mechanics.bc.constant.type.xlo		= neumann neumann neumann # How do I make this so that there is no displacement? Neumann? Help
 mechanics.bc.constant.type.xhi		= neumann neumann neumann
@@ -123,10 +126,10 @@ mechanics.bc.constant.type.yhi		= neumann neumann neumann
 
 mechanics.bc.constant.val.xlo		= 0.0 0.0 0.0
 mechanics.bc.constant.val.xhi		= 0.0 0.0 0.0
-mechanics.bc.constant.val.xhiyhi	= 0.0 0.0 0.0
-mechanics.bc.constant.val.xloyhi	= 0.0 0.0 0.0
-mechanics.bc.constant.val.xhiylo	= 0.0 0.0 0.0
-mechanics.bc.constant.val.xloylo	= 0.0 0.0 0.0
+mechanics.bc.constant.val.xhiyhi		= 0.0 0.0 0.0
+mechanics.bc.constant.val.xloyhi		= 0.0 0.0 0.0
+mechanics.bc.constant.val.xhiylo		= 0.0 0.0 0.0
+mechanics.bc.constant.val.xloylo		= 0.0 0.0 0.0
 mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
 mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
 
