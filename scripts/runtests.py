@@ -86,6 +86,7 @@ parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tes
 parser.add_argument('--exe',default=None, nargs='*', help='Run only certain executables')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--perf',default=False,action='store_true',help='Use clang perf')
 parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code for all tests')
 parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
 parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
@@ -273,6 +274,10 @@ def test(testdir):
             if 'fft' in config[desc].keys():
                 if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
                     if not args.fft and not args.fft_only: continue
+
+            # If not running in serial, specify mpirun command
+            if args.perf: command += f"perf record -F 99 -g "
+            # Specify alamo command.
 
             # If not running in serial, specify mpirun command
             if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
