@@ -154,11 +154,93 @@ public:
     }
 };
 
-/*inline void FillBoundaryField(Set::Field<Set::Scalar>& field, int level) {
-    if (field.size() > level && field[level]) {
-        field[level]->FillBoundary();
+/*template <>
+class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
+public:
+    void ComputeSubStep(int lev, Set::Scalar dt, int stage, Integrator::NarrowBandLevelset* solver) override {
+        if (stage != 0) {
+            Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
+        }
+        // Define constants
+        const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
+        const int ncomp = solver->number_of_components;
+        const int number_of_ghost_cells = solver->number_of_ghost_cells;
+        auto const level_sets = solver->level_sets;
+
+        // Define edge points of narrowband
+        const int OuterEdge = solver->GetOuterEdge();
+
+        // Fill the boundaries
+        Numeric::FillBoundaryField(solver->XFlux_mf, lev);
+        #if (AMREX_SPACEDIM >= 2)
+            Numeric::FillBoundaryField(solver->YFlux_mf, lev);
+        #endif
+        #if (AMREX_SPACEDIM == 3)
+            Numeric::FillBoundaryField(solver->ZFlux_mf, lev);
+        #endif
+
+        // Loop through all levelset fields on the lev
+        for (int ils=0; ils < ncomp; ils++){
+            // Create a temporary narrowband MultiFab
+            const amrex::BoxArray narrowband_ba = level_sets[ils].narrowband_ba;
+            const amrex::DistributionMapping narrowband_dm = level_sets[ils].narrowband_dm;
+            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  
+            amrex::MultiFab narrowband_phi(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  // Levelsets
+
+            // Loop through tiles
+            for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
+                const amrex::Box& bx = mfi.validbox();  // Valid region of the box
+
+                // Define levelsets
+                auto const& ls_arr = solver->ls_mf.Patch(lev, mfi);
+                auto const& ls_old_arr = solver->ls_old_mf.Patch(lev, mfi);
+
+                // Define narrowband
+                auto const& nb_imf = solver->level_sets[ils].Tube_imf;
+                auto const& nb = (*nb_imf).array(mfi);
+
+                // Get face-centered flux fields
+                auto const& xflux_arr = solver->XFlux_mf.Patch(lev, mfi);;  // X-direction flux
+#if AMREX_SPACEDIM >= 2
+                auto const& yflux_arr = solver->YFlux_mf.Patch(lev, mfi);  // Y-direction flux
+#endif
+#if AMREX_SPACEDIM == 3
+                auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
+#endif
+
+                // Loop through individual cells
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                    // Exit early if not narrowband cell
+                    Set::Scalar nb_val = nb(i, j, k);
+                    if (std::abs(nb_val) >= OuterEdge) return;
+                    
+                    // Initialize flux to 0
+                    Set::Scalar flux_div = 0.0;
+                    
+                    // Compute flux divergence in X-direction
+                    flux_div += (xflux_arr(i, j, k, ils) - xflux_arr(i - 1, j, k, ils)) / DX[0];
+                    
+#if AMREX_SPACEDIM >= 2
+                    // Compute flux divergence in Y-direction
+                    flux_div += (yflux_arr(i, j, k, ils) - yflux_arr(i, j - 1, k, ils)) / DX[1];
+#endif
+                    
+#if AMREX_SPACEDIM == 3
+                    // Compute flux divergence in Z-direction
+                    flux_div += (zflux_arr(i, j, k, ils) - zflux_arr(i, j, k - 1, ils)) / DX[2];
+#endif
+                    
+                    // Euler forward update for level set function
+                    ls_arr(i, j, k, ils) = ls_old_arr(i, j, k, ils) - dt * flux_div;
+                });
+            }
+        }
     }
-}*/
+
+    int GetNumberOfStages() const override {
+        return 1;  // Euler Forward has only one stage
+    }
+};*/
 
 template <>
 class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
@@ -169,34 +251,11 @@ public:
         }
         // Define constants
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
-        const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
         const int ncomp = solver->number_of_components;
 
-        // Define OutsideNarrowband
-        const int OutsideNarrowband = solver->GetOutsideNarrowBandPos();
-
-        // Get the number of "buffer cells"
-        Set::Scalar max_speed = solver->max_velocity.maxCoeff();
-        int buffer_cells = max_speed > 0 ? static_cast<int>(std::ceil(max_speed * dt / min_DX)) : 5; 
-
-        // Define neighbor offsets based on dimension
-        #if AMREX_SPACEDIM == 1
-        constexpr int num_neighbors = 2;
-        const int dx[] = {-buffer_cells, buffer_cells};
-        #endif
-
-        #if AMREX_SPACEDIM == 2
-        constexpr int num_neighbors = 4;
-        const int dx[] = {-buffer_cells, buffer_cells,  0,            0           };
-        const int dy[] = { 0,            0,            -buffer_cells, buffer_cells};
-        #endif
-
-            #if AMREX_SPACEDIM == 3
-        constexpr int num_neighbors = 6;
-        const int dx[] = {-buffer_cells, buffer_cells,  0,            0,             0,            0           };
-        const int dy[] = { 0,            0,            -buffer_cells, buffer_cells,  0,            0           };
-        const int dz[] = { 0,            0,             0,            0,            -buffer_cells, buffer_cells};
-        #endif
+        // Define edge points of narrowband
+        const int OuterTube = solver->GetOutsideNarrowBandPos();
+        const int OuterEdge = solver->GetOuterEdge();
 
         // Fill the boundaries
         Numeric::FillBoundaryField(solver->XFlux_mf, lev);
@@ -210,7 +269,6 @@ public:
         // Loop through tiles
         for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();  // Valid region of the box
-            const amrex::Box& domain_box = solver->geom[lev].Domain();
 
             auto const& ls_arr = solver->ls_mf.Patch(lev, mfi);
             auto const& ls_old_arr = solver->ls_old_mf.Patch(lev, mfi);
@@ -225,33 +283,15 @@ public:
 #endif
             // Loop through all levelset fields
             for (int ils=0; ils < ncomp; ils++){
-                // Fill narrowband ghost cells
-                solver->level_sets[ils].Tube_imf->FillBoundary();
-                
                 // Define narrowband
                 auto const& nb_imf = solver->level_sets[ils].Tube_imf;
                 auto const& nb = (*nb_imf).array(mfi);
 
                 // Loop through individual cells
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                    bool is_narrowband = false;
-                    // Check neighbors to see if within narrowband
-                    for (int n = 0; n < num_neighbors; ++n) {
-                        int ni = i + dx[n];
-                        int nj = j;
-                        int nk = k;
-                        #if AMREX_SPACEDIM >= 2
-                        nj = j + dy[n];
-                        #endif
-                        #if AMREX_SPACEDIM == 3
-                        nk = k + dz[n];
-                        #endif
-
-                    // Ensure neighbor is inside domain and check tube value
-                    is_narrowband |= (domain_box.contains(ni, nj, nk) && (nb(ni, nj, nk) < OutsideNarrowband));
-            }
                     // Exit early if not narrowband cell
-                    if (!is_narrowband) return;
+                    Set::Scalar nb_val = nb(i, j, k);
+                    if (std::abs(nb_val) == OuterTube) return;
 
                     // Initialize flux to 0
                     Set::Scalar flux_div = 0.0;

@@ -217,57 +217,6 @@ for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
 
 };
 
-// "Optimized" version with edit clamping functions
-/*// First-order specific to NarrowBandLevelset integrator class
-template <>
-class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
-public:
-    void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
-                         amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
-        const int nghosts = solver->GetNumGhostCells();
-
-        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
-
-            auto const& QL_arr = QL_stencil.array(mfi);
-            auto const& QR_arr = QR_stencil.array(mfi);
-            auto const& ls = solver->ls_mf.Patch(lev, mfi);  // Level-set field (using Patch)
-            auto const& vel_arr = solver->velocity_mf.Patch(lev, mfi);  // Velocity field (using Patch)
-
-            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                int index[3] = {iface, jface, kface};
-                int left_index[3] = {iface, jface, kface};
-                int right_index[3] = {iface, jface, kface};
-
-                int lower_bounds[3] = {face_bx_with_ghosts.smallEnd(0), face_bx_with_ghosts.smallEnd(1), face_bx_with_ghosts.smallEnd(2)};
-                int upper_bounds[3] = {face_bx_with_ghosts.bigEnd(0), face_bx_with_ghosts.bigEnd(1), face_bx_with_ghosts.bigEnd(2)};
-
-                // Clamp main index
-                ClampIndices(index, lower_bounds, upper_bounds);
-
-                // Define offsets for first-order upwind
-                int left_offset = -1, right_offset = 1;
-                ShiftAndClampIndex(left_index[direction], left_offset, lower_bounds[direction], upper_bounds[direction]);
-                ShiftAndClampIndex(right_index[direction], right_offset, lower_bounds[direction], upper_bounds[direction]);
-
-                // Compute velocity sign without branching
-                Set::Scalar vel = vel_arr(index[0], index[1], index[2], direction);
-                int sign = vel >= 0 ? 1 : 0;
-
-                // First-order upwind reconstruction
-                Set::Scalar QL = sign * ls(index[0], index[1], index[2], 0) + 
-                                 (1 - sign) * ls(left_index[0], left_index[1], left_index[2], 0);
-                Set::Scalar QR = sign * ls(right_index[0], right_index[1], right_index[2], 0) + 
-                                 (1 - sign) * ls(index[0], index[1], index[2], 0);
-
-                // Store results
-                QL_arr(index[0], index[1], index[2], 0) = QL;
-                QR_arr(index[0], index[1], index[2], 0) = QR;
-            });
-        }
-    }
-};*/
-
 inline void FillBoundaryField(Set::Field<Set::Scalar>& field, int level) {
     if (field.size() > level && field[level]) {
         field[level]->FillBoundary();
@@ -292,9 +241,6 @@ public:
 
         // Loop through all the levelset fields
         for (int ils=0; ils < ncomp; ils++){
-            // Fill narrowband (for checking neighbors)
-            solver->level_sets[ils].Tube_imf->FillBoundary();
-
             for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
                 // Extend the box to access ghost cells
                 const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
@@ -321,6 +267,15 @@ public:
                 auto const& vel_arr = solver->level_sets[ils].velocity_mf.Patch(lev, mfi);  
 
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                    // Get the cell centered index for narrowband
+                    int center_cell_index[3] = {iface, jface, kface};
+                    center_cell_index[direction] -= 1;  // Now this points to the *left* cell
+                    ClampIndices(center_cell_index, lower_bounds, upper_bounds);
+
+                    // Exit early if not narrowband cell
+                    int nb_val = nb(center_cell_index[0], center_cell_index[1], center_cell_index[2]);
+                    if (std::abs(nb_val) == OutsideNarrowband) return;
+
                     // Construct index arrays with correct number of components
                     int index[3] = {iface, jface, kface};
                     int left_index[3] = {iface, jface, kface};
@@ -337,18 +292,9 @@ public:
     
                     ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                     ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-                    
-                    // Exit early if not narrowband cell
-                    int nb_val = nb(index[0], index[1], index[2]);
-                    int nb_left = nb(left_index[0], left_index[1], left_index[2]);
-                    int nb_right = nb(right_index[0], right_index[1], right_index[2]);
-                    bool is_narrowband = (nb_val < OutsideNarrowband || 
-                                          nb_left < OutsideNarrowband ||
-                                          nb_right < OutsideNarrowband);
-                    if (!is_narrowband) return;
 
                     // Compute velocity and its sign (branch-free)
-                    Set::Scalar vel = vel_arr(index[0], index[1], index[2], direction);
+                    Set::Scalar vel = vel_arr(center_cell_index[0], center_cell_index[1], center_cell_index[2], direction);
                     int sigma = vel >= 0 ? 1 : 0;
     
                     // First-order upwind reconstruction
@@ -672,7 +618,6 @@ public:
             // Loop through all levels
             for (int ils=0; ils < ncomp; ils++){
                 // Fill levelset boundary for indexing neighboring cells properly
-                solver->level_sets[ils].Tube_imf->FillBoundary();
                 FillBoundaryField(solver->level_sets[ils].velocity_mf, lev);
 
                 auto const& nb_imf = solver->level_sets[ils].Tube_imf;
@@ -680,6 +625,15 @@ public:
                 auto const& velocity_arr = solver->level_sets[ils].velocity_mf.Patch(lev, mfi);
 
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                    // Get the cell centered index for narrowband
+                    int center_cell_index[3] = {iface, jface, kface};
+                    center_cell_index[direction] -= 1;  // Now this points to the *left* cell
+                    ClampIndices(center_cell_index, lower_bounds, upper_bounds);
+                    
+                    // Exit early if not narrowband cell
+                    int nb_val = nb(center_cell_index[0], center_cell_index[1], center_cell_index[2]);
+                    if (std::abs(nb_val) == OutsideNarrowband) return;
+
                     int index[3] = {iface, jface, kface};
                     int left_index[3] = {iface, jface, kface};
                     int right_index[3] = {iface, jface, kface};
@@ -690,22 +644,13 @@ public:
                     // Define offsets for left and right indices
                     int left_offset[3] = {0, 0, 0};
                     int right_offset[3] = {0, 0, 0};
-                    left_offset[direction] = -1;
+                    left_offset[direction] = 0;
                     right_offset[direction] = 1;
 
                     // Shift and clamp left/right indices
                     ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                     ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-
-                    // Exit early if not narrowband cell
-                    int nb_val = nb(index[0], index[1], index[2]);
-                    int nb_left = nb(left_index[0], left_index[1], left_index[2]);
-                    int nb_right = nb(right_index[0], right_index[1], right_index[2]);
-                    bool is_narrowband = (nb_val < OutsideNarrowband || 
-                                          nb_left < OutsideNarrowband ||
-                                          nb_right < OutsideNarrowband);
-                    if (!is_narrowband) return;
-
+                    
                     // Get velocities at left and right faces
                     Set::Scalar vel_L = velocity_arr(left_index[0], left_index[1], left_index[2], direction);
                     Set::Scalar vel_R = velocity_arr(right_index[0], right_index[1], right_index[2], direction);

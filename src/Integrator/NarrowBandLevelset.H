@@ -60,6 +60,10 @@ public:
     AMREX_FORCE_INLINE static int GetOutsideNarrowBandPos() {
         return NarrowBandTubeType::OutsideNarrowBandPos;
     }
+
+    AMREX_FORCE_INLINE static int GetOuterEdge() {
+        return NarrowBandTubeType::OuterEdge;
+    }
     
     // Flux Reconstruction Schemes
     enum class FluxReconstruction {
@@ -162,11 +166,13 @@ protected:
     // Define a structure for the values of the narrowband
     struct NarrowBandTubeType
     {
-        static constexpr int Interface = 0;             // 0 level set
+        static constexpr int Interface =  0;            // 0 level set
         static constexpr int InnerTube = -1;            // phi < 0 && phi >= -6.0 * min_DX
-        static constexpr int OuterTube = 1;             // phi > 0 && phi <= 6.0 * min_DX
-        static constexpr int OutsideNarrowBandNeg = -2; // phi > 6.0 * min_DX
-        static constexpr int OutsideNarrowBandPos = 2;  // Phi < -6.0 * min_DX
+        static constexpr int OuterTube =  1;            // phi > 0 && phi <= 6.0 * min_DX
+        static constexpr int InnerEdge = -2;            // neighbors of narrowband (inside)
+        static constexpr int OuterEdge =  2;            // neighbors of narrowband (outside)
+        static constexpr int OutsideNarrowBandNeg = -3; // phi > 6.0 * min_DX
+        static constexpr int OutsideNarrowBandPos = 3;  // Phi < -6.0 * min_DX
     };
     
     // Variables (multi-fabs)
@@ -191,7 +197,7 @@ protected:
     // Class specific functions
     // Narrowband functions
     void ClearZerols();
-    void UpdateZerols(int lev, int ls_id);
+    void UpdateNarrowband(int lev, int ls_id);
     void CopyZerolsIMFtoMF(int lev);
     void CopyTubeIMFtoMF(int lev, int ls_id);
 
@@ -252,9 +258,7 @@ private:
     
     // Define size for narrowband
     Set::Scalar narrow_band_width = 6.0;
-
-    // Define maximum velocity across grid per dimension
-    Set::Vector max_velocity = Set::Vector::Zero();
+    Set::Scalar inner_narrow_band_width = 4.0;
 
     //
     // Definition of user-determined pointer variables.
