@@ -40,37 +40,6 @@
 //   2. Non-degradable (adhesion term decaying with volume expansion)
 // This model is rate-independent, reversible, and purely elastic.
 
-namespace Set
-{
-
-// Outer product for two 3x3 matrices producing a 3x3x3x3 tensor
-inline std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3>
-Outer(const Eigen::Matrix3d &A, const Eigen::Matrix3d &B)
-{
-    std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3> result = {};
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j)
-            for (int k = 0; k < 3; ++k)
-                for (int l = 0; l < 3; ++l)
-                    result[i][j][k][l] = A(i, j) * B(k, l);
-    return result;
-}
-
-// Derivative of inverse transpose: d(F^-T) / dF
-inline std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3>
-Derivative(const Eigen::Matrix3d &FinvT)
-{
-    std::array<std::array<std::array<std::array<double, 3>, 3>, 3>, 3> result = {};
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j)
-            for (int k = 0; k < 3; ++k)
-                for (int l = 0; l < 3; ++l)
-                    result[i][j][k][l] = -FinvT(i, j) * FinvT(j, i);
-    return result;
-}
-
-} // namespace Set
-
 namespace Model
 {
 namespace Solid
@@ -123,11 +92,16 @@ public:
     static void
     Parse(Adhesion &value, IO::ParmParse &pp)
     {
-        pp_query("mu", value.mu);       ///< Shear modulus
-        pp_query("kappa", value.kappa); ///< Bulk modulus
-        pp_query("d", value.d);         ///< Adhesion strength (degradable part coefficient)
-        pp_query("zeta", value.zeta);   ///< Adhesion decay parameter (non-degradable part)
-        pp_query("n", value.n);         ///< Decay exponent
+        // Shear modulus
+        pp_query_required("mu", value.mu);
+        // Bulk modulus
+        pp_query_required("kappa", value.kappa);
+        // Initial value for damage
+        pp_query_default("d", value.d, 1.0);
+        // Adhesion decay parameter (non-degradable part)
+        pp_query_default("zeta", value.zeta, 0.0);
+        // Decay exponent
+        pp_query_default("n", value.n,1.0);
     }
 
     // Strain energy function:
@@ -204,9 +178,6 @@ public:
         Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
         Eigen::Matrix3d FinvT = F.inverse().transpose();
         Set::Scalar trace_FTF = (F.transpose() * F).trace();
-
-        // Precompute derivative helper for FinvT
-        auto Deriv = ::Set::Derivative(FinvT);
 
         Set::Matrix4<3, Set::Sym::Major> stiffness;
         for (int i = 0; i < 3; ++i)
