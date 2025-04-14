@@ -80,8 +80,8 @@ public:
     Random()
     {
         Adhesion adhesion;
-        adhesion.d =1.0 ; // Util::Random();    ///< Adhesion strength (degradable part coefficient)
-        adhesion.zeta = 1.0; ///< Adhesion decay parameter (non-degradable part)
+        adhesion.d = Util::Random() ; // Util::Random();    ///< Adhesion strength (degradable part coefficient)
+        adhesion.zeta = Util::Random(); ///< Adhesion decay parameter (non-degradable part)
         adhesion.n = Util::Random();    ///< Decay exponent
         adhesion.mu = Util::Random();
         adhesion.kappa = Util::Random();// Util::Random();
@@ -109,7 +109,6 @@ public:
     {
         Set::Scalar w = (1.0 - d) * NeoHookean::W(F);
         Set::Scalar J = F.determinant();
-        // Non-degradable (adhesion) part: decays with volume expansion
         w += zeta * std::pow(J, -n);
         return w;
     }
@@ -129,11 +128,17 @@ public:
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>
     DDW(const Set::Matrix &F) const override
     {
-        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>
-            ddw = (1.0 - d) * NeoHookean::DDW(F);
+        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw =
+            (1.0 - d) * NeoHookean::DDW(F);
+
+        Util::Message(INFO,zeta);
+        Util::Message(INFO,n);
+        Util::Message(INFO,d);
 
         Set::Scalar J = F.determinant();
         Set::Matrix FinvT = F.inverse().transpose();
+
+        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw_compress;
 
         for (int i = 0; i < AMREX_SPACEDIM; i++)
         {
@@ -151,12 +156,12 @@ public:
 
                         Set::Scalar t3 = n * n * std::pow(J, -n) * FinvT(i, j) * FinvT(k, l)
                                          + n * std::pow(J, -n) * FinvT(k, j) * FinvT(i, l);
-                        ddw(i, j, k, l) += zeta * t3;
+                        ddw_compress(i, j, k, l) = zeta * t3;
                     }
                 }
             }
         }
-        return ddw;
+        return ddw + ddw_compress;
     }
 
     // Print material parameters
