@@ -215,7 +215,7 @@ protected:
     // Advance
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
-    void Reinitialize(int lev);
+    void Reinitialize(int lev, int ls_id);
     
     std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;
@@ -274,7 +274,8 @@ private:
     FluxScheme flux_scheme;                      // Selected flux scheme
     TimeSteppingScheme temporal_scheme;          // Selected time-stepping scheme
 
-    Set::Scalar cflNumber = 0.5;                 // CFL number (read from input)
+    Set::Scalar cflNumber = 0.5;                 // CFL number for flow (read from input)
+    Set::Scalar cflReinit = 0.4;                 // CFL for reinitialization only
 
 }; //NarrowBandLevelset Class
 

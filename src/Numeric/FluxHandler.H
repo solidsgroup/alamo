@@ -267,45 +267,43 @@ public:
                 auto const& vel_arr = solver->level_sets[ils].velocity_mf.Patch(lev, mfi);  
 
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                    // Get the cell centered index for narrowband
-                    int center_cell_index[3] = {iface, jface, kface};
-                    center_cell_index[direction] -= 1;  // Now this points to the *left* cell
-                    ClampIndices(center_cell_index, lower_bounds, upper_bounds);
-
-                    // Exit early if not narrowband cell
-                    int nb_val = nb(center_cell_index[0], center_cell_index[1], center_cell_index[2]);
-                    if (std::abs(nb_val) == OutsideNarrowband) return;
-
                     // Construct index arrays with correct number of components
-                    int index[3] = {iface, jface, kface};
-                    int left_index[3] = {iface, jface, kface};
-                    int right_index[3] = {iface, jface, kface};
-
-                    // Clamp the main index
-                    ClampIndices(index, lower_bounds, upper_bounds);
+                    int cell_centered_index[3] = {iface, jface, kface};
+                    int left_cell_centered_index[3] = {iface, jface, kface};
+                    int right_cell_centered_index[3] = {iface, jface, kface};
+                    int left_cell_centered_offset[3] = {0, 0, 0};
+                    int right_cell_centered_offset[3] = {0, 0, 0};
 
                     // Define offsets (modular for future higher-order schemes)
-                    int left_offset[3] = {0, 0, 0};
-                    int right_offset[3] = {0, 0, 0};
-                    left_offset[direction] = -1;  // Left offset for first-order upwind scheme
-                    right_offset[direction] = 1;  // Right offset for first-order upwind scheme
-    
-                    ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-                    ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                    left_cell_centered_offset[direction] = -1;  // Left offset for first-order upwind scheme
+                    right_cell_centered_offset[direction] = 1;  // Right offset for first-order upwind scheme
+
+                    // Clamp cell centered indices
+                    ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
+                    ShiftAndClampIndices(left_cell_centered_index, left_cell_centered_offset, lower_bounds, upper_bounds, direction);
+                    ShiftAndClampIndices(right_cell_centered_index, right_cell_centered_offset, lower_bounds, upper_bounds, direction);
+
+                    // Exit early if not narrowband cell
+                    int nb_val = nb(cell_centered_index[0], cell_centered_index[1], cell_centered_index[2]);
+                    if (std::abs(nb_val) == OutsideNarrowband) return;
+
+                    // Clamp face centered indices
+                    int face_centered_index[3] = {iface, jface, kface};
+                    ClampIndices(face_centered_index, lower_bounds, upper_bounds);
 
                     // Compute velocity and its sign (branch-free)
-                    Set::Scalar vel = vel_arr(center_cell_index[0], center_cell_index[1], center_cell_index[2], direction);
+                    Set::Scalar vel = vel_arr(cell_centered_index[0], cell_centered_index[1], cell_centered_index[2], direction);
                     int sigma = vel >= 0 ? 1 : 0;
     
                     // First-order upwind reconstruction
-                    Set::Scalar QL = sigma * ls(index[0], index[1], index[2], ils) + 
-                                     (1.0 - sigma) * ls(left_index[0], left_index[1], left_index[2], ils);
-                    Set::Scalar QR = sigma * ls(right_index[0], right_index[1], right_index[2], ils) + 
-                                     (1.0 - sigma) * ls(index[0], index[1], index[2], ils);
+                    Set::Scalar QL = sigma * ls(cell_centered_index[0], cell_centered_index[1], cell_centered_index[2], ils) + 
+                                     (1.0 - sigma) * ls(left_cell_centered_index[0], left_cell_centered_index[1], left_cell_centered_index[2], ils);
+                    Set::Scalar QR = sigma * ls(right_cell_centered_index[0], right_cell_centered_index[1], right_cell_centered_index[2], ils) + 
+                                     (1.0 - sigma) * ls(cell_centered_index[0], cell_centered_index[1], cell_centered_index[2], ils);
                     
                     // Store results
-                    QL_arr(index[0], index[1], index[2], ils) = QL;
-                    QR_arr(index[0], index[1], index[2], ils) = QR;
+                    QL_arr(face_centered_index[0], face_centered_index[1], face_centered_index[2], ils) = QL;
+                    QR_arr(face_centered_index[0], face_centered_index[1], face_centered_index[2], ils) = QR;
                 }); 
             }
         }
@@ -625,48 +623,46 @@ public:
                 auto const& velocity_arr = solver->level_sets[ils].velocity_mf.Patch(lev, mfi);
 
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                    // Get the cell centered index for narrowband
-                    int center_cell_index[3] = {iface, jface, kface};
-                    center_cell_index[direction] -= 1;  // Now this points to the *left* cell
-                    ClampIndices(center_cell_index, lower_bounds, upper_bounds);
-                    
+                    // Define cell centered indices/offsets
+                    int cell_centered_index[3] = {iface, jface, kface};
+                    int left_cell_centered_index[3] = {iface, jface, kface};
+                    int right_cell_centered_index[3] = {iface, jface, kface};
+                    int left_cell_centered_offset[3] = {0, 0, 0};
+                    int right_cell_centered_offset[3] = {0, 0, 0};
+
+                    // Define offsets (modular for future higher-order schemes)
+                    left_cell_centered_offset[direction] = -1;  // Left offset for first-order upwind scheme
+                    right_cell_centered_offset[direction] = 1;  // Right offset for first-order upwind scheme
+
+                    // Clamp cell centered indices
+                    ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
+                    ShiftAndClampIndices(left_cell_centered_index, left_cell_centered_offset, lower_bounds, upper_bounds, direction);
+                    ShiftAndClampIndices(right_cell_centered_index, right_cell_centered_offset, lower_bounds, upper_bounds, direction);
+
                     // Exit early if not narrowband cell
-                    int nb_val = nb(center_cell_index[0], center_cell_index[1], center_cell_index[2]);
+                    int nb_val = nb(cell_centered_index[0], cell_centered_index[1], cell_centered_index[2]);
                     if (std::abs(nb_val) == OutsideNarrowband) return;
 
-                    int index[3] = {iface, jface, kface};
-                    int left_index[3] = {iface, jface, kface};
-                    int right_index[3] = {iface, jface, kface};
-
-                    // Clamp the main index to valid bounds
-                    ClampIndices(index, lower_bounds, upper_bounds);
-
-                    // Define offsets for left and right indices
-                    int left_offset[3] = {0, 0, 0};
-                    int right_offset[3] = {0, 0, 0};
-                    left_offset[direction] = 0;
-                    right_offset[direction] = 1;
-
-                    // Shift and clamp left/right indices
-                    ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-                    ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                    // Clamp face centered indices
+                    int face_centered_index[3] = {iface, jface, kface};
+                    ClampIndices(face_centered_index, lower_bounds, upper_bounds);
                     
                     // Get velocities at left and right faces
-                    Set::Scalar vel_L = velocity_arr(left_index[0], left_index[1], left_index[2], direction);
-                    Set::Scalar vel_R = velocity_arr(right_index[0], right_index[1], right_index[2], direction);
+                    Set::Scalar vel_L = velocity_arr(left_cell_centered_index[0], left_cell_centered_index[1], left_cell_centered_index[2], direction);
+                    Set::Scalar vel_R = velocity_arr(right_cell_centered_index[0], right_cell_centered_index[1], right_cell_centered_index[2], direction);
                     
                     // Compute max wave speed λ for LF flux
                     Set::Scalar lambda_max = std::max(std::abs(vel_L), std::abs(vel_R));
 
                     // Fetch reconstructed level-set values
-                    Set::Scalar QL = QL_arr(index[0], index[1], index[2], ils);
-                    Set::Scalar QR = QR_arr(index[0], index[1], index[2], ils);
+                    Set::Scalar QL = QL_arr(face_centered_index[0], face_centered_index[1], face_centered_index[2], ils);
+                    Set::Scalar QR = QR_arr(face_centered_index[0], face_centered_index[1], face_centered_index[2], ils);
 
                     // Compute Local Lax-Friedrichs numerical flux
                     Set::Scalar flux = 0.5 * (vel_L * QL + vel_R * QR) - 0.5 * lambda_max * (QR - QL);
 
                     // Store computed flux
-                    flux_arr(index[0], index[1], index[2], ils) = flux;
+                    flux_arr(face_centered_index[0], face_centered_index[1], face_centered_index[2], ils) = flux;
                 });
             }   
         }

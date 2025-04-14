@@ -1,10 +1,10 @@
 ## Simulation output
-plot_file = output_levelset_circle_Advect_Test_Shift
+plot_file = output_levelset_circle_Advect_1step_no_NBUpdate
 
 # Simulation length
 timestep = 0.005
 stop_time = 0.250
-max_step = 3
+max_step = 1
 
 # AMR parameters
 amr.plot_int = 1
