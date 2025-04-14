@@ -255,7 +255,7 @@ public:
 
             if (model_neumann_boundary)
             {
-                Util::AssertException(INFO,TEST(AMREX_SPACEDIM==2),"neumann boundary works in 2d only");
+                //Util::AssertException(INFO,TEST(AMREX_SPACEDIM==2),"neumann boundary works in 2d only");
                 for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.grownnodaltilebox() & domain;
@@ -264,6 +264,8 @@ public:
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
+
+                        #if AMREX_SPACEDIM==2
                         if      (i==lo.x && j==lo.y)
                             model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
                         else if (i==lo.x && j==hi.y)
@@ -281,6 +283,40 @@ public:
                             model(i,j,k) = model(i,j+1,k);
                         else if (j==hi.y)
                             model(i,j,k) = model(i,j-1,k);
+                        #elif AMREX_SPACEDIM==3
+
+                        if      (i==lo.x && j==lo.y && k == lo.z) model(i,j,k) = (model(i+1,j,k) + model(i,j+1,k) + model(i,j,k+1)) / 3.0;
+                        else if (i==lo.x && j==lo.y && k == hi.z) model(i,j,k) = (model(i+1,j,k) + model(i,j+1,k) + model(i,j,k-1)) / 3.0;
+                        else if (i==lo.x && j==hi.y && k == lo.z) model(i,j,k) = (model(i+1,j,k) + model(i,j-1,k) + model(i,j,k+1)) / 3.0;
+                        else if (i==lo.x && j==hi.y && k == hi.z) model(i,j,k) = (model(i+1,j,k) + model(i,j-1,k) + model(i,j,k-1)) / 3.0;
+                        else if (i==hi.x && j==lo.y && k == lo.z) model(i,j,k) = (model(i-1,j,k) + model(i,j+1,k) + model(i,j,k+1)) / 3.0;
+                        else if (i==hi.x && j==lo.y && k == hi.z) model(i,j,k) = (model(i-1,j,k) + model(i,j+1,k) + model(i,j,k-1)) / 3.0;
+                        else if (i==hi.x && j==hi.y && k == lo.z) model(i,j,k) = (model(i-1,j,k) + model(i,j-1,k) + model(i,j,k+1)) / 3.0;
+                        else if (i==hi.x && j==hi.y && k == hi.z) model(i,j,k) = (model(i-1,j,k) + model(i,j-1,k) + model(i,j,k-1)) / 3.0;
+
+                        else if (j==lo.y && k == lo.z) model(i,j,k) = (model(i,j+1,k) + model(i,j,k+1)) / 2.0;
+                        else if (j==lo.y && k == hi.z) model(i,j,k) = (model(i,j+1,k) + model(i,j,k-1)) / 2.0;
+                        else if (j==hi.y && k == lo.z) model(i,j,k) = (model(i,j-1,k) + model(i,j,k+1)) / 2.0;
+                        else if (j==hi.y && k == hi.z) model(i,j,k) = (model(i,j-1,k) + model(i,j,k-1)) / 2.0;
+
+                        else if (k==lo.z && i == lo.x) model(i,j,k) = (model(i,j,k+1) + model(i+1,j,k)) / 2.0;
+                        else if (k==lo.z && i == hi.x) model(i,j,k) = (model(i,j,k+1) + model(i-1,j,k)) / 2.0;
+                        else if (k==hi.z && i == lo.x) model(i,j,k) = (model(i,j,k-1) + model(i+1,j,k)) / 2.0;
+                        else if (k==hi.z && i == hi.x) model(i,j,k) = (model(i,j,k-1) + model(i-1,j,k)) / 2.0;
+                        
+                        else if (i==lo.x && j == lo.y) model(i,j,k) = (model(i+1,j,k) + model(i,j+1,k)) / 2.0;
+                        else if (i==lo.x && j == hi.y) model(i,j,k) = (model(i+1,j,k) + model(i,j-1,k)) / 2.0;
+                        else if (i==hi.x && j == lo.y) model(i,j,k) = (model(i-1,j,k) + model(i,j+1,k)) / 2.0;
+                        else if (i==hi.x && j == hi.y) model(i,j,k) = (model(i-1,j,k) + model(i,j-1,k)) / 2.0;
+
+                        else if (i==lo.x)              model(i,j,k) = model(i+1,j,k);
+                        else if (i==hi.x)              model(i,j,k) = model(i-1,j,k);
+                        else if (j==lo.y)              model(i,j,k) = model(i,j+1,k);
+                        else if (j==hi.y)              model(i,j,k) = model(i,j-1,k);
+                        else if (k==lo.z)              model(i,j,k) = model(i,j,k+1);
+                        else if (k==hi.z)              model(i,j,k) = model(i,j,k-1);
+
+                        #endif
                     });
                 }
             }
