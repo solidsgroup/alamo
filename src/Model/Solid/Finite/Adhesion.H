@@ -1,13 +1,3 @@
-#ifndef MODEL_SOLID_FINITE_ADHESION_H_
-#define MODEL_SOLID_FINITE_ADHESION_H_
-
-#include "IO/ParmParse.H"
-#include "Model/Solid/Solid.H"
-#include "Set/Set.H"
-#include <array>              // For std::array to represent fourth-order tensors
-#include <cmath>              // For std::pow and std::abs
-#include <eigen3/Eigen/Dense> // For Eigen::Matrix3d
-
 // This models a finite-strain, solid with adhesion behavior governed by
 // a combination of elastic energy and an adhesion decay term.
 //
@@ -40,6 +30,17 @@
 //   2. Non-degradable (adhesion term decaying with volume expansion)
 // This model is rate-independent, reversible, and purely elastic.
 
+#ifndef MODEL_SOLID_FINITE_ADHESION_H_
+#define MODEL_SOLID_FINITE_ADHESION_H_
+
+#include "IO/ParmParse.H"
+#include "Model/Solid/Finite/NeoHookean.H"
+#include "Model/Solid/Solid.H"
+#include "Set/Set.H"
+#include <array>              // For std::array to represent fourth-order tensors
+#include <cmath>              // For std::pow and std::abs
+#include <eigen3/Eigen/Dense> // For Eigen::Matrix3d
+
 namespace Model
 {
 namespace Solid
@@ -47,30 +48,30 @@ namespace Solid
 namespace Finite
 {
 
-class Adhesion : public Solid<Set::Sym::Major>
+class Adhesion : public NeoHookean
 {
 public:
+    static constexpr KinematicVariable kinvar = KinematicVariable::F;
+
     Adhesion() {}
-    Adhesion(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {}
+    Adhesion(Solid<Set::Sym::Major> base) : NeoHookean(base) {}
     virtual ~Adhesion() {}
 
     // Material parameters (declared in order)
-    Set::Scalar d = NAN;     ///< Adhesion strength (degradable part coefficient)
-    Set::Scalar mu = NAN;    ///< Shear modulus
-    Set::Scalar kappa = NAN; ///< Bulk modulus
-    Set::Scalar zeta = NAN;  ///< Adhesion decay parameter (non-degradable part)
-    Set::Scalar n = NAN;     ///< Decay exponent
+    Set::Scalar d = NAN;    ///< Adhesion strength (degradable part coefficient)
+    Set::Scalar zeta = NAN; ///< Adhesion decay parameter (non-degradable part)
+    Set::Scalar n = NAN;    ///< Decay exponent
 
     // Return a zero-parameter adhesion model.
     static Adhesion
     Zero()
     {
         Adhesion adhesion;
-        adhesion.d = 0;     ///< Adhesion strength (degradable part coefficient)
-        adhesion.mu = 0;    ///< Shear modulus
-        adhesion.kappa = 0; ///< Bulk modulus
-        adhesion.zeta = 0;  ///< Adhesion decay parameter (non-degradable part)
-        adhesion.n = 0;     ///< Decay exponent
+        adhesion.d = 0.0;    ///< Adhesion strength (degradable part coefficient)
+        adhesion.zeta = 0.0; ///< Adhesion decay parameter (non-degradable part)
+        adhesion.n = 0.0;    ///< Decay exponent
+        adhesion.mu = 0.0;
+        adhesion.kappa = 0.0;
         return adhesion;
     }
 
@@ -79,11 +80,11 @@ public:
     Random()
     {
         Adhesion adhesion;
-        adhesion.d = Util::Random();     ///< Adhesion strength (degradable part coefficient)
-        adhesion.mu = Util::Random();    ///< Shear modulus
-        adhesion.kappa = Util::Random(); ///< Bulk modulus
-        adhesion.zeta = Util::Random();  ///< Adhesion decay parameter (non-degradable part)
-        adhesion.n = Util::Random();     ///< Decay exponent
+        adhesion.d =1.0 ; // Util::Random();    ///< Adhesion strength (degradable part coefficient)
+        adhesion.zeta = 1.0; ///< Adhesion decay parameter (non-degradable part)
+        adhesion.n = Util::Random();    ///< Decay exponent
+        adhesion.mu = Util::Random();
+        adhesion.kappa = Util::Random();// Util::Random();
         return adhesion;
     }
 
@@ -92,133 +93,70 @@ public:
     static void
     Parse(Adhesion &value, IO::ParmParse &pp)
     {
-        // Shear modulus
-        pp_query_required("mu", value.mu);
-        // Bulk modulus
-        pp_query_required("kappa", value.kappa);
+        pp.queryclass<NeoHookean>(value);
         // Initial value for damage
         pp_query_default("d", value.d, 1.0);
         // Adhesion decay parameter (non-degradable part)
         pp_query_default("zeta", value.zeta, 0.0);
         // Decay exponent
-        pp_query_default("n", value.n,1.0);
+        pp_query_default("n", value.n, 1.0);
     }
 
     // Strain energy function:
     // W = d * [ 0.5*mu*(trace(F^T F)-3)/J^(2/3) + 0.5*kappa*(J-1)^2 ] + zeta/J^n
     Set::Scalar
-    W(const Set::Matrix &a_F) const override
+    W(const Set::Matrix &F) const override
     {
-#if AMREX_SPACEDIM == 2
-        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
-        F(0, 0) = a_F(0, 0);
-        F(0, 1) = a_F(0, 1);
-        F(1, 0) = a_F(1, 0);
-        F(1, 1) = a_F(1, 1);
-#elif AMREX_SPACEDIM == 3
-        Eigen::Matrix3d F = a_F;
-#endif
+        Set::Scalar w = (1.0 - d) * NeoHookean::W(F);
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
-        Set::Scalar energy = 0.0;
-        // Degradable part: shear and volumetric terms (scaled by d)
-        energy += d * (0.5 * mu * ((F.transpose() * F).trace() - 3.0) / J23 + 0.5 * kappa * (J - 1.0) * (J - 1.0));
         // Non-degradable (adhesion) part: decays with volume expansion
-        energy += zeta / std::pow(J, n);
-        return energy;
+        w += zeta * std::pow(J, -n);
+        return w;
     }
 
     // First Piola-Kirchhoff stress (derivative of W)
     Set::Matrix
-    DW(const Set::Matrix &a_F) const override
+    DW(const Set::Matrix &F) const override
     {
-#if AMREX_SPACEDIM == 2
-        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
-        F(0, 0) = a_F(0, 0);
-        F(0, 1) = a_F(0, 1);
-        F(1, 0) = a_F(1, 0);
-        F(1, 1) = a_F(1, 1);
-#elif AMREX_SPACEDIM == 3
-        Eigen::Matrix3d F = a_F;
-#endif
+        Set::Matrix dw = (1.0 - d) * NeoHookean::DW(F);
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
-        Eigen::Matrix3d FinvT = F.inverse().transpose();
-        // Derivative from degradable elastic part and bulk contribution
-        Eigen::Matrix3d stress = d * mu * (F / J23 - (1.0 / 3.0) * (((F.transpose() * F).trace()) - 3.0) * FinvT / J23)
-                                + d * kappa * (J - 1.0) * J * FinvT;
-        // Adhesion term contribution
-        stress -= zeta * n * std::pow(J, -n) * FinvT;
-#if AMREX_SPACEDIM == 2
-        Set::Matrix r_stress;
-        r_stress(0, 0) = stress(0, 0);
-        r_stress(0, 1) = stress(0, 1);
-        r_stress(1, 0) = stress(1, 0);
-        r_stress(1, 1) = stress(1, 1);
-        return r_stress;
-#elif AMREX_SPACEDIM == 3
-        return stress;
-#endif
+        Set::Matrix FinvT = F.inverse().transpose();
+        dw += zeta * (-n * std::pow(J, -n) * FinvT);
+        return dw;
     }
 
     // Tangent stiffness tensor (second derivative of W)
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>
-    DDW(const Set::Matrix &a_F) const override
+    DDW(const Set::Matrix &F) const override
     {
-#if AMREX_SPACEDIM == 2
-        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
-        F(0, 0) = a_F(0, 0);
-        F(0, 1) = a_F(0, 1);
-        F(1, 0) = a_F(1, 0);
-        F(1, 1) = a_F(1, 1);
-#elif AMREX_SPACEDIM == 3
-        Eigen::Matrix3d F = a_F;
-#endif
-        Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
-        Eigen::Matrix3d FinvT = F.inverse().transpose();
-        Set::Scalar trace_FTF = (F.transpose() * F).trace();
+        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>
+            ddw = (1.0 - d) * NeoHookean::DDW(F);
 
-        Set::Matrix4<3, Set::Sym::Major> stiffness;
-        for (int i = 0; i < 3; ++i)
+        Set::Scalar J = F.determinant();
+        Set::Matrix FinvT = F.inverse().transpose();
+
+        for (int i = 0; i < AMREX_SPACEDIM; i++)
         {
-            for (int j = 0; j < 3; ++j)
+            for (int j = 0; j < AMREX_SPACEDIM; j++)
             {
-                for (int k = 0; k < 3; ++k)
+                for (int k = 0; k < AMREX_SPACEDIM; k++)
                 {
-                    for (int l = 0; l < 3; ++l)
+                    for (int l = 0; l < AMREX_SPACEDIM; l++)
                     {
-                        stiffness(i, j, k, l) = 0.0;
-                        Set::Scalar t1 = 0.0, t2 = 0.0, t3 = 0.0;
-                        // Shear-related term (mu)
-                        if (i == k && j == l)
-                            t1 += 1.0;
-                        t1 -= (2.0 / 3.0) * F(i, j) * FinvT(k, l);
-                        t1 -= (2.0 / 3.0) * FinvT(i, j) * F(k, l);
-                        t1 += (2.0 / 9.0) * (trace_FTF - 3.0) * FinvT(i, j) * FinvT(k, l);
-                        t1 += (1.0 / 3.0) * (trace_FTF - 3.0) * FinvT(i, l) * FinvT(k, j);
-                        // Bulk-related term (kappa)
-                        t2 += (2.0 * J * J - J) * FinvT(i, j) * FinvT(k, l)
-                                + (J - J * J) * FinvT(i, l) * FinvT(k, j);
                         // Adhesion-related term (zeta)
-                        t3 += (n * n) * std::pow(J, -n) * FinvT(i, j) * FinvT(k, l)
-                                + n * std::pow(J, -n) * FinvT(i, l) * FinvT(k, j);
-                        stiffness(i, j, k, l) = d * mu * t1 / J23 + d * kappa * t2 + zeta * t3;
+
+                        // dFinvT(i,j) / dF(k,l)
+                        //   = dFinv(j,i) / dF(k,l)
+                        //   = -dFinvT(k,j) * dFinvT(iL)
+
+                        Set::Scalar t3 = n * n * std::pow(J, -n) * FinvT(i, j) * FinvT(k, l)
+                                         + n * std::pow(J, -n) * FinvT(k, j) * FinvT(i, l);
+                        ddw(i, j, k, l) += zeta * t3;
                     }
                 }
             }
         }
-#if AMREX_SPACEDIM == 2
-        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> r_stiffness;
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    for (int l = 0; l < 2; l++)
-                        r_stiffness(i, j, k, l) = stiffness(i, j, k, l);
-        return r_stiffness;
-#elif AMREX_SPACEDIM == 3
-        return stiffness;
-#endif
+        return ddw;
     }
 
     // Print material parameters
