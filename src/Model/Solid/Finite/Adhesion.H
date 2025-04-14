@@ -1,3 +1,13 @@
+#ifndef MODEL_SOLID_FINITE_ADHESION_H_
+#define MODEL_SOLID_FINITE_ADHESION_H_
+
+#include "IO/ParmParse.H"
+#include "Model/Solid/Solid.H"
+#include "Set/Set.H"
+#include <array>              // For std::array to represent fourth-order tensors
+#include <cmath>              // For std::pow and std::abs
+#include <eigen3/Eigen/Dense> // For Eigen::Matrix3d
+
 // This models a finite-strain, solid with adhesion behavior governed by
 // a combination of elastic energy and an adhesion decay term.
 //
@@ -29,16 +39,6 @@
 //   1. Degradable (elastic shear + volumetric terms)
 //   2. Non-degradable (adhesion term decaying with volume expansion)
 // This model is rate-independent, reversible, and purely elastic.
-
-#ifndef MODEL_SOLID_FINITE_ADHESION_H_
-#define MODEL_SOLID_FINITE_ADHESION_H_
-
-#include "IO/ParmParse.H"
-#include "Model/Solid/Solid.H"
-#include "Set/Set.H"
-#include <array>              // For std::array to represent fourth-order tensors
-#include <cmath>              // For std::pow and std::abs
-#include <eigen3/Eigen/Dense> // For Eigen::Matrix3d
 
 namespace Set
 {
@@ -118,36 +118,16 @@ public:
         return adhesion;
     }
 
-    // Updated Parse function:
-    // If "E" and "nu" (and optionally "F0") are provided, use these to compute mu and kappa.
-    // Otherwise, query for "mu" and "kappa" directly.
+    // Parse function: Reads material parameters from the input file.
+    // Here, we assume the input file provides: mu, kappa, d, zeta, and n.
     static void
     Parse(Adhesion &value, IO::ParmParse &pp)
     {
-        if (pp.contains("E") && pp.contains("nu"))
-        {
-            Set::Scalar E, nu;
-            pp_query("E", E);   // Elastic modulus
-            pp_query("nu", nu); // Poisson's ratio
-            // Map E and nu to shear and bulk moduli (using a convention similar to NeoHookean :contentReference[oaicite:0]{index=0})
-            value.mu = E / (2.0 * (1.0 + nu));
-            value.kappa = E / (3.0 * (1.0 - 2.0 * nu));
-            // Consume F0 if provided, even though Adhesion does not use it.
-            if (pp.contains("F0"))
-            {
-                Set::Matrix dummy;
-                pp_queryarr("F0", dummy); // F0
-            }
-        }
-        else
-        {
-            pp_query("mu", value.mu);       // Shear modulus
-            pp_query("kappa", value.kappa); // Bulk modulus
-        }
-        // Query the remaining Adhesion-specific parameters.
-        pp_query("d", value.d);       // Adhesion strength
-        pp_query("zeta", value.zeta); // Adhesion decay parameter
-        pp_query("n", value.n);       // Decay exponent
+        pp_query("mu", value.mu);
+        pp_query("kappa", value.kappa);
+        pp_query("d", value.d);
+        pp_query("zeta", value.zeta);
+        pp_query("n", value.n);
     }
 
     // Strain energy function:
@@ -190,7 +170,6 @@ public:
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(std::abs(J), 2.0 / 3.0);
         Eigen::Matrix3d FinvT = F.inverse().transpose();
-
         // Derivative from degradable elastic part and bulk contribution
         Eigen::Matrix3d stress = d * mu * (F / J23 - (1.0 / 3.0) * (((F.transpose() * F).trace()) - 3.0) * FinvT / J23)
                                  + d * kappa * (J - 1.0) * J * FinvT;
