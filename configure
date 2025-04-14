@@ -16,7 +16,7 @@ from pathlib import Path
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.03"
+amrex_current_version = "25.04"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
