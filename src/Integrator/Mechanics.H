@@ -1,10 +1,11 @@
 //
-// This is a general purpose integrator that focuses on solving
+// This is a general purpose integrator that focuses on solving 
 // elasticity/mechanics equations in the absence of other multiphysics
-// simulations.  It is enabled by :code:`alamo.program=mechanics` if
-// used on its own, in which case there is no prefix.  If it is being
-// used by another integrator, see that integrator to determine the
-// value of :code:`[prefix]` (often equal to :code:`elastic`).
+// simulations.
+// It is enabled by :code:`alamo.program=mechanics` if used on its own, in
+// which case there is no prefix.
+// If it is being used by another integrator, see that integrator to determine
+// the value of :code:`[prefix]` (often equal to :code:`elastic`).
 //
 // This integrator inherits from :ref:`Integrator::Base::Mechanics`; see 
 // documentation for that integrator for additional parameters.
@@ -61,8 +62,6 @@
 #include <fstream>
 #include <iomanip>
 #include <numeric>
-#include <type_traits>
-#include <cstdint>
 
 #include "AMReX.H"
 #include "AMReX_ParallelDescriptor.H"
@@ -74,6 +73,9 @@
 
 #include "IC/IC.H"
 #include "BC/BC.H"
+#include "BC/Operator/Elastic/Constant.H"
+#include "BC/Operator/Elastic/TensionTest.H"
+#include "BC/Operator/Elastic/Expression.H"
 
 #include "IC/Ellipse.H"
 #include "IC/Voronoi.H"
@@ -83,8 +85,15 @@
 #include "IC/PNG.H"
 #include "IC/PSRead.H"
 #include "IC/Constant.H"
-#include "IC/EBSD.H"
+#include "BC/Constant.H"
 #include "Numeric/Stencil.H"
+
+#include "Model/Solid/Solid.H"
+#include "Solver/Nonlocal/Linear.H"
+#include "Solver/Nonlocal/Newton.H"
+
+#include "Operator/Operator.H"
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {
@@ -92,6 +101,7 @@ template<class MODEL>
 class Mechanics : virtual public Base::Mechanics<MODEL>
 {
 public:
+    static constexpr const char *name = "mechanics";
 
     Mechanics() : Base::Mechanics<MODEL>() { }
     Mechanics(IO::ParmParse& pp) : Base::Mechanics<MODEL>()
@@ -113,37 +123,13 @@ public:
     {
         pp.queryclass<Base::Mechanics<MODEL>>(value);
 
-        value.nmodels = 1;
+        int nmodels;
+        pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
 
-        pp.select<IC::EBSD<MODEL>>("model.ic",value.ic_model,value.geom);
+        pp.queryclass_enumerate<MODEL>("model",value.models,nmodels);
 
-        if (!value.ic_model)
-        {
-            pp_query_default("nmodels", value.nmodels, 1); // Number of elastic model varieties
-            for (int i = 0; i < value.nmodels; i++)
-            {
-                bool init = false;
-                MODEL tmp_model;
-                if (pp.contains("model"))
-                {
-                    pp_queryclass("model", tmp_model);
-                    init = true;
-                }
-                std::string name = "model" + std::to_string(i + 1);
-                if (pp.contains(name.c_str()))
-                {
-                    pp_queryclass(std::string(name.data()), tmp_model);
-                    init = true;
-                }
-
-                if (!init) Util::Exception(INFO,"No way to initialize ",pp.full(name));
-
-                value.models.push_back(tmp_model);
-            }
-            Util::Assert(INFO, TEST(value.models.size() > 0));
-        }
-
-        value.RegisterNodalFab(value.eta_mf, value.nmodels, 2, "eta", true);
+        Util::Assert(INFO, TEST(value.models.size() > 0));
+        value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field
         pp_query_default("eta_ref_threshold", value.m_eta_ref_threshold, 0.01);
         // Refinement threshold for strain gradient
@@ -152,7 +138,7 @@ public:
         pp_query_default("model_neumann_boundary",value.model_neumann_boundary,false);
 
         // Read in IC for eta
-        if (value.nmodels > 1 && pp.contains("ic.type"))
+        if (nmodels > 1 && pp.contains("ic.type"))
         {
             // Select the initial condition for eta
             pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead>("ic",value.ic_eta,value.geom);
@@ -184,7 +170,7 @@ public:
         if (pp.contains("trac_normal.ic.type"))
         {
             // Read in IC for the "normal traction" field (applied at diffuse boundaries)
-            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom);
+            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom); 
 
             if (value.ic_trac_normal)
             {
@@ -192,17 +178,18 @@ public:
                 value.RegisterNewFab(value.trac_normal_mf, value.bc_trac_normal, 1, 2, "trac_normal", true);
             }
         }
+        Util::Message(INFO);
 
     }
 
-    void Initialize(int lev) override 
+    void Initialize(int lev) override
     {
         Base::Mechanics<MODEL>::Initialize(lev);
         eta_mf[lev]->setVal(0.0);
-        if (nmodels > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
+        if (models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
         else eta_mf[lev]->setVal(1.0);
 
-        if (psi_on) ic_psi->Initialize(lev, psi_mf); 
+        if (psi_on) ic_psi->Initialize(lev, psi_mf);
         if (ic_trac_normal) ic_trac_normal->Initialize(lev, trac_normal_mf);
 
         if (ic_model) ic_model->Initialize(lev, model_mf);
