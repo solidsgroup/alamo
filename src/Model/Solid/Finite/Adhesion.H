@@ -107,33 +107,29 @@ public:
     Set::Scalar
     W(const Set::Matrix &F) const override
     {
-        Set::Scalar w = (1.0 - d) * NeoHookean::W(F);
+        Set::Scalar w_nh = (1.0 - d) * NeoHookean::W(F);
         Set::Scalar J = F.determinant();
-        w += zeta * std::pow(J, -n);
-        return w;
+        Set::Scalar w_compress = zeta * std::pow(J, -n);
+        return w_nh + w_compress;
     }
 
     // First Piola-Kirchhoff stress (derivative of W)
     Set::Matrix
     DW(const Set::Matrix &F) const override
     {
-        Set::Matrix dw = (1.0 - d) * NeoHookean::DW(F);
+        Set::Matrix dw_nh = (1.0 - d) * NeoHookean::DW(F);
         Set::Scalar J = F.determinant();
         Set::Matrix FinvT = F.inverse().transpose();
-        dw += zeta * (-n * std::pow(J, -n) * FinvT);
-        return dw;
+        Set::Matrix dw_compress = zeta * (-n * std::pow(J, -n) * FinvT);
+        return dw_nh + dw_compress;
     }
 
     // Tangent stiffness tensor (second derivative of W)
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>
     DDW(const Set::Matrix &F) const override
     {
-        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw =
+        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw_nh =
             (1.0 - d) * NeoHookean::DDW(F);
-
-        Util::Message(INFO,zeta);
-        Util::Message(INFO,n);
-        Util::Message(INFO,d);
 
         Set::Scalar J = F.determinant();
         Set::Matrix FinvT = F.inverse().transpose();
@@ -161,7 +157,7 @@ public:
                 }
             }
         }
-        return ddw + ddw_compress;
+        return ddw_nh + ddw_compress;
     }
 
     // Print material parameters

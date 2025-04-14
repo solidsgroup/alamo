@@ -10,7 +10,7 @@ stop_time		    = 1.0
 
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 5
+amr.max_level		    = 6
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 8
 amr.regrid_int		    = 1
@@ -28,26 +28,35 @@ geometry.is_periodic	    = 0 0 0
 #ic.ellipse.eps = 0.1 # diffuse boundary
 
 ic.type        = expression
-ic.expression.constant.eps = 0.1
-ic.expression.region0 = "0.5 + 0.5*erf((x^2 + y^2 - 1.0)/eps)"
-ic.expression.region1 = "1 - (0.5 + 0.5*erf((x^2 + y^2 - 1.0)/eps))"
+ic.expression.constant.eps = 0.3
+ic.expression.region0 = "(max(erf((x^2 + y^2 - 1.0)/eps),0.0))^2"
+ic.expression.region1 = "(max(-erf((x^2 + y^2 - 1.0)/eps),0.0))^2"
+ic.expression.region2 = "1.0 - (max(erf((x^2 + y^2 - 1.0)/eps),0.0))^2 - (max(-erf((x^2 + y^2 - 1.0)/eps),0.0))^2"
 #ic.expression.region2 = "0.0"
 
 # elastic moduli
 nmodels = 2
-model1.mu = 3.0
-model1.kappa = 6.5
-model2.mu = 6.0
-model2.kappa = 0.3
+model1.mu = 6.0
+model1.kappa = 6.0
+model2.mu = 20.0
+model2.kappa = 20
+model3.mu = 6.0
+model3.kappa = 6
+model1.d = 0.0
+model2.d = 0.0
+model3.d = 0.6
+model1.zeta = 0.0
+model2.zeta = 0.0
+model3.zeta = 0.0
 #model3.mu = 210 
 #model3.kappa = 0.3
 
 solver.verbose = 3
 solver.nriters = 1
 #solver.max_iter = 20
-#solver.fixed_iter = 10
+solver.fixed_iter = 100
 #elasticop.small = 0.1
 
 bc.type = tensiontest
 bc.tensiontest.type = uniaxial_stress
-bc.tensiontest.disp=(0,1:0,0.1)
+bc.tensiontest.disp=(0,1:0,8)
