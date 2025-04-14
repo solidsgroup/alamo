@@ -97,11 +97,11 @@ public:
     Zero()
     {
         Adhesion adhesion;
-        adhesion.d = 0;
-        adhesion.mu = 0;
-        adhesion.kappa = 0;
-        adhesion.zeta = 0;
-        adhesion.n = 0;
+        adhesion.d = 0;     ///< Adhesion strength (degradable part coefficient)
+        adhesion.mu = 0;    ///< Shear modulus
+        adhesion.kappa = 0; ///< Bulk modulus
+        adhesion.zeta = 0;  ///< Adhesion decay parameter (non-degradable part)
+        adhesion.n = 0;     ///< Decay exponent
         return adhesion;
     }
 
@@ -110,11 +110,11 @@ public:
     Random()
     {
         Adhesion adhesion;
-        adhesion.d = Util::Random();
-        adhesion.mu = Util::Random();
-        adhesion.kappa = Util::Random();
-        adhesion.zeta = Util::Random();
-        adhesion.n = Util::Random();
+        adhesion.d = Util::Random();     ///< Adhesion strength (degradable part coefficient)
+        adhesion.mu = Util::Random();    ///< Shear modulus
+        adhesion.kappa = Util::Random(); ///< Bulk modulus
+        adhesion.zeta = Util::Random();  ///< Adhesion decay parameter (non-degradable part)
+        adhesion.n = Util::Random();     ///< Decay exponent
         return adhesion;
     }
 
@@ -123,11 +123,11 @@ public:
     static void
     Parse(Adhesion &value, IO::ParmParse &pp)
     {
-        pp_query("mu", value.mu);
-        pp_query("kappa", value.kappa);
-        pp_query("d", value.d);
-        pp_query("zeta", value.zeta);
-        pp_query("n", value.n);
+        pp_query("mu", value.mu);       ///< Shear modulus
+        pp_query("kappa", value.kappa); ///< Bulk modulus
+        pp_query("d", value.d);         ///< Adhesion strength (degradable part coefficient)
+        pp_query("zeta", value.zeta);   ///< Adhesion decay parameter (non-degradable part)
+        pp_query("n", value.n);         ///< Decay exponent
     }
 
     // Strain energy function:
@@ -172,7 +172,7 @@ public:
         Eigen::Matrix3d FinvT = F.inverse().transpose();
         // Derivative from degradable elastic part and bulk contribution
         Eigen::Matrix3d stress = d * mu * (F / J23 - (1.0 / 3.0) * (((F.transpose() * F).trace()) - 3.0) * FinvT / J23)
-                                 + d * kappa * (J - 1.0) * J * FinvT;
+                                + d * kappa * (J - 1.0) * J * FinvT;
         // Adhesion term contribution
         stress -= zeta * n * std::pow(J, -n) * FinvT;
 #if AMREX_SPACEDIM == 2
@@ -228,10 +228,10 @@ public:
                         t1 += (1.0 / 3.0) * (trace_FTF - 3.0) * FinvT(i, l) * FinvT(k, j);
                         // Bulk-related term (kappa)
                         t2 += (2.0 * J * J - J) * FinvT(i, j) * FinvT(k, l)
-                              + (J - J * J) * FinvT(i, l) * FinvT(k, j);
+                                + (J - J * J) * FinvT(i, l) * FinvT(k, j);
                         // Adhesion-related term (zeta)
                         t3 += (n * n) * std::pow(J, -n) * FinvT(i, j) * FinvT(k, l)
-                              + n * std::pow(J, -n) * FinvT(i, l) * FinvT(k, j);
+                                + n * std::pow(J, -n) * FinvT(i, l) * FinvT(k, j);
                         stiffness(i, j, k, l) = d * mu * t1 / J23 + d * kappa * t2 + zeta * t3;
                     }
                 }
