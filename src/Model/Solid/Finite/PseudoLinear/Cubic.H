@@ -118,7 +118,10 @@ public:
         pp_query_default("C12",value.C12, 1.21); // Elastic constant
         pp_query_default("C44",value.C44, 0.75); // Elastic constant
 
-        if (pp.contains("random"))
+        bool random;
+        // Randomize orientation every time model is initialized
+        pp_query_default("random",random,false);
+        if (random)
         {
             value = Cubic::Random(value.C11,value.C12,value.C44);
             return;

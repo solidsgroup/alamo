@@ -1,0 +1,49 @@
+
+alamo.program = mechanics
+#alamo.program.mechanics.model = linear.isotropic
+alamo.program.mechanics.model = finite.crystalplastic
+
+plot_file		    = output
+
+type=static
+
+timestep		    = 0.001
+stop_time		    = 1.0
+
+# amr parameters
+amr.plot_dt		    = 0.1
+amr.plot_int		    = 1
+amr.max_level		    = 0
+amr.n_cell		    = 128 128 128
+amr.blocking_factor         = 2
+amr.regrid_int = 10000000000
+
+amr.thermo.int = 1
+amr.thermo.plot_int = 1
+
+# geometry
+geometry.prob_lo	    = 0 0 0
+geometry.prob_hi	    = 1 1 1
+
+ic.type = voronoi
+ic.voronoi.number_of_grains = 100
+
+nmodels = 10
+
+model.tau_crss = 1.0
+model.m_rate_inv = 0.5
+model.random = 1
+
+#model.E = 1.0
+#model.nu = 0.33
+
+solver.verbose = 3
+solver.nriters = 1
+#solver.max_iter = 300 #30
+solver.fixed_iter = 300 #30
+
+bc.type = tensiontest
+bc.tensiontest.type = uniaxial_stress
+bc.tensiontest.disp=(0,1:0,0.1)
+
+#model_neumann_boundary = 1

@@ -141,7 +141,8 @@ public:
         if (nmodels > 1 && pp.contains("ic.type"))
         {
             // Select the initial condition for eta
-            pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,IC::PNG,IC::Expression,IC::PSRead>("ic",value.ic_eta,value.geom);
+            pp.select<IC::Constant,IC::Ellipse,IC::Voronoi,IC::BMP,
+                      IC::PNG,IC::Expression,IC::PSRead>("ic",value.ic_eta,value.geom);
 
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.
@@ -263,6 +264,8 @@ public:
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
+                        if (i==lo.x && j==lo.y && k==lo.z) model(i,j,k) = (model(i+1,j,k)+model(i,j+1,k) + model(i,j,k+1))/3.0;
+
                         if      (i==lo.x && j==lo.y)
                             model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
                         else if (i==lo.x && j==hi.y)

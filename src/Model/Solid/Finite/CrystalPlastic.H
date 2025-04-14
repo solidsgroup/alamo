@@ -192,7 +192,8 @@ public:
     }
     static void Parse(CrystalPlastic & value, IO::ParmParse & pp)
     {
-        PseudoLinear::Cubic::Parse(value,pp);
+        pp.queryclass<PseudoLinear::Cubic>(value);
+
         // TODO Add inputs for the CP values
 
         std::vector<Set::Scalar> tau_crss;
