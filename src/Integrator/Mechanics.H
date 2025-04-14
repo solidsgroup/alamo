@@ -264,8 +264,6 @@ public:
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
-                        if (i==lo.x && j==lo.y && k==lo.z) model(i,j,k) = (model(i+1,j,k)+model(i,j+1,k) + model(i,j,k+1))/3.0;
-
                         if      (i==lo.x && j==lo.y)
                             model(i,j,k) = 0.5*(model(i+1,j,k)+model(i,j+1,k));
                         else if (i==lo.x && j==hi.y)
