@@ -32,13 +32,20 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/PNG.H"
+#include "IC/PSRead.H"
 #include "Numeric/Stencil.H"
+#include "IC/Random.H"
 
 namespace Integrator
 {
+
+/// This is the definition of the Allen Cahn class
 class AllenCahn : virtual public Integrator
 {
 public:
+    static constexpr const char* name = "allencahn";
+
     // Empty constructor
     AllenCahn() : Integrator()
     {}
@@ -47,6 +54,12 @@ public:
     AllenCahn(IO::ParmParse& pp) : AllenCahn()
     {
         Parse(*this, pp);
+    }
+
+    ~AllenCahn()
+    {
+        delete ic;
+        delete bc;
     }
 
     // The Parse function initializes the AllenCahn object using
@@ -58,30 +71,29 @@ public:
     static void Parse(AllenCahn& value, IO::ParmParse& pp)
     {
         // Criterion for mesh refinement [0.01]
-        pp_query("refinement_threshold", value.refinement_threshold);
+        pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp_query("ch.L",value.ch.L);
+        pp_query_default("ch.L",value.ch.L, 1.0);
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp_query("ch.eps",value.ch.eps);
+        pp_query_default("ch.eps",value.ch.eps, 0.1);
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp_query("ch.grad",value.ch.grad);
+        pp_query_default("ch.grad",value.ch.grad, 1.0);
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp_query("ch.chempot",value.ch.chempot);
+        pp_query_default("ch.chempot",value.ch.chempot, 1.0);
+        // Force directional growth: 0=no growth, 1=only positive, -1=only negative
+        pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
+        // Time to start forcing directional growth
+        pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
 
-        std::string type = "sphere";
-        // Initial condition type ([sphere], constant, expression, bmp)
-        pp_query("alpha.ic.type", type);
-        if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "alpha.ic.sphere");
-        else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "alpha.ic.constant");
-        else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "alpha.ic.expression");
-        else if (type == "bmp")        value.ic = new IC::BMP(value.geom, pp, "alpha.ic.bmp");
-        else  Util::Abort(INFO, "Invalid ic.type ", type);
+        // Set the initial condition for the alpha field
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
+        
 
         // Use a constant BC object for temperature
-        value.bc = new BC::Constant(1);
+        // value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
-        pp_queryclass("alpha.bc", *static_cast<BC::Constant*>(value.bc));
+        pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.
@@ -99,7 +111,7 @@ protected:
     }
 
     // Integrate the Allen Cahn equation
-    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
         std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
 
@@ -108,8 +120,8 @@ protected:
         for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
-            amrex::Array4<Set::Scalar> const& alpha_new = (*alpha_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const& alpha = (*alpha_old_mf[lev]).array(mfi);
+            Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -121,6 +133,15 @@ protected:
                 // Gradient
                 Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
                 driving_force -= ch.eps * ch.grad * alpha_lap;
+
+                if (time >= ch.direction_tstart)
+                {
+                    if (ch.direction == 1)
+                        driving_force = std::min(0.0, driving_force);
+                    else if (ch.direction == -1)
+                        driving_force = std::max(0.0, driving_force);
+                }
+
                 // Update
                 alpha_new(i, j, k) =
                     alpha(i, j, k) - ch.L * dt * driving_force;
@@ -159,23 +180,28 @@ protected:
     }
 
 protected:
-    Set::Field<Set::Scalar> alpha_mf;         // Temperature field variable (current timestep)
-    Set::Field<Set::Scalar> alpha_old_mf;     // Temperature field variable (previous timestep)
+    Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
+    IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
+
+    Set::Field<Set::Scalar> &eta_mf = alpha_mf;
+    Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;
 
     struct {
-        Set::Scalar L = 1.0;
-        Set::Scalar eps = 0.1;
-        Set::Scalar grad = 1.0;
-        Set::Scalar chempot = 1.0;
+        Set::Scalar L = NAN;
+        Set::Scalar eps = NAN;
+        Set::Scalar grad = NAN;
+        Set::Scalar chempot = NAN;
+        Set::Scalar direction_tstart = NAN;
+        int direction = 0;
     } ch;
 
 private:
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 2;           // Number of ghost cells
 
-    Set::Scalar refinement_threshold = 0.01; // Criterion for cell refinement
+    Set::Scalar refinement_threshold = NAN; // Criterion for cell refinement
 
-    IC::IC* ic;                              // Object used to initialize temperature field
     BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
 };
 } // namespace Integrator

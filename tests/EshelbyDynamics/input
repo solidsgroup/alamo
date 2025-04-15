@@ -29,15 +29,6 @@ amr.regrid_int		    = 100
 amr.grid_eff		    = 1.0
 amr.cell.all                = 1
 
-# use an explicit mesh (i.e. no adaptive meshing)
-explicitmesh.on               = 0
-explicitmesh.lo1              = 16 16 16
-explicitmesh.hi1              = 47 47 47
-explicitmesh.lo2              = 48 48 48
-explicitmesh.hi2              = 79 79 79
-explicitmesh.lo3              = 112 112 112
-explicitmesh.hi3              = 145 145 145
-
 # geometry
 geometry.prob_lo	    = -8 -8 -8 
 geometry.prob_hi	    = 8 8 8
@@ -62,3 +53,5 @@ ref_threshold = 1000000000
 
 viscous.mu_dashpot = 0.1
 viscous.mu_newton  = 1.0
+
+bc.type = constant

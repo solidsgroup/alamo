@@ -24,6 +24,7 @@ namespace Affine
 class Hexagonal : public Linear::Hexagonal
 {
 public:
+    static constexpr const char *name = "hexagonal";
 
     Hexagonal() {};
     Hexagonal(Linear::Hexagonal base) : Linear::Hexagonal(base) {};
@@ -82,16 +83,18 @@ public:
     }
     static void Parse(Hexagonal & value, IO::ParmParse & pp)
     {
-        Linear::Hexagonal::Parse(value,pp);
+        pp.queryclass<Linear::Hexagonal>(value);
         pp_queryarr("F0",value.F0); // Eigenstrain matrix. Can be defined in 2D or 3D.
     }
 
     AMREX_FORCE_INLINE
-    static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta)
+    static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta, int order)
     {
         Hexagonal ret;
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
+        if (order == 1)
+        {
         Set::Scalar etasum = 0.;
         for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
         for (unsigned int n = 0 ; n < models.size(); n++)
@@ -99,6 +102,9 @@ public:
             ret.ddw += models[n].ddw * (eta[n] / etasum);
             ret.F0  += models[n].F0  * (eta[n] / etasum);
         }
+            return ret;
+        }
+        Util::Exception(INFO,"Order value of ", order, " not supported yet");
         return ret;
     }
 

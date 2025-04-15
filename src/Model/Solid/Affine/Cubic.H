@@ -1,3 +1,8 @@
+//
+// This class extends :ref:`Model::Solid::Linear::Cubic`
+// by adding an eigenstrain :math:`\mathbf{F}_0`. 
+//
+
 #ifndef MODEL_SOLID_AFFINE_CUBIC_H_
 #define MODEL_SOLID_AFFINE_CUBIC_H_
 
@@ -14,6 +19,7 @@ namespace Affine
 class Cubic : public Linear::Cubic
 {
 public:
+    static constexpr const char *name = "cubic";
 
     Cubic() {};
     Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
@@ -74,16 +80,19 @@ public:
     // an eigenstrain. (See the Linear::Cubic class for more inputs for this model)
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
-        Linear::Cubic::Parse(value,pp);
-        if (pp.contains("F0")) pp_queryarr("F0",value.F0); // Eigenstrain
+        pp.queryclass<Linear::Cubic>(value);
+        if (pp.contains("F0"))
+            pp_queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE
-    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta)
+    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta, int order)
     {
         Cubic ret;
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
+        if (order == 1)
+        {
         Set::Scalar etasum = 0.;
         for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
         for (unsigned int n = 0 ; n < models.size(); n++)
@@ -92,6 +101,21 @@ public:
             ret.F0  += models[n].F0  * (eta[n] / etasum);
         }
         return ret;
+        }
+        else if (order == 2)
+        {
+            Set::Scalar etasum = 0.;
+            for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n]*eta[n];
+            for (unsigned int n = 0 ; n < models.size(); n++)
+            {
+                ret.ddw += models[n].ddw * (eta[n]*eta[n] / etasum);
+                ret.F0  += models[n].F0  * (eta[n]*eta[n] / etasum);
+            }
+            return ret;
+        }
+
+        Util::Exception(INFO,"invalid value used for order, ",order);
+        return ret; // should never happen
     }
 
     #define OP_CLASS Cubic

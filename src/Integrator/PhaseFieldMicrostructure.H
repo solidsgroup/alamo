@@ -4,51 +4,36 @@
 #ifndef INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 #define INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
+#include <random>
 
-#include "AMReX.H"
 #include "AMReX_ParmParse.H"
-#include "AMReX_ParallelDescriptor.H"
 #include <AMReX_MLMG.H>
 
 #include "Integrator/Integrator.H"
-#include "Integrator/Mechanics.H"
-
 #include "BC/BC.H"
 #include "BC/Constant.H"
-#include "BC/Operator/Elastic/Constant.H"
-#include "BC/Step.H"
 #include "IC/Constant.H"
-#include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 #include "IC/Expression.H"
 #include "IC/Ellipse.H"
-
+#include "IC/Random.H"
 #include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
 #include "Model/Interface/GB/SH.H"
-
-#include "Model/Solid/Linear/Cubic.H"
-#include "Model/Solid/Affine/Cubic.H"
-#include "Operator/Elastic.H"
+#include "Model/Defect/Disconnection.H"
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {
-//using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
     Wilmore = 1,
     K12 = 2};
 
-///
-/// \class PhaseFieldMicrostructure
-/// \brief Microstructure evolution with grain boundary anisotropy
 ///
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
@@ -57,6 +42,8 @@ template<class model_type>
 class PhaseFieldMicrostructure : public Base::Mechanics<model_type>
 {
 public:
+    const std::string name = "phasefieldmicrostructure." + std::string(model_type::name);
+
     PhaseFieldMicrostructure() : Integrator() {};
     PhaseFieldMicrostructure(IO::ParmParse &pp) : Integrator() 
     {pp_queryclass(*this);}
@@ -73,7 +60,6 @@ public:
         // Number of grain fields (may be more if using different IC)
         pp_query_default("pf.number_of_grains", value.number_of_grains,2);     
         pp_query_required("pf.M", value.pf.M);                         // Mobility
-        pp_query_required("pf.mu", value.pf.mu);                       // Phase field :math:`\mu`
         pp_query_required("pf.gamma", value.pf.gamma);                 // Phase field :math:`\gamma`
         pp_query_required("pf.sigma0", value.pf.sigma0);               // Initial GB energy if not using  anisotropy
         pp_query_required("pf.l_gb", value.pf.l_gb);                   // Mobility
@@ -100,29 +86,34 @@ public:
         
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
     
-        pp_query("amr.max_level", value.max_level);            // Maximum AMR level
-        pp_query("amr.ref_threshold", value.ref_threshold);    // Phase field refinement threshold
+        pp_query_required("amr.max_level", value.max_level);            // Maximum AMR level
+        pp_query_default("amr.ref_threshold", value.ref_threshold, 0.1);    // Phase field refinement threshold
 
-        // Elasticity
-        pp_query("mechanics.tstart",value.mechanics.tstart);
-        value.mechanics.model.clear();
-        value.mechanics.model.resize(value.number_of_grains,model_type::Zero());
-        for (int i=0; i < value.number_of_grains; i++)
-        {
-            // By default, read in the model specified by "mechanics.model"
-            if (pp.getEntries("mechanics.model").size())
-            pp_queryclass("mechanics.model", value.mechanics.model[i]);
 
-            // If individual models are specified, read those in and overwrite
-            std::string name = "mechanics.model" + std::to_string(i+1);
-            if (pp.getEntries(name).size())
-                pp_queryclass(std::string(name.data()), value.mechanics.model[i]);
-        }
-
+        std::string type_str;
+        // Reading this is redundant but necessary because of the way the code was originally structured
+        // (need to fix eventually)
+        pp.query_validate("mechanics.type", type_str, {"disable","static","dynamic"}); 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
-        pp_queryclass("mechanics",static_cast<Base::Mechanics<model_type>&>(value));
-        if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
-            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
+
+        if (type_str != "disable") // do this only if mechanics is activated
+        {
+            // Elasticity
+            pp_query_default("mechanics.tstart",value.mechanics.tstart, 0.0);
+
+            // Read in models - either one model for all grains, or
+            // individual models, one for each grain.
+            pp.queryclass_enumerate("mechanics.model",value.mechanics.model, value.number_of_grains);
+        
+            // Mixing order 
+            pp_query_validate("mechanics.mix_order",value.mechanics.model_mix_order,{1,2});
+            // Force Neumann BCs on the model
+            pp_query_default("mechanics.model_neuman_boundary",value.mechanics.model_neumann_boundary,false);
+
+            pp.queryclass<Base::Mechanics<model_type>>("mechanics",value);
+            if (value.m_type == Base::Mechanics<model_type>::Type::Static)
+                value.number_of_ghost_cells = std::max(value.number_of_ghost_cells, 3);
+        }
 
 
         // Lagrange multiplier method for enforcing volumes
@@ -135,70 +126,120 @@ public:
             value.SetThermoInt(1);
         }
 
+        pp_query_default("sdf.on",value.sdf.on,false); // synthetic driving force (SDF)
+        if(value.sdf.on)
+        {
+            std::vector<std::string> vals;
+            pp_queryarr("sdf.val",vals);  // value of SDF for each grain
+            int nvals = static_cast<int>(vals.size());
+            if (nvals == 1)
+                for (int i = 0; i < value.number_of_grains; i++)
+                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0]));
+            else if (nvals == value.number_of_grains)
+                for (int i = 0; i < value.number_of_grains; i++)
+                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[i]));
+            else
+                Util::Abort(INFO,"sdf.val received ", vals.size(), " but requires 1 or ", value.number_of_grains);
+
+            pp_query_default("sdf.tstart",value.sdf.tstart,0.0); // time to begin applying SDF
+        }
+
         // Anisotropic grain boundary energy parameters
 
         pp_query_default("anisotropy.on", value.anisotropy.on,false);              // Turn on
         if (value.anisotropy.on)
         {
-            pp_query_required("anisotropy.beta", value.anisotropy.beta);               // Regularization param 
-            pp_query_required("anisotropy.tstart", value.anisotropy.tstart);           // Time to turn on anisotropy
-        value.anisotropy.timestep = value.timestep;
-        pp_query_required("anisotropy.timestep", value.anisotropy.timestep);       // Modify timestep when turned on
-        value.anisotropy.plot_int = value.plot_int;
-        pp_query("anisotropy.plot_int", value.anisotropy.plot_int);                // Modify plot_int when turned on
-        value.anisotropy.plot_dt = value.plot_dt;
-        pp_query("anisotropy.plot_dt", value.anisotropy.plot_dt);                  // Modify plot_dt when turned on
-        pp_query("anisotropy.thermo_int", value.anisotropy.thermo_int);            // Modify thermo int when turned on
-        pp_query("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
-        pp_query("anisotropy.elastic_int",value.anisotropy.elastic_int);           // Frequency of elastic calculation
-        if (value.anisotropy.on) 
-            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
+            // Regularization para m
+            pp_query_required("anisotropy.beta", value.anisotropy.beta);
+            // Time to turn on anisotropy
+            pp_query_required("anisotropy.tstart", value.anisotropy.tstart);
+            value.anisotropy.timestep = value.timestep;
+            // Modify timestep when turned on
+            pp_query_required("anisotropy.timestep", value.anisotropy.timestep);
+            value.anisotropy.plot_int = value.plot_int;
+            // Modify plot_int when turned on
+            pp_query_default("anisotropy.plot_int", value.anisotropy.plot_int, -1);
+            value.anisotropy.plot_dt = value.plot_dt;
+            // Modify plot_dt when turned on
+            pp_query_default("anisotropy.plot_dt", value.anisotropy.plot_dt, -1.0);
+            // Modify thermo int when turned on
+            pp_query_default("anisotropy.thermo_int", value.anisotropy.thermo_int, -1);
+            // Modify thermo plot int when turned on
+            pp_query_default("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int, -1);
+            // Frequency of elastic calculation
+            pp_query_default("anisotropy.elastic_int",value.anisotropy.elastic_int, -1);           
+            if (value.anisotropy.on) 
+                value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
-        // Determine the kind of regularization to use
-        std::map<std::string, RegularizationType> regularization_type;
-        regularization_type["wilmore"] = RegularizationType::Wilmore;
-        regularization_type["k12"] = RegularizationType::K12;
+            // Determine the kind of regularization to use
+            std::map<std::string, RegularizationType> regularization_type;
+            regularization_type["wilmore"] = RegularizationType::Wilmore;
+            regularization_type["k12"] = RegularizationType::K12;
 
             std::string regularization_type_input;
             // Type of regularization to use  
             pp_query_validate("anisotropy.regularization", regularization_type_input,{"k12","wilmore"});    
-        value.regularization = regularization_type[regularization_type_input];
+            value.regularization = regularization_type[regularization_type_input];
 
+            pp_forbid("anisotropy.gb_type"," --> anisotropy.type");
             // Type of GB to use
-            pp_query_validate("anisotropy.gb_type", value.gb_type,{"abssin","sin","read","sh"}); 
-        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
-            else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
+            pp.select<Model::Interface::GB::AbsSin, Model::Interface::GB::Sin, Model::Interface::GB::Read, Model::Interface::GB::SH>("anisotropy",value.boundary); 
+        }
+        // Thermal fluctuations
+        pp.query("fluctuation.on",value.fluctuation.on);
+        if (value.fluctuation.on)
+        {
+            pp.query("fluctuation.amp",value.fluctuation.amp); // fluctuation amplitude
+            pp.query("fluctuation.sd",value.fluctuation.sd); // fluctuation stadard deviation
+            pp.query("fluctuation.tstart", value.fluctuation.tstart); // time to start applying fluctuation
+            value.fluctuation.norm_dist = std::normal_distribution<double>(0.0,value.fluctuation.sd);
         }
 
-        std::string bc_type;
-        // Type of boundary condition to use for eta
-        pp_query_validate("bc.eta.type",bc_type,{"constant","step"});  
-        if (bc_type == "constant")  value.mybc = new BC::Constant(value.number_of_grains,pp,"bc.eta");
-        else if (bc_type == "step") value.mybc = new BC::Step(pp,"bc.eta");
+        // Disconnection generation
+        pp.query("disconnection.on",value.disconnection.on);
+        if (value.disconnection.on)
+        {
+            // Read in nucleation parameters from disconnection class
+            pp.queryclass<Model::Defect::Disconnection>("disconnection",value.disconnection.model);
+        }
 
-        std::string ic_type;
-        // Initial condition to use for eta
-        pp_query_validate("ic.type", ic_type,{"constant","perturbed_interface","tabulated_interface","voronoi","expression","sphere","ellipse"});  
-        // [switch ic.type] Initial conditions for Etas
-        if (ic_type == "constant")                 value.ic = new IC::Constant(value.geom,pp,"ic");
-        else if (ic_type == "perturbed_interface") value.ic = new IC::PerturbedInterface(value.geom,pp,"ic");
-        else if (ic_type == "tabulated_interface") value.ic = new IC::TabulatedInterface(value.geom,pp,"ic");
-        else if (ic_type == "voronoi")             value.ic = new IC::Voronoi(value.geom, pp, "ic.voronoi");
-        else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
-        else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
-        else if (ic_type == "ellipse")             value.ic = new IC::Ellipse(value.geom,pp,"ic.ellipse");
-        else Util::Abort(INFO, "No valid initial condition specified");
-        // [end switch]
+        // Shear coupling matrices
+        pp_query_default("shearcouple.on",value.shearcouple.on,false);
+        if (value.shearcouple.on)
+        {
+            Util::AssertException(INFO,TEST(value.m_time_evolving == true), " mechanics.time_evolving must be true when using shearcouple");
+            Util::AssertException(INFO,TEST(value.mechanics.model_mix_order == 2), " mechanics.model.mix_order must be 2 when using shearcouple");
+            
+            value.shearcouple.Fgb.resize(value.number_of_grains * value.number_of_grains, Set::Matrix::Zero());
+            for (int i = 0 ; i < value.number_of_grains ; i++)
+                for (int j = 0 ; j < value.number_of_grains ; j++)
+                {
+                    std::string name    = "shearcouple.Fgb."+std::to_string(i)+"."+std::to_string(j);
+                    std::string namerev = "shearcouple.Fgb."+std::to_string(j)+"."+std::to_string(i);
+                    if ( i==j && pp.contains(name.data())) 
+                        Util::Abort(INFO,"Cannot specify self FGB ", name);
+                    if (pp.contains(name.data()) && pp.contains(namerev.data())) 
+                        Util::Abort(INFO,"Cannot specify both ",name," and ",namerev);
+                    if (pp.contains(name.data())) 
+                    {
+                        pp.queryarr(name.data(),value.shearcouple.Fgb[i*value.number_of_grains + j]);
+                        value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
+                    }
+                }
+        }
+
+        // Boundary condition for eta
+        pp.select<BC::Constant>("bc.eta",value.mybc,value.number_of_grains);
+
+        // Initial condition for the order parameter eta
+        pp.select<IC::Constant,IC::PerturbedInterface,IC::Voronoi,IC::Expression,IC::Sphere,IC::Ellipse,IC::Random>("ic",value.ic,value.geom);
 
         // Anisotropic mobility
-        pp_query("anisotropic_kinetics.on",value.anisotropic_kinetics.on);
+        pp_query_default("anisotropic_kinetics.on",value.anisotropic_kinetics.on, 0);
         if (value.anisotropic_kinetics.on)
         {
             // simulation time when anisotropic kinetics is activated
-            pp_query("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart);
+            pp_query_default("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart, 0.0);
             std::string mobility_filename, threshold_filename;
             // file containing anisotropic mobility data
             pp_query_file("anisotropic_kinetics.mobility",mobility_filename); 
@@ -214,16 +255,18 @@ public:
 
 
         value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
-        value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
-        if (value.pf.threshold.on)
-            value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
+        value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld",false);
+        //value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
+        // if (value.pf.threshold.on)
+        //     value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
+        // if (value.disconnection.on)
+        //     value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
         value.RegisterIntegratedVariable(&value.area, "area");
         value.RegisterIntegratedVariable(&value.gbenergy, "gbenergy");
         value.RegisterIntegratedVariable(&value.realgbenergy, "realgbenergy");
         value.RegisterIntegratedVariable(&value.regenergy, "regenergy");
-
 
     }
 
@@ -237,11 +280,17 @@ protected:
 
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-    void TimeStepBegin(amrex::Real time, int iter) override;
-    void TimeStepComplete(amrex::Real time, int iter) override;
+    virtual void TimeStepBegin(amrex::Real time, int iter) override;
+    virtual void TimeStepComplete(amrex::Real time, int iter) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
+    virtual void UpdateEigenstrain(int lev);
+    virtual void UpdateEigenstrain()
+    {
+        for (int lev = 0; lev <= this->max_level; lev++)
+            UpdateEigenstrain(lev);
+    }
 
     virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
@@ -253,8 +302,14 @@ private:
 
     // Cell fab
     Set::Field<Set::Scalar> eta_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+    Set::Field<Set::Scalar> eta_old_mf; 
     Set::Field<Set::Scalar> driving_force_mf;
     Set::Field<Set::Scalar> driving_force_threshold_mf;
+    Set::Field<Set::Scalar> fluct_mf;
+    //Set::Field<Set::Scalar> disc_mf; //see box
+    // Node fab
+    //Set::Field<Set::Scalar> elasticdf_mf;
+    Set::Field<Set::Scalar> totaldf_mf;
 
     BC::BC<Set::Scalar> *mybc = nullptr;
 
@@ -271,7 +326,7 @@ private:
         Set::Scalar sigma0 = NAN;
         Set::Scalar l_gb = NAN;
         bool elastic_df = false;
-        Set::Scalar elastic_mult = 1.0;
+        Set::Scalar elastic_mult = NAN;
         struct {
             bool on = false;
             bool chempot = false;
@@ -279,6 +334,7 @@ private:
             bool corner = false;
             bool lagrange = false;
             bool mechanics = false;
+            bool sdf = false;
             Set::Scalar value = NAN;
             ThresholdType type = ThresholdType::Continuous;
         } threshold;
@@ -313,11 +369,36 @@ private:
         Set::Scalar lambda = NAN;
     } lagrange;
 
+    struct {
+        int on = 0;
+        std::vector<Numeric::Interpolator::Linear<Set::Scalar>> val;
+        Set::Scalar tstart = 0.0;
+    } sdf;
+
+    struct {
+        int on = 0;
+        Set::Scalar amp = 0.0;
+        Set::Scalar sd = 0.0;
+        Set::Scalar tstart = 0.0;
+        std::normal_distribution<double> norm_dist;
+        std::default_random_engine rand_num_gen;
+    } fluctuation;
+
+    struct {
+        int on = 0;
+        Model::Defect::Disconnection model;
+    } disconnection;
+
+    struct {
+        int on = 0;
+        std::vector<Set::Matrix> Fgb;
+    } shearcouple;
+
     std::string gb_type, filename;
 
     Model::Interface::GB::GB *boundary = nullptr;
 
-    IC::IC *ic = nullptr;
+    IC::IC<Set::Scalar> *ic = nullptr;
 
     Set::Scalar volume = 5;
     Set::Scalar area = 0.0;
@@ -329,8 +410,12 @@ private:
     {
         Set::Scalar tstart = 0.0;
         std::vector<model_type> model;
+        int model_mix_order;
+        bool model_neumann_boundary = false;
     } mechanics;
     
+    using Base::Mechanics<model_type>::model_mf;
+    using Base::Mechanics<model_type>::stress_mf;
 
 };
 }

@@ -1,9 +1,12 @@
+//
+// Use expressions to define space and time varying boundary conditions
+// for elastic problems. 
+//
+
 #ifndef BC_OPERATOR_ELASTIC_EXPRESSION_H
 #define BC_OPERATOR_ELASTIC_EXPRESSION_H
 
-// #include "Operator/Elastic.H"
 #include "IO/ParmParse.H"
-#include "Numeric/Interpolator/Linear.H"
 #include "BC/Operator/Elastic/Elastic.H"
 
 #include "AMReX_Parser.H"
@@ -17,6 +20,8 @@ namespace Elastic
 class Expression : public Elastic
 {
 public:
+    static constexpr const char* name = "expression";
+
     //static constexpr const char* const Elastic::strings[];
     #if AMREX_SPACEDIM==2
     static const constexpr char * const facestr[] = {

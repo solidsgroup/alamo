@@ -46,12 +46,13 @@ geometry.prob_lo	        = 0 0 0
 geometry.prob_hi	        = 5 5 5
 geometry.is_periodic		= 0 0 0
 
-bc.eta.type.xhi			= neumann
-bc.eta.type.xlo			= neumann
-bc.eta.type.yhi			= neumann
-bc.eta.type.ylo			= neumann
-bc.eta.type.zhi			= neumann
-bc.eta.type.zlo			= neumann
+bc.eta.type=constant
+bc.eta.constant.type.xhi			= neumann
+bc.eta.constant.type.xlo			= neumann
+bc.eta.constant.type.yhi			= neumann
+bc.eta.constant.type.ylo			= neumann
+bc.eta.constant.type.zhi			= neumann
+bc.eta.constant.type.zlo			= neumann
 
 pf.number_of_grains	        = 10
 pf.M			        = 1.0 
@@ -89,3 +90,4 @@ mechanics.solver.tol_rel = 1E-8
 mechanics.solver.tol_abs = 1E-8
 mechanics.solver.average_down_coeffs = 0
 mechanics.time_evolving = 0
+mechanics.tstart = 0

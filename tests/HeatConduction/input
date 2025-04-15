@@ -54,18 +54,18 @@ ic.sphere.inside = 0.0
 
 
 # Boundary conditions
-bc.temp.type.xhi = dirichlet
-bc.temp.type.xlo = dirichlet
-bc.temp.type.yhi = dirichlet
-bc.temp.type.ylo = dirichlet
-bc.temp.type.zhi = dirichlet
-bc.temp.type.zlo = dirichlet
-bc.temp.val.xhi  = 0.0
-bc.temp.val.xlo  = 1.0
-bc.temp.val.yhi  = 0.0
-bc.temp.val.ylo  = 1.0
-bc.temp.val.zhi  = 0.0
-bc.temp.val.zlo  = 1.0
+bc.temp.constant.type.xhi = dirichlet
+bc.temp.constant.type.xlo = dirichlet
+bc.temp.constant.type.yhi = dirichlet
+bc.temp.constant.type.ylo = dirichlet
+bc.temp.constant.type.zhi = dirichlet
+bc.temp.constant.type.zlo = dirichlet
+bc.temp.constant.val.xhi  = 0.0
+bc.temp.constant.val.xlo  = 1.0
+bc.temp.constant.val.yhi  = 0.0
+bc.temp.constant.val.ylo  = 1.0
+bc.temp.constant.val.zhi  = 0.0
+bc.temp.constant.val.zlo  = 1.0
 
 
 

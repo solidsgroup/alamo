@@ -51,7 +51,7 @@ public:
 
     J2() {};
 
-    void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/) override
+    void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/, Set::Scalar /*time*/) override
     {
         Set::Matrix sigma = DW(eps);
         Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / 3.0;
@@ -75,7 +75,7 @@ public:
             alpha = alpha + sqrt(1.0 - 1.0/(double)AMREX_SPACEDIM)*dGamma;
             F0 += dGamma * n_new;
         }
-        }
+    }
 
     // Parameters
     Set::Scalar sigma0 = 1.0;

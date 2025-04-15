@@ -12,7 +12,24 @@ namespace Numeric
 enum StencilType { Lo, Hi, Central };
 static std::array<StencilType, AMREX_SPACEDIM>
 DefaultType = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XLo         = { AMREX_D_DECL(StencilType::Lo,      StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XHi         = { AMREX_D_DECL(StencilType::Hi,      StencilType::Central, StencilType::Central) };
+#if AMREX_SPACEDIM>1
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Lo,      StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Hi,      StencilType::Central) };
+#endif
+#if AMREX_SPACEDIM>2
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Lo     ) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Hi     ) };
+#endif
 
+[[nodiscard]]
 static
 AMREX_FORCE_INLINE
 std::array<StencilType, AMREX_SPACEDIM>
@@ -44,7 +61,7 @@ struct Stencil
 template<class T>
 struct Stencil<T, 1, 0, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE 
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -57,7 +74,7 @@ struct Stencil<T, 1, 0, 0>
         else
             return (f(i + 1, j, k, m) - f(i - 1, j, k, m)) * 0.5 / dx[0];
     };
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
     static std::pair<Set::Scalar,T>
     Dsplit( const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
@@ -85,7 +102,7 @@ struct Stencil<T, 1, 0, 0>
 template<class T>
 struct Stencil<T, 0, 1, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -98,7 +115,7 @@ struct Stencil<T, 0, 1, 0>
         else
             return (f(i, j + 1, k, m) - f(i, j - 1, k, m)) * 0.5 / dx[1];
     };
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
     static std::pair<Set::Scalar,T>
     Dsplit(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
@@ -126,7 +143,7 @@ struct Stencil<T, 0, 1, 0>
 template<class T>
 struct Stencil<T, 0, 0, 1>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -139,7 +156,7 @@ struct Stencil<T, 0, 0, 1>
         else
             return (f(i, j, k + 1, m) - f(i, j, k - 1, m)) * 0.5 / dx[2];
     };
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
     static std::pair<Set::Scalar, T>
     Dsplit(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
@@ -171,7 +188,7 @@ struct Stencil<T, 0, 0, 1>
 template<class T>
 struct Stencil<T, 2, 0, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -187,7 +204,7 @@ struct Stencil<T, 2, 0, 0>
 template<class T>
 struct Stencil<T, 0, 2, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -203,7 +220,7 @@ struct Stencil<T, 0, 2, 0>
 template<class T>
 struct Stencil<T, 0, 0, 2>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -219,7 +236,7 @@ struct Stencil<T, 0, 0, 2>
 template<class T>
 struct Stencil<T, 1, 1, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -238,7 +255,7 @@ struct Stencil<T, 1, 1, 0>
 template<class T>
 struct Stencil<T, 1, 0, 1>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -257,7 +274,7 @@ struct Stencil<T, 1, 0, 1>
 template<class T>
 struct Stencil<T, 0, 1, 1>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM],
@@ -281,7 +298,7 @@ struct Stencil<T, 0, 1, 1>
 template<class T>
 struct Stencil<T, 4, 0, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -293,7 +310,7 @@ struct Stencil<T, 4, 0, 0>
 template<class T>
 struct Stencil<T, 0, 4, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -305,7 +322,7 @@ struct Stencil<T, 0, 4, 0>
 template<class T>
 struct Stencil<T, 0, 0, 4>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -320,7 +337,7 @@ struct Stencil<T, 0, 0, 4>
 template<class T>
 struct Stencil<T, 3, 1, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -338,7 +355,7 @@ struct Stencil<T, 3, 1, 0>
 template<class T>
 struct Stencil<T, 1, 3, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -356,7 +373,7 @@ struct Stencil<T, 1, 3, 0>
 template<class T>
 struct Stencil<T, 0, 3, 1>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -372,7 +389,7 @@ struct Stencil<T, 0, 3, 1>
 template<class T>
 struct Stencil<T, 0, 1, 3>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -388,7 +405,7 @@ struct Stencil<T, 0, 1, 3>
 template<class T>
 struct Stencil<T, 1, 0, 3>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -405,7 +422,7 @@ struct Stencil<T, 1, 0, 3>
 template<class T>
 struct Stencil<T, 3, 0, 1>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -422,7 +439,7 @@ struct Stencil<T, 3, 0, 1>
 template<class T>
 struct Stencil<T, 2, 2, 0>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -440,7 +457,7 @@ struct Stencil<T, 2, 2, 0>
 template<class T>
 struct Stencil<T, 0, 2, 2>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -457,7 +474,7 @@ struct Stencil<T, 0, 2, 2>
 template<class T>
 struct Stencil<T, 2, 0, 2>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -476,7 +493,7 @@ struct Stencil<T, 2, 0, 2>
 template<class T>
 struct Stencil<T, 2, 1, 1>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -493,7 +510,7 @@ struct Stencil<T, 2, 1, 1>
 template<class T>
 struct Stencil<T, 1, 2, 1>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -510,7 +527,7 @@ struct Stencil<T, 1, 2, 1>
 template<class T>
 struct Stencil<T, 1, 1, 2>
 {
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T D(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             const Set::Scalar dx[AMREX_SPACEDIM])
@@ -524,24 +541,25 @@ struct Stencil<T, 1, 1, 2>
     };
 };
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Scalar
 Laplacian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
-    const Set::Scalar dx[AMREX_SPACEDIM])
+    const Set::Scalar dx[AMREX_SPACEDIM],
+    std::array<StencilType, AMREX_SPACEDIM>& stencil = DefaultType)
 {
     Set::Scalar ret = 0.0;
-    ret += (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, dx, stencil));
 #if AMREX_SPACEDIM > 1
-    ret += (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, m, dx, stencil));
 #if AMREX_SPACEDIM > 2
-    ret += (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, m, dx, stencil));
 #endif
 #endif
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
 Laplacian(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -558,7 +576,7 @@ Laplacian(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
 Divergence(const amrex::Array4<const Set::Matrix>& dw,
     const int& i, const int& j, const int& k,
@@ -630,12 +648,12 @@ Divergence(const amrex::Array4<const Set::Matrix>& dw,
 }
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Scalar
-Divergence(const amrex::Array4<const Set::Scalar>& f,
-    const int& i, const int& j, const int& k, const int& m,
+Divergence(const amrex::Array4<const Set::Scalar> &f,
+    const int &i, const int &j, const int &k, const int &m,
     const Set::Scalar dx[AMREX_SPACEDIM],
-    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Scalar ret;
     ret = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i, j, k, m, dx, stencil));
@@ -649,7 +667,7 @@ Divergence(const amrex::Array4<const Set::Scalar>& f,
 }
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -667,7 +685,7 @@ Gradient(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
 CellGradientOnNode(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -689,7 +707,7 @@ CellGradientOnNode(const amrex::Array4<const Set::Scalar>& f,
 
 
 template<class T>
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 std::array<T, AMREX_SPACEDIM>
 CellGradientOnNode(const amrex::Array4<const T>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -712,7 +730,7 @@ CellGradientOnNode(const amrex::Array4<const T>& f,
 
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 Gradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -736,7 +754,7 @@ Gradient(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 Gradient(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -758,7 +776,7 @@ Gradient(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 std::pair<Set::Vector,Set::Matrix>
 GradientSplit(  const amrex::Array4<const Set::Vector>& f,
                 const int& i, const int& j, const int& k,
@@ -788,7 +806,7 @@ GradientSplit(  const amrex::Array4<const Set::Vector>& f,
 }
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -808,7 +826,27 @@ NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
+Set::Vector
+NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k, const int& m,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Vector ret;
+#if AMREX_SPACEDIM == 1
+    ret(0) = (f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+#elif AMREX_SPACEDIM == 2
+    ret(0) = 0.5 * (f(i + 1, j + 1, k, m) - f(i, j + 1, k, m) + f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+    ret(1) = 0.5 * (f(i + 1, j + 1, k, m) - f(i + 1, j, k, m) + f(i, j + 1, k, m) - f(i, j, k, m)) / dx[1];
+#elif AMREX_SPACEDIM == 3
+    ret(0) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i, j + 1, k + 1, m) + f(i + 1, j, k + 1, m) - f(i, j, k + 1, m) + f(i + 1, j + 1, k, m) - f(i, j + 1, k, m) + f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+    ret(1) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i + 1, j, k + 1, m) + f(i, j + 1, k + 1, m) - f(i, j, k + 1, m) + f(i + 1, j + 1, k, m) - f(i + 1, j, k, m) + f(i, j + 1, k, m) - f(i, j, k, m)) / dx[1];
+    ret(2) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i + 1, j + 1, k, m) + f(i, j + 1, k + 1, m) - f(i, j + 1, k, m) + f(i + 1, j, k + 1, m) - f(i + 1, j, k, m) + f(i, j, k + 1, m) - f(i, j, k, m)) / dx[2];
+#endif
+    return ret;
+}
+
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 Gradient(const amrex::Array4<const Set::Matrix>& f,
     const int& i, const int& j, const int& k,
@@ -829,9 +867,29 @@ Gradient(const amrex::Array4<const Set::Matrix>& f,
 
     return ret;
 }
+[[nodiscard]] AMREX_FORCE_INLINE
+Set::Matrix3
+NodeGradientOnCell(const amrex::Array4<const Set::Matrix>& f,
+    const int& i, const int& j, const int& k,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix3 ret;
+
+#if AMREX_SPACEDIM > 0
+    ret[0] = (f(i+1,j,k) - f(i,j,k)) / dx[0];
+#endif
+#if AMREX_SPACEDIM > 1
+    ret[1] = (f(i,j+1,k) - f(i,j,k)) / dx[1];
+#endif
+#if AMREX_SPACEDIM > 2
+    ret[2] = (f(i,j,k+1) - f(i,j,k)) / dx[2];
+#endif
+
+    return ret;
+}
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 MatrixGradient(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -883,7 +941,7 @@ MatrixGradient(const amrex::Array4<const Set::Scalar>& f,
 }
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 Hessian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -908,7 +966,7 @@ Hessian(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 Hessian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k,
@@ -958,7 +1016,7 @@ Hessian(const amrex::Array4<const Set::Scalar>& f,
 
 // Returns Hessian of a vector field.
 // Return value: ret[i](j,k) = ret_{i,jk}
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3
 Hessian(const amrex::Array4<const Set::Vector>& f,
     const int& i, const int& j, const int& k,
@@ -1001,7 +1059,7 @@ Hessian(const amrex::Array4<const Set::Vector>& f,
 }
 
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 FieldToMatrix(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1023,7 +1081,7 @@ FieldToMatrix(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix
 FieldToMatrix(const amrex::Array4<Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1045,7 +1103,7 @@ FieldToMatrix(const amrex::Array4<Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
 FieldToVector(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1061,7 +1119,7 @@ FieldToVector(const amrex::Array4<const Set::Scalar>& f,
     return ret;
 }
 
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Vector
 FieldToVector(const amrex::Array4<Set::Scalar>& f,
     const int& i, const int& j, const int& k)
@@ -1111,7 +1169,8 @@ VectorToField(const amrex::Array4<Set::Scalar>& f,
 }
 
 template<int index, int SYM>
-Set::Matrix3
+[[nodiscard]] 
+Set::Matrix3 
 Divergence(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>>&,
     const int, const int, const int, const Set::Scalar[AMREX_SPACEDIM],
     std::array<StencilType, AMREX_SPACEDIM> /*stecil*/ = DefaultType)
@@ -1120,7 +1179,7 @@ Divergence(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>>&,
 }
 
 template<>
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix3 Divergence<2, Set::Sym::Isotropic>(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Isotropic>>& C,
     const int i, const int j, const int k, const Set::Scalar dx[AMREX_SPACEDIM],
     std::array<StencilType, AMREX_SPACEDIM> stencil)
@@ -1158,14 +1217,14 @@ Set::Matrix3 Divergence<2, Set::Sym::Isotropic>(const amrex::Array4<const Set::M
 
 
 template<int dim>
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix4<dim, Set::Sym::Full>
 DoubleHessian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
     const Set::Scalar dx[AMREX_SPACEDIM]);
 
 template<>
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix4<2, Set::Sym::Full>
 DoubleHessian<2>(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -1186,7 +1245,7 @@ DoubleHessian<2>(const amrex::Array4<const Set::Scalar>& f,
 }
 
 template<>
-AMREX_FORCE_INLINE
+[[nodiscard]] AMREX_FORCE_INLINE
 Set::Matrix4<3, Set::Sym::Full>
 DoubleHessian<3>(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
@@ -1230,7 +1289,7 @@ struct Interpolate
 {
 public:
     template<class T>
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T CellToNodeAverage(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m,
             std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
@@ -1249,7 +1308,7 @@ public:
         )) * fac;
     }
     template<class T>
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T CellToNodeAverage(const amrex::Array4<T>& f,
             const int& i, const int& j, const int& k, const int& m,
             std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
@@ -1268,7 +1327,7 @@ public:
         )) * fac;
     }
     template<class T>
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T NodeToCellAverage(const amrex::Array4<const T>& f,
             const int& i, const int& j, const int& k, const int& m)
     {
@@ -1281,7 +1340,7 @@ public:
         )) * fac;
     }
     template<class T>
-    AMREX_FORCE_INLINE
+    [[nodiscard]] AMREX_FORCE_INLINE
         static T NodeToCellAverage(const amrex::Array4<T>& f,
             const int& i, const int& j, const int& k, const int& m)
     {

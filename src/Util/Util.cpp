@@ -17,7 +17,10 @@ namespace Util
 {
 
 std::string filename = "";
+std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
+bool initialized = false;
+bool finalized = false;
 
 std::string GetFileName()
 {
@@ -127,6 +130,7 @@ void Initialize ()
     int argc = 0;
     char **argv = nullptr;
     Initialize(argc,argv);
+    initialized = true;
 }
 void Initialize (int argc, char* argv[])
 {
@@ -157,6 +161,7 @@ void Finalize()
     if (filename != "")
         IO::WriteMetaData(filename,IO::Status::Complete);
     amrex::Finalize();
+    finalized = true;
 }
 
 
@@ -239,6 +244,19 @@ int ReplaceAll(std::string &str, const char before, const std::string after)
     }
     return 0;
 }
+
+std::string Join(std::vector<std::string> & vec, char separator)
+{
+    std::ostringstream oss;
+    for (size_t i = 0; i < vec.size(); ++i) {
+        oss << vec[i];
+        if (i < vec.size() - 1) { // Don't add separator after the last element
+            oss << separator;
+        }
+    }
+    return oss.str();
+}
+
 std::string Wrap(std::string text, unsigned per_line)
 {
     unsigned line_begin = 0;

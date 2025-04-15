@@ -29,19 +29,20 @@ public:
             data.resize(nx*ny);
             
             int row_padded = (nx*3 + 3) & (~3);
-            unsigned char* data = new unsigned char[row_padded];
+            unsigned char* chardata = new unsigned char[row_padded];
             for (int j = 0; j < ny; j++)
             {
-                retcode = fread(data, sizeof(unsigned char), row_padded, f);
+                retcode = fread(chardata, sizeof(unsigned char), row_padded, f);
                 if (retcode != row_padded) Util::Abort(INFO,"Error reading BMP file: ",row_padded," bytes expected but only ", retcode, " read.");
                 for(int i = 0; i < nx*3; i += 3)
                 {
-                    (*this)(i/3,j)[0] = (int)data[i+2]; // R
-                    (*this)(i/3,j)[1] = (int)data[i+1]; // G
-                    (*this)(i/3,j)[2] = (int)data[i];   // B
+                    (*this)(i/3,j)[0] = (int)chardata[i+2]; // R
+                    (*this)(i/3,j)[1] = (int)chardata[i+1]; // G
+                    (*this)(i/3,j)[2] = (int)chardata[i];   // B
                 }
             }
-            fclose(f); 
+            fclose(f);
+            delete[] chardata;
         }
         else
         {

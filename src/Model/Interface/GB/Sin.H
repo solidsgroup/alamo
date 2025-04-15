@@ -18,6 +18,8 @@ namespace GB
 class Sin : public GB
 {
 public:
+    static constexpr const char* name = "sin";
+
     Sin() {};
     Sin(IO::ParmParse &pp) {pp_queryclass(*this);};
     Sin(IO::ParmParse &pp,std::string name) {pp_queryclass(name,*this);};
