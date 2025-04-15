@@ -16,7 +16,6 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 #include "IC/PSRead.H"
-#include "IC/PS.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "BC/Operator/Elastic/TensionTest.H"
 #include "BC/Operator/Elastic/Expression.H"
