@@ -10,7 +10,7 @@ namespace IC {
 using namespace Model::Fluid;
 
 SodShock::SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-                    const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
+                   const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
     : IC(_geom), variable_indices(&precomputed_indices), requires_variable_indices(true) {
     initialize(pp, name);
 }
@@ -24,11 +24,11 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
     int ncomp = a_phi[0]->nComp();
 
     for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        amrex::Box bx = mfi.growntilebox();
+        amrex::Box bx       = mfi.growntilebox();
         amrex::IndexType type = a_phi[lev]->ixType();
-
         amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
 
+        // Retrieve variable indices.
         int dens_idx = requires_variable_indices ? variable_indices->DENS : -1;
         int uvel_idx = requires_variable_indices ? variable_indices->UVEL : -1;
 #if AMREX_SPACEDIM >= 2
@@ -39,54 +39,57 @@ void SodShock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) 
 #endif
         int ie_idx = requires_variable_indices ? variable_indices->IE : -1;
 
-        Model::Fluid::Fluid fluid_model;   // Create an instance of the Fluid model
-        Util::ScimitarX_Util::Debug debug; // Create an instance of debug 
+        Model::Fluid::Fluid fluid_model;
+        Util::ScimitarX_Util::Debug debug;
+
+        const Set::Scalar xmin = geom[lev].ProbLo()[0];
+        const Set::Scalar xmax = geom[lev].ProbHi()[0];
 
         for (int n = 0; n < ncomp; ++n) {
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
-
                 Set::Scalar gamma = 1.4;
-
-                if (mf_name == "ic.pvec.sodshock") {
-                    if (x(0) < shock_xpos) {
-                        if (n == dens_idx) phi(i, j, k, n) = rho_left;
-                        else if (n == uvel_idx) phi(i, j, k, n) = u_left;
+                
+                const std::size_t num_zones = shock_positions.size() + 1;
+                
+                for (std::size_t idx = 0; idx < num_zones; ++idx) {
+                    Set::Scalar lower = (idx == 0) ? xmin : shock_positions[idx - 1];
+                    Set::Scalar upper = (idx == shock_positions.size()) ? xmax : shock_positions[idx];
+                    
+                    if (x(0) >= lower && x(0) < upper) {
+                        if (mf_name == "ic.pvec.sodshock") {
+                            if (n == dens_idx) {
+                                phi(i, j, k, n) = density_zone[idx];
+                               
+                            }
+                            else if (n == uvel_idx)
+                                phi(i, j, k, n) = uvel_zone[idx];
 #if AMREX_SPACEDIM >= 2
-                        else if (n == vvel_idx) phi(i, j, k, n) = v_left;
+                            else if (n == vvel_idx)
+                                phi(i, j, k, n) = vvel_zone[idx];
 #endif
 #if AMREX_SPACEDIM == 3
-                        else if (n == wvel_idx) phi(i, j, k, n) = w_left;
+                            else if (n == wvel_idx)
+                                phi(i, j, k, n) = wvel_zone[idx];
 #endif
-                        else if (n == ie_idx){
-                            phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(rho_left, p_left, gamma);
-                            if (phi(i, j, k, n) == 0.0) { 
-                            // Debug left state
-                            debug.DebugComputeInternalEnergyFromDensityAndPressure(i, j, k, lev, p_left, rho_left, gamma, true, "print", "Left State");
-                                }
-                            }
+                            else if (n == ie_idx) {
+                                Set::Scalar tmp_density = density_zone[idx];
+                                Set::Scalar tmp_pressure = pressure_zone[idx];
 
-                    } else {
-                        if (n == dens_idx) phi(i, j, k, n) = rho_right;
-                        else if (n == uvel_idx) phi(i, j, k, n) = u_right;
-#if AMREX_SPACEDIM >= 2
-                        else if (n == vvel_idx) phi(i, j, k, n) = v_right;
-#endif
-#if AMREX_SPACEDIM == 3
-                        else if (n == wvel_idx) phi(i, j, k, n) = w_right;
-#endif
-                        else if (n == ie_idx){
-                            phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(rho_right, p_right, gamma);
-                            if (phi(i, j, k, n) == 0.0) { 
-                            // Debug right state
-                            debug.DebugComputeInternalEnergyFromDensityAndPressure(i, j, k, lev, p_left, rho_left, gamma, true, "print", "Left State");
+                                //printf("phi(%d,%d,%d,%d) = %e at x = %f (zone %zu)\n", i, j, k, n, phi(i, j, k, n), x(0), idx);
+                                phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(
+                                    tmp_density, tmp_pressure, gamma);
+
+                                if (phi(i, j, k, n) == 0.0)
+                                    debug.DebugComputeInternalEnergyFromDensityAndPressure(
+                                        i, j, k, lev, tmp_density, tmp_pressure,
+                                        gamma, true, "print", "Zone " + std::to_string(idx));
                             }
+                        } else if (mf_name == "ic.pressure.sodshock") {
+                            phi(i, j, k, n) = pressure_zone[idx];
                         }
+                        break;
                     }
-                } else if (mf_name == "ic.pressure.sodshock") {
-                    phi(i, j, k, n) = (x(0) < shock_xpos) ? p_left : p_right;
-                } else {
-                    Util::Abort(INFO, "Unknown MultiFab name: " + mf_name);
                 }
             });
         }
@@ -103,49 +106,73 @@ void SodShock::initialize(IO::ParmParse& pp, const std::string& name) {
     if (type != "sodshock") {
         Util::Abort(INFO, "Unknown type in input: " + type);
     }
-
+    
     if (mf_name == "ic.pvec.sodshock") {
-        pp.query("ic.pvec.sodshock.left.DENS", rho_left);  // Left State Denisty
-        pp.query("ic.pvec.sodshock.right.DENS", rho_right); // Right State Density
-        pp.query("ic.pvec.sodshock.left.UVEL", u_left); // Left State Velocity in X-Direction
-        pp.query("ic.pvec.sodshock.right.UVEL", u_right); // Right State Velocity in X-Direction
+        pp.query("ic.number_shock_positions", number_of_shocks);
+        pp.queryarr("ic.pvec.sodshock.positions", shock_positions);
+        pp.queryarr("ic.pvec.sodshock.density", density_zone);
+        pp.queryarr("ic.pvec.sodshock.uvel", uvel_zone);
 #if AMREX_SPACEDIM >= 2
-        pp.query("ic.pvec.sodshock.left.VVEL", v_left); // Left State Velocity in Y-Direction
-        pp.query("ic.pvec.sodshock.right.VVEL", v_right); // Right State Velocity in Y-Direction 
+        pp.queryarr("ic.pvec.sodshock.vvel", vvel_zone);
 #endif
 #if AMREX_SPACEDIM == 3
-        pp.query("ic.pvec.sodshock.left.WVEL", w_left); // Left State Velocity in Z-Direction
-        pp.query("ic.pvec.sodshock.right.WVEL", w_right); // Right State Velocity in Z-Direction
+        pp.queryarr("ic.pvec.sodshock.wvel", wvel_zone);
 #endif
-        pp.query("ic.pressure.sodshock.left", p_left); // Left State Pressure
-        pp.query("ic.pressure.sodshock.right", p_right); // Right State Pressure
+        // Prevent segfault 
+        pp.queryarr("ic.pvec.sodshock.pressure", pressure_zone);
+
+        // Ensure all zone arrays have the correct size
+        size_t num_zones = shock_positions.size() + 1;
+        if (uvel_zone.size() != num_zones ||
+#if AMREX_SPACEDIM >= 2
+            vvel_zone.size() != num_zones ||
+#endif
+#if AMREX_SPACEDIM == 3
+            wvel_zone.size() != num_zones ||
+#endif
+            density_zone.size() != num_zones ) {
+            Util::Abort(INFO, "Zone arrays have incorrect size for ic.pvec.sodshock");
+        }
 
         Util::Message(INFO, "DEBUG: Parsed ic.pvec.sodshock values:");
-        Util::Message(INFO, "  rho_left = " + std::to_string(rho_left));
-        Util::Message(INFO, "  rho_right = " + std::to_string(rho_right));
-        Util::Message(INFO, "  u_left = " + std::to_string(u_left) + ", u_right = " + std::to_string(u_right));
+        Set::Scalar xmin = geom[0].ProbLo()[0];
+        Set::Scalar xmax = geom[0].ProbHi()[0];
+        for (size_t i = 0; i < num_zones; ++i) {
+            Set::Scalar lower = (i == 0) ? xmin : shock_positions[i - 1];
+            Set::Scalar upper = (i == shock_positions.size()) ? xmax : shock_positions[i];
+            Util::Message(INFO, "  Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
+            Util::Message(INFO, "    Density = " + std::to_string(density_zone[i]));
+            Util::Message(INFO, "    u = " + std::to_string(uvel_zone[i]));
 #if AMREX_SPACEDIM >= 2
-        Util::Message(INFO, "  v_left = " + std::to_string(v_left) + ", v_right = " + std::to_string(v_right));
+            Util::Message(INFO, "    v = " + std::to_string(vvel_zone[i]));
 #endif
 #if AMREX_SPACEDIM == 3
-        Util::Message(INFO, "  w_left = " + std::to_string(w_left) + ", w_right = " + std::to_string(w_right));
+            Util::Message(INFO, "    w = " + std::to_string(wvel_zone[i]));
 #endif
+            
+        }
     } else if (mf_name == "ic.pressure.sodshock") {
-        pp.query("ic.pressure.sodshock.left", p_left);  // Left State Pressure
-        pp.query("ic.pressure.sodshock.right", p_right); // Right State Pressure
+        pp.query("ic.number_shock_positions", number_of_shocks);
+        pp.queryarr("ic.pvec.sodshock.positions", shock_positions);
+        pp.queryarr("ic.pressure.sodshock.pressure", pressure_zone);
+
+        // Ensure pressure_zone has the correct size
+        size_t num_zones = shock_positions.size() + 1;
+        if (pressure_zone.size() != num_zones) {
+            Util::Abort(INFO, "Pressure zone array has incorrect size for ic.pressure.sodshock");
+        } 
+
 
         Util::Message(INFO, "DEBUG: Parsed ic.pressure.sodshock values:");
-        Util::Message(INFO, "  p_left = " + std::to_string(p_left));
-        Util::Message(INFO, "  p_right = " + std::to_string(p_right));
+        Set::Scalar xmin = geom[0].ProbLo()[0];
+        Set::Scalar xmax = geom[0].ProbHi()[0];
+        for (size_t i = 0; i < num_zones; ++i) {
+            Set::Scalar lower = (i == 0) ? xmin : shock_positions[i - 1];
+            Set::Scalar upper = (i == shock_positions.size()) ? xmax : shock_positions[i];
+            Util::Message(INFO, "  Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
+            Util::Message(INFO, "    Pressure = " + std::to_string(pressure_zone[i]));
+        }
     }
-
-    pp.query("shock.xpos", shock_xpos); // Shock Location in X-Direction
-    pp.query("shock.ypos", shock_ypos); // Shock Location in Y-Direction                                        
-    pp.query("shock.zpos", shock_zpos); // Shock Location in Z-Direction
-
-    Util::Message(INFO, "DEBUG: Shock position: xpos = " + std::to_string(shock_xpos) +
-                        ", ypos = " + std::to_string(shock_ypos) +
-                        ", zpos = " + std::to_string(shock_zpos));
 }
 
-}  // namespace IC
+} // end namespace IC

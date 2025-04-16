@@ -5,14 +5,15 @@
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Util/ScimitarX_Util.H"
-
+#include <vector> // Include the standard vector header
 
 namespace IC {
+
 class SodShock : public IC<Set::Scalar> {
 public:
     // Constructor requiring variable indices
     SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-            const Util::ScimitarX_Util::getVariableIndex& precomputed_indices);
+             const Util::ScimitarX_Util::getVariableIndex& precomputed_indices);
 
     // Constructor for pressure (no variable indices required)
     SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name);
@@ -31,26 +32,24 @@ protected:
     const Util::ScimitarX_Util::getVariableIndex* variable_indices;
     bool requires_variable_indices;
 
-    // Shock position
+    // Number of shocks (zones)
+    int number_of_shocks;   
+
+    // Shock positions in x-direction
+    std::vector<Set::Scalar> shock_positions;
     Set::Scalar shock_xpos = 0.5; // Shock position in x-direction
     Set::Scalar shock_ypos = 0.0; // Shock position in y-direction
     Set::Scalar shock_zpos = 0.0; // Shock position in z-direction
 
 private:
     // QVec initialization variables
-    Set::Scalar rho_left = 1.0;  // Left density
-    Set::Scalar rho_right = 0.125; // Right density
-    Set::Scalar u_left = 0.0;     // Left velocity (x-direction)
-    Set::Scalar u_right = 0.0;    // Right velocity (x-direction)
-    Set::Scalar v_left = 0.0;     // Left velocity (y-direction)
-    Set::Scalar v_right = 0.0;    // Right velocity (y-direction)
-    Set::Scalar w_left = 0.0;     // Left velocity (z-direction)
-    Set::Scalar w_right = 0.0;    // Right velocity (z-direction)
+    std::vector<Set::Scalar> density_zone;
+    std::vector<Set::Scalar> uvel_zone;
+    std::vector<Set::Scalar> vvel_zone;
+    std::vector<Set::Scalar> wvel_zone;
 
     // Pressure initialization variables
-    Set::Scalar p_left = 1.0;     // Left pressure
-    Set::Scalar p_right = 0.1;    // Right pressure
-
+    std::vector<Set::Scalar> pressure_zone;
 };
 
 } // namespace IC
