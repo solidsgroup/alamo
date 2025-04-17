@@ -51,6 +51,7 @@
 #include "Model/Solid/Linear/Isotropic.H"
 #include "Model/Interface/Crack/PFCZM.H"
 
+#include "BC/Constant.H"
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
 #include "IC/Ellipse.H"
@@ -137,42 +138,11 @@ public:
         pp.query_default("crack.df.mult_lap", value.crack.mult_lap,1.0);    // constant multiplier for second order model with laplacian
         pp.query_default("crack.df.el_mult", value.crack.el_mult,1.0);  // unit conversion multiplier between elastic problem and crack problem
 
+
         // Let's figure out if there is an initial crack or void
-        pp.queryarr("crack.ic.type",value.crack.ic_type);   // IC for initial crack
-        if(value.crack.ic_type.size() == 0) value.crack.is_ic = false;
-        else
-        {
-            value.crack.is_ic= true;
-            for (unsigned int i = 0; i<value.crack.ic_type.size(); i++)
-            {
-                if(value.crack.ic_type[i] == "notch")
-                {
-                    IC::Notch *tmpic = new IC::Notch(value.geom);
-                    pp.queryclass("crack.ic.notch",*tmpic); // get parameters of notch type crack
-                    value.crack.ic.push_back(tmpic);
-                }
-                else if(value.crack.ic_type[i] == "ellipsoid")
-                {
-                    IC::Ellipsoid *tmpic = new IC::Ellipsoid(value.geom);
-                    pp.queryclass("crack.ic.ellipsoid",*tmpic); // get parameters of ellipsoidal crack
-                    value.crack.ic.push_back(tmpic);
-                }
-                else if(value.crack.ic_type[i] == "ellipse")
-                {
-                    IC::Ellipse *tmpic = new IC::Ellipse(value.geom);
-                    pp.queryclass("crack.ic.ellipse",*tmpic); // get parameters of ellipsoidal crack
-                    value.crack.ic.push_back(tmpic);
-                }
-                else if(value.crack.ic_type[i] == "expression")
-                {
-                    IC::Expression *tmpic = new IC::Expression(value.geom);
-                    pp.queryclass("crack.ic.expression",*tmpic); // get parameters of the expression crack
-                    value.crack.ic.push_back(tmpic);
-                }
-                else
-                    Util::Abort(INFO, "This IC hasn't been implemented yet");
-            }
-        }
+        pp.select_enumerate<IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>
+            ("crack.ic",value.crack.ic,value.geom);
+
         
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);

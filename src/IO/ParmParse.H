@@ -737,6 +737,71 @@ public:
             Util::Exception(INFO,type," not a valid type for ",name);
     }
 
+
+    //
+    //
+    template<typename... IC, typename... Args, typename PTRTYPE>
+    void select_enumerate (std::string a_name, std::vector<PTRTYPE*> & value, Args&&... args)
+    {
+
+        value.clear();
+
+        //
+        // If only one is present with no subscript, then read
+        // it only and return.
+        //
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            PTRTYPE *tmp;
+            this->select<IC...>(a_name, tmp, args...);
+            value.push_back(tmp);
+            return;
+        }
+
+        //
+        // Some logic to determine whether we are starting with zero
+        // (model0, model1, model2, ...)
+        // or one
+        // (model1, model2, model3, ...)
+        // since both are supported
+        //
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+        }
+
+        //
+        // Iterate over items called (model0), model1, model2, etc
+        // until no more are found then exit. 
+        //
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            if (this->contains(name.c_str()))
+            {
+                PTRTYPE *tmp;
+                this->select<IC...>(name, tmp, args...);
+                value.push_back(tmp);
+            }
+            name = a_name + std::to_string(cntr+1);
+        }
+    }
+
+
+
     //
     // Similar to select but specialized for main functions
     //
@@ -778,14 +843,18 @@ public:
     void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
     {
         int cnt = 0;
+        std::vector<std::string> read;
         for (unsigned int n = 0; n < names.size(); n++)
         {
             if (amrex::ParmParse::contains(names[n].c_str()))
             {
+                read.push_back(names[n]);
                 cnt++;
             }
         }
-        Util::Assert(INFO, TEST(cnt == N), "incorrect number of values specified");
+        Util::AssertException(INFO, TEST(cnt == N), "incorrect number of values specified: only ", N,
+                              " values are allowed, but received ",Util::String::Join(read));
+
 
         cnt = 0;
         for (unsigned int n = 0; n < names.size(); n++)

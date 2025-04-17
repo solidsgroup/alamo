@@ -10,6 +10,7 @@
 
 #include "IC/IC.H"
 #include "Set/Set.H"
+#include "IO/ParmParse.H"
 
 // Note: right now this is meant for 2D. We need to rethink this implementation for 3D.
 namespace IC
@@ -17,6 +18,7 @@ namespace IC
 class Notch : public IC<Set::Scalar>
 {
 public:
+    static constexpr const char* name = "notch";
     enum Mollifier
     {
         Dirac,
@@ -39,6 +41,12 @@ public:
         moll = Mollifier::Dirac;
         eps = 1e-5;
     }
+    Notch(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : 
+        IC<Set::Scalar>(_geom)
+    {
+        pp_queryclass(name, *this);
+    }
+
 
     void
     Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
