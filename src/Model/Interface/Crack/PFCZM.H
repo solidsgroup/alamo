@@ -149,12 +149,12 @@ public:
 
         std::string gtype = "";
         std::string wtype = "";
-        pp.query_validate("gtype", gtype, {"wu_linear", "ai_cubic"}); // degradation function. For now, we only have linear softening
+        pp.query_validate("gtype", gtype, {"wu_linear", "ai_exp"}); // degradation function. For now, we only have linear softening
         pp.query_validate("wtype", wtype, {"wu"}); // geometric function. no choice except for the optimal one for now.
         
         std::map<std::string,Model::Interface::Crack::Crack::GType>  g_map;
         g_map["wu_linear"] = Model::Interface::Crack::Crack::GType::GWULINEAR;
-        g_map["ai_cubic"] = Model::Interface::Crack::Crack::GType::GAICUBIC;
+        g_map["ai_exp"] = Model::Interface::Crack::Crack::GType::GAIEXP;
         
         std::map<std::string,Model::Interface::Crack::Crack::WType>  w_map;
         w_map["wu"] = Model::Interface::Crack::Crack::WType::WU;

@@ -345,6 +345,14 @@ public:
             value.nThickness.resize(value.nCenter.size());
             for (int i=0; i<value.nThickness.size(); i++) value.nThickness[i] = 0.0;
         }
+        else if(value.nThickness.size() == 1)
+        {
+            Set::Scalar temp_thickness = value.nThickness[0] < 0. ? 0.0 : value.nThickness[0];
+            value.nThickness.clear();
+            value.nThickness.resize(value.nCenter.size());
+            for (int i=0; i<value.nThickness.size(); i++)
+                value.nThickness[i] = temp_thickness;
+        }
         else if(value.nThickness.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of thickness and centers");
         else
         {
