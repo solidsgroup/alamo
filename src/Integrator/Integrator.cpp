@@ -53,12 +53,17 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
         pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
         pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
-        pp_query_default("plot_file", plot_file, "output");             // Output file
+
+
+        // Output file: see IO::FileNameParse for wildcards and variable substitution
+        pp_query_default("plot_file", plot_file, "output");
 
         pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
         pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
         pp_query_default("node.all", node.all, false);                // Turn on to write all output in node fabs (default: off)
         pp_query_default("node.any", node.any, true);                // Turn off to prevent any node based output (default: on)
+
+        pp_query_default("abort_on_nan",abort_on_nan, true); // Abort if a plotfile contains nan or inf.
 
         Util::Assert(INFO, TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO, TEST(!(!node.any && node.all)));
@@ -86,6 +91,26 @@ Integrator::Integrator() : amrex::AmrCore()
         else
             for (int lev = 1; lev <= maxLevel(); ++lev)
                 nsubsteps[lev] = MaxRefRatio(lev - 1);
+    }
+    {
+        IO::ParmParse pp("dynamictimestep");
+        // activate dynamic CFL-based timestep
+        pp_query("on",dynamictimestep.on);
+        if (dynamictimestep.on)
+        {
+            // how much information to print
+            pp_query_validate("verbose",dynamictimestep.verbose,{0,1});
+            // number of previous timesteps for rolling average
+            pp_query_default("nprevious",dynamictimestep.nprevious,5);
+            // dynamic teimstep CFL condition
+            pp_query_default("cfl",dynamictimestep.cfl,1.0);
+            // minimum timestep size allowed shen stepping dynamically
+            pp_query_default("min",dynamictimestep.min,timestep);
+            // maximum timestep size allowed shen stepping dynamically
+            pp_query_default("max",dynamictimestep.max,timestep);
+
+            Util::AssertException(INFO,TEST(dynamictimestep.max >= dynamictimestep.min));
+        }
     }
     {
         // Information on how to generate thermodynamic
@@ -136,15 +161,24 @@ Integrator::Integrator() : amrex::AmrCore()
     IO::WriteMetaData(plot_file, IO::Status::Running, 0);
 }
 
-///
-/// \func  ~Integrator
-/// \brief Does nothing -- check here first if there are memory leaks
-///
+// Destructor
 Integrator::~Integrator()
 {
-    BL_PROFILE("Integrator::~Integrator");
-    if (amrex::ParallelDescriptor::IOProcessor())
-        IO::WriteMetaData(plot_file, IO::Status::Complete);
+    if (Util::finalized)
+    {
+        std::cout << "!! ERROR !! Integrator destructor called after alamo has been finalized." << std::endl;
+        std::cout << "            Behavior occurring after this is undefined." << std::endl;
+        std::abort();
+    }
+
+    // Close out the metadata file and mark completed.
+    IO::WriteMetaData(plot_file, IO::Status::Complete);
+
+    // De-initialize all of the base fields and clear the arrays.
+    for (unsigned int i = 0; i < m_basefields.size(); i++) delete m_basefields[i];
+    for (unsigned int i = 0; i < m_basefields_cell.size(); i++) delete m_basefields_cell[i];
+    m_basefields.clear();
+    m_basefields_cell.clear();
 }
 
 void Integrator::SetTimestep(Set::Scalar _timestep)
@@ -217,10 +251,11 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
 /// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 ///
 void
-Integrator::RemakeLevel(int lev,       ///<[in] AMR Level
-    amrex::Real time,     ///<[in] Simulation time
-    const amrex::BoxArray& cgrids,
-    const amrex::DistributionMapping& dm)
+Integrator::RemakeLevel(int lev,                             ///<[in] AMR Level
+                        amrex::Real time,                    ///<[in] Simulation time
+                        const amrex::BoxArray &cgrids,       ///<[in] Coarse grids
+                        const amrex::DistributionMapping &dm ///[in] Distribution mapping
+    )
 {
     BL_PROFILE("Integrator::RemakeLevel");
     for (int n = 0; n < cell.number_of_fabs; n++)
@@ -289,28 +324,28 @@ Integrator::ClearLevel(int lev)
 
 
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true, suffix);
 }
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true, suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true,suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true,suffix);
 }
 
 
@@ -601,18 +636,18 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             {
                 for (int j = 0; j < node.number_of_fabs; j++)
                 {
-                    if (tmp_name_array[i] == node.name_array[j])
+                    if (tmp_name_array[i] == node.name_array[i][j])
                     {
                         match = true;
-                        Util::Message(INFO, "Initializing ", node.name_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
+                        Util::Message(INFO, "Initializing ", node.name_array[i][j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
                         amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, 0, 1, total_nghost);
                     }
                     for (int k = 0; k < node.ncomp_array[j]; k++)
                     {
-                        if (tmp_name_array[i] == amrex::Concatenate(node.name_array[j], k + 1, 3))
+                        if (tmp_name_array[i] == node.name_array[j][k])
                         {
                             match = true;
-                            Util::Message(INFO, "Initializing ", node.name_array[j], "[", k, "]; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
+                            Util::Message(INFO, "Initializing ", node.name_array[j][k], "; ncomp=", node.ncomp_array[j], "; nghost=", node.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, total_nghost);
                         }
                     }
@@ -624,10 +659,10 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                 for (int j = 0; j < cell.number_of_fabs; j++)
                     for (int k = 0; k < cell.ncomp_array[j]; k++)
                     {
-                        if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j], k + 1, 3))
+                        if (tmp_name_array[i] == cell.name_array[j][k])
                         {
                             match = true;
-                            Util::Message(INFO, "Initializing ", cell.name_array[j], "[", k, "]; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
+                            Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, cell.nghost_array[j]);
                         }
                     }
@@ -743,20 +778,20 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         if (!cell.writeout_array[i]) continue;
         ccomponents += cell.ncomp_array[i];
         if (cell.ncomp_array[i] > 1)
-            for (int j = 1; j <= cell.ncomp_array[i]; j++)
-                cnames.push_back(amrex::Concatenate(cell.name_array[i], j, 3));
+            for (int j = 0; j < cell.ncomp_array[i]; j++)
+                cnames.push_back(cell.name_array[i][j]);
         else
-            cnames.push_back(cell.name_array[i]);
+            cnames.push_back(cell.name_array[i][0]);
     }
     for (int i = 0; i < node.number_of_fabs; i++)
     {
         if (!node.writeout_array[i]) continue;
         ncomponents += node.ncomp_array[i];
         if (node.ncomp_array[i] > 1)
-            for (int j = 1; j <= node.ncomp_array[i]; j++)
-                nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
+            for (int j = 0; j < node.ncomp_array[i]; j++)
+                nnames.push_back(node.name_array[i][j]);
         else
-            nnames.push_back(node.name_array[i]);
+            nnames.push_back(node.name_array[i][0]);
     }
     for (unsigned int i = 0; i < m_basefields_cell.size(); i++)
     {
@@ -791,19 +826,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             cplotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
 
             int n = 0;
+            int cnames_cnt = 0;
             for (int i = 0; i < cell.number_of_fabs; i++)
             {
                 if (!cell.writeout_array[i]) continue;
                 if ((*cell.fab_array[i])[ilev]->contains_nan())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains nan (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[i], " contains nan (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
                 }
                 if ((*cell.fab_array[i])[ilev]->contains_inf())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[i], " contains inf (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
                 }
+                cnames_cnt++;
                 amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
                 n += cell.ncomp_array[i];
             }
@@ -818,15 +855,24 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
 
             if (cell.all)
             {
+                int nnames_cnt = 0;
                 for (int i = 0; i < node.number_of_fabs; i++)
                 {
                     if (!node.writeout_array[i]) continue;
-                    if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO, nnames[i], " contains nan (i=", i, ")");
-                    if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO, nnames[i], " contains inf (i=", i, ")");
+                    if ((*node.fab_array[i])[ilev]->contains_nan())
+                    {
+                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
+                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
+                    }
+                    if ((*node.fab_array[i])[ilev]->contains_inf())
+                    {
+                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
+                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
+                    }
+                    nnames_cnt++;
                     amrex::average_node_to_cellcenter(cplotmf[ilev], n, *(*node.fab_array[i])[ilev], 0, node.ncomp_array[i], 0);
                     n += node.ncomp_array[i];
                 }
-
                 if (bfcomponents > 0)
                 {
                     amrex::BoxArray ngrids = grids[ilev];

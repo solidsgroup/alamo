@@ -12,6 +12,22 @@ namespace Numeric
 enum StencilType { Lo, Hi, Central };
 static std::array<StencilType, AMREX_SPACEDIM>
 DefaultType = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XLo         = { AMREX_D_DECL(StencilType::Lo,      StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XHi         = { AMREX_D_DECL(StencilType::Hi,      StencilType::Central, StencilType::Central) };
+#if AMREX_SPACEDIM>1
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Lo,      StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Hi,      StencilType::Central) };
+#endif
+#if AMREX_SPACEDIM>2
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Lo     ) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Hi     ) };
+#endif
 
 [[nodiscard]]
 static
@@ -529,14 +545,15 @@ struct Stencil<T, 1, 1, 2>
 Set::Scalar
 Laplacian(const amrex::Array4<const Set::Scalar>& f,
     const int& i, const int& j, const int& k, const int& m,
-    const Set::Scalar dx[AMREX_SPACEDIM])
+    const Set::Scalar dx[AMREX_SPACEDIM],
+    std::array<StencilType, AMREX_SPACEDIM>& stencil = DefaultType)
 {
     Set::Scalar ret = 0.0;
-    ret += (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, dx, stencil));
 #if AMREX_SPACEDIM > 1
-    ret += (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, m, dx, stencil));
 #if AMREX_SPACEDIM > 2
-    ret += (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, m, dx));
+    ret += (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, m, dx, stencil));
 #endif
 #endif
     return ret;
@@ -633,10 +650,10 @@ Divergence(const amrex::Array4<const Set::Matrix>& dw,
 
 [[nodiscard]] AMREX_FORCE_INLINE
 Set::Scalar
-Divergence(const amrex::Array4<const Set::Scalar>& f,
-    const int& i, const int& j, const int& k, const int& m,
+Divergence(const amrex::Array4<const Set::Scalar> &f,
+    const int &i, const int &j, const int &k, const int &m,
     const Set::Scalar dx[AMREX_SPACEDIM],
-    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Scalar ret;
     ret = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i, j, k, m, dx, stencil));
@@ -825,6 +842,26 @@ NodeGradientOnCell(const amrex::Array4<const Set::Vector>& f,
     ret.col(0) = (f(i + 1, j, k) - f(i, j, k) + f(i + 1, j + 1, k) - f(i, j + 1, k) + f(i + 1, j, k + 1) - f(i, j, k + 1) + f(i + 1, j + 1, k + 1) - f(i, j + 1, k + 1)) * 0.25 / dx[0];
     ret.col(1) = (f(i, j + 1, k) - f(i, j, k) + f(i + 1, j + 1, k) - f(i + 1, j, k) + f(i, j + 1, k + 1) - f(i, j, k + 1) + f(i + 1, j + 1, k + 1) - f(i + 1, j, k + 1)) * 0.25 / dx[1];
     ret.col(2) = (f(i, j, k + 1) - f(i, j, k) + f(i, j + 1, k + 1) - f(i, j + 1, k) + f(i + 1, j, k + 1) - f(i + 1, j, k) + f(i + 1, j + 1, k + 1) - f(i + 1, j + 1, k)) * 0.25 / dx[2];
+#endif
+    return ret;
+}
+
+[[nodiscard]] AMREX_FORCE_INLINE
+Set::Vector
+NodeGradientOnCell(const amrex::Array4<const Set::Scalar>& f,
+    const int& i, const int& j, const int& k, const int& m,
+    const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Vector ret;
+#if AMREX_SPACEDIM == 1
+    ret(0) = (f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+#elif AMREX_SPACEDIM == 2
+    ret(0) = 0.5 * (f(i + 1, j + 1, k, m) - f(i, j + 1, k, m) + f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+    ret(1) = 0.5 * (f(i + 1, j + 1, k, m) - f(i + 1, j, k, m) + f(i, j + 1, k, m) - f(i, j, k, m)) / dx[1];
+#elif AMREX_SPACEDIM == 3
+    ret(0) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i, j + 1, k + 1, m) + f(i + 1, j, k + 1, m) - f(i, j, k + 1, m) + f(i + 1, j + 1, k, m) - f(i, j + 1, k, m) + f(i + 1, j, k, m) - f(i, j, k, m)) / dx[0];
+    ret(1) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i + 1, j, k + 1, m) + f(i, j + 1, k + 1, m) - f(i, j, k + 1, m) + f(i + 1, j + 1, k, m) - f(i + 1, j, k, m) + f(i, j + 1, k, m) - f(i, j, k, m)) / dx[1];
+    ret(2) = 0.25 * (f(i + 1, j + 1, k + 1, m) - f(i + 1, j + 1, k, m) + f(i, j + 1, k + 1, m) - f(i, j + 1, k, m) + f(i + 1, j, k + 1, m) - f(i + 1, j, k, m) + f(i, j, k + 1, m) - f(i, j, k, m)) / dx[2];
 #endif
     return ret;
 }
@@ -1153,7 +1190,7 @@ VectorToField(const amrex::Array4<Set::Scalar>& f,
 
 template<int index, int SYM>
 [[nodiscard]] 
-Set::Matrix3
+Set::Matrix3 
 Divergence(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>>&,
     const int, const int, const int, const Set::Scalar[AMREX_SPACEDIM],
     std::array<StencilType, AMREX_SPACEDIM> /*stecil*/ = DefaultType)

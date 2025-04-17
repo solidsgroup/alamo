@@ -864,7 +864,7 @@ protected:
         std::vector<pfczm_crack_type> cracktype;
 
         std::vector<std::string> ic_type;
-        std::vector<IC::IC*> ic;
+        std::vector<IC::IC<Set::Scalar>*> ic;
         bool is_ic = true;
 
         Set::Scalar scaleModulusMax = 0.02;
@@ -890,7 +890,7 @@ protected:
         Set::Field<Set::Scalar> eta_mf;
         Set::Scalar m_eta_ref_threshold = 0.01;
         std::vector<brittle_model> models;
-        IC::IC *ic;
+        IC::IC<Set::Scalar> *ic;
         bool is_ic = false;
         int num_mat = 1;
     } material;

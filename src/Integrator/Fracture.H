@@ -53,6 +53,7 @@
 
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
+#include "IC/Ellipse.H"
 #include "IC/Notch.H"
 #include "IC/Laminate.H"
 #include "IC/PerturbedInterface.H"
@@ -82,7 +83,7 @@ public:
 
     static void Parse(Fracture &value, IO::ParmParse &pp)
     {
-        Base::Mechanics<brittle_model>::Parse(value,pp);
+        pp.queryclass<Base::Mechanics<brittle_model>>(value);
 
         // Material field related parsing
         pp.query("material.refinement_threshold", value.material.m_eta_ref_threshold);
@@ -629,7 +630,7 @@ protected:
         std::vector<crack_type> cracktype;
 
         std::vector<std::string> ic_type;
-        std::vector<IC::IC*> ic;
+        std::vector<IC::IC<Set::Scalar>*> ic;
         bool is_ic = true;
 
         Set::Scalar scaleModulusMax = 0.02;
@@ -649,7 +650,7 @@ protected:
         Set::Field<Set::Scalar> eta_mf;
         Set::Scalar m_eta_ref_threshold = 0.01;
         std::vector<brittle_model> models;
-        IC::IC *ic;
+        IC::IC<Set::Scalar> *ic;
         bool is_ic = false;
         int num_mat = 1;
     } material;

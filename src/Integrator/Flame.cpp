@@ -8,6 +8,7 @@
 #include "Numeric/Function.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/PNG.H"
 #include "Base/Mechanics.H"
 
 #include <cmath>
@@ -28,10 +29,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
     {
-        //pp_query("fields_verbose", value.plot_field);
-        pp_query_default("timestep", value.base_time, 1.0e-4);
-        // These are the phase field method parameters
-        // that you use to inform the phase field method.
+        // Whether to include extra fields (such as mdot, etc) in the plot output
+        pp_query_default("plot_field",value.plot_field,true); 
+        
+        pp_query_default("timestep", value.base_time, 1.0e-4); //Simulation timestep
         pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
         pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
         pp_query_default("pf.gamma", value.pf.gamma, 1.0); // Scaling factor for mobility
@@ -43,24 +44,17 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("geometry.x_len", value.x_len, 0.001); // Domain x length
         pp_query_default("geometry.y_len", value.y_len, 0.001); // Domain y length
 
-        value.bc_eta = new BC::Constant(1);
-        pp_queryclass("pf.eta.bc", *static_cast<BC::Constant*>(value.bc_eta)); // See :ref:`BC::Constant`
+        //value.bc_eta = new BC::Constant(1);
+
+
+        // Boundary conditions for phase field order params
+        pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, value.ghost_count, "eta", true);
         value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, value.ghost_count, "eta_old", false);
 
-        std::string eta_bc_str = "constant";
-        pp_query_validate("pf.eta.ic.type", eta_bc_str, {"constant", "expression"}); // Eta boundary condition [constant, expression]
-        if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "pf.eta.ic.constant");
-        else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "pf.eta.ic.expression");
-
-        std::string eta_ic_type = "constant";
-        pp_query_validate("eta.ic.type", eta_ic_type, {"laminate", "constant", "expression"}); // Eta initial condition [constant, laminate, expression, bmp]
-        if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
-        else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
-        else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
-        else if (eta_ic_type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "eta.ic.bmp");
-        else if (eta_ic_type == "png") value.ic_eta = new IC::PNG(value.geom, pp, "eta.ic.png");
-        else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
+        // phase field initial condition
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
+        pp.forbid("eta.ic","--> you must use pf.eta.ic instead"); // delete this eventually once all tests are updated
     }
 
     {
@@ -104,8 +98,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp_query_default("thermal.modeling_htpb", value.thermal.modeling_htpb, 1.0); // Scaling factor for HTPB thermal conductivity (default = 1.0)
 
 
-            value.bc_temp = new BC::Constant(1);
-            pp_queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
+            //Temperature boundary condition
+            pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1);
+            
             value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, value.ghost_count + 1, "temp", true);
             value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, value.ghost_count + 1, "temp_old", false);
             value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, value.ghost_count + 1, "temps", false);
@@ -123,19 +118,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
             value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
 
-            std::string laser_ic_type = "constant";
-            pp_query_validate("laser.ic.type", laser_ic_type, {"expression", "constant"}); // heat laser initial condition type [constant, expression]
-            if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom, pp, "laser.ic.expression");
-            else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
-            else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
+            // laser initial condition
+            pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom);
 
-            std::string temp_ic_type;
-            pp_query_validate("temp.ic.type", temp_ic_type,{"default","constant","expression","bmp","png"}); // Temperature initial condition
-            if (temp_ic_type == "constant") value.thermal.ic_temp = new IC::Constant(value.geom, pp, "temp.ic.constant");
-            else if (temp_ic_type == "expression") value.thermal.ic_temp = new IC::Expression(value.geom, pp, "temp.ic.expression");
-            else if (temp_ic_type == "bmp") value.thermal.ic_temp = new IC::BMP(value.geom, pp, "temp.ic.bmp");
-            else if (temp_ic_type == "png") value.thermal.ic_temp = new IC::PNG(value.geom, pp, "temp.ic.png");
-            else if (temp_ic_type == "default") value.thermal.ic_temp = nullptr;
+            // thermal initial condition
+            pp.select_default<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom);
         }
     }
 
@@ -178,7 +165,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     {
         // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
         // specified using these parameters. 
-        //IO::ParmParse pp("phi.ic");
         std::string phi_ic_type = "packedspheres";
         pp_query_validate("phi.ic.type", phi_ic_type, {"psread", "laminate", "expression", "constant", "bmp", "png"}); // IC type (psread, laminate, constant)
         if (phi_ic_type == "psread") {
@@ -222,25 +208,36 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
     }
 
-    pp_queryclass("elastic",static_cast<Base::Mechanics<model_type>&>(value));
+    pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
 
     if (value.m_type != Type::Disable)
     {
         value.elastic.Tref = value.thermal.bound;
         pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
-        pp_queryclass("model_ap", value.elastic.model_ap);
-        pp_queryclass("model_htpb", value.elastic.model_htpb);
+        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
         value.psi_on = true;
     }
+
+    bool allow_unused;
+    // Set this to true to allow unused inputs without error.
+    // (Not recommended.)
+    pp.query_default("allow_unused",allow_unused,false);
+    if (!allow_unused && pp.AnyUnusedInputs())
+    {
+        Util::Warning(INFO,"The following inputs were specified but not used:");
+        pp.AllUnusedInputs();
+        Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
+    }
+        
 }
 
 void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
-    Util::Message(INFO, m_type);
     Base::Mechanics<model_type>::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
@@ -298,6 +295,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
+            amrex::Box smallbox = mfi.nodaltilebox();
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
             //amrex::Box bx = mfi.nodaltilebox();
             //bx.grow(1);
@@ -310,14 +308,15 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             if (elastic.on)
             {
                 amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    //auto sten = Numeric::GetStencil(i, j, k, bx);
-                    Set::Scalar phi_avg = phi(i, j, k, 0);
-                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     rhs(i, j, k) = elastic.traction * grad_eta;
-
+                });
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar phi_avg = phi(i, j, k, 0);
+                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
                     model_ap.F0 *= (temp_avg - elastic.Tref);

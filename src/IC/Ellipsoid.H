@@ -25,7 +25,7 @@
 /// \brief Initialize an ellipsoidal inclusion
 namespace IC
 {
-class Ellipsoid : public IC
+class Ellipsoid : public IC<Set::Scalar>
 {
 public:
     enum Mollifier {Dirac, Gaussian};

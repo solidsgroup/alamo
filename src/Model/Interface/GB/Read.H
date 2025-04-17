@@ -23,6 +23,9 @@ namespace GB
 class Read : public GB
 {
 public:
+    static constexpr const char* name = "read";
+
+
     /// \brief Read in data
     ///
     /// Reads the data from a file and abort if it is not possible to open the file or if the range of thetas do not give a range between 0 and 2pi. It also computes the derivatives of the energy and stores them in vectors that will be used in W, DW, and DDW

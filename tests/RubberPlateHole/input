@@ -53,9 +53,9 @@ solver.nrtolerance = 1E-5
 
 ref_threshold = 100
 
-bc.type = tension_test
-bc.tension_test.type = uniaxial_stress
-bc.tension_test.disp = (0,1:0,0.5)
+bc.type = tensiontest
+bc.tensiontest.type = uniaxial_stress
+bc.tensiontest.disp = (0,1:0,0.5)
 
 solver.dump_on_fail = 1
 amrex.signal_handling = 0
