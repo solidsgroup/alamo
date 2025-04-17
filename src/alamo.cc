@@ -62,8 +62,8 @@ int main (int argc, char* argv[])
     }
     else if (program == "flame")                pp.select_only<Integrator::Flame>(integrator);
     else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
-    else if (program == "fracture")             integrator = new Integrator::Fracture(pp);
-    else if (program == "fracture_pfczm")       integrator = new Integrator::Fracture_PFCZM(pp);
+    else if (program == "fracture")             pp.select_only<Integrator::Fracture>(integrator);
+    else if (program == "fracture_pfczm")       pp.select_only<Integrator::Fracture_PFCZM>(integrator);
     else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);

@@ -74,6 +74,7 @@ class Fracture:
 {
 
 public:
+    static constexpr const char* name = "fracture";
     Fracture(): Base::Mechanics<brittle_model>(){}
 
     Fracture(IO::ParmParse &pp) : Base::Mechanics<brittle_model>()

@@ -73,8 +73,8 @@ using pfczm_crack_type = Model::Interface::Crack::PFCZM;
 class Fracture_PFCZM: 
     virtual public Base::Mechanics<brittle_model>
 {
-
 public:
+    static constexpr const char* name = "fracture_pfczm";
     Fracture_PFCZM(): Base::Mechanics<brittle_model>(){}
 
     Fracture_PFCZM(IO::ParmParse &pp) : Base::Mechanics<brittle_model>()
@@ -91,41 +91,12 @@ public:
 
         // Let's figure out if we are doing multi-material simulations.
         std::string mat_ic_type;
-        pp.query("material.ic.type", mat_ic_type); // type of material - single material vs multimaterial
-        if(mat_ic_type == "laminate")
+        if (pp.contains("material.ic.type"))
         {
-            IC::Laminate *tmpic = new IC::Laminate(value.geom);
-            pp.queryclass("material.ic.laminate", *tmpic);  // get parameters of a laminate inclusion
-            pp.query("material.ic.laminate.number_of_inclusions", value.material.num_mat); // number of laminate inclusions
-            value.material.num_mat++;
-            value.material.ic = tmpic;
-            value.material.is_ic = true;
-        }
-        else if(mat_ic_type == "ellipse")
-        {
-            IC::Ellipsoid *tmpic = new IC::Ellipsoid(value.geom);
-            pp.queryclass("material.ic.ellipse", *tmpic);   // get parameters of elliptical inclusion
+            pp.select<IC::Laminate, IC::Ellipsoid, IC::PerturbedInterface, IC::BMP>("material.ic", value.material.ic, value.geom);
             value.material.num_mat = 2;
-            value.material.ic = tmpic;
             value.material.is_ic = true;
         }
-        else if(mat_ic_type == "perturbed_interface")
-        {
-            IC::PerturbedInterface *tmpic = new IC::PerturbedInterface(value.geom);
-            pp.queryclass("material.ic.perturbed_interface", *tmpic);   // get parameters of a wavy interface composite
-            value.material.num_mat = 2;
-            value.material.ic = tmpic;
-            value.material.is_ic = true;
-        }
-        else if(mat_ic_type == "bmp")
-        {
-            IC::BMP *tmpic = new IC::BMP(value.geom);
-            pp.queryclass("material.ic.bmp", *tmpic);   // get parameters for image based material initialization
-            value.material.num_mat = 2;
-            value.material.ic = tmpic;
-            value.material.is_ic = true;
-        }
-        // This is the simplest case - homogeneous material
         else
         {
             value.material.num_mat = 1;
@@ -157,14 +128,14 @@ public:
         value.RegisterNodalFab(value.material.eta_mf, value.material.num_mat, 2, "eta", true);
 
         // Crack related parsing
-        pp.query("crack.refinement_threshold",value.crack.refinement_threshold); // mesh refinement criteria
-        pp.query("crack.df.beta", value.crack.beta);   // constant multiplier for fourth orther model with bilaplacian
-        pp.query("crack.df.tol_rel",value.crack.tol_rel); // relative tolerance for convergence of driving force
-        pp.query("crack.df.tol_abs",value.crack.tol_abs);   // absolute tolerance for convergence of driving force
-        pp.query("crack.df.max_iter",value.crack.max_iter);
-        pp.query("crack.df.mult_Gc", value.crack.mult_Gc);  // constant multiplier for controlling fracture energy of interface
-        pp.query("crack.df.mult_lap", value.crack.mult_lap);    // constant multiplier for second order model with laplacian
-        pp.query("crack.df.el_mult", value.crack.el_mult);  // unit conversion multiplier between elastic problem and crack problem
+        pp.query_default("crack.refinement_threshold",value.crack.refinement_threshold,0.0001); // mesh refinement criteria
+        pp.query_default("crack.df.beta", value.crack.beta,0.0);   // constant multiplier for fourth orther model with bilaplacian
+        pp.query_default("crack.df.tol_rel",value.crack.tol_rel,1E-3); // relative tolerance for convergence of driving force
+        pp.query_default("crack.df.tol_abs",value.crack.tol_abs,1E-3);   // absolute tolerance for convergence of driving force
+        pp.query_default("crack.df.max_iter",value.crack.max_iter,500.);
+        pp.query_default("crack.df.mult_Gc", value.crack.mult_Gc,1.0);  // constant multiplier for controlling fracture energy of interface
+        pp.query_default("crack.df.mult_lap", value.crack.mult_lap,1.0);    // constant multiplier for second order model with laplacian
+        pp.query_default("crack.df.el_mult", value.crack.el_mult,1.0);  // unit conversion multiplier between elastic problem and crack problem
 
         // Let's figure out if there is an initial crack or void
         pp.queryarr("crack.ic.type",value.crack.ic_type);   // IC for initial crack
@@ -868,23 +839,23 @@ protected:
         bool is_ic = true;
 
         Set::Scalar scaleModulusMax = 0.02;
-        Set::Scalar refinement_threshold = 0.0001;
-        Set::Scalar mult_lap = 1.0;
-        Set::Scalar mult_Gc = 1.0;
-        Set::Scalar el_mult = 1.0;
+        Set::Scalar refinement_threshold = NAN;
+        Set::Scalar mult_lap = NAN;
+        Set::Scalar mult_Gc = NAN;
+        Set::Scalar el_mult = NAN;
 
         Set::Scalar driving_force_reference = 1.0;
         Set::Scalar driving_force_reference_prev = 1.0;
         Set::Scalar driving_force_norm = 0.0;
-        Set::Scalar tol_rel = 1.e-3;
-        Set::Scalar tol_abs = 1.e-3;
-        Set::Scalar max_iter = 500;
+        Set::Scalar tol_rel = NAN;
+        Set::Scalar tol_abs = NAN;
+        Set::Scalar max_iter = NAN;
         
         Set::Scalar crack_l2_err = 0.0;
         Set::Scalar crack_norm = 0.0;
         Set::Scalar crack_prop_iter = 0;
 
-        Set::Scalar beta = 0.0;
+        Set::Scalar beta = NAN;
     } crack;
     struct{
         Set::Field<Set::Scalar> eta_mf;
