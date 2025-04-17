@@ -18,9 +18,9 @@
 
 // Include foward declare for ScimitarX.H
 namespace Integrator {
-    class ScimitarX;
-    class NarrowBandLevelset_Backup;
-    class NarrowBandLevelset;
+class ScimitarX;
+class NarrowBandLevelset_Backup;
+class NarrowBandLevelset;
 }
 
 namespace Numeric {
@@ -124,14 +124,14 @@ public:
                     Set::Scalar flux_div = 0.0;
 
                     // X-direction flux divergence
-                    flux_div += (xflux_arr(i, j, k, n) - xflux_arr(i-1, j, k, n)) / DX[0];
+                    flux_div += (xflux_arr(i, j, k, n) - xflux_arr(i - 1, j, k, n)) / DX[0];
 
                     // Y-direction flux divergence
-                    flux_div += (yflux_arr(i, j, k, n) - yflux_arr(i, j-1, k, n)) / DX[1];
+                    flux_div += (yflux_arr(i, j, k, n) - yflux_arr(i, j - 1, k, n)) / DX[1];
 
 #if (AMREX_SPACEDIM == 3)
                     // Z-direction flux divergence
-                    flux_div += (zflux_arr(i, j, k, n) - zflux_arr(i, j, k-1, n)) / DX[2];
+                    flux_div += (zflux_arr(i, j, k, n) - zflux_arr(i, j, k - 1, n)) / DX[2];
 #endif
 
                     // Update conserved variable using Euler Forward step
@@ -143,7 +143,7 @@ public:
                                                 yflux_arr(i,j,k,n), yflux_arr(i,j-1,k,n),
                                                 0.0,
                                                 0.0,
-                                                q_old, dt, "Euler Forward Substep", true); */               
+                                                q_old, dt, "Euler Forward Substep", true); */
                 }
             });
         }
@@ -184,7 +184,7 @@ public:
             // Create a temporary narrowband MultiFab
             const amrex::BoxArray narrowband_ba = level_sets[ils].narrowband_ba;
             const amrex::DistributionMapping narrowband_dm = level_sets[ils].narrowband_dm;
-            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  
+            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);
             amrex::MultiFab narrowband_phi(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  // Levelsets
 
             // Loop through tiles
@@ -213,23 +213,23 @@ public:
                     // Exit early if not narrowband cell
                     Set::Scalar nb_val = nb(i, j, k);
                     if (std::abs(nb_val) >= OuterEdge) return;
-                    
+
                     // Initialize flux to 0
                     Set::Scalar flux_div = 0.0;
-                    
+
                     // Compute flux divergence in X-direction
                     flux_div += (xflux_arr(i, j, k, ils) - xflux_arr(i - 1, j, k, ils)) / DX[0];
-                    
+
 #if AMREX_SPACEDIM >= 2
                     // Compute flux divergence in Y-direction
                     flux_div += (yflux_arr(i, j, k, ils) - yflux_arr(i, j - 1, k, ils)) / DX[1];
 #endif
-                    
+
 #if AMREX_SPACEDIM == 3
                     // Compute flux divergence in Z-direction
                     flux_div += (zflux_arr(i, j, k, ils) - zflux_arr(i, j, k - 1, ils)) / DX[2];
 #endif
-                    
+
                     // Euler forward update for level set function
                     ls_arr(i, j, k, ils) = ls_old_arr(i, j, k, ils) - dt * flux_div;
                 });
@@ -253,36 +253,36 @@ public:
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
         const int ncomp = solver->number_of_components;
 
-        // Define edge points of narrowband
+        // Define outside of narrowband
         const int OuterTube = solver->GetOutsideNarrowBandPos();
         const int OuterEdge = solver->GetOuterEdge();
 
-        // Fill the boundaries
-        Numeric::FillBoundaryField(solver->XFlux_mf, lev);
-#if (AMREX_SPACEDIM >= 2)
-        Numeric::FillBoundaryField(solver->YFlux_mf, lev);
-#endif
-#if (AMREX_SPACEDIM == 3)
-        Numeric::FillBoundaryField(solver->ZFlux_mf, lev);
-#endif
+        // Loop through all components
+        for (int ils=0; ils < ncomp; ils++){
+            // Loop through all valid boxes
+            for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
+                // Get the mfi index and skip if not in narrowband boxlist
+                const amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags;
+                const int idx = mfi.index();
 
-        // Loop through tiles
-        for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.validbox();  // Valid region of the box
+                if (narrowband_flags[idx] == 0) continue;
 
-            auto const& ls_arr = solver->ls_mf.Patch(lev, mfi);
-            auto const& ls_old_arr = solver->ls_old_mf.Patch(lev, mfi);
+                // Define the valid box
+                const amrex::Box& bx = mfi.validbox();  // Valid region of the box
 
-            // Get face-centered flux fields
-            auto const& xflux_arr = solver->XFlux_mf.Patch(lev, mfi);;  // X-direction flux
+                // Define array views
+                auto const& ls_arr = solver->ls_mf.Patch(lev, mfi);
+                auto const& ls_old_arr = solver->ls_old_mf.Patch(lev, mfi);
+
+                // Get face-centered flux fields
+                auto const& xflux_arr = solver->XFlux_mf.Patch(lev, mfi);;  // X-direction flux
 #if AMREX_SPACEDIM >= 2
-            auto const& yflux_arr = solver->YFlux_mf.Patch(lev, mfi);  // Y-direction flux
+                auto const& yflux_arr = solver->YFlux_mf.Patch(lev, mfi);  // Y-direction flux
 #endif
 #if AMREX_SPACEDIM == 3
-            auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
+                auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
 #endif
-            // Loop through all levelset fields
-            for (int ils=0; ils < ncomp; ils++){
+
                 // Define narrowband
                 auto const& nb_imf = solver->level_sets[ils].Tube_imf;
                 auto const& nb = (*nb_imf).array(mfi);
@@ -291,7 +291,7 @@ public:
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                     // Exit early if not narrowband cell
                     Set::Scalar nb_val = nb(i, j, k);
-                    if (std::abs(nb_val) == OuterTube) return;
+                    if (std::abs(nb_val) >= OuterEdge) return;
 
                     // Initialize flux to 0
                     Set::Scalar flux_div = 0.0;
@@ -311,7 +311,7 @@ public:
 
                     // Euler forward update for level set function
                     ls_arr(i, j, k, ils) = ls_old_arr(i, j, k, ils) - dt * flux_div;
-                });  
+                });
             }
         }
     }
@@ -385,7 +385,7 @@ public:
             const amrex::Box& bx = mfi.validbox();  // Valid region of the box
             auto const& ls_arr = solver->ls_mf[lev]->array(mfi);  // Current level set field
             auto const& ls_old_arr = solver->ls_old_mf[lev]->array(mfi);  // Old level set field
-            auto const& flux_arr = solver->flux_mf[lev]->array(mfi);  // Computed fluxes 
+            auto const& flux_arr = solver->flux_mf[lev]->array(mfi);  // Computed fluxes
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 // Compute the flux divergence (advection equation: ∂ϕ/∂t + ∇⋅F = 0)
@@ -413,9 +413,9 @@ class RK3Scheme : public TimeSteppingScheme<IntegratorDerivedClass> {
 public:
     struct RK3Constants {
         static constexpr int stages = 3;  // RK3 has 3 stages
-        static constexpr Set::Scalar a[] = {1.0, 0.25, 2.0 / 3.0};  // Coefficients
-        static constexpr Set::Scalar b[] = {0.0, 0.75, 1.0 / 3.0};
-        static constexpr Set::Scalar c[] = {1.0, 0.25, 2.0 / 3.0};
+        static constexpr Set::Scalar a[] = { 1.0, 0.25, 2.0 / 3.0 };  // Coefficients
+        static constexpr Set::Scalar b[] = { 0.0, 0.75, 1.0 / 3.0 };
+        static constexpr Set::Scalar c[] = { 1.0, 0.25, 2.0 / 3.0 };
     };
 
     void ComputeSubStep(int lev, Set::Scalar dt, int stage, IntegratorDerivedClass* solver) override {
@@ -468,8 +468,8 @@ public:
 
                     // **Runge-Kutta 3rd order update formula**
                     q_arr(i, j, k, n) = RK3Constants::a[stage] * q_old_arr(i, j, k, n) +
-                                        RK3Constants::b[stage] * q_arr(i, j, k, n) -
-                                        RK3Constants::c[stage] * dt * flux_div;
+                        RK3Constants::b[stage] * q_arr(i, j, k, n) -
+                        RK3Constants::c[stage] * dt * flux_div;
                 }
             });
         }

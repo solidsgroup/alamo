@@ -42,7 +42,7 @@ class NarrowBandLevelset : virtual public Integrator
 public:
 
     // Constructors
-    NarrowBandLevelset(int a_nghost = 2); // Default constructor
+    NarrowBandLevelset(int a_nghost = 1); // Default constructor
     NarrowBandLevelset(IO::ParmParse& pp); // Constructor that triggers parse
     static void Parse(NarrowBandLevelset& value, IO::ParmParse& pp);
 
@@ -160,7 +160,7 @@ protected:
         amrex::BoxList narrowband_boxes;
         amrex::BoxArray narrowband_ba;
         amrex::DistributionMapping narrowband_dm;
-        //amrex::Vector<int> narrowband_flags;
+        amrex::Vector<int> narrowband_flags;
     };
 
     // Define a structure for the values of the narrowband
@@ -183,8 +183,10 @@ protected:
     Set::Field<Set::Scalar>    ZFlux_mf;                // Z-direction flux field
     Set::Field<Set::Scalar>    Zerols_mf;               // Zero levelset field variable for plotting
     Set::Field<Set::Scalar>    Tube_mf;                 // Narrowband Tube field variable for plotting
+    Set::Field<Set::Scalar>    cpt_mf;                  // CPT field variable for plotting
 
-    std::unique_ptr<amrex::iMultiFab> Zerols_imf;  // Testing iMultiFab Object by declaring it directly without wrapper 
+    std::unique_ptr<amrex::iMultiFab> Zerols_imf;       // Zero levelset imultifab to track izerols
+    std::unique_ptr<amrex::iMultiFab> cpt_imf;          // CPT flag imultifab to track objects
 
     // Solver setup and control functions (override)
     void Initialize(int lev) override;
@@ -196,14 +198,18 @@ protected:
 
     // Class specific functions
     // Narrowband functions
-    void ClearZerols();
+    void ZeroTheZeros(int lev, int ls_id);
+    void ClearZerols(int ls_id);
+    void ClearCPT(int ls_id);
+    void ClearNarrowBand(int lev);
+    void InitializeCPT(int lev, int ls_id);
     void UpdateNarrowband(int lev, int ls_id);
-    void CopyZerolsIMFtoMF(int lev);
+    void CopyZerolsAndCPTIMFtoMF(int lev);
     void CopyTubeIMFtoMF(int lev, int ls_id);
 
     void ComputeNarrowBandBoxList(int lev, int ls_id);
     void ComputeNarrowBandMapping(int lev, int ls_id);
-    //void UpdateNarrowBandFlags(int lev, int ls_id);
+    void UpdateNarrowBandFlags(int lev, int ls_id);
     void UpdateNarrowbandTubeandMapping(int lev, int ls_id);
     // Geometries
     void ComputeNormal(int lev, int ls_id);
@@ -251,14 +257,14 @@ private:
     //
     int current_timestep            = 0;
     const int number_of_components  = 1;     // Number of components (1-levelset value)
-    const int number_of_ghost_cells = 2;     // Number of ghost cells
+    const int number_of_ghost_cells = 1;     // Number of ghost cells
     
     // Define LevelSetData structure object
     std::vector<LevelSetData> level_sets;
     
     // Define size for narrowband
-    Set::Scalar narrow_band_width = 6.0;
-    Set::Scalar inner_narrow_band_width = 4.0;
+    const Set::Scalar inner_narrow_band_width = 4.0;
+    const Set::Scalar narrow_band_width = 6.0;
 
     //
     // Definition of user-determined pointer variables.

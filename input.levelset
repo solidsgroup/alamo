@@ -1,15 +1,15 @@
 ## Simulation output
-plot_file = output_levelset_circle_Advect_1step_no_NBUpdate
+plot_file = output_levelset_circle_Advection_500X500_no_edge_5steps
 
 # Simulation length
-timestep = 0.005
+timestep = 0.001
 stop_time = 0.250
-max_step = 1
+max_step = 5
 
 # AMR parameters
 amr.plot_int = 1
 amr.max_level = 0
-amr.n_cell = 100 100 100
+amr.n_cell = 500 500 500
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0
