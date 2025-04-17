@@ -21,8 +21,8 @@ crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
 
 crack.df.mult_Gc = 1.0
-crack.df.mult_Lap = 1.0
-crack.df.beta = 0.1
+crack.df.mult_lap = 1.0
+crack.beta = 0.1
 crack.df.el_mult = 1.e9
 
 crack.model1.type = constant
@@ -48,6 +48,9 @@ crack.ic.expression.constant.thickness = 1.e-4
 crack.ic.expression.region0 = "1 - (x<=0)*(0.5 + 0.5*tanh(-(abs(y)-thickness)/eps)) - (x>0)*(0.5 + 0.5*tanh(-(sqrt(y^2+x^2)-thickness)/eps))"
 
 
+material.ic.type = constant
+material.ic.constant.value = 1.0
+
 #crack.ic.type = notch
 #crack.ic.notch.center = -0.01 0.0
 #crack.ic.notch.orientation = 1.0 0.0
@@ -64,9 +67,9 @@ crack.bc.type.xlo = NEUMANN
 crack.bc.type.yhi = NEUMANN
 crack.bc.type.ylo = NEUMANN
 
-material.model1.type = isotropic
-material.model1.isotropic.lambda = 121.15
-material.model1.isotropic.mu = 80.77
+#material.model1.type = isotropic
+material.model.lambda = 121.15
+material.model.mu = 80.77
 
 #material.model2.type = isotropic
 #material.model2.isotropic.lambda = 121.15
