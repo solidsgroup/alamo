@@ -21,7 +21,7 @@ crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
 
 crack.df.mult_Gc = 1.0
-crack.df.mult_Lap = 1.0
+crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
 
