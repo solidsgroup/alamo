@@ -1,3 +1,8 @@
+//
+// This class extends :ref:`Model::Solid::Linear::Cubic`
+// by adding an eigenstrain :math:`\mathbf{F}_0`. 
+//
+
 #ifndef MODEL_SOLID_AFFINE_CUBIC_H_
 #define MODEL_SOLID_AFFINE_CUBIC_H_
 
@@ -14,6 +19,7 @@ namespace Affine
 class Cubic : public Linear::Cubic
 {
 public:
+    static constexpr const char *name = "cubic";
 
     Cubic() {};
     Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
@@ -74,8 +80,9 @@ public:
     // an eigenstrain. (See the Linear::Cubic class for more inputs for this model)
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
-        Linear::Cubic::Parse(value,pp);
-        if (pp.contains("F0")) pp_queryarr("F0",value.F0); // Eigenstrain
+        pp.queryclass<Linear::Cubic>(value);
+        if (pp.contains("F0"))
+            pp_queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE
