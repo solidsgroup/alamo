@@ -174,6 +174,41 @@ protected:
         static constexpr int OutsideNarrowBandNeg = -3; // phi > 6.0 * min_DX
         static constexpr int OutsideNarrowBandPos = 3;  // Phi < -6.0 * min_DX
     };
+
+    struct Neighbors {
+        static constexpr int num_neighbors =
+        #if AMREX_SPACEDIM == 1
+            2;
+        #elif AMREX_SPACEDIM == 2
+            4;
+        #elif AMREX_SPACEDIM == 3
+            6;
+        #endif
+    
+        static constexpr int offsets[num_neighbors][3] =
+        #if AMREX_SPACEDIM == 1
+        {
+            {-1, 0, 0},
+            { 1, 0, 0}
+        };
+        #elif AMREX_SPACEDIM == 2
+        {
+            {-1, 0, 0},
+            { 1, 0, 0},
+            { 0,-1, 0},
+            { 0, 1, 0}
+        };
+        #elif AMREX_SPACEDIM == 3
+        {
+            {-1, 0, 0},
+            { 1, 0, 0},
+            { 0,-1, 0},
+            { 0, 1, 0},
+            { 0, 0,-1},
+            { 0, 0, 1}
+        };
+        #endif
+    };
     
     // Variables (multi-fabs)
     Set::Field<Set::Scalar>    ls_mf;                   // Levelset field variable (current timestep)
@@ -201,7 +236,7 @@ protected:
     void ZeroTheZeros(int lev, int ls_id);
     void ClearZerols(int ls_id);
     void ClearCPT(int ls_id);
-    void ClearNarrowBand(int lev);
+    void ClearNarrowBand(amrex::iMultiFab& imf);
     void InitializeCPT(int lev, int ls_id);
     void UpdateNarrowband(int lev, int ls_id);
     void CopyZerolsAndCPTIMFtoMF(int lev);

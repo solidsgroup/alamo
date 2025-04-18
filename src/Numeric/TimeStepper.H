@@ -154,94 +154,6 @@ public:
     }
 };
 
-/*template <>
-class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
-public:
-    void ComputeSubStep(int lev, Set::Scalar dt, int stage, Integrator::NarrowBandLevelset* solver) override {
-        if (stage != 0) {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
-        }
-        // Define constants
-        const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
-        const int ncomp = solver->number_of_components;
-        const int number_of_ghost_cells = solver->number_of_ghost_cells;
-        auto const level_sets = solver->level_sets;
-
-        // Define edge points of narrowband
-        const int OuterEdge = solver->GetOuterEdge();
-
-        // Fill the boundaries
-        Numeric::FillBoundaryField(solver->XFlux_mf, lev);
-        #if (AMREX_SPACEDIM >= 2)
-            Numeric::FillBoundaryField(solver->YFlux_mf, lev);
-        #endif
-        #if (AMREX_SPACEDIM == 3)
-            Numeric::FillBoundaryField(solver->ZFlux_mf, lev);
-        #endif
-
-        // Loop through all levelset fields on the lev
-        for (int ils=0; ils < ncomp; ils++){
-            // Create a temporary narrowband MultiFab
-            const amrex::BoxArray narrowband_ba = level_sets[ils].narrowband_ba;
-            const amrex::DistributionMapping narrowband_dm = level_sets[ils].narrowband_dm;
-            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);
-            amrex::MultiFab narrowband_phi(narrowband_ba, narrowband_dm, 1, number_of_ghost_cells);  // Levelsets
-
-            // Loop through tiles
-            for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
-                const amrex::Box& bx = mfi.validbox();  // Valid region of the box
-
-                // Define levelsets
-                auto const& ls_arr = solver->ls_mf.Patch(lev, mfi);
-                auto const& ls_old_arr = solver->ls_old_mf.Patch(lev, mfi);
-
-                // Define narrowband
-                auto const& nb_imf = solver->level_sets[ils].Tube_imf;
-                auto const& nb = (*nb_imf).array(mfi);
-
-                // Get face-centered flux fields
-                auto const& xflux_arr = solver->XFlux_mf.Patch(lev, mfi);;  // X-direction flux
-#if AMREX_SPACEDIM >= 2
-                auto const& yflux_arr = solver->YFlux_mf.Patch(lev, mfi);  // Y-direction flux
-#endif
-#if AMREX_SPACEDIM == 3
-                auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
-#endif
-
-                // Loop through individual cells
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                    // Exit early if not narrowband cell
-                    Set::Scalar nb_val = nb(i, j, k);
-                    if (std::abs(nb_val) >= OuterEdge) return;
-
-                    // Initialize flux to 0
-                    Set::Scalar flux_div = 0.0;
-
-                    // Compute flux divergence in X-direction
-                    flux_div += (xflux_arr(i, j, k, ils) - xflux_arr(i - 1, j, k, ils)) / DX[0];
-
-#if AMREX_SPACEDIM >= 2
-                    // Compute flux divergence in Y-direction
-                    flux_div += (yflux_arr(i, j, k, ils) - yflux_arr(i, j - 1, k, ils)) / DX[1];
-#endif
-
-#if AMREX_SPACEDIM == 3
-                    // Compute flux divergence in Z-direction
-                    flux_div += (zflux_arr(i, j, k, ils) - zflux_arr(i, j, k - 1, ils)) / DX[2];
-#endif
-
-                    // Euler forward update for level set function
-                    ls_arr(i, j, k, ils) = ls_old_arr(i, j, k, ils) - dt * flux_div;
-                });
-            }
-        }
-    }
-
-    int GetNumberOfStages() const override {
-        return 1;  // Euler Forward has only one stage
-    }
-};*/
-
 template <>
 class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
 public:
@@ -254,7 +166,6 @@ public:
         const int ncomp = solver->number_of_components;
 
         // Define outside of narrowband
-        const int OuterTube = solver->GetOutsideNarrowBandPos();
         const int OuterEdge = solver->GetOuterEdge();
 
         // Loop through all components
@@ -370,42 +281,6 @@ public:
         return 1;  // Euler Forward has only one stage
     }
 };
-
-/*// EulerForwardScheme
-template <>
-class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
-public:
-    void ComputeSubStep(int lev, Set::Scalar dt, int stage, Integrator::NarrowBandLevelset* solver) override {
-        if (stage != 0) {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
-        }
-        const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
-
-        for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.validbox();  // Valid region of the box
-            auto const& ls_arr = solver->ls_mf[lev]->array(mfi);  // Current level set field
-            auto const& ls_old_arr = solver->ls_old_mf[lev]->array(mfi);  // Old level set field
-            auto const& flux_arr = solver->flux_mf[lev]->array(mfi);  // Computed fluxes
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                // Compute the flux divergence (advection equation: ∂ϕ/∂t + ∇⋅F = 0)
-                Set::Scalar flux_div = 0.0;
-
-                // Loop over spatial dimensions
-                for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-                    flux_div += (flux_arr(i, j, k, d) - flux_arr(i - (d == 0), j - (d == 1), k - (d == 2), d)) / DX[d];
-                }
-
-                // Euler forward update for level set function
-                ls_arr(i, j, k) = ls_old_arr(i, j, k) - dt * flux_div;
-            });
-        }
-    }
-
-    int GetNumberOfStages() const override {
-        return 1;  // Euler Forward has only one stage
-    }
-};*/
 
 // RK3 Scheme
 template <typename IntegratorDerivedClass>

@@ -457,7 +457,6 @@ public:
 
                 // Loop through all face cell indices
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                    //amrex::Print() << "iface: " << iface << ", jface: " << jface << ", kface: " << kface << std::endl;
                     // Construct cell-centered indices
                     int cell_centered_index[3] = { iface, jface, kface };
                     int left_cell_centered_index[3] = { iface, jface, kface };
@@ -484,9 +483,6 @@ public:
                     const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
                                                                            right_cell_centered_index[1], 
                                                                            right_cell_centered_index[2]));
-                    //amrex::Print() << "left_cell_centered_index: " << left_cell_center_IV << std::endl;
-                    //amrex::Print() << "cell_centered_index: " << cell_center_IV << std::endl;
-                    //amrex::Print() << "right_cell_centered_index: " << right_cell_center_IV << std::endl;
 
                     // Exit early if not narrowband cell
                     int nb_val = nb_arr(cell_center_IV);
@@ -499,25 +495,18 @@ public:
                     const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
                                                                        face_centered_index[1], 
                                                                        face_centered_index[2]));
-                    //amrex::Print() << "face_centered_index: " << face_centered_IV << std::endl;
 
                     // Compute velocity and its sign (branch-free)
                     Set::Scalar vel = vel_arr(cell_center_IV, direction);
                     int sigma = vel >= 0 ? 1 : 0;
-                    //amrex::Print() << "vel: " << vel << std::endl;
 
                     // First-order upwind reconstruction
                     Set::Scalar QL = sigma * ls(cell_center_IV) + (1.0 - sigma) * ls(left_cell_center_IV);
                     Set::Scalar QR = sigma * ls(right_cell_center_IV) + (1.0 - sigma) * ls(cell_center_IV);
 
-                    //amrex::Print() << "LS_Left: " << ls(left_cell_center_IV) << " LS_Right: " << ls(right_cell_center_IV)  << std::endl;
-                    //amrex::Print() << "QL: " << QL << " QR " << QR << std::endl;
-
                     // Store results
                     QL_arr(face_centered_IV, ils) = QL;
                     QR_arr(face_centered_IV, ils) = QR;
-                    //amrex::Print() << "QL_arr: " << QL_arr(face_centered_IV, ils) << std::endl;
-                    //amrex::Print() << "QR_arr: " << QR_arr(face_centered_IV, ils) << std::endl;
                 });
             }
         }
@@ -883,13 +872,9 @@ public:
                     const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
                                                                            right_cell_centered_index[1], 
                                                                            right_cell_centered_index[2]));
-                    //amrex::Print() << "left_cell_centered_index: " << left_cell_center_IV << std::endl;
-                    //amrex::Print() << "cell_centered_index: " << cell_center_IV << std::endl;
-                    //amrex::Print() << "right_cell_centered_index: " << right_cell_center_IV << std::endl;
 
                     // Exit early if not narrowband cell
                     int nb_val = nb_arr(cell_center_IV);
-                    //amrex::Print() << "nb_arr" << cell_center_IV << " : " << nb_arr(cell_center_IV) << std::endl;
                     if (std::abs(nb_val) == OutsideNarrowband) return;
 
                     // Clamp face centered indices
@@ -899,7 +884,6 @@ public:
                     const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
                                                                        face_centered_index[1], 
                                                                        face_centered_index[2]));
-                    //amrex::Print() << "face_centered_index: " << face_centered_IV << std::endl;
 
                     // Get velocities at left and right faces
                     Set::Scalar vel_L = velocity_arr(left_cell_center_IV, direction);
@@ -911,11 +895,9 @@ public:
                     // Fetch reconstructed level-set values
                     Set::Scalar QL = QL_arr(face_centered_IV, ils);
                     Set::Scalar QR = QR_arr(face_centered_IV, ils);
-                    //amrex::Print() << "QL: " << QL << " QR: " << QR << std::endl;
 
                     // Compute Local Lax-Friedrichs numerical flux
                     Set::Scalar flux = 0.5 * (vel_L * QL + vel_R * QR) - 0.5 * lambda_max * (QR - QL);
-                    //amrex::Print() << "flux: " << flux << std::endl;
 
                     // Store computed flux
                     flux_arr(face_centered_IV, ils) = flux;
