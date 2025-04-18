@@ -8,9 +8,9 @@
 #ifndef IC_NOTCH_H_
 #define IC_NOTCH_H_
 
-#include "Set/Set.H"
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
+#include "Set/Set.H"
 
 // Note: right now this is meant for 2D. We need to rethink this implementation for 3D.
 namespace IC
@@ -18,26 +18,38 @@ namespace IC
 class Notch : public IC<Set::Scalar>
 {
 public:
-    static constexpr const char* name = "notch";
+    static constexpr const char *name = "notch";
+
 public:
-    enum Mollifier {Dirac, Erf, Gaussian, Cosine, Linear};
+    enum Mollifier
+    {
+        Dirac,
+        Erf,
+        Gaussian,
+        Cosine,
+        Linear
+    };
 
     Notch(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)
     {
-        nCenter.resize(1); nCenter[0] = Set::Vector::Zero();
-        nOrientation.resize(1); nOrientation[0] = Set::Vector::Random();
-        nThickness.resize(1); nThickness[0] = 0.01;
-        nLength.resize(1); nLength[0] = 0.1;
+        nCenter.resize(1);
+        nCenter[0] = Set::Vector::Zero();
+        nOrientation.resize(1);
+        nOrientation[0] = Set::Vector::Random();
+        nThickness.resize(1);
+        nThickness[0] = 0.01;
+        nLength.resize(1);
+        nLength[0] = 0.1;
         moll = Mollifier::Dirac;
         eps = 1e-5;
     }
-    Notch(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : 
-        IC<Set::Scalar>(_geom)
+    Notch(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC<Set::Scalar>(_geom)
     {
         pp_queryclass(name, *this);
     }
 
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
+    void
+    Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar pi = std::atan(1.0) * 4;
@@ -50,20 +62,19 @@ public:
             amrex::Array4<Set::Scalar> const &field = a_field[lev]->array(mfi);
             amrex::IndexType type = a_field[lev]->ixType();
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
                 Set::Vector x;
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
-                                x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
-                                 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(   x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
+                                    x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
+                                    x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-                                x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-                                 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(   x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
+                                    x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
+                                    x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                 }
 
                 Set::Scalar min_value = field(i, j, k);
@@ -87,14 +98,19 @@ public:
                         }
                         else if (moll == Mollifier::Dirac)
                         {
-                            if (t < 0.0) value = 0.0;
-                            else value = 1.0;
+                            if (t < 0.0)
+                                value = 0.0;
+                            else
+                                value = 1.0;
                         }
                         else if (moll == Mollifier::Cosine)
                         {
-                            if (t < 0.0) value = 0.0;
-                            else if (t < eps) value = 0.5 - 0.5*std::cos(pi*t/eps);
-                            else value = 1.0;
+                            if (t < 0.0)
+                                value = 0.0;
+                            else if (t < eps)
+                                value = 0.5 - 0.5 * std::cos(pi * t / eps);
+                            else
+                                value = 1.0;
                         }
                     }
                     else
@@ -117,7 +133,6 @@ public:
 
                         Set::Scalar distLeft = (x - nLeft).dot(nOrientation[m]);
                         Set::Scalar distRight = (x - nRight).dot(nOrientation[m]);
-                        
 
                         if (distLeft <= 0.)
                         {
@@ -138,8 +153,10 @@ public:
                             }
                             else if (moll == Mollifier::Dirac)
                             {
-                                if (t < 0.0) value = 0.0;
-                                else value = 1.0;
+                                if (t < 0.0)
+                                    value = 0.0;
+                                else
+                                    value = 1.0;
                             }
                             else if (moll == Mollifier::Cosine)
                             {
@@ -155,23 +172,32 @@ public:
 
                                     if (angTop <= 0.0 && angBot >= 0.0)
                                     {
-                                        if (t2 < 0.0) value = 0.0;
-                                        else if (t2 < eps) value = 0.5 - 0.5*std::cos(pi*t2/eps);
-                                        else value = 1.0;
+                                        if (t2 < 0.0)
+                                            value = 0.0;
+                                        else if (t2 < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t2 / eps);
+                                        else
+                                            value = 1.0;
                                     }
                                     else if (angTop > 0.0 && angBot > 0.0)
                                     {
                                         Set::Scalar t3 = (x - nTopLeft).lpNorm<2>();
-                                        if (t3 < 0.0) value = 0.0;
-                                        else if (t3 < eps) value = 0.5 - 0.5*std::cos(pi*t3/eps);
-                                        else value = 1.0;
+                                        if (t3 < 0.0)
+                                            value = 0.0;
+                                        else if (t3 < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t3 / eps);
+                                        else
+                                            value = 1.0;
                                     }
                                     else
                                     {
                                         Set::Scalar t3 = (x - nBotLeft).lpNorm<2>();
-                                        if (t3 < 0.0) value = 0.0;
-                                        else if (t3 < eps) value = 0.5 - 0.5*std::cos(pi*t3/eps);
-                                        else value = 1.0;
+                                        if (t3 < 0.0)
+                                            value = 0.0;
+                                        else if (t3 < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t3 / eps);
+                                        else
+                                            value = 1.0;
                                     }
                                 }
 
@@ -179,9 +205,12 @@ public:
                                 {
                                     if (std::abs(cosLeft) > cosR)
                                     {
-                                        if (t < 0.0) value = 0.0;
-                                        else if (t < eps) value = 0.5 - 0.5*std::cos(pi*t/eps);
-                                        else value = 1.0;
+                                        if (t < 0.0)
+                                            value = 0.0;
+                                        else if (t < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t / eps);
+                                        else
+                                            value = 1.0;
                                     }
 
                                     else
@@ -189,16 +218,22 @@ public:
                                         if (sinLeft >= 0)
                                         {
                                             Set::Scalar t2 = (x - nTopLeft).lpNorm<2>();
-                                            if (t2 < 0.0) value = 0.0;
-                                            else if (t2 < eps) value = 0.5 - 0.5*std::cos(pi*t2/eps);
-                                            else value = 1.0;
+                                            if (t2 < 0.0)
+                                                value = 0.0;
+                                            else if (t2 < eps)
+                                                value = 0.5 - 0.5 * std::cos(pi * t2 / eps);
+                                            else
+                                                value = 1.0;
                                         }
                                         else
                                         {
                                             Set::Scalar t2 = (x - nBotLeft).lpNorm<2>();
-                                            if (t2 < 0.0) value = 0.0;
-                                            else if (t2 < eps) value = 0.5 - 0.5*std::cos(pi*t2/eps);
-                                            else value = 1.0;
+                                            if (t2 < 0.0)
+                                                value = 0.0;
+                                            else if (t2 < eps)
+                                                value = 0.5 - 0.5 * std::cos(pi * t2 / eps);
+                                            else
+                                                value = 1.0;
                                         }
                                     }
                                 }
@@ -223,8 +258,10 @@ public:
                             }
                             else if (moll == Mollifier::Dirac)
                             {
-                                if (t < 0.0) value = 0.0;
-                                else value = 1.0;
+                                if (t < 0.0)
+                                    value = 0.0;
+                                else
+                                    value = 1.0;
                             }
                             else if (moll == Mollifier::Cosine)
                             {
@@ -239,23 +276,32 @@ public:
 
                                     if (angTop <= 0.0 && angBot >= 0.0)
                                     {
-                                        if (t2 < 0.0) value = 0.0;
-                                        else if (t2 < eps) value = 0.5 - 0.5*std::cos(pi*t2/eps);
-                                        else value = 1.0;
+                                        if (t2 < 0.0)
+                                            value = 0.0;
+                                        else if (t2 < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t2 / eps);
+                                        else
+                                            value = 1.0;
                                     }
                                     else if (angTop > 0.0 && angBot > 0.0)
                                     {
                                         Set::Scalar t3 = (x - nTopRight).lpNorm<2>();
-                                        if (t3 < 0.0) value = 0.0;
-                                        else if (t3 < eps) value = 0.5 - 0.5*std::cos(pi*t3/eps);
-                                        else value = 1.0;
+                                        if (t3 < 0.0)
+                                            value = 0.0;
+                                        else if (t3 < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t3 / eps);
+                                        else
+                                            value = 1.0;
                                     }
                                     else
                                     {
                                         Set::Scalar t3 = (x - nBotRight).lpNorm<2>();
-                                        if (t3 < 0.0) value = 0.0;
-                                        else if (t3 < eps) value = 0.5 - 0.5*std::cos(pi*t3/eps);
-                                        else value = 1.0;
+                                        if (t3 < 0.0)
+                                            value = 0.0;
+                                        else if (t3 < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t3 / eps);
+                                        else
+                                            value = 1.0;
                                     }
                                 }
 
@@ -263,9 +309,12 @@ public:
                                 {
                                     if (std::abs(cosRight) > cosR)
                                     {
-                                        if (t < 0.0) value = 0.0;
-                                        else if (t < eps) value = 0.5 - 0.5*std::cos(pi*t/eps);
-                                        else value = 1.0;
+                                        if (t < 0.0)
+                                            value = 0.0;
+                                        else if (t < eps)
+                                            value = 0.5 - 0.5 * std::cos(pi * t / eps);
+                                        else
+                                            value = 1.0;
                                     }
 
                                     else
@@ -273,16 +322,22 @@ public:
                                         if (sinRight >= 0)
                                         {
                                             Set::Scalar t2 = (x - nTopRight).lpNorm<2>();
-                                            if (t2 < 0.0) value = 0.0;
-                                            else if (t2 < eps) value = 0.5 - 0.5*std::cos(pi*t2/eps);
-                                            else value = 1.0;
+                                            if (t2 < 0.0)
+                                                value = 0.0;
+                                            else if (t2 < eps)
+                                                value = 0.5 - 0.5 * std::cos(pi * t2 / eps);
+                                            else
+                                                value = 1.0;
                                         }
                                         else
                                         {
                                             Set::Scalar t2 = (x - nBotRight).lpNorm<2>();
-                                            if (t2 < 0.0) value = 0.0;
-                                            else if (t2 < eps) value = 0.5 - 0.5*std::cos(pi*t2/eps);
-                                            else value = 1.0;
+                                            if (t2 < 0.0)
+                                                value = 0.0;
+                                            else if (t2 < eps)
+                                                value = 0.5 - 0.5 * std::cos(pi * t2 / eps);
+                                            else
+                                                value = 1.0;
                                         }
                                     }
                                 }
@@ -293,8 +348,10 @@ public:
                 }
                 field(i, j, k) = min_value;
 
-                if (field(i,j,k) < 0.) field(i,j,k) = 0.;
-                if (field(i,j,k) > 1.) field(i,j,k) = 1.;
+                if (field(i, j, k) < 0.)
+                    field(i, j, k) = 0.;
+                if (field(i, j, k) > 1.)
+                    field(i, j, k) = 1.;
             });
         }
         a_field[lev]->FillBoundary();
@@ -307,7 +364,8 @@ private:
     Mollifier moll = Mollifier::Dirac;
 
 public:
-    static void Parse(Notch & value, IO::ParmParse & pp)
+    static void
+    Parse(Notch &value, IO::ParmParse &pp)
     {
         value.nCenter.clear();
         value.nOrientation.clear();
@@ -341,7 +399,8 @@ public:
             Util::Abort(INFO, "Insufficient values in orientation");
 
         for (int i = 0; i < value.nOrientation.size(); i++)
-            if(value.nOrientation[i].lpNorm<2>() <= 0.) value.nOrientation[i] = Set::Vector::Random();
+            if (value.nOrientation[i].lpNorm<2>() <= 0.)
+                value.nOrientation[i] = Set::Vector::Random();
 
         pp_queryarr("thickness", value.nThickness); // Thickness of notch
         pp_queryarr("length", value.nLength);       // Length of notch
@@ -351,9 +410,10 @@ public:
         if (value.nThickness.size() == 0)
         {
             value.nThickness.resize(value.nCenter.size());
-            for (int i=0; i<value.nThickness.size(); i++) value.nThickness[i] = 0.0;
+            for (int i = 0; i < value.nThickness.size(); i++)
+                value.nThickness[i] = 0.0;
         }
-        else if(value.nThickness.size() == 1)
+        else if (value.nThickness.size() == 1)
         {
             Set::Scalar temp_thickness = value.nThickness[0] < 0. ? 0.0 : value.nThickness[0];
             value.nThickness.clear();
@@ -361,16 +421,20 @@ public:
             for (int i = 0; i < value.nThickness.size(); i++)
                 value.nThickness[i] = temp_thickness;
         }
-        else if(value.nThickness.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of thickness and centers");
+        else if (value.nThickness.size() != value.nCenter.size())
+            Util::Abort(INFO, "Inconsistent size of thickness and centers");
         else
         {
             for (int i = 0; i < value.nThickness.size(); i++)
-                if(value.nThickness[i] < 0.) value.nThickness[i] = 0.0;
+                if (value.nThickness[i] < 0.)
+                    value.nThickness[i] = 0.0;
         }
 
-        if(value.nLength.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of length and centers");
+        if (value.nLength.size() != value.nCenter.size())
+            Util::Abort(INFO, "Inconsistent size of length and centers");
         for (int i = 0; i < value.nLength.size(); i++)
-            if(value.nLength[i] <= 0.) value.nLength[i] = 0.1;
+            if (value.nLength[i] <= 0.)
+                value.nLength[i] = 0.1;
 
         if (value.nRadius.size() == 0)
         {
@@ -378,17 +442,21 @@ public:
             for (int i = 0; i < value.nRadius.size(); i++)
                 value.nRadius[i] = value.nThickness[i] / 2.0;
         }
-        else if(value.nRadius.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of radius and centers");
+        else if (value.nRadius.size() != value.nCenter.size())
+            Util::Abort(INFO, "Inconsistent size of radius and centers");
         else
         {
             for (int i = 0; i < value.nRadius.size(); i++)
             {
-                if(value.nRadius[i] <= 0.0) value.nRadius[i] = 0.0;
-                else if(value.nRadius[i] <= value.nThickness[i]) value.nRadius[i] = value.nThickness[i];
+                if (value.nRadius[i] <= 0.0)
+                    value.nRadius[i] = 0.0;
+                else if (value.nRadius[i] <= value.nThickness[i])
+                    value.nRadius[i] = value.nThickness[i];
             }
         }
         // Util::Message(INFO, "value.nRadius.size() = ", value.nRadius.size(), ". value.nRadius[0] = ", value.nRadius[0]);
-        if(value.eps <= 0.) value.eps = 1.e-5;
+        if (value.eps <= 0.)
+            value.eps = 1.e-5;
 
         std::string mollifier;
         pp_query("mollifier", mollifier); // What kind of smoother to use {dirac,gauss,erf,cos}

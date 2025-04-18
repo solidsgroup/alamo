@@ -81,6 +81,9 @@ solver.tol_rel = 1e-7
 solver.verbose = 3
 solver.nriters = 1
 solver.fixed_iter = 10000
+solver.normalize_ddw = 1
+solver.average_down_coeffs = 1
+
 
 #
 # Mechanics inputs

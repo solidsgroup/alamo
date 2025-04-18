@@ -9,7 +9,7 @@
 //
 //      \mathcal{L}= \int_\Omega \left[\left(g(c) + \eta \right)W_0^+ + W_0^-\right] dV + \int_\Omega G_c \left[ \frac{w(c)}{4\xi} + \xi |\nabla c|^2\right] dV
 //
-// where :math:`g(c)` and :math:`w(c)` are interpolation functions specified by the user. 
+// where :math:`g(c)` and :math:`w(c)` are interpolation functions specified by the user.
 // The fracture energy :math:`G_c` and crack length scale :math:`xi` are also read from input file.
 // The tension compression asymmetry is accounted by splitting the strain energy :math:`W_0` as
 // .. math::
@@ -17,14 +17,14 @@
 // W_0^\pm = \frac{1}{2} \lambda (\operatorname{tr}\bm{\varepsilon}_\pm)^2 + \mu \operatorname{tr}\left(\bm{\varepsilon}_\pm^2\right), \quad \bm{\varepsilon_\pm} = \sum_{i=1}^d \left(\varepsilon_i \right)_\pm \hat{\bm{v}}_i\otimes\hat{\bm{v}}_i
 //
 // where :math:`\lambda` and :math:`\mu` are material models for linear elastic isotropic material, :math:`\bm{\varepsilon}_\pm` are the positive and negative components of the strain tensor :math:`\bm{\varepsilon}` computed through eigenvalue decomposition.
-// The fourth order model adds a laplacian term to the free energy functional. 
+// The fourth order model adds a laplacian term to the free energy functional.
 // The code performs a staggered solve where it solves the elastic problem implicitly and crack problem explicitly.
 //
 // Class methods:
-// 
-// #. :code:`Fracture()`: 
+//
+// #. :code:`Fracture()`:
 //    Basic constructor. Does nothing, and leaves all values initiated as NAN.
-// #. :code:`Fracture(IO::ParmParse &pp)`: 
+// #. :code:`Fracture(IO::ParmParse &pp)`:
 //    Calls the parser.
 // #. :code:`static void Parse(Fracture &value, IO::ParmParse &pp)`
 //    Parses input file, ICs, BCs, and sets up multifabs appropriately
@@ -48,44 +48,44 @@
 
 #include "Integrator/Base/Mechanics.H"
 
-#include "Model/Solid/Linear/Isotropic.H"
 #include "Model/Interface/Crack/PFCZM.H"
+#include "Model/Solid/Linear/Isotropic.H"
 
 #include "BC/Constant.H"
-#include "IC/IC.H"
-#include "IC/Ellipsoid.H"
-#include "IC/Ellipse.H"
-#include "IC/Notch.H"
-#include "IC/Laminate.H"
-#include "IC/PerturbedInterface.H"
 #include "IC/BMP.H"
+#include "IC/Ellipse.H"
+#include "IC/Ellipsoid.H"
 #include "IC/Expression.H"
+#include "IC/IC.H"
+#include "IC/Laminate.H"
+#include "IC/Notch.H"
+#include "IC/PerturbedInterface.H"
 
 #include "Numeric/Stencil.H"
 
-#include <eigen3/Eigen/Dense>
 #include <cmath>
+#include <eigen3/Eigen/Dense>
 
 namespace Integrator
 {
 using brittle_model = Model::Solid::Linear::Isotropic;
 using pfczm_crack_type = Model::Interface::Crack::PFCZM;
 
-class Fracture_PFCZM: 
-    virtual public Base::Mechanics<brittle_model>
+class Fracture_PFCZM : virtual public Base::Mechanics<brittle_model>
 {
 public:
-    static constexpr const char* name = "fracture_pfczm";
-    Fracture_PFCZM(): Base::Mechanics<brittle_model>(){}
+    static constexpr const char *name = "fracture_pfczm";
+    Fracture_PFCZM() : Base::Mechanics<brittle_model>() {}
 
     Fracture_PFCZM(IO::ParmParse &pp) : Base::Mechanics<brittle_model>()
     {
-        Parse(*this,pp);
+        Parse(*this, pp);
     }
 
-    static void Parse(Fracture_PFCZM &value, IO::ParmParse &pp)
+    static void
+    Parse(Fracture_PFCZM &value, IO::ParmParse &pp)
     {
-        Base::Mechanics<brittle_model>::Parse(value,pp);
+        Base::Mechanics<brittle_model>::Parse(value, pp);
 
         // Material field related parsing
         pp.query("material.refinement_threshold", value.material.m_eta_ref_threshold);
@@ -97,6 +97,7 @@ public:
         std::string mat_ic_type;
         if (pp.contains("material.ic.type"))
         {
+            // IC determining material distribution
             pp.select<IC::Laminate, IC::Ellipsoid, IC::PerturbedInterface, IC::BMP>("material.ic", value.material.ic, value.geom);
             value.material.num_mat = 2;
             value.material.is_ic = true;
@@ -108,112 +109,114 @@ public:
         }
 
         // Let's query material properties for different materials in the system
-        for (int i = 0; i<value.material.num_mat; i++)
+        for (int i = 0; i < value.material.num_mat; i++)
         {
-            std::string name = "material.model" + std::to_string(i+1);
-            std::string name_type = "material.model" + std::to_string(i+1) + ".type";
+            std::string name = "material.model" + std::to_string(i + 1);
+            std::string name_type = "material.model" + std::to_string(i + 1) + ".type";
             std::string mat_model_type;
-            pp.query(name_type.c_str(),mat_model_type); // read type of material - isotropic is the only option for now.
-            
-            // For now we only have isotropic implemented. 
-            if(mat_model_type == "isotropic")
+            pp.query(name_type.c_str(), mat_model_type); // read type of material - isotropic is the only option for now.
+
+            // For now we only have isotropic implemented.
+            if (mat_model_type == "isotropic")
             {
                 brittle_model tmp_model;
-                pp.queryclass(std::string((name+".isotropic").data()), tmp_model);  // read values of isotropic model
+                pp.queryclass(std::string((name + ".isotropic").data()), tmp_model); // read values of isotropic model
                 value.material.models.push_back(tmp_model);
             }
             else
                 Util::Abort(INFO, "This type of material model is not supported for fracture.");
         }
-        Util::Assert(INFO,TEST(value.material.models.size() > 0));
+        Util::Assert(INFO, TEST(value.material.models.size() > 0));
 
-        // This is the fab that stores the material field. 
+        // This is the fab that stores the material field.
         // For a simple, single material simulation, this will be a uniform field with value 1 everywhere
         value.RegisterNodalFab(value.material.eta_mf, value.material.num_mat, 2, "eta", true);
 
         // Crack related parsing
-        pp.query_default("crack.refinement_threshold",value.crack.refinement_threshold,0.0001); // mesh refinement criteria
-        pp.query_default("crack.df.beta", value.crack.beta,0.0);   // constant multiplier for fourth orther model with bilaplacian
-        pp.query_default("crack.df.tol_rel",value.crack.tol_rel,1E-3); // relative tolerance for convergence of driving force
-        pp.query_default("crack.df.tol_abs",value.crack.tol_abs,1E-3);   // absolute tolerance for convergence of driving force
-        pp.query_default("crack.df.max_iter",value.crack.max_iter,500.);
-        pp.query_default("crack.df.mult_Gc", value.crack.mult_Gc,1.0);  // constant multiplier for controlling fracture energy of interface
-        pp.query_default("crack.df.mult_lap", value.crack.mult_lap,1.0);    // constant multiplier for second order model with laplacian
-        pp.query_default("crack.df.el_mult", value.crack.el_mult,1.0);  // unit conversion multiplier between elastic problem and crack problem
-
+        pp.query_default("crack.refinement_threshold", value.crack.refinement_threshold, 0.0001); // mesh refinement criteria
+        pp.query_default("crack.df.beta", value.crack.beta, 0.0);                                 // constant multiplier for fourth orther model with bilaplacian
+        pp.query_default("crack.df.tol_rel", value.crack.tol_rel, 1E-3);                          // relative tolerance for convergence of driving force
+        pp.query_default("crack.df.tol_abs", value.crack.tol_abs, 1E-3);                          // absolute tolerance for convergence of driving force
+        pp.query_default("crack.df.max_iter", value.crack.max_iter, 500.);                        // Maximum number of solver iterations
+        pp.query_default("crack.df.mult_Gc", value.crack.mult_Gc, 1.0);                           // constant multiplier for controlling fracture energy of interface
+        pp.query_default("crack.df.mult_lap", value.crack.mult_lap, 1.0);                         // constant multiplier for second order model with laplacian
+        pp.query_default("crack.df.el_mult", value.crack.el_mult, 1.0);                           // unit conversion multiplier between elastic problem and crack problem
 
         // Let's figure out if there is an initial crack or void
-        pp.select_enumerate<IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>
-            ("crack.ic",value.crack.ic,value.geom);
+        pp.select_enumerate<IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
 
-        
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
         value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
         value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", true);
         value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", true);
-        value.RegisterIntegratedVariable(&(value.crack.driving_force_norm),"driving_force_norm");
+        value.RegisterIntegratedVariable(&(value.crack.driving_force_norm), "driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
-        
+
         // By default the psi variable will be on for fracture simulations
         value.psi_on = true;
-        value.bc_psi = new BC::Constant(1,pp,"crack.bc");   // boundary conditions for crack
-        value.RegisterNewFab(value.psi_mf,value.bc_psi,1,2,"psi",true);
-        
+        value.bc_psi = new BC::Constant(1, pp, "crack.bc"); // boundary conditions for crack
+        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
+
         // This is needed for the specific crack model we are implementing
-        for (int i = 0; i<value.material.num_mat; i++)
+        for (int i = 0; i < value.material.num_mat; i++)
         {
-            std::string name = "crack.model" + std::to_string(i+1);
-            std::string name_type = "crack.model" + std::to_string(i+1) + ".type";
+            std::string name = "crack.model" + std::to_string(i + 1);
+            std::string name_type = "crack.model" + std::to_string(i + 1) + ".type";
             std::string mat_model_type;
-            pp.query(name_type.c_str(),mat_model_type); // type of crack model - only constant so far
+            pp.query(name_type.c_str(), mat_model_type); // type of crack model - only constant so far
             // For now we only have a crack of constant Gc implemented
-            if(mat_model_type == "pfczm")
+            if (mat_model_type == "pfczm")
             {
                 pfczm_crack_type tmp_model;
-                pp.queryclass(std::string((name+".pfczm").data()), tmp_model);   // get parameters for a constant crack model.
+                pp.queryclass(std::string((name + ".pfczm").data()), tmp_model); // get parameters for a constant crack model.
                 value.crack.cracktype.push_back(tmp_model);
             }
             else
                 Util::Abort(INFO, "This type of material model is not supported for fracture.");
         }
-        Util::Assert(INFO,TEST(value.material.models.size() > 0));
+        Util::Assert(INFO, TEST(value.material.models.size() > 0));
     }
 
-    void Initialize(int lev) override
+    void
+    Initialize(int lev) override
     {
         Base::Mechanics<brittle_model>::Initialize(lev);
 
         crack.c_mf[lev]->setVal(1.0);
         crack.c_old_mf[lev]->setVal(1.0);
-        
+
         // For now, we are setting psi field to 1. This prevents nans.
         // We will modify the psi field later.
         psi_mf[lev]->setVal(1.0);
 
-        if(crack.is_ic)
+        if (crack.is_ic)
         {
-            for (int i=0; i < crack.ic.size(); i++)
+            for (int i = 0; i < crack.ic.size(); i++)
             {
                 // This initializes the crack field.
-                crack.ic[i]->Add(lev,crack.c_mf);
-                crack.ic[i]->Add(lev,crack.c_old_mf);
+                crack.ic[i]->Add(lev, crack.c_mf);
+                crack.ic[i]->Add(lev, crack.c_old_mf);
             }
         }
 
         // This initializes the material field
         material.eta_mf[lev]->setVal(1.0);
-        if (material.is_ic) material.ic->Initialize(lev,material.eta_mf);
-        else material.eta_mf[lev]->setVal(1.0);
+        if (material.is_ic)
+            material.ic->Initialize(lev, material.eta_mf);
+        else
+            material.eta_mf[lev]->setVal(1.0);
 
         // set history variable to zero
-        crack.history_var_mf[lev] -> setVal(0.0);
+        crack.history_var_mf[lev]->setVal(0.0);
     }
 
-    virtual void UpdateModel(int a_step, Set::Scalar /*a_time*/) override
+    virtual void
+    UpdateModel(int a_step, Set::Scalar /*a_time*/) override
     {
-        if (m_type == Base::Mechanics<brittle_model>::Type::Disable) return;
+        if (m_type == Base::Mechanics<brittle_model>::Type::Disable)
+            return;
 
         // This sets the model field for the very first time step
         // We should not be resetting model field everytime.
@@ -229,12 +232,12 @@ public:
                     amrex::Array4<brittle_model> const &model = model_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                                model(i,j,k) = brittle_model::Zero();
-                                                for (int n = 0; n < material.num_mat; n++) 
-                                                    model(i,j,k) += eta(i,j,k,n) * material.models[n];
-                                            });
+                        model(i, j, k) = brittle_model::Zero();
+                        for (int n = 0; n < material.num_mat; n++)
+                            model(i, j, k) += eta(i, j, k, n) * material.models[n];
+                    });
                 }
-                Util::RealFillBoundary(*model_mf[lev],geom[lev]);
+                Util::RealFillBoundary(*model_mf[lev], geom[lev]);
             }
         }
 
@@ -249,19 +252,19 @@ public:
                 amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-                                            // psi(i,j,k,0) = crack.cracktype[0].g_phi(c(i,j,k,0));
-                                            psi(i,j,k,0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c,i,j,k,0));
-                                        });
+                    // psi(i,j,k,0) = crack.cracktype[0].g_phi(c(i,j,k,0));
+                    psi(i, j, k, 0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c, i, j, k, 0));
+                });
             }
             psi_mf[lev]->FillBoundary();
         }
     }
 
-    void TimeStepBegin(Set::Scalar a_time, int a_step) override
+    void
+    TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         // Deciding whether to do an elastic solve or not
-        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.driving_force_reference_prev, " ", crack.tol_rel);
+        Util::Message(INFO, crack.driving_force_norm, " ", crack.driving_force_reference, " ", crack.driving_force_reference_prev, " ", crack.tol_rel);
         if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > crack.max_iter)
         {
             crack.crack_prop_iter = 0;
@@ -269,25 +272,29 @@ public:
         }
         if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > crack.max_iter)
         {
-           elastic_do_solve_now = true;
-           crack.crack_prop_iter = 0;
+            elastic_do_solve_now = true;
+            crack.crack_prop_iter = 0;
         }
         if (increase_load_step)
         {
-            Util::Message(INFO, "Load step = ", loadstep+1);
+            Util::Message(INFO, "Load step = ", loadstep + 1);
             elastic_do_solve_now = true;
             crack.crack_prop_iter = 0;
             increase_load_step = false;
             set_new_reference = true;
-            // if (loadstep == 0) set_initial_df_once = true; 
-            loadstep ++;
+            // if (loadstep == 0) set_initial_df_once = true;
+            loadstep++;
         }
-        
+
         // This means that the crack field has not converged.
-        if (!elastic_do_solve_now) {crack.crack_prop_iter++; return;}
+        if (!elastic_do_solve_now)
+        {
+            crack.crack_prop_iter++;
+            return;
+        }
 
         // Doing an elastic solve
-        Base::Mechanics<brittle_model>::TimeStepBegin((double)loadstep,a_step);
+        Base::Mechanics<brittle_model>::TimeStepBegin((double)loadstep, a_step);
 
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
@@ -299,15 +306,14 @@ public:
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
-                amrex::Array4<Set::Scalar>     const &eta   = material.eta_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar>     const &c     = crack.c_mf[lev]->array(mfi);
-                amrex::Array4<Set::Matrix>     const &stress  = stress_mf[lev]->array(mfi);
-                amrex::Array4<Set::Matrix>     const &strain  = strain_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar>     const &energy  = crack.energy_pristine_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar>     const &history_var  = crack.history_var_mf[lev]->array(mfi);
-                
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                {
+                amrex::Array4<Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
+                amrex::Array4<Set::Matrix> const &stress = stress_mf[lev]->array(mfi);
+                amrex::Array4<Set::Matrix> const &strain = strain_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const &energy = crack.energy_pristine_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const &history_var = crack.history_var_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     //==========================================================
                     // The formulation below uses decomposition of stress
                     // Set::Matrix sig = stress(i,j,k);
@@ -334,7 +340,7 @@ public:
                     //     // compute energy from deviatoric portion
                     //     energy(i,j,k,1) += eta(i,j,k,n) * material.models[n].W2(sig_n_dev);
                     // }
-                    
+
                     // // Only update energy if it is increasing. (H^+ according to Miehe)
                     // if (energy(i,j,k,0) < energy_old(i,j,k,0)) energy(i,j,k,0) = energy_old(i,j,k,0);
                     // if (energy(i,j,k,1) < energy_old(i,j,k,1)) energy(i,j,k,1) = energy_old(i,j,k,1);
@@ -342,11 +348,11 @@ public:
                     //==========================================================
                     // The formulation below uses Ambati's decomposition of strain
                     // Perform eigenvalue decomposition of strain
-                    Set::Matrix eps = strain(i,j,k);
-                    Set::Matrix sig = stress(i,j,k);
-                    energy(i,j,k,0) = 0.0;
-                    energy(i,j,k,1) = 0.0;
-                    energy(i,j,k,2) = 0.0;
+                    Set::Matrix eps = strain(i, j, k);
+                    Set::Matrix sig = stress(i, j, k);
+                    energy(i, j, k, 0) = 0.0;
+                    energy(i, j, k, 1) = 0.0;
+                    energy(i, j, k, 2) = 0.0;
 
                     if (!crack.cracktype[0].mixed_mode())
                     {
@@ -358,169 +364,183 @@ public:
                         // Reconstruct positive and negative counterparts of strain
                         Set::Matrix eps_p = Set::Matrix::Zero();
                         Set::Matrix eps_n = Set::Matrix::Zero();
-                        
-                        for (int n = 0; n<AMREX_SPACEDIM; n++)
+
+                        for (int n = 0; n < AMREX_SPACEDIM; n++)
                         {
-                            if(eValues(n) > 0.0) eps_p += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
-                            else eps_n += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
+                            if (eValues(n) > 0.0)
+                                eps_p += eValues(n) * (eVectors.col(n) * eVectors.col(n).transpose());
+                            else
+                                eps_n += eValues(n) * (eVectors.col(n) * eVectors.col(n).transpose());
                         }
 
                         for (int n = 0; n < material.num_mat; n++)
-                            energy(i,j,k,0) += eta(i,j,k,n)*material.models[n].W(eps_p);
-                        
-                        if (energy(i,j,k,0) > history_var(i,j,k,0)) history_var(i,j,k,0) = energy(i,j,k,0);
+                            energy(i, j, k, 0) += eta(i, j, k, n) * material.models[n].W(eps_p);
+
+                        if (energy(i, j, k, 0) > history_var(i, j, k, 0))
+                            history_var(i, j, k, 0) = energy(i, j, k, 0);
                     }
                     else
                     {
                         // Here we implement the 2023 model by Wang et al (DOI: 10.1016/j.apm.2022.12.006)
-                        Set::Vector crack_grad      =  Numeric::Gradient(c, i, j, k, 0, DX.data());
+                        Set::Vector crack_grad = Numeric::Gradient(c, i, j, k, 0, DX.data());
                         if (crack_grad.lpNorm<2>() > 1.e-4)
                         {
 
-                        // perform eigenvalue decomposition of stress tensor.
-                        Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(sig);
-                        Set::Vector eValues = eigensolver.eigenvalues();
-                        Set::Matrix eVectors = eigensolver.eigenvectors();
+                            // perform eigenvalue decomposition of stress tensor.
+                            Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(sig);
+                            Set::Vector eValues = eigensolver.eigenvalues();
+                            Set::Matrix eVectors = eigensolver.eigenvectors();
 
-                        // Let's order the evalues
-                        Set::Scalar sig1 = 0., sig2 = 0.;
-                        Set::Vector vec1 = Set::Vector::Zero(), vec2 = Set::Vector::Zero();
-                        if (eValues(0) > eValues(1))    { sig1 = eValues(0); sig2 = eValues(1); vec1 = eVectors.col(0); vec2 = eVectors.col(1); }
-                        else                            { sig1 = eValues(1); sig2 = eValues(0); vec1 = eVectors.col(1); vec2 = eVectors.col(0); }
-
-                        // Storing useful quantities for later.
-                        Set::Scalar sig_t       = crack.cracktype[0].sig_t();
-                        Set::Scalar tau_f       = crack.cracktype[0].tau_s();
-                        Set::Scalar chi         = crack.cracktype[0].chi();
-                        Set::Scalar mohr_center = 0.5 * (sig1 + sig2);
-                        Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
-                        Set::Scalar beta_bar    = crack.cracktype[0].beta_bar();
-                        Set::Scalar beta        = 1.0;
-
-                        // Now let's compute a candidate theta
-                        // Ideally, theta = 0 is always a valid solution and corresponds to sig_nn = sig1, tau_nm = 0
-                        Set::Scalar theta = 0.0;
-                        beta = sig1 < 0 ? beta_bar : 1.0;
-                        Set::Scalar f_theta = (beta*(crack.el_mult * crack.el_mult * sig1 * sig1 / (sig_t * sig_t))) - 1;
-                        // Set::Scalar r_star = sig1 - (sig_t/crack.el_mult);
-
-                        // Now we check for other feasible solutions. First we check for beta = 1.
-                        Set::Scalar sig_nn1 = 0., tau_nm1 = 0.;
-                        Set::Scalar theta_candidate1 = 0.0, f_candidate1 = 0.;
-                        Set::Scalar temp = (mohr_center / mohr_radius) * (chi*chi / (1.0 - (chi*chi)));
-                        if (temp > 0.0 && temp <= 1.0)
-                        {
-                            theta_candidate1 = 0.5 * std::acos(temp);
-
-                            // Now check if this actually leas to a positive sig_nn value
-                            sig_nn1 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate1));
-                            tau_nm1 = mohr_radius * std::sin(2.0*theta_candidate1);
-
-                            if (sig_nn1 > 0.0)
+                            // Let's order the evalues
+                            Set::Scalar sig1 = 0., sig2 = 0.;
+                            Set::Vector vec1 = Set::Vector::Zero(), vec2 = Set::Vector::Zero();
+                            if (eValues(0) > eValues(1))
                             {
-                                f_candidate1 = (crack.el_mult * crack.el_mult * sig_nn1 * sig_nn1 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm1 * tau_nm1 / (tau_f * tau_f)) - 1.0;
+                                sig1 = eValues(0);
+                                sig2 = eValues(1);
+                                vec1 = eVectors.col(0);
+                                vec2 = eVectors.col(1);
+                            }
+                            else
+                            {
+                                sig1 = eValues(1);
+                                sig2 = eValues(0);
+                                vec1 = eVectors.col(1);
+                                vec2 = eVectors.col(0);
+                            }
 
-                                // We only use this solution if the value of the failure surface is larger.
-                                if (f_candidate1 > f_theta) 
-                                { 
-                                    theta = theta_candidate1; 
-                                    f_theta = f_candidate1; 
-                                    beta = 1.0;
+                            // Storing useful quantities for later.
+                            Set::Scalar sig_t = crack.cracktype[0].sig_t();
+                            Set::Scalar tau_f = crack.cracktype[0].tau_s();
+                            Set::Scalar chi = crack.cracktype[0].chi();
+                            Set::Scalar mohr_center = 0.5 * (sig1 + sig2);
+                            Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
+                            Set::Scalar beta_bar = crack.cracktype[0].beta_bar();
+                            Set::Scalar beta = 1.0;
+
+                            // Now let's compute a candidate theta
+                            // Ideally, theta = 0 is always a valid solution and corresponds to sig_nn = sig1, tau_nm = 0
+                            Set::Scalar theta = 0.0;
+                            beta = sig1 < 0 ? beta_bar : 1.0;
+                            Set::Scalar f_theta = (beta * (crack.el_mult * crack.el_mult * sig1 * sig1 / (sig_t * sig_t))) - 1;
+                            // Set::Scalar r_star = sig1 - (sig_t/crack.el_mult);
+
+                            // Now we check for other feasible solutions. First we check for beta = 1.
+                            Set::Scalar sig_nn1 = 0., tau_nm1 = 0.;
+                            Set::Scalar theta_candidate1 = 0.0, f_candidate1 = 0.;
+                            Set::Scalar temp = (mohr_center / mohr_radius) * (chi * chi / (1.0 - (chi * chi)));
+                            if (temp > 0.0 && temp <= 1.0)
+                            {
+                                theta_candidate1 = 0.5 * std::acos(temp);
+
+                                // Now check if this actually leas to a positive sig_nn value
+                                sig_nn1 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate1));
+                                tau_nm1 = mohr_radius * std::sin(2.0 * theta_candidate1);
+
+                                if (sig_nn1 > 0.0)
+                                {
+                                    f_candidate1 = (crack.el_mult * crack.el_mult * sig_nn1 * sig_nn1 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm1 * tau_nm1 / (tau_f * tau_f)) - 1.0;
+
+                                    // We only use this solution if the value of the failure surface is larger.
+                                    if (f_candidate1 > f_theta)
+                                    {
+                                        theta = theta_candidate1;
+                                        f_theta = f_candidate1;
+                                        beta = 1.0;
+                                    }
                                 }
                             }
-                        }
 
-                        // Now we check for the third feasible solution for beta = beta_bar.
-                        Set::Scalar sig_nn2 = 0., tau_nm2 = 0.;
-                        Set::Scalar theta_candidate2 = 0.0, f_candidate2 = 0.;
-                        temp = (mohr_center / mohr_radius) * (beta_bar*chi*chi / (1.0 - (beta_bar*chi*chi)));
-                        if (temp > 0.0 && temp <= 1.0)
-                        {
-                            theta_candidate2 = 0.5 * std::acos(temp);
-
-                            Set::Scalar theta_min = 0.5 * std::atan2(tau_f/crack.el_mult, (0.0 - mohr_center));
-
-                            // Now check if this actually leas to a negative sig_nn value
-                            sig_nn2 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate2));
-                            tau_nm2 = mohr_radius * std::sin(2.0*theta_candidate2);
-
-                            if (sig_nn2 < 0.0)
+                            // Now we check for the third feasible solution for beta = beta_bar.
+                            Set::Scalar sig_nn2 = 0., tau_nm2 = 0.;
+                            Set::Scalar theta_candidate2 = 0.0, f_candidate2 = 0.;
+                            temp = (mohr_center / mohr_radius) * (beta_bar * chi * chi / (1.0 - (beta_bar * chi * chi)));
+                            if (temp > 0.0 && temp <= 1.0)
                             {
-                                f_candidate2 = (beta_bar * crack.el_mult * crack.el_mult * sig_nn2 * sig_nn2 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm2 * tau_nm2 / (tau_f * tau_f)) - 1.0;
+                                theta_candidate2 = 0.5 * std::acos(temp);
 
-                                // We only use this solution if the value of the failure surface is larger.
-                                if (f_candidate2 > f_theta) 
-                                { 
-                                    theta = theta_candidate2; 
-                                    f_theta = f_candidate2; 
-                                    beta = beta_bar;
+                                Set::Scalar theta_min = 0.5 * std::atan2(tau_f / crack.el_mult, (0.0 - mohr_center));
+
+                                // Now check if this actually leas to a negative sig_nn value
+                                sig_nn2 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate2));
+                                tau_nm2 = mohr_radius * std::sin(2.0 * theta_candidate2);
+
+                                if (sig_nn2 < 0.0)
+                                {
+                                    f_candidate2 = (beta_bar * crack.el_mult * crack.el_mult * sig_nn2 * sig_nn2 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm2 * tau_nm2 / (tau_f * tau_f)) - 1.0;
+
+                                    // We only use this solution if the value of the failure surface is larger.
+                                    if (f_candidate2 > f_theta)
+                                    {
+                                        theta = theta_candidate2;
+                                        f_theta = f_candidate2;
+                                        beta = beta_bar;
+                                    }
                                 }
                             }
-                        }
 
-                        // Let's try to calculate Delta sigma and Delta tau
-                        Set::Scalar sig_excess = 0.0;
-                        Set::Scalar tau_excess = 0.0;
-                        Set::Scalar sig_nn = mohr_center + (mohr_radius * std::cos(2.0 * theta));
-                        Set::Scalar tau_nm = mohr_radius * std::sin(2.0*theta);
+                            // Let's try to calculate Delta sigma and Delta tau
+                            Set::Scalar sig_excess = 0.0;
+                            Set::Scalar tau_excess = 0.0;
+                            Set::Scalar sig_nn = mohr_center + (mohr_radius * std::cos(2.0 * theta));
+                            Set::Scalar tau_nm = mohr_radius * std::sin(2.0 * theta);
 
-                        if (f_theta > 0.0)
-                        {
-                            Set::Scalar denominator = 2.0 * ((beta*beta*crack.el_mult*crack.el_mult*sig_nn*sig_nn / (sig_t*sig_t*sig_t*sig_t)) 
-                                + (crack.el_mult*crack.el_mult*tau_nm*tau_nm / (tau_f*tau_f*tau_f*tau_f)));
-                            sig_excess = (f_theta) * beta * sig_nn / (sig_t * sig_t * denominator);
-                            tau_excess = (f_theta) * tau_nm / (tau_f * tau_f * denominator);
+                            if (f_theta > 0.0)
+                            {
+                                Set::Scalar denominator = 2.0 * ((beta * beta * crack.el_mult * crack.el_mult * sig_nn * sig_nn / (sig_t * sig_t * sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm * tau_nm / (tau_f * tau_f * tau_f * tau_f)));
+                                sig_excess = (f_theta)*beta * sig_nn / (sig_t * sig_t * denominator);
+                                tau_excess = (f_theta)*tau_nm / (tau_f * tau_f * denominator);
 
-                            // Util::Message(INFO, "f_candidate1 = ", f_candidate1, ", theta_cand1 = ", theta_candidate1, ", sig_nn1 = ", sig_nn1, ", tau_nm1 = ", tau_nm1);
-                            // Util::Message(INFO, "f_candidate2 = ", f_candidate2, ", theta_cand2 = ", theta_candidate2, ", sig_nn2 = ", sig_nn2, ", tau_nm2 = ", tau_nm2);
-                            // Util::Message(INFO, "f_theta = ", f_theta, ", beta = ", beta, ", theta = ", theta, ", signn = ", sig_nn, ", sig_excess = ", sig_excess, ", tau_excess = ", tau_excess);
-                            // Util::Message(INFO, "mohr_center = ", mohr_center, ", mohr_radius = ", mohr_radius);
-                            // Util::Message(INFO, " "); 
-                        }
+                                // Util::Message(INFO, "f_candidate1 = ", f_candidate1, ", theta_cand1 = ", theta_candidate1, ", sig_nn1 = ", sig_nn1, ", tau_nm1 = ", tau_nm1);
+                                // Util::Message(INFO, "f_candidate2 = ", f_candidate2, ", theta_cand2 = ", theta_candidate2, ", sig_nn2 = ", sig_nn2, ", tau_nm2 = ", tau_nm2);
+                                // Util::Message(INFO, "f_theta = ", f_theta, ", beta = ", beta, ", theta = ", theta, ", signn = ", sig_nn, ", sig_excess = ", sig_excess, ", tau_excess = ", tau_excess);
+                                // Util::Message(INFO, "mohr_center = ", mohr_center, ", mohr_radius = ", mohr_radius);
+                                // Util::Message(INFO, " ");
+                            }
 
-                        // sig_excess = sig_excess > 0 ? sig_excess : 0.0;
-                        // tau_excess = tau_excess > 0 ? tau_excess : 0.0;
+                            // sig_excess = sig_excess > 0 ? sig_excess : 0.0;
+                            // tau_excess = tau_excess > 0 ? tau_excess : 0.0;
 
-                        // Now we compute the energy
-                        // Util::Message(INFO, "E = ", material.models[0].DDW(Set::Matrix::Zero()).Youngs(), ", Mu = ", material.models[0].DDW(Set::Matrix::Zero()).Mu());
-                        Set::Scalar psi_1 = 0.5 * sig_excess * sig_excess / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
-                        Set::Scalar psi_2 = 0.5 * tau_excess * tau_excess / (material.models[0].DDW(Set::Matrix::Zero()).Mu());
+                            // Now we compute the energy
+                            // Util::Message(INFO, "E = ", material.models[0].DDW(Set::Matrix::Zero()).Youngs(), ", Mu = ", material.models[0].DDW(Set::Matrix::Zero()).Mu());
+                            Set::Scalar psi_1 = 0.5 * sig_excess * sig_excess / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+                            Set::Scalar psi_2 = 0.5 * tau_excess * tau_excess / (material.models[0].DDW(Set::Matrix::Zero()).Mu());
 
-                        // Next, we compute the energy
-                        energy(i,j,k,0) = psi_1 / crack.cracktype[0].GcI_bar();
-                        energy(i,j,k,1) = psi_2 / crack.cracktype[0].GcII_bar();
+                            // Next, we compute the energy
+                            energy(i, j, k, 0) = psi_1 / crack.cracktype[0].GcI_bar();
+                            energy(i, j, k, 1) = psi_2 / crack.cracktype[0].GcII_bar();
 
-
-                        if (energy(i,j,k,0) + energy(i,j,k,1) > history_var(i,j,k,0) + history_var(i,j,k,1))
-                        {
-                            history_var(i,j,k,0) = energy(i,j,k,0);
-                            history_var(i,j,k,1) = energy(i,j,k,1);
-                        }
+                            if (energy(i, j, k, 0) + energy(i, j, k, 1) > history_var(i, j, k, 0) + history_var(i, j, k, 1))
+                            {
+                                history_var(i, j, k, 0) = energy(i, j, k, 0);
+                                history_var(i, j, k, 1) = energy(i, j, k, 1);
+                            }
                         }
                     }
                     //=====================================================================
                 });
             }
-            Util::RealFillBoundary(*crack.energy_pristine_mf[lev],geom[lev]);
-            Util::RealFillBoundary(*crack.history_var_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*crack.energy_pristine_mf[lev], geom[lev]);
+            Util::RealFillBoundary(*crack.history_var_mf[lev], geom[lev]);
         }
 
         integrate_variables_before_advance = false;
         integrate_variables_after_advance = true;
     }
 
-    void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt)
+    void
+    Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt)
     {
         // advance for crack field
         // Util::RealFillBoundary(*crack.c_old_mf[a_lev],geom[a_lev]);
         crack.c_mf[a_lev]->FillBoundary();
         // return;
-        std::swap (crack.c_old_mf[a_lev], crack.c_mf[a_lev]);
+        std::swap(crack.c_old_mf[a_lev], crack.c_mf[a_lev]);
 
-        const Set::Scalar* DX = geom[a_lev].CellSize();
+        const Set::Scalar *DX = geom[a_lev].CellSize();
         amrex::Box domain(geom[a_lev].Domain());
         domain.convert(amrex::IntVect::TheNodeVector());
-        const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+        const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
         // Trying out the predictor corrector approach.
         //======================================================================
@@ -532,26 +552,34 @@ public:
             // bx.grow(1);
             // bx = bx & domain;
 
-            amrex::Array4<const Set::Scalar> const& c_old = crack.c_old_mf[a_lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const& energy = crack.history_var_mf[a_lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const& eta = material.eta_mf[a_lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[a_lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const &energy = crack.history_var_mf[a_lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[a_lev]->array(mfi);
 
-            amrex::Array4<Set::Scalar> const& c = crack.c_mf[a_lev]->array(mfi);
-            amrex::Array4<Set::Scalar> const& df = crack.driving_force_mf[a_lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &c = crack.c_mf[a_lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &df = crack.driving_force_mf[a_lev]->array(mfi);
 
-            amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-                #if AMREX_SPACEDIM !=2
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+#if AMREX_SPACEDIM != 2
                 Util::Abort(INFO, "This does not work for 1D or 3D yet.");
-                #endif
+#endif
 
-                if      (i == lo.x && j == lo.y) c(i,j,k,0) = c(i+1,j+1,k,0);
-                else if (i == lo.x && j == hi.y) c(i,j,k,0) = c(i+1,j-1,k,0);
-                else if (i == hi.x && j == lo.y) c(i,j,k,0) = c(i-1,j+1,k,0);
-                else if (i == hi.x && j == hi.y) c(i,j,k,0) = c(i-1,j-1,k,0);
-                else if (i == lo.x) c(i,j,k) = c(i+1,j,k,0);
-                else if (j == lo.y) c(i,j,k) = c(i,j+1,k,0);
-                else if (i == hi.x) c(i,j,k) = c(i-1,j,k,0);
-                else if (j == hi.y) c(i,j,k) = c(i,j-1,k,0);
+                if (i == lo.x && j == lo.y)
+                    c(i, j, k, 0) = c(i + 1, j + 1, k, 0);
+                else if (i == lo.x && j == hi.y)
+                    c(i, j, k, 0) = c(i + 1, j - 1, k, 0);
+                else if (i == hi.x && j == lo.y)
+                    c(i, j, k, 0) = c(i - 1, j + 1, k, 0);
+                else if (i == hi.x && j == hi.y)
+                    c(i, j, k, 0) = c(i - 1, j - 1, k, 0);
+                else if (i == lo.x)
+                    c(i, j, k) = c(i + 1, j, k, 0);
+                else if (j == lo.y)
+                    c(i, j, k) = c(i, j + 1, k, 0);
+                else if (i == hi.x)
+                    c(i, j, k) = c(i - 1, j, k, 0);
+                else if (j == hi.y)
+                    c(i, j, k) = c(i, j - 1, k, 0);
 
                 // Next, we are doing crack evolution
                 else
@@ -560,74 +588,78 @@ public:
                     Set::Scalar bilap = 0.0;
                     if (crack.beta > 0.0)
                     {
-                        bilap = 
-                            Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) +
-                            Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) * 2.0 +
-                            Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX);
+                        bilap = Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old, i, j, k, 0, DX) + Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old, i, j, k, 0, DX) * 2.0 + Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old, i, j, k, 0, DX);
                     }
 
                     // if (std::isnan(bilap))  Util::Message(INFO, "Bilaplacian is nan at (",i,", ",j,")");
-                    
-                    Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
-                    if (std::isnan(laplacian))  Util::Message(INFO, "Laplacian is nan at (",i,", ",j,")");
+
+                    Set::Scalar laplacian = Numeric::Laplacian(c_old, i, j, k, 0, DX);
+                    if (std::isnan(laplacian))
+                        Util::Message(INFO, "Laplacian is nan at (", i, ", ", j, ")");
 
                     Set::Scalar Gc = 0.0;
                     Set::Scalar Zeta = 0.0;
                     Set::Scalar Threshold = 0.0;
                     Set::Scalar Mobility = 0.0;
                     Set::Scalar _temp_product = 1.0, _temp_product2 = 1.0;
-                    
+
                     for (int m = 0; m < material.num_mat; m++)
                     {
-                        Gc += eta(i,j,k,m)*crack.cracktype[m].Gc(c_old(i,j,k,0));
-                        Zeta += eta(i,j,k,m)*crack.cracktype[m].Zeta(c_old(i,j,k,0));
-                        Threshold += eta(i,j,k,m)*crack.cracktype[m].DrivingForceThreshold(c_old(i,j,k,0));
-                        Mobility += eta(i,j,k,m)*crack.cracktype[m].Mobility(c_old(i,j,k,0));
-                        _temp_product *= eta(i,j,k,m);
+                        Gc += eta(i, j, k, m) * crack.cracktype[m].Gc(c_old(i, j, k, 0));
+                        Zeta += eta(i, j, k, m) * crack.cracktype[m].Zeta(c_old(i, j, k, 0));
+                        Threshold += eta(i, j, k, m) * crack.cracktype[m].DrivingForceThreshold(c_old(i, j, k, 0));
+                        Mobility += eta(i, j, k, m) * crack.cracktype[m].Mobility(c_old(i, j, k, 0));
+                        _temp_product *= eta(i, j, k, m);
                         _temp_product2 *= 0.5;
                     }
-                    if (material.num_mat > 1) Gc *= (1.0 - _temp_product*(1.-crack.mult_Gc)/_temp_product2);
+                    if (material.num_mat > 1)
+                        Gc *= (1.0 - _temp_product * (1. - crack.mult_Gc) / _temp_product2);
 
                     // =====================================================================
-                    Set::Scalar en_cell = energy(i,j,k,0);
-                    if (! crack.cracktype[0].mixed_mode())
+                    Set::Scalar en_cell = energy(i, j, k, 0);
+                    if (!crack.cracktype[0].mixed_mode())
                     {
-                        df(i,j,k,0) = crack.cracktype[0].Dg_phi(c_old(i,j,k))*(energy(i,j,k,0)+energy(i,j,k,1))*crack.el_mult / Gc;
+                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)) * crack.el_mult / Gc;
                     }
-                    else 
-                    {   
-                        df(i,j,k,0) = crack.cracktype[0].Dg_phi(c_old(i,j,k))*crack.el_mult*(energy(i,j,k,0) + energy(i,j,k,1));
+                    else
+                    {
+                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * crack.el_mult * (energy(i, j, k, 0) + energy(i, j, k, 1));
                     }
-                    rhs += df(i,j,k,0);
+                    rhs += df(i, j, k, 0);
 
-                    df(i,j,k,1) = crack.cracktype[0].Dw_phi(c_old(i,j,k,0),0.0)/(Zeta);
-                    rhs += df(i,j,k,1);
+                    df(i, j, k, 1) = crack.cracktype[0].Dw_phi(c_old(i, j, k, 0), 0.0) / (Zeta);
+                    rhs += df(i, j, k, 1);
 
-                    df(i,j,k,2) = 2.0*Zeta*laplacian * crack.mult_lap;
-                    if (std::isnan(df(i,j,k,2))) Util::Message(INFO, "DF(2) is nan at (",i,",",j,")");
-                    rhs -= df(i,j,k,2);
+                    df(i, j, k, 2) = 2.0 * Zeta * laplacian * crack.mult_lap;
+                    if (std::isnan(df(i, j, k, 2)))
+                        Util::Message(INFO, "DF(2) is nan at (", i, ",", j, ")");
+                    rhs -= df(i, j, k, 2);
 
-                    df(i,j,k,3) = crack.beta*(0.5*Zeta*Zeta*Zeta)*bilap;
-                    if (std::isnan(df(i,j,k,3))) Util::Message(INFO, "DF(3) is nan at (",i,",",j,")");
-                    rhs += df(i,j,k,3);
-                   
-                    df(i,j,k,4) = std::max(0.,rhs - Threshold);
-                    c(i,j,k,0) = c_old(i,j,k,0) - a_dt*df(i,j,k,4)*Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
+                    df(i, j, k, 3) = crack.beta * (0.5 * Zeta * Zeta * Zeta) * bilap;
+                    if (std::isnan(df(i, j, k, 3)))
+                        Util::Message(INFO, "DF(3) is nan at (", i, ",", j, ")");
+                    rhs += df(i, j, k, 3);
 
-                    if (c (i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
-                    if (c (i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
+                    df(i, j, k, 4) = std::max(0., rhs - Threshold);
+                    c(i, j, k, 0) = c_old(i, j, k, 0) - a_dt * df(i, j, k, 4) * Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
+
+                    if (c(i, j, k, 0) < 0.0)
+                        c(i, j, k, 0) = 0.0;
+                    if (c(i, j, k, 0) > 1.0)
+                        c(i, j, k, 0) = 1.0;
                 }
             });
         }
         crack.c_mf[a_lev]->FillBoundary();
         crack.driving_force_mf[a_lev]->FillBoundary();
 
-        Base::Mechanics<brittle_model>::Advance(a_lev,a_time,a_dt);
+        Base::Mechanics<brittle_model>::Advance(a_lev, a_time, a_dt);
     }
 
-    void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override
+    void
+    TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override
     {
-        Base::Mechanics<brittle_model>::TagCellsForRefinement(lev,a_tags,a_time,a_ngrow);
+        Base::Mechanics<brittle_model>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
@@ -636,13 +668,12 @@ public:
         {
             amrex::Box bx = mfi.tilebox();
             bx.convert(amrex::IntVect::TheCellVector());
-            amrex::Array4<char> const& tags = a_tags.array(mfi);
+            amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::NodeGradientOnCell(c, i, j, k, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
-                        tags(i, j, k) = amrex::TagBox::SET;
+                    tags(i, j, k) = amrex::TagBox::SET;
             });
         }
 
@@ -650,13 +681,12 @@ public:
         {
             amrex::Box bx = mfi.tilebox();
             bx.convert(amrex::IntVect::TheCellVector());
-            amrex::Array4<char> const& tags = a_tags.array(mfi);
+            amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &df = crack.driving_force_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(df, i, j, k, 0, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.driving_force_refinement_threshold)
-                        tags(i, j, k) = amrex::TagBox::SET;
+                    tags(i, j, k) = amrex::TagBox::SET;
             });
         }
 
@@ -664,13 +694,12 @@ public:
         {
             amrex::Box bx = mfi.tilebox();
             bx.convert(amrex::IntVect::TheCellVector());
-            amrex::Array4<char> const& tags = a_tags.array(mfi);
+            amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(psi, i, j, k, 0, DX.data());
                 if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
-                        tags(i, j, k) = amrex::TagBox::SET;
+                    tags(i, j, k) = amrex::TagBox::SET;
             });
         }
 
@@ -680,35 +709,34 @@ public:
             {
                 amrex::Box bx = mfi.tilebox();
                 bx.convert(amrex::IntVect::TheCellVector());
-                amrex::Array4<char> const& tags = a_tags.array(mfi);
+                amrex::Array4<char> const &tags = a_tags.array(mfi);
                 amrex::Array4<Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix grad = Numeric::Gradient(eta, i, j, k, DX.data());
                     if (grad.lpNorm<2>() * DXnorm > material.m_eta_ref_threshold)
-                            tags(i, j, k) = amrex::TagBox::SET;
+                        tags(i, j, k) = amrex::TagBox::SET;
                 });
             }
         }
     }
 
-    void Integrate(int amrlev, Set::Scalar time, int step,
-                    const amrex::MFIter &mfi, const amrex::Box &a_box) override
+    void
+    Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &a_box) override
     {
         Set::Vector DX(geom[amrlev].CellSize());
         const Set::Scalar DV = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
         amrex::Array4<const Set::Scalar> const &df = crack.driving_force_mf[amrlev]->array(mfi);
         amrex::Array4<const Set::Scalar> const &c = crack.c_mf[amrlev]->array(mfi);
         amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[amrlev]->array(mfi);
-        amrex::ParallelFor(a_box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            crack.driving_force_norm += df(i,j,k,4)*DV;
+        amrex::ParallelFor(a_box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            crack.driving_force_norm += df(i, j, k, 4) * DV;
         });
 
-        Base::Mechanics<brittle_model>::Integrate(amrlev,time,step,mfi,a_box);
+        Base::Mechanics<brittle_model>::Integrate(amrlev, time, step, mfi, a_box);
     }
 
-    void TimeStepComplete(Set::Scalar /*time*/, int /* iter*/)
+    void
+    TimeStepComplete(Set::Scalar /*time*/, int /* iter*/)
     {
         if (elastic_do_solve_now)
             crack.driving_force_reference = crack.driving_force_norm;
@@ -719,7 +747,7 @@ public:
             crack.driving_force_reference_prev = crack.driving_force_reference;
             set_initial_df_once = false;
         }
-            
+
         if (crack.driving_force_reference / crack.driving_force_reference_prev < 0.1)
         {
             increase_load_step = true;
@@ -730,14 +758,14 @@ public:
             crack.driving_force_reference_prev = crack.driving_force_reference;
             set_new_reference = false;
         }
-        
+
         elastic_do_solve_now = false;
     }
-    
 
-// Member variables
+    // Member variables
 protected:
-    struct{
+    struct
+    {
         Set::Field<Set::Scalar> c_mf;
         Set::Field<Set::Scalar> c_old_mf;
         Set::Field<Set::Scalar> energy_pristine_mf;
@@ -746,7 +774,7 @@ protected:
         std::vector<pfczm_crack_type> cracktype;
 
         std::vector<std::string> ic_type;
-        std::vector<IC::IC<Set::Scalar>*> ic;
+        std::vector<IC::IC<Set::Scalar> *> ic;
         bool is_ic = true;
 
         Set::Scalar scaleModulusMax = 0.02;
@@ -762,14 +790,15 @@ protected:
         Set::Scalar tol_rel = NAN;
         Set::Scalar tol_abs = NAN;
         Set::Scalar max_iter = NAN;
-        
+
         Set::Scalar crack_l2_err = 0.0;
         Set::Scalar crack_norm = 0.0;
         Set::Scalar crack_prop_iter = 0;
 
         Set::Scalar beta = NAN;
     } crack;
-    struct{
+    struct
+    {
         Set::Field<Set::Scalar> eta_mf;
         Set::Scalar m_eta_ref_threshold = 0.01;
         std::vector<brittle_model> models;
@@ -794,6 +823,5 @@ protected:
     using Base::Mechanics<brittle_model>::psi_on;
 };
 }
-
 
 #endif
