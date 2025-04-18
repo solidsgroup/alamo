@@ -90,6 +90,9 @@ public:
         // Material field related parsing
         pp.query("material.refinement_threshold", value.material.m_eta_ref_threshold);
 
+        // Driving force threshold
+        pp.query_default("driving_force_refinement_threshold", value.crack.driving_force_refinement_threshold, 1E100);
+
         // Let's figure out if we are doing multi-material simulations.
         std::string mat_ic_type;
         if (pp.contains("material.ic.type"))
@@ -652,7 +655,7 @@ public:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector grad = Numeric::Gradient(df, i, j, k, 0, DX.data());
-                if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
+                if (grad.lpNorm<2>() * DXnorm > crack.driving_force_refinement_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
             });
         }
@@ -755,6 +758,7 @@ protected:
         Set::Scalar driving_force_reference = 1.0;
         Set::Scalar driving_force_reference_prev = 1.0;
         Set::Scalar driving_force_norm = 0.0;
+        Set::Scalar driving_force_refinement_threshold = NAN;
         Set::Scalar tol_rel = NAN;
         Set::Scalar tol_abs = NAN;
         Set::Scalar max_iter = NAN;
