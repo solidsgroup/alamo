@@ -26,7 +26,8 @@ Sphere::Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::
 void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) {
     bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
     const Set::Scalar* DX = geom[lev].CellSize();
-    const Set::Scalar Narrow_Band_Width = 7.0 * DX[0];
+    const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
+    const Set::Scalar Narrow_Band_Width = TUBEWIDTH * min_DX;
     const Set::Scalar InnerTube = -Narrow_Band_Width;
     const Set::Scalar OuterTube = Narrow_Band_Width;
 
@@ -104,10 +105,10 @@ Set::Scalar Sphere::computeRSquared(const Set::Vector& coords, Type type, const 
 
 // Compute level set value
 AMREX_GPU_HOST_DEVICE inline Set::Scalar Sphere::computeLevelSetValue(Set::Scalar distance, Set::Scalar Narrow_Band_Width, Set::Scalar InnerTube, Set::Scalar OuterTube) const {
-    /*if (std::abs(distance) <= Narrow_Band_Width) return distance;
+    if (std::abs(distance) <= Narrow_Band_Width) return distance;
     if (distance < -Narrow_Band_Width) return InnerTube;
     if (distance > Narrow_Band_Width) return OuterTube;
-    return NAN;*/
+    return NAN;
     return distance;
 }
 

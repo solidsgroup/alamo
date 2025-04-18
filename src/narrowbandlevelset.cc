@@ -8,7 +8,6 @@
 #include "IO/WriteMetaData.H"
 #include "AMReX_ParmParse.H"
 
-#include "Integrator/NarrowBandLevelset_Backup.H"
 #include "Integrator/NarrowBandLevelset.H"
 
 int main (int argc, char* argv[])

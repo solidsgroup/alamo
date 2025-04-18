@@ -8,7 +8,6 @@
 #include <AMReX_Array4.H>
 #include "Set/Set.H"
 #include "Integrator/Integrator.H"
-#include "Integrator/NarrowBandLevelset_Backup.H"
 #include "Integrator/NarrowBandLevelset.H"
 #include "Numeric/FluxHandler.H"
 #include "Util/Util.H"
@@ -19,7 +18,6 @@
 // Include foward declare for ScimitarX.H
 namespace Integrator {
 class ScimitarX;
-class NarrowBandLevelset_Backup;
 class NarrowBandLevelset;
 }
 
@@ -224,56 +222,6 @@ public:
                     ls_arr(i, j, k, ils) = ls_old_arr(i, j, k, ils) - dt * flux_div;
                 });
             }
-        }
-    }
-
-    int GetNumberOfStages() const override {
-        return 1;  // Euler Forward has only one stage
-    }
-};
-
-template <>
-class EulerForwardScheme<Integrator::NarrowBandLevelset_Backup> : public TimeSteppingScheme<Integrator::NarrowBandLevelset_Backup> {
-public:
-    void ComputeSubStep(int lev, Set::Scalar dt, int stage, Integrator::NarrowBandLevelset_Backup* solver) override {
-        if (stage != 0) {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
-        }
-        const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
-
-        for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.validbox();  // Valid region of the box
-            auto const& ls_arr = solver->ls_mf.Patch(lev, mfi);
-            auto const& ls_old_arr = solver->ls_old_mf.Patch(lev, mfi);
-
-            // Get face-centered flux fields
-            auto const& xflux_arr = solver->XFlux_mf.Patch(lev, mfi);;  // X-direction flux
-#if AMREX_SPACEDIM >= 2
-            auto const& yflux_arr = solver->YFlux_mf.Patch(lev, mfi);  // Y-direction flux
-#endif
-#if AMREX_SPACEDIM == 3
-            auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
-#endif
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                Set::Scalar flux_div = 0.0;
-
-                // Compute flux divergence in X-direction
-                flux_div += (xflux_arr(i, j, k, 0) - xflux_arr(i - 1, j, k, 0)) / DX[0];
-
-#if AMREX_SPACEDIM >= 2
-                // Compute flux divergence in Y-direction
-                flux_div += (yflux_arr(i, j, k, 0) - yflux_arr(i, j - 1, k, 0)) / DX[1];
-#endif
-
-#if AMREX_SPACEDIM == 3
-                // Compute flux divergence in Z-direction
-                flux_div += (zflux_arr(i, j, k, 0) - zflux_arr(i, j, k - 1, 0)) / DX[2];
-#endif
-
-                // Euler forward update for level set function
-                ls_arr(i, j, k, 0) = ls_old_arr(i, j, k, 0) - dt * flux_div;
-            });
         }
     }
 

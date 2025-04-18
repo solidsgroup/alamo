@@ -233,15 +233,13 @@ protected:
 
     // Class specific functions
     // Narrowband functions
-    void ZeroTheZeros(int lev, int ls_id);
-    void ClearZerols(int ls_id);
-    void ClearCPT(int ls_id);
-    void ClearNarrowBand(amrex::iMultiFab& imf);
     void InitializeCPT(int lev, int ls_id);
-    void UpdateNarrowband(int lev, int ls_id);
     void CopyZerolsAndCPTIMFtoMF(int lev);
     void CopyTubeIMFtoMF(int lev, int ls_id);
 
+    void ZeroTheZeros(amrex::iMultiFab& zerols,
+        amrex::iMultiFab& cpt, amrex::iMultiFab& tube, int ls_id);
+    void UpdateNarrowband(int lev, int ls_id);
     void ComputeNarrowBandBoxList(int lev, int ls_id);
     void ComputeNarrowBandMapping(int lev, int ls_id);
     void UpdateNarrowBandFlags(int lev, int ls_id);
@@ -254,6 +252,7 @@ protected:
     void ComputeAndSetNewTimeStep();
     Set::Scalar GetTimeStep();
     // Advance
+    void ClampLS(int lev, int ls_id);
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev, int ls_id);

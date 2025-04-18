@@ -32,6 +32,7 @@ private:
     Set::Vector center = Set::Vector::Zero();
     Type type = Type::XYZ;
     Set::Scalar number_of_ghost_cells = 1;
+    Set::Scalar TUBEWIDTH = 6.0;
 
     // Compute physical coordinates of the grid cell
     AMREX_GPU_HOST_DEVICE inline Set::Vector computeCoordinates(int i, int j, int k, int lev, bool cellcentered) const;
