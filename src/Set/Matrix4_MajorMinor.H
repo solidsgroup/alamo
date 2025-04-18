@@ -332,12 +332,12 @@ public:
         else if (uid==30 || uid==12 || uid==28 || uid==10)  return data[6];
         // [0102] [0120] [1002] [1020] [0201] [2001] [0210] [2010]
         else if (uid==57 || uid==21 || uid==33 || uid==15
-              || uid==55 || uid==19 || uid==29 || uid==11) return data[7];
+                || uid==55 || uid==19 || uid==29 || uid==11) return data[7];
         // [0111] [1011] [1101] [1110]
         else if (uid==39 || uid==37 || uid==31 || uid==13)  return data[8];
         // [0112] [1012] [0121] [1021] [1201] [1210] [2101] [2110]
         else if (uid==66 || uid==48 || uid==64 || uid==46
-              || uid==34 || uid==16 || uid==32 || uid==14) return data[9];
+                || uid==34 || uid==16 || uid==32 || uid==14) return data[9];
         // [0122] [1022] [2201] [2210]
         else if (uid==75 || uid==73 || uid==35 || uid==17)  return data[10];
         // [0202] [2002] [0220] [2020]
@@ -346,7 +346,7 @@ public:
         else if (uid==42 || uid==58 || uid==22 || uid==38)  return data[12];
         // [0212] [2012] [0221] [2021] [1202] [1220] [2102] [2120]
         else if (uid==69 || uid==51 || uid==61 || uid==25
-              || uid==65 || uid==47 || uid==59 || uid==23) return data[13];
+                || uid==65 || uid==47 || uid==59 || uid==23) return data[13];
         // [0222] [2022] [2202] [2220]
         else if (uid==78 || uid==74 || uid==62 || uid==26)  return data[14];
         // [1111]
@@ -384,12 +384,12 @@ public:
         else if (uid==30 || uid==12 || uid==28 || uid==10)  return data[6];
         // [0102] [0120] [1002] [1020] [0201] [2001] [0210] [2010]
         else if (uid==57 || uid==21 || uid==33 || uid==15
-              || uid==55 || uid==19 || uid==29 || uid==11) return data[7];
+                || uid==55 || uid==19 || uid==29 || uid==11) return data[7];
         // [0111] [1011] [1101] [1110]
         else if (uid==39 || uid==37 || uid==31 || uid==13)  return data[8];
         // [0112] [1012] [0121] [1021] [1201] [1210] [2101] [2110]
         else if (uid==66 || uid==48 || uid==64 || uid==46
-              || uid==34 || uid==16 || uid==32 || uid==14) return data[9];
+                || uid==34 || uid==16 || uid==32 || uid==14) return data[9];
         // [0122] [1022] [2201] [2210]
         else if (uid==75 || uid==73 || uid==35 || uid==17)  return data[10];
         // [0202] [2002] [0220] [2020]
@@ -398,7 +398,7 @@ public:
         else if (uid==42 || uid==58 || uid==22 || uid==38)  return data[12];
         // [0212] [2012] [0221] [2021] [1202] [1220] [2102] [2120]
         else if (uid==69 || uid==51 || uid==61 || uid==25
-              || uid==65 || uid==47 || uid==59 || uid==23) return data[13];
+                || uid==65 || uid==47 || uid==59 || uid==23) return data[13];
         // [0222] [2022] [2202] [2220]
         else if (uid==78 || uid==74 || uid==62 || uid==26)  return data[14];
         // [1111]
