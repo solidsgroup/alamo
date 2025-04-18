@@ -5,6 +5,13 @@
 #@ args=stop_time=1.0
 #@ check=false
 #@ benchmark-waldorf = 11.30
+#@
+#@ [parallel]
+#@ exe = topop
+#@ dim = 2
+#@ nprocs = 4
+#@ args=stop_time=10.0
+#@ check=true
 #@ 
 #@ [coverage]
 #@ exe = topop
@@ -63,34 +70,21 @@ psi.bc.type.ylo = NEUMANN
 
 
 #### Canonical test case: cantilever with load at tip
-#bc.type = expression
-#bc.expression.type.xloylo = disp disp
-#bc.expression.type.xlo    = disp disp
-#bc.expression.type.xloyhi = disp disp
-#bc.expression.type.ylo    = trac trac
-#bc.expression.type.yhi    = trac trac
-#bc.expression.type.xhi    = trac trac
-#bc.expression.type.xhiylo = trac trac
-#bc.expression.type.xhiyhi = trac trac
-#bc.expression.val.yhi = "0.0" "0.0" 
-#bc.expression.val.xhiylo = "0.0" "0.0"
-#bc.expression.val.xhiyhi = "0.0" "0.0"
-#bc.expression.val.ylo = "0.0" "0" 
-#bc.expression.val.xhi = "0.0" "-0.1 * (y > 0.45) * (y < 0.55)" 
+bc.type = expression
+bc.expression.type.xloylo = disp disp
+bc.expression.type.xlo    = disp disp
+bc.expression.type.xloyhi = disp disp
+bc.expression.type.ylo    = trac trac
+bc.expression.type.yhi    = trac trac
+bc.expression.type.xhi    = trac trac
+bc.expression.type.xhiylo = trac trac
+bc.expression.type.xhiyhi = trac trac
+bc.expression.val.yhi = "0.0" "0.0" 
+bc.expression.val.xhiylo = "0.0" "0.0"
+bc.expression.val.xhiyhi = "0.0" "0.0"
+bc.expression.val.ylo = "0.0" "0" 
+bc.expression.val.xhi = "0.0" "-0.1 * (y > 0.45) * (y < 0.55)" 
 #L.str = 0.01
-
-### Canonical test case: cantilever with full load at tip
-bc.type = constant
-bc.constant.type.xloylo = disp disp
-bc.constant.type.xlo    = disp disp
-bc.constant.type.xloyhi = disp disp
-bc.constant.type.ylo    = trac trac
-bc.constant.type.yhi    = trac trac
-bc.constant.type.xhi    = trac trac
-bc.constant.type.xhiylo = trac trac
-bc.constant.type.xhiyhi = trac trac
-bc.constant.val.xhi = 0.0 -0.1
-
 
 #
 # Solver inputs

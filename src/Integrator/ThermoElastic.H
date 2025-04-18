@@ -13,16 +13,21 @@ class ThermoElastic :
     virtual public Mechanics<Model::Solid::Affine::Isotropic>
 {
 public:
+    static constexpr const char* name = "thermoelastic";
+
     ThermoElastic():
         HeatConduction(3),
         Mechanics<Model::Solid::Affine::Isotropic>()
     { }
+
+    ~ThermoElastic() = default;
+    
     ThermoElastic(IO::ParmParse &pp) : ThermoElastic()
     {Parse(*this,pp);}
     static void Parse(ThermoElastic &value, IO::ParmParse &pp)
     {
-        pp_queryclass("hc",static_cast<HeatConduction*>(&value));
-        pp_queryclass("el",static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
+        pp.queryclass<HeatConduction>("hc",value);
+        pp.queryclass<Mechanics<Model::Solid::Affine::Isotropic>>("el",value);
 
         pp_queryarr("alpha",value.alpha); // Diffusion coefficient
     }

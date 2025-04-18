@@ -25,12 +25,19 @@
 /// \brief Initialize an ellipsoidal inclusion
 namespace IC
 {
-class Ellipsoid : public IC
+class Ellipsoid : public IC<Set::Scalar>
 {
 public:
+    static constexpr const char* name = "ellipsoid";
+
     enum Mollifier {Dirac, Gaussian};
 
     Ellipsoid (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+    Ellipsoid (amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : Ellipsoid(_geom)
+    {
+        pp_queryclass(name, *this);
+    }
+
   
     void Add(const int &lev,Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {

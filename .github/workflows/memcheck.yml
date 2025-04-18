@@ -2,7 +2,7 @@ name: Memory Leak Check
 
 on:
   push:
-    branches-ignore: ["candidate-install"]
+    branches-ignore: []
 
 permissions:
   contents: read
@@ -10,27 +10,50 @@ permissions:
   id-token: write
 
 jobs:
-  test-coverage:
-    name: Compile in debug and run valgrind
-    runs-on: ubuntu-latest
+  memcheck-2d-asan-gcc:
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies.sh
-    - name: install valgrind
-      run: sudo apt install valgrind
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh 
+    - name: installing mpich (needed for asan)
+      run: sudo apt install -y libmpich-dev libmpich12 mpich
+    - name: switch mpi compiler to mpich
+      run: sudo update-alternatives --set mpi /usr/bin/mpicc.mpich
+    - name: switch mpirun to mpich
+      run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
+    - name: configure (2d)
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 
+    - name: make (2d)
+      run: make
+    - name: regression tests with memory checking (2d)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout
+
+  memcheck-2d-asan-clang:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d)
       continue-on-error: true
-      run: ./configure --dim=2 --debug
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan --comp=clang++
     - name: make (2d)
-      continue-on-error: true
       run: make
-    - name: unit tests (2d)
+    - name: regression tests with memory checking (2d)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout
+
+  memcheck-2d-msan-clang:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: configure (2d)
       continue-on-error: true
-      run: --valgrind --error-exitcode=1 --leak-check=full ./bin/test-2d-debug-g++
-    - name: flame (2d)
-      continue-on-error: true
-      run: valgrind --error-exitcode=1 --leak-check=full ./bin/alamo-2d-debug-g++ tests/SCPSandwich/input stop_time=0.0002
-    - name: microstructure (2d)
-      continue-on-error: true
-      run: valgrind --error-exitcode=1 --leak-check=full ./bin/alamo-2d-debug-g++ tests/PerturbedInterface/input stop_time=0.03
+      run: ./configure --dim=2 --debug --memcheck --memcheck-tool=msan --comp=clang++
+    - name: make (2d)
+      run: make
+    - name: regression tests with memory checking (2d)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout
+

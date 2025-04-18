@@ -85,14 +85,20 @@ public:
         Set::Scalar compressive_strength = 4.e8;
 
         bool mixed_mode = false;
+        // Toggle to determine mixed mode
         pp.query("mixed_mode", value._mixed_mode);
 
         if (value._mixed_mode)
         {
+            // Young's modulus
             pp.query("E", youngs);
+            // Poisson's ratio $\nu$
             pp.query("nu", nu);
+            // Fracture strength
             pp.query("fracture_strength", fracture_strength);
+            // $\chi$ value
             pp.query("chi", value._chi);
+            // Compressive strength
             pp.query("compressive_strength", compressive_strength);
             value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
 
@@ -134,8 +140,10 @@ public:
         }
         else
         {
-            pp.query("E", youngs);
-            pp.query("fracture_strength", fracture_strength);   // fracture strength beyond which softening starts in Pa
+            // Young's modulus
+            pp.query("E", youngs); 
+            // fracture strength beyond which softening starts [Pa]
+            pp.query("fracture_strength", fracture_strength);   
         }
         
         Set::Scalar irwing_length = youngs * value._Gc / (fracture_strength * fracture_strength);

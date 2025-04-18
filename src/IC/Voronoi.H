@@ -1,3 +1,6 @@
+// Initialize an N component field with a Voronoi tessellation.
+// (Mostly used by :code:`Integrator::PhaseFieldMicrostructure`).
+
 #ifndef IC_VORONOI_H_
 #define IC_VORONOI_H_
 
@@ -7,9 +10,11 @@
 
 namespace IC
 {
-class Voronoi : public IC
+class Voronoi : public IC<Set::Scalar>
 {
 public:
+    static constexpr const char* name = "voronoi";
+
     enum Type {Partition, Values};
 
     Voronoi (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}

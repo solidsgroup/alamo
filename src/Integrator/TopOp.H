@@ -46,21 +46,24 @@ public:
         Parse(*this, pp);
     }
 
+    ~TopOp()
+    {
+        delete ic_psi;
+        delete bc_psi;
+    }
+
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(TopOp& value, IO::ParmParse& pp)
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
 
-        pp_queryclass("model", value.model);
+        pp.queryclass<MODEL>("model", value.model);
         // Read in IC for psi
         if (pp.contains("psi.ic.type"))
         {
-            std::string type;
-            pp_query_validate("psi.ic.type", type, {"ellipse", "constant"}); // Read IC type for the eta field
-            if (type == "ellipse") value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
-            else if (type == "constant") value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
-            else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);
+            // Initial condition for psi field
+            pp.select<IC::Ellipse,IC::Constant>("psi.ic",value.ic_psi,value.geom);
 
             value.bc_psi = new BC::Constant(1, pp, "psi.bc");
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
@@ -215,7 +218,7 @@ public:
 
 protected:
     MODEL model;
-    IC::IC* ic_psi = nullptr;
+    IC::IC<Set::Scalar>* ic_psi = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     Set::Scalar m_eta_ref_threshold = NAN;
     Set::Field<Set::Scalar> psi_old_mf;

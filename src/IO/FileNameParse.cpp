@@ -1,16 +1,14 @@
-#include "FileNameParse.H"
-
-#include <iostream>
+#include "IO/FileNameParse.H"
 #include <iomanip>
 #include <sstream>
 #include <chrono>
 #include <regex>
-
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 
 std::time_t t = 0;
 
+/// Internal function to do processing of the file name
 void IO::FileNameParse(std::string &filename)
 {
 

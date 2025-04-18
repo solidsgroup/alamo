@@ -71,3 +71,5 @@ model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
 solver.verbose = 3
 solver.nriters = 1
 solver.max_iter = 20
+
+bc.type = constant

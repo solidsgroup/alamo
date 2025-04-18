@@ -96,8 +96,11 @@ public:
         Isotropic::Parse(value,pp);
         
         Set::Scalar yield = 1.0, hardening = 1.0, theta_tmp = 1.0;
+        // Yield strength
         pp.query("yield", yield);
+        // hardening parameter
         pp.query("hardening", hardening);
+        // $\theta$
         pp.query("theta", theta_tmp);
 
         value.DefineSlipSystem(yield, hardening, theta_tmp);
