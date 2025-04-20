@@ -15,17 +15,6 @@ class ScimitarX_Util
 public:
     ScimitarX_Util () {};
 
-    // NOTE: When modifying solver types, ensure the corresponding variables are added here to enable dynamic indexing.
-    struct getVariableIndex {
-        std::map<int, int> variableIndexMap; // Mapping from variable enums to indices
-        int NVAR_MAX = 0;                    // Total number of variables
-        int DENS = -1;                       // Index for Density
-        int UVEL = -1;                       // Index for U-velocity
-        int VVEL = -1;                       // Index for V-velocity
-        int WVEL = -1;                       // Index for W-velocity
-        int IE = -1;                         // Index for Internal Energy
-    }; // End of Debug class
-
     // Nested Debug class containing debug APIs
     class Debug {
         

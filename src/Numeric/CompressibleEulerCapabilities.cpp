@@ -78,7 +78,7 @@ CompressibleEulerCapabilities::supportsWenoVariant(WenoVariant variant) const {
 
 SolverCapabilities::MethodValidationResult 
 CompressibleEulerCapabilities::validateMethodCombination(
-    FluxReconstructionType fluxReconstruction,
+    FluxReconstructionType fluxReconstruction [[maybe_unused]],
     FluxScheme fluxScheme,
     TimeSteppingSchemeType timeSteppingScheme [[maybe_unused]],
     ReconstructionMode reconstructionMode,

@@ -11,6 +11,7 @@
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
+#include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Model/Fluid/Fluid.H"
 #include <string>
 
@@ -22,7 +23,7 @@ class Riemann2D : public SodShock {
 public:
     // Constructor requiring variable indices
     Riemann2D(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-            const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
+            const Numeric::GenericVariableAccessor::VariableIndices& precomputed_indices)
         : SodShock(_geom, pp, name, precomputed_indices) {
         initialize(pp, name);
     }

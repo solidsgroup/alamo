@@ -24,6 +24,61 @@ class GenericVariableAccessor {
 public:
     virtual ~GenericVariableAccessor() = default;
 
+    // Copy of getVariableIndex struct from ScimitarX_Util.H
+    struct VariableIndices {
+        std::map<int, int> variableIndexMap; // Mapping from variable enums to indices
+        int NVAR_MAX = 0;                    // Total number of variables
+        int DENS = -1;                       // Index for Density
+        int UVEL = -1;                       // Index for U-velocity
+        int VVEL = -1;                       // Index for V-velocity
+        int WVEL = -1;                       // Index for W-velocity
+        int IE = -1;                         // Index for Internal Energy
+        
+        // ElastoPlastic specific variables
+        int SXX = -1;                    // Index for Deviatoric stress XX
+        int SYY = -1;                    // Index for Deviatoric stress YY
+        int SZZ = -1;                    // Index for Deviatoric stress ZZ
+        int SXY = -1;                    // Index for Deviatoric stress XY
+        int SXZ = -1;                    // Index for Deviatoric stress XZ
+        int SYZ = -1;                    // Index for Deviatoric stress YZ
+        int EPSBAR = -1;                 // Index for Effective plastic strain
+        int IE_ELASTIC = -1;             // Index for Elastic Internal Energy  
+    };
+    
+    // Add a static instance of the struct (similar to ScimitarX's static member)
+    static VariableIndices variableIndices;
+    
+    // Add method to initialize indices
+    virtual void initializeIndices(const VariableIndices& indices) {
+        // Copy only the fields that have valid values (not -1)
+        if (indices.NVAR_MAX > 0) variableIndices.NVAR_MAX = indices.NVAR_MAX;
+        if (indices.DENS >= 0) variableIndices.DENS = indices.DENS;
+        if (indices.UVEL >= 0) variableIndices.UVEL = indices.UVEL;
+        if (indices.VVEL >= 0) variableIndices.VVEL = indices.VVEL;
+        if (indices.WVEL >= 0) variableIndices.WVEL = indices.WVEL;
+        if (indices.IE >= 0) variableIndices.IE = indices.IE;
+        
+        // ElastoPlastic specific variables - only copy if they're valid
+        if (indices.SXX >= 0) variableIndices.SXX = indices.SXX;
+        if (indices.SYY >= 0) variableIndices.SYY = indices.SYY;
+        if (indices.SZZ >= 0) variableIndices.SZZ = indices.SZZ;
+        if (indices.SXY >= 0) variableIndices.SXY = indices.SXY;
+        if (indices.SXZ >= 0) variableIndices.SXZ = indices.SXZ;
+        if (indices.SYZ >= 0) variableIndices.SYZ = indices.SYZ;
+        if (indices.EPSBAR >= 0) variableIndices.EPSBAR = indices.EPSBAR;
+        if (indices.IE_ELASTIC >= 0) variableIndices.IE_ELASTIC = indices.IE_ELASTIC;
+        
+        // Copy only the entries that exist in the provided map
+        for (const auto& [varEnum, index] : indices.variableIndexMap) {
+            variableIndices.variableIndexMap[varEnum] = index;
+        }
+    }
+    
+    // Get accessor for the indices
+    virtual const VariableIndices& getIndices() const {
+        return variableIndices;
+    }
+
     // Enhanced method to get solver capabilities
     virtual std::shared_ptr<SolverCapabilities> getSolverCapabilities() const = 0;
 
@@ -63,20 +118,16 @@ public:
         amrex::MultiFab& AverageStateBuffer
     ) const = 0;
 
-    // Template method for Transforming Stencils to Characteristic Space
-    template <typename StencilMatrixType>
-    AMREX_GPU_DEVICE
-    StencilMatrixType TransformStencilToCharacteristic(
-        const StencilMatrixType& stencil_matrix,
+    // Transforming Stencils to Characteristic Space
+    virtual Set::MultiMatrix TransformStencilToCharacteristic(
+        const Set::MultiMatrix& stencil_matrix,
         int direction,
         const Set::MultiVector& avg_state
     ) const = 0;
     
-    // Template method for Reverse Transforming From Characteristic Space
-    template <typename VectorType>
-    AMREX_GPU_DEVICE
-    VectorType TransformFromCharacteristic(
-        const VectorType& reconstructed_value,
+    //Reverse Transforming From Characteristic Space
+    virtual Set::MultiVector TransformFromCharacteristic(
+        const Set::MultiVector& reconstructed_value,
         int direction,
         const Set::MultiVector& avg_state
     ) const = 0;
@@ -173,25 +224,21 @@ public:
         int lev, 
         void* solver,
         amrex::MultiFab& AverageStateBuffer
-    ) const = 0;
+    ) const override;
 
-    // Template method for Transforming Stencils to Characteristic Space
-    template <typename StencilMatrixType>
-    AMREX_GPU_DEVICE
-    StencilMatrixType TransformStencilToCharacteristic(
-        const StencilMatrixType& stencil_matrix,
+    // Transforming Stencils to Characteristic Space
+    Set::MultiMatrix TransformStencilToCharacteristic(
+        const Set::MultiMatrix& stencil_matrix,
         int direction,
         const Set::MultiVector& avg_state
-    ) const = 0;
+    ) const override;
     
-    // Template method for Reverse Transforming From Characteristic Space
-    template <typename VectorType>
-    AMREX_GPU_DEVICE
-    VectorType TransformFromCharacteristic(
-        const VectorType& reconstructed_value,
+    //Reverse Transforming From Characteristic Space
+    Set::MultiVector TransformFromCharacteristic(
+        const Set::MultiVector& reconstructed_value,
         int direction,
         const Set::MultiVector& avg_state
-    ) const = 0;
+    ) const override;
 
     void StoreDirectionalFlux(
         int direction,

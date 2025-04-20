@@ -5,6 +5,9 @@
 
 namespace Numeric {
 
+// Define the static member outside of the class definition
+GenericVariableAccessor::VariableIndices GenericVariableAccessor::variableIndices;
+
 namespace CompressibleEuler {    
 
 CompressibleEulerVariableAccessor::CompressibleEulerVariableAccessor(
@@ -278,7 +281,7 @@ CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
 }
 
 void 
-CompressibleEulerVariableAccessor::PopularAverageStates(
+CompressibleEulerVariableAccessor::PopulateAverageStates(
     int direction, 
     int lev, 
     void* solver_void, 
@@ -288,7 +291,7 @@ CompressibleEulerVariableAccessor::PopularAverageStates(
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
 
-    for (amrex::MFIter mfi(input_mf, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(AverageStateBuffer, false); mfi.isValid(); ++mfi) {
         const amrex::Box& box = mfi.growntilebox();
         auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
         auto const& W_arr  = AverageStateBuffer.array(mfi);
@@ -391,81 +394,110 @@ CompressibleEulerVariableAccessor::PopularAverageStates(
     }
 }
 
-template <typename StencilMatrixType> 
+Set::MultiMatrix
 CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
-    const StencilMatrixType& stencil_matrix,     
+    const Set::MultiMatrix& stencil_matrix,
     int direction,
-    const Set::MultiVector& avg_state 
+    const Set::MultiVector& avg_state
 ) const {
-
-            int total_stencilpoints = stencil_matrix.rows();
-            int num_components = stencil_matrix.cols();
-
-            int rho_idx = 0;
-            int u_idx   = 1;
-            int v_idx   = 2;
-            int w_idx   = 3;
-            int ie_idx  = 4;
+    
+        int total_stencilpoints = stencil_matrix.rows();
+        int num_components = stencil_matrix.cols();
+        
+        // Create output matrix of same dimensions
+        Set::MultiMatrix char_stencil_matrix(total_stencilpoints, num_components);
+        char_stencil_matrix.setZero();
+        
+        // Use the static variable indices
+        const int rho_idx = variableIndices.DENS;
+        const int u_idx = variableIndices.UVEL;
+        const int v_idx = variableIndices.VVEL;
+        const int w_idx = variableIndices.WVEL;
+        const int ie_idx = variableIndices.IE;
+        
+        // Create standardized vector for the eigenvector calculation
+        Set::MultiVector std_avg_state(5); // Always 5 components for eigenvector calculation
+        std_avg_state(0) = avg_state(rho_idx);
+        std_avg_state(1) = avg_state(u_idx);
+        std_avg_state(2) = avg_state(v_idx);
+        std_avg_state(3) = (w_idx >= 0) ? avg_state(w_idx) : 0.0;
+        std_avg_state(4) = avg_state(ie_idx);
+        
+        // Get left eigenvector matrix for the transformation
+        Set::MultiMatrix L_n = ComputeLeftEigenvectorMatrix(std_avg_state, direction, 5);
+        
+        // Transform each stencil point to characteristic variables
+        for (int s = 0; s < total_stencilpoints; ++s) {
+            // Map stencil values to standardized vector
+            Set::MultiVector std_state_vec(5);
+            std_state_vec(0) = stencil_matrix(s, rho_idx);
+            std_state_vec(1) = stencil_matrix(s, u_idx);
+            std_state_vec(2) = stencil_matrix(s, v_idx);
+            std_state_vec(3) = (w_idx >= 0) ? stencil_matrix(s, w_idx) : 0.0;
+            std_state_vec(4) = stencil_matrix(s, ie_idx);
             
-            Set::MultiVector Uavg(num_components);   
-            // Reordering
-            Uavg(0) = avg_state(rho_idx);  // density 
-            Uavg(1) = avg_state(u_idx);  // x-momentum
-            Uavg(2) = avg_state(v_idx);  // y-momentum
-#if AMREX_SPACEDIM == 3
-            Uavg(3) = avg_state(w_idx);  // z-momentum (3D)
-#else
-            Uavg(3) = 0.0;           // z-momentum (2D)
-#endif
-            Uavg(4) = avg_state(ie_idx);  // energy
-            // Compute right eigenvector matrix
-            Set::MultiMatrix L_n = ComputeLeftEigenvectorMatrix(Uavg, direction, num_components);
-
-            Set::MultiMatrix CharStencil_Matrix(total_stencilpoints, num_components);
-            CharStencil_Matrix.setZero();
-
-            for (int s = 0; s < total_stencilpoints; ++s) {
-
-            // Create reordered conservative variables to match eigenvector matrix ordering
-            Set::MultiVector Stencil_Vector(num_components);
-            Stencil_Vector.setZero();
+            // Transform to characteristic space
+            Set::MultiVector char_vec = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(
+                L_n, std_state_vec);
             
-            // Reordering
-            Stencil_Vector(0) = stencil_matrix(s, 0);  // density 
-            Stencil_Vector(1) = stencil_matrix(s, 1);  // x-momentum
-            Stencil_Vector(2) = stencil_matrix(s, 2);  // y-momentum
-#if AMREX_SPACEDIM == 3
-            Stencil_Vector(3) = stencil_matrix(s, 3);  // z-momentum (3D)
-#else
-            Stencil_Vector(3) = 0.0;                // z-momentum (2D)
-#endif
-            Stencil_Vector(4) = stencil_matrix(s, 4);  // energy
-                        
-           // Use consistent matrix-vector multiplication
-            Set::MultiVector CharStencilVector = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(L_n, Stencil_Matrix);
-
-            CharStencil_Matrix(s, 0) = CharStencilVector(0);
-            CharStencil_Matrix(s, 1) = CharStencilVector(1);
-            CharStencil_Matrix(s, 2) = CharStencilVector(2);
-#if AMREX_SPACEDIM == 3
-            CharStencil_Matrix(s, 3) = CharStencilVector(3);
-#endif
-            CharStencil_Matrix(s, 4) = CharStencilVector(4);
-
-            }
-                                    
-            // Unreordering
-            W_arr(index[0], index[1], index[2], rho_idx) = W_vec_reordered(0);  // density 
-            W_arr(index[0], index[1], index[2], u_idx) = W_vec_reordered(1);  // x-momentum
-            W_arr(index[0], index[1], index[2], v_idx) = W_vec_reordered(2);  // y-momentum
-#if AMREX_SPACEDIM == 3
-            W_arr(index[0], index[1], index[2], w_idx) = W_vec_reordered(3);  // z-momentum
-#endif
-            W_arr(index[0], index[1], index[2],ie_idx) = W_vec_reordered(4);  // energy
-                        
-    }
+            // Map back to solver's indexing scheme
+            char_stencil_matrix(s, rho_idx) = char_vec(0);
+            char_stencil_matrix(s, u_idx) = char_vec(1);
+            char_stencil_matrix(s, v_idx) = char_vec(2);
+            if (w_idx >= 0) char_stencil_matrix(s, w_idx) = char_vec(3);
+            char_stencil_matrix(s, ie_idx) = char_vec(4);
+        }
+        
+        return char_stencil_matrix;
 }
 
+Set::MultiVector
+CompressibleEulerVariableAccessor::TransformFromCharacteristic(
+    const Set::MultiVector& char_vec,
+    int direction,
+    const Set::MultiVector& avg_state
+) const {
+         // Create output vector of the same type and size
+         Set::MultiVector phys_vec(char_vec.size());
+         
+         // Use the static variable indices
+         const int rho_idx = variableIndices.DENS;
+         const int u_idx = variableIndices.UVEL;
+         const int v_idx = variableIndices.VVEL;
+         const int w_idx = variableIndices.WVEL;
+         const int ie_idx = variableIndices.IE;
+         
+         // Create standardized vectors
+         Set::MultiVector std_avg_state(5);
+         std_avg_state(0) = avg_state(rho_idx);
+         std_avg_state(1) = avg_state(u_idx);
+         std_avg_state(2) = avg_state(v_idx);
+         std_avg_state(3) = (w_idx >= 0) ? avg_state(w_idx) : 0.0;
+         std_avg_state(4) = avg_state(ie_idx);
+         
+         Set::MultiVector std_char_vec(5);
+         std_char_vec(0) = char_vec(rho_idx);
+         std_char_vec(1) = char_vec(u_idx);
+         std_char_vec(2) = char_vec(v_idx);
+         std_char_vec(3) = (w_idx >= 0) ? char_vec(w_idx) : 0.0;
+         std_char_vec(4) = char_vec(ie_idx);
+         
+         // Get right eigenvector matrix for the inverse transformation
+         Set::MultiMatrix R_n = ComputeRightEigenvectorMatrix(std_avg_state, direction, 5);
+         
+         // Transform back to physical space
+         Set::MultiVector std_phys_vec = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(
+             R_n, std_char_vec);
+         
+         // Map back to solver's indexing scheme
+         phys_vec(rho_idx) = std_phys_vec(0);
+         phys_vec(u_idx) = std_phys_vec(1);
+         phys_vec(v_idx) = std_phys_vec(2);
+         if (w_idx >= 0) phys_vec(w_idx) = std_phys_vec(3);
+         phys_vec(ie_idx) = std_phys_vec(4);
+         
+         return phys_vec;
+}
 
 
 void 
@@ -523,149 +555,6 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
 
 }
 
-void 
-CompressibleEulerVariableAccessor::FromCharacteristic(
-    int direction, 
-    int lev, 
-    const Integrator::ScimitarX* solver,
-    amrex::MultiFab& WorkingBuffer
-) const {
-     
-    const int nghosts = solver->number_of_ghost_cells;
-
-
-    for (amrex::MFIter mfi(WorkingBuffer, false); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
-        auto const& in_arr = WorkingBuffer.array(mfi);
-       // auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
-       //                          (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
-       //                          solver->ZFlux_mf.Patch(lev, mfi);
-        auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
-        //Characteristic Reconstruction is Performed through Fixed 5X5 Matrix
-        //This works for both 2D and 3D. 
-        //The matrix is re-arranged such that for 2D, last column, last row are zeros.
-        int num_components = 5; 
-        int solver_components = solver->number_of_components; 
-        // Retrieve variable indices for better GPU performance
-        int rho_idx = solver->variableIndex.DENS;   // density
-        int ie_idx = solver->variableIndex.IE;     // energy
-        int u_idx = solver->variableIndex.UVEL;   // x-momentum
-        int v_idx = solver->variableIndex.VVEL;   // y-momentum
-#if AMREX_SPACEDIM == 3
-        int w_idx = solver->variableIndex.WVEL;   // z-momentum
-#endif
-        
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-
-    
-            // Construct index arrays with correct number of components
-            int index[3];
-            int left_index[3];
-            int right_index[3];
-            int lower_bounds[3];
-            int upper_bounds[3];
-
-            // Set up indices
-            index[0] = iface; index[1] = jface; index[2] = kface;
-            left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
-            right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
-
-            // Define bounds including ghost cells
-            lower_bounds[0] = bx.smallEnd(0); 
-            lower_bounds[1] = bx.smallEnd(1); 
-            lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx.smallEnd(2) : 0;
-            upper_bounds[0] = bx.bigEnd(0)-1;
-            upper_bounds[1] = bx.bigEnd(1)-1;
-            upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx.bigEnd(2) - 1 : 0;
-                  
-      
-            // Clamp the main index
-            ClampIndices(index, lower_bounds, upper_bounds);
-      
-            // Shift and clamp for left and right indices
-            int left_offset[3] = {0, 0, 0};
-            int right_offset[3] = {0, 0, 0};
-            left_offset[direction] = 0;  // Shift left
-            right_offset[direction] = 1;  // Shift right
-      
-            ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-            ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
-    
-            // Extract characteristic variables in original ordering
-            Set::MultiVector W_orig = Numeric::FieldToMultiVector(in_arr, index[0], index[1], index[2], solver_components);
-
-
-            // Extract original Current Index primitive variables
-            Set::MultiVector U_orig = Numeric::FieldToMultiVector(p_arr, index[0], index[1], index[2], solver_components);
-            // Extract original left state primitive variables
-            Set::MultiVector UL = Numeric::FieldToMultiVector(p_arr, left_index[0], left_index[1], left_index[2], solver_components);
-                        
-            // Extract original right state primitive variables
-            Set::MultiVector UR = Numeric::FieldToMultiVector(p_arr, right_index[0], right_index[1], right_index[2], solver_components);
-
-
-            Set::MultiVector WL(num_components);
-            Set::MultiVector WR(num_components);            
-            Set::MultiVector Wavg(num_components);
-            WL.setZero();
-            WR.setZero();
-            Wavg.setZero();
-
-            WL(0) = UL(rho_idx);
-            WL(1) = UL(u_idx);
-            WL(2) = UL(v_idx);
-#if AMREX_SPACEDIM == 3
-            WL(3) = UL(w_idx);  
-#else
-            WL(3) = 0.0;
-#endif
-            WL(4) = UL(ie_idx);
-            
-            WR(0) = UR(rho_idx);
-            WR(1) = UR(u_idx);
-            WR(2) = UR(v_idx);
-#if AMREX_SPACEDIM == 3
-            WR(3) = UR(w_idx);  
-#else
-            WR(3) = 0.0;
-#endif
-            WR(4) = UR(ie_idx);
-                
-            Wavg = CompressibleEulerVariableAccessor::ComputeRoeAverages(WL, WR, num_components);            
-                        
-            // Compute right eigenvector matrices
-            Set::MultiMatrix R_n = ComputeRightEigenvectorMatrix(Wavg, direction, num_components);
-
-            // Create reordered characteristic variables
-            Set::MultiVector W_reordered(num_components);
-            W_reordered.setZero();
-
-            // Reordering
-            W_reordered(0) = W_orig(rho_idx);
-            W_reordered(1) = W_orig(u_idx);
-            W_reordered(2) = W_orig(v_idx);
-#if AMREX_SPACEDIM == 3
-            W_reordered(3) = W_orig(w_idx);
-#else
-            W_reordered(3) = 0.0;
-#endif
-            W_reordered(4) = W_orig(ie_idx);
-                                                
-            // Use consistent matrix-vector multiplication
-            Set::MultiVector U_reordered = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(R_n, W_reordered);
-                        
-            // Unreordering and storing back in arrays
-            in_arr(index[0], index[1], index[2], rho_idx) = U_reordered(0);
-            in_arr(index[0], index[1], index[2], u_idx)   = U_reordered(1);
-            in_arr(index[0], index[1], index[2], v_idx)   = U_reordered(2);
-#if AMREX_SPACEDIM == 3
-            in_arr(index[0], index[1], index[2], w_idx)   = U_reordered(3);
-#endif
-            in_arr(index[0], index[1], index[2], ie_idx)  = U_reordered(4);
-            
-        });
-    }
-}
 
 Set::MultiMatrix
 CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(

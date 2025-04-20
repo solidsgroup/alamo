@@ -462,65 +462,64 @@ public:
         return reconstructed_value;
     }*/
 
-
     template <typename StencilMatrixType>
     AMREX_GPU_DEVICE
     static Set::MultiVector ReconstructValue(
-        const StencilMatrixType& stencil_matrix,
+        const StencilMatrixType& input_stencil,
         int i, int j, int k,
         int direction,
         bool useCharacteristic,
-        const GenericVariableAccessor* variable_accessor,
+        const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
         const Set::MultiVector& avg_state,
         bool enableDebug)
     {
-        int num_components = stencil_matrix.cols(); //Number of components
-                                                     
-        // Transform to Characteristic Variables if needed
+        const int num_components = input_stencil.cols();
+        
+        // Prepare stencil data for reconstruction
+        // Create a copy regardless of whether we're using characteristic variables
+        Set::MultiMatrix stencil_for_reconstruction = input_stencil;
+        
+        // Conditionally transform to characteristic space (branch happens once for all threads)
         if (useCharacteristic && variable_accessor) {
-            variable_accessor->TransformStencilToCharacteristic(
-                    stencil_matrix, direction, avg_state);
-        } 
-
-        // Initialize result vector
+            stencil_for_reconstruction = variable_accessor->TransformStencilToCharacteristic(
+                input_stencil, direction, avg_state);
+        }
+        
+        // Apply WENO reconstruction to each component (no branching in the core algorithm)
         Set::MultiVector reconstructed_values(num_components);
         reconstructed_values.setZero();
-
-        //Apply WENO reconstruction to each component
+    
         for (int comp = 0; comp < num_components; ++comp) {
-           // Extract stencil for this component
+            // Extract stencil values for this component
             std::array<Set::Scalar, Traits::TotalPoints> component_stencil;
             for (int s = 0; s < Traits::TotalPoints; ++s) {
-                component_stencil[s] = stencil_matrix(s, comp);
-            }   
-
-            //Apply Core WENO algorithm to this component
+                component_stencil[s] = stencil_for_reconstruction(s, comp);
+            }
+            
+            // Apply core WENO algorithm to this component (no branching)
             auto indicators = ComputeSmoothnessIndicators(component_stencil, i, j, k, enableDebug);
             auto candidate_fluxes = ComputeCandidateFluxes(component_stencil, i, j, k, enableDebug);
             auto weights = ComputeNonlinearWeights(indicators, i, j, k, enableDebug);
-                    
-            //Form Convex Combination of Candidate Fluxes for this component
+            
+            // Form convex combination of candidate fluxes (no branching)
             Set::Scalar reconstructed_component = 0.0;
             for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
-            reconstructed_component += weights[r] * candidate_fluxes[r];
+                reconstructed_component += weights[r] * candidate_fluxes[r];
             }
-
-            //store the reconstructed value for this component
+            
+            // Store the reconstructed value
             reconstructed_values(comp) = reconstructed_component;
         }
-
-        // Transform to Characteristic Variables if needed
-        if (useCharacteristic && variable_accessor) {
-            variable_accessor->TransformFromCharacteristic(
-                    reconstructed_values, direction, avg_state);
-        } 
-
-        return reconstructed_values;
         
+        // Conditionally transform back to physical space (branch happens once for all threads)
+        if (useCharacteristic && variable_accessor) {
+            reconstructed_values = variable_accessor->TransformFromCharacteristic(
+                reconstructed_values, direction, avg_state);
         }
-
+        
+        return reconstructed_values;
     }
-
+    
 };
 
 /**
@@ -659,62 +658,65 @@ public:
         return reconstructed_value;
     }*/
 
+
     template <typename StencilMatrixType>
     AMREX_GPU_DEVICE
     static Set::MultiVector ReconstructValue(
-        const StencilMatrixType& stencil_matrix,
+        const StencilMatrixType& input_stencil,
         int i, int j, int k,
         int direction,
         bool useCharacteristic,
-        const GenericVariableAccessor* variable_accessor,
+        const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
         const Set::MultiVector& avg_state,
         bool enableDebug)
     {
-        int num_components = stencil_matrix.cols(); //Number of components
-                                                     
-        // Transform to Characteristic Variables if needed
+        const int num_components = input_stencil.cols();
+        
+        // Prepare stencil data for reconstruction
+        // Create a copy regardless of whether we're using characteristic variables
+        Set::MultiMatrix stencil_for_reconstruction = input_stencil;
+        
+        // Conditionally transform to characteristic space (branch happens once for all threads)
         if (useCharacteristic && variable_accessor) {
-            variable_accessor->TransformStencilToCharacteristic(
-                    stencil_matrix, direction, avg_state);
-        } 
-
-        // Initialize result vector
+            stencil_for_reconstruction = variable_accessor->TransformStencilToCharacteristic(
+                input_stencil, direction, avg_state);
+        }
+        
+        // Apply WENO reconstruction to each component (no branching in the core algorithm)
         Set::MultiVector reconstructed_values(num_components);
         reconstructed_values.setZero();
-
-        //Apply WENO reconstruction to each component
+    
         for (int comp = 0; comp < num_components; ++comp) {
-           // Extract stencil for this component
+            // Extract stencil values for this component
             std::array<Set::Scalar, Traits::TotalPoints> component_stencil;
             for (int s = 0; s < Traits::TotalPoints; ++s) {
-                component_stencil[s] = stencil_matrix(s, comp);
-            }   
-
-            //Apply Core WENO algorithm to this component
+                component_stencil[s] = stencil_for_reconstruction(s, comp);
+            }
+            
+            // Apply core WENO algorithm to this component (no branching)
             auto indicators = ComputeSmoothnessIndicators(component_stencil, i, j, k, enableDebug);
             auto candidate_fluxes = ComputeCandidateFluxes(component_stencil, i, j, k, enableDebug);
             auto weights = ComputeNonlinearWeights(indicators, i, j, k, enableDebug);
-                    
-            //Form Convex Combination of Candidate Fluxes for this component
+            
+            // Form convex combination of candidate fluxes (no branching)
             Set::Scalar reconstructed_component = 0.0;
             for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
-            reconstructed_component += weights[r] * candidate_fluxes[r];
+                reconstructed_component += weights[r] * candidate_fluxes[r];
             }
-
-            //store the reconstructed value for this component
+            
+            // Store the reconstructed value
             reconstructed_values(comp) = reconstructed_component;
         }
-
-        // Transform to Characteristic Variables if needed
-        if (useCharacteristic && variable_accessor) {
-            variable_accessor->TransformFromCharacteristic(
-                    reconstructed_values, direction, avg_state);
-        } 
-
-        return reconstructed_values;
         
+        // Conditionally transform back to physical space (branch happens once for all threads)
+        if (useCharacteristic && variable_accessor) {
+            reconstructed_values = variable_accessor->TransformFromCharacteristic(
+                reconstructed_values, direction, avg_state);
         }
+        
+        return reconstructed_values;
     }
+
 };
 
 //==============================================================================
@@ -772,7 +774,7 @@ public:
         const amrex::MultiFab& Flux_Negative,
         const amrex::MultiFab& Flux_Positive, 
         amrex::MultiFab& SummedFlux,
-        const GenericVariableAccessor* variable_accessor,
+        const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
         const amrex::MultiFab* AverageStateBuffer
     ) const override {
         const int nghosts = solver->number_of_ghost_cells;
@@ -873,8 +875,8 @@ public:
                 }
 
                     // Reconstruct left state (QL) at interface using WENO
-                    Fpos_reconstructed = Policy::ReconstructValue(stencil_pos, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
-                    Fneg_reconstructed = Policy::ReconstructValue(stencil_neg, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
+                    Fpos_reconstructed = Policy::ReconstructValue(stencilpos_matrix, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
+                    Fneg_reconstructed = Policy::ReconstructValue(stencilneg_matrix, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
 
                 // Compute final summed flux at face center
                 for (int n = 0; n < solver->number_of_components; ++n) {
@@ -894,7 +896,7 @@ void ReconstructVariables(
     const amrex::MultiFab& VariableBuffer,
     amrex::MultiFab& LeftStates, 
     amrex::MultiFab& RightStates,
-    const GenericVariableAccessor* variable_accessor,
+    const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
     const amrex::MultiFab* AverageStateBuffer
 ) const override {
     const int nghosts = solver->number_of_ghost_cells;
@@ -952,7 +954,7 @@ void ReconstructVariables(
             ClampIndices(index, lower_bounds, upper_bounds);
 
             // store average state buffer in vector form  
-            Set::Multivector avg_state(num_components);
+            Set::MultiVector avg_state(num_components);
             avg_state.setZero();
 
             //Store left face reconstructed values in an array

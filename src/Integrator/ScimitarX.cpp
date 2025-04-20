@@ -21,7 +21,7 @@ namespace Integrator
 {
 
 // Define the static member variable
-Util::ScimitarX_Util::getVariableIndex ScimitarX::variableIndex;
+Numeric::GenericVariableAccessor::VariableIndices ScimitarX::variableIndex;
 
 // Default constructor implementation
 ScimitarX::ScimitarX() : Integrator()
@@ -120,12 +120,38 @@ void ScimitarX::SetupNumericComponents()
         timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
     }
     
+
     // Create variable accessor based on current solver type
-    if (solverType == SolverType::SolveCompressibleEuler) {
-        // Create the variable accessor if it doesn't exist
+    switch(solverType){   
+
+     case SolverType::SolveCompressibleEuler:
+             // Create the variable accessor if it doesn't exist
         if (!variable_accessor) {
             variable_accessor = std::make_shared<Numeric::CompressibleEuler::CompressibleEulerVariableAccessor>(
                 number_of_ghost_cells, variable_space);
+
+            // Initialize with indices specific to this solver type
+            Numeric::GenericVariableAccessor::VariableIndices accessorIndices;
+
+            // For CompressibleEuler, only initialize relevant indices
+            accessorIndices.NVAR_MAX = variableIndex.NVAR_MAX;
+            accessorIndices.DENS = variableIndex.DENS;
+            accessorIndices.UVEL = variableIndex.UVEL;
+            accessorIndices.VVEL = variableIndex.VVEL;
+            accessorIndices.WVEL = variableIndex.WVEL;
+            accessorIndices.IE = variableIndex.IE;
+
+            // Other indices remain at default (-1) since they're not used for CompressibleEuler
+
+            // Copy the relevant subset of the map
+            for (const auto& [varEnum, index] : variableIndex.variableIndexMap) {
+                // Include only those indices relevant to CompressibleEuler
+                // (You may need to filter based on enum range or other criteria)
+                accessorIndices.variableIndexMap[varEnum] = index;
+            }
+
+            // Initialize the accessor with these indices
+            variable_accessor->initializeIndices(accessorIndices);
         }
         
         // Update the flux handler with the accessor
@@ -160,7 +186,9 @@ void ScimitarX::SetupNumericComponents()
         } else {
             timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::RK3Scheme<ScimitarX>>());
         }
-    } else {
+    
+        break;
+       case SolverType::SolveElastoPlastic:
         // For other solver types, use default configurations
         Util::Warning(INFO, "SetupNumericComponents: Unsupported solver type. Using defaults.");
         
@@ -170,13 +198,42 @@ void ScimitarX::SetupNumericComponents()
             // appropriate accessors for each solver type
             variable_accessor = std::make_shared<Numeric::CompressibleEuler::CompressibleEulerVariableAccessor>(
                 number_of_ghost_cells, variable_space);
+
+            Numeric::GenericVariableAccessor::VariableIndices accessorIndices;
+            
+            // Initialize all indices relevant for ElastoPlastic
+            accessorIndices.NVAR_MAX = variableIndex.NVAR_MAX;
+            accessorIndices.DENS = variableIndex.DENS;
+            accessorIndices.UVEL = variableIndex.UVEL;
+            accessorIndices.VVEL = variableIndex.VVEL;
+            accessorIndices.WVEL = variableIndex.WVEL;
+            accessorIndices.IE = variableIndex.IE;
+            accessorIndices.SXX = variableIndex.SXX;
+            accessorIndices.SYY = variableIndex.SYY;
+            accessorIndices.SZZ = variableIndex.SZZ;
+            accessorIndices.SXY = variableIndex.SXY;
+            accessorIndices.SXZ = variableIndex.SXZ;
+            accessorIndices.SYZ = variableIndex.SYZ;
+            accessorIndices.EPSBAR = variableIndex.EPSBAR;
+            accessorIndices.IE_ELASTIC = variableIndex.IE_ELASTIC;
+            
+            // Copy the map for ElastoPlastic variables
+            for (const auto& [varEnum, index] : variableIndex.variableIndexMap) {
+                accessorIndices.variableIndexMap[varEnum] = index;
+            }
+            
+            variable_accessor->initializeIndices(accessorIndices);
+
         }
         
         // Update flux handler with accessor
         fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(variable_accessor);
+
+        break;
+       default:
+        throw std::runtime_error("Invalid SolverType: Setup Numerics");
+    } 
         
-    }
-    
     // Additional validation logging
     Util::Message(INFO, "Final Numeric Method Configuration:");
     Util::Message(INFO, "  Flux Reconstruction: " + 
@@ -650,7 +707,7 @@ Set::Scalar ScimitarX::GetTimeStep() {
 }
 
 
-IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Util::ScimitarX_Util::getVariableIndex& variableIndex)
+IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Numeric::GenericVariableAccessor::VariableIndices& variableIndex)
 {
     int n_components = variableIndex.NVAR_MAX;
     std::vector<std::string> component_names(n_components);

@@ -55,7 +55,7 @@ public:
                                   const amrex::MultiFab& Flux_Negative, 
                                   const amrex::MultiFab& Flux_Positive,
                                   amrex::MultiFab& SummedFlux,
-                                  const GenericVariableAccessor* variable_accessor,
+                                  const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
                                   const amrex::MultiFab* AverageStateBuffer = nullptr) const = 0;
     
     // New method for variable-based reconstruction (for HLLC-like methods)
@@ -63,7 +63,7 @@ public:
                                      const amrex::MultiFab& VariableBuffer,
                                      amrex::MultiFab& LeftStates, 
                                      amrex::MultiFab& RightStates,
-                                     const GenericVariableAccessor* variable_accessor,
+                                     const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
                                      const amrex::MultiFab* AverageStateBuffer = nullptr) const = 0;
 };
 
@@ -209,11 +209,12 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
     variable_accessor->CopyVariables(direction, lev, solver, VariableBuffer, 
                                          mode, validationResult);
 
+    amrex::MultiFab AverageStateBuffer;
 
     // 3. If Characteristic Reconstruction, Populate Average States in a buffer
     if ( mode == ReconstructionMode::Characteristic) {
     // 3a. Create intermediate buffers for storing cell centered variables
-    amrex::MultiFab AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
+        AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
         solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
     );
 
@@ -296,11 +297,12 @@ void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
     variable_accessor->CopyVariables(direction, lev, solver, VariableBuffer, 
                                          mode, validationResult);
     
+    amrex::MultiFab AverageStateBuffer;
 
     // 3. If Characteristic Reconstruction, Populate Average States in a buffer
     if ( mode == ReconstructionMode::Characteristic) {
     // 3a. Create intermediate buffers for storing cell centered variables
-    amrex::MultiFab AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
+    AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
         solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
     );
 
@@ -343,7 +345,7 @@ void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
     reconstruction->ReconstructFluxes(
             direction, lev, solver, 
             Flux_Negative, Flux_Positive, SummedFlux, 
-            variable_accessor
+            variable_accessor,
             (mode == ReconstructionMode::Characteristic) ? &AverageStateBuffer : nullptr);
     
     // 11. Store fluxes in the appropriate directional flux arrays
@@ -359,7 +361,8 @@ public:
     void ReconstructFluxes(int direction, int /*lev*/, IntegratorDerivedClass* solver,
                          const amrex::MultiFab& Flux_Negative, const amrex::MultiFab& Flux_Positive,
                          amrex::MultiFab& SummedFlux,
-                         const ReconstructionMode& mode) const override {
+                         [[maybe_unused]] const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
+                         [[maybe_unused]] const amrex::MultiFab* AverageStateBuffer = nullptr) const override {
         
         const int nghosts = solver->number_of_ghost_cells; 
 
@@ -420,7 +423,8 @@ public:
     void ReconstructVariables(int direction, int /*lev*/, IntegratorDerivedClass* solver,
                             const amrex::MultiFab& VariableBuffer,
                             amrex::MultiFab& LeftStates, amrex::MultiFab& RightStates,
-                            const ReconstructionMode& mode) const override {
+                         [[maybe_unused]] const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
+                         [[maybe_unused]] const amrex::MultiFab* AverageStateBuffer = nullptr) const override {
         
         const int nghosts = solver->number_of_ghost_cells;
         

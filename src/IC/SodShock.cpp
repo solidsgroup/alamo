@@ -3,6 +3,7 @@
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
+#include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Model/Fluid/Fluid.H"
 
 namespace IC {
@@ -10,7 +11,7 @@ namespace IC {
 using namespace Model::Fluid;
 
 SodShock::SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-                    const Util::ScimitarX_Util::getVariableIndex& precomputed_indices)
+                    const Numeric::GenericVariableAccessor::VariableIndices& precomputed_indices)
     : IC(_geom), variable_indices(&precomputed_indices), requires_variable_indices(true) {
     initialize(pp, name);
 }

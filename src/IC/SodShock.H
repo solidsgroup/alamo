@@ -5,6 +5,7 @@
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Util/ScimitarX_Util.H"
+#include "Numeric/IntegratorVariableAccessLayer.H"
 
 
 namespace IC {
@@ -12,7 +13,7 @@ class SodShock : public IC<Set::Scalar> {
 public:
     // Constructor requiring variable indices
     SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
-            const Util::ScimitarX_Util::getVariableIndex& precomputed_indices);
+            const Numeric::GenericVariableAccessor::VariableIndices& precomputed_indices);
 
     // Constructor for pressure (no variable indices required)
     SodShock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name);
@@ -28,7 +29,7 @@ protected:
     std::string mf_name;
 
     // Variable indices (only required for qvec)
-    const Util::ScimitarX_Util::getVariableIndex* variable_indices;
+    const Numeric::GenericVariableAccessor::VariableIndices* variable_indices;
     bool requires_variable_indices;
 
     // Shock position
