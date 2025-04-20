@@ -429,7 +429,7 @@ public:
      * @param enableDebug Enable detailed debugging output
      * @return Reconstructed value at the interface
      */
-    template <typename StencilArray>
+    /*template <typename StencilArray>
     AMREX_GPU_DEVICE
     static Set::Scalar ReconstructValue(
         const StencilArray& stencil,
@@ -460,7 +460,67 @@ public:
         );
         
         return reconstructed_value;
+    }*/
+
+
+    template <typename StencilMatrixType>
+    AMREX_GPU_DEVICE
+    static Set::MultiVector ReconstructValue(
+        const StencilMatrixType& stencil_matrix,
+        int i, int j, int k,
+        int direction,
+        bool useCharacteristic,
+        const GenericVariableAccessor* variable_accessor,
+        const Set::MultiVector& avg_state,
+        bool enableDebug)
+    {
+        int num_components = stencil_matrix.cols(); //Number of components
+                                                     
+        // Transform to Characteristic Variables if needed
+        if (useCharacteristic && variable_accessor) {
+            variable_accessor->TransformStencilToCharacteristic(
+                    stencil_matrix, direction, avg_state);
+        } 
+
+        // Initialize result vector
+        Set::MultiVector reconstructed_values(num_components);
+        reconstructed_values.setZero();
+
+        //Apply WENO reconstruction to each component
+        for (int comp = 0; comp < num_components; ++comp) {
+           // Extract stencil for this component
+            std::array<Set::Scalar, Traits::TotalPoints> component_stencil;
+            for (int s = 0; s < Traits::TotalPoints; ++s) {
+                component_stencil[s] = stencil_matrix(s, comp);
+            }   
+
+            //Apply Core WENO algorithm to this component
+            auto indicators = ComputeSmoothnessIndicators(component_stencil, i, j, k, enableDebug);
+            auto candidate_fluxes = ComputeCandidateFluxes(component_stencil, i, j, k, enableDebug);
+            auto weights = ComputeNonlinearWeights(indicators, i, j, k, enableDebug);
+                    
+            //Form Convex Combination of Candidate Fluxes for this component
+            Set::Scalar reconstructed_component = 0.0;
+            for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
+            reconstructed_component += weights[r] * candidate_fluxes[r];
+            }
+
+            //store the reconstructed value for this component
+            reconstructed_values(comp) = reconstructed_component;
+        }
+
+        // Transform to Characteristic Variables if needed
+        if (useCharacteristic && variable_accessor) {
+            variable_accessor->TransformFromCharacteristic(
+                    reconstructed_values, direction, avg_state);
+        } 
+
+        return reconstructed_values;
+        
+        }
+
     }
+
 };
 
 /**
@@ -566,7 +626,7 @@ public:
      * @param enableDebug Enable detailed debugging output
      * @return Reconstructed value at the interface
      */
-    template <typename StencilArray>
+   /* template <typename StencilArray>
     AMREX_GPU_DEVICE
     static Set::Scalar ReconstructValue(
         const StencilArray& stencil,
@@ -597,6 +657,63 @@ public:
         );
         
         return reconstructed_value;
+    }*/
+
+    template <typename StencilMatrixType>
+    AMREX_GPU_DEVICE
+    static Set::MultiVector ReconstructValue(
+        const StencilMatrixType& stencil_matrix,
+        int i, int j, int k,
+        int direction,
+        bool useCharacteristic,
+        const GenericVariableAccessor* variable_accessor,
+        const Set::MultiVector& avg_state,
+        bool enableDebug)
+    {
+        int num_components = stencil_matrix.cols(); //Number of components
+                                                     
+        // Transform to Characteristic Variables if needed
+        if (useCharacteristic && variable_accessor) {
+            variable_accessor->TransformStencilToCharacteristic(
+                    stencil_matrix, direction, avg_state);
+        } 
+
+        // Initialize result vector
+        Set::MultiVector reconstructed_values(num_components);
+        reconstructed_values.setZero();
+
+        //Apply WENO reconstruction to each component
+        for (int comp = 0; comp < num_components; ++comp) {
+           // Extract stencil for this component
+            std::array<Set::Scalar, Traits::TotalPoints> component_stencil;
+            for (int s = 0; s < Traits::TotalPoints; ++s) {
+                component_stencil[s] = stencil_matrix(s, comp);
+            }   
+
+            //Apply Core WENO algorithm to this component
+            auto indicators = ComputeSmoothnessIndicators(component_stencil, i, j, k, enableDebug);
+            auto candidate_fluxes = ComputeCandidateFluxes(component_stencil, i, j, k, enableDebug);
+            auto weights = ComputeNonlinearWeights(indicators, i, j, k, enableDebug);
+                    
+            //Form Convex Combination of Candidate Fluxes for this component
+            Set::Scalar reconstructed_component = 0.0;
+            for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
+            reconstructed_component += weights[r] * candidate_fluxes[r];
+            }
+
+            //store the reconstructed value for this component
+            reconstructed_values(comp) = reconstructed_component;
+        }
+
+        // Transform to Characteristic Variables if needed
+        if (useCharacteristic && variable_accessor) {
+            variable_accessor->TransformFromCharacteristic(
+                    reconstructed_values, direction, avg_state);
+        } 
+
+        return reconstructed_values;
+        
+        }
     }
 };
 
@@ -654,11 +771,26 @@ public:
         IntegratorDerivedClass* solver,
         const amrex::MultiFab& Flux_Negative,
         const amrex::MultiFab& Flux_Positive, 
-        amrex::MultiFab& SummedFlux
+        amrex::MultiFab& SummedFlux,
+        const GenericVariableAccessor* variable_accessor,
+        const amrex::MultiFab* AverageStateBuffer
     ) const override {
         const int nghosts = solver->number_of_ghost_cells;
         const int num_components = solver->number_of_components;
         const bool enableDebug = false;  // Enable detailed debugging
+
+        // Get Reconstruction Mode 
+        ReconstructionMode mode = variable_accessor->getCurrentReconstructionMode();
+
+        // Create a bool to check for ReconstructionMode and if AverageStateBuffer is not null pointer
+        bool useCharacteristic = (mode == ReconstructionMode::Characteristic && AverageStateBuffer != nullptr);
+
+        // Create average state vector once outside the loop if needed
+        Set::MultiVector avg_state;
+        if (useCharacteristic) {
+            //Initialize the average state outside the component loop
+            avg_state.resize(num_components);
+        }    
 
         //Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
         // Only log the variant when debug is enabled
@@ -674,6 +806,12 @@ public:
             auto const& FluxPos_arr = Flux_Positive.const_array(mfi);
             auto const& TotalFlux_arr = SummedFlux.array(mfi);
             
+            // Get average state array if available
+            amrex::Array4<const Set::Scalar> Avg_arr;
+            if (useCharacteristic) {
+                Avg_arr = AverageStateBuffer->const_array(mfi);
+            }
+
             // Process each cell in the valid box
             amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                 // Construct index arrays with correct number of components
@@ -695,45 +833,53 @@ public:
                 // Clamp the main index to ensure it's within bounds
                 ClampIndices(index, lower_bounds, upper_bounds);
 
-                std::vector<Set::Scalar> Fpos_reconstructed(num_components, 0.0);
-                std::vector<Set::Scalar> Fneg_reconstructed(num_components, 0.0);
+                // Store average state buffer in Vector Form
+                Set::MultiVector avg_state(num_components);
+                avg_state.setZero();
+ 
+                // Store Fpos and Fneg Reconstructed
+                Set::MultiVector Fpos_reconstructed(num_components);
+                Set::MultiVector Fneg_reconstructed(num_components);
+                Fpos_reconstructed.setZero();
+                Fneg_reconstructed.setZero();
 
-                // Process each component
-                for (int n = 0; n < solver->number_of_components; ++n) {
-                    // Extract stencil values based on direction
-                    std::array<Set::Scalar, Traits::TotalPoints> stencil_pos;
-                    std::array<Set::Scalar, Traits::TotalPoints> stencil_neg;
+                if (useCharacteristic) {
+                Set::MultiVector avg_state = Numeric::FieldToMultiVector(Avg_arr, index[0], index[1], index[2], num_components);                  }    
+
+                //Create Stencil Matrix where each row represents a full state vector
+                Set::MultiMatrix stencilpos_matrix(Traits::TotalPoints, num_components);
+                Set::MultiMatrix stencilneg_matrix(Traits::TotalPoints, num_components);
+
+
+                //Fill stencil matrix with state vectors from each stencil point 
+                for (int s = 0; s < Traits::TotalPoints; ++s) {
+                    // Calculate stencil point index with proper offset
+                    int stencil_idx[3] = {index[0], index[1], index[2]};
                     
-                    // Base stencil center point - the left interface point
-                    int center_idx[3] = {index[0], index[1], index[2]};
+                    // Apply offset in the reconstruction direction
+                    // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
+                    int offset = s - Traits::TotalPoints/2;
+                    stencil_idx[direction] += offset;
                     
-                    // Extract the full stencil for negative flux
-                    for (int s = 0; s < Traits::TotalPoints; ++s) {
-                        // Calculate stencil point index with proper offset
-                        int stencil_idx[3] = {center_idx[0], center_idx[1], center_idx[2]};
-                        
-                        // Apply offset in the reconstruction direction
-                        // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
-                        int offset = s - Traits::TotalPoints/2;
-                        stencil_idx[direction] += offset;
-                        
-                        // Clamp indices to ensure they're within bounds
-                        ClampIndices(stencil_idx, lower_bounds, upper_bounds);
-                        
-                        // Extract data value for this stencil point
-                        stencil_neg[s] = FluxNeg_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
-                        stencil_pos[s] = FluxPos_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                    // Clamp indices to ensure they're within bounds
+                    ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                    
+                    for (int n = 0; n < num_components; ++n) {
+                    // Extract data value for this stencil point
+                    stencilneg_matrix(s, n) = FluxNeg_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                    stencilpos_matrix(s, n) = FluxPos_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+
                     }
-                    
-                    // Reconstruct left state (QL) at interface using WENO
-                    Fpos_reconstructed[n] = Policy::ReconstructValue(stencil_pos, index[0], index[1], index[2], enableDebug);
-                    Fneg_reconstructed[n] = Policy::ReconstructValue(stencil_neg, index[0], index[1], index[2], enableDebug);
                 }
+
+                    // Reconstruct left state (QL) at interface using WENO
+                    Fpos_reconstructed = Policy::ReconstructValue(stencil_pos, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
+                    Fneg_reconstructed = Policy::ReconstructValue(stencil_neg, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
 
                 // Compute final summed flux at face center
                 for (int n = 0; n < solver->number_of_components; ++n) {
                     TotalFlux_arr(index[0], index[1], index[2], n) = 
-                    Fpos_reconstructed[n] + Fneg_reconstructed[n];
+                    Fpos_reconstructed(n) + Fneg_reconstructed(n);
                 }
 
             });
@@ -747,11 +893,24 @@ void ReconstructVariables(
     IntegratorDerivedClass* solver,
     const amrex::MultiFab& VariableBuffer,
     amrex::MultiFab& LeftStates, 
-    amrex::MultiFab& RightStates
+    amrex::MultiFab& RightStates,
+    const GenericVariableAccessor* variable_accessor,
+    const amrex::MultiFab* AverageStateBuffer
 ) const override {
     const int nghosts = solver->number_of_ghost_cells;
     const int num_components = solver->number_of_components;
     const bool enableDebug = false;  // Enable detailed debugging
+
+    ReconstructionMode mode = variable_accessor->getCurrentReconstructionMode();
+    // Create a bool to check for ReconstructionMode and if AverageStateBuffer is not null pointer
+    bool useCharacteristic = (mode == ReconstructionMode::Characteristic && AverageStateBuffer != nullptr);
+
+    // Create average state vector once outside the loop if needed
+    Set::MultiVector avg_state;
+    if (useCharacteristic) {
+        //Initialize the average state outside the component loop
+        avg_state.resize(num_components);
+    }    
 
     //Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
     // Only log the variant when debug is enabled
@@ -765,6 +924,12 @@ void ReconstructVariables(
         
         auto const& Var_arr = VariableBuffer.const_array(mfi);
         auto const& LeftStates_arr = LeftStates.array(mfi);
+
+        // Get average state array if available
+        amrex::Array4<const Set::Scalar> Avg_arr;
+        if (useCharacteristic) {
+            Avg_arr = AverageStateBuffer->const_array(mfi);
+        }
         
         amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
             // Construct index arrays
@@ -785,19 +950,26 @@ void ReconstructVariables(
             
             // Clamp the main index
             ClampIndices(index, lower_bounds, upper_bounds);
-            
-            // Process each component
-            for (int n = 0; n < num_components; ++n) {
-                // Extract stencil values based on direction
-                std::array<Set::Scalar, Traits::TotalPoints> stencil;
-                
-                // Base stencil center point
-                int center_idx[3] = {index[0], index[1], index[2]};
-                
-                // Fill the stencil
-                for (int s = 0; s < Traits::TotalPoints; ++s) {
+
+            // store average state buffer in vector form  
+            Set::Multivector avg_state(num_components);
+            avg_state.setZero();
+
+            //Store left face reconstructed values in an array
+            Set::MultiVector leftvalue_reconstructed(num_components);
+            leftvalue_reconstructed.setZero();
+
+            if (useCharacteristic) {
+               avg_state = Numeric::FieldToMultiVector(Avg_arr, index[0], index[1], index[2], num_components);    
+            }   
+
+            // Create Stencil Matrix Where each row represents a full state vector
+            Set::MultiMatrix stencil_matrix(Traits::TotalPoints, num_components);
+
+            //Fill stencil matrix with state vectors from each stencil point 
+            for (int s = 0; s < Traits::TotalPoints; ++s) {
                     // Calculate stencil point index with proper offset
-                    int stencil_idx[3] = {center_idx[0], center_idx[1], center_idx[2]};
+                    int stencil_idx[3] = {index[0], index[1], index[2]};
                     
                     // Apply offset in the reconstruction direction
                     // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
@@ -807,16 +979,21 @@ void ReconstructVariables(
                     // Clamp indices to ensure they're within bounds
                     ClampIndices(stencil_idx, lower_bounds, upper_bounds);
                     
+                    for (int n = 0; n < num_components; ++n) {
                     // Extract data value for this stencil point
-                    stencil[s] = Var_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
-                }
-                
-                // Reconstruct left state at interface using WENO
-                Set::Scalar left_value = Policy::ReconstructValue(stencil, index[0], index[1], index[2], enableDebug);
-                
-                // Store reconstructed left state
-                LeftStates_arr(index[0], index[1], index[2], n) = left_value;
+                    stencil_matrix(s, n) = Var_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+
+                    }
             }
+
+            leftvalue_reconstructed = Policy::ReconstructValue(stencil_matrix, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
+
+            // Process each component
+            for (int n = 0; n < num_components; ++n) {                
+                // Store reconstructed left state
+                LeftStates_arr(index[0], index[1], index[2], n) = leftvalue_reconstructed(n);
+            }
+
         });
     }
     

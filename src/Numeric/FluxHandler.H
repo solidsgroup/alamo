@@ -54,13 +54,17 @@ public:
     virtual void ReconstructFluxes(int direction, int lev, IntegratorDerivedClass* solver,
                                   const amrex::MultiFab& Flux_Negative, 
                                   const amrex::MultiFab& Flux_Positive,
-                                  amrex::MultiFab& SummedFlux) const = 0;
+                                  amrex::MultiFab& SummedFlux,
+                                  const GenericVariableAccessor* variable_accessor,
+                                  const amrex::MultiFab* AverageStateBuffer = nullptr) const = 0;
     
     // New method for variable-based reconstruction (for HLLC-like methods)
     virtual void ReconstructVariables(int direction, int lev, IntegratorDerivedClass* solver,
                                      const amrex::MultiFab& VariableBuffer,
                                      amrex::MultiFab& LeftStates, 
-                                     amrex::MultiFab& RightStates) const = 0;
+                                     amrex::MultiFab& RightStates,
+                                     const GenericVariableAccessor* variable_accessor,
+                                     const amrex::MultiFab* AverageStateBuffer = nullptr) const = 0;
 };
 
 // Base class for flux methods (e.g., Local Lax-Friedrichs, HLLC)
@@ -202,11 +206,23 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
 
 
     // 2. Transform variables if needed (based on reconstruction mode)
-    variable_accessor->TransformVariables(direction, lev, solver, VariableBuffer, 
+    variable_accessor->CopyVariables(direction, lev, solver, VariableBuffer, 
                                          mode, validationResult);
 
 
-    // 3. Create a face-centered BoxArray for the flux
+    // 3. If Characteristic Reconstruction, Populate Average States in a buffer
+    if ( mode == ReconstructionMode::Characteristic) {
+    // 3a. Create intermediate buffers for storing cell centered variables
+    amrex::MultiFab AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
+        solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
+    );
+
+    // 3b. Compute average state buffers
+    variable_accessor->PopulateAverageStates(direction, lev, solver, AverageStateBuffer);  
+
+    }
+
+    // 4. Create a face-centered BoxArray for the flux
     amrex::BoxArray face_ba = solver->grids[lev];
     amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
     face_type[direction] = 1;  // Set face-centered in the specified direction
@@ -219,15 +235,13 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
     amrex::MultiFab RightStates = variable_accessor->CreateWorkingBuffer(
         face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
     
-    // 4. Perform reconstruction on variables to get left/right states
-    reconstruction->ReconstructVariables(direction, lev, solver, 
-                                       VariableBuffer, LeftStates, RightStates);
-    
-    // 5. Transform reconstructed states back if needed (for characteristic mode)
-    variable_accessor->ReverseTransformVariables(direction, lev, solver, 
-                                                  LeftStates, RightStates, 
-                                                  mode, validationResult);
-    
+    // 5. Perform reconstruction on variables to get left/right states
+    reconstruction->ReconstructVariables(
+            direction, lev, solver, 
+            VariableBuffer, LeftStates, RightStates, 
+            variable_accessor,
+            (mode == ReconstructionMode::Characteristic) ? &AverageStateBuffer : nullptr);
+        
     
     // 6. Create MultiFab for the computed flux
     amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
@@ -279,46 +293,58 @@ void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
     );
     
     // 2. Transform variables if needed (based on reconstruction mode)
-    variable_accessor->TransformVariables(direction, lev, solver, VariableBuffer, 
+    variable_accessor->CopyVariables(direction, lev, solver, VariableBuffer, 
                                          mode, validationResult);
     
-    // 3. Create a cell flux buffer for storing computed fluxes
+
+    // 3. If Characteristic Reconstruction, Populate Average States in a buffer
+    if ( mode == ReconstructionMode::Characteristic) {
+    // 3a. Create intermediate buffers for storing cell centered variables
+    amrex::MultiFab AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
+        solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
+    );
+
+    // 3b. Compute average state buffers
+    variable_accessor->PopulateAverageStates(direction, lev, solver, AverageStateBuffer);  
+
+    }
+
+    // 4. Create a cell flux buffer for storing computed fluxes
     amrex::MultiFab CellFluxBuffer = variable_accessor->CreateWorkingBuffer(
         solver->grids[lev], solver->dmap[lev], solver->number_of_components, 
         solver->number_of_ghost_cells);
     
-    // 4. Compute and transform fluxes if needed
-    variable_accessor->TransformFluxes(direction, lev, solver, CellFluxBuffer, 
+    // 5. Compute and transform fluxes if needed
+    variable_accessor->CopyFluxes(direction, lev, solver, CellFluxBuffer, 
                                       mode, validationResult);
     
-    // 5. Create buffers for split fluxes (positive and negative)
+    // 6. Create buffers for split fluxes (positive and negative)
     amrex::MultiFab Flux_Negative = variable_accessor->CreateWorkingBuffer(
         solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells);
     
     amrex::MultiFab Flux_Positive = variable_accessor->CreateWorkingBuffer(
         solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells);
     
-    // 6. Split fluxes into positive and negative components
+    // 7. Split fluxes into positive and negative components
     flux_method->SplitFluxes(direction, lev, solver, VariableBuffer, 
                            CellFluxBuffer, Flux_Negative, Flux_Positive);
     
-    // 7. Create a face-centered BoxArray for the flux
+    // 8. Create a face-centered BoxArray for the flux
     amrex::BoxArray face_ba = solver->grids[lev];
     amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
     face_type[direction] = 1;  // Set face-centered in the specified direction
     face_ba.convert(face_type);
     
-    // 8. Create MultiFab for the reconstructed summed flux
+    // 9. Create MultiFab for the reconstructed summed flux
     amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
                               solver->number_of_components, ghost_cells);
     
-    // 9. Perform reconstruction on fluxes
-    reconstruction->ReconstructFluxes(direction, lev, solver, 
-                                    Flux_Negative, Flux_Positive, SummedFlux);
-    
-    // 10. Transform fluxes back if needed
-    variable_accessor->ReverseTransformFluxes(direction, lev, solver, SummedFlux, 
-                                           mode, validationResult);
+    // 10. Perform reconstruction on fluxes
+    reconstruction->ReconstructFluxes(
+            direction, lev, solver, 
+            Flux_Negative, Flux_Positive, SummedFlux, 
+            variable_accessor
+            (mode == ReconstructionMode::Characteristic) ? &AverageStateBuffer : nullptr);
     
     // 11. Store fluxes in the appropriate directional flux arrays
     variable_accessor->StoreDirectionalFlux(direction, lev, solver, 
@@ -332,7 +358,8 @@ public:
     // Implement flux-based reconstruction (for LLF-like methods)
     void ReconstructFluxes(int direction, int /*lev*/, IntegratorDerivedClass* solver,
                          const amrex::MultiFab& Flux_Negative, const amrex::MultiFab& Flux_Positive,
-                         amrex::MultiFab& SummedFlux) const override {
+                         amrex::MultiFab& SummedFlux,
+                         const ReconstructionMode& mode) const override {
         
         const int nghosts = solver->number_of_ghost_cells; 
 
@@ -392,7 +419,8 @@ public:
     // Implement variable-based reconstruction (for HLLC-like methods)
     void ReconstructVariables(int direction, int /*lev*/, IntegratorDerivedClass* solver,
                             const amrex::MultiFab& VariableBuffer,
-                            amrex::MultiFab& LeftStates, amrex::MultiFab& RightStates) const override {
+                            amrex::MultiFab& LeftStates, amrex::MultiFab& RightStates,
+                            const ReconstructionMode& mode) const override {
         
         const int nghosts = solver->number_of_ghost_cells;
         

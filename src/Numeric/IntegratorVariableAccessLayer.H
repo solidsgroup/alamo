@@ -36,7 +36,7 @@ public:
     ) const = 0;
 
     // Enhanced variable transformation methods
-    virtual void TransformVariables(
+    virtual void CopyVariables(
         int direction, 
         int lev, 
         void* solver, 
@@ -46,7 +46,7 @@ public:
     ) const = 0;
 
     // Enhanced variable transformation methods
-    virtual void TransformFluxes(
+    virtual void CopyFluxes(
         int direction,
         int lev, 
         void* solver, 
@@ -55,24 +55,30 @@ public:
         const SolverCapabilities::MethodValidationResult& validationResult
     ) const = 0;
 
-    virtual void ReverseTransformFluxes(
+    // Populate Average States
+    virtual void PopulateAverageStates(
         int direction,
         int lev, 
-        void* solver, 
-        amrex::MultiFab& SummedFlux,
-        ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult
+        void* solver,
+        amrex::MultiFab& AverageStateBuffer
     ) const = 0;
 
-    // Enhanced variable transformation methods for reconstructed states
-    virtual void ReverseTransformVariables(
-        int direction, 
-        int lev, 
-        void* solver, 
-        amrex::MultiFab& LeftStates,
-        amrex::MultiFab& RightStates,
-        ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult
+    // Template method for Transforming Stencils to Characteristic Space
+    template <typename StencilMatrixType>
+    AMREX_GPU_DEVICE
+    StencilMatrixType TransformStencilToCharacteristic(
+        const StencilMatrixType& stencil_matrix,
+        int direction,
+        const Set::MultiVector& avg_state
+    ) const = 0;
+    
+    // Template method for Reverse Transforming From Characteristic Space
+    template <typename VectorType>
+    AMREX_GPU_DEVICE
+    VectorType TransformFromCharacteristic(
+        const VectorType& reconstructed_value,
+        int direction,
+        const Set::MultiVector& avg_state
     ) const = 0;
     
     // Store directional flux to appropriate arrays
@@ -143,7 +149,7 @@ public:
         const int ghost_cells 
     ) const override;
 
-    void TransformVariables(
+    void CopyVariables(
         int direction, 
         int lev, 
         void* solver_void,
@@ -152,7 +158,7 @@ public:
         const SolverCapabilities::MethodValidationResult& validationResult
     ) const override;
 
-    void TransformFluxes(
+    void CopyFluxes(
         int direction,
         int lev, 
         void* solver_void,
@@ -161,24 +167,31 @@ public:
         const SolverCapabilities::MethodValidationResult& validationResult
     ) const override;
 
-    void ReverseTransformFluxes(
+    // Populate Average States
+    void PopulateAverageStates(
         int direction,
-        int lev,
-        void* solver_void,
-        amrex::MultiFab& SummedFlux,
-        ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult
-    ) const override;
-
-    void ReverseTransformVariables(
-        int direction, 
         int lev, 
-        void* solver_void,
-        amrex::MultiFab& LeftStates,
-        amrex::MultiFab& RightStates,
-        ReconstructionMode mode, 
-        const SolverCapabilities::MethodValidationResult& validationResult
-    ) const override;
+        void* solver,
+        amrex::MultiFab& AverageStateBuffer
+    ) const = 0;
+
+    // Template method for Transforming Stencils to Characteristic Space
+    template <typename StencilMatrixType>
+    AMREX_GPU_DEVICE
+    StencilMatrixType TransformStencilToCharacteristic(
+        const StencilMatrixType& stencil_matrix,
+        int direction,
+        const Set::MultiVector& avg_state
+    ) const = 0;
+    
+    // Template method for Reverse Transforming From Characteristic Space
+    template <typename VectorType>
+    AMREX_GPU_DEVICE
+    VectorType TransformFromCharacteristic(
+        const VectorType& reconstructed_value,
+        int direction,
+        const Set::MultiVector& avg_state
+    ) const = 0;
 
     void StoreDirectionalFlux(
         int direction,
@@ -230,21 +243,6 @@ private:
         Integrator::ScimitarX* solver,
         amrex::MultiFab& CellFluxBuffer
     ) const;
-
-    void ToCharacteristic(
-        int direction, 
-        int lev, 
-        const Integrator::ScimitarX* solver, 
-        amrex::MultiFab& input_mf
-    ) const;
-
-    void FromCharacteristic(
-        int direction, 
-        int lev, 
-        const Integrator::ScimitarX* solver,
-        amrex::MultiFab& input_mf 
-    ) const;
-
 
     // Companion method for matrix transformations
     AMREX_GPU_DEVICE AMREX_FORCE_INLINE

@@ -56,7 +56,7 @@ CompressibleEulerVariableAccessor::getRequiredGhostCells(
 // Add these implementations to IntegratorVariableAccessLayer.cpp
 
 void 
-CompressibleEulerVariableAccessor::TransformVariables(
+CompressibleEulerVariableAccessor::CopyVariables(
     int direction,
     int lev, 
     void* solver_void,
@@ -75,23 +75,18 @@ CompressibleEulerVariableAccessor::TransformVariables(
             break;
             
         case ReconstructionMode::Conservative:
+        case ReconstructionMode::Characteristic:
             // Copy conservative variables to the working buffer
             CopyConservativeVariablesToVariableBuffer(lev, solver, VariableBuffer);
             break;
-            
-        case ReconstructionMode::Characteristic:
-            // transform to characteristic from primitive space
-            CopyConservativeVariablesToVariableBuffer(lev, solver, VariableBuffer);
-            ToCharacteristic(direction, lev, solver, VariableBuffer);
-            break;
-            
+                        
         default:
             Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
     }
 }
 
 void 
-CompressibleEulerVariableAccessor::TransformFluxes(
+CompressibleEulerVariableAccessor::CopyFluxes(
     int direction,
     int lev, 
     void* solver_void,
@@ -110,85 +105,11 @@ CompressibleEulerVariableAccessor::TransformFluxes(
             break;
             
         case ReconstructionMode::Conservative:
+        case ReconstructionMode::Characteristic:
             // Copy conservative variables to the working buffer
             CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
             break;
-            
-        case ReconstructionMode::Characteristic:
-            // transform to characteristic from primitive space
-            CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
-            ToCharacteristic(direction, lev, solver, CellFluxBuffer);
-            break;
-            
-        default:
-            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
-    }
-}
 
-void 
-CompressibleEulerVariableAccessor::ReverseTransformVariables(
-    int direction,
-    int lev,
-    void* solver_void,
-    amrex::MultiFab& LeftStates,
-    amrex::MultiFab& RightStates,
-    ReconstructionMode mode, 
-    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
-) const {
-    // Cast the void pointer to ScimitarX pointer
-    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
-    
-    // Handle different reconstruction modes
-    switch(mode) {
-        case ReconstructionMode::Primitive:
-            // No transformation needed - the reconstructed values are already primitive
-            break;
-            
-        case ReconstructionMode::Conservative:
-            // Transform from Conservative to Primitive
-            //FromConservative(direction, lev, solver, SummedFlux);
-            break;
-            
-        case ReconstructionMode::Characteristic:
-            // Transform from characteristic variables back to primitive/conservative
-            FromCharacteristic(direction, lev, solver, LeftStates);
-            FromCharacteristic(direction, lev, solver, RightStates);
-            break;
-            
-        default:
-            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
-    }
-}
-
-
-void 
-CompressibleEulerVariableAccessor::ReverseTransformFluxes(
-    int direction,
-    int lev,
-    void* solver_void,
-    amrex::MultiFab& SummedFlux,
-    ReconstructionMode mode, 
-    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
-) const {
-    // Cast the void pointer to ScimitarX pointer
-    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
-    
-    // Handle different reconstruction modes
-    switch(mode) {
-        case ReconstructionMode::Primitive:
-            // No transformation needed - the reconstructed values are already primitive
-            break;
-            
-        case ReconstructionMode::Conservative:
-            // Transform from Conservative to Primitive
-            //FromConservative(direction, lev, solver, SummedFlux);
-            break;
-            
-        case ReconstructionMode::Characteristic:
-            // Transform from characteristic variables back to primitive/conservative
-            FromCharacteristic(direction, lev, solver, SummedFlux);
-            break;
-            
         default:
             Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
     }
@@ -240,6 +161,8 @@ CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
             var_arr(i, j, k, num_components - 1) = press_arr(i, j, k);
         });
     }
+
+    VariableBuffer.FillBoundary();
 }
 
 
@@ -355,16 +278,20 @@ CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
 }
 
 void 
-CompressibleEulerVariableAccessor::ToCharacteristic(
+CompressibleEulerVariableAccessor::PopularAverageStates(
     int direction, 
     int lev, 
-    const Integrator::ScimitarX* solver, 
-    amrex::MultiFab& input_mf
+    void* solver_void, 
+    amrex::MultiFab& AverageStateBuffer
 ) const {
+
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+
     for (amrex::MFIter mfi(input_mf, false); mfi.isValid(); ++mfi) {
         const amrex::Box& box = mfi.growntilebox();
         auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
-        auto const& W_arr  = input_mf.array(mfi);
+        auto const& W_arr  = AverageStateBuffer.array(mfi);
         
         // Retrieve variable indices for better GPU performance
         int num_components = 5;
@@ -452,27 +379,80 @@ CompressibleEulerVariableAccessor::ToCharacteristic(
                 
             Wavg = CompressibleEulerVariableAccessor::ComputeRoeAverages(WL, WR, num_components);
 
-            // Compute right eigenvector matrix
-            Set::MultiMatrix L_n = ComputeLeftEigenvectorMatrix(Wavg, direction, num_components);
+            W_arr(index[0], index[1], index[2], rho_idx) = Wavg(0);  // density 
+            W_arr(index[0], index[1], index[2], u_idx)   = Wavg(1);  // x-momentum
+            W_arr(index[0], index[1], index[2], v_idx)   = Wavg(2);  // y-momentum
+#if AMREX_SPACEDIM == 3
+            W_arr(index[0], index[1], index[2], w_idx)   = Wavg(3);  // z-momentum
+#endif
+            W_arr(index[0], index[1], index[2],ie_idx)   = Wavg(4);  // Total Enthalpy 
+                        
+        });
+    }
+}
 
+template <typename StencilMatrixType> 
+CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
+    const StencilMatrixType& stencil_matrix,     
+    int direction,
+    const Set::MultiVector& avg_state 
+) const {
+
+            int total_stencilpoints = stencil_matrix.rows();
+            int num_components = stencil_matrix.cols();
+
+            int rho_idx = 0;
+            int u_idx   = 1;
+            int v_idx   = 2;
+            int w_idx   = 3;
+            int ie_idx  = 4;
+            
+            Set::MultiVector Uavg(num_components);   
+            // Reordering
+            Uavg(0) = avg_state(rho_idx);  // density 
+            Uavg(1) = avg_state(u_idx);  // x-momentum
+            Uavg(2) = avg_state(v_idx);  // y-momentum
+#if AMREX_SPACEDIM == 3
+            Uavg(3) = avg_state(w_idx);  // z-momentum (3D)
+#else
+            Uavg(3) = 0.0;           // z-momentum (2D)
+#endif
+            Uavg(4) = avg_state(ie_idx);  // energy
+            // Compute right eigenvector matrix
+            Set::MultiMatrix L_n = ComputeLeftEigenvectorMatrix(Uavg, direction, num_components);
+
+            Set::MultiMatrix CharStencil_Matrix(total_stencilpoints, num_components);
+            CharStencil_Matrix.setZero();
+
+            for (int s = 0; s < total_stencilpoints; ++s) {
 
             // Create reordered conservative variables to match eigenvector matrix ordering
-            Set::MultiVector U_reordered(num_components);
-            U_reordered.setZero();
+            Set::MultiVector Stencil_Vector(num_components);
+            Stencil_Vector.setZero();
             
             // Reordering
-            U_reordered(0) = U_orig(rho_idx);  // density 
-            U_reordered(1) = U_orig(u_idx);  // x-momentum
-            U_reordered(2) = U_orig(v_idx);  // y-momentum
+            Stencil_Vector(0) = stencil_matrix(s, 0);  // density 
+            Stencil_Vector(1) = stencil_matrix(s, 1);  // x-momentum
+            Stencil_Vector(2) = stencil_matrix(s, 2);  // y-momentum
 #if AMREX_SPACEDIM == 3
-            U_reordered(3) = U_orig(w_idx);  // z-momentum (3D)
+            Stencil_Vector(3) = stencil_matrix(s, 3);  // z-momentum (3D)
 #else
-            U_reordered(3) = 0.0;                // z-momentum (2D)
+            Stencil_Vector(3) = 0.0;                // z-momentum (2D)
 #endif
-            U_reordered(4) = U_orig(ie_idx);  // energy
+            Stencil_Vector(4) = stencil_matrix(s, 4);  // energy
                         
            // Use consistent matrix-vector multiplication
-            Set::MultiVector W_vec_reordered = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(L_n, U_reordered);
+            Set::MultiVector CharStencilVector = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(L_n, Stencil_Matrix);
+
+            CharStencil_Matrix(s, 0) = CharStencilVector(0);
+            CharStencil_Matrix(s, 1) = CharStencilVector(1);
+            CharStencil_Matrix(s, 2) = CharStencilVector(2);
+#if AMREX_SPACEDIM == 3
+            CharStencil_Matrix(s, 3) = CharStencilVector(3);
+#endif
+            CharStencil_Matrix(s, 4) = CharStencilVector(4);
+
+            }
                                     
             // Unreordering
             W_arr(index[0], index[1], index[2], rho_idx) = W_vec_reordered(0);  // density 
@@ -483,9 +463,9 @@ CompressibleEulerVariableAccessor::ToCharacteristic(
 #endif
             W_arr(index[0], index[1], index[2],ie_idx) = W_vec_reordered(4);  // energy
                         
-        });
     }
 }
+
 
 
 void 
