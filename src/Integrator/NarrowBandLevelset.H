@@ -157,6 +157,7 @@ protected:
         bool has_narrowband;
 
         std::unique_ptr<amrex::iMultiFab> Tube_imf;
+        amrex::Vector<amrex::IntVect> narrowband_cells; 
         amrex::BoxList narrowband_boxes;
         amrex::BoxArray narrowband_ba;
         amrex::DistributionMapping narrowband_dm;
@@ -219,9 +220,11 @@ protected:
     Set::Field<Set::Scalar>    Zerols_mf;               // Zero levelset field variable for plotting
     Set::Field<Set::Scalar>    Tube_mf;                 // Narrowband Tube field variable for plotting
     Set::Field<Set::Scalar>    cpt_mf;                  // CPT field variable for plotting
+    Set::Field<Set::Scalar>    BA_mf;                   // Narowband Box Array field variable for plotting
 
     std::unique_ptr<amrex::iMultiFab> Zerols_imf;       // Zero levelset imultifab to track izerols
     std::unique_ptr<amrex::iMultiFab> cpt_imf;          // CPT flag imultifab to track objects
+    std::unique_ptr<amrex::iMultiFab> BA_imf;          // CPT flag imultifab to track objects
 
     // Solver setup and control functions (override)
     void Initialize(int lev) override;
@@ -237,8 +240,8 @@ protected:
     void CopyZerolsAndCPTIMFtoMF(int lev);
     void CopyTubeIMFtoMF(int lev, int ls_id);
 
-    void ZeroTheZeros(amrex::iMultiFab& zerols,
-        amrex::iMultiFab& cpt, amrex::iMultiFab& tube, int ls_id);
+    void ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, 
+        amrex::iMultiFab& narrowband_ba, int ls_id);
     void UpdateNarrowband(int lev, int ls_id);
     void ComputeNarrowBandBoxList(int lev, int ls_id);
     void ComputeNarrowBandMapping(int lev, int ls_id);
