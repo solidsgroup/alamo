@@ -30,7 +30,7 @@ ScimitarX::ScimitarX() : Integrator()
     number_of_components = 0;
     number_of_ghost_cells = 4;
     cflNumber = 0.5; // Set a reasonable default
-    refinement_threshold = 10.0; // Default threshold
+    refinement_threshold = 0.01; // Default threshold
     
     // Initialize handlers with nullptr (will be set up later)
     fluxHandler = nullptr;
@@ -503,10 +503,9 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
 {
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
-    Set::Scalar refinement_threshold = 10.0; // Set refinement threshold to 10
 
     //for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-    for (amrex::MFIter mfi(*Pressure_mf[lev], false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*Pressure_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<Set::Scalar> const& pressure = (*Pressure_mf[lev]).array(mfi);
@@ -529,12 +528,17 @@ void ScimitarX::TimeStepBegin(Set::Scalar /*time*/, int /*lev*/) {
 }
 
 
-void ScimitarX::TimeStepComplete(Set::Scalar /*time*/, int /*lev*/) {
-     
+void ScimitarX::TimeStepComplete(Set::Scalar /*time*/, int lev) {
+
+    if (lev == 0) { 
         ComputeAndSetNewTimeStep(); // Compute dt based on global `minDt`
+    } 
 }
 
-void ScimitarX::Regrid(int /*lev*/, Set::Scalar /*time*/) {
+void ScimitarX::Regrid(int lev, Set::Scalar /*time*/) {
+
+     // Only the finest level performs regridding
+    if (lev < finest_level) return;
 
 }
 
@@ -649,12 +653,13 @@ void ScimitarX::ComputeAndSetNewTimeStep() {
 // Function to compute the time step size based on CFL condition
 Set::Scalar ScimitarX::GetTimeStep() {
     Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value       
+     
 
-    for (int lev = 0; lev <= maxLevel(); ++lev) {  // Use maxLevel() from the base class
+    for (int lev = 0; lev <= finest_level; ++lev) {  // Use maxLevel() from the base class
         const Set::Scalar* dx = geom[lev].CellSize();  // Access the geometry at level `lev`
 
         //for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        for (amrex::MFIter mfi(*PVec_mf[lev], false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.tilebox();  // Iterate over tiles in the multifab
             auto const& pArr = PVec_mf.Patch(lev, mfi);
             auto const& pressure = Pressure_mf.Patch(lev, mfi);

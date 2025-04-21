@@ -120,6 +120,7 @@ public:
 
     // Transforming Stencils to Characteristic Space
     virtual Set::MultiMatrix TransformStencilToCharacteristic(
+        int i, int j, int k,    
         const Set::MultiMatrix& stencil_matrix,
         int direction,
         const Set::MultiVector& avg_state
@@ -228,6 +229,7 @@ public:
 
     // Transforming Stencils to Characteristic Space
     Set::MultiMatrix TransformStencilToCharacteristic(
+        int i, int j, int k,    
         const Set::MultiMatrix& stencil_matrix,
         int direction,
         const Set::MultiVector& avg_state
@@ -301,6 +303,7 @@ private:
     // Companion method for matrix transformations
     AMREX_GPU_DEVICE AMREX_FORCE_INLINE
     static Set::MultiMatrix ComputeLeftEigenvectorMatrix(
+        int i, int j, int k,    
         const Set::MultiVector& W, 
         int direction, int num_components
     );

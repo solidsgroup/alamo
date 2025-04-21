@@ -209,26 +209,26 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
     variable_accessor->CopyVariables(direction, lev, solver, VariableBuffer, 
                                          mode, validationResult);
 
-    amrex::MultiFab AverageStateBuffer;
-
-    // 3. If Characteristic Reconstruction, Populate Average States in a buffer
-    if ( mode == ReconstructionMode::Characteristic) {
-    // 3a. Create intermediate buffers for storing cell centered variables
-        AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
-        solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
-    );
-
-    // 3b. Compute average state buffers
-    variable_accessor->PopulateAverageStates(direction, lev, solver, AverageStateBuffer);  
-
-    }
-
     // 4. Create a face-centered BoxArray for the flux
     amrex::BoxArray face_ba = solver->grids[lev];
     amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
     face_type[direction] = 1;  // Set face-centered in the specified direction
     face_ba.convert(face_type);
 
+
+    amrex::MultiFab AverageStateBuffer;
+
+    // 3. If Characteristic Reconstruction, Populate Average States in a buffer
+    if ( mode == ReconstructionMode::Characteristic) {
+    // 3a. Create intermediate buffers for storing cell centered variables
+        AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
+        face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells
+    );
+
+    // 3b. Compute average state buffers
+    variable_accessor->PopulateAverageStates(direction, lev, solver, AverageStateBuffer);  
+
+    }
 
     amrex::MultiFab LeftStates = variable_accessor->CreateWorkingBuffer(
         face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
@@ -297,19 +297,6 @@ void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
     variable_accessor->CopyVariables(direction, lev, solver, VariableBuffer, 
                                          mode, validationResult);
     
-    amrex::MultiFab AverageStateBuffer;
-
-    // 3. If Characteristic Reconstruction, Populate Average States in a buffer
-    if ( mode == ReconstructionMode::Characteristic) {
-    // 3a. Create intermediate buffers for storing cell centered variables
-    AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
-        solver->grids[lev], solver->dmap[lev], solver->number_of_components, ghost_cells
-    );
-
-    // 3b. Compute average state buffers
-    variable_accessor->PopulateAverageStates(direction, lev, solver, AverageStateBuffer);  
-
-    }
 
     // 4. Create a cell flux buffer for storing computed fluxes
     amrex::MultiFab CellFluxBuffer = variable_accessor->CreateWorkingBuffer(
@@ -337,6 +324,20 @@ void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
     face_type[direction] = 1;  // Set face-centered in the specified direction
     face_ba.convert(face_type);
     
+
+    amrex::MultiFab AverageStateBuffer;
+
+    // 3. If Characteristic Reconstruction, Populate Average States in a buffer
+    if (mode == ReconstructionMode::Characteristic) {
+    // 3a. Create intermediate buffers for storing cell centered variables
+    AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
+        face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
+
+    // 3b. Compute average state buffers
+    variable_accessor->PopulateAverageStates(direction, lev, solver, AverageStateBuffer);  
+
+    }
+
     // 9. Create MultiFab for the reconstructed summed flux
     amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
                               solver->number_of_components, ghost_cells);
@@ -367,7 +368,7 @@ public:
         const int nghosts = solver->number_of_ghost_cells; 
 
         // Loop through face-centered indices for flux reconstruction
-        for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
             auto const& FluxNeg_arr = Flux_Negative.array(mfi);  // Left reconstructed state
@@ -429,7 +430,7 @@ public:
         const int nghosts = solver->number_of_ghost_cells;
         
         // Loop through grid cells to reconstruct left/right states at interfaces
-        for (amrex::MFIter mfi(VariableBuffer, false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(VariableBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
             
             auto const& Var_arr = VariableBuffer.array(mfi);
@@ -500,7 +501,7 @@ public:
         const Set::Scalar gamma = 1.4;  // Ratio of specific heats
 
         //for (amrex::MFIter mfi(QL_stencil, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        for (amrex::MFIter mfi(Flux_Negative, false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(Flux_Negative, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 
             const amrex::Box& bx_with_ghosts = mfi.growntilebox();
 
@@ -687,7 +688,7 @@ void ComputeFluxes(int direction, int lev, IntegratorDerivedClass* solver,
     const int nghosts = solver->number_of_ghost_cells;
 
     // Loop through the grid
-    for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
         // Get arrays for left/right reconstructed states and flux output

@@ -429,62 +429,16 @@ public:
      * @param enableDebug Enable detailed debugging output
      * @return Reconstructed value at the interface
      */
-    /*template <typename StencilArray>
-    AMREX_GPU_DEVICE
-    static Set::Scalar ReconstructValue(
-        const StencilArray& stencil,
-        int i, int j, int k,  // Cell indices for debugging
-        bool enableDebug
-    ) {
-        // 1. Compute smoothness indicators
-        auto indicators = ComputeSmoothnessIndicators(stencil, i, j, k, enableDebug);
-        
-        // 2. Compute candidate reconstructions
-        auto candidate_fluxes = ComputeCandidateFluxes(stencil, i, j, k, enableDebug);
-        
-        // 3. Compute non-linear weights
-        auto weights = ComputeNonlinearWeights(indicators, i, j, k, enableDebug);
-        
-        // 4. Form convex combination for final reconstruction
-        Set::Scalar reconstructed_value = 0.0;
-        for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
-            reconstructed_value += weights[r] * candidate_fluxes[r];
-        }
-        
-        // Debug call for the final reconstruction
-        Util::ScimitarX_Util::Debug::DebugWENOReconstruction(
-            i, j, k, candidate_fluxes, weights, 
-            Traits::GetOptimalWeights(), reconstructed_value,
-            Traits::NumCandidateStencils,
-            enableDebug
-        );
-        
-        return reconstructed_value;
-    }*/
-
     template <typename StencilMatrixType>
     AMREX_GPU_DEVICE
     static Set::MultiVector ReconstructValue(
         const StencilMatrixType& input_stencil,
         int i, int j, int k,
         int direction,
-        bool useCharacteristic,
-        const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
-        const Set::MultiVector& avg_state,
         bool enableDebug)
     {
-        const int num_components = input_stencil.cols();
-        
-        // Prepare stencil data for reconstruction
-        // Create a copy regardless of whether we're using characteristic variables
-        Set::MultiMatrix stencil_for_reconstruction = input_stencil;
-        
-        // Conditionally transform to characteristic space (branch happens once for all threads)
-        if (useCharacteristic && variable_accessor) {
-            stencil_for_reconstruction = variable_accessor->TransformStencilToCharacteristic(
-                input_stencil, direction, avg_state);
-        }
-        
+                
+        int num_components = input_stencil.cols();
         // Apply WENO reconstruction to each component (no branching in the core algorithm)
         Set::MultiVector reconstructed_values(num_components);
         reconstructed_values.setZero();
@@ -493,7 +447,7 @@ public:
             // Extract stencil values for this component
             std::array<Set::Scalar, Traits::TotalPoints> component_stencil;
             for (int s = 0; s < Traits::TotalPoints; ++s) {
-                component_stencil[s] = stencil_for_reconstruction(s, comp);
+                component_stencil[s] = input_stencil(s, comp);
             }
             
             // Apply core WENO algorithm to this component (no branching)
@@ -510,13 +464,7 @@ public:
             // Store the reconstructed value
             reconstructed_values(comp) = reconstructed_component;
         }
-        
-        // Conditionally transform back to physical space (branch happens once for all threads)
-        if (useCharacteristic && variable_accessor) {
-            reconstructed_values = variable_accessor->TransformFromCharacteristic(
-                reconstructed_values, direction, avg_state);
-        }
-        
+                
         return reconstructed_values;
     }
     
@@ -625,63 +573,16 @@ public:
      * @param enableDebug Enable detailed debugging output
      * @return Reconstructed value at the interface
      */
-   /* template <typename StencilArray>
-    AMREX_GPU_DEVICE
-    static Set::Scalar ReconstructValue(
-        const StencilArray& stencil,
-        int i, int j, int k,
-        bool enableDebug
-    ) {
-        // 1. Compute smoothness indicators
-        auto indicators = ComputeSmoothnessIndicators(stencil, i, j, k, enableDebug);
-        
-        // 2. Compute candidate reconstructions
-        auto candidate_fluxes = ComputeCandidateFluxes(stencil, i, j, k, enableDebug);
-        
-        // 3. Compute non-linear weights with WENO-Z method
-        auto weights = ComputeNonlinearWeights(indicators, i, j, k, enableDebug);
-        
-        // 4. Form convex combination for final reconstruction
-        Set::Scalar reconstructed_value = 0.0;
-        for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
-            reconstructed_value += weights[r] * candidate_fluxes[r];
-        }
-        
-        // Debug call for the final reconstruction
-        Util::ScimitarX_Util::Debug::DebugWENOReconstruction(
-            i, j, k, candidate_fluxes, weights, 
-            Traits::GetOptimalWeights(), reconstructed_value,
-            Traits::NumCandidateStencils,
-            enableDebug
-        );
-        
-        return reconstructed_value;
-    }*/
-
-
     template <typename StencilMatrixType>
     AMREX_GPU_DEVICE
     static Set::MultiVector ReconstructValue(
         const StencilMatrixType& input_stencil,
         int i, int j, int k,
         int direction,
-        bool useCharacteristic,
-        const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
-        const Set::MultiVector& avg_state,
         bool enableDebug)
     {
-        const int num_components = input_stencil.cols();
-        
-        // Prepare stencil data for reconstruction
-        // Create a copy regardless of whether we're using characteristic variables
-        Set::MultiMatrix stencil_for_reconstruction = input_stencil;
-        
-        // Conditionally transform to characteristic space (branch happens once for all threads)
-        if (useCharacteristic && variable_accessor) {
-            stencil_for_reconstruction = variable_accessor->TransformStencilToCharacteristic(
-                input_stencil, direction, avg_state);
-        }
-        
+        int num_components = input_stencil.cols();
+
         // Apply WENO reconstruction to each component (no branching in the core algorithm)
         Set::MultiVector reconstructed_values(num_components);
         reconstructed_values.setZero();
@@ -690,7 +591,7 @@ public:
             // Extract stencil values for this component
             std::array<Set::Scalar, Traits::TotalPoints> component_stencil;
             for (int s = 0; s < Traits::TotalPoints; ++s) {
-                component_stencil[s] = stencil_for_reconstruction(s, comp);
+                component_stencil[s] = input_stencil(s, comp);
             }
             
             // Apply core WENO algorithm to this component (no branching)
@@ -706,15 +607,18 @@ public:
             
             // Store the reconstructed value
             reconstructed_values(comp) = reconstructed_component;
+
+           // Debug call for the final reconstruction
+            Util::ScimitarX_Util::Debug::DebugWENOReconstruction(
+                i, j, k, candidate_fluxes, weights, 
+                Traits::GetOptimalWeights(), reconstructed_component,
+                Traits::NumCandidateStencils,
+                enableDebug);
+
         }
-        
-        // Conditionally transform back to physical space (branch happens once for all threads)
-        if (useCharacteristic && variable_accessor) {
-            reconstructed_values = variable_accessor->TransformFromCharacteristic(
-                reconstructed_values, direction, avg_state);
-        }
-        
+                
         return reconstructed_values;
+
     }
 
 };
@@ -787,13 +691,6 @@ public:
         // Create a bool to check for ReconstructionMode and if AverageStateBuffer is not null pointer
         bool useCharacteristic = (mode == ReconstructionMode::Characteristic && AverageStateBuffer != nullptr);
 
-        // Create average state vector once outside the loop if needed
-        Set::MultiVector avg_state;
-        if (useCharacteristic) {
-            //Initialize the average state outside the component loop
-            avg_state.resize(num_components);
-        }    
-
         //Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
         // Only log the variant when debug is enabled
         if (enableDebug) {
@@ -801,7 +698,7 @@ public:
         }
 
         // Process each grid patch
-        for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
             
             auto const& FluxNeg_arr = Flux_Negative.const_array(mfi);
@@ -842,16 +739,20 @@ public:
                 // Store Fpos and Fneg Reconstructed
                 Set::MultiVector Fpos_reconstructed(num_components);
                 Set::MultiVector Fneg_reconstructed(num_components);
+                Set::MultiVector Ftotal_reconstructed(num_components);
                 Fpos_reconstructed.setZero();
                 Fneg_reconstructed.setZero();
+                Ftotal_reconstructed.setZero();
 
                 if (useCharacteristic) {
-                Set::MultiVector avg_state = Numeric::FieldToMultiVector(Avg_arr, index[0], index[1], index[2], num_components);                  }    
+                 avg_state = Numeric::FieldToMultiVector(Avg_arr, index[0], index[1], index[2], num_components);
+                }    
 
                 //Create Stencil Matrix where each row represents a full state vector
                 Set::MultiMatrix stencilpos_matrix(Traits::TotalPoints, num_components);
                 Set::MultiMatrix stencilneg_matrix(Traits::TotalPoints, num_components);
-
+                stencilpos_matrix.setZero();
+                stencilneg_matrix.setZero();
 
                 //Fill stencil matrix with state vectors from each stencil point 
                 for (int s = 0; s < Traits::TotalPoints; ++s) {
@@ -873,20 +774,45 @@ public:
 
                     }
                 }
-
-                    // Reconstruct left state (QL) at interface using WENO
-                    Fpos_reconstructed = Policy::ReconstructValue(stencilpos_matrix, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
-                    Fneg_reconstructed = Policy::ReconstructValue(stencilneg_matrix, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
+                
+                // Prepare stencil data for reconstruction
+                // Create a copy regardless of whether we're using characteristic variables
+                Set::MultiMatrix stencilneg = stencilneg_matrix;
+                Set::MultiMatrix stencilpos = stencilpos_matrix;
+                
+                // Conditionally transform to characteristic space (branch happens once for all threads)
+                if (useCharacteristic && variable_accessor) {
+                    stencilneg = variable_accessor->TransformStencilToCharacteristic(    
+                        index[0], index[1], index[2], stencilneg_matrix, direction, avg_state);
+                    stencilpos = variable_accessor->TransformStencilToCharacteristic(    
+                        index[0], index[1], index[2], stencilpos_matrix, direction, avg_state);
+                }
+        
+                // Reconstruct Flux Positive and Negative at interface using WENO
+                Fpos_reconstructed = Policy::ReconstructValue(stencilpos, index[0], index[1], index[2], direction, enableDebug);
+                Fneg_reconstructed = Policy::ReconstructValue(stencilneg, index[0], index[1], index[2], direction, enableDebug);
 
                 // Compute final summed flux at face center
                 for (int n = 0; n < solver->number_of_components; ++n) {
-                    TotalFlux_arr(index[0], index[1], index[2], n) = 
-                    Fpos_reconstructed(n) + Fneg_reconstructed(n);
+                    Ftotal_reconstructed(n) = Fpos_reconstructed(n) + Fneg_reconstructed(n);
+                }
+
+                // Conditionally transform back to physical space (branch happens once for all threads)
+                if (useCharacteristic && variable_accessor) {
+                    Ftotal_reconstructed = variable_accessor->TransformFromCharacteristic(
+                        Ftotal_reconstructed, direction, avg_state);
+                }
+                
+                // Compute final summed flux at face center
+                for (int n = 0; n < solver->number_of_components; ++n) {
+                    TotalFlux_arr(index[0], index[1], index[2], n) = Ftotal_reconstructed(n);
                 }
 
             });
         }
 
+     SummedFlux.FillBoundary();
+    
     }    
 
 void ReconstructVariables(
@@ -914,14 +840,14 @@ void ReconstructVariables(
         avg_state.resize(num_components);
     }    
 
-    //Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
+    Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
     // Only log the variant when debug is enabled
     if (enableDebug) {
         Util::Message(INFO, "ReconstructFluxes using WENO variant: " + GetVariantName());
     }
 
     // First pass: Compute left states using WENO reconstruction
-    for (amrex::MFIter mfi(VariableBuffer, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(VariableBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
         
         auto const& Var_arr = VariableBuffer.const_array(mfi);
@@ -988,7 +914,23 @@ void ReconstructVariables(
                     }
             }
 
-            leftvalue_reconstructed = Policy::ReconstructValue(stencil_matrix, index[0], index[1], index[2], direction, useCharacteristic, variable_accessor, avg_state, enableDebug);
+            // Prepare stencil data for reconstruction
+            // Create a copy regardless of whether we're using characteristic variables
+            Set::MultiMatrix input_stencil = stencil_matrix;
+        
+            // Conditionally transform to characteristic space (branch happens once for all threads)
+            if (useCharacteristic && variable_accessor) {
+                input_stencil = variable_accessor->TransformStencilToCharacteristic(
+                index[0], index[1], index[2], stencil_matrix, direction, avg_state);
+            }
+
+            leftvalue_reconstructed = Policy::ReconstructValue(input_stencil, index[0], index[1], index[2], direction, enableDebug);
+
+             // Conditionally transform back to physical space (branch happens once for all threads)
+             if (useCharacteristic && variable_accessor) {
+                       leftvalue_reconstructed = variable_accessor->TransformFromCharacteristic(
+                       leftvalue_reconstructed, direction, avg_state);
+             }
 
             // Process each component
             for (int n = 0; n < num_components; ++n) {                
@@ -1003,7 +945,7 @@ void ReconstructVariables(
     LeftStates.FillBoundary();
     
     // Second pass: Set right states by shifting left states
-    for (amrex::MFIter mfi(RightStates, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(RightStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
         
         auto const& LeftStates_arr = LeftStates.const_array(mfi);
@@ -1040,6 +982,8 @@ void ReconstructVariables(
             }
         });
     }
+
+    RightStates.FillBoundary();
 }
 
 };

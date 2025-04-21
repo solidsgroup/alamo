@@ -307,7 +307,7 @@ protected:
     void ComputeConservedVariables(int lev){
 
     //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-    for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx_with_ghosts = mfi.growntilebox();
         auto const& p_arr = PVec_mf.Patch(lev, mfi);
         auto const& q_arr = QVec_mf.Patch(lev, mfi);
@@ -348,7 +348,7 @@ protected:
     template <SolverType solverType>
     void UpdateSolutions(int lev) {
       //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        for (amrex::MFIter mfi(*QVec_mf[lev], false); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
 
             auto const& q_arr = QVec_mf.Patch(lev, mfi);  // Conservative variables array (QVec)

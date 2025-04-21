@@ -108,6 +108,10 @@ CompressibleEulerVariableAccessor::CopyFluxes(
             break;
             
         case ReconstructionMode::Conservative:
+            // Copy conservative variables to the working buffer
+            CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
+            break;
+
         case ReconstructionMode::Characteristic:
             // Copy conservative variables to the working buffer
             CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
@@ -207,7 +211,7 @@ CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
     amrex::MultiFab& CellFluxBuffer
 ) const {
 
-    for (amrex::MFIter mfi(CellFluxBuffer, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(CellFluxBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& box = mfi.growntilebox();
         auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
        // auto const& pres_arr = solver->Pressure_mf.Patch(lev, mfi);
@@ -278,6 +282,8 @@ CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
         });
     }
 
+    
+    CellFluxBuffer.FillBoundary();
 }
 
 void 
@@ -291,8 +297,10 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
 
-    for (amrex::MFIter mfi(AverageStateBuffer, false); mfi.isValid(); ++mfi) {
-        const amrex::Box& box = mfi.growntilebox();
+    const int nghosts = solver->number_of_ghost_cells; 
+
+    for (amrex::MFIter mfi(AverageStateBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
         auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
         auto const& W_arr  = AverageStateBuffer.array(mfi);
         
@@ -308,7 +316,7 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
         int w_idx   = solver->variableIndex.WVEL;   // z-momentum
 #endif
         
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
             // Construct index arrays with correct number of components
             int index[3];
@@ -316,22 +324,20 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
             int right_index[3];
             int lower_bounds[3];
             int upper_bounds[3];
-          
-#if AMREX_SPACEDIM == 2
-            index[0] = i; index[1] = j; index[2] = k;
-            left_index[0] = i; left_index[1] = j; left_index[2] = k;
-            right_index[0] = i; right_index[1] = j; right_index[2] = k;
-          
-            lower_bounds[0] = box.smallEnd(0); lower_bounds[1] = box.smallEnd(1); lower_bounds[2] = 0;
-            upper_bounds[0] = box.bigEnd(0); upper_bounds[1] = box.bigEnd(1); upper_bounds[2] = 0;
-#else
-            index[0] = i; index[1] = j; index[2] = k;
-            left_index[0] = i; left_index[1] = j; left_index[2] = k;
-            right_index[0] = i; right_index[1] = j; right_index[2] = k;
-          
-            lower_bounds[0] = box.smallEnd(0); lower_bounds[1] = box.smallEnd(1); lower_bounds[2] = box.smallEnd(2);
-            upper_bounds[0] = box.bigEnd(0); upper_bounds[1] = box.bigEnd(1); upper_bounds[2] = box.bigEnd(2);
-#endif
+
+            // Set up indices
+            index[0] = iface; index[1] = jface; index[2] = kface;
+            left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+            right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+
+
+            // Define bounds including ghost cells
+            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+            lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+            upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
       
             // Clamp the main index
             ClampIndices(index, lower_bounds, upper_bounds);
@@ -345,8 +351,6 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
             ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
             ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
                 
-            // Extract original Current Index primitive variables
-            Set::MultiVector U_orig = Numeric::FieldToMultiVector(W_arr, index[0], index[1], index[2], solver_components);
             // Extract original left state primitive variables
             Set::MultiVector UL = Numeric::FieldToMultiVector(p_arr, left_index[0], left_index[1], left_index[2], solver_components);
                         
@@ -392,10 +396,14 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
                         
         });
     }
+
+
+    AverageStateBuffer.FillBoundary();
 }
 
 Set::MultiMatrix
 CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
+    int i, int j, int k,    
     const Set::MultiMatrix& stencil_matrix,
     int direction,
     const Set::MultiVector& avg_state
@@ -422,9 +430,19 @@ CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
         std_avg_state(2) = avg_state(v_idx);
         std_avg_state(3) = (w_idx >= 0) ? avg_state(w_idx) : 0.0;
         std_avg_state(4) = avg_state(ie_idx);
+
+           // Debug the average state first
+        Util::ScimitarX_Util::Debug::DebugAverageState(
+        i, j, k,  // These will be ignored if not the target location
+        Set::MultiVector::Zero(avg_state.size()),  // We don't have WL/WR here
+        Set::MultiVector::Zero(avg_state.size()),  // We don't have WL/WR here
+        avg_state,
+        "Transform to Characteristic",
+        false,    // Don't abort, just warn
+        false);    // Enable debug
         
         // Get left eigenvector matrix for the transformation
-        Set::MultiMatrix L_n = ComputeLeftEigenvectorMatrix(std_avg_state, direction, 5);
+        Set::MultiMatrix L_n = ComputeLeftEigenvectorMatrix(i, j, k, std_avg_state, direction, 5);
         
         // Transform each stencil point to characteristic variables
         for (int s = 0; s < total_stencilpoints; ++s) {
@@ -446,6 +464,15 @@ CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
             char_stencil_matrix(s, v_idx) = char_vec(2);
             if (w_idx >= 0) char_stencil_matrix(s, w_idx) = char_vec(3);
             char_stencil_matrix(s, ie_idx) = char_vec(4);
+       
+            // Debug each transformation
+            Util::ScimitarX_Util::Debug::DebugCharacteristicTransformation(
+            i, j, k,  // These will be ignored if not the target location
+            stencil_matrix, char_stencil_matrix, L_n, s,
+            "Transform Stencil Point " + std::to_string(s), 
+            false,    // Don't abort, just warn
+            false);    // Enable debug       
+       
         }
         
         return char_stencil_matrix;
@@ -514,7 +541,7 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
     const int nghosts = solver->number_of_ghost_cells;
     const int num_components = solver->number_of_components; 
 
-    for (amrex::MFIter mfi(SummedFlux, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
         auto const& TotalFlux_arr = SummedFlux.array(mfi);
         auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
@@ -552,7 +579,6 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
         });
 
     } 
-
 }
 
 
@@ -699,6 +725,7 @@ CompressibleEulerVariableAccessor::ComputeRightEigenvectorMatrix(
 
 Set::MultiMatrix 
 CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
+    int i, int j, int k,    
     const Set::MultiVector& W, int dir, int num_components) {
     // Constants
     const Set::Scalar gamma = 1.4;
@@ -718,6 +745,15 @@ CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
     const Set::Scalar a2 = g * (H - 0.5*Va2);  // Sound speed squared
     const Set::Scalar a = std::sqrt(a2);       // Sound speed
     
+    // Add debug check
+    Util::ScimitarX_Util::Debug::DebugSoundSpeedComputation(
+        i, j, k,  // These will be ignored if not the target location
+        H, Va2, gamma,
+        a2, a,    // Pass by reference to allow correction
+        "Left Eigenvector Computation", 
+        false,    // Don't abort, just warn
+        false);    // Enable this debug
+
     // Scaling factor used in eigenvector computation
     const Set::Scalar M = (0.5*g)/(a2);  // Scaling factor 
     
@@ -837,7 +873,15 @@ CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
         L_n(4, 4) = M;
         break;
     }
-    
+
+   // Debug check on the final matrix
+    Util::ScimitarX_Util::Debug::DebugEigenvectorMatrix(
+        i, j, k,  // These will be ignored if not the target location
+        L_n, W, 
+        "Left Eigenvector Computation", 
+        false,    // Don't abort, just warn
+        false);    // Enable this debug
+
     return L_n;
 }
 
