@@ -187,6 +187,9 @@ void NarrowBandLevelset::Initialize(int lev){
 
     // Save Zerols_imf to Zerols_mf
     CopyZerolsAndCPTIMFtoMF(lev);
+
+    // Get the proper timestep
+    ComputeAndSetNewTimeStep();
     
     // After Initialization, check flux ix Types
     //amrex::Print() << "XFlux ix Type: " << XFlux_mf[lev]->boxArray().ixType() << std::endl;
@@ -211,13 +214,13 @@ void NarrowBandLevelset::ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab
     // Loop through Zerols_imf
     for (amrex::MFIter mfi(zerols, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         // Define valid box
-        const amrex::Box valid_bx = mfi.validbox();
+        const amrex::Box ghost_bx = mfi.growntilebox(number_of_ghost_cells);
 
         // Define arrays
         const auto& zerols_arr = zerols.array(mfi);
         const auto& cpt_arr = cpt.array(mfi);
 
-        amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        amrex::ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             if (zerols_arr(i, j, k) == ls_id) zerols_arr(i, j, k) = -1;
             if (cpt_arr(i, j, k) == ls_id) cpt_arr(i, j, k) = -1;
         });
@@ -275,7 +278,7 @@ amrex::BoxArray MakeBoxArrayFromIntVects(const amrex::Vector<amrex::IntVect>& iv
 // UpdateNarrowband: replicated Fortran LSTubeInfo logic
 void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     // Define geometry constants
-    const amrex::Box& domain_box = geom[lev].Domain();
+    //const amrex::Box& domain_box = geom[lev].Domain();
     const Set::Scalar* DX = geom[lev].CellSize();
     const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
     const Set::Scalar inner_tube_width = inner_narrow_band_width * min_DX;
@@ -291,7 +294,7 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     const int OutsideBandPos = NarrowBandTubeType::OutsideNarrowBandPos;
 
     // Define an IntVect to store indices of cells within narrowband
-    amrex::Vector<amrex::IntVect> narrowband_cells_host;
+    //amrex::Vector<amrex::IntVect> narrowband_cells_host;
 
     // Save level_set data structure for reference
     auto& ls_data = level_sets[ls_id];
@@ -301,12 +304,12 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     const amrex::DistributionMapping& dm = ls_data.narrowband_dm;
 
     // Initialize zerols iMultifab to store interface cells
-    amrex::iMultiFab zerols(ba, dm, 1, 0);
-    zerols.ParallelCopy(*Zerols_imf, 0, 0, 1, 0, 0);
+    amrex::iMultiFab zerols(ba, dm, 1, number_of_ghost_cells);
+    zerols.ParallelCopy(*Zerols_imf, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
 
     // Initialize CPT iMultiFab for object tagging
-    amrex::iMultiFab cpt(ba, dm, 1, 0);
-    cpt.ParallelCopy(*cpt_imf, 0, 0, 1, 0, 0);
+    amrex::iMultiFab cpt(ba, dm, 1, number_of_ghost_cells);
+    cpt.ParallelCopy(*cpt_imf, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
 
     // Initialize temporary narrowband iMultifab to store flags
     amrex::iMultiFab narrowband(ba, dm, 1, number_of_ghost_cells);
@@ -320,6 +323,8 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     ZeroTheZeros(zerols, cpt, ls_id);
 
     // Fill all temporary ghost cells
+    zerols.FillBoundary();
+    cpt.FillBoundary();
     narrowband.FillBoundary();
     ls.FillBoundary();
 
@@ -327,7 +332,7 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     for (amrex::MFIter mfi(ls, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         // Define valid and ghost boxes
         const amrex::Box& ghost_bx = mfi.growntilebox(number_of_ghost_cells);
-        const amrex::Box& valid_bx = mfi.validbox();
+        //const amrex::Box& valid_bx = mfi.validbox();
 
         // Define array views
         const auto& zero_arr = zerols.array(mfi);
@@ -335,8 +340,9 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
         const auto& cpt_arr = cpt.array(mfi);
         const auto& ls_arr = ls.array(mfi); 
 
-        // Loop through valid box
-        ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        // Loop through ghost box to update narrowband ghost cells
+        // Since there are no automatic nuemann conditions
+        ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             // Clamp levelset value and define abs|ls|
             Set::Scalar LS = ls_arr(i, j, k);
             LS = std::clamp(LS, -tube_width, tube_width);
@@ -421,7 +427,7 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
             if (abs_nb != OuterTube) return;
 
             // Skip over ghost cells
-            if (!domain_box.contains(coord)) return;
+            //if (!domain_box.contains(coord)) return;
 
             // nbr loop
             for (int d = 0; d < Neighbors::num_neighbors; ++d) {
@@ -537,10 +543,10 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     level_sets[ls_id].narrowband_dm = amrex::DistributionMapping(narrowband_ba);
 
     // Copy back to full domain (i)MultiFabs 
-    Zerols_imf->ParallelCopy(zerols, 0, 0, 1, 0, 0);
-    cpt_imf->ParallelCopy(cpt, 0, 0, 1, 0, 0);
-    level_sets[ls_id].Tube_imf->ParallelCopy(narrowband, 0, 0, 1, 0, 0);
-    ls_mf[lev]->ParallelCopy(ls, 0, ls_id, 1, 0, 0);
+    Zerols_imf->ParallelCopy(zerols, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+    cpt_imf->ParallelCopy(cpt, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+    level_sets[ls_id].Tube_imf->ParallelCopy(narrowband, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
+    ls_mf[lev]->ParallelCopy(ls, 0, ls_id, 1, number_of_ghost_cells, number_of_ghost_cells);
 }
 
 /*void NarrowBandLevelset::ComputeNarrowBandBoxList(int lev, int ls_id) {
@@ -1034,10 +1040,41 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
 
     // Fill ghost cells
     Narrowband.FillBoundary();
+    zerols.FillBoundary();
     LS.FillBoundary();
-    LS_old.FillBoundary();
 
-    // Redefine 0 levelsets using narrowband interface masking
+    // Redefine the interface cells using exact logic as Fortran
+    for (amrex::MFIter mfi(Narrowband, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& ghost_bx = mfi.growntilebox(number_of_ghost_cells); // Potentially use valid box?
+        const auto& ls_arr = LS.const_array(mfi);
+        const auto& zerols_arr = zerols.array(mfi);
+
+        amrex::ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            // Get current coord and LS value
+            const amrex::IntVect coord(AMREX_D_DECL(i, j, k));
+            const Set::Scalar LS = ls_arr(coord);
+
+            for (int d = 0; d < Neighbors::num_neighbors; ++d) { 
+                int ni = i + Neighbors::offsets[d][0];
+                int nj = j + Neighbors::offsets[d][1];
+                int nk = k + Neighbors::offsets[d][2];
+
+                // Define nbr coord and skip if outside ghost range
+                amrex::IntVect nbr(AMREX_D_DECL(ni, nj, nk));
+                if (!ghost_bx.contains(nbr)) continue;
+
+                // Get LS for neighbor to compare signs
+                const Set::Scalar LSnbr = ls_arr(nbr);
+
+                if (LS * LSnbr < 0.0 && std::max(std::abs(LS), std::abs(LSnbr)) < INNERTUBE) {
+                    zerols_arr(coord) = ls_id;
+                    zerols_arr(nbr)   = ls_id;
+                }
+            }
+        });
+    }
+
+    /*// Redefine 0 levelsets using narrowband interface masking
     for (amrex::MFIter mfi(Narrowband, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         // Loop through ghost box 
         const amrex::Box& ghost_bx = mfi.growntilebox(number_of_ghost_cells);
@@ -1054,14 +1091,14 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
             //if (!domain_box.contains(coord)) return;
 
             // Only check interface cells
-            const int nb_val = nb_arr(i, j, k);
+            const int nb_val = nb_arr(coord);
             if (nb_val != Interface) return;
 
             // Save this cell to zerols as it is old interface
             //zerols_arr(i, j, k) = ls_id;
 
             // Get the current cell LS value
-            const Set::Scalar ls = ls_arr(i, j, k);
+            const Set::Scalar ls = ls_arr(coord);
 
             // Loop through neighbors
             for (int d = 0; d < Neighbors::num_neighbors; ++d) {
@@ -1082,11 +1119,102 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
                 }
             }
         });
-    }
+    }*/
 
-    // Fill zerols ghot cells
+    // Fill zerols ghost cells
     zerols.FillBoundary();
 
+    /*// Perform first order PDE Reinitialization scheme
+    for (int iter = 0; iter < max_iterations; iter++) {
+        std::swap(LS, LS_old);
+    
+        LS_old.FillBoundary();
+        zerols.FillBoundary();
+        Narrowband.FillBoundary();
+    
+        for (amrex::MFIter mfi(LS, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            const amrex::Box& valid_bx = mfi.validbox();
+    
+            // Define arr views 
+            const auto& ls_arr      = LS.array(mfi);
+            const auto& ls_old_arr  = LS_old.const_array(mfi);
+            const auto& nb_arr      = Narrowband.const_array(mfi);
+            const auto& zerols_arr  = zerols.const_array(mfi);
+            const auto& error_arr   = error_mf.array(mfi);
+    
+            // Define domain boundaries for Nuemann conditions
+            const auto dom_lo = domain_box.smallEnd();
+            const auto dom_hi = domain_box.bigEnd();
+    
+            amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                const int nb_val = std::abs(nb_arr(i, j, k));
+                const int zero_cell = zerols_arr(i, j, k);
+    
+                // Skip interface and outerband cells
+                if (nb_val == OutsideNarrowband || zero_cell == ls_id) return;
+    
+                // --- Inline Neumann BC: Fill ghost values from nearest interior cell ---
+                int ii = i, jj = j, kk = k;
+    #if (AMREX_SPACEDIM >= 1)
+                if (i < dom_lo[0]) ii = dom_lo[0];
+                if (i > dom_hi[0]) ii = dom_hi[0];
+    #endif
+    #if (AMREX_SPACEDIM >= 2)
+                if (j < dom_lo[1]) jj = dom_lo[1];
+                if (j > dom_hi[1]) jj = dom_hi[1];
+    #endif
+    #if (AMREX_SPACEDIM == 3)
+                if (k < dom_lo[2]) kk = dom_lo[2];
+                if (k > dom_hi[2]) kk = dom_hi[2];
+    #endif
+    
+                // NOTE: LS_old is read-only in this loop, so we use nearest interior value for neighbors
+                const Set::Scalar ls = ls_old_arr(i, j, k); // value at current cell
+                const Set::Scalar sign_ls = (ls > 0.0 ? 1.0 : -1.0);
+    
+                // Compute upwind gradient components (with Neumann-handled ghost access)
+                Set::Scalar dxm = (ls_old_arr(i, j, k) - ls_old_arr(i - 1 < dom_lo[0] ? dom_lo[0] : i - 1, j, k)) / DX[0];
+                Set::Scalar dxp = (ls_old_arr(i + 1 > dom_hi[0] ? dom_hi[0] : i + 1, j, k) - ls_old_arr(i, j, k)) / DX[0];
+                Set::Scalar gx = std::max(
+                    std::pow(std::max(sign_ls * dxm, 0.0), 2),
+                    std::pow(std::min(sign_ls * dxp, 0.0), 2)
+                );
+    
+                Set::Scalar gy = 0.0;
+    #if AMREX_SPACEDIM >= 2
+                Set::Scalar dym = (ls_old_arr(i, j, k) - ls_old_arr(i, j - 1 < dom_lo[1] ? dom_lo[1] : j - 1, k)) / DX[1];
+                Set::Scalar dyp = (ls_old_arr(i, j + 1 > dom_hi[1] ? dom_hi[1] : j + 1, k) - ls_old_arr(i, j, k)) / DX[1];
+                gy = std::max(
+                    std::pow(std::max(sign_ls * dym, 0.0), 2),
+                    std::pow(std::min(sign_ls * dyp, 0.0), 2)
+                );
+    #endif
+    
+                Set::Scalar gz = 0.0;
+    #if AMREX_SPACEDIM == 3
+                Set::Scalar dzm = (ls_old_arr(i, j, k) - ls_old_arr(i, j, k - 1 < dom_lo[2] ? dom_lo[2] : k - 1)) / DX[2];
+                Set::Scalar dzp = (ls_old_arr(i, j, k + 1 > dom_hi[2] ? dom_hi[2] : k + 1) - ls_old_arr(i, j, k)) / DX[2];
+                gz = std::max(
+                    std::pow(std::max(sign_ls * dzm, 0.0), 2),
+                    std::pow(std::min(sign_ls * dzp, 0.0), 2)
+                );
+    #endif
+    
+                Set::Scalar grad_phi = std::sqrt(gx + gy + gz);
+    
+                // Update level set
+                Set::Scalar phi_new = ls - tau * sign_ls * (grad_phi - 1.0);
+                ls_arr(i, j, k) = phi_new;
+    
+                // Track error
+                error_arr(i, j, k) = std::abs(phi_new - ls);
+            });
+        }
+    
+        Set::Scalar max_error = error_mf.norm0();
+        if (max_error < reinit_tolerance) break;
+    }*/
+    
     // Perform first order PDE Reinitialization scheme
     for (int iter = 0; iter < max_iterations; iter++){
         // Switch LS with LS_old
