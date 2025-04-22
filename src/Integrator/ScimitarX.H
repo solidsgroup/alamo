@@ -18,7 +18,7 @@
 #include "IC/IC.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
-#include "IC/SodShock.H"
+#include "IC/Shock.H"
 #include "IC/Laminate.H"
 #include "IC/Expression.H"
 #include "Util/ScimitarX_Util.H"

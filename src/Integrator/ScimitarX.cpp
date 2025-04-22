@@ -3,7 +3,7 @@
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "BC/Constant.H"
-#include "IC/SodShock.H"
+#include "IC/Shock.H"
 #include "IC/Riemann2D.H"
 #include "Model/Fluid/Fluid.H"
 #include "Numeric/Stencil.H"
@@ -406,19 +406,19 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         std::string type = "constant";
         pp.query("ic.pvec.type", type);  // IC condition type for Primitive Variables
 
-        if (type == "sodshock") {
-            value.ic_PVec = new IC::SodShock(value.geom, pp, "ic.pvec.sodshock", ScimitarX::variableIndex);
+        if (type == "shock") {
+            value.ic_PVec = new IC::Shock(value.geom, pp, "ic.shock.pvec", ScimitarX::variableIndex);
         } else if (type == "riemann2d") {
-            value.ic_PVec = new IC::Riemann2D(value.geom, pp, "ic.pvec.riemann2d", ScimitarX::variableIndex);
+            value.ic_PVec = new IC::Riemann2D(value.geom, pp, "ic.riemann2d.pvec", ScimitarX::variableIndex);
         } else {
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pvec.type: " + type);
         }
 
         pp.query("ic.pressure.type", type); // IC condition type for pressure 
-        if (type == "sodshock") {
-            value.ic_Pressure = new IC::SodShock(value.geom, pp, "ic.pressure.sodshock");
+        if (type == "shock") {
+            value.ic_Pressure = new IC::Shock(value.geom, pp, "ic.shock.pressure");
         } else if (type == "riemann2d") {
-            value.ic_Pressure = new IC::Riemann2D(value.geom, pp, "ic.pressure.riemann2d");
+            value.ic_Pressure = new IC::Riemann2D(value.geom, pp, "ic.riemann2d.pressure");
         } else {
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pressure.type: " + type);
         }
