@@ -171,6 +171,7 @@ void NarrowBandLevelset::Initialize(int lev){
         level_sets[ils].narrowband_dm = ls_mf[lev]->DistributionMap();
 
         // Define initial narrowband boxarray and distribution mapping
+        //amrex::Print() << "Initializing tube" << std::endl;
         UpdateNarrowbandTubeandMapping(lev, ils);
 
         // Save Tube_imf to Tube_imf
@@ -298,6 +299,7 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
 
     // Save level_set data structure for reference
     auto& ls_data = level_sets[ls_id];
+    const amrex::IntVect debug(AMREX_D_DECL(12, 12, 0));
 
     // Define MultiFab properties of old band to create temporary (i)MulitFab objects
     const amrex::BoxArray& ba = ls_data.narrowband_ba;
@@ -343,11 +345,15 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
         // Loop through ghost box to update narrowband ghost cells
         // Since there are no automatic nuemann conditions
         ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            const amrex::IntVect coord(AMREX_D_DECL(i, j, k)); 
+            //if (coord == debug) amrex::Print() << "Debugging point " << debug << " in narrowband tube update" << std::endl;
+
             // Clamp levelset value and define abs|ls|
-            Set::Scalar LS = ls_arr(i, j, k);
+            Set::Scalar LS = ls_arr(coord);
             LS = std::clamp(LS, -tube_width, tube_width);
             const Set::Scalar abs_LS = std::abs(LS);
-            ls_arr(i, j, k) = LS;
+            ls_arr(coord) = LS;
+            //if (coord == debug) amrex::Print() << "LS: " << ls_arr(coord) << std::endl;
 
             // Assign cpt flag
             if (LS < 0.0) cpt_arr(i, j, k) = ls_id;
@@ -401,6 +407,8 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
             else {
                 nb_arr(i, j, k) = LS > 0 ? OutsideBandPos : OutsideBandNeg;
             }
+
+            //if (coord == debug) amrex::Print() << "NB: " << nb_arr(coord) << std::endl;
         });
     }
 
@@ -451,6 +459,7 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
                 if (nb_nbr == OutsideBandPos) nb_arr(nbr) = OuterEdge;
                 if (nb_nbr == OutsideBandNeg) nb_arr(nbr) = InnerEdge;
             }
+            //if (coord == debug) amrex::Print() << "NB after edge loop: " << nb_arr(coord) << std::endl;
         });
 
         /*// Loop through valid_bx and store narrowband cell IntVects
@@ -513,6 +522,9 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
 
     ls_data.narrowband_flags = std::move(flags);*/
 
+    // Fill narrowband ghost cells after editing
+    narrowband.FillBoundary();
+
     // Create Box Array from narrowband mask
     amrex::BoxList narrowband_boxes;
 
@@ -541,6 +553,12 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
 
     level_sets[ls_id].narrowband_ba = narrowband_ba;
     level_sets[ls_id].narrowband_dm = amrex::DistributionMapping(narrowband_ba);
+
+    // Fill all ghosts before copying back
+    zerols.FillBoundary();
+    cpt.FillBoundary();
+    narrowband.FillBoundary();
+    ls.FillBoundary();
 
     // Copy back to full domain (i)MultiFabs 
     Zerols_imf->ParallelCopy(zerols, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
@@ -939,12 +957,14 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, ls_id);
 
         // Reinitialize
+        //amrex::Print() << "Reinitializing LS" << std::endl;
         Reinitialize(lev, ls_id);
 
         // Apply Boundary conditions after reinitialization
         Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, ls_id);
         
         // Update narrowband info
+        //amrex::Print() << "Updating tube after Reinit" << std::endl;
         UpdateNarrowbandTubeandMapping(lev, ls_id);
 
         // Save Tube_imf to Tube_imf
@@ -956,8 +976,35 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 }
 
 void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt){
-    // Swap the levelsets
-    std::swap(*ls_mf[lev], *ls_old_mf[lev]);
+    /*for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        const amrex::FArrayBox& ls_fab     = (*ls_mf[lev])[mfi];
+        const amrex::FArrayBox& ls_old_fab = (*ls_old_mf[lev])[mfi];
+    
+        if (bx.contains(amrex::IntVect(12, 12))) {
+            amrex::Print() << "Before swap:\n";
+            amrex::Print() << "LS(12,12): " << ls_fab(amrex::IntVect(12, 12), 0) << "\n";
+            amrex::Print() << "LS_OLD(12,12): " << ls_old_fab(amrex::IntVect(12, 12), 0) << "\n";
+        }
+    }*/
+    
+    // Perform the swap
+    //std::swap(*ls_mf[lev], *ls_old_mf[lev]);
+    amrex::MultiFab::Copy(*ls_old_mf[lev], *ls_mf[lev], 0, 0, 1, ls_mf[lev]->nGrow());
+    
+    /*for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        const amrex::FArrayBox& ls_fab     = (*ls_mf[lev])[mfi];
+        const amrex::FArrayBox& ls_old_fab = (*ls_old_mf[lev])[mfi];
+    
+        if (bx.contains(amrex::IntVect(12, 12))) {
+            amrex::Print() << "After swap:\n";
+            amrex::Print() << "LS(12,12): " << ls_fab(amrex::IntVect(12, 12), 0) << "\n";
+            amrex::Print() << "LS_OLD(12,12): " << ls_old_fab(amrex::IntVect(12, 12), 0) << "\n";
+        }
+    }*/
 
     // Update the interface velocity
     UpdateInterfaceVelocity(lev);
@@ -1005,6 +1052,7 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
     // Define reinitialization constants
     const Set::Scalar reinit_tolerance = 1e-3;
     const int max_iterations = 50;
+    const amrex::IntVect debug(AMREX_D_DECL(12, 12, 0));
 
     // Define geometry constants
     const amrex::Box& domain_box = geom[lev].Domain();
@@ -1053,6 +1101,10 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
             // Get current coord and LS value
             const amrex::IntVect coord(AMREX_D_DECL(i, j, k));
             const Set::Scalar LS = ls_arr(coord);
+            /*if (coord == debug){
+                amrex::Print() << "Debugging point " << debug << " in reinitialize" << std::endl;
+                amrex::Print() << "LS in zero loop: " << LS << std::endl;
+            }*/
 
             for (int d = 0; d < Neighbors::num_neighbors; ++d) { 
                 int ni = i + Neighbors::offsets[d][0];
@@ -1071,6 +1123,7 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
                     zerols_arr(nbr)   = ls_id;
                 }
             }
+            //if (coord == debug) amrex::Print() << "LS after zero loop: " << LS << std::endl;
         });
     }
 
@@ -1217,6 +1270,7 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
     
     // Perform first order PDE Reinitialization scheme
     for (int iter = 0; iter < max_iterations; iter++){
+        //amrex::Print() << "Iteration: " << iter << std::endl;
         // Switch LS with LS_old
         std::swap(LS, LS_old);
 
@@ -1237,19 +1291,22 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
             const auto& error_arr = error_mf.array(mfi);
 
             amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                const amrex::IntVect coord(AMREX_D_DECL(i, j, k));
+                
                 // Skip interface and outerband cells
-                const int nb_val = std::abs(nb_arr(i, j, k));
-                const int zero_cell = zerols_arr(i, j, k);
+                const int nb_val = std::abs(nb_arr(coord));
+                const int zero_cell = zerols_arr(coord);
                 if (nb_val == OutsideNarrowband || zero_cell == ls_id) return;
 
                 // Define sign of ls for upwinding
-                const Set::Scalar ls = ls_old_arr(i, j, k);
+                const Set::Scalar ls = ls_old_arr(coord);
+                //if (coord == debug) amrex::Print() << "LS at beginning of iteration " << iter << " is " << ls << std::endl;
                 const Set::Scalar sign_ls = (ls > 0.0 ? 1.0 : -1.0);
 
                 // First-order upwind differences
                 // USE Numeric::Stencil HERE?
-                Set::Scalar dxm = (ls_old_arr(i, j, k) - ls_old_arr(i - 1, j, k)) / DX[0]; // backward
-                Set::Scalar dxp = (ls_old_arr(i + 1, j, k) - ls_old_arr(i, j, k)) / DX[0]; // forward
+                Set::Scalar dxm = (ls_old_arr(coord) - ls_old_arr(i - 1, j, k)) / DX[0]; // backward
+                Set::Scalar dxp = (ls_old_arr(i + 1, j, k) - ls_old_arr(coord)) / DX[0]; // forward
                 Set::Scalar gx = std::max(
                                 std::pow(std::max(sign_ls * dxm, 0.0), 2),
                                 std::pow(std::min(sign_ls * dxp, 0.0), 2)
@@ -1257,8 +1314,8 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
 
                 Set::Scalar gy = 0.0;
                 #if AMREX_SPACEDIM >= 2
-                Set::Scalar dym = (ls_old_arr(i, j, k) - ls_old_arr(i, j - 1, k)) / DX[1];
-                Set::Scalar dyp = (ls_old_arr(i, j + 1, k) - ls_old_arr(i, j, k)) / DX[1];
+                Set::Scalar dym = (ls_old_arr(coord) - ls_old_arr(i, j - 1, k)) / DX[1];
+                Set::Scalar dyp = (ls_old_arr(i, j + 1, k) - ls_old_arr(coord)) / DX[1];
                 gy = std::max(
                     std::pow(std::max(sign_ls * dym, 0.0), 2),
                     std::pow(std::min(sign_ls * dyp, 0.0), 2)
@@ -1277,7 +1334,8 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
 
                 // Compute gradient and update
                 Set::Scalar grad_phi = std::sqrt(gx + gy + gz);
-                ls_arr(i, j, k) = ls - tau * sign_ls * (grad_phi - 1.0);
+                ls_arr(coord) = ls - tau * sign_ls * (grad_phi - 1.0);
+                //if (coord == debug) amrex::Print() << "LS at end of iteration " << iter << " is " <<  ls_arr(coord) << std::endl;
 
                 // Store error in error_mf
                 error_arr(i, j, k) = std::abs(ls_arr(i, j, k) - ls);

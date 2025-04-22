@@ -166,12 +166,14 @@ public:
         // Define outside of narrowband
         const int OuterEdge = solver->GetOuterEdge();
 
+        const amrex::IntVect debug(AMREX_D_DECL(12, 12, 0));
+
         // Loop through all components
         for (int ils=0; ils < ncomp; ils++){
             // Loop through all valid boxes
             for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
                 // Get the mfi index and skip if not in narrowband boxlist
-                const amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags;
+                //const amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags;
                 const int idx = mfi.index();
 
                 //if (narrowband_flags[idx] == 0) continue;
@@ -198,19 +200,31 @@ public:
 
                 // Loop through individual cells
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                    const amrex::IntVect coord(AMREX_D_DECL(i, j, k));
+                    //if (coord == debug) amrex::Print() << "Debugging " << debug << " in timestepper" << std::endl;
                     // Exit early if not narrowband cell
-                    Set::Scalar nb_val = nb(i, j, k);
+                    Set::Scalar nb_val = nb(coord);
                     if (std::abs(nb_val) >= OuterEdge) return;
 
                     // Initialize flux to 0
                     Set::Scalar flux_div = 0.0;
 
                     // Compute flux divergence in X-direction
-                    flux_div += (xflux_arr(i, j, k, ils) - xflux_arr(i - 1, j, k, ils)) / DX[0];
+                    flux_div += (xflux_arr(coord, ils) - xflux_arr(i - 1, j, k, ils)) / DX[0];
+                    /*if (coord == debug){
+                        amrex::Print() << "xflux" << debug << ": " << xflux_arr(coord, ils) << std::endl;
+                        amrex::Print() << "xflux(" << i-1 << ", " << j << "): " << xflux_arr(i-1, j, k, ils) << std::endl;
+                        amrex::Print() << "flux_div: " << flux_div << std::endl;
+                    }*/
 
 #if AMREX_SPACEDIM >= 2
                     // Compute flux divergence in Y-direction
-                    flux_div += (yflux_arr(i, j, k, ils) - yflux_arr(i, j - 1, k, ils)) / DX[1];
+                    flux_div += (yflux_arr(coord, ils) - yflux_arr(i, j - 1, k, ils)) / DX[1];
+                    /*if (coord == debug){
+                        amrex::Print() << "yflux" << debug << ": " << yflux_arr(coord, ils) << std::endl;
+                        amrex::Print() << "yflux(" << i << ", " << j-1 << "): " << yflux_arr(i, j-1, k, ils) << std::endl;
+                        amrex::Print() << "flux_div: " << flux_div << std::endl;
+                    }*/
 #endif
 
 #if AMREX_SPACEDIM == 3
@@ -219,14 +233,12 @@ public:
 #endif
 
                     // Euler forward update for level set function
-                    ls_arr(i, j, k, ils) = ls_old_arr(i, j, k, ils) - dt * flux_div;
-
-                    // Debug print
-                    /*if (i==32 && j==75){
-                        amrex::Print() << "xflux(" << i << ", " << j << ") in timestepper: " <<  xflux_arr(i, j, k, ils) << std::endl;
-                        amrex::Print() << "xflux(" << i-1 << ", " << j << ") in timestepper: " <<  xflux_arr(i-1, j, k, ils) << std::endl;
-                        amrex::Print() << "yflux(" << i << ", " << j << ") in timestepper: " <<  yflux_arr(i, j, k, ils) << std::endl;
-                        amrex::Print() << "yflux(" << i << ", " << j-1 << ") in timestepper: " <<  yflux_arr(i, j-1, k, ils) << std::endl;
+                    //if (coord == debug) amrex::Print() << "LS: " << ls_arr(coord, ils) << std::endl;
+                    ls_arr(coord, ils) = ls_old_arr(coord, ils) - dt * flux_div;
+                    /*if (coord == debug){
+                        amrex::Print() << "LS_old: " << ls_old_arr(coord, ils) << std::endl;
+                        amrex::Print() << "flux_div: " << flux_div << std::endl;
+                        amrex::Print() << "LS updated: " << ls_arr(coord, ils) << std::endl;
                     }*/
                 });
             }

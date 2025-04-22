@@ -1,13 +1,13 @@
 ## Simulation output
-plot_file = output_levelset_circle_Zerols_100X100_(0_1)_ext_75steps
+plot_file = output_levelset_circle_Zerols_100X100_(1_1)_50steps_ext_debug_Print
 
 # Simulation length
 timestep = 1.00
 stop_time = 0.500
-max_step = 75
+max_step = 50
 
 # AMR parameters
-amr.plot_int = 1
+amr.plot_int = 5
 amr.max_level = 0
 amr.n_cell = 100 100 100
 amr.blocking_factor = 1
@@ -16,7 +16,7 @@ amr.grid_eff = 1.0
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1 2 1
+geometry.prob_hi = 2 2 1
 geometry.is_periodic = 0 0 0
 
 #cflNumber
@@ -45,7 +45,7 @@ ic.ls.sphere.type   = "xy"
 #ic.ls.zalesak.type          = "xy"
 
 # Initial velocity field (constant)
-ic.velocity.value = 0.0 1.0 #0.0
+ic.velocity.value = 1.0 1.0 #0.0
 
 # Boundary conditions for levelset field
 bc.ls.type.xhi = neumann

@@ -74,7 +74,9 @@ public:
     /**
     * @brief Perform flux reconstruction for the specified direction.
     */
-    virtual void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, amrex::MultiFab& QL_stencil) const = 0;
+    virtual void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband,
+        const amrex::MultiFab& narrowband_Vel, const amrex::MultiFab& narrowband_LS, 
+        amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const = 0;
 };
 
 // Base class for flux method (e.g., Local Lax-Friedrichs, HLLC)
@@ -98,7 +100,9 @@ public:
     /**
     * @brief Compute the flux for the specified direction.
     */
-    virtual void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::MultiFab& QL_stencil, amrex::MultiFab& temp_flux) const = 0;
+    virtual void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband, 
+        const amrex::MultiFab& narrowband_Vel, const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil, 
+        amrex::MultiFab& temp_flux_mf, Set::Field<Set::Scalar>& full_flux_mf) const = 0;
 };
 
 // FluxHandler class for managing reconstruction and flux computation
@@ -192,9 +196,24 @@ public:
 
         // Loop through all levelset fields
         for (int ils = 0; ils < ncomp; ++ils) {
+            // Create all temporary multifabs here so no need to perform multiple copies
+            auto const& ls_data = solver->level_sets[ils];
+
             // Get proper distribution mapping for narrowband
-            const amrex::BoxArray& narrowband_ba = solver->level_sets[ils].narrowband_ba;
-            const amrex::DistributionMapping& narrowband_dm = solver->level_sets[ils].narrowband_dm;
+            const amrex::BoxArray& narrowband_ba = ls_data.narrowband_ba;
+            const amrex::DistributionMapping& narrowband_dm = ls_data.narrowband_dm;
+
+            // Define cell centered multifabs from solver
+            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, nghosts);
+            amrex::MultiFab narrowband_Vel(narrowband_ba, narrowband_dm, AMREX_SPACEDIM, nghosts);
+            amrex::MultiFab narrowband_LS(narrowband_ba, narrowband_dm, 1, nghosts);
+            
+            // ParallelCopy
+            auto const& Tube = ls_data.Tube_imf;
+            auto const& velocity = ls_data.velocity_mf;
+            narrowband.ParallelCopy(*Tube, 0, 0, 1, nghosts, nghosts);
+            narrowband_Vel.ParallelCopy(*velocity[lev], 0, 0, AMREX_SPACEDIM, nghosts, nghosts);
+            narrowband_LS.ParallelCopy(*solver->ls_mf[lev], ils, 0, 1, nghosts, nghosts);
 
             // Loop through all dimensions
             for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
@@ -206,10 +225,11 @@ public:
 
                 // Create temporary QL and QR MultiFabs at face-centered positions
                 amrex::MultiFab QL_stencil(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
-                //amrex::MultiFab QR_stencil(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
+                amrex::MultiFab QR_stencil(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
                 
                 // Create temporary flux to store flux values for narrowband cells
                 amrex::MultiFab temp_flux_mf(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
+                temp_flux_mf.setVal(0.0, nghosts);
 
                 // Get the corresponding full flux MultiFab and its index type
                 auto& full_flux_mf =
@@ -226,59 +246,13 @@ public:
                 // THIS IS ONLY TEMPORARY FIX
                 if (full_flux_ixType != temp_flux_ixType) ConvertToFaceCentered(dir, lev, full_flux_mf);
 
-                /*// Debug
-                const amrex::IndexType flux_ixType_afterConv = full_flux_mf[lev]->boxArray().ixType();
-                if (flux_ixType_afterConv == temp_flux_ixType){
-                    amrex::Print() << "ix Types are equivalent and are " << flux_ixType_afterConv << std::endl;
-                }
-                else{
-                    amrex::Print() << "ix Types are  not equivalent" << std::endl;
-                    amrex::Print() << "Full ix Type: " << flux_ixType_afterConv << std::endl;
-                    amrex::Print() << "Temp ix Type: " << temp_flux_ixType << std::endl;
-                }*/
-
-                // Zero out the flux so that no remnant fluxes are present
+                // Zero out the full domain flux so that no remnant fluxes are present
                 full_flux_mf[lev]->setVal(0.0, nghosts);
 
                 // Perform reconstruction and flux computation
-                reconstruction->ReconstructFlux(dir, lev, solver, QL_stencil);
-                flux_method->ComputeFlux(dir, lev, solver, QL_stencil, temp_flux_mf);
-
-                // Save the ba/dm for full grid flux_mf 
-                //const amrex::BoxArray& flux_mf_ba = flux_mf[lev]->boxArray();
-                //const amrex::DistributionMapping& flux_mf_dm = flux_mf[lev]->DistributionMap();
-                //const auto flux_mf_ixType = flux_mf[lev]->boxArray().ixType();
-                
-                /*// Convert multifab index type if index type does not match correct direction
-                if (face_ba.ixType() != flux_mf[lev]->boxArray().ixType()){
-                    ConvertToFaceCentered(dir, lev, flux_mf);
-                }*/      
-
-                /*// Convert temp_flux to match the index for flux_mf_ba
-                amrex::IndexType temp_flux_ixType = temp_flux.boxArray().ixType();
-                amrex::IndexType flux_mf_ixType = flux_mf[lev]->boxArray().ixType();
-                amrex::Print() << "flux_mf_ixType: " << flux_mf_ixType << std::endl;
-                amrex::Print() << "flux_mf_ixType (direction components): " << flux_mf_ixType.ixType() << std::endl;
-                amrex::Print() << "temp_flux_ixType: " << temp_flux_ixType << std::endl;   
-                amrex::Print() << "temp_flux_ixType (direction components): " << temp_flux_ixType.ixType() << std::endl;
-                //amrex::Print() << "temp_flux_ixType(" << dir <<"): " << temp_flux_ixType.ixType(dir) << std::endl;
-                //amrex::Print() << "temp_flux_ixType(" << (dir + 1) % AMREX_SPACEDIM <<"): " << temp_flux_ixType.ixType((dir + 1) % AMREX_SPACEDIM) << std::endl;  
-                //amrex::Print() << "temp_flux_ixType(" << (dir + 2) % AMREX_SPACEDIM <<"): " << temp_flux_ixType.ixType((dir + 2) % AMREX_SPACEDIM) << std::endl; 
-                if (temp_flux_ixType.ixType(dir) == amrex::IndexType::NODE &&
-                    temp_flux_ixType.ixType((dir + 1) % AMREX_SPACEDIM)  == amrex::IndexType::CELL &&
-                    temp_flux_ixType.ixType((dir + 2) % AMREX_SPACEDIM)  == amrex::IndexType::CELL){
-                        amrex::Print() << "temp flux is face-centered in direction " << dir << std::endl;
-                }
-                else{
-                    amrex::Print() << "temp flux is not face-centered in direction " << dir << std::endl;
-                }
-
-                if (Integrator::Integrator::isFaceCentered(flux_mf_ixType, dir)){
-                    amrex::Print() << "solver is face centered in direction " << dir << " using function" << std::endl;
-                }   
-                if (Integrator::Integrator::isFaceCentered(temp_flux_ixType, dir)){
-                    amrex::Print() << "temp_flux is face centered in direction " << dir << " using function" << std::endl;
-                }*/     
+                reconstruction->ReconstructFlux(dir, lev, solver, narrowband,
+                     narrowband_Vel, narrowband_LS, QL_stencil, QR_stencil);
+                flux_method->ComputeFlux(dir, lev, solver, narrowband, narrowband_Vel, QL_stencil, QR_stencil, temp_flux_mf, full_flux_mf);
             }
         }
     }
@@ -456,8 +430,9 @@ inline void FillBoundaryField(Set::Field<Set::Scalar>& field, int level) {
 template <>
 class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
 public:
-    void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
-        amrex::MultiFab& QL_stencil) const override {
+    void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband,
+        const amrex::MultiFab& narrowband_Vel, const amrex::MultiFab& narrowband_LS, 
+        amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const override {
         // Define multifab constants 
         const int nghosts = solver->number_of_ghost_cells;
         const int ncomp = solver->number_of_components;
@@ -465,28 +440,13 @@ public:
         // Define OutsideNarrowband
         const int OutsideNarrowband = solver->GetOutsideNarrowBandPos();
 
+        const amrex::IntVect debug(AMREX_D_DECL(12, 12, 0));
+
         // Loop through all the levelset fields
         for (int ils = 0; ils < ncomp; ils++) {
-            // Get the narrowband box array and distibution mapping for temporary multifabs
-            amrex::BoxArray narrowband_ba = solver->level_sets[ils].narrowband_ba;
-            amrex::DistributionMapping narrowband_dm = solver->level_sets[ils].narrowband_dm;
-
-            // Create temporary multifabs
-            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, nghosts);
-            amrex::MultiFab narrowband_LS(narrowband_ba, narrowband_dm, 1, nghosts);
-            amrex::MultiFab narrowband_Vel(narrowband_ba, narrowband_dm, AMREX_SPACEDIM, nghosts);
-
-            // ParallelCopy
-            auto const& Tube = solver->level_sets[ils].Tube_imf;
-            auto const& velocity = solver->level_sets[ils].velocity_mf;
-            narrowband.ParallelCopy(*Tube, 0, 0, 1, nghosts, nghosts);
-            narrowband_LS.ParallelCopy(*solver->ls_mf[lev], ils, 0, 1, nghosts, nghosts);
-            narrowband_Vel.ParallelCopy(*velocity[lev], 0, 0, AMREX_SPACEDIM, nghosts, nghosts);
-
-            // Fill Boundary for ghost cells
-            narrowband.FillBoundary();
-            narrowband_LS.FillBoundary();
-            narrowband_Vel.FillBoundary();
+            // Fill Boundary
+            QL_stencil.FillBoundary(ils, 1); // Fill only the current component
+            QR_stencil.FillBoundary(ils, 1);
 
             // Loop through the face centered stencil
             for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
@@ -513,11 +473,12 @@ public:
 #endif
 
                 // Define multifab arrays
+                auto const& nb_arr = narrowband.const_array(mfi);
+                auto const& vel_arr = narrowband_Vel.const_array(mfi);
+                auto const& ls = narrowband_LS.const_array(mfi);
                 auto const& QL_arr = QL_stencil.array(mfi);
-                auto const& nb_arr = narrowband.array(mfi);
-                auto const& ls = narrowband_LS.array(mfi);
-                auto const& vel_arr = narrowband_Vel.array(mfi);
-
+                auto const& QR_arr = QR_stencil.array(mfi);
+               
                 // Loop through all face cell indices
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                     // Construct cell-centered indices
@@ -526,7 +487,7 @@ public:
                     int right_cell_centered_offset[3] = { 0, 0, 0 };
 
                     // Define offsets (modular for future higher-order schemes)
-                    right_cell_centered_offset[direction] = 1;  // Left offset for first-order upwind scheme
+                    right_cell_centered_offset[direction] = 1;  // Right offset for first-order upwind scheme
 
                     // Clamp cell centered indices
                     ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
@@ -540,9 +501,12 @@ public:
                                                                           right_cell_centered_index[1], 
                                                                           right_cell_centered_index[2]));
 
+                    // Debug print
+                    //if (cell_center_IV == debug) amrex::Print() << "debugging point " << debug << " for direction " << direction << std::endl;
+
                     // Exit early if not narrowband cell
                     int nb_val = nb_arr(cell_center_IV);
-                    //amrex::Print() << "nb_arr" << cell_center_IV << " : " << nb_arr(cell_center_IV) << std::endl;
+                    //if (cell_center_IV == debug) amrex::Print() << "Narrowband: " << nb_val << std::endl;
                     if (std::abs(nb_val) == OutsideNarrowband) return;
 
                     // Clamp face centered indices
@@ -558,11 +522,26 @@ public:
 
                     // First-order upwind reconstruction
                     Set::Scalar QL = sigma * ls(cell_center_IV) + (1.0 - sigma) * ls(right_cell_center_IV);
+                    Set::Scalar QR = sigma * ls(right_cell_center_IV) + (1.0 - sigma) * ls(cell_center_IV);
 
                     // Store results
                     QL_arr(face_centered_IV, ils) = QL;
+                    QR_arr(face_centered_IV, ils) = QR;
+
+                    // Debug
+                    /*if (cell_center_IV == debug){
+                        amrex::Print() << "Velocity: " << vel << std::endl;
+                        amrex::Print() << "LS: " << ls(cell_center_IV) << std::endl;
+                        amrex::Print() << "LS Right: " << ls(right_cell_center_IV) << std::endl;
+                        amrex::Print() << "QL: " << QL << std::endl;
+                        amrex::Print() << "QR: " << QR << std::endl;
+                    }*/
                 });
             }
+
+            // Fill Boundary after updating array
+            QL_stencil.FillBoundary(ils, 1); // Fill only the current component
+            QR_stencil.FillBoundary(ils, 1);
         }
     }
 };
@@ -769,35 +748,21 @@ public:
 template <>
 class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMethod<Integrator::NarrowBandLevelset> {
 public:
-    void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver,
-        const amrex::MultiFab& QL_stencil, amrex::MultiFab& temp_flux) const override {
+    void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband,
+        const amrex::MultiFab& narrowband_Vel, const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil, 
+        amrex::MultiFab& temp_flux_mf, Set::Field<Set::Scalar>& full_flux_mf) const override {
         const int nghosts = solver->number_of_ghost_cells;  // Get number of ghost cells
         const int ncomp = solver->number_of_components;
 
         // Define OutsideNarrowband
         const int OutsideNarrowband = solver->GetOutsideNarrowBandPos();
 
+        const amrex::IntVect debug(AMREX_D_DECL(12, 12, 0));
+
         // Loop through all the levelset fields
         for (int ils = 0; ils < ncomp; ils++) {
-            // Get the narrowband box array and distibution mapping for temporary multifabs
-            amrex::BoxArray narrowband_ba = solver->level_sets[ils].narrowband_ba;
-            amrex::DistributionMapping narrowband_dm = solver->level_sets[ils].narrowband_dm;
-
-            // Create temporary multifabs
-            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, nghosts);
-            amrex::MultiFab narrowband_Vel(narrowband_ba, narrowband_dm, AMREX_SPACEDIM, nghosts);
-
-            // ParallelCopy & initialize
-            temp_flux.setVal(0.0, nghosts); // Initialize because each ls has unique band
-            auto const& Tube = solver->level_sets[ils].Tube_imf;
-            auto const& velocity = solver->level_sets[ils].velocity_mf;
-            narrowband.ParallelCopy(*Tube, 0, 0, 1, nghosts, nghosts);
-            narrowband_Vel.ParallelCopy(*velocity[lev], 0, 0, AMREX_SPACEDIM, nghosts, nghosts);
-
             // Fill Boundary for ghost cells
-            narrowband.FillBoundary();
-            narrowband_Vel.FillBoundary();
-            temp_flux.FillBoundary();
+            temp_flux_mf.FillBoundary(ils, 1);
 
             // Loop through face-centered cells
             for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
@@ -824,24 +789,34 @@ public:
 #endif
 
                 // Get multifab arrays
-                auto const& QL_arr = QL_stencil.const_array(mfi);
                 auto const& nb_arr = narrowband.const_array(mfi);
                 auto const& velocity_arr = narrowband_Vel.const_array(mfi);
-                auto const& flux_arr = temp_flux.array(mfi);
+                auto const& QL_arr = QL_stencil.const_array(mfi);
+                auto const& QR_arr = QR_stencil.const_array(mfi);
+                auto const& flux_arr = temp_flux_mf.array(mfi);
 
                 // Loop through face indices
                 amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                     // Define cell centered indices/offsets
                     int cell_centered_index[3] = { iface, jface, kface };
+                    int right_cell_centered_index[3] = { iface, jface, kface };
+                    int right_cell_centered_offset[3] = { 0, 0, 0 };
+
+                    // Define offsets (modular for future higher-order schemes)
+                    right_cell_centered_offset[direction] = 1;  // Left offset for first-order upwind scheme
 
                     // Clamp cell centered indices
                     ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
-                    
+                    ShiftAndClampIndices(right_cell_centered_index, right_cell_centered_offset, lower_bounds, upper_bounds, direction);
+
                     // Create amrex::IntVect to store coords
                     const amrex::IntVect cell_center_IV(AMREX_D_DECL(cell_centered_index[0], 
                                                                      cell_centered_index[1], 
                                                                      cell_centered_index[2])); 
-
+                    const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
+                                                                          right_cell_centered_index[1], 
+                                                                          right_cell_centered_index[2]));
+                    
                     // Exit early if not narrowband cell
                     int nb_val = nb_arr(cell_center_IV);
                     if (std::abs(nb_val) == OutsideNarrowband) return;
@@ -855,47 +830,36 @@ public:
                                                                        face_centered_index[2]));
 
                     // Get velocities at left and right faces
-                    Set::Scalar vel = velocity_arr(cell_center_IV, direction);
+                    Set::Scalar VL = velocity_arr(cell_center_IV, direction);
+                    Set::Scalar VR = velocity_arr(right_cell_center_IV, direction);
+                    Set::Scalar VFace = 0.5 * (VL + VR); // Linear appriximation for cell face
+
+                    // Get lambda_max
+                    Set::Scalar lambda_max = std::max(std::abs(VL), std::abs(VR));
 
                     // Fetch reconstructed level-set values
                     Set::Scalar QL = QL_arr(face_centered_IV, ils);
+                    Set::Scalar QR = QR_arr(face_centered_IV, ils);
 
                     // Compute Local Lax-Friedrichs numerical flux
-                    Set::Scalar flux = vel * QL;
+                    Set::Scalar flux = VL * QL; //0.5 * VFace * (QL + QR) - 0.5 * lambda_max * (QR - QL);
 
                     // Store computed flux
                     flux_arr(face_centered_IV, ils) = flux;
-
-                    // Debug print
-                    /*const amrex::IntVect debug_face_coord_pos = amrex::IntVect(AMREX_D_DECL(32,75,0));
-                    const amrex::IntVect debug_face_coord_neg = amrex::IntVect(AMREX_D_DECL(31,75,0));
-                    if(direction == 0 && face_centered_IV == debug_face_coord_pos){
-                        amrex::Print() << "QL for " << debug_face_coord_pos << ": " << QL << std::endl;
-                        amrex::Print() << "QR for " << debug_face_coord_pos << ": " << QR << std::endl;
-                        amrex::Print() << "XFlux for " << debug_face_coord_pos << ": " << flux << std::endl;
-                    } 
-                    if(direction == 0 && face_centered_IV == debug_face_coord_neg){
-                        amrex::Print() << "QL for " << debug_face_coord_neg << ": " << QL << std::endl;
-                        amrex::Print() << "QR for " << debug_face_coord_neg << ": " << QR << std::endl;
-                        amrex::Print() << "XFlux for " << debug_face_coord_neg << ": " << flux << std::endl;
+                    /*if (cell_center_IV == debug){
+                        amrex::Print() << "Debugging point " << debug << " for direction " << direction << " in compute flux" << std::endl;
+                        amrex::Print() << "VL: " << VL << std::endl;
+                        amrex::Print() << "QL: " << QL << std::endl;
+                        amrex::Print() << "temp_flux_mf: " << flux << std::endl;
                     }*/
                 });
             }
 
-            // Fill boundary for temp_flux
-            temp_flux.FillBoundary();
+            // Fill boundary before copy
+            temp_flux_mf.FillBoundary(ils, 1);
 
             // Copy the temp_flux to full grid multifab
-            auto& full_grid_flux = (direction == 0) ? solver->XFlux_mf[lev]:
-                                   (direction == 1) ? solver->YFlux_mf[lev]:
-                                    solver->ZFlux_mf[lev];
-            full_grid_flux->ParallelCopy(temp_flux, 0, 0, ncomp, nghosts, nghosts);
-
-            /*if (full_grid_flux->geom[lev].contains(amrex::IntVect(31,74,0))) {
-                amrex::Print() << "Copied XFlux(31,74): " 
-                               << (*full_grid_flux)(amrex::IntVect(31,74,0), ils) 
-                               << std::endl;
-            }**/
+            full_flux_mf[lev]->ParallelCopy(temp_flux_mf, 0, 0, ncomp, nghosts, nghosts);
         }
     }
 };
