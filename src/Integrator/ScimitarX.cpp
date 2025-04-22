@@ -249,7 +249,7 @@ void ScimitarX::SetupNumericComponents()
 }
 
 
-void ScimitarX::ValidateAndSetupNumerics(IO::ParmParse& pp) {
+void ScimitarX::ValidateAndSetupNumerics() {
     // Ensure solver capabilities are registered
     if (!solverCapabilities) {
         RegisterSolverCapabilities();
@@ -477,7 +477,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     pp.query_required("cflNumber", value.cflNumber); // Read CFL number
     
     // Validate and setup numeric methods (centralized)
-    value.ValidateAndSetupNumerics(pp);
+    value.ValidateAndSetupNumerics();
         
 }
 

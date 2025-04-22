@@ -447,7 +447,7 @@ private:
     void SetupNumericComponents();
     
     // Helper to validate and configure numeric methods
-    void ValidateAndSetupNumerics(IO::ParmParse& pp);
+    void ValidateAndSetupNumerics();
 
     // Friend declarations for Numeric namespace access
     template <typename IntegratorDerivedClass>

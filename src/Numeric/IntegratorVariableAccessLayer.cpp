@@ -60,7 +60,7 @@ CompressibleEulerVariableAccessor::getRequiredGhostCells(
 
 void 
 CompressibleEulerVariableAccessor::CopyVariables(
-    int direction,
+    int direction [[maybe_unused]],
     int lev, 
     void* solver_void,
     amrex::MultiFab& VariableBuffer,

@@ -680,7 +680,7 @@ public:
         Util::Warning(INFO, "HLLC SplitFluxes called - not optimal path");
     }
 
-void ComputeFluxes(int direction, int lev, IntegratorDerivedClass* solver,
+void ComputeFluxes(int direction, int lev [[maybe_unused]], IntegratorDerivedClass* solver,
             const amrex::MultiFab& LeftStates, const amrex::MultiFab& RightStates,
             amrex::MultiFab& SummedFlux) const override {
 

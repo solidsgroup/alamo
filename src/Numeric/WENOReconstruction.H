@@ -434,7 +434,7 @@ public:
     static Set::MultiVector ReconstructValue(
         const StencilMatrixType& input_stencil,
         int i, int j, int k,
-        int direction,
+        int direction [[maybe_unused]],
         bool enableDebug)
     {
 
@@ -578,7 +578,7 @@ public:
     static Set::MultiVector ReconstructValue(
         const StencilMatrixType& input_stencil,
         int i, int j, int k,
-        int direction,
+        int direction [[maybe_unused]],
         bool enableDebug)
     {
         int num_components = input_stencil.cols();
