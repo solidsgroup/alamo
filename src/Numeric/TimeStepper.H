@@ -174,7 +174,7 @@ public:
                 const amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags;
                 const int idx = mfi.index();
 
-                if (narrowband_flags[idx] == 0) continue;
+                //if (narrowband_flags[idx] == 0) continue;
 
                 // Define the valid box
                 const amrex::Box& bx = mfi.validbox();  // Valid region of the box
@@ -194,7 +194,7 @@ public:
 
                 // Define narrowband
                 auto const& nb_imf = solver->level_sets[ils].Tube_imf;
-                auto const& nb = (*nb_imf).array(mfi);
+                auto const& nb = (*nb_imf).const_array(mfi);
 
                 // Loop through individual cells
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
@@ -220,6 +220,14 @@ public:
 
                     // Euler forward update for level set function
                     ls_arr(i, j, k, ils) = ls_old_arr(i, j, k, ils) - dt * flux_div;
+
+                    // Debug print
+                    /*if (i==32 && j==75){
+                        amrex::Print() << "xflux(" << i << ", " << j << ") in timestepper: " <<  xflux_arr(i, j, k, ils) << std::endl;
+                        amrex::Print() << "xflux(" << i-1 << ", " << j << ") in timestepper: " <<  xflux_arr(i-1, j, k, ils) << std::endl;
+                        amrex::Print() << "yflux(" << i << ", " << j << ") in timestepper: " <<  yflux_arr(i, j, k, ils) << std::endl;
+                        amrex::Print() << "yflux(" << i << ", " << j-1 << ") in timestepper: " <<  yflux_arr(i, j-1, k, ils) << std::endl;
+                    }*/
                 });
             }
         }

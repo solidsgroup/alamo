@@ -187,6 +187,10 @@ void NarrowBandLevelset::Initialize(int lev){
 
     // Save Zerols_imf to Zerols_mf
     CopyZerolsAndCPTIMFtoMF(lev);
+    
+    // After Initialization, check flux ix Types
+    //amrex::Print() << "XFlux ix Type: " << XFlux_mf[lev]->boxArray().ixType() << std::endl;
+    //amrex::Print() << "YFlux ix Type: " << YFlux_mf[lev]->boxArray().ixType() << std::endl;
 }
 
 void NarrowBandLevelset::InitializeCPT(int lev, int ls_id){
@@ -203,8 +207,7 @@ void NarrowBandLevelset::InitializeCPT(int lev, int ls_id){
     }
 }
 
-void NarrowBandLevelset::ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, 
-    amrex::iMultiFab& narrowband_ba, int ls_id){
+void NarrowBandLevelset::ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, int ls_id){
     // Loop through Zerols_imf
     for (amrex::MFIter mfi(zerols, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         // Define valid box
@@ -213,12 +216,10 @@ void NarrowBandLevelset::ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab
         // Define arrays
         const auto& zerols_arr = zerols.array(mfi);
         const auto& cpt_arr = cpt.array(mfi);
-        const auto& narrowband_ba_arr = narrowband_ba.array(mfi);
 
         amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             if (zerols_arr(i, j, k) == ls_id) zerols_arr(i, j, k) = -1;
             if (cpt_arr(i, j, k) == ls_id) cpt_arr(i, j, k) = -1;
-            narrowband_ba_arr(i, j, k) = 0;
         });
     }
 }
@@ -261,9 +262,20 @@ void NarrowBandLevelset::CopyZerolsAndCPTIMFtoMF(int lev){
     }
 }
 
+// Utility to convert IntVect list to a simplified BoxArray
+amrex::BoxArray MakeBoxArrayFromIntVects(const amrex::Vector<amrex::IntVect>& ivects, bool simplify = true) {
+    amrex::BoxList bl;
+    for (const auto& iv : ivects) {
+        bl.push_back(amrex::Box(iv, iv));
+    }
+    if (simplify) bl.simplify();
+    return amrex::BoxArray(bl);
+}
+
 // UpdateNarrowband: replicated Fortran LSTubeInfo logic
 void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     // Define geometry constants
+    const amrex::Box& domain_box = geom[lev].Domain();
     const Set::Scalar* DX = geom[lev].CellSize();
     const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
     const Set::Scalar inner_tube_width = inner_narrow_band_width * min_DX;
@@ -281,9 +293,12 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     // Define an IntVect to store indices of cells within narrowband
     amrex::Vector<amrex::IntVect> narrowband_cells_host;
 
+    // Save level_set data structure for reference
+    auto& ls_data = level_sets[ls_id];
+
     // Define MultiFab properties of old band to create temporary (i)MulitFab objects
-    const amrex::BoxArray& ba = level_sets[ls_id].narrowband_ba;
-    const amrex::DistributionMapping& dm = level_sets[ls_id].narrowband_dm;
+    const amrex::BoxArray& ba = ls_data.narrowband_ba;
+    const amrex::DistributionMapping& dm = ls_data.narrowband_dm;
 
     // Initialize zerols iMultifab to store interface cells
     amrex::iMultiFab zerols(ba, dm, 1, 0);
@@ -297,16 +312,12 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     amrex::iMultiFab narrowband(ba, dm, 1, number_of_ghost_cells);
     narrowband.setVal(InnerTube, number_of_ghost_cells);
 
-    // Initialize narrowband box array imf to track box arrays
-    amrex::iMultiFab narrowband_ba(ba, dm, 1, 0);
-    narrowband_ba.ParallelCopy(*BA_imf, 0, 0, 1, 0, 0);
-
     // Initialize temporary levelset MultiFab 
     amrex::MultiFab ls(ba, dm, 1, number_of_ghost_cells);
     ls.ParallelCopy(*ls_mf[lev], ls_id, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
 
     // Reset zerols, cpt, and narrowband imfs
-    ZeroTheZeros(zerols, cpt, narrowband_ba, ls_id);
+    ZeroTheZeros(zerols, cpt, ls_id);
 
     // Fill all temporary ghost cells
     narrowband.FillBoundary();
@@ -390,13 +401,6 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
     // Update ghost cells for new narrowband tube
     narrowband.FillBoundary();
 
-    /*for (int i = 0; i < ba.size(); ++i) {
-        const amrex::Box& b = ba[i];
-        if (b.contains(amrex::IntVect(AMREX_D_DECL(285, 376, 0)))) {
-            amrex::Print() << "BoxArray contains (285,376) in box " << b << std::endl;
-        }
-    }*/
-
     // Perform second loop to pad the narrowband one cell for stencil construction
     for (amrex::MFIter mfi(narrowband, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         // Get ghost and valid boxes
@@ -406,12 +410,18 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
         const auto& nb_arr = narrowband.array(mfi);
 
         ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            // Get coordinate
+            const amrex::IntVect coord(AMREX_D_DECL(i, j, k));
+
             // Get the cell narrowband value
-            const int nb = nb_arr(i, j, k);
+            const int nb = nb_arr(coord);
             const int abs_nb = std::abs(nb);
 
             // Skip over Interface and outside tube cells
             if (abs_nb != OuterTube) return;
+
+            // Skip over ghost cells
+            if (!domain_box.contains(coord)) return;
 
             // nbr loop
             for (int d = 0; d < Neighbors::num_neighbors; ++d) {
@@ -436,21 +446,8 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
                 if (nb_nbr == OutsideBandNeg) nb_arr(nbr) = InnerEdge;
             }
         });
-    }
 
-    // Update ghost cells
-    narrowband.FillBoundary();
-
-    // Perform final loop to store IntVects of narrowband cells
-    for (amrex::MFIter mfi(narrowband, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        // Get valid box
-        const amrex::Box& valid_bx = mfi.validbox();
-
-        // Define array view
-        const auto& nb_arr = narrowband.const_array(mfi);
-        const auto& nb_ba_arr = narrowband_ba.array(mfi);
-
-        // Get low/high bounds for the valid box to perform loop
+        /*// Loop through valid_bx and store narrowband cell IntVects
         const auto& lo = valid_bx.smallEnd();
         const auto& hi = valid_bx.bigEnd();
 
@@ -467,7 +464,6 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
             for (int i = lo[0]; i <= hi[0]; ++i) {
                 if (std::abs(nb_arr(i, j, 0)) < OutsideBandPos) {
                     narrowband_cells_host.emplace_back(amrex::IntVect(AMREX_D_DECL(i, j, 0)));
-                    nb_ba_arr(i, j, 0) = 1;
                 }
             }
         }
@@ -481,16 +477,68 @@ void NarrowBandLevelset::UpdateNarrowband(int lev, int ls_id) {
                 }
             }
         }
-        #endif
+        #endif*/
     }
 
-    // Copy back IntVects
-    level_sets[ls_id].narrowband_cells = std::move(narrowband_cells_host);
+    /*// Compute Box Array and Distribution Mapping using IntVects
+    if (!narrowband_cells_host.empty()){
+        ls_data.has_narrowband = true;
+        ls_data.narrowband_ba = MakeBoxArrayFromIntVects(narrowband_cells_host);
+        ls_data.narrowband_dm = amrex::DistributionMapping(ls_data.narrowband_ba);
+    }
+    else{
+        ls_data.has_narrowband = false;
+        ls_data.narrowband_ba = ls_mf[lev]->boxArray(); // Make these empty?
+        ls_data.narrowband_dm = ls_mf[lev]->distributionMap;
+    }
+
+    // Update narrowband box flags
+    const amrex::BoxArray& full_domain_ba = ls_mf[lev]->boxArray();
+    amrex::Vector<int> flags(full_domain_ba.size(), 0);
+
+    for (const auto& iv : narrowband_cells_host) {
+        for (int i = 0; i < full_domain_ba.size(); ++i) {
+            if (full_domain_ba[i].contains(iv)) {
+                flags[i] = 1;
+                break;
+            }
+        }
+    }
+
+    ls_data.narrowband_flags = std::move(flags);*/
+
+    // Create Box Array from narrowband mask
+    amrex::BoxList narrowband_boxes;
+
+    for (amrex::MFIter mfi(narrowband, false); mfi.isValid(); ++mfi) {
+        const auto& mask_arr = narrowband.const_array(mfi);
+        const amrex::Box& bx = mfi.validbox();
+
+        bool has_owned_cell = false;
+        for (amrex::IntVect iv = bx.smallEnd(); iv <= bx.bigEnd(); bx.next(iv)) {
+            const int abs_nb = std::abs(mask_arr(iv));
+            if (abs_nb < OutsideBandPos) {
+                has_owned_cell = true;
+                break;
+            }
+        }
+
+        if (has_owned_cell) {
+            narrowband_boxes.push_back(bx);
+        }
+    }
+
+    // Create and store BoxArray and Distrbution Mapping
+    amrex::BoxArray narrowband_ba(narrowband_boxes);
+    narrowband_ba.coarsen(1);  // optional
+    narrowband_ba.refine(1);
+
+    level_sets[ls_id].narrowband_ba = narrowband_ba;
+    level_sets[ls_id].narrowband_dm = amrex::DistributionMapping(narrowband_ba);
 
     // Copy back to full domain (i)MultiFabs 
     Zerols_imf->ParallelCopy(zerols, 0, 0, 1, 0, 0);
     cpt_imf->ParallelCopy(cpt, 0, 0, 1, 0, 0);
-    BA_imf->ParallelCopy(narrowband_ba, 0, 0, 1, 0, 0);
     level_sets[ls_id].Tube_imf->ParallelCopy(narrowband, 0, 0, 1, 0, 0);
     ls_mf[lev]->ParallelCopy(ls, 0, ls_id, 1, 0, 0);
 }
@@ -615,7 +663,7 @@ void NarrowBandLevelset::UpdateNarrowBandFlags(int lev, int ls_id) {
 
     // Store result in the level set structure
     level_sets[ls_id].narrowband_flags = std::move(narrowband_flags);
-}*/
+}
 
 // Utility to convert IntVect list to a simplified BoxArray
 amrex::BoxArray MakeBoxArrayFromIntVects(const amrex::Vector<amrex::IntVect>& ivects, bool simplify = true) {
@@ -654,7 +702,7 @@ void NarrowBandLevelset::UpdateNarrowBandFlags(int lev, int ls_id) {
     }
 
     level_sets[ls_id].narrowband_flags = std::move(flags);
-}
+}*/
 
 void NarrowBandLevelset::UpdateNarrowbandTubeandMapping(int lev, int ls_id){
     // Tag 0 levelset gridpoints - zero will be done outside loop
@@ -664,10 +712,10 @@ void NarrowBandLevelset::UpdateNarrowbandTubeandMapping(int lev, int ls_id){
     //ComputeNarrowBandBoxList(lev, ls_id);
 
     // Get the distribution mapping for processors
-    ComputeNarrowBandMapping(lev, ls_id);
+    //ComputeNarrowBandMapping(lev, ls_id);
 
     // Update flags
-    UpdateNarrowBandFlags(lev, ls_id);
+    //UpdateNarrowBandFlags(lev, ls_id);
 }
 
 // CHECK VALID BOX TILING HERE - MAY ADD GHOST BOX AND APPLY TO GETSTENCIL
@@ -885,7 +933,7 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, ls_id);
 
         // Reinitialize
-        //Reinitialize(lev, ls_id);
+        Reinitialize(lev, ls_id);
 
         // Apply Boundary conditions after reinitialization
         Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, ls_id);
@@ -953,12 +1001,13 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
     const int max_iterations = 50;
 
     // Define geometry constants
+    const amrex::Box& domain_box = geom[lev].Domain();
     const Set::Scalar* DX    = geom[lev].CellSize();
     const Set::Scalar min_DX = *std::min_element(DX, DX + AMREX_SPACEDIM);
     const Set::Scalar tau    = cflReinit * min_DX;
 
     // Define Narrowband constants
-    const Set::Scalar INNERTUBE         = inner_narrow_band_width * min_DX; // used for testing sign changes
+    const Set::Scalar INNERTUBE = inner_narrow_band_width * min_DX; // used for testing sign changes
     const int Interface         = NarrowBandTubeType::Interface;
     const int OutsideNarrowband = NarrowBandTubeType::OutsideNarrowBandPos;
     
@@ -977,7 +1026,7 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
     // NOTE FOR FUTURE: WILL NEED TO FIND A WAY TO PROPERLY COPY Zerols_imf SO THAT
     // OTHER ls_ids ARE NOT OVERWRITTEN WHEN COPIED BACK. SAME FOR ANY OTHER FUNCTION 
     // THAT USES Zerols_imf
-    zerols.setVal(-1);
+    zerols.setVal(-1, number_of_ghost_cells);
     error_mf.setVal(0.0);
     Narrowband.ParallelCopy(*level_sets[ls_id].Tube_imf, 0, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
     LS.ParallelCopy(*ls_mf[lev], ls_id, 0, 1, number_of_ghost_cells, number_of_ghost_cells);
@@ -990,8 +1039,8 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
 
     // Redefine 0 levelsets using narrowband interface masking
     for (amrex::MFIter mfi(Narrowband, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        // Loop through valid box 
-        const amrex::Box& valid_bx = mfi.validbox();
+        // Loop through ghost box 
+        const amrex::Box& ghost_bx = mfi.growntilebox(number_of_ghost_cells);
 
         // Define arrays
         const auto& ls_arr = LS.const_array(mfi);
@@ -999,13 +1048,17 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
         const auto& zerols_arr = zerols.array(mfi);
 
         // Loop through tileboxes
-        amrex::ParallelFor(valid_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::ParallelFor(ghost_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            // Skip ghost region
+            const amrex::IntVect coord(AMREX_D_DECL(i, j, k));
+            //if (!domain_box.contains(coord)) return;
+
             // Only check interface cells
             const int nb_val = nb_arr(i, j, k);
             if (nb_val != Interface) return;
 
             // Save this cell to zerols as it is old interface
-            zerols_arr(i, j, k) = ls_id;
+            //zerols_arr(i, j, k) = ls_id;
 
             // Get the current cell LS value
             const Set::Scalar ls = ls_arr(i, j, k);
@@ -1031,6 +1084,9 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
         });
     }
 
+    // Fill zerols ghot cells
+    zerols.FillBoundary();
+
     // Perform first order PDE Reinitialization scheme
     for (int iter = 0; iter < max_iterations; iter++){
         // Switch LS with LS_old
@@ -1038,6 +1094,8 @@ void NarrowBandLevelset::Reinitialize(int lev, int ls_id) {
 
         // Fill ghost cells for LS_old
         LS_old.FillBoundary();
+        zerols.FillBoundary(); // May remove later 
+        Narrowband.FillBoundary(); // May remove later
 
         // Perform main PDE loop
         for (amrex::MFIter mfi(LS, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {

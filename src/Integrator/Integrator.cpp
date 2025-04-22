@@ -416,9 +416,17 @@ Integrator::CountCells(int lev)
 
 
 bool Integrator::isFaceCentered(const amrex::IndexType& ixType, int dir) {
-    return ixType.ixType(dir) == amrex::IndexType::NODE &&
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        if (d == dir) {
+            if (ixType.ixType(d) != amrex::IndexType::NODE) return false;
+        } else {
+            if (ixType.ixType(d) != amrex::IndexType::CELL) return false;
+        }
+    }
+    return true;
+    /*return ixType.ixType(dir) == amrex::IndexType::NODE &&
             ixType.ixType((dir + 1) % AMREX_SPACEDIM) == amrex::IndexType::CELL &&
-            ixType.ixType((dir + 2) % AMREX_SPACEDIM) == amrex::IndexType::CELL;
+            ixType.ixType((dir + 2) % AMREX_SPACEDIM) == amrex::IndexType::CELL;*/
 }
 
 void  // CUSTOM METHOD - CHANGEABLE

@@ -1,15 +1,15 @@
 ## Simulation output
-plot_file = output_levelset_circle_Zerols_500X500_debug_UpdateFlags
+plot_file = output_levelset_circle_Zerols_100X100_debug_BoxList_1_75Steps
 
 # Simulation length
-timestep = 0.001
+timestep = 0.005
 stop_time = 0.500
-max_step = 1
+max_step = 75
 
 # AMR parameters
-amr.plot_int = 1
+amr.plot_int = 5
 amr.max_level = 0
-amr.n_cell = 500 500 100
+amr.n_cell = 100 100 100
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0

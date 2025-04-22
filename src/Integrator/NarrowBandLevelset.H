@@ -157,8 +157,8 @@ protected:
         bool has_narrowband;
 
         std::unique_ptr<amrex::iMultiFab> Tube_imf;
-        amrex::Vector<amrex::IntVect> narrowband_cells; 
-        amrex::BoxList narrowband_boxes;
+        //amrex::Vector<amrex::IntVect> narrowband_cells; 
+        //amrex::BoxList narrowband_boxes;
         amrex::BoxArray narrowband_ba;
         amrex::DistributionMapping narrowband_dm;
         amrex::Vector<int> narrowband_flags;
@@ -240,9 +240,9 @@ protected:
     void CopyZerolsAndCPTIMFtoMF(int lev);
     void CopyTubeIMFtoMF(int lev, int ls_id);
 
-    void ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, 
-        amrex::iMultiFab& narrowband_ba, int ls_id);
+    void ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, int ls_id);
     void UpdateNarrowband(int lev, int ls_id);
+    //amrex::BoxArray MakeBoxArrayFromIntVects(const amrex::Vector<amrex::IntVect>& ivects, bool simplify = true);
     void ComputeNarrowBandBoxList(int lev, int ls_id);
     void ComputeNarrowBandMapping(int lev, int ls_id);
     void UpdateNarrowBandFlags(int lev, int ls_id);

@@ -86,7 +86,7 @@ public:
     /**
     * @brief Compute the flux for the specified direction.
     */
-    virtual void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil, amrex::MultiFab& flux) const = 0;
+    virtual void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil, amrex::MultiFab& temp_flux) const = 0;
 };
 
 // FluxHandler class for managing reconstruction and flux computation
@@ -149,7 +149,7 @@ inline void ConvertToFaceCentered(int dir, int lev, Set::Field<Set::Scalar>& flu
 
     // Define a new MultiFab with the updated BoxArray and existing distribution mapping
     const amrex::DistributionMapping& dmap = flux_mf_wrapper[lev]->DistributionMap();
-    flux_mf_wrapper.Define(lev, flux_ba, dmap, flux_mf_wrapper[0]->nComp(), flux_mf_wrapper[0]->nGrow());
+    flux_mf_wrapper.Define(lev, flux_ba, dmap, flux_mf_wrapper[lev]->nComp(), flux_mf_wrapper[lev]->nGrow());
 }
 
 // FluxHandler class for Integrator::NarrowBandLevelset to correctly assess distribution 
@@ -187,32 +187,86 @@ public:
             // Loop through all dimensions
             for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
                 // Convert narrowband_ba to face-centered direction dir
-                amrex::BoxArray face_ba(narrowband_ba);  // make a copy to modify
-                amrex::IntVect face_type = amrex::IntVect::TheZeroVector(); // {0, 0, 0}
-                face_type[dir] = 1;
-                face_ba.convert(face_type);  // now face_ba is face-centered in `dir`
+                amrex::BoxArray narrowband_face_ba(narrowband_ba);  
+                amrex::IntVect narrowband_face_type = amrex::IntVect::TheZeroVector(); 
+                narrowband_face_type[dir] = 1;
+                narrowband_face_ba.convert(narrowband_face_type);
+
+                // Create temporary QL and QR MultiFabs at face-centered positions
+                amrex::MultiFab QL_stencil(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
+                amrex::MultiFab QR_stencil(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
+                
+                // Create temporary flux to store flux values for narrowband cells
+                amrex::MultiFab temp_flux_mf(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
 
                 // Get the corresponding full flux MultiFab and its index type
-                auto& flux_mf =
+                auto& full_flux_mf =
                     (dir == 0) ? solver->XFlux_mf:
                     (dir == 1) ? solver->YFlux_mf:
                                  solver->ZFlux_mf;
-                
-                // Convert multifab index type if index type does not match correct direction
-                if (face_ba.ixType() != flux_mf[lev]->boxArray().ixType()){
-                    ConvertToFaceCentered(dir, lev, flux_mf);
-                }      
 
-                // Create temporary QL and QR MultiFabs at face-centered positions
-                amrex::MultiFab QL_stencil(face_ba, narrowband_dm, ncomp, nghosts);
-                amrex::MultiFab QR_stencil(face_ba, narrowband_dm, ncomp, nghosts);
+                // Get the index types for temp_flux_mf and full_flux_mf
+                const amrex::IndexType full_flux_ixType = full_flux_mf[lev]->boxArray().ixType();
+                const amrex::IndexType temp_flux_ixType = temp_flux_mf.boxArray().ixType();
 
-                // Temporary flux MultiFab with same indexing
-                amrex::MultiFab temp_flux(face_ba, narrowband_dm, ncomp, nghosts);
+                // Check if index types are same and if not, convert
+                // THERE IS BUG IN HANDLING OF FACE_CENTERED MFS - NEED TO FIND SOURCE
+                // THIS IS ONLY TEMPORARY FIX
+                if (full_flux_ixType != temp_flux_ixType) ConvertToFaceCentered(dir, lev, full_flux_mf);
+
+                /*// Debug
+                const amrex::IndexType flux_ixType_afterConv = full_flux_mf[lev]->boxArray().ixType();
+                if (flux_ixType_afterConv == temp_flux_ixType){
+                    amrex::Print() << "ix Types are equivalent and are " << flux_ixType_afterConv << std::endl;
+                }
+                else{
+                    amrex::Print() << "ix Types are  not equivalent" << std::endl;
+                    amrex::Print() << "Full ix Type: " << flux_ixType_afterConv << std::endl;
+                    amrex::Print() << "Temp ix Type: " << temp_flux_ixType << std::endl;
+                }*/
+
+                // Zero out the flux so that no remnant fluxes are present
+                full_flux_mf[lev]->setVal(0.0, nghosts);
 
                 // Perform reconstruction and flux computation
                 reconstruction->ReconstructFlux(dir, lev, solver, QL_stencil, QR_stencil);
-                flux_method->ComputeFlux(dir, lev, solver, QL_stencil, QR_stencil, temp_flux);
+                flux_method->ComputeFlux(dir, lev, solver, QL_stencil, QR_stencil, temp_flux_mf);
+
+                // Save the ba/dm for full grid flux_mf 
+                //const amrex::BoxArray& flux_mf_ba = flux_mf[lev]->boxArray();
+                //const amrex::DistributionMapping& flux_mf_dm = flux_mf[lev]->DistributionMap();
+                //const auto flux_mf_ixType = flux_mf[lev]->boxArray().ixType();
+                
+                /*// Convert multifab index type if index type does not match correct direction
+                if (face_ba.ixType() != flux_mf[lev]->boxArray().ixType()){
+                    ConvertToFaceCentered(dir, lev, flux_mf);
+                }*/      
+
+                /*// Convert temp_flux to match the index for flux_mf_ba
+                amrex::IndexType temp_flux_ixType = temp_flux.boxArray().ixType();
+                amrex::IndexType flux_mf_ixType = flux_mf[lev]->boxArray().ixType();
+                amrex::Print() << "flux_mf_ixType: " << flux_mf_ixType << std::endl;
+                amrex::Print() << "flux_mf_ixType (direction components): " << flux_mf_ixType.ixType() << std::endl;
+                amrex::Print() << "temp_flux_ixType: " << temp_flux_ixType << std::endl;   
+                amrex::Print() << "temp_flux_ixType (direction components): " << temp_flux_ixType.ixType() << std::endl;
+                //amrex::Print() << "temp_flux_ixType(" << dir <<"): " << temp_flux_ixType.ixType(dir) << std::endl;
+                //amrex::Print() << "temp_flux_ixType(" << (dir + 1) % AMREX_SPACEDIM <<"): " << temp_flux_ixType.ixType((dir + 1) % AMREX_SPACEDIM) << std::endl;  
+                //amrex::Print() << "temp_flux_ixType(" << (dir + 2) % AMREX_SPACEDIM <<"): " << temp_flux_ixType.ixType((dir + 2) % AMREX_SPACEDIM) << std::endl; 
+                if (temp_flux_ixType.ixType(dir) == amrex::IndexType::NODE &&
+                    temp_flux_ixType.ixType((dir + 1) % AMREX_SPACEDIM)  == amrex::IndexType::CELL &&
+                    temp_flux_ixType.ixType((dir + 2) % AMREX_SPACEDIM)  == amrex::IndexType::CELL){
+                        amrex::Print() << "temp flux is face-centered in direction " << dir << std::endl;
+                }
+                else{
+                    amrex::Print() << "temp flux is not face-centered in direction " << dir << std::endl;
+                }
+
+                if (Integrator::Integrator::isFaceCentered(flux_mf_ixType, dir)){
+                    amrex::Print() << "solver is face centered in direction " << dir << " using function" << std::endl;
+                }   
+                if (Integrator::Integrator::isFaceCentered(temp_flux_ixType, dir)){
+                    amrex::Print() << "temp_flux is face centered in direction " << dir << " using function" << std::endl;
+                }*/     
             }
         }
     }
@@ -769,10 +823,10 @@ public:
 #endif
 
                 // Get multifab arrays
-                auto const& QL_arr = QL_stencil.array(mfi);
-                auto const& QR_arr = QR_stencil.array(mfi);
-                auto const& nb_arr = narrowband.array(mfi);
-                auto const& velocity_arr = narrowband_Vel.array(mfi);
+                auto const& QL_arr = QL_stencil.const_array(mfi);
+                auto const& QR_arr = QR_stencil.const_array(mfi);
+                auto const& nb_arr = narrowband.const_array(mfi);
+                auto const& velocity_arr = narrowband_Vel.const_array(mfi);
                 auto const& flux_arr = temp_flux.array(mfi);
 
                 // Loop through face indices
@@ -832,6 +886,20 @@ public:
 
                     // Store computed flux
                     flux_arr(face_centered_IV, ils) = flux;
+
+                    // Debug print
+                    /*const amrex::IntVect debug_face_coord_pos = amrex::IntVect(AMREX_D_DECL(32,75,0));
+                    const amrex::IntVect debug_face_coord_neg = amrex::IntVect(AMREX_D_DECL(31,75,0));
+                    if(direction == 0 && face_centered_IV == debug_face_coord_pos){
+                        amrex::Print() << "QL for " << debug_face_coord_pos << ": " << QL << std::endl;
+                        amrex::Print() << "QR for " << debug_face_coord_pos << ": " << QR << std::endl;
+                        amrex::Print() << "XFlux for " << debug_face_coord_pos << ": " << flux << std::endl;
+                    } 
+                    if(direction == 0 && face_centered_IV == debug_face_coord_neg){
+                        amrex::Print() << "QL for " << debug_face_coord_neg << ": " << QL << std::endl;
+                        amrex::Print() << "QR for " << debug_face_coord_neg << ": " << QR << std::endl;
+                        amrex::Print() << "XFlux for " << debug_face_coord_neg << ": " << flux << std::endl;
+                    }*/
                 });
             }
 
@@ -842,7 +910,13 @@ public:
             auto& full_grid_flux = (direction == 0) ? solver->XFlux_mf[lev]:
                                    (direction == 1) ? solver->YFlux_mf[lev]:
                                     solver->ZFlux_mf[lev];
-            full_grid_flux->ParallelCopy(temp_flux,0,0,ncomp,nghosts,nghosts);
+            full_grid_flux->ParallelCopy(temp_flux, 0, 0, ncomp, nghosts, nghosts);
+
+            /*if (full_grid_flux->geom[lev].contains(amrex::IntVect(31,74,0))) {
+                amrex::Print() << "Copied XFlux(31,74): " 
+                               << (*full_grid_flux)(amrex::IntVect(31,74,0), ils) 
+                               << std::endl;
+            }**/
         }
     }
 };
