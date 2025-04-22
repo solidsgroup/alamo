@@ -16,8 +16,8 @@
 namespace Numeric {
 
 /**
- * @brief Factory for creating numeric methods with comprehensive validation
- */
+* @brief Factory for creating numeric methods with comprehensive validation
+*/
 class NumericFactory {
 public:
     // Flux Reconstruction Factory Method 
@@ -26,11 +26,11 @@ public:
     createReconstructionMethod(
         FluxReconstructionType method = FluxReconstructionType::WENO,
         WenoVariant variant = WenoVariant::WENOJS5) {
-        
+
         // Get solver capabilities
         auto caps = SolverCapabilitiesRegistry::getInstance()
             .getCapabilities(getSolverIdentifier<SolverType>());
-        
+
         // Validate method support
         auto reconstructionSupport = caps->supportsFluxReconstruction(method);
         if (!reconstructionSupport) {
@@ -52,7 +52,7 @@ public:
                     // Fallback to default WENO variant
                     variant = WenoVariant::WENOJS5;
                 }
-                
+
                 switch(variant) {
                     case WenoVariant::WENOJS5:
                         return std::make_shared<Numeric::WENOJS5<SolverType>>();
@@ -66,7 +66,7 @@ public:
             }
             case FluxReconstructionType::FirstOrder:
                 return std::make_shared<Numeric::FirstOrderReconstruction<SolverType>>();
-            
+
             default:
                 throw std::runtime_error("Unsupported reconstruction method");
         }
@@ -77,11 +77,11 @@ public:
     static std::shared_ptr<Numeric::FluxMethod<SolverType>> 
     createFluxMethod(
         FluxScheme scheme = FluxScheme::LocalLaxFriedrichs) {
-        
+
         // Get solver capabilities
         auto caps = SolverCapabilitiesRegistry::getInstance()
             .getCapabilities(getSolverIdentifier<SolverType>());
-        
+
         // Validate method support
         auto fluxSupport = caps->supportsFluxScheme(scheme);
         if (!fluxSupport) {
@@ -111,11 +111,11 @@ public:
     static std::shared_ptr<Numeric::TimeSteppingScheme<SolverType>> 
     createTimeSteppingScheme(
         TimeSteppingSchemeType scheme = TimeSteppingSchemeType::RK3) {
-        
+
         // Get solver capabilities
         auto caps = SolverCapabilitiesRegistry::getInstance()
             .getCapabilities(getSolverIdentifier<SolverType>());
-        
+
         // Validate method support
         auto timeStepSupport = caps->supportsTimeSteppingScheme(scheme);
         if (!timeStepSupport) {
@@ -146,11 +146,11 @@ public:
     createVariableAccessor(
         ReconstructionMode mode = ReconstructionMode::Primitive,
         int numGhostCells = 2) {
-        
+
         // Get solver capabilities
         auto caps = SolverCapabilitiesRegistry::getInstance()
             .getCapabilities(getSolverIdentifier<SolverType>());
-        
+
         // Validate reconstruction mode support
         auto modeSupport = caps->supportsReconstructionMode(mode);
         if (!modeSupport) {

@@ -42,10 +42,18 @@ TimeSteppingScheme = RK3
 
 
 #FluxMethod
-FluxScheme = LocalLaxFriedrichs
+FluxScheme = HLLC #LocalLaxFriedrichs
+
 
 #FluxReconstruction
-FluxReconstruction = FirstOrder
+FluxReconstruction = WENO
+
+#WenoVariant
+WenoVariant = WENOZ5
+
+#Reconstruction Mode
+ReconstructionMode = Characteristic
+
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]

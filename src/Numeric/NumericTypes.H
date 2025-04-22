@@ -7,7 +7,7 @@
 #include <memory>
 
 // Explicit specialization for Integrator::ScimitarX
- namespace Integrator {
+namespace Integrator {
         class ScimitarX;
     }
 
@@ -21,11 +21,11 @@ namespace Numeric {
     template <typename IntegratorType> class FirstOrderReconstruction;
     template <typename IntegratorType, typename VariantTraits> class WENOReconstruction;
     template <typename IntegratorType> class LocalLaxFriedrichsMethod;
-    
+
     // Forward declaration of non-template classes
     class GenericVariableAccessor;
     class SolverCapabilities;
-    
+
     // Enum Classes
     enum class FluxReconstructionType {
         FirstOrder,    // Basic first-order upwind reconstruction
@@ -53,8 +53,8 @@ namespace Numeric {
         Conservative,    // Reconstruct in conservative variable space
         Characteristic   // Reconstruct in characteristic variable space
     };
-    
-    
+
+
     // Template specialization forward declaration for getSolverIdentifier
     template<typename SolverType>
     std::string getSolverIdentifier();

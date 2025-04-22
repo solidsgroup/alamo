@@ -9,7 +9,7 @@ max_step = 10
 # AMR parameters
 amr.plot_int = 5
 amr.max_level = 3
-amr.n_cell = 200 16 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.n_cell = 112 8 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 8
 amr.regrid_int = 4  # No regridding for uniform grid
 amr.grid_eff = 0.7   # refinement efficiency
@@ -18,7 +18,7 @@ amr.n_error_buf = 1  # 1-cell buffer around tagged regions
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1.0 0.08 1  # Set height proportionally to match reduced y-cells
+geometry.prob_hi = 1.12 0.08 1  # Set height proportionally to match reduced y-cells
 geometry.is_periodic = 0 0 0
 
 #SolverType

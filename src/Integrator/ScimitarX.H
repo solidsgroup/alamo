@@ -66,19 +66,19 @@ public:
 
     // Enum for ElatoPlastic Field Variables
     enum class ElastoPlasticFieldVariables {
-	    DENS,         // Density
+        DENS,         // Density
         UVEL,         // U-velocity
         VVEL,         // V-velocity
         WVEL,         // W-velocity
         IE,           // Specific Internal Energy    
-	    SXX,          //Sxx scalar
-	    SXY,          //Sxy scalar
-	    SYY,          //Syy scalar
-	    SXZ,          //Sxz scalar
-	    SYZ,          //Syz scalar
-	    SZZ,          //Szz scalar
-	    EPSBAR,       //Effective Plastic Strain
-	    IE_ELASTIC    //Elastic energy for temperature calculations
+        SXX,          //Sxx scalar
+        SXY,          //Sxy scalar
+        SYY,          //Syy scalar
+        SXZ,          //Sxz scalar
+        SYZ,          //Syz scalar
+        SZZ,          //Szz scalar
+        EPSBAR,       //Effective Plastic Strain
+        IE_ELASTIC    //Elastic energy for temperature calculations
     };
 
     // Maps for SolverTypes string to Enum conversions
@@ -277,7 +277,7 @@ public:
     ScimitarX(IO::ParmParse& pp);
     static void Parse(ScimitarX& value, IO::ParmParse& pp);
     virtual ~ScimitarX()
-     {
+    {
         delete bc_PVec;
         delete bc_Pressure;
 
@@ -347,7 +347,7 @@ protected:
     // Template function for updating conservative variables to primitive variables
     template <SolverType solverType>
     void UpdateSolutions(int lev) {
-      //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
 

@@ -259,8 +259,8 @@ public:
         }
 
         static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int /*lev*/, 
-                                             const std::string& field_name, const std::string& context, 
-                                             bool abort_if_nan = true, bool enableDebug = false) {
+                                            const std::string& field_name, const std::string& context, 
+                                            bool abort_if_nan = true, bool enableDebug = false) {
             if (!enableDebug) return;
             
             const amrex::Box& domain = geom.Domain();  // Physical domain without ghost cells
@@ -353,14 +353,14 @@ public:
 
         template <typename MatrixType>
         static void DebugMatrixIfTarget(int i, int j, int k, const MatrixType& matrix, 
-                                       const std::string& name, const std::string& context, bool enableDebug = false) {
+                                        const std::string& name, const std::string& context, bool enableDebug = false) {
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
             // Print determinant
             Set::Scalar det = matrix.determinant();
             Util::Message(INFO, context + " - Matrix " + name + " at (" + 
-                         std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                         std::to_string(k) + "):");
+                        std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                        std::to_string(k) + "):");
             Util::Message(INFO, "  Determinant: " + std::to_string(det));
             
             // Check if near-singular
@@ -371,7 +371,7 @@ public:
             // Check condition number (approximate) using singular values
             Eigen::JacobiSVD<MatrixType> svd(matrix);
             Set::Scalar cond = svd.singularValues()(0) / 
-                             svd.singularValues()(svd.singularValues().size()-1);
+                            svd.singularValues()(svd.singularValues().size()-1);
             Util::Message(INFO, "  Condition number: " + std::to_string(cond));
             
             // Print matrix entries
@@ -379,34 +379,34 @@ public:
             for (int r = 0; r < matrix.rows(); r++) {
                 for (int c = 0; c < matrix.cols(); c++) {
                     Util::Message(INFO, "    [" + std::to_string(r) + "," + 
-                                 std::to_string(c) + "]: " + std::to_string(matrix(r,c)));
+                                std::to_string(c) + "]: " + std::to_string(matrix(r,c)));
                     CheckNaNAndAbort(i, j, k, matrix(r,c), 
-                                   name + "[" + std::to_string(r) + "," + std::to_string(c) + "]", 
-                                   context);
+                                    name + "[" + std::to_string(r) + "," + std::to_string(c) + "]", 
+                                    context);
                 }
             }
         }
 
         template <typename VectorType>
         static void DebugVectorIfTarget(int i, int j, int k, const VectorType& vector, 
-                                       const std::string& name, const std::string& context,
-                                       bool check_negative_values = false, bool enableDebug = false) {
+                                        const std::string& name, const std::string& context,
+                                        bool check_negative_values = false, bool enableDebug = false) {
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
             Util::Message(INFO, context + " - Vector " + name + " at (" + 
-                         std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                         std::to_string(k) + "):");
+                        std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                        std::to_string(k) + "):");
             
             // Print vector entries
             Util::Message(INFO, "  Vector entries:");
             for (int r = 0; r < vector.size(); r++) {
                 Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
-                             std::to_string(vector(r)));
+                            std::to_string(vector(r)));
                 
                 // Check for NaN values
                 CheckNaNAndAbort(i, j, k, vector(r), 
-                               name + "[" + std::to_string(r) + "]", 
-                               context);
+                                name + "[" + std::to_string(r) + "]", 
+                                context);
                 
                 // Optionally check for negative values
                 if (check_negative_values && vector(r) < 0.0) {
@@ -420,21 +420,21 @@ public:
         }
 
         static void CheckDivisionBySmallandAbort(int i, int j, int k, 
-                                               const Set::Scalar& denominator, 
-                                               const std::string& field_name, 
-                                               const std::string& context, 
-                                               bool abort_if_small = true,
-                                               Set::Scalar threshold = 1e-10,
-                                               bool enableDebug = false) {
+                                                const Set::Scalar& denominator, 
+                                                const std::string& field_name, 
+                                                const std::string& context, 
+                                                bool abort_if_small = true,
+                                                Set::Scalar threshold = 1e-10,
+                                                bool enableDebug = false) {
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
             // Check if the denominator is too small
             if (std::abs(denominator) < threshold) {
                 std::string error_message = "Division by small value detected at (" + 
-                                          std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                                          std::to_string(k) + ") for field '" + field_name + 
-                                          "' in context '" + context + "'. Value = " + 
-                                          std::to_string(denominator);
+                                        std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                                        std::to_string(k) + ") for field '" + field_name + 
+                                        "' in context '" + context + "'. Value = " + 
+                                        std::to_string(denominator);
 
                 if (abort_if_small) {
                     Util::Abort(INFO, error_message);
@@ -454,14 +454,14 @@ public:
             if (!enableDebug || !IsTargetLocation(i, j, k)) return;
             
             Util::Message(INFO, context + " - " + transform_type + " at (" + 
-                         std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                         std::to_string(k) + "):");
+                        std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                        std::to_string(k) + "):");
             
             // Print input variables
             Util::Message(INFO, "  Input variables:");
             for (int r = 0; r < input_vars.size(); r++) {
                 Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
-                             std::to_string(input_vars(r)));
+                            std::to_string(input_vars(r)));
             }
             
             // Check transform matrix
@@ -473,9 +473,9 @@ public:
             Util::Message(INFO, "  Output variables:");
             for (int r = 0; r < output_vars.size(); r++) {
                 Util::Message(INFO, "    [" + std::to_string(r) + "]: " + 
-                             std::to_string(output_vars(r)));
+                            std::to_string(output_vars(r)));
                 CheckNaNAndAbort(i, j, k, output_vars(r), 
-                               "output_var_" + std::to_string(r), context, true, enableDebug);
+                                "output_var_" + std::to_string(r), context, true, enableDebug);
             }
         }
     
@@ -487,9 +487,9 @@ public:
             int i, int j, int k,
             const StencilArray& stencil,
             const IndicatorArray& indicators,
-            const std::vector<Set::MultiMatrix>& coeffMatrices,
+            const std::vector<Set::MultiMatrix>& coeffMatrices [[maybe_unused]],
             const TermWeightArray& termWeights,
-            const OffsetArray& stencilOffsets,
+            const OffsetArray& stencilOffsets [[maybe_unused]],
             int numCandidateStencils,
             int totalPoints,
             int numDifferenceTerms,
@@ -505,13 +505,13 @@ public:
             for (int idx = 0; idx < totalPoints; ++idx) {
                 int rel_idx = idx - totalPoints/2;  // Relative position
                 Message(INFO, "  Stencil[" + std::to_string(rel_idx) + "] = " + 
-                       std::to_string(stencil[idx]));
+                        std::to_string(stencil[idx]));
             }
             
             // Print indicator details for each stencil
             for (int r = 0; r < numCandidateStencils; ++r) {
                 Message(INFO, "WENO Stencil " + std::to_string(r) + " Smoothness: " + 
-                       std::to_string(indicators[r]));
+                        std::to_string(indicators[r]));
                 
                 // Check for potential issues
                 if (indicators[r] < 1e-10) {
@@ -526,7 +526,7 @@ public:
                     Message(INFO, "  Difference terms weights:");
                     for (int term = 0; term < numDifferenceTerms; ++term) {
                         Message(INFO, "    Term " + std::to_string(term) + 
-                               " weight: " + std::to_string(termWeights[term]));
+                                " weight: " + std::to_string(termWeights[term]));
                     }
                 }
             }
@@ -552,20 +552,20 @@ public:
                 std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "):");
                 
             Message(INFO, "  Parameters: ε = " + std::to_string(epsilon) + 
-                   ", Power = " + std::to_string(power));
+                    ", Power = " + std::to_string(power));
             
             // Print indicator, weight, and deviation information for each stencil
             Set::Scalar totalWeight = 0.0;
             for (int r = 0; r < numCandidateStencils; ++r) {
                 Set::Scalar deviation = weights[r] - optimalWeights[r];
                 Set::Scalar rel_deviation = (std::abs(optimalWeights[r]) > 1e-10) ? 
-                                           (deviation / optimalWeights[r]) : deviation;
+                                            (deviation / optimalWeights[r]) : deviation;
                 
                 Message(INFO, "  Stencil " + std::to_string(r) + 
-                       ": β = " + std::to_string(indicators[r]) + 
-                       ", ω = " + std::to_string(weights[r]) + 
-                       ", Optimal ω = " + std::to_string(optimalWeights[r]) +
-                       ", Deviation: " + std::to_string(rel_deviation * 100.0) + "%");
+                        ": β = " + std::to_string(indicators[r]) + 
+                        ", ω = " + std::to_string(weights[r]) + 
+                        ", Optimal ω = " + std::to_string(optimalWeights[r]) +
+                        ", Deviation: " + std::to_string(rel_deviation * 100.0) + "%");
                 
                 if (std::abs(rel_deviation) > 1.0) {
                     Message(INFO, "    WARNING: Weight significantly deviates from optimal!");
@@ -578,7 +578,7 @@ public:
             Set::Scalar weightSumDeviation = std::abs(totalWeight - 1.0);
             if (weightSumDeviation > 1e-10) {
                 Message(INFO, "  WARNING: Weights sum to " + std::to_string(totalWeight) + 
-                       " (deviation from 1.0: " + std::to_string(weightSumDeviation) + ")");
+                        " (deviation from 1.0: " + std::to_string(weightSumDeviation) + ")");
             } else {
                 Message(INFO, "  Weight sum check: OK (sum = " + std::to_string(totalWeight) + ")");
             }
@@ -614,10 +614,10 @@ public:
             // Diffusion metric
             Set::Scalar diff = reconstructedValue - linearValue;
             Set::Scalar rel_diff = (std::abs(linearValue) > 1.0e-10) ? 
-                                  (diff / std::abs(linearValue)) : 0.0;
+                                (diff / std::abs(linearValue)) : 0.0;
             
             Message(INFO, "  Numerical diffusion: " + std::to_string(diff) + 
-                   " (" + std::to_string(rel_diff * 100.0) + "%)");
+                    " (" + std::to_string(rel_diff * 100.0) + "%)");
             
             if (std::abs(rel_diff) > 0.1) {
                 Message(INFO, "  WARNING: Potential excessive numerical diffusion!");
@@ -627,9 +627,9 @@ public:
             Message(INFO, "  Flux contributions:");
             for (int r = 0; r < numCandidateStencils; ++r) {
                 Message(INFO, "    Stencil " + std::to_string(r) + 
-                       ": flux = " + std::to_string(candidateFluxes[r]) + 
-                       ", weight = " + std::to_string(weights[r]) + 
-                       ", contribution = " + std::to_string(weights[r] * candidateFluxes[r]));
+                        ": flux = " + std::to_string(candidateFluxes[r]) + 
+                        ", weight = " + std::to_string(weights[r]) + 
+                        ", contribution = " + std::to_string(weights[r] * candidateFluxes[r]));
             }
         }
         
@@ -662,15 +662,15 @@ public:
                 for (int p = 0; p < pointsPerStencil; ++p) {
                     int stencil_idx = stencilOffsets(r, p) + totalPoints/2; // Assuming TotalPoints/2 center
                     Message(INFO, "      Point " + std::to_string(p) + 
-                           " (offset " + std::to_string(stencilOffsets(r, p)) + "): " +
-                           std::to_string(stencil[stencil_idx]));
+                            " (offset " + std::to_string(stencilOffsets(r, p)) + "): " +
+                            std::to_string(stencil[stencil_idx]));
                 }
                 
                 // Print coefficients for this stencil if available
                 Message(INFO, "    Coefficients:");
                 for (int p = 0; p < pointsPerStencil; ++p) {
                     Message(INFO, "      Coeff " + std::to_string(p) + ": " +
-                           std::to_string(coefficients(r, p)));
+                            std::to_string(coefficients(r, p)));
                 }
                 
                 // Print the resulting candidate flux
@@ -679,359 +679,359 @@ public:
         }
 
 
-       // Debug function to check eigenvector matrix validity
-       AMREX_GPU_DEVICE
-       static void DebugEigenvectorMatrix(
-           int i, int j, int k,
-           const Set::MultiMatrix& L_n,
-           const Set::MultiVector& avg_state,
-           const std::string& context = "Left Eigenvector Computation",
-           bool abort_if_nan = false,
-           bool enableDebug = false)
-       {
-           if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+        // Debug function to check eigenvector matrix validity
+        AMREX_GPU_DEVICE
+        static void DebugEigenvectorMatrix(
+            int i, int j, int k,
+            const Set::MultiMatrix& L_n,
+            const Set::MultiVector& avg_state,
+            const std::string& context = "Left Eigenvector Computation",
+            bool abort_if_nan = false,
+            bool enableDebug = false)
+        {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
            
-           // Check if matrix contains NaN
-           bool has_nan = false;
-           for (int r = 0; r < L_n.rows(); ++r) {
-               for (int c = 0; c < L_n.cols(); ++c) {
-                   if (std::isnan(L_n(r, c)) || std::isinf(L_n(r, c))) {
-                       has_nan = true;
-                       break;
-                   }
-               }
-               if (has_nan) break;
-           }
+            // Check if matrix contains NaN
+            bool has_nan = false;
+            for (int r = 0; r < L_n.rows(); ++r) {
+                for (int c = 0; c < L_n.cols(); ++c) {
+                    if (std::isnan(L_n(r, c)) || std::isinf(L_n(r, c))) {
+                        has_nan = true;
+                        break;
+                    }
+                }
+                if (has_nan) break;
+            }
            
-           if (has_nan || enableDebug) {
-               Message(INFO, "Eigenvector Matrix Debug at (" + 
-                   std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                   std::to_string(k) + ") - Context: " + context);
+            if (has_nan || enableDebug) {
+                Message(INFO, "Eigenvector Matrix Debug at (" + 
+                    std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                    std::to_string(k) + ") - Context: " + context);
                
-               // Print matrix details
-               Message(INFO, "  Matrix dimensions: " + std::to_string(L_n.rows()) + 
-                       "×" + std::to_string(L_n.cols()));
+                // Print matrix details
+                Message(INFO, "  Matrix dimensions: " + std::to_string(L_n.rows()) + 
+                        "×" + std::to_string(L_n.cols()));
                
-               // Print matrix norm
-               Set::Scalar frobenius_norm = 0.0;
-               for (int r = 0; r < L_n.rows(); ++r) {
-                   for (int c = 0; c < L_n.cols(); ++c) {
-                       frobenius_norm += L_n(r, c) * L_n(r, c);
-                   }
-               }
-               frobenius_norm = std::sqrt(frobenius_norm);
-               Message(INFO, "  Matrix Frobenius norm: " + std::to_string(frobenius_norm));
+                // Print matrix norm
+                Set::Scalar frobenius_norm = 0.0;
+                for (int r = 0; r < L_n.rows(); ++r) {
+                    for (int c = 0; c < L_n.cols(); ++c) {
+                        frobenius_norm += L_n(r, c) * L_n(r, c);
+                    }
+                }
+                frobenius_norm = std::sqrt(frobenius_norm);
+                Message(INFO, "  Matrix Frobenius norm: " + std::to_string(frobenius_norm));
                
-               // Print full matrix for detailed inspection
-               for (int r = 0; r < L_n.rows(); ++r) {
-                   std::string row_str = "  Row " + std::to_string(r) + ": ";
-                   for (int c = 0; c < L_n.cols(); ++c) {
-                       row_str += std::to_string(L_n(r, c)) + " ";
-                   }
-                   Message(INFO, row_str);
-               }
+                // Print full matrix for detailed inspection
+                for (int r = 0; r < L_n.rows(); ++r) {
+                    std::string row_str = "  Row " + std::to_string(r) + ": ";
+                    for (int c = 0; c < L_n.cols(); ++c) {
+                        row_str += std::to_string(L_n(r, c)) + " ";
+                    }
+                    Message(INFO, row_str);
+                }
                
-               // Print average state
-               Message(INFO, "  Average State:");
-               for (int n = 0; n < avg_state.size(); ++n) {
-                   Message(INFO, "    [" + std::to_string(n) + "]: " + 
-                          std::to_string(avg_state(n)));
-               }
+                // Print average state
+                Message(INFO, "  Average State:");
+                for (int n = 0; n < avg_state.size(); ++n) {
+                    Message(INFO, "    [" + std::to_string(n) + "]: " + 
+                        std::to_string(avg_state(n)));
+                }
                
-               if (has_nan && abort_if_nan) {
-                   Util::Abort(INFO, "NaN detected in eigenvector matrix in context: " + context);
-               }
-           }
-       }
+                if (has_nan && abort_if_nan) {
+                    Util::Abort(INFO, "NaN detected in eigenvector matrix in context: " + context);
+                }
+            }
+        }
        
-       // Debug function to check sound speed computation
-       AMREX_GPU_DEVICE
-       static void DebugSoundSpeedComputation(
-           int i, int j, int k,
-           Set::Scalar H, Set::Scalar Va2, Set::Scalar gamma,
-           Set::Scalar a2, Set::Scalar a,
-           const std::string& context = "Sound Speed Computation",
-           bool abort_on_negative = true,
-           bool enableDebug = false)
-       {
-           if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+        // Debug function to check sound speed computation
+        AMREX_GPU_DEVICE
+        static void DebugSoundSpeedComputation(
+            int i, int j, int k,
+            Set::Scalar H, Set::Scalar Va2, Set::Scalar gamma,
+            Set::Scalar a2, Set::Scalar a,
+            const std::string& context = "Sound Speed Computation",
+            bool abort_on_negative = true,
+            bool enableDebug = false)
+        {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
            
-           Set::Scalar raw_a2 = H - 0.5 * Va2;
-           bool is_negative = (raw_a2 <= 0.0);
+            Set::Scalar raw_a2 = H - 0.5 * Va2;
+            bool is_negative = (raw_a2 <= 0.0);
            
-           if (is_negative || enableDebug) {
-               Message(INFO, "Sound Speed Debug at (" + 
-                   std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                   std::to_string(k) + ") - Context: " + context);
+            if (is_negative || enableDebug) {
+                Message(INFO, "Sound Speed Debug at (" + 
+                    std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                    std::to_string(k) + ") - Context: " + context);
                
-               Message(INFO, "  Total enthalpy (H): " + std::to_string(H));
-               Message(INFO, "  Velocity magnitude squared (Va2): " + std::to_string(Va2));
-               Message(INFO, "  H - 0.5*Va2: " + std::to_string(raw_a2));
-               Message(INFO, "  Gamma: " + std::to_string(gamma));
+                Message(INFO, "  Total enthalpy (H): " + std::to_string(H));
+                Message(INFO, "  Velocity magnitude squared (Va2): " + std::to_string(Va2));
+                Message(INFO, "  H - 0.5*Va2: " + std::to_string(raw_a2));
+                Message(INFO, "  Gamma: " + std::to_string(gamma));
                
-               if (is_negative) {
-                   Message(INFO, "  WARNING: Negative value detected for sound speed squared!");
+                if (is_negative) {
+                    Message(INFO, "  WARNING: Negative value detected for sound speed squared!");
                    
-                   // Apply a correction
-                   a2 = std::max(gamma * raw_a2, 1e-10);
-                   a = std::sqrt(a2);
+                    // Apply a correction
+                    a2 = std::max(gamma * raw_a2, 1e-10);
+                    a = std::sqrt(a2);
                    
-                   Message(INFO, "  Corrected a²: " + std::to_string(a2));
-                   Message(INFO, "  Corrected a: " + std::to_string(a));
+                    Message(INFO, "  Corrected a²: " + std::to_string(a2));
+                    Message(INFO, "  Corrected a: " + std::to_string(a));
                    
-                   if (abort_on_negative) {
-                       Util::Abort(INFO, "Negative sound speed squared detected in context: " + context);
-                   }
-               }
-           }
-       }
+                    if (abort_on_negative) {
+                        Util::Abort(INFO, "Negative sound speed squared detected in context: " + context);
+                    }
+                }
+            }
+        }
        
-       // Debug function to verify transformation of stencils to characteristic space
-       AMREX_GPU_DEVICE
-       static void DebugCharacteristicTransformation(
-           int i, int j, int k,
-           const Set::MultiMatrix& stencil_matrix,
-           const Set::MultiMatrix& char_stencil_matrix,
-           const Set::MultiMatrix& L_n,
-           int stencil_point,
-           const std::string& context = "Characteristic Transformation",
-           bool abort_if_nan = true,
-           bool enableDebug = false)
-       {
-           if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+        // Debug function to verify transformation of stencils to characteristic space
+        AMREX_GPU_DEVICE
+        static void DebugCharacteristicTransformation(
+            int i, int j, int k,
+            const Set::MultiMatrix& stencil_matrix,
+            const Set::MultiMatrix& char_stencil_matrix,
+            const Set::MultiMatrix& L_n [[maybe_unused]],
+            int stencil_point,
+            const std::string& context = "Characteristic Transformation",
+            bool abort_if_nan = true,
+            bool enableDebug = false)
+        {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
            
-           // Check if characteristic stencil contains NaN
-           bool has_nan = false;
-           for (int r = 0; r < char_stencil_matrix.rows(); ++r) {
-               for (int c = 0; c < char_stencil_matrix.cols(); ++c) {
-                   if (std::isnan(char_stencil_matrix(r, c)) || std::isinf(char_stencil_matrix(r, c))) {
-                       has_nan = true;
-                       break;
-                   }
-               }
-               if (has_nan) break;
-           }
+            // Check if characteristic stencil contains NaN
+            bool has_nan = false;
+            for (int r = 0; r < char_stencil_matrix.rows(); ++r) {
+                for (int c = 0; c < char_stencil_matrix.cols(); ++c) {
+                    if (std::isnan(char_stencil_matrix(r, c)) || std::isinf(char_stencil_matrix(r, c))) {
+                        has_nan = true;
+                        break;
+                    }
+                }
+                if (has_nan) break;
+            }
            
-           if (has_nan || enableDebug) {
-               Message(INFO, "Characteristic Transformation Debug at (" + 
-                   std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                   std::to_string(k) + ") - Stencil Point: " + std::to_string(stencil_point) +
-                   " - Context: " + context);
+            if (has_nan || enableDebug) {
+                Message(INFO, "Characteristic Transformation Debug at (" + 
+                    std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                    std::to_string(k) + ") - Stencil Point: " + std::to_string(stencil_point) +
+                    " - Context: " + context);
                
-               // Print original stencil values for this point
-               Message(INFO, "  Original stencil values:");
-               for (int c = 0; c < stencil_matrix.cols(); ++c) {
-                   Message(INFO, "    Component " + std::to_string(c) + ": " + 
-                          std::to_string(stencil_matrix(stencil_point, c)));
-               }
+                // Print original stencil values for this point
+                Message(INFO, "  Original stencil values:");
+                for (int c = 0; c < stencil_matrix.cols(); ++c) {
+                    Message(INFO, "    Component " + std::to_string(c) + ": " + 
+                        std::to_string(stencil_matrix(stencil_point, c)));
+                }
                
-               // Print transformed values
-               Message(INFO, "  Transformed characteristic values:");
-               for (int c = 0; c < char_stencil_matrix.cols(); ++c) {
-                   Message(INFO, "    Component " + std::to_string(c) + ": " + 
-                          std::to_string(char_stencil_matrix(stencil_point, c)));
-               }
+                // Print transformed values
+                Message(INFO, "  Transformed characteristic values:");
+                for (int c = 0; c < char_stencil_matrix.cols(); ++c) {
+                    Message(INFO, "    Component " + std::to_string(c) + ": " + 
+                        std::to_string(char_stencil_matrix(stencil_point, c)));
+                }
                
-               if (has_nan && abort_if_nan) {
-                   Util::Abort(INFO, "NaN detected in characteristic transformation in context: " + context);
-               }
-           }
-       }
+                if (has_nan && abort_if_nan) {
+                    Util::Abort(INFO, "NaN detected in characteristic transformation in context: " + context);
+                }
+            }
+        }
        
-       // Debug function to check split flux computation
-       AMREX_GPU_DEVICE
-       static void DebugSplitFluxes(
-           int i, int j, int k,
-           const Set::Scalar* FL, const Set::Scalar* FR,
-           const Set::Scalar* QL_cons, const Set::Scalar* QR_cons,
-           Set::Scalar lambda_max,
-           const Set::Scalar* FluxPos, const Set::Scalar* FluxNeg,
-           int num_components,
-           const std::string& context = "Split Flux Computation",
-           bool abort_if_nan = true,
-           bool enableDebug = false)
-       {
-           if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+        // Debug function to check split flux computation
+        AMREX_GPU_DEVICE
+        static void DebugSplitFluxes(
+            int i, int j, int k,
+            const Set::Scalar* FL, const Set::Scalar* FR,
+            const Set::Scalar* QL_cons, const Set::Scalar* QR_cons,
+            Set::Scalar lambda_max,
+            const Set::Scalar* FluxPos, const Set::Scalar* FluxNeg,
+            int num_components,
+            const std::string& context = "Split Flux Computation",
+            bool abort_if_nan = true,
+            bool enableDebug = false)
+        {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
            
-           // Check for NaN in split fluxes
-           bool has_nan = false;
-           for (int n = 0; n < num_components; ++n) {
-               if (std::isnan(FluxPos[n]) || std::isinf(FluxPos[n]) || 
-                   std::isnan(FluxNeg[n]) || std::isinf(FluxNeg[n])) {
-                   has_nan = true;
-                   break;
-               }
-           }
+            // Check for NaN in split fluxes
+            bool has_nan = false;
+            for (int n = 0; n < num_components; ++n) {
+                if (std::isnan(FluxPos[n]) || std::isinf(FluxPos[n]) || 
+                    std::isnan(FluxNeg[n]) || std::isinf(FluxNeg[n])) {
+                    has_nan = true;
+                    break;
+                }
+            }
            
-           if (has_nan || enableDebug) {
-               Message(INFO, "Split Flux Debug at (" + 
-                   std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                   std::to_string(k) + ") - Context: " + context);
+            if (has_nan || enableDebug) {
+                Message(INFO, "Split Flux Debug at (" + 
+                    std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                    std::to_string(k) + ") - Context: " + context);
                
-               Message(INFO, "  Lambda Max: " + std::to_string(lambda_max));
+                Message(INFO, "  Lambda Max: " + std::to_string(lambda_max));
                
-               // Print original fluxes, conservative variables, and split fluxes
-               for (int n = 0; n < num_components; ++n) {
-                   Message(INFO, "  Component " + std::to_string(n) + ":");
-                   Message(INFO, "    F_L: " + std::to_string(FL[n]) + 
-                          ", F_R: " + std::to_string(FR[n]));
-                   Message(INFO, "    U_L: " + std::to_string(QL_cons[n]) + 
-                          ", U_R: " + std::to_string(QR_cons[n]));
-                   Message(INFO, "    F+: " + std::to_string(FluxPos[n]) + 
-                          ", F-: " + std::to_string(FluxNeg[n]));
+                // Print original fluxes, conservative variables, and split fluxes
+                for (int n = 0; n < num_components; ++n) {
+                    Message(INFO, "  Component " + std::to_string(n) + ":");
+                    Message(INFO, "    F_L: " + std::to_string(FL[n]) + 
+                        ", F_R: " + std::to_string(FR[n]));
+                    Message(INFO, "    U_L: " + std::to_string(QL_cons[n]) + 
+                        ", U_R: " + std::to_string(QR_cons[n]));
+                    Message(INFO, "    F+: " + std::to_string(FluxPos[n]) + 
+                        ", F-: " + std::to_string(FluxNeg[n]));
                    
-                   // Check flux formulation
-                   Set::Scalar computed_pos = 0.5 * FL[n] + 0.5 * lambda_max * QL_cons[n];
-                   Set::Scalar computed_neg = 0.5 * FR[n] - 0.5 * lambda_max * QR_cons[n];
+                    // Check flux formulation
+                    Set::Scalar computed_pos = 0.5 * FL[n] + 0.5 * lambda_max * QL_cons[n];
+                    Set::Scalar computed_neg = 0.5 * FR[n] - 0.5 * lambda_max * QR_cons[n];
                    
-                   Message(INFO, "    Computed F+: " + std::to_string(computed_pos) + 
-                          ", Computed F-: " + std::to_string(computed_neg));
+                    Message(INFO, "    Computed F+: " + std::to_string(computed_pos) + 
+                        ", Computed F-: " + std::to_string(computed_neg));
                    
-                   // Check for large discrepancies
-                   if (std::abs(computed_pos - FluxPos[n]) > 1e-10 || 
-                       std::abs(computed_neg - FluxNeg[n]) > 1e-10) {
-                       Message(INFO, "    WARNING: Discrepancy in flux computation!");
-                   }
-               }
+                    // Check for large discrepancies
+                    if (std::abs(computed_pos - FluxPos[n]) > 1e-10 || 
+                        std::abs(computed_neg - FluxNeg[n]) > 1e-10) {
+                        Message(INFO, "    WARNING: Discrepancy in flux computation!");
+                    }
+                }
                
-               if (has_nan && abort_if_nan) {
-                   Util::Abort(INFO, "NaN detected in split fluxes in context: " + context);
-               }
-           }
-       }
+                if (has_nan && abort_if_nan) {
+                    Util::Abort(INFO, "NaN detected in split fluxes in context: " + context);
+                }
+            }
+        }
        
-       // Debug function for average state check
-       AMREX_GPU_DEVICE
-       static void DebugAverageState(
-           int i, int j, int k,
-           const Set::MultiVector& WL, const Set::MultiVector& WR,
-           const Set::MultiVector& Wavg,
-           const std::string& context = "Roe Average Computation",
-           bool abort_if_invalid = true,
-           bool enableDebug = false)
-       {
-           if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+        // Debug function for average state check
+        AMREX_GPU_DEVICE
+        static void DebugAverageState(
+            int i, int j, int k,
+            const Set::MultiVector& WL, const Set::MultiVector& WR,
+            const Set::MultiVector& Wavg,
+            const std::string& context = "Roe Average Computation",
+            bool abort_if_invalid = true,
+            bool enableDebug = false)
+        {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
            
-           // Check for non-physical values in average state
-           bool invalid_state = false;
-           if (Wavg(0) <= 0.0) {  // Negative density
-               invalid_state = true;
-           }
+            // Check for non-physical values in average state
+            bool invalid_state = false;
+            if (Wavg(0) <= 0.0) {  // Negative density
+                invalid_state = true;
+            }
            
-           // Check for NaN values
-           bool has_nan = false;
-           for (int n = 0; n < Wavg.size(); ++n) {
-               if (std::isnan(Wavg(n)) || std::isinf(Wavg(n))) {
-                   has_nan = true;
-                   break;
-               }
-           }
+            // Check for NaN values
+            bool has_nan = false;
+            for (int n = 0; n < Wavg.size(); ++n) {
+                if (std::isnan(Wavg(n)) || std::isinf(Wavg(n))) {
+                    has_nan = true;
+                    break;
+                }
+            }
            
-           if (invalid_state || has_nan || enableDebug) {
-               Message(INFO, "Average State Debug at (" + 
-                   std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                   std::to_string(k) + ") - Context: " + context);
+            if (invalid_state || has_nan || enableDebug) {
+                Message(INFO, "Average State Debug at (" + 
+                    std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                    std::to_string(k) + ") - Context: " + context);
                
-               // Print left state
-               Message(INFO, "  Left State (WL):");
-               for (int n = 0; n < WL.size(); ++n) {
-                   Message(INFO, "    [" + std::to_string(n) + "]: " + 
-                          std::to_string(WL(n)));
-               }
+                // Print left state
+                Message(INFO, "  Left State (WL):");
+                for (int n = 0; n < WL.size(); ++n) {
+                    Message(INFO, "    [" + std::to_string(n) + "]: " + 
+                        std::to_string(WL(n)));
+                }
                
-               // Print right state
-               Message(INFO, "  Right State (WR):");
-               for (int n = 0; n < WR.size(); ++n) {
-                   Message(INFO, "    [" + std::to_string(n) + "]: " + 
-                          std::to_string(WR(n)));
-               }
+                // Print right state
+                Message(INFO, "  Right State (WR):");
+                for (int n = 0; n < WR.size(); ++n) {
+                    Message(INFO, "    [" + std::to_string(n) + "]: " + 
+                        std::to_string(WR(n)));
+                }
                
-               // Print average state
-               Message(INFO, "  Average State (Wavg):");
-               for (int n = 0; n < Wavg.size(); ++n) {
-                   Message(INFO, "    [" + std::to_string(n) + "]: " + 
-                          std::to_string(Wavg(n)));
-               }
+                // Print average state
+                Message(INFO, "  Average State (Wavg):");
+                for (int n = 0; n < Wavg.size(); ++n) {
+                    Message(INFO, "    [" + std::to_string(n) + "]: " + 
+                        std::to_string(Wavg(n)));
+                }
                
-               // Additional physics-based diagnostics
-               if (Wavg.size() >= 5) {  // Assuming standard Euler variables
-                   Set::Scalar rho = Wavg(0);
-                   Set::Scalar u = Wavg(1);
-                   Set::Scalar v = Wavg(2);
-                   Set::Scalar w = (Wavg.size() > 3) ? Wavg(3) : 0.0;
-                   Set::Scalar H = Wavg(4);
+                // Additional physics-based diagnostics
+                if (Wavg.size() >= 5) {  // Assuming standard Euler variables
+                    Set::Scalar rho = Wavg(0);
+                    Set::Scalar u = Wavg(1);
+                    Set::Scalar v = Wavg(2);
+                    Set::Scalar w = (Wavg.size() > 3) ? Wavg(3) : 0.0;
+                    Set::Scalar H = Wavg(4);
                    
-                   Set::Scalar Va2 = u*u + v*v + w*w;
-                   Set::Scalar raw_a2 = H - 0.5*Va2;
+                    Set::Scalar Va2 = u*u + v*v + w*w;
+                    Set::Scalar raw_a2 = H - 0.5*Va2;
                    
-                   Message(INFO, "  Physics diagnostics:");
-                   Message(INFO, "    Density: " + std::to_string(rho));
-                   Message(INFO, "    Velocity magnitude squared: " + std::to_string(Va2));
-                   Message(INFO, "    Enthalpy: " + std::to_string(H));
-                   Message(INFO, "    H - 0.5*Va2: " + std::to_string(raw_a2));
+                    Message(INFO, "  Physics diagnostics:");
+                    Message(INFO, "    Density: " + std::to_string(rho));
+                    Message(INFO, "    Velocity magnitude squared: " + std::to_string(Va2));
+                    Message(INFO, "    Enthalpy: " + std::to_string(H));
+                    Message(INFO, "    H - 0.5*Va2: " + std::to_string(raw_a2));
                    
-                   if (raw_a2 <= 0.0) {
-                       Message(INFO, "    WARNING: Non-physical state detected (negative sound speed squared)");
-                   }
-               }
+                    if (raw_a2 <= 0.0) {
+                        Message(INFO, "    WARNING: Non-physical state detected (negative sound speed squared)");
+                    }
+                }
                
-               if ((invalid_state || has_nan) && abort_if_invalid) {
-                   Util::Abort(INFO, "Invalid average state detected in context: " + context);
-               }
-           }
-       }
+                if ((invalid_state || has_nan) && abort_if_invalid) {
+                    Util::Abort(INFO, "Invalid average state detected in context: " + context);
+                }
+            }
+        }
        
-       // Debug function for the full characteristic-based reconstruction process
-       AMREX_GPU_DEVICE
-       static void DebugCharacteristicBasedReconstruction(
-           int i, int j, int k,
-           const Set::MultiMatrix& stencil_matrix,
-           const Set::MultiMatrix& char_stencil_matrix,
-           const Set::MultiVector& reconstructed_values,
-           int direction,
-           const std::string& context = "Characteristic-based Reconstruction",
-           bool abort_if_nan = true,
-           bool enableDebug = false)
-       {
-           if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+        // Debug function for the full characteristic-based reconstruction process
+        AMREX_GPU_DEVICE
+        static void DebugCharacteristicBasedReconstruction(
+            int i, int j, int k,
+            const Set::MultiMatrix& stencil_matrix,
+            const Set::MultiMatrix& char_stencil_matrix,
+            const Set::MultiVector& reconstructed_values,
+            int direction,
+            const std::string& context = "Characteristic-based Reconstruction",
+            bool abort_if_nan = true,
+            bool enableDebug = false)
+        {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
            
-           // Check for NaN in reconstructed values
-           bool has_nan = false;
-           for (int n = 0; n < reconstructed_values.size(); ++n) {
-               if (std::isnan(reconstructed_values(n)) || std::isinf(reconstructed_values(n))) {
-                   has_nan = true;
-                   break;
-               }
-           }
+            // Check for NaN in reconstructed values
+            bool has_nan = false;
+            for (int n = 0; n < reconstructed_values.size(); ++n) {
+                if (std::isnan(reconstructed_values(n)) || std::isinf(reconstructed_values(n))) {
+                    has_nan = true;
+                    break;
+                }
+            }
            
-           if (has_nan || enableDebug) {
-               Message(INFO, "Characteristic Reconstruction Debug at (" + 
-                   std::to_string(i) + ", " + std::to_string(j) + ", " + 
-                   std::to_string(k) + ") - Direction: " + std::to_string(direction) +
-                   " - Context: " + context);
+            if (has_nan || enableDebug) {
+                Message(INFO, "Characteristic Reconstruction Debug at (" + 
+                    std::to_string(i) + ", " + std::to_string(j) + ", " + 
+                    std::to_string(k) + ") - Direction: " + std::to_string(direction) +
+                    " - Context: " + context);
                
-               // Print input stencil summary
-               Message(INFO, "  Input Stencil Summary:");
-               Message(INFO, "    Stencil size: " + std::to_string(stencil_matrix.rows()) + 
-                       "×" + std::to_string(stencil_matrix.cols()));
+                // Print input stencil summary
+                Message(INFO, "  Input Stencil Summary:");
+                Message(INFO, "    Stencil size: " + std::to_string(stencil_matrix.rows()) + 
+                        "×" + std::to_string(stencil_matrix.cols()));
                
-               // Print characteristic stencil summary
-               Message(INFO, "  Characteristic Stencil Summary:");
-               Message(INFO, "    Stencil size: " + std::to_string(char_stencil_matrix.rows()) + 
-                       "×" + std::to_string(char_stencil_matrix.cols()));
+                // Print characteristic stencil summary
+                Message(INFO, "  Characteristic Stencil Summary:");
+                Message(INFO, "    Stencil size: " + std::to_string(char_stencil_matrix.rows()) + 
+                        "×" + std::to_string(char_stencil_matrix.cols()));
                
-               // Print reconstructed values
-               Message(INFO, "  Reconstructed Values:");
-               for (int n = 0; n < reconstructed_values.size(); ++n) {
-                   Message(INFO, "    Component " + std::to_string(n) + ": " + 
-                          std::to_string(reconstructed_values(n)));
-               }
+                // Print reconstructed values
+                Message(INFO, "  Reconstructed Values:");
+                for (int n = 0; n < reconstructed_values.size(); ++n) {
+                    Message(INFO, "    Component " + std::to_string(n) + ": " + 
+                        std::to_string(reconstructed_values(n)));
+                }
                
-               if (has_nan && abort_if_nan) {
-                   Util::Abort(INFO, "NaN detected in characteristic reconstruction in context: " + context);
-               }
-           }
-       }
+                if (has_nan && abort_if_nan) {
+                    Util::Abort(INFO, "NaN detected in characteristic reconstruction in context: " + context);
+                }
+            }
+        }
        
     };     
 };

@@ -214,7 +214,7 @@ CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
     for (amrex::MFIter mfi(CellFluxBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& box = mfi.growntilebox();
         auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
-       // auto const& pres_arr = solver->Pressure_mf.Patch(lev, mfi);
+        // auto const& pres_arr = solver->Pressure_mf.Patch(lev, mfi);
         auto const& W_arr  = CellFluxBuffer.array(mfi);
         
         const Set::Scalar gamma = 1.4;  // Ratio of specific heats
@@ -275,7 +275,7 @@ CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
                          
             for (int n = 0; n < num_components; ++n) {
 
-                 W_arr(i, j, k, n) = Flux_Vector(n);
+                W_arr(i, j, k, n) = Flux_Vector(n);
 
             }
                         
@@ -431,7 +431,7 @@ CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
         std_avg_state(3) = (w_idx >= 0) ? avg_state(w_idx) : 0.0;
         std_avg_state(4) = avg_state(ie_idx);
 
-           // Debug the average state first
+            // Debug the average state first
         Util::ScimitarX_Util::Debug::DebugAverageState(
         i, j, k,  // These will be ignored if not the target location
         Set::MultiVector::Zero(avg_state.size()),  // We don't have WL/WR here
@@ -484,46 +484,46 @@ CompressibleEulerVariableAccessor::TransformFromCharacteristic(
     int direction,
     const Set::MultiVector& avg_state
 ) const {
-         // Create output vector of the same type and size
-         Set::MultiVector phys_vec(char_vec.size());
+        // Create output vector of the same type and size
+        Set::MultiVector phys_vec(char_vec.size());
          
-         // Use the static variable indices
-         const int rho_idx = variableIndices.DENS;
-         const int u_idx = variableIndices.UVEL;
-         const int v_idx = variableIndices.VVEL;
-         const int w_idx = variableIndices.WVEL;
-         const int ie_idx = variableIndices.IE;
+        // Use the static variable indices
+        const int rho_idx = variableIndices.DENS;
+        const int u_idx = variableIndices.UVEL;
+        const int v_idx = variableIndices.VVEL;
+        const int w_idx = variableIndices.WVEL;
+        const int ie_idx = variableIndices.IE;
          
-         // Create standardized vectors
-         Set::MultiVector std_avg_state(5);
-         std_avg_state(0) = avg_state(rho_idx);
-         std_avg_state(1) = avg_state(u_idx);
-         std_avg_state(2) = avg_state(v_idx);
-         std_avg_state(3) = (w_idx >= 0) ? avg_state(w_idx) : 0.0;
-         std_avg_state(4) = avg_state(ie_idx);
+        // Create standardized vectors
+        Set::MultiVector std_avg_state(5);
+        std_avg_state(0) = avg_state(rho_idx);
+        std_avg_state(1) = avg_state(u_idx);
+        std_avg_state(2) = avg_state(v_idx);
+        std_avg_state(3) = (w_idx >= 0) ? avg_state(w_idx) : 0.0;
+        std_avg_state(4) = avg_state(ie_idx);
          
-         Set::MultiVector std_char_vec(5);
-         std_char_vec(0) = char_vec(rho_idx);
-         std_char_vec(1) = char_vec(u_idx);
-         std_char_vec(2) = char_vec(v_idx);
-         std_char_vec(3) = (w_idx >= 0) ? char_vec(w_idx) : 0.0;
-         std_char_vec(4) = char_vec(ie_idx);
+        Set::MultiVector std_char_vec(5);
+        std_char_vec(0) = char_vec(rho_idx);
+        std_char_vec(1) = char_vec(u_idx);
+        std_char_vec(2) = char_vec(v_idx);
+        std_char_vec(3) = (w_idx >= 0) ? char_vec(w_idx) : 0.0;
+        std_char_vec(4) = char_vec(ie_idx);
          
-         // Get right eigenvector matrix for the inverse transformation
-         Set::MultiMatrix R_n = ComputeRightEigenvectorMatrix(std_avg_state, direction, 5);
+        // Get right eigenvector matrix for the inverse transformation
+        Set::MultiMatrix R_n = ComputeRightEigenvectorMatrix(std_avg_state, direction, 5);
          
-         // Transform back to physical space
-         Set::MultiVector std_phys_vec = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(
-             R_n, std_char_vec);
+        // Transform back to physical space
+        Set::MultiVector std_phys_vec = Numeric::SymmetryPreserving::ConsistentMatrixVectorMultiply(
+            R_n, std_char_vec);
          
-         // Map back to solver's indexing scheme
-         phys_vec(rho_idx) = std_phys_vec(0);
-         phys_vec(u_idx) = std_phys_vec(1);
-         phys_vec(v_idx) = std_phys_vec(2);
-         if (w_idx >= 0) phys_vec(w_idx) = std_phys_vec(3);
-         phys_vec(ie_idx) = std_phys_vec(4);
+        // Map back to solver's indexing scheme
+        phys_vec(rho_idx) = std_phys_vec(0);
+        phys_vec(u_idx) = std_phys_vec(1);
+        phys_vec(v_idx) = std_phys_vec(2);
+        if (w_idx >= 0) phys_vec(w_idx) = std_phys_vec(3);
+        phys_vec(ie_idx) = std_phys_vec(4);
          
-         return phys_vec;
+        return phys_vec;
 }
 
 
@@ -545,8 +545,8 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
         const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
         auto const& TotalFlux_arr = SummedFlux.array(mfi);
         auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
-                                 (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
-                                 solver->ZFlux_mf.Patch(lev, mfi);
+                                (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                solver->ZFlux_mf.Patch(lev, mfi);
         
         
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
@@ -874,7 +874,7 @@ CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
         break;
     }
 
-   // Debug check on the final matrix
+    // Debug check on the final matrix
     Util::ScimitarX_Util::Debug::DebugEigenvectorMatrix(
         i, j, k,  // These will be ignored if not the target location
         L_n, W, 

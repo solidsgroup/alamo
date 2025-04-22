@@ -1,4 +1,4 @@
-// CompressibleEulerCapabilities.cpp
+// SolverCapabilities.cpp
 #include "Numeric/IntegratorVariableAccessLayer.H"
 
 namespace Numeric {
