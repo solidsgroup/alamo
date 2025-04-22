@@ -9,6 +9,107 @@ This page provides reference information for compiling and running Alamo on high
     
     These instructions are for reference only and may not always work. The Alamo developers do not manage the software on these clusters, and configurations may change over time. If you encounter outdated instructions, please `open an issue on GitHub <https://github.com/solidsgroup/Alamo/issues>`_.
 
+Reference scripts for Nova
+--------------------------
+
+.. NOTE::
+    
+    For more information on Nova or HPC in general, Iowa State University provides an `extensive online guide <https://www.hpc.iastate.edu/guides>`_.
+
+The following environment modules are required to complete the listed tasks.
+
++------------------------+--------------------+
+| Task                   | Required Module(s) |
++========================+====================+
+| configuring w/ gcc     | openmpi gcc        |
++------------------------+--------------------+
+| configuring w/ clang   | openmpi llvm       |
++------------------------+--------------------+
+| compiling w/ gcc       | openmpi gcc        |
++------------------------+--------------------+
+| compiling w/ clang     | openmpi llvm       |
++------------------------+--------------------+
+| running Alamo          | openmpi gcc        |
++------------------------+--------------------+
+
+The scripts below automatically handle module management.
+
+The configuration and compilation scripts below can be run line-by-line or in a Bash script. If you do the latter, remember to make the file executable (:code:`chmod +x /path/to/file`).
+
+.. NOTE::
+
+    As of April 2025, the git installation on Nova is quite old and can occasionally cause fatal errors when configuring. If you get an error about SSL when the configure script tries to checkout AMReX, load the git module with `module load git`.
+
+clang Configure and Compile Script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   #!/usr/bin/env bash
+   module purge
+   module load openmpi llvm
+   ./configure --get-eigen --comp clang++
+   srun --nodes=1 --cpus-per-task=16 --mem-per-cpu=1G --time=10:00 make -j16
+
+gcc Configure and Compile Script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   #!/usr/bin/env bash
+   module purge
+   module load openmpi gcc
+   ./configure --get-eigen
+   srun --nodes=1 --cpus-per-task=16 --mem-per-cpu=1G --time=10:00 make -j16
+
+Alamo Simulation Slurm Job Script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+    
+    #!/usr/bin/env bash
+    #SBATCH --time=24:00:00
+    #SBATCH --nodes=1
+    #SBATCH --ntasks-per-node=36
+    #SBATCH --mem-per-cpu=1000
+    #SBATCH --job-name="alamo"
+    #SBATCH --output="%x-%j-log.txt"
+    #SBATCH --mail-user=your_email@iastate.edu
+    #SBATCH --mail-type=BEGIN
+    #SBATCH --mail-type=END
+    #SBATCH --mail-type=FAIL
+
+    module purge
+    module load openmpi
+    srun --mpi=pmix ./path/to/alamo/executable /path/to/input/file
+
+The script starts a parallel job on Nova. Modify these parameters as needed:
+
+* :code:`--time`: The *wall clock time limit* (maximum job duration)
+* :code:`--nodes`: Number of nodes requested
+* :code:`--ntasks-per-node`: Number of tasks per node
+* :code:`--cpus-per-task`: Number of cores per task
+* :code:`--mem-per-cpu`: Memory allocated per core (MB)
+* :code:`--job-name`: The job name that will be displayed when running `squeue`
+* :code:`--output`: The name of the log file that will be output (see the `Slurm documentation <https://slurm.schedmd.com/sbatch.html#SECTION_FILENAME-PATTERN>`_ for filename pattern specifications)
+* :code:`--mail-user`: Email for notifications (remove if not needed)
+* **Executable path**: Example: :code:`./bin/alamo-2d-clang++`
+* **Input file path**: Specify the input file for Alamo
+
+.. NOTE::
+
+   Iowa State University provides a `Slurm job script generator for Nova <https://www.hpc.iastate.edu/guides/nova/slurm-script-generator-for-nova>`_, which can help generate job scripts.
+
+Nova uses a *fair-share scheduling system* to prioritize job execution based on requested resources and past usage. To reduce wait times, request only necessary resources and set reasonable time limits.
+
+Slurm automatically determines the number of cores based on the :code:`--nodes` and :code:`--ntasks-per-node` values. Refer to the `Nova hardware guide <https://www.hpc.iastate.edu/guides/nova>`_ for appropriate values.
+
+Once modifications are made, submit the job with `sbatch <https://slurm.schedmd.com/sbatch.html>`_:
+
+.. code-block:: bash
+
+   sbatch /path/to/job_script.sh
+
 Managing dependencies on an HPC cluster
 ---------------------------------------
 
@@ -37,7 +138,7 @@ While Environment Modules are widely used, another tool called `Spack <https://s
 Configuring Alamo on an HPC cluster
 -----------------------------------
 
-Configuring Alamo on an HPC cluster is similar to configuring it on a local machine. However, you must ensure that a compiler, :code:`mpich`, and Python 3 are available via modules or other means. Additionally, Alamo relies on the `Eigen library <https://eigen.tuxfamily.org/index.php?title=Main_Page>`_, which can either be loaded as a module or installed during configuration (preferred) with the :code:`--get-eigen` flag:
+Configuring Alamo on an HPC cluster is similar to configuring it on a local machine. However, you must ensure that a compiler, :code:`clang`, and Python 3 are available via modules or other means. Additionally, Alamo relies on the `Eigen library <https://eigen.tuxfamily.org/index.php?title=Main_Page>`_, which can either be loaded as a module or installed during configuration (preferred) with the :code:`--get-eigen` flag:
 
 .. code-block:: bash
 
@@ -76,100 +177,4 @@ To verify that a simulation starts correctly, an interactive job may suffice. Ho
    sbatch /path/to/job_script
 
 The sections below have examples of job scripts that can be modified to suit your needs.
-
-Reference scripts for Nova
---------------------------
-
-.. NOTE::
-    
-    For more information on Nova or HPC in general, Iowa State University provides an `extensive online guide <https://www.hpc.iastate.edu/guides>`_.
-
-By default, Python and GCC modules are loaded when you log in to Nova. However, additional modules are required for certain tasks:
-
-+------------------------+--------------------+
-| Task                   | Required Module(s) |
-+========================+====================+
-| configuring w/ g++     | mpich              |
-+------------------------+--------------------+
-| configuring w/ clang++ | mpich llvm         |
-+------------------------+--------------------+
-| compiling w/ g++       | mpich              |
-+------------------------+--------------------+
-| compiling w/ clang++   | mpich llvm         |
-+------------------------+--------------------+
-| running Alamo          | mpich              |
-+------------------------+--------------------+
-
-The scripts below automatically handle module management.
-
-The configuration and compilation scripts below can be run line-by-line or in a Bash script. If you do the latter, remember to make the file executable (:code:`chmod +x /path/to/file`).
-
-gcc Configure and Compile Script
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-   #!/usr/bin/env bash
-   module purge
-   module load mpich
-   ./configure --get-eigen
-   srun --nodes=1 --cpus-per-task=16 --mem=16G --time=10:00 make -j16
-
-clang++ Configure and Compile Script
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-   #!/usr/bin/env bash
-   module purge
-   module load mpich llvm
-   ./configure --get-eigen --comp clang++
-   srun --nodes=1 --cpus-per-task=16 --mem=16G --time=10:00 make -j16
-
-Alamo Simulation Slurm Job Script
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-    
-    #!/usr/bin/env bash
-    #SBATCH --time=24:00:00
-    #SBATCH --nodes=1
-    #SBATCH --ntasks-per-node=36
-    #SBATCH --mem-per-cpu=1000
-    #SBATCH --job-name="alamo"
-    #SBATCH --output="%x-%j-log.txt"
-    #SBATCH --mail-user=your_email@iastate.edu
-    #SBATCH --mail-type=BEGIN
-    #SBATCH --mail-type=END
-    #SBATCH --mail-type=FAIL
-
-    module purge
-    module load mpich
-    srun --mpi=pmi2 ./path/to/alamo/executable /path/to/input/file
-
-The script starts a parallel job on Nova. Modify these parameters as needed:
-
-* :code:`--time`: The *wall clock time limit* (maximum job duration)
-* :code:`--nodes`: Number of nodes requested
-* :code:`--ntasks-per-node`: Number of tasks per node
-* :code:`--mem-per-cpu`: Memory allocated per core (MB)
-* :code:`--job-name`: The job name that will be displayed when running `squeue`
-* :code:`--output`: The name of the log file that will be output (see the `Slurm documentation <https://slurm.schedmd.com/sbatch.html#SECTION_FILENAME-PATTERN>`_ for filename pattern specifications)
-* :code:`--mail-user`: Email for notifications (remove if not needed)
-* **Executable path**: Example: :code:`./bin/alamo-2d-clang++`
-* **Input file path**: Specify the input file for Alamo
-
-.. NOTE::
-
-   Iowa State University provides a `Slurm job script generator for Nova <https://www.hpc.iastate.edu/guides/nova/slurm-script-generator-for-nova>`_, which can help generate job scripts.
-
-Nova uses a *fair-share scheduling system* to prioritize job execution based on requested resources and past usage. To reduce wait times, request only necessary resources and set reasonable time limits.
-
-Slurm automatically determines the number of cores based on the :code:`--nodes` and :code:`--ntasks-per-node` values. Refer to the `Nova hardware guide <https://www.hpc.iastate.edu/guides/nova>`_ for appropriate values.
-
-Once modifications are made, submit the job with `sbatch <https://slurm.schedmd.com/sbatch.html>`_:
-
-.. code-block:: bash
-
-   sbatch /path/to/job_script.sh
 
