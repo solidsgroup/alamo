@@ -5,6 +5,8 @@
 #include "Util/ScimitarX_Util.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Model/Fluid/Fluid.H"
+#include "IO/ParmParse.H"
+#include "AMReX_Parser.H"
 
 namespace IC {
 
@@ -21,7 +23,16 @@ Shock::Shock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::stri
     initialize(pp, name);
 }
 
-void Shock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) {
+// Main Add method that delegates to the appropriate implementation
+void Shock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar time) {
+    if (use_expressions) {
+        AddExpression(lev, a_phi, time);
+    } else {
+        AddConstant(lev, a_phi, time);
+    }
+}
+
+void Shock::AddConstant(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) {
     int ncomp = a_phi[0]->nComp();
 
     for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
@@ -94,6 +105,128 @@ void Shock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) {
                 }
             });
         }
+    }
+}
+
+// Implementation for expression-based initialization
+void Shock::AddExpression(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar time) {
+    int ncomp = a_phi[0]->nComp();
+
+    for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        amrex::Box bx = mfi.growntilebox();
+        amrex::IndexType type = a_phi[lev]->ixType();
+
+        amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
+
+        // Retrieve variable indices
+        int dens_idx = requires_variable_indices ? variable_indices->DENS : -1;
+        int uvel_idx = requires_variable_indices ? variable_indices->UVEL : -1;
+#if AMREX_SPACEDIM >= 2
+        int vvel_idx = requires_variable_indices ? variable_indices->VVEL : -1;
+#endif
+#if AMREX_SPACEDIM == 3
+        int wvel_idx = requires_variable_indices ? variable_indices->WVEL : -1;
+#endif
+        int ie_idx = requires_variable_indices ? variable_indices->IE : -1;
+
+        Model::Fluid::Fluid fluid_model;
+        Set::Scalar gamma = 1.4;
+
+        // Use the pre-computed direction index for efficiency
+        int dir_idx = direction_index;
+        const std::size_t num_zones = zone_lower_bounds.size();
+
+        for (int n = 0; n < ncomp; ++n) {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                
+                for (std::size_t idx = 0; idx < num_zones; ++idx) {
+                    if (x(dir_idx) >= zone_lower_bounds[idx] && x(dir_idx) < zone_upper_bounds[idx]) {
+                        if (mf_name == "ic.shock.pvec") {
+                            if (n == dens_idx) {
+                                #if AMREX_SPACEDIM == 1
+                                phi(i, j, k, n) = density_func[idx](x(0), 0.0, 0.0, time);
+                                #elif AMREX_SPACEDIM == 2
+                                phi(i, j, k, n) = density_func[idx](x(0), x(1), 0.0, time);
+                                #elif AMREX_SPACEDIM == 3
+                                phi(i, j, k, n) = density_func[idx](x(0), x(1), x(2), time);
+                                #endif
+                            }
+                            else if (n == uvel_idx) {
+                                #if AMREX_SPACEDIM == 1
+                                phi(i, j, k, n) = uvel_func[idx](x(0), 0.0, 0.0, time);
+                                #elif AMREX_SPACEDIM == 2
+                                phi(i, j, k, n) = uvel_func[idx](x(0), x(1), 0.0, time);
+                                #elif AMREX_SPACEDIM == 3
+                                phi(i, j, k, n) = uvel_func[idx](x(0), x(1), x(2), time);
+                                #endif
+                            }
+#if AMREX_SPACEDIM >= 2
+                            else if (n == vvel_idx) {
+                                #if AMREX_SPACEDIM == 2
+                                phi(i, j, k, n) = vvel_func[idx](x(0), x(1), 0.0, time);
+                                #elif AMREX_SPACEDIM == 3
+                                phi(i, j, k, n) = vvel_func[idx](x(0), x(1), x(2), time);
+                                #endif
+                            }
+#endif
+#if AMREX_SPACEDIM == 3
+                            else if (n == wvel_idx) {
+                                phi(i, j, k, n) = wvel_func[idx](x(0), x(1), x(2), time);
+                            }
+#endif
+                            else if (n == ie_idx) {
+                                // For internal energy, compute from pressure and density
+                                #if AMREX_SPACEDIM == 1
+                                Set::Scalar tmp_density = density_func[idx](x(0), 0.0, 0.0, time);
+                                Set::Scalar tmp_pressure = pressure_func[idx](x(0), 0.0, 0.0, time);
+                                #elif AMREX_SPACEDIM == 2
+                                Set::Scalar tmp_density = density_func[idx](x(0), x(1), 0.0, time);
+                                Set::Scalar tmp_pressure = pressure_func[idx](x(0), x(1), 0.0, time);
+                                #elif AMREX_SPACEDIM == 3
+                                Set::Scalar tmp_density = density_func[idx](x(0), x(1), x(2), time);
+                                Set::Scalar tmp_pressure = pressure_func[idx](x(0), x(1), x(2), time);
+                                #endif
+
+                                phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(
+                                    tmp_density, tmp_pressure, gamma);
+                            }
+                        } else if (mf_name == "ic.shock.pressure") {
+                            #if AMREX_SPACEDIM == 1
+                            phi(i, j, k, n) = pressure_func[idx](x(0), 0.0, 0.0, time);
+                            #elif AMREX_SPACEDIM == 2
+                            phi(i, j, k, n) = pressure_func[idx](x(0), x(1), 0.0, time);
+                            #elif AMREX_SPACEDIM == 3
+                            phi(i, j, k, n) = pressure_func[idx](x(0), x(1), x(2), time);
+                            #endif
+                        }
+                        break;
+                    }
+                }
+            });
+        }
+    }
+}
+
+// Helper method to compile a parser from an expression string
+void Shock::SetupParser(std::vector<amrex::Parser>& parser,
+                        std::vector<amrex::ParserExecutor<4>>& func,
+                        const std::vector<std::string>& expr_list,
+                        const std::set<std::pair<std::string, Set::Scalar>>& constants) {
+    
+    parser.clear();
+    func.clear();
+    
+    for (const auto& expr : expr_list) {
+        parser.push_back(amrex::Parser(expr));
+        
+        // Add constants
+        for (const auto& [name, value] : constants) {
+            parser.back().setConstant(name, value);
+        }
+        
+        parser.back().registerVariables({"x", "y", "z", "t"});
+        func.push_back(parser.back().compile<4>());
     }
 }
 
@@ -185,68 +318,163 @@ void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
         }
     }
 
-    if (mf_name.find("pvec") != std::string::npos ) {
-        pp.queryarr("ic.shock.pvec.density", density_zone);
-        pp.queryarr("ic.shock.pvec.uvel", uvel_zone);
-#if AMREX_SPACEDIM >= 2
-        pp.queryarr("ic.shock.pvec.vvel", vvel_zone);
-#endif
-#if AMREX_SPACEDIM == 3
-        pp.queryarr("ic.shock.pvec.wvel", wvel_zone);
-#endif
-        // Prevent segfault 
-        pp.queryarr("ic.shock.pressure", pressure_zone);
+    // Check if expressions should be used
+    pp.query("ic.shock.use_expressions", use_expressions);
 
-        // Ensure all zone arrays have the correct size
-        size_t num_zones = shock_positions.size() + 1;
-        if (uvel_zone.size() != num_zones ||
-#if AMREX_SPACEDIM >= 2
-            vvel_zone.size() != num_zones ||
-#endif
-#if AMREX_SPACEDIM == 3
-            wvel_zone.size() != num_zones ||
-#endif
-            density_zone.size() != num_zones ) {
-            Util::Abort(INFO, "Zone arrays have incorrect size for ic.shock.pvec");
-        }
+    // Collect parser constants upfront
+    std::set<std::pair<std::string, Set::Scalar>> constants;
+    if (use_expressions) {
 
-        Util::Message(INFO, "DEBUG: Parsed ic.shock.pvec values:");
-        Set::Scalar xmin = geom[0].ProbLo()[0];
-        Set::Scalar xmax = geom[0].ProbHi()[0];
-        for (size_t i = 0; i < num_zones; ++i) {
-            Set::Scalar lower = (i == 0) ? xmin : shock_positions[i - 1];
-            Set::Scalar upper = (i == shock_positions.size()) ? xmax : shock_positions[i];
-            Util::Message(INFO, "  Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
-            Util::Message(INFO, "    Density = " + std::to_string(density_zone[i]));
-            Util::Message(INFO, "    u = " + std::to_string(uvel_zone[i]));
-#if AMREX_SPACEDIM >= 2
-            Util::Message(INFO, "    v = " + std::to_string(vvel_zone[i]));
-#endif
-#if AMREX_SPACEDIM == 3
-            Util::Message(INFO, "    w = " + std::to_string(wvel_zone[i]));
-#endif
+        std::string prefix = "ic.shock.expressions.constant";
+        std::set<std::string> entries = pp.getEntries(prefix);
+
+        for (const auto& entry : entries) {
+            std::string fullname = entry;
+            Set::Scalar val = NAN;
+            pp.query(fullname.c_str(), val);
             
-        }
-    } else if (mf_name == "ic.shock.pressure") {
-        pp.queryarr("ic.shock.pressure", pressure_zone);
-
-        // Ensure pressure_zone has the correct size
-        size_t num_zones = shock_positions.size() + 1;
-        if (pressure_zone.size() != num_zones) {
-            Util::Abort(INFO, "Pressure zone array has incorrect size for ic.shock.pressure");
-        } 
-
-
-        Util::Message(INFO, "DEBUG: Parsed ic.shock.pressure values:");
-        Set::Scalar xmin = geom[0].ProbLo()[0];
-        Set::Scalar xmax = geom[0].ProbHi()[0];
-        for (size_t i = 0; i < num_zones; ++i) {
-            Set::Scalar lower = (i == 0) ? xmin : shock_positions[i - 1];
-            Set::Scalar upper = (i == shock_positions.size()) ? xmax : shock_positions[i];
-            Util::Message(INFO, "  Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
-            Util::Message(INFO, "    Pressure = " + std::to_string(pressure_zone[i]));
+            std::size_t lastDot = fullname.find_last_of('.');
+            std::string constant_name = fullname.substr(lastDot + 1);
+            
+            constants.insert({constant_name, val});
+            Util::Message(INFO, "Added constant: " + constant_name + " = " + std::to_string(val));
         }
     }
+
+    if (mf_name.find("pvec") != std::string::npos) {
+        if (use_expressions) {
+            // Read expression arrays directly like constant arrays
+            pp.queryarr("ic.shock.expressions.pvec.density", density_expr);
+            pp.queryarr("ic.shock.expressions.pvec.uvel", uvel_expr);
+#if AMREX_SPACEDIM >= 2
+            pp.queryarr("ic.shock.expressions.pvec.vvel", vvel_expr);
+#endif
+#if AMREX_SPACEDIM == 3
+            pp.queryarr("ic.shock.expressions.pvec.wvel", wvel_expr);
+#endif
+            pp.queryarr("ic.shock.expressions.pressure", pressure_expr);
+
+            // Validate array sizes
+            if (density_expr.size() != num_zones ||
+                uvel_expr.size() != num_zones ||
+#if AMREX_SPACEDIM >= 2
+                vvel_expr.size() != num_zones ||
+#endif
+#if AMREX_SPACEDIM == 3
+                wvel_expr.size() != num_zones ||
+#endif
+                pressure_expr.size() != num_zones) {
+                Util::Abort(INFO, "Expression arrays have incorrect size for ic.shock.pvec expressions");
+            }
+
+            // Set up parsers and executors
+            SetupParser(density_parser, density_func, density_expr, constants);
+            SetupParser(uvel_parser, uvel_func, uvel_expr, constants);
+#if AMREX_SPACEDIM >= 2
+            SetupParser(vvel_parser, vvel_func, vvel_expr, constants);
+#endif
+#if AMREX_SPACEDIM == 3
+            SetupParser(wvel_parser, wvel_func, wvel_expr, constants);
+#endif
+            SetupParser(pressure_parser, pressure_func, pressure_expr, constants);
+
+            // Log the expressions for debugging
+            Util::Message(INFO, "DEBUG: Parsed ic.shock.pvec expressions:");
+            for (size_t i = 0; i < num_zones; ++i) {
+                Set::Scalar lower = (i == 0) ? domain_min[direction_index] : shock_positions[i - 1];
+                Set::Scalar upper = (i == shock_positions.size()) ? domain_max[direction_index] : shock_positions[i];
+                Util::Message(INFO, "Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
+                Util::Message(INFO, "  Density expression = " + density_expr[i]);
+                Util::Message(INFO, "  u expression = " + uvel_expr[i]);
+#if AMREX_SPACEDIM >= 2
+                Util::Message(INFO, "  v expression = " + vvel_expr[i]);
+#endif
+#if AMREX_SPACEDIM == 3
+                Util::Message(INFO, "  w expression = " + wvel_expr[i]);
+#endif
+                Util::Message(INFO, "  Pressure expression = " + pressure_expr[i]);
+            }
+        } else {
+            // Original implementation - read arrays of constant values
+            pp.queryarr("ic.shock.pvec.density", density_zone);
+            pp.queryarr("ic.shock.pvec.uvel", uvel_zone);
+#if AMREX_SPACEDIM >= 2
+            pp.queryarr("ic.shock.pvec.vvel", vvel_zone);
+#endif
+#if AMREX_SPACEDIM == 3
+            pp.queryarr("ic.shock.pvec.wvel", wvel_zone);
+#endif
+            pp.queryarr("ic.shock.pressure", pressure_zone);
+
+            // Ensure all zone arrays have the correct size
+            if (density_zone.size() != num_zones ||
+                uvel_zone.size() != num_zones ||
+#if AMREX_SPACEDIM >= 2
+                vvel_zone.size() != num_zones ||
+#endif
+#if AMREX_SPACEDIM == 3
+                wvel_zone.size() != num_zones ||
+#endif
+                pressure_zone.size() != num_zones) {
+                Util::Abort(INFO, "Zone arrays have incorrect size for ic.shock.pvec");
+            }
+
+            Util::Message(INFO, "DEBUG: Parsed ic.shock.pvec values:");
+            for (size_t i = 0; i < num_zones; ++i) {
+                Set::Scalar lower = (i == 0) ? domain_min[direction_index] : shock_positions[i - 1];
+                Set::Scalar upper = (i == shock_positions.size()) ? domain_max[direction_index] : shock_positions[i];
+                Util::Message(INFO, "  Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
+                Util::Message(INFO, "    Density = " + std::to_string(density_zone[i]));
+                Util::Message(INFO, "    u = " + std::to_string(uvel_zone[i]));
+#if AMREX_SPACEDIM >= 2
+                Util::Message(INFO, "    v = " + std::to_string(vvel_zone[i]));
+#endif
+#if AMREX_SPACEDIM == 3
+                Util::Message(INFO, "    w = " + std::to_string(wvel_zone[i]));
+#endif
+                Util::Message(INFO, "    Pressure = " + std::to_string(pressure_zone[i]));
+            }
+        }
+    } else if (mf_name == "ic.shock.pressure") {
+        if (use_expressions) {
+            // Read expression array directly like constant array
+            pp.queryarr("ic.shock.expressions.pressure", pressure_expr);
+
+            // Validate array size
+            if (pressure_expr.size() != num_zones) {
+                Util::Abort(INFO, "Pressure expression array has incorrect size for ic.shock.pressure");
+            }
+
+            // Set up parser and executor
+            SetupParser(pressure_parser, pressure_func, pressure_expr, constants);
+
+            // Log the expressions for debugging
+            Util::Message(INFO, "DEBUG: Parsed ic.shock.pressure expressions:");
+            for (size_t i = 0; i < num_zones; ++i) {
+                Set::Scalar lower = (i == 0) ? domain_min[direction_index] : shock_positions[i - 1];
+                Set::Scalar upper = (i == shock_positions.size()) ? domain_max[direction_index] : shock_positions[i];
+                Util::Message(INFO, "  Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
+                Util::Message(INFO, "    Pressure expression = " + pressure_expr[i]);
+            }
+        } else {
+            // Original implementation - read array of constant values
+            pp.queryarr("ic.shock.pressure", pressure_zone);
+
+            // Ensure pressure_zone has the correct size
+            if (pressure_zone.size() != num_zones) {
+                Util::Abort(INFO, "Pressure zone array has incorrect size for ic.shock.pressure");
+            } 
+
+            Util::Message(INFO, "DEBUG: Parsed ic.shock.pressure values:");
+            for (size_t i = 0; i < num_zones; ++i) {
+                Set::Scalar lower = (i == 0) ? domain_min[direction_index] : shock_positions[i - 1];
+                Set::Scalar upper = (i == shock_positions.size()) ? domain_max[direction_index] : shock_positions[i];
+                Util::Message(INFO, "  Zone[" + std::to_string(i) + "]: from " + std::to_string(lower) + " to " + std::to_string(upper));
+                Util::Message(INFO, "    Pressure = " + std::to_string(pressure_zone[i]));
+            }
+        }
+    }
+
 }
 
 }  // namespace IC
