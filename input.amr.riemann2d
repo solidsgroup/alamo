@@ -17,15 +17,15 @@ amr.max_grid_size = 32
 amr.n_error_buf = 1  # 1-cell buffer around tagged regions
 
 # Specify geometry and unrefined mesh
-geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1.12 0.08 1  # Set height proportionally to match reduced y-cells
+geometry.prob_lo = -0.5 -0.5 0
+geometry.prob_hi = 0.5 0.5 1  # Set height proportionally to match reduced y-cells
 geometry.is_periodic = 0 0 0
 
 #SolverType
 SolverType = SolveCompressibleEuler
 
 #cflNumber
-cflNumber = 0.6
+cflNumber = 0.8
 
 #TimeSteppingScheme
 TimeSteppingScheme = RK3
@@ -45,21 +45,29 @@ ReconstructionMode = Characteristic
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
-ic.pvec.type = sodshock
-ic.pvec.sodshock.left.DENS = 1.0
-ic.pvec.sodshock.right.DENS = 0.125
-ic.pvec.sodshock.left.UVEL = 0.0
-ic.pvec.sodshock.right.UVEL = 0.0
-ic.pvec.sodshock.left.VVEL = 0.0
-ic.pvec.sodshock.right.VVEL = 0.0
+ic.pvec.type = riemann2d
+ic.riemann2d.pvec.q1.DENS = 1.5
+ic.riemann2d.pvec.q2.DENS = 0.5323
+ic.riemann2d.pvec.q3.DENS = 0.138
+ic.riemann2d.pvec.q4.DENS = 0.5323
+ic.riemann2d.pvec.q1.UVEL = 0.0
+ic.riemann2d.pvec.q2.UVEL = 1.206
+ic.riemann2d.pvec.q3.UVEL = 1.206
+ic.riemann2d.pvec.q4.UVEL = 0.0
+ic.riemann2d.pvec.q1.VVEL = 0.0
+ic.riemann2d.pvec.q2.VVEL = 0.0
+ic.riemann2d.pvec.q3.VVEL = 1.206
+ic.riemann2d.pvec.q4.VVEL = 1.206
 
 # Pressure
-ic.pressure.type = sodshock
-ic.pressure.sodshock.left = 1.0
-ic.pressure.sodshock.right = 0.1
+ic.pressure.type = riemann2d
+ic.riemann2d.pressure.q1 = 1.5
+ic.riemann2d.pressure.q2 = 0.3
+ic.riemann2d.pressure.q3 = 0.029
+ic.riemann2d.pressure.q4 = 0.3
 
 # Shock position
-shock.xpos = 0.5
+shock.xpos = 0.0
 shock.ypos = 0.0
 shock.zpos = 0.0
 

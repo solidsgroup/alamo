@@ -99,14 +99,9 @@ void Shock::Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar) {
 
 void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
     std::string type = "shock";
-    pp.query(name.c_str(), type);
     mf_name = name;
 
-    Util::Message(INFO, "Initializing SodShock with mf_name = " + mf_name);
-
-    if (type != "shock") {
-        Util::Abort(INFO, "Unknown type in input: " + type);
-    }
+    Util::Message(INFO, "Initializing Shock IC with mf_name = " + mf_name);
     
     // Parse common parameters for both PVec and Pressure
     number_of_shocks = 0; // Default to zero
