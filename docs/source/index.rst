@@ -84,6 +84,77 @@ Documentation for alamo
         :bdg-danger-line:`Required reading for all developers`
         
 
+
+References
+==========
+
+
+.. bibliography:: 
+   :list: bullet
+   :all:
+
+
+
+
+Sponsors
+========
+
+The development team gratefully acknowledges the funding sources that enable the development and extension of Alamo.
+
+.. grid:: 1 2 1 2
+    :gutter: 3
+           
+    .. grid-item-card::
+        
+        **Office of Naval Research**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://www.solids.group/wp-content/uploads/2021/12/onr.png
+             :alt: onr
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *Mesoscale and continuum modeling of solid-phase propellant coupled to gas-phase to determine continuum burn rates in AP/HTPB*
+
+    .. grid-item-card::
+        
+        **National Science Foundation**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://www.solids.group/wp-content/uploads/2022/01/nsfcareer.png
+             :alt: national science foundation
+             :width: 100%
+             :align: center
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *CAREER: A multichannel convolutional neural network framework for prediction of damage nucleation sites in microstructure*
+
+    .. grid-item-card::
+        
+        **National Science Foundation**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://www.solids.group/wp-content/uploads/2021/12/nsf.png
+             :alt: national science foundation
+             :width: 100%
+             :align: center
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *MRI: Acquisition of a high performance computing cluster for next-generation computational science in Southern Colorado*
+
+    .. grid-item-card::
+        
+        **Berkeley Lab**
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        .. image:: https://www.solids.group/wp-content/uploads/2021/12/lbl.png
+             :alt: lawrence berkeley national lab
+             :width: 100%
+             :align: center
+
+        ++++++++++++++++++++++++++++++++++++++++++++++
+        *Extending the capability of the AMReX MLMG nodal solver*
+    
+
 .. dropdown:: Table of contents
 
 
@@ -97,8 +168,7 @@ Documentation for alamo
         Tests
         Inputs
         InputsSearch
-	Developers
-
-
-
-
+        InputIndex
+        Developers
+        Questions
+        Builder

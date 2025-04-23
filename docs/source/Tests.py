@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import annotations
 import os 
 import glob
 import re
@@ -7,6 +8,7 @@ from os.path import isfile, join
 import io
 import configparser
 from collections import OrderedDict
+from pathlib import Path
 
 
 #
@@ -19,6 +21,29 @@ class MultiOrderedDict(OrderedDict):
         else:
             super().__setitem__(key, value)
 
+
+def find_files_ignore_case(target_dir: Path, file_name: str) -> list[Path]:
+    """Get paths in `target_dir` that match `file_name`, ignoring case.
+
+    Parameters
+    ----------
+    target_dir
+        The directory to search for matching files.
+    file_name
+        The file name to search for in `target_dir`.
+
+    Returns
+    -------
+    list[Path]
+        File paths that match `file_name` in `target_dir`.
+
+    """
+    try:
+        return [f for f in target_dir.iterdir()
+            if f.name.lower() == file_name.lower() and Path.is_file(f)]
+    except OSError:
+        print(f"'{target_dir}' is not a directory or otherwise inaccessible.")
+        return []
 
 #def icon(str)
 
@@ -51,7 +76,7 @@ docfile.write(r"""
 
 docfile.write("\n\n")
 
-docfile.write(".. flat-table:: \n")
+docfile.write(".. list-table:: \n")
 docfile.write("    :widths: 3 15 10 10 10\n")
 docfile.write("    :header-rows: 1\n\n")
 docfile.write("    * - Status\n")
@@ -72,7 +97,10 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     testname = os.path.basename(testdirname)
 
     if not os.path.isfile(testdirname+"/input"):
-        docfile.write("    * - :icon-red:`error`\n\n")
+        docfile.write("    * - :fas:`circle-xmark;sd-text-danger fa-fw fa-lg`\n\n")
+        docfile.write("      - {}\n\n".format(testname))
+        docfile.write("      - {}\n\n".format(testname))
+        docfile.write("      - {}\n\n".format(testname))
         docfile.write("      - {}\n\n".format(testname))
         continue
 
@@ -92,14 +120,16 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
 
+    readmes = find_files_ignore_case(Path(testdirname), "README.rst")
+
     if len(config) <= 1:
-        docfile.write("    * - :icon-gray:`warning`\n\n")
-        if os.path.isfile(testdirname+"/Readme.rst"):
+        docfile.write("    * - :fas:`triangle-exclamation;sd-text-secondary fa-fw fa-lg`\n")
+        if readmes:
             docfile.write("      - :ref:`{}`\n".format(testname))
         else: 
             docfile.write("      - {}\n\n".format(testname))
     else:
-        docfile.write("    * - :icon-green:`check_circle`\n\n")
+        docfile.write("    * - :fas:`circle-check;sd-text-success fa-fw fa-lg`\n")
         docfile.write("      - :ref:`{}`\n".format(testname))
         docfile.write("      - {}\n".format(str(len(config)-1)))
     
@@ -111,15 +141,20 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                 if config[c]["dim"] == "3": has3D = True
         
         dimstr = ""
-        if has2D: dimstr += ":icon:`2d` "
-        if has3D: dimstr += ":icon:`3d_rotation` "
+        if has2D: dimstr += ":fas:`maximize;fa-fw fa-lg sd-text-secondary` "
+        if has3D: dimstr += ":fab:`unity;fa-fw fa-lg sd-text-secondary` "
         docfile.write("      - {}\n".format(dimstr))
         
         if os.path.isfile(testdirname+"/test"):
-            docfile.write("      - :icon-green:`verified`\n")
+            docfile.write("      - :fas:`medal;fa-fw fa-lg sd-text-secondary`\n")
+        else:
+            docfile.write("      - \n")
         docfile.write("\n")
 
-    if len(config) <= 1 and not os.path.isfile(testdirname+"/Readme.rst"):
+    if len(config) <= 1 and len(readmes) == 0:
+        docfile.write("      - \n")
+        docfile.write("      - \n")
+        docfile.write("      - \n")
         continue
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)
@@ -127,16 +162,21 @@ for testdirname in sorted(glob.glob("../../tests/*")):
         testdocfile.write(testname + "\n")
         testdocfile.write("="*len(testname) + "\n")
 
-        if os.path.isfile(testdirname+"/Readme.rst"):
-            testdocfile.write(".. include:: ../{}/Readme.rst\n\n\n".format(testdirname))
+        for readme in readmes:
+            testdocfile.write(
+                f".. include:: ../{testdirname}/{readme.name}\n"
+            )
+        if readmes:
+            testdocfile.write("\n\n")
 
         for c in config:
             if c == "DEFAULT": continue
-            testsectionname = "[{}] {}".format(testname,c)
+            #testsectionname = "[{}] {}".format(testname,c)
+            testsectionname = c
             testdocfile.write(testsectionname+"\n")
             testdocfile.write("-"*len(testsectionname)+"\n")
 
-            testdocfile.write(".. flat-table:: \n")
+            testdocfile.write(".. list-table:: \n")
             testdocfile.write("    :widths: 10 90\n")
             testdocfile.write("    :header-rows: 0\n\n")
 
@@ -144,38 +184,45 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             # DIMENSION
             #
             if config[c]["dim"] == "2":
-                testdocfile.write("    * - :icon:`2d`\n")
+                #testdocfile.write("    * - :icon:`2d`\n")
+                testdocfile.write("    * - :fas:`maximize;fa-fw fa-lg`\n")
                 testdocfile.write("      - Two-dimensional\n")
             else:
                 config[c]["dim"] = "3"
-                testdocfile.write("    * - :icon:`3d_rotation`\n")
+                #testdocfile.write("    * - :icon:`3d_rotation`\n")
+                testdocfile.write("    * - :fab:`unity;fa-fw fa-lg`\n")
                 testdocfile.write("      - Three-dimensional\n")
 
             #
             # PARALLELISM
             #
             if "nprocs" in config[c] and int(config[c]["nprocs"]) > 1:
-                testdocfile.write("    * - :icon:`grid_view`\n")
+                #testdocfile.write("    * - :icon:`grid_view`\n")
+                testdocfile.write("    * - :fas:`cubes;fa-fw fa-lg`\n")
                 testdocfile.write("      - Parallel ({} procs)\n".format(config[c]["nprocs"]))
             else:
-                testdocfile.write("    * - :icon:`square`\n")
+                #testdocfile.write("    * - :icon:`square`\n")
+                testdocfile.write("    * - :fas:`cube;fa-fw fa-lg`\n")
                 testdocfile.write("      - Serial\n")
             
             #
             # TESTING OR NOT TESTING
             #
             if not os.path.isfile("{}/test".format(testdirname)) or ("checK" in config[c] and config[c]["check"] in {"no","No","false","False","0"}):
-                testdocfile.write("    * - :icon:`report_off`\n")
-                testdocfile.write("      - No testing script\n")
+                #testdocfile.write("    * - :icon:`report_off`\n")
+                testdocfile.write("    * - :fas:`question;fa-fw fa-lg`\n")
+                testdocfile.write("      - Not validated\n")
             else:
-                testdocfile.write("    * - :icon:`verified`\n")
-                testdocfile.write("      - Testing script present\n")
+                #testdocfile.write("    * - :icon:`verified`\n")
+                testdocfile.write("    * - :fas:`medal;fa-fw fa-lg`\n")
+                testdocfile.write("      - Validated using check script\n")
 
             #
             # BENCHMARK TIME
             #
             if any(["benchmark-" in key for key in config[c]]):
-                testdocfile.write("    * - :icon:`timer`\n")
+                #testdocfile.write("    * - :icon:`timer`\n")
+                testdocfile.write("    * - :fas:`stopwatch;fa-fw fa-lg`\n")
                 testdocfile.write("      - ")
                 for key in config[c]:
                     if "benchmark-" in key:
@@ -184,17 +231,21 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                         testdocfile.write(config[c][key] + "s ({}) ".format(key.replace("benchmark-","")))
                 testdocfile.write("\n")
 
-            testdocfile.write("    * - :icon:`play_circle`\n")
+            #testdocfile.write("    * - :icon:`play_circle`\n")
+            testdocfile.write("    * - :fas:`circle-play;fa-fw fa-lg`\n")
             cmd = ""
             if "nprocs" in config[c] and int(config[c]["nprocs"]) > 1:
                 cmd += "mpiexec -np {} ".format(config[c]["nprocs"])
-            cmd += "./bin/alamo-{}d-g++".format(config[c]["dim"])
+            exe = "alamo"
+            if "exe" in config[c]: exe = config[c]["exe"]
+            cmd += "./bin/{}-{}d-g++".format(exe,config[c]["dim"])
             cmd += " {}/input".format(testdirname.replace("../../",""))
             if "args" in config[c]:
                 cmd += " "
                 cmdargs = [s.replace("= ","=").replace(" =","=") for s in config[c]["args"].split("\n")]
-                cmd += " ".join(['{}="{}"'.format(s.split('=')[0], s.split('=')[1]) for s in cmdargs])
-                print(cmd)
+                for s in cmdargs:
+                    if len(s.split('=')) == 2:
+                        cmd += ' {}="{}"'.format(s.split('=')[0], s.split('=')[1])
             if "ignore" in config[c]:
                 cmd += ' ignore="{}"'.format(config[c]["ignore"])
 

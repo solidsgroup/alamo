@@ -1,3 +1,4 @@
+Record_*
 Backtrace*
 *.mpg
 *.o
@@ -39,3 +40,16 @@ amrex.build.log
 eigen3
 IAMR
 obj
+cov
+githubpages
+ext/
+*_BACKUP_*
+*_BASE_*
+*_LOCAL_*
+*_REMOTE_*
+compile_commands.json
+.cache/
+.python-version
+.pyright-override.toml
+.clangd
+.DS_Store
