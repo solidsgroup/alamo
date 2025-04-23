@@ -82,6 +82,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         if (type == "constant") value.ic_alpha = new IC::Constant(value.geom, pp, "alpha.ic.constant");
         else if (type == "expression") value.ic_alpha = new IC::Expression(value.geom, pp, "alpha.ic.expression");
         else if (type == "random") value.ic_alpha = new IC::Random(value.geom, pp, "alpha.ic.random");
+        else if (type == "psread") value.ic_alpha = new IC::PSRead(value.geom, pp, "alpha.ic.psread");
         else Util::Abort(INFO, "Invalid alpha.ic ", type);
     }
 

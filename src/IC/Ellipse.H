@@ -138,10 +138,12 @@ public:
             value.A.resize(0);
             value.eps.resize(0);
 
-            pp.queryarr("center", x0); // center of the ellipse
+            pp.queryarr("x0", x0); // center of the ellipse
             
-            if(x0.size() != value.number_of_inclusions*AMREX_SPACEDIM)
-                Util::Abort(INFO, "Need centers for all the inclusions");
+            if(x0.size() != value.number_of_inclusions*AMREX_SPACEDIM){
+                Util::Message(INFO, value.number_of_inclusions*AMREX_SPACEDIM);
+                Util::Message(INFO, x0.size());
+                Util::Abort(INFO, "Need centers for all the inclusions");}
             for (int i = 0; i < x0.size(); i+= AMREX_SPACEDIM)
                 value.center.push_back(Set::Vector(AMREX_D_DECL(x0[i],x0[i+1],x0[i+2])));
 
@@ -200,6 +202,7 @@ public:
                     }
                 }
             }
+
 
             amrex::Vector<Set::Scalar> _eps;
             pp.queryarr("eps",_eps); // Regularization for smooth boundary
