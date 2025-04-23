@@ -163,37 +163,37 @@ private:
 
         if (name.find("pvec") != std::string::npos) {
             // Parse density values for each quadrant
-            pp.query("ic.riemann2d.pvec.q1.DENS", q1_density);
-            pp.query("ic.riemann2d.pvec.q2.DENS", q2_density);
-            pp.query("ic.riemann2d.pvec.q3.DENS", q3_density);
-            pp.query("ic.riemann2d.pvec.q4.DENS", q4_density);
+            pp.query("ic.riemann2d.pvec.q1.DENS", q1_density); // density in quadrant I
+            pp.query("ic.riemann2d.pvec.q2.DENS", q2_density); // density in quadrant II
+            pp.query("ic.riemann2d.pvec.q3.DENS", q3_density); // density in quadrant III
+            pp.query("ic.riemann2d.pvec.q4.DENS", q4_density); // density in quadrant IV
 
             // Parse velocity values for each quadrant
-            pp.query("ic.riemann2d.pvec.q1.UVEL", q1_velocity[0]);
-            pp.query("ic.riemann2d.pvec.q2.UVEL", q2_velocity[0]);
-            pp.query("ic.riemann2d.pvec.q3.UVEL", q3_velocity[0]);
-            pp.query("ic.riemann2d.pvec.q4.UVEL", q4_velocity[0]);
+            pp.query("ic.riemann2d.pvec.q1.UVEL", q1_velocity[0]); // U-velocity in quadrant I
+            pp.query("ic.riemann2d.pvec.q2.UVEL", q2_velocity[0]); // U-velocity in quadrant II
+            pp.query("ic.riemann2d.pvec.q3.UVEL", q3_velocity[0]); // U-velocity in quadrant III
+            pp.query("ic.riemann2d.pvec.q4.UVEL", q4_velocity[0]); // U-velocity in quadrant IV
 
 #if AMREX_SPACEDIM >= 2
-            pp.query("ic.riemann2d.pvec.q1.VVEL", q1_velocity[1]);
-            pp.query("ic.riemann2d.pvec.q2.VVEL", q2_velocity[1]);
-            pp.query("ic.riemann2d.pvec.q3.VVEL", q3_velocity[1]);
-            pp.query("ic.riemann2d.pvec.q4.VVEL", q4_velocity[1]);
+            pp.query("ic.riemann2d.pvec.q1.VVEL", q1_velocity[1]); // V-velocity in quadrant I
+            pp.query("ic.riemann2d.pvec.q2.VVEL", q2_velocity[1]); // V-velocity in quadrant II
+            pp.query("ic.riemann2d.pvec.q3.VVEL", q3_velocity[1]); // V-velocity in quadrant III
+            pp.query("ic.riemann2d.pvec.q4.VVEL", q4_velocity[1]); // V-velocity in quadrant IV
 #endif
 
 #if AMREX_SPACEDIM == 3
             // Default z-velocity to zero if not specified
-            pp.query("ic.riemann2d.pvec.q1.WVEL", q1_velocity[2]);
-            pp.query("ic.riemann2d.pvec.q2.WVEL", q2_velocity[2]);
-            pp.query("ic.riemann2d.pvec.q3.WVEL", q3_velocity[2]);
-            pp.query("ic.riemann2d.pvec.q4.WVEL", q4_velocity[2]);
+            pp.query("ic.riemann2d.pvec.q1.WVEL", q1_velocity[2]); // W-velocity in quadrant I
+            pp.query("ic.riemann2d.pvec.q2.WVEL", q2_velocity[2]); // W-velocity in quadrant II
+            pp.query("ic.riemann2d.pvec.q3.WVEL", q3_velocity[2]); // W-velocity in quadrant III
+            pp.query("ic.riemann2d.pvec.q4.WVEL", q4_velocity[2]); // W-velocity in quadrant IV
 #endif
 
             // Parse pressure values for internal energy calculation
-            pp.query("ic.riemann2d.pressure.q1", q1_pressure);
-            pp.query("ic.riemann2d.pressure.q2", q2_pressure);
-            pp.query("ic.riemann2d.pressure.q3", q3_pressure);
-            pp.query("ic.riemann2d.pressure.q4", q4_pressure);
+            pp.query("ic.riemann2d.pressure.q1", q1_pressure); // pressure in quadrant I
+            pp.query("ic.riemann2d.pressure.q2", q2_pressure); // pressure in quadrant II
+            pp.query("ic.riemann2d.pressure.q3", q3_pressure); // pressure in quadrant III
+            pp.query("ic.riemann2d.pressure.q4", q4_pressure); // pressure in quadrant IV
 
             // Debug output
             Util::Message(INFO, "Parsed Riemann2D parameters for pvec:");
@@ -216,10 +216,10 @@ private:
         } 
         else if (name.find("pressure") != std::string::npos) {
             // Parse pressure values only
-            pp.query("ic.riemann2d.pressure.q1", q1_pressure);
-            pp.query("ic.riemann2d.pressure.q2", q2_pressure);
-            pp.query("ic.riemann2d.pressure.q3", q3_pressure);
-            pp.query("ic.riemann2d.pressure.q4", q4_pressure);
+            pp.query("ic.riemann2d.pressure.q1", q1_pressure); // pressure in quadrant I
+            pp.query("ic.riemann2d.pressure.q2", q2_pressure); // pressure in quadrant II
+            pp.query("ic.riemann2d.pressure.q3", q3_pressure); // pressure in quadrant III
+            pp.query("ic.riemann2d.pressure.q4", q4_pressure); // pressure in quadrant IV
 
             // Debug output
             Util::Message(INFO, "Parsed Riemann2D parameters for pressure:");

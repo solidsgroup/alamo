@@ -238,11 +238,11 @@ void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
     
     // Parse common parameters for both PVec and Pressure
     number_of_shocks = 0; // Default to zero
-    pp.query("ic.shock.count", number_of_shocks);
+    pp.query("ic.shock.count", number_of_shocks); // Number of Shocks
 
     // Handle shock position - may be empty if number_of_shocks = 0
     if (number_of_shocks > 0) {
-       pp.queryarr("ic.shock.positions", shock_positions);
+       pp.queryarr("ic.shock.positions", shock_positions); // Positions of Shocks
 
      // Validate that we have the currect number of positions
      if (shock_positions.size() != static_cast<size_t>(number_of_shocks)) {
@@ -319,7 +319,7 @@ void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
     }
 
     // Check if expressions should be used
-    pp.query("ic.shock.use_expressions", use_expressions);
+    pp.query("ic.shock.use_expressions", use_expressions); // use_espressions bool
 
     // Collect parser constants upfront
     std::set<std::pair<std::string, Set::Scalar>> constants;
@@ -344,15 +344,15 @@ void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
     if (mf_name.find("pvec") != std::string::npos) {
         if (use_expressions) {
             // Read expression arrays directly like constant arrays
-            pp.queryarr("ic.shock.expressions.pvec.density", density_expr);
-            pp.queryarr("ic.shock.expressions.pvec.uvel", uvel_expr);
+            pp.queryarr("ic.shock.expressions.pvec.density", density_expr); // density expressions for all zones
+            pp.queryarr("ic.shock.expressions.pvec.uvel", uvel_expr); // U-Velocity expressions for all zones
 #if AMREX_SPACEDIM >= 2
-            pp.queryarr("ic.shock.expressions.pvec.vvel", vvel_expr);
+            pp.queryarr("ic.shock.expressions.pvec.vvel", vvel_expr); // V-velocity expressions for all zones
 #endif
 #if AMREX_SPACEDIM == 3
-            pp.queryarr("ic.shock.expressions.pvec.wvel", wvel_expr);
+            pp.queryarr("ic.shock.expressions.pvec.wvel", wvel_expr); // W-velocity expressions for all zones
 #endif
-            pp.queryarr("ic.shock.expressions.pressure", pressure_expr);
+            pp.queryarr("ic.shock.expressions.pressure", pressure_expr); // pressure expressions for all zones
 
             // Validate array sizes
             if (density_expr.size() != num_zones ||
@@ -396,15 +396,15 @@ void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
             }
         } else {
             // Original implementation - read arrays of constant values
-            pp.queryarr("ic.shock.pvec.density", density_zone);
-            pp.queryarr("ic.shock.pvec.uvel", uvel_zone);
+            pp.queryarr("ic.shock.pvec.density", density_zone);  // density values for all zones
+            pp.queryarr("ic.shock.pvec.uvel", uvel_zone);  // U-velocity values for all zones
 #if AMREX_SPACEDIM >= 2
-            pp.queryarr("ic.shock.pvec.vvel", vvel_zone);
+            pp.queryarr("ic.shock.pvec.vvel", vvel_zone); // V-velocity values for all zones
 #endif
 #if AMREX_SPACEDIM == 3
-            pp.queryarr("ic.shock.pvec.wvel", wvel_zone);
+            pp.queryarr("ic.shock.pvec.wvel", wvel_zone); // W-velocity values for all zones
 #endif
-            pp.queryarr("ic.shock.pressure", pressure_zone);
+            pp.queryarr("ic.shock.pressure", pressure_zone); // Pressure values for all zones
 
             // Ensure all zone arrays have the correct size
             if (density_zone.size() != num_zones ||
