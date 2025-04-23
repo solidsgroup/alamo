@@ -1,22 +1,30 @@
+#@ [2d-serial-notch]
+#@ exe=fracture
+#@ dim=2
+#@ args= stop_time=0.02
+
 alamo.program = fracture_pfczm
 
-timestep = 0.0004
+timestep = 5e-5
 stop_time = 0.6
 
 plot_file = tests/Fracture2DPFCZM/output
 amr.plot_int = 10
-amr.max_level = 5
+amr.max_level = 4
 amr.n_cell = 128 128
 amr.blocking_factor = 32
 amr.regrid_int = 10
-amr.grid_eff = 1.0
+amr.grid_eff = 0.9
 amr.thermo.int = 1
+amr.nsubsteps = 1
+amr.node.any = 0
+amr.cell.all = 1
 
 geometry.prob_lo = -0.125 -0.125
 geometry.prob_hi = 0.125 0.125
 geometry.is_periodic = 0 0
 
-crack.refinement_threshold = 0.05
+crack.refinement_threshold = 0.1
 crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
 
@@ -25,17 +33,23 @@ crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
 
-crack.model1.type = pfczm
-crack.model1.pfczm.G_c = 5.e2
-crack.model1.pfczm.fracture_strength = 3.16e8
-crack.model1.pfczm.E = 4.e11
-crack.model1.pfczm.zeta = 2.e-4
-crack.model1.pfczm.mobility = 5.0e-2
-crack.model1.pfczm.gtype = wu_linear
-crack.model1.pfczm.wtype = wu
-# crack.model1.pfczm.g2type = wu_linear
-crack.model1.pfczm.threshold = 1.0 
+crack.model1.G_c = 5.e2
+crack.model1.fracture_strength = 3.16e8
+crack.model1.E = 4.e11
+crack.model1.zeta = 2.e-4
+crack.model1.mobility = 5.0e-2
+crack.model1.gtype = wu_linear
+crack.model1.wtype = wu
+crack.model1.threshold = 1.0 
 
+#crack.model2.G_c = 5.e2
+#crack.model2.fracture_strength = 3.16e7
+#crack.model2.E = 4.e11
+#crack.model2.zeta = 2.e-4
+#crack.model2.mobility = 5.0e-2
+#crack.model2.gtype = wu_linear
+#crack.model2.wtype = wu
+#crack.model2.threshold = 1.0 
 
 crack.ic.type = notch
 crack.ic.notch.center = -0.125 0
@@ -51,9 +65,21 @@ crack.bc.type.xlo = NEUMANN
 crack.bc.type.yhi = NEUMANN
 crack.bc.type.ylo = NEUMANN
 
-material.model1.type = isotropic
-material.model1.isotropic.E = 4.0
-material.model1.isotropic.nu = 0.28
+#material.ic.type = expression
+#material.ic.expression.constant.eps = 0.001
+#material.ic.expression.region0 = "(0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
+#material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
+
+#material.ic.type = png
+#material.ic.png.filename = "A2_Blurred_Image.png"
+#material.ic.png.fit = "stretch"
+#material.ic.png.channel = b
+
+#material.model1.type = isotropic
+material.model1.E = 4.0    # inclusion
+material.model1.nu = 0.28
+#material.model1.E =4.0     # matrix
+#material.model1.nu = 0.28
 
 material.refinement_threshold = 100 #1.e-1
 
@@ -74,7 +100,7 @@ bc.constant.val.xhiyhi =    0.0 8.e-5
 #
 # Solver inputs
 #
-elasticop.small=1.e-4
+elasticop.small=1.e-3
 solver.bottom_solver = smoother
 solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
 solver.tol_rel = 1e-7

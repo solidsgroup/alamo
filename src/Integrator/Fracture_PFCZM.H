@@ -59,6 +59,7 @@
 #include "IC/IC.H"
 #include "IC/Laminate.H"
 #include "IC/Notch.H"
+#include "IC/PNG.H"
 #include "IC/PerturbedInterface.H"
 
 #include "Numeric/Stencil.H"
@@ -98,34 +99,17 @@ public:
         if (pp.contains("material.ic.type"))
         {
             // IC determining material distribution
-            pp.select<IC::Laminate, IC::Ellipsoid, IC::PerturbedInterface, IC::BMP>("material.ic", value.material.ic, value.geom);
-            value.material.num_mat = 2;
+            pp.select<IC::Laminate, IC::Ellipsoid, IC::PerturbedInterface, IC::BMP, IC::PNG, IC::Expression>("material.ic", value.material.ic, value.geom);
             value.material.is_ic = true;
         }
         else
         {
-            value.material.num_mat = 1;
             value.material.is_ic = false;
         }
 
         // Let's query material properties for different materials in the system
-        for (int i = 0; i < value.material.num_mat; i++)
-        {
-            std::string name = "material.model" + std::to_string(i + 1);
-            std::string name_type = "material.model" + std::to_string(i + 1) + ".type";
-            std::string mat_model_type;
-            pp.query(name_type.c_str(), mat_model_type); // read type of material - isotropic is the only option for now.
-
-            // For now we only have isotropic implemented.
-            if (mat_model_type == "isotropic")
-            {
-                brittle_model tmp_model;
-                pp.queryclass(std::string((name + ".isotropic").data()), tmp_model); // read values of isotropic model
-                value.material.models.push_back(tmp_model);
-            }
-            else
-                Util::Abort(INFO, "This type of material model is not supported for fracture.");
-        }
+        pp.queryclass_enumerate<brittle_model>("material.model", value.material.models);
+        value.material.num_mat = value.material.models.size();
         Util::Assert(INFO, TEST(value.material.models.size() > 0));
 
         // This is the fab that stores the material field.
@@ -143,7 +127,7 @@ public:
         pp.query_default("crack.df.el_mult", value.crack.el_mult, 1.0);                           // unit conversion multiplier between elastic problem and crack problem
 
         // Let's figure out if there is an initial crack or void
-        pp.select_enumerate<IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
+        pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
 
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
@@ -160,22 +144,7 @@ public:
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
 
         // This is needed for the specific crack model we are implementing
-        for (int i = 0; i < value.material.num_mat; i++)
-        {
-            std::string name = "crack.model" + std::to_string(i + 1);
-            std::string name_type = "crack.model" + std::to_string(i + 1) + ".type";
-            std::string mat_model_type;
-            pp.query(name_type.c_str(), mat_model_type); // type of crack model - only constant so far
-            // For now we only have a crack of constant Gc implemented
-            if (mat_model_type == "pfczm")
-            {
-                pfczm_crack_type tmp_model;
-                pp.queryclass(std::string((name + ".pfczm").data()), tmp_model); // get parameters for a constant crack model.
-                value.crack.cracktype.push_back(tmp_model);
-            }
-            else
-                Util::Abort(INFO, "This type of material model is not supported for fracture.");
-        }
+        pp.queryclass_enumerate<pfczm_crack_type>("crack.model",value.crack.cracktype);
         Util::Assert(INFO, TEST(value.material.models.size() > 0));
     }
 
