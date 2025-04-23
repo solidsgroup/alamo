@@ -1,20 +1,24 @@
 # Simulation output
-plot_file = output_amr
+plot_file = output_amr_riemann2d_higherthreshold
 
 # Simulation length
 timestep = 0.001
-stop_time = 0.25
-max_step = 10
+stop_time = 0.35
+max_step = 2000
 
 # AMR parameters
 amr.plot_int = 5
-amr.max_level = 3
-amr.n_cell = 112 8 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.max_level = 2
+amr.n_cell = 40 40 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 8
-amr.regrid_int = 4  # No regridding for uniform grid
+amr.regrid_int = 10  # No regridding for uniform grid
 amr.grid_eff = 0.7   # refinement efficiency
-amr.max_grid_size = 32
+amr.max_grid_size = 8
 amr.n_error_buf = 1  # 1-cell buffer around tagged regions
+
+density_refinement_criterion = 0.4  # Higher threshold = narrower refinement
+pressure_refinement_criterion = 0.3 
+vorticity_refinement_criterion = 0.5
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = -0.5 -0.5 0
@@ -32,7 +36,7 @@ TimeSteppingScheme = RK3
 
 
 #FluxMethod
-FluxScheme = LocalLaxFriedrichs #HLLC
+FluxScheme = HLLC #LocalLaxFriedrichs #HLLC
 
 #FluxReconstruction
 FluxReconstruction = WENO

@@ -420,8 +420,21 @@ protected:
     int number_of_ghost_cells;            // Number of ghost cells
     SolverType solverType;                    // Current solver type
     Set::Scalar cflNumber;                    // CFL number (read from input)
+
     Set::Scalar refinement_threshold;         // Threshold for AMR refinement
 
+    // Refinement threshold values
+    Set::Scalar density_refinement_criterion = 0.01;
+    Set::Scalar velocity_refinement_criterion = 0.01;
+    Set::Scalar pressure_refinement_criterion = 0.01;
+    Set::Scalar vorticity_refinement_criterion = 0.01;
+    
+    // Enable/disable flags for each refinement criterion
+    bool enable_density_refinement = false;
+    bool enable_velocity_refinement = false;
+    bool enable_pressure_refinement = false;
+    bool enable_vorticity_refinement = false;
+    
     // Numeric handlers (using shared_ptr for better lifetime management)
     std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;

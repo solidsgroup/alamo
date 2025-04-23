@@ -1,5 +1,5 @@
 # Simulation output
-plot_file = output_khwaves
+plot_file = output_amr_khwaves
 
 # Simulation length
 timestep = 0.001
@@ -7,12 +7,14 @@ stop_time = 5.0
 max_step = 2000
 
 # AMR parameters
-amr.plot_int = 50
-amr.max_level = 0
-amr.n_cell = 100 100 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
-amr.blocking_factor = 1
-amr.regrid_int = -1  # No regridding for uniform grid
-amr.grid_eff = 1.0
+amr.plot_int = 10
+amr.max_level = 3
+amr.n_cell = 50 50 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.blocking_factor = 8
+amr.regrid_int = 4  # No regridding for uniform grid
+amr.grid_eff = 0.7   # refinement efficiency
+amr.max_grid_size = 32
+amr.n_error_buf = 1  # 1-cell buffer around tagged regions
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = -0.5 -0.5 0

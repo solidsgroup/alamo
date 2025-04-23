@@ -475,6 +475,19 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     }
       
     pp.query_required("cflNumber", value.cflNumber); // Read CFL number
+
+    // Add these to your Parse method
+    pp.query_default("enable_density_refinement", value.enable_density_refinement, true);
+    pp.query_default("density_refinement_criterion", value.density_refinement_criterion, 0.2);
+    
+    pp.query_default("enable_pressure_refinement", value.enable_pressure_refinement, true);  
+    pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 0.15);
+    
+    pp.query_default("enable_velocity_refinement", value.enable_velocity_refinement, false);
+    pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 0.1);
+    
+    pp.query_default("enable_vorticity_refinement", value.enable_vorticity_refinement, true);
+    pp.query_default("vorticity_refinement_criterion", value.vorticity_refinement_criterion, 0.25);
     
     // Validate and setup numeric methods (centralized)
     value.ValidateAndSetupNumerics();
@@ -493,7 +506,8 @@ void ScimitarX::Initialize(int lev)
 }
 
 
-void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
+/*
+void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar, int)
 {
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
@@ -514,6 +528,85 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
     }
 
         Util::Message(INFO, "Refinement threshold set to", refinement_threshold);
+}
+*/
+
+void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow)
+{
+    const Set::Scalar* DX = geom[lev].CellSize();
+    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+
+    // Loop through all cells in the level for tagging
+    for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags_arr = tags.array(mfi);
+        amrex::Array4<const Set::Scalar> const& pvec = (*PVec_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& pressure = (*Pressure_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            auto sten = Numeric::GetStencil(i, j, k, bx);
+
+            // 1. Density gradient criterion
+            if (enable_density_refinement) {
+                // Correct call for scalar field component
+                Set::Vector grad_rho = Numeric::Gradient(pvec, i, j, k, variableIndex.DENS, DX, sten);
+                if (grad_rho.lpNorm<2>() * dr * 2 > density_refinement_criterion) {
+                    tags_arr(i, j, k) = amrex::TagBox::SET;
+                    return;
+                }
+            }
+
+            // 2. Pressure gradient criterion
+            if (enable_pressure_refinement) {
+                // Correct call for pressure field (component 0)
+                Set::Vector grad_p = Numeric::Gradient(pressure, i, j, k, 0, DX, sten);
+                if (grad_p.lpNorm<2>() * dr * 2 > pressure_refinement_criterion) {
+                    tags_arr(i, j, k) = amrex::TagBox::SET;
+                    return;
+                }
+            }
+
+            // 3 & 4. Velocity gradient and vorticity criteria
+            if (enable_velocity_refinement || (enable_vorticity_refinement && AMREX_SPACEDIM >= 2)) {
+                // Construct velocity gradient matrix manually from component gradients
+                Set::Matrix grad_u = Set::Matrix::Zero();
+
+                // X-velocity gradients
+                Set::Vector grad_u_x = Numeric::Gradient(pvec, i, j, k, variableIndex.UVEL, DX, sten);
+                grad_u.row(0) = grad_u_x;
+
+#if AMREX_SPACEDIM >= 2
+                // Y-velocity gradients
+                Set::Vector grad_u_y = Numeric::Gradient(pvec, i, j, k, variableIndex.VVEL, DX, sten);
+                grad_u.row(1) = grad_u_y;
+#endif
+
+#if AMREX_SPACEDIM == 3
+                // Z-velocity gradients
+                Set::Vector grad_u_z = Numeric::Gradient(pvec, i, j, k, variableIndex.WVEL, DX, sten);
+                grad_u.row(2) = grad_u_z;
+#endif
+
+                // Velocity gradient criterion
+                if (enable_velocity_refinement) {
+                    Set::Matrix strain_rate = 0.5 * (grad_u + grad_u.transpose());
+                    if (strain_rate.lpNorm<2>() * dr * 2 > velocity_refinement_criterion) {
+                        tags_arr(i, j, k) = amrex::TagBox::SET;
+                        return;
+                    }
+                }
+
+                // Vorticity criterion
+                if (enable_vorticity_refinement && AMREX_SPACEDIM >= 2) {
+                    // 2D vorticity is just the z-component of curl(u)
+                    Set::Scalar vorticity = grad_u(1, 0) - grad_u(0, 1);
+                    if (std::abs(vorticity) * dr * 2 > vorticity_refinement_criterion) {
+                        tags_arr(i, j, k) = amrex::TagBox::SET;
+                    }
+                }
+            }
+        });
+    }
 }
 
 
