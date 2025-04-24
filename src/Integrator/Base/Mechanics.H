@@ -14,6 +14,7 @@
 #include "Operator/Operator.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
+#include "IC/Trig.H"
 
 namespace Integrator
 {
@@ -28,6 +29,13 @@ public:
 
     Mechanics() : Integrator()
     {}
+
+    ~Mechanics()
+    {
+        delete ic_rhs;
+        delete velocity_ic;
+        delete bc;
+    }
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
@@ -93,11 +101,12 @@ public:
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2, "model", value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2, value.m_time_evolving);
 
-        // Read in IC for RHS
-        std::string rhstype;
-        pp_query_validate("rhs.type", rhstype,{"none","trig","constant"}); // Initializer for RHS
-        if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom, pp, "rhs.trig");
-        else if (rhstype == "constant") value.ic_rhs = new IC::Constant(value.geom, pp, "rhs.constant");
+        // This if is here because the code currently allows for no
+        // body force to be defined, in which case value.ic_rhs is set to
+        // a nullptr. This should eventually be fixed - this is a stopgap.
+        if (pp.contains("rhs.type"))
+            // initial condition for right hand side (body force) 
+            pp.select<IC::Constant,IC::Expression,IC::Trig>("rhs",value.ic_rhs,value.geom);
 
         // Timestep interval for elastic solves (default - solve every time)
         pp_query_default("interval", value.m_interval, 0);
@@ -374,7 +383,8 @@ protected:
         BL_PROFILE("Integrator::Base::Mechanics::Integrate");
         if (m_type == Type::Disable) return;
 
-        if (amrex::ParallelDescriptor::NProcs() > 1)
+        if (amrex::ParallelDescriptor::NProcs() > 1 && a_box.contains(amrex::IntVect::TheZeroVector()) &&
+            amrlev == 0)
         {
             Util::Warning(INFO,"There is a known bug when calculating trac/disp in Base::Mechanics in parallel.");
             Util::Warning(INFO,"The thermo.dat values likely will not be correct; use the boxlib output instead.");
@@ -478,13 +488,12 @@ protected:
     Set::Vector disp_hi[AMREX_SPACEDIM];
 
 
-    IC::IC* ic_rhs = nullptr;
-    BC::BC<Set::Scalar>* mybc;
+    IC::IC<Set::Vector>* ic_rhs = nullptr;
 
-    IC::IC* velocity_ic = nullptr;
+    IC::IC<Set::Vector>* velocity_ic = nullptr;
 
     Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
-    BC::Operator::Elastic::Elastic* bc;
+    BC::Operator::Elastic::Elastic* bc = nullptr;
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;

@@ -93,7 +93,7 @@
 #include "Solver/Nonlocal/Newton.H"
 
 #include "Operator/Operator.H"
-
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {
@@ -101,11 +101,21 @@ template<class MODEL>
 class Mechanics : virtual public Base::Mechanics<MODEL>
 {
 public:
+    static constexpr const char *name = "mechanics";
 
     Mechanics() : Base::Mechanics<MODEL>() { }
     Mechanics(IO::ParmParse& pp) : Base::Mechanics<MODEL>()
     {
         Parse(*this, pp);
+    }
+
+    ~Mechanics()
+    {
+        delete ic_eta;
+        delete ic_psi;
+        delete ic_trac_normal;
+        delete bc_psi;
+        delete bc_trac_normal;
     }
 
     // Mechanics inputs. See also :ref:`Integrator::Base::Mechanics`
@@ -115,26 +125,9 @@ public:
 
         int nmodels;
         pp_query_default("nmodels", nmodels, 1); // Number of elastic model varieties
-        for (int i = 0; i < nmodels; i++)
-        {
-            bool init = false;
-            MODEL tmp_model;
-            if (pp.contains("model"))
-            {
-                pp_queryclass("model", tmp_model);
-                init = true;
-            }
-            std::string name = "model" + std::to_string(i + 1);
-            if (pp.contains(name.c_str()))
-            {
-                pp_queryclass(std::string(name.data()), tmp_model);
-                init = true;
-            }
 
-            if (!init) Util::Exception(INFO,"No way to initialize ",pp.full(name));
+        pp.queryclass_enumerate<MODEL>("model",value.models,nmodels);
 
-            value.models.push_back(tmp_model);
-        }
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
         // Refinement threshold for eta field
@@ -177,7 +170,7 @@ public:
         if (pp.contains("trac_normal.ic.type"))
         {
             // Read in IC for the "normal traction" field (applied at diffuse boundaries)
-            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom);
+            pp.select<IC::Ellipse,IC::Constant,IC::Expression,IC::PSRead>("trac_normal.ic",value.ic_trac_normal,value.geom); 
 
             if (value.ic_trac_normal)
             {
@@ -216,7 +209,7 @@ public:
 
                 for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.grownnodaltilebox();
+                    amrex::Box bx = mfi.nodaltilebox();
                     bx = bx & domain;
 
                     amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
@@ -343,9 +336,9 @@ protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Scalar m_eta_ref_threshold = NAN;
     std::vector<MODEL> models;
-    IC::IC* ic_eta = nullptr;
-    IC::IC* ic_psi = nullptr;
-    IC::IC* ic_trac_normal = nullptr;
+    IC::IC<Set::Scalar>* ic_eta = nullptr;
+    IC::IC<Set::Scalar>* ic_psi = nullptr;
+    IC::IC<Set::Scalar>* ic_trac_normal = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     BC::BC<Set::Scalar>* bc_trac_normal = nullptr;
     bool psi_reset_on_regrid = false;

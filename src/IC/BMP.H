@@ -17,7 +17,7 @@
 
 namespace IC
 {
-class BMP : public IC
+class BMP : public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "bmp";

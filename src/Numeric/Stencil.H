@@ -12,6 +12,22 @@ namespace Numeric
 enum StencilType { Lo, Hi, Central };
 static std::array<StencilType, AMREX_SPACEDIM>
 DefaultType = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XLo         = { AMREX_D_DECL(StencilType::Lo,      StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XHi         = { AMREX_D_DECL(StencilType::Hi,      StencilType::Central, StencilType::Central) };
+#if AMREX_SPACEDIM>1
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Lo,      StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Hi,      StencilType::Central) };
+#endif
+#if AMREX_SPACEDIM>2
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Lo     ) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Hi     ) };
+#endif
 
 [[nodiscard]]
 static
@@ -634,10 +650,10 @@ Divergence(const amrex::Array4<const Set::Matrix>& dw,
 
 [[nodiscard]] AMREX_FORCE_INLINE
 Set::Scalar
-Divergence(const amrex::Array4<const Set::Scalar>& f,
-    const int& i, const int& j, const int& k, const int& m,
+Divergence(const amrex::Array4<const Set::Scalar> &f,
+    const int &i, const int &j, const int &k, const int &m,
     const Set::Scalar dx[AMREX_SPACEDIM],
-    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
+    std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Scalar ret;
     ret = (Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i, j, k, m, dx, stencil));
@@ -1154,7 +1170,7 @@ VectorToField(const amrex::Array4<Set::Scalar>& f,
 
 template<int index, int SYM>
 [[nodiscard]] 
-Set::Matrix3
+Set::Matrix3 
 Divergence(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>>&,
     const int, const int, const int, const Set::Scalar[AMREX_SPACEDIM],
     std::array<StencilType, AMREX_SPACEDIM> /*stecil*/ = DefaultType)

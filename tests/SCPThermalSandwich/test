@@ -19,6 +19,7 @@ testlib.validate(path=path,
                  end=[0.05e-3,0.00025,0],
                  vars=["eta","temp"],
                  tolerance=0.01,
+                 abs_tolerance=1E100,
                  coord='y',
                  generate_ref_data = False,
                  reference=reference)

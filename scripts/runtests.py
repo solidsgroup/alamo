@@ -10,6 +10,7 @@ import time
 import re
 import pathlib
 import threading
+import signal
 
 from sympy import capture
 
@@ -30,6 +31,11 @@ class color:
 # RE tool to strip out color escapes
 # 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+def clean(text,max_length=60):
+    ret = ansi_escape.sub('',text)
+    if len(ret) > max_length:
+        return ret[:max_length-3] + "..."
+    return ret
 
 #
 # Get a unique string ID to label all output files
@@ -84,6 +90,7 @@ parser.add_argument('--coverage',default=False,action='store_true',help='Use the
 parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
 parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
 parser.add_argument('--no-coverage',default=False,action='store_true',help='Prevent coverage version of the code from being used')
+parser.add_argument('--memcheck',default=None,help='Run tests with memory checking. ')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
@@ -94,12 +101,20 @@ parser.add_argument('--no-clean', dest='clean', default=False, action='store_fal
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
+parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
+parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
+parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
+parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
     raise Exception("Cannot specify both --coverage and --no-coverage")
 if args.only_coverage and args.no_coverage:
     raise Exception("Cannot specify both --only-coverage and --no-coverage")
+if args.memcheck and not args.debug:
+    raise Exception("Debug must be enabled with memory check")
+if args.memcheck and not args.serial:
+    raise Exception("Memory check supported in serial only")
 
 if args.post:
     if not os.path.isfile(args.post):
@@ -107,7 +122,6 @@ if args.post:
     sys.path.append(str(pathlib.Path(args.post).parent))
     import post
     postdata = post.init()
-
 
 
 class DryRunException(Exception):
@@ -223,20 +237,24 @@ def test(testdir):
         #    generally use option 2.
         # 2. with 'dim', 'nprocs', 'args', etc keywords. See current tests for
         #    examples
-        command = ""
+
+        command = "" # The executable that gets called
+        cmdargs = "" # Extra arguments to pass to alamo in addition to input file
         if 'cmd' in config[desc].keys():
             command = config[desc]['cmd']
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
         else:
+            # If we are doing memory checking, cut off the simulation early
+            if args.memcheck: cmdargs += " max_step=2 "
+
             exe = 'alamo'
             if 'exe' in config[desc].keys(): exe = config[desc]['exe']
             dim = 3 # Dimension of alamo to use
             if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
             if 'nprocs' in config[desc].keys(): nprocs = int(config[desc]['nprocs'])
-            cmdargs = "" # Extra arguments to pass to alamo in addition to input file
-            if 'args' in config[desc].keys(): cmdargs = config[desc]['args'].replace('\n',' ')
+            if 'args' in config[desc].keys(): cmdargs += config[desc]['args'].replace('\n',' ')
 
             cmdargs += " plot_file={}/{}_{}".format(testdir,testid,desc)
 
@@ -246,12 +264,23 @@ def test(testdir):
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
                 continue
+
+            # Skip all non-fft tests if --fft-only 
+            if args.fft_only and 'fft' not in config[desc].keys():
+                continue
+
+            # Otherwise, skip fft tests unless passing in -fft flag
+            if 'fft' in config[desc].keys():
+                if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
+                    if not args.fft and not args.fft_only: continue
+
             # If not running in serial, specify mpirun command
-            if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
+            if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
             # Specify alamo command.
             
             exestr = "./bin/{}-{}d".format(exe,dim)
             if args.debug: exestr += "-debug"
+            if args.memcheck: exestr += "-{}".format(args.memcheck)
             if args.profile: exestr += "-profile"
             if coverage: exestr += "-coverage"
             exestr += "-"+args.comp
@@ -343,6 +372,18 @@ def test(testdir):
             retcode = proc.returncode
             if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
 
+            if args.check_mpi:
+                pattern = r"MPI initialized with (\d+) MPI processes"
+                match = re.search(pattern, stdout.decode('utf-8'))
+                if match:
+                    actual_nprocs = int(match.group(1))
+                    if nprocs != actual_nprocs:
+                        raise subprocess.CalledProcessError(retcode, proc.args, output=stdout,
+                                                            stderr=f"MPI is not working: should run with {nprocs} procs but is running with {actual_nprocs}!".encode('utf-8'))
+                else:
+                    raise subprocess.CalledProcessError(retcode, proc.args, output=stdout,
+                                                        stderr=f"Could not tell if MPI is working!".encode('utf-8'))
+
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
@@ -371,25 +412,41 @@ def test(testdir):
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             continue
-        # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
-        # we will continue with running other tests. (Script will return an error)
+        # If we run out of time we go here. We will print stdout and stderr to the screen, but 
+        # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
         except subprocess.TimeoutExpired as e:
+
+            #
+            # Attempt to kill the program gracefully ith SIGINT so that it has a chance to
+            # write .gcda files (for coverage report)
+            #
+            if not args.no_backspace:
+                print(bs+"[kill]",end="")
+            proc.send_signal(signal.SIGINT)
+            for i in range(10): # Give it about 20 seconds...
+                if proc.poll() is None:
+                    time.sleep(2)
+                else: break
+                    
+            #
+            # Time's up!
+            #
             proc.kill()
-            print(bs+"[{}TIME{}]".format(color.red,color.reset))
+
+            print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
-            print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
             try:
                 stdoutlines = e.stdout.decode('utf-8').split('\n')
                 if len(stdoutlines) < 10:
-                    for line in stdoutlines: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                    for line in stdoutlines:      print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
                 else:
-                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                    for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
-                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
+                    for i in range(3):            print("  │      {}        {}{}".format(color.lightgray,"............",color.reset))
+                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
             except Exception as e1:
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
@@ -403,7 +460,7 @@ def test(testdir):
         except Exception as e:
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
-            for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
+            for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             continue
         
@@ -411,7 +468,7 @@ def test(testdir):
         # ./tests/MyTest/test 
         # script to determine if the run was successful.
         # The exception handling is basically the same as for the above test.
-        if check:
+        if check and not args.memcheck:
             try:
                 if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
@@ -443,8 +500,8 @@ def test(testdir):
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 record['checkStatus'] = 'FAIL'
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-                for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+                for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+                for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
                 fails += 1
                 continue
             except DryRunException as e:
@@ -515,7 +572,7 @@ def test(testdir):
     if warnings: sums.append("{}{} warnings{}".format(color.boldyellow,checks,color.reset))
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
-    if timeouts: sums.append("{}{} tests timed out{}".format(color.red,timeouts,color.reset))
+    if timeouts: sums.append("{}{} tests timed out{}".format(color.lightgray,timeouts,color.reset))
     print(summary + ", ".join(sums))
     return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
@@ -564,7 +621,7 @@ if stats.warnings: print("{}{} warnings{}".format(color.boldyellow,stats.warning
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
-if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
+if stats.timeouts: print("{}{} tests timed out".format(color.lightgray,stats.timeouts,color.reset))
 print("")
 
 return_code = stats.fails + stats.skips

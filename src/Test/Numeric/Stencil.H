@@ -4,7 +4,6 @@
 #include <AMReX.H>
 
 #include "Set/Set.H"
-#include "IC/Trig.H"
 #include "IC/Trig2.H"
 #include "Numeric/Stencil.H"
 

@@ -39,9 +39,13 @@
 
 namespace Integrator
 {
+
+/// This is the definition of the Allen Cahn class
 class AllenCahn : virtual public Integrator
 {
 public:
+    static constexpr const char* name = "allencahn";
+
     // Empty constructor
     AllenCahn() : Integrator()
     {}
@@ -50,6 +54,12 @@ public:
     AllenCahn(IO::ParmParse& pp) : AllenCahn()
     {
         Parse(*this, pp);
+    }
+
+    ~AllenCahn()
+    {
+        delete ic;
+        delete bc;
     }
 
     // The Parse function initializes the AllenCahn object using
@@ -73,14 +83,17 @@ public:
         pp_query_default("ch.chempot",value.ch.chempot, 1.0);
         // Force directional growth: 0=no growth, 1=only positive, -1=only negative
         pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
+        // Time to start forcing directional growth
+        pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
 
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere,IC::Constant,IC::Expression,IC::BMP,IC::PNG,IC::Random,IC::PSRead>("alpha.ic",value.ic,value.geom);
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
+        
 
         // Use a constant BC object for temperature
-        value.bc = new BC::Constant(1);
+        // value.bc = new BC::Constant(1);
         // :ref:`BC::Constant` parameters 
-        pp_queryclass("alpha.bc", *static_cast<BC::Constant*>(value.bc));
+        pp.select_default<BC::Constant>("alpha.bc", value.bc, 1);
 
         // Register the temperature and old temperature fields.
         // alpha_mf and alpha_old_mf are defined near the bottom of this Header file.
@@ -98,7 +111,7 @@ protected:
     }
 
     // Integrate the Allen Cahn equation
-    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
         std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
 
@@ -107,8 +120,8 @@ protected:
         for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
-            amrex::Array4<Set::Scalar> const& alpha_new = (*alpha_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const& alpha = (*alpha_old_mf[lev]).array(mfi);
+            Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -121,10 +134,13 @@ protected:
                 Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
                 driving_force -= ch.eps * ch.grad * alpha_lap;
 
-                if (ch.direction == 1)
-                    driving_force = std::min(0.0, driving_force);
-                else if (ch.direction == -1)
-                    driving_force = std::max(0.0, driving_force);
+                if (time >= ch.direction_tstart)
+                {
+                    if (ch.direction == 1)
+                        driving_force = std::min(0.0, driving_force);
+                    else if (ch.direction == -1)
+                        driving_force = std::max(0.0, driving_force);
+                }
 
                 // Update
                 alpha_new(i, j, k) =
@@ -164,15 +180,19 @@ protected:
     }
 
 protected:
-    Set::Field<Set::Scalar> alpha_mf;         // Temperature field variable (current timestep)
-    Set::Field<Set::Scalar> alpha_old_mf;     // Temperature field variable (previous timestep)
-    IC::IC* ic;                              // Object used to initialize temperature field
+    Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
+    IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
+
+    Set::Field<Set::Scalar> &eta_mf = alpha_mf;
+    Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;
 
     struct {
         Set::Scalar L = NAN;
         Set::Scalar eps = NAN;
         Set::Scalar grad = NAN;
         Set::Scalar chempot = NAN;
+        Set::Scalar direction_tstart = NAN;
         int direction = 0;
     } ch;
 

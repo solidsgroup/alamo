@@ -53,7 +53,10 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
         pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
         pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
-        pp_query_default("plot_file", plot_file, "output");             // Output file
+
+
+        // Output file: see IO::FileNameParse for wildcards and variable substitution
+        pp_query_default("plot_file", plot_file, "output");
 
         pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
         pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
@@ -158,15 +161,24 @@ Integrator::Integrator() : amrex::AmrCore()
     IO::WriteMetaData(plot_file, IO::Status::Running, 0);
 }
 
-///
-/// \func  ~Integrator
-/// \brief Does nothing -- check here first if there are memory leaks
-///
+// Destructor
 Integrator::~Integrator()
 {
-    BL_PROFILE("Integrator::~Integrator");
-    if (amrex::ParallelDescriptor::IOProcessor())
-        IO::WriteMetaData(plot_file, IO::Status::Complete);
+    if (Util::finalized)
+    {
+        std::cout << "!! ERROR !! Integrator destructor called after alamo has been finalized." << std::endl;
+        std::cout << "            Behavior occurring after this is undefined." << std::endl;
+        std::abort();
+    }
+
+    // Close out the metadata file and mark completed.
+    IO::WriteMetaData(plot_file, IO::Status::Complete);
+
+    // De-initialize all of the base fields and clear the arrays.
+    for (unsigned int i = 0; i < m_basefields.size(); i++) delete m_basefields[i];
+    for (unsigned int i = 0; i < m_basefields_cell.size(); i++) delete m_basefields_cell[i];
+    m_basefields.clear();
+    m_basefields_cell.clear();
 }
 
 void Integrator::SetTimestep(Set::Scalar _timestep)
@@ -239,10 +251,11 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
 /// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 ///
 void
-Integrator::RemakeLevel(int lev,       ///<[in] AMR Level
-    amrex::Real time,     ///<[in] Simulation time
-    const amrex::BoxArray& cgrids,
-    const amrex::DistributionMapping& dm)
+Integrator::RemakeLevel(int lev,                             ///<[in] AMR Level
+                        amrex::Real time,                    ///<[in] Simulation time
+                        const amrex::BoxArray &cgrids,       ///<[in] Coarse grids
+                        const amrex::DistributionMapping &dm ///[in] Distribution mapping
+    )
 {
     BL_PROFILE("Integrator::RemakeLevel");
     for (int n = 0; n < cell.number_of_fabs; n++)
@@ -813,19 +826,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             cplotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
 
             int n = 0;
+            int cnames_cnt = 0;
             for (int i = 0; i < cell.number_of_fabs; i++)
             {
                 if (!cell.writeout_array[i]) continue;
                 if ((*cell.fab_array[i])[ilev]->contains_nan())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains nan (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[i], " contains nan (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
                 }
                 if ((*cell.fab_array[i])[ilev]->contains_inf())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[i], " contains inf (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
                 }
+                cnames_cnt++;
                 amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
                 n += cell.ncomp_array[i];
             }
@@ -840,15 +855,24 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
 
             if (cell.all)
             {
+                int nnames_cnt = 0;
                 for (int i = 0; i < node.number_of_fabs; i++)
                 {
                     if (!node.writeout_array[i]) continue;
-                    if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO, nnames[i], " contains nan (i=", i, ")");
-                    if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO, nnames[i], " contains inf (i=", i, ")");
+                    if ((*node.fab_array[i])[ilev]->contains_nan())
+                    {
+                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
+                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
+                    }
+                    if ((*node.fab_array[i])[ilev]->contains_inf())
+                    {
+                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
+                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
+                    }
+                    nnames_cnt++;
                     amrex::average_node_to_cellcenter(cplotmf[ilev], n, *(*node.fab_array[i])[ilev], 0, node.ncomp_array[i], 0);
                     n += node.ncomp_array[i];
                 }
-
                 if (bfcomponents > 0)
                 {
                     amrex::BoxArray ngrids = grids[ilev];

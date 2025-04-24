@@ -6,31 +6,31 @@
 #ifndef IC_CONSTANT_H_
 #define IC_CONSTANT_H_
 
+#include "AMReX_Config.H"
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
 
-/// \class Constant
-/// \brief 
-///
 namespace IC
 {
-class Constant : public IC
+class Constant : public IC<Set::Scalar>, public IC<Set::Vector>
 {
 public:
     static constexpr const char* name = "constant";
 
-    Constant (amrex::Vector<amrex::Geometry> &_geom) :IC::IC(_geom) {}
-    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC::IC(_geom) 
+    virtual ~Constant() = default;
+
+    Constant (amrex::Vector<amrex::Geometry> &_geom) :
+        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom) {}
+    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : 
+        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
     {pp_queryclass(*this);}
-    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC::IC(_geom) 
+    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : 
+        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
     {pp_queryclass(name,*this);}
 
-    Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> a_value)
-    : IC(_geom), m_value(a_value)
-    {}
-    ~Constant() { };
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
+
+    virtual void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar /*time*/) override
     {
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == (int)a_field[lev]->nComp())));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -43,6 +43,21 @@ public:
             });  
         }
     }
+
+    virtual void Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar /*time*/) override
+    {
+        Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == AMREX_SPACEDIM)));
+        for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.growntilebox();
+            amrex::Array4<Set::Vector> const& field = a_field[lev]->array(mfi);
+            for (int m = 0; m < a_field[lev]->nComp(); m++)
+                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    field(i,j,k)(m) += m_value.size() == 1 ? m_value[0] : m_value[m];
+            });  
+        }
+    }
+
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
         // Default: set equal to one everywhere

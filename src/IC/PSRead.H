@@ -18,7 +18,7 @@ using namespace std;
 
 namespace IC
 {
-class PSRead : public IC
+class PSRead : public IC<Set::Scalar>
 {
 public:
     static constexpr const char* name = "psread";

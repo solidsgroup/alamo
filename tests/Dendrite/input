@@ -41,18 +41,18 @@ gamma = 40.0
 delta = 0.5
 
 # Boundary conditions
-bc.temp.type.xhi = neumann
-bc.temp.type.xlo = neumann
-bc.temp.type.yhi = neumann
-bc.temp.type.ylo = neumann
-bc.temp.type.zhi = neumann
-bc.temp.type.zlo = neumann
-bc.phi.type.xhi = neumann
-bc.phi.type.xlo = neumann
-bc.phi.type.yhi = neumann
-bc.phi.type.ylo = neumann
-bc.phi.type.zhi = neumann
-bc.phi.type.zlo = neumann
+bc.temp.constant.type.xhi = neumann
+bc.temp.constant.type.xlo = neumann
+bc.temp.constant.type.yhi = neumann
+bc.temp.constant.type.ylo = neumann
+bc.temp.constant.type.zhi = neumann
+bc.temp.constant.type.zlo = neumann
+bc.phi.constant.type.xhi = neumann
+bc.phi.constant.type.xlo = neumann
+bc.phi.constant.type.yhi = neumann
+bc.phi.constant.type.ylo = neumann
+bc.phi.constant.type.zhi = neumann
+bc.phi.constant.type.zlo = neumann
 
 
 

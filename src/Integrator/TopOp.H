@@ -46,13 +46,19 @@ public:
         Parse(*this, pp);
     }
 
+    ~TopOp()
+    {
+        delete ic_psi;
+        delete bc_psi;
+    }
+
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(TopOp& value, IO::ParmParse& pp)
     {
         Base::Mechanics<MODEL>::Parse(value, pp);
 
-        pp_queryclass("model", value.model);
+        pp.queryclass<MODEL>("model", value.model);
         // Read in IC for psi
         if (pp.contains("psi.ic.type"))
         {
@@ -212,7 +218,7 @@ public:
 
 protected:
     MODEL model;
-    IC::IC* ic_psi = nullptr;
+    IC::IC<Set::Scalar>* ic_psi = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
     Set::Scalar m_eta_ref_threshold = NAN;
     Set::Field<Set::Scalar> psi_old_mf;

@@ -1,0 +1,28 @@
+---
+Language: Cpp
+BasedOnStyle: GNU
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+NamespaceIndentation: None
+AllowAllArgumentsOnNextLine: true
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+  IndentBraces: false
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  BeforeNonEmptyParentheses: false
+ColumnLimit: 0
+AlwaysBreakAfterDefinitionReturnType: false
+AccessModifierOffset: -4
