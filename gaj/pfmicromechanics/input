@@ -68,19 +68,20 @@ hc.bc.temp.constant.val.ylo		= 0.0
 ##
 
 # pfm.interval = 100 # What is this? Help
-mechanics.interval = 100 # If mechanics is controlled by the microstructure integrator, do I have to have the pfm prefix for mechanics? Help
+pfm.mechanics.interval = 100 # If mechanics is controlled by the microstructure integrator, do I have to have the pfm prefix for mechanics?
+                             # BR: Yes, all prefixes are added
 
 pfm.amr.max_level = 2
 
 # Microstructure Initial Conditions
 # How can I get initial conditions started like this?
 # I need help on this part
-pfm.ic.type	= expression
 pfm.pf.number_of_grains = 4
-pfm.ic.expression.region0 = "(x > 0 and y > 0)"
-pfm.ic.expression.region1 = "(x < 0 and y > 0)"
-pfm.ic.expression.region2 = "(x < 0 and y < 0)"
-pfm.ic.expression.region3 = "(x > 0 and y < 0)"
+pfm.ic.type	= expression
+pfm.ic.expression.region0 = "(x > 0  and  y > 0)"
+pfm.ic.expression.region1 = "(x < 0  and  y > 0)"
+pfm.ic.expression.region2 = "(x < 0  and  y < 0)"
+pfm.ic.expression.region3 = "(x > 0  and  y < 0)"
 
 #ic.expression.phi.value.region0 = "0.0"
 #ic.expression.phi.value.region1 = "1.0"
@@ -108,30 +109,37 @@ pfm.bc.eta.constant.type.zlo	= neumann
 
 # Microstructure Model Information
 pfm.pf.M 		= 1.0
-pfm.pf.mu 		= 10.0
+# pfm.pf.mu 		= 10.0 # we no longer use this parameter...
 pfm.pf.gamma	= 1.0
 pfm.pf.l_gb		= 0.05
 pfm.pf.sigma0	= 0.075
 
 # Mechanics Boundary Conditions
 pfm.pf.threshold.mechanics = 1
-pf.mechanics.model = affine.cubic
-mechanics.bc.type					= constant
-mechanics.bc.constant.type.xlo		= neumann neumann neumann # How do I make this so that there is no displacement? Neumann? Help
-mechanics.bc.constant.type.xhi		= neumann neumann neumann
-mechanics.bc.constant.type.xloyhi	= neumann neumann neumann
-mechanics.bc.constant.type.xhiyhi	= neumann neumann neumann
-mechanics.bc.constant.type.ylo		= neumann neumann neumann
-mechanics.bc.constant.type.yhi		= neumann neumann neumann
+pfm.mechanics.type			= static
 
-mechanics.bc.constant.val.xlo		= 0.0 0.0 0.0
-mechanics.bc.constant.val.xhi		= 0.0 0.0 0.0
-mechanics.bc.constant.val.xhiyhi		= 0.0 0.0 0.0
-mechanics.bc.constant.val.xloyhi		= 0.0 0.0 0.0
-mechanics.bc.constant.val.xhiylo		= 0.0 0.0 0.0
-mechanics.bc.constant.val.xloylo		= 0.0 0.0 0.0
-mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
-mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
+pfm.mechanics.model = affine.cubic
+pfm.mechanics.bc.type = tensiontest
+pfm.mechanics.bc.tensiontest.type = uniaxial_stress # this sets to uniaxial stress with neumann in lateral direction
+pfm.mechanics.bc.tensiontest.disp=0.001 # this sets the displacement in the x direction
+
+
+#mechanics.bc.type					= constant
+#mechanics.bc.constant.type.xlo		= neumann neumann neumann # How do I make this so that there is no displacement? Neumann? Help
+#mechanics.bc.constant.type.xhi		= neumann neumann neumann
+#mechanics.bc.constant.type.xloyhi	= neumann neumann neumann
+#mechanics.bc.constant.type.xhiyhi	= neumann neumann neumann
+#mechanics.bc.constant.type.ylo		= neumann neumann neumann
+#mechanics.bc.constant.type.yhi		= neumann neumann neumann
+#
+#mechanics.bc.constant.val.xlo		= 0.0 0.0 0.0
+#mechanics.bc.constant.val.xhi		= 0.0 0.0 0.0
+#mechanics.bc.constant.val.xhiyhi		= 0.0 0.0 0.0
+#mechanics.bc.constant.val.xloyhi		= 0.0 0.0 0.0
+#mechanics.bc.constant.val.xhiylo		= 0.0 0.0 0.0
+#mechanics.bc.constant.val.xloylo		= 0.0 0.0 0.0
+#mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
+#mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
 
 
 
@@ -139,20 +147,20 @@ mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
 
 # Mechanics Model Information
 # How do I specify a different elastic properties for different regions?
-mechanics.model.C11 = 1.68
-mechanics.model.C12	= 1.21
-mechanics.model.C44	= 0.75
+pfm.mechanics.model.C11 = 1.68
+pfm.mechanics.model.C12	= 1.21
+pfm.mechanics.model.C44	= 0.75
 
 # Mechanics Solver Information
 # mechanics.solver.fixed_iter			= 100 # Why is this line commented out?
-mechanics.solver.verbose				= 3
-mechanics.print_model					= 1
-mechanics.print_residual				= 1
-mechanics.solver.tol_rel				= 1E-8
-mechanics.solver.tol_abs				= 1E-8
-mechanics.solver.average_down_coeffs 	= 0
-mechanics.time_evolving					= 1 # Should this be 1 or 0? Help
-mechanics.tstart						= 0
+pfm.mechanics.solver.verbose				= 3
+pfm.mechanics.print_model					= 1
+pfm.mechanics.print_residual				= 1
+pfm.mechanics.solver.tol_rel				= 1E-8
+pfm.mechanics.solver.tol_abs				= 1E-8
+pfm.mechanics.solver.average_down_coeffs 	= 0
+pfm.mechanics.time_evolving					= 1 # Should this be 1 or 0? Help
+pfm.mechanics.tstart						= 0
 
 
 
