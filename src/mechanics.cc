@@ -64,7 +64,6 @@ int main (int argc, char* argv[])
         else if (model == "finite.pseudoaffine.cubic")
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
         else if (model == "finite.adhesion") 
-        integrator = new Integrator::Mechanics<Model::Solid::Finite::Adhesion>(pp);  
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::Adhesion>>(integrator);
         else if (model == "affine.j2")
             pp.select_only<Integrator::Mechanics<Model::Solid::Affine::J2>>(integrator);
