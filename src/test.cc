@@ -15,6 +15,7 @@
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Finite/Adhesion.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "Model/Solid/Finite/PseudoLinear/Cubic.H"
@@ -57,7 +58,8 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoLinear::Cubic);
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
-    
+    MODELTEST(Model::Solid::Finite::Adhesion);
+
 
     Util::Test::Message("Set::Matrix4");
     {
