@@ -56,7 +56,6 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Linear::Hexagonal);
     MODELTEST(Model::Solid::Affine::Hexagonal);
     MODELTEST(Model::Solid::Finite::NeoHookean);
-   
     MODELTEST(Model::Solid::Finite::PseudoLinear::Cubic);
     MODELTEST(Model::Solid::Finite::NeoHookeanPredeformed);
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
