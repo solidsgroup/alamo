@@ -61,6 +61,7 @@ public:
     Set::Scalar d = NAN;    ///< Adhesion strength (degradable part coefficient)
     Set::Scalar zeta = NAN; ///< Adhesion decay parameter (non-degradable part)
     Set::Scalar n = NAN;    ///< Decay exponent
+    Set::Scalar L = NAN;    ///< Mobility
 
     // Return a zero-parameter adhesion model.
     static Adhesion
@@ -70,6 +71,7 @@ public:
         adhesion.d = 0.0;    ///< Adhesion strength (degradable part coefficient)
         adhesion.zeta = 0.0; ///< Adhesion decay parameter (non-degradable part)
         adhesion.n = 0.0;    ///< Decay exponent
+        adhesion.L = 0.0;
         adhesion.mu = 0.0;
         adhesion.kappa = 0.0;
         return adhesion;
@@ -85,6 +87,7 @@ public:
         adhesion.n = Util::Random();    ///< Decay exponent
         adhesion.mu = Util::Random();
         adhesion.kappa = Util::Random();// Util::Random();
+        adhesion.L = Util::Random();
         return adhesion;
     }
 
@@ -95,11 +98,13 @@ public:
     {
         pp.queryclass<NeoHookean>(value);
         // Initial value for damage
-        pp_query_default("d", value.d, 1.0);
+        pp_query_default("d", value.d, 0.0);
         // Adhesion decay parameter (non-degradable part)
         pp_query_default("zeta", value.zeta, 0.0);
         // Decay exponent
         pp_query_default("n", value.n, 1.0);
+        // Mobility
+        pp_query_default("L", value.L, 0.0);
     }
 
     // Strain energy function:
@@ -168,8 +173,21 @@ public:
             << ", zeta = " << zeta << ", n = " << n;
     }
 
+    virtual void Advance(Set::Scalar dt, Set::Matrix strain,
+                         Set::Matrix P, Set::Scalar /*time*/) override
+    {
+        // Util::Message(INFO,dt);
+        // Util::Message(INFO,L);
+        // Util::Message(INFO,(P.transpose()*P).trace());
+        Set::Scalar dd = std::max(0.0,(P.transpose()*P).trace() * (0.8 - d));
+        // Util::Message(INFO,dd);
+        d += dd * L * dt;
+    }
+
+
+
 #define OP_CLASS Adhesion
-#define OP_VARS X(d) X(mu) X(kappa) X(zeta) X(n)
+#define OP_VARS X(d) X(mu) X(kappa) X(zeta) X(n) X(L)
 #include "Model/Solid/InClassOperators.H"
 };
 
@@ -178,5 +196,47 @@ public:
 } // namespace Finite
 } // namespace Solid
 } // namespace Model
+
+template<>
+ALAMO_SINGLE_DEFINITION
+int Set::Field<Model::Solid::Finite::Adhesion>::NComp() const
+{
+    return 4;
+}
+template<>
+ALAMO_SINGLE_DEFINITION
+std::string Set::Field<Model::Solid::Finite::Adhesion>::Name(int i) const
+{
+    if (i == 0) return name + "_mu";
+    if (i == 1) return name + "_kapp";
+    if (i == 2) return name + "_d";
+    if (i == 3) return name + "_L";
+    return name;
+}
+template<>
+ALAMO_SINGLE_DEFINITION
+void Set::Field<Model::Solid::Finite::Adhesion>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Model::Solid::Finite::Adhesion> const& src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const& dst = a_dst.array(mfi);
+            for (int n = 0; n < AMREX_SPACEDIM * AMREX_SPACEDIM; n++)
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    dst(i, j, k, a_dstcomp + 0) = src(i, j, k).mu;
+                    dst(i, j, k, a_dstcomp + 1) = src(i, j, k).kappa;
+                    dst(i, j, k, a_dstcomp + 2) = src(i, j, k).d;
+                    dst(i, j, k, a_dstcomp + 3) = src(i, j, k).L;
+                });
+            }
+        }
+    }
+}
+
+
 
 #endif // MODEL_SOLID_FINITE_ADHESION_H_
