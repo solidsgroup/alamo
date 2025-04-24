@@ -2,7 +2,7 @@
 #define INTEGRATOR_THERMOMECHANICS_H
 
 #include "Model/Solid/Affine/Cubic.H"
-#include "Integrator/Mechanics.H"
+//#include "Integrator/Mechanics.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Numeric/Stencil.H"
@@ -20,7 +20,7 @@ public:
 	ThermoMechanics():
 		HeatConduction(3),
 		PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>()
-		//Mechanics<Model::Solid::Affine:Cubic>()
+		//Mechanics<Model::Solid::Affine::Cubic>()
 	{ }
 	ThermoMechanics(IO::ParmParse &pp) : ThermoMechanics()
   {Parse(*this,pp);}
@@ -39,7 +39,7 @@ protected:
     {
         HeatConduction::Initialize(lev);
         PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>::Initialize(lev);
-        //Mechanics<Model::Solid::Affine:Cubic>::Initialize(lev);
+        //Mechanics<Model::Solid::Affine::Cubic>::Initialize(lev);
     }
 
     void UpdateModel(int a_step, Set::Scalar a_time) override
@@ -98,5 +98,5 @@ protected:
 
     std::vector<Set::Scalar> alpha;
 };
-} // namespace Integrator
+} namespace Integrator
 #endif

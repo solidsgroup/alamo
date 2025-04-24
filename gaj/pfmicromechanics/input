@@ -76,8 +76,8 @@ pfm.amr.max_level = 2
 # Microstructure Initial Conditions
 # How can I get initial conditions started like this?
 # I need help on this part
-pfm.pf.number_of_grains = 4
 pfm.ic.type	= expression
+pfm.pf.number_of_grains = 4
 pfm.ic.expression.region0 = "(x > 0  and  y > 0)"
 pfm.ic.expression.region1 = "(x < 0  and  y > 0)"
 pfm.ic.expression.region2 = "(x < 0  and  y < 0)"
