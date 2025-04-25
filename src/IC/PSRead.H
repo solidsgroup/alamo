@@ -55,7 +55,7 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
 
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Vector x = Set::Position(i, j, k, self->geom[lev], type);
                 Set::Scalar min_grain_id = 0;

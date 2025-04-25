@@ -20,13 +20,16 @@ Flame::Flame() : Base::Mechanics<model_type>() {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
 {
+#if 0
     pp_queryclass(*this);
+#endif
 }
 
 // [parser]
 void
 Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
+#if 0
     BL_PROFILE("Integrator::Flame::Flame()");
     {
         // Whether to include extra fields (such as mdot, etc) in the plot output
@@ -233,10 +236,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
     }
         
+#endif
 }
 
 void Flame::Initialize(int lev)
 {
+#if 0
     BL_PROFILE("Integrator::Flame::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
 
@@ -275,10 +280,12 @@ void Flame::Initialize(int lev)
         thermal.mlocal_htpb = 685000.0 - 850e3 * thermal.massfraction;
     }
     if (variable_pressure) pressure.P = 1.0;
+#endif
 }
 
 void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 {
+#if 0
     if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
 
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -304,6 +311,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
             // amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi); // [error]
+            
+            const auto &elastic = this->elastic;
 
             if (elastic.on)
             {
@@ -336,9 +345,9 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     //phi_avg = phi(i,j,k,0);
                     model_type model_ap = elastic.model_ap;
-                    model_ap.F0 *= Set::Matrix::Zero();
+                    model_ap.F0 = Set::Matrix::Zero();
                     model_type model_htpb = elastic.model_htpb;
-                    model_htpb.F0 *= Set::Matrix::Zero();
+                    model_htpb.F0 = Set::Matrix::Zero();
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
                 });
             }
@@ -348,20 +357,24 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         psi_mf[lev]->setVal(1.0);
         amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]->nGrow());
     }
+#endif
 }
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
+#if 0
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
     if (thermal.on) {
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
     }
+#endif
 }
 
 void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 {
+#if 0
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure) {
         Set::Scalar domain_area = x_len * y_len;
@@ -370,10 +383,12 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
         Util::Message(INFO, "Mass = ", massflux);
         Util::Message(INFO, "Pressure = ", pressure.P);
     }
+#endif
 }
 
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
+#if 0
     BL_PROFILE("Integrador::Flame::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
@@ -396,6 +411,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& bx = mfi.tilebox();
+                auto *self = this;
+                auto & pf = this->pf;
+                auto & thermal = this->thermal;
+                auto & pressure = this->pressure;
+                
                 // Phase fields
                 amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
@@ -414,7 +434,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
 
                 if (variable_pressure) {
-                    pressure.P = exp(0.00075 * massflux);
+                    pressure.P = exp(0.00075 * self->massflux);
                     if (pressure.P > 10.0) {
                         pressure.P = 10.0;
                     }
@@ -442,7 +462,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar K; // Calculate effective thermal conductivity
                     Set::Scalar rho; // No special interface mixure rule is needed here.
                     Set::Scalar cp;
-                    if (homogeneousSystem) {
+                    if (self->homogeneousSystem) {
                         K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg); // Calculate effective thermal conductivity
                         rho = (thermal.rho_ap * thermal.massfraction + thermal.rho_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion2 * (1. - phi_avg); // No special interface mixure rule is needed here.
                         cp = (thermal.cp_ap * thermal.massfraction + thermal.cp_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion3 * (1. - phi_avg);
@@ -454,16 +474,16 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     }
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
-                    if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+                    if (etanew(i, j, k) <= self->small) etanew(i, j, k) = self->small;
 
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
 
                     if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
-                        Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
-                        Util::Message(INFO, mdot(i, j, k), "mdot contains nan (i=", i, " j= ", j, ")");
-                        Util::Message(INFO, alpha(i, j, k), "alpha contains nan (i=", i, " j= ", j, ")");
-                        Util::Abort(INFO);
+                        //Util::Message(INFO);//, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
+                        //Util::Message(INFO);//, mdot(i, j, k), "mdot contains nan (i=", i, " j= ", j, ")");
+                        //Util::Message(INFO);//, alpha(i, j, k), "alpha contains nan (i=", i, " j= ", j, ")");
+                        //Util::Abort(INFO);
                     }
                 });
 
@@ -477,7 +497,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar mdota;
                     Set::Scalar mbase;
 
-                    if (homogeneousSystem) {
+                    if (self->homogeneousSystem) {
                         qflux = k4 * phi_avg;
                         mlocal = (thermal.mlocal_ap) * thermal.massfraction + (thermal.mlocal_htpb) * (1.0 - thermal.massfraction);
                         mdota = fabs(mdot(i, j, k));
@@ -488,7 +508,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     else {
                         qflux = k1 * phi_avg +
                             k2 * (1.0 - phi_avg) +
-                            (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
+                            (zeta_1 / self->zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
                         mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
                         mdota = fabs(mdot(i, j, k));
                         mbase = tanh(4.0 * mdota / (mlocal));
@@ -498,8 +518,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     }
 
                     if (isnan(heatflux(i, j, k))) {
-                        Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
-                        Util::Abort(INFO);
+                        //Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
+                        //Util::Abort(INFO);
                     }
                 });
 
@@ -563,6 +583,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& bx = mfi.tilebox();
+                auto *self = this;
+                auto & pf = this->pf;
+                auto & thermal = this->thermal;
+                auto & pressure = this->pressure;
                 //Phase Fields
                 amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
@@ -581,7 +605,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 {
                     //Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
                     Set::Scalar L;
-                    if (homogeneousSystem == 1) {
+                    if (self->homogeneousSystem == 1) {
                         Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
                         Set::Scalar angle = acos(grad_eta[0] / grad_eta.lpNorm<2>()) * 180 / 3.1415;
                         if (angle > 90) angle = angle - 90.0;
@@ -605,11 +629,13 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             } // MFI For Loop 
         } // thermal ELSE      
     }// First IF
+#endif
 } //Function
 
 
 void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar time, int ngrow)
 {
+#if 0
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
     Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
@@ -620,13 +646,15 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
+        auto * self = this;
+
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
+            if (gradeta.lpNorm<2>() * dr * 2 > self->m_refinement_criterion && eta(i, j, k) >= self->t_refinement_restriction)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
@@ -636,13 +664,14 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
+            auto * self = this;
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-                if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)
+                if (gradphi.lpNorm<2>() * dr >= self->phi_refinement_criterion)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
@@ -654,34 +683,39 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
+            auto * self = this;
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<const Set::Scalar> const& temp = (*temp_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-                if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
+                if (tempgrad.lpNorm<2>() * dr > self->t_refinement_criterion && eta(i, j, k) >= self->t_refinement_restriction)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
     }
 
-
+#endif
 }
 
 void Flame::Regrid(int lev, Set::Scalar time)
 {
+#if 0
     BL_PROFILE("Integrator::Flame::Regrid");
     //if (lev < finest_level) return;
     //phi_mf[lev]->setVal(0.0);
     ic_phi->Initialize(lev, phi_mf, time);
     //ic_phicell->Initialize(lev, phi_mf, time);
+#endif
 }
 
 void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     const amrex::MFIter& mfi, const amrex::Box& box)
 {
+#if 0
     BL_PROFILE("Flame::Integrate");
+    auto * self = this;
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
@@ -689,30 +723,31 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            volume += eta(i, j, k, 0) * dv;
+            self->volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
-            area += da;
+            self->area += da;
 
             Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
             Set::Scalar mnormgrad = mgrad.lpNorm<2>();
             Set::Scalar dm = mnormgrad * dv;
-            massflux += dm;
+            self->massflux += dm;
 
         });
     }
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            volume += eta(i, j, k, 0) * dv;
+            self->volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
-            area += da;
+            self->area += da;
         });
     }
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
+#endif
 }
 } // namespace Integrator
 

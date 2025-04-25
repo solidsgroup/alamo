@@ -29,22 +29,34 @@ template<Set::Sym SYM>
 class Solid
 {
 public:
+    AMREX_GPU_HOST_DEVICE
     Solid() {} ;
 
+    AMREX_GPU_HOST_DEVICE
     virtual ~Solid() {};
 
     static constexpr Set::Sym sym = SYM;
 
     AMREX_GPU_HOST_DEVICE
-    virtual Set::Scalar W(const Set::Matrix &) const      
-    {Util::Abort(INFO,"W not implemented"); return 0.0;};
+    virtual Set::Scalar W(const Set::Matrix &) const
+    {
+        Util::Abort(INFO, "W not implemented");
+        return 0.0;
+    };
     AMREX_GPU_HOST_DEVICE
-    virtual Set::Matrix DW(const Set::Matrix &) const         
-    {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
+    virtual Set::Matrix DW(const Set::Matrix &) const
+    {
+        Util::Abort(INFO, "DW not implemented");
+        return Set::Matrix::Zero();
+    };
     AMREX_GPU_HOST_DEVICE
-    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
-    {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
+    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const
+    {
+        Util::Abort(INFO, "DDW not implemented");
+        return Set::Matrix4<AMREX_SPACEDIM, SYM>::Zero();
+    };
     
+    AMREX_GPU_HOST_DEVICE
     virtual void Advance(Set::Scalar /*dt*/, Set::Matrix /*strain*/, Set::Matrix /*stress*/, Set::Scalar /*time*/) {}
 
     // Todo: implement for all models and make this pure virtual

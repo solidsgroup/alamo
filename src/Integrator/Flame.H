@@ -39,7 +39,7 @@ public:
         delete bc_temp;
     }
 
-protected:
+public:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
@@ -49,7 +49,6 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
-private:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;

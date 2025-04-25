@@ -20,16 +20,16 @@
 #include "Model/Solid/Affine/Hexagonal.H"
 #include "Model/Solid/Finite/PseudoAffine/Cubic.H"
 
-#include "Integrator/AllenCahn.H"
-#include "Integrator/CahnHilliard.H"
-#include "Integrator/PhaseFieldMicrostructure.H"
-#include "Integrator/Mechanics.H"
+//#include "Integrator/AllenCahn.H"
+//#include "Integrator/CahnHilliard.H"
+//#include "Integrator/PhaseFieldMicrostructure.H"
+//#include "Integrator/Mechanics.H"
 #include "Integrator/Flame.H"
-#include "Integrator/HeatConduction.H"
-#include "Integrator/Fracture.H"
-#include "Integrator/ThermoElastic.H"
-#include "Integrator/Dendrite.H"
-#include "Integrator/PFC.H"
+//#include "Integrator/HeatConduction.H"
+//#include "Integrator/Fracture.H"
+//#include "Integrator/ThermoElastic.H"
+//#include "Integrator/Dendrite.H"
+//#include "Integrator/PFC.H"
 
 int main (int argc, char* argv[])
 {
@@ -45,25 +45,25 @@ int main (int argc, char* argv[])
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")
     {
-        std::string model;
-        // This input determines which elastic model is used - only if using
-        // the PhaseFieldMicrostructure integrator.
-        pp.query_validate(  "alamo.program.microstructure.model",model,
-                            {"affine.cubic","affine.hexagonal","finite.pseudoaffine.cubic"});
-        if (model == "affine.cubic")
-            pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
-        else if (model == "affine.hexagonal")
-            pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>>(integrator);
-        else if (model == "finite.pseudoaffine.cubic")
-            pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
-        else Util::Abort(INFO,model," is not a valid model");
+        // std::string model;
+        // // This input determines which elastic model is used - only if using
+        // // the PhaseFieldMicrostructure integrator.
+        // pp.query_validate(  "alamo.program.microstructure.model",model,
+        //                     {"affine.cubic","affine.hexagonal","finite.pseudoaffine.cubic"});
+        // if (model == "affine.cubic")
+        //     pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>>(integrator);
+        // else if (model == "affine.hexagonal")
+        //     pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>>(integrator);
+        // else if (model == "finite.pseudoaffine.cubic")
+        //     pp.select_only<Integrator::PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubic>>(integrator);
+        // else Util::Abort(INFO,model," is not a valid model");
     }
     else if (program == "flame")                pp.select_only<Integrator::Flame>(integrator);
-    else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
-    else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
-    else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
-    else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
-    else if (program == "pfc")                  pp.select_only<Integrator::PFC>(integrator);
+    // else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
+    // else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
+    // else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
+    // else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
+    // else if (program == "pfc")                  pp.select_only<Integrator::PFC>(integrator);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();

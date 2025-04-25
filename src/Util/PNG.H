@@ -149,7 +149,7 @@ public:
     std::array<Set::Scalar, 4> operator()(Set::Vector &x) const
     {
 #ifndef ALAMO_NOPNG
-        Util::Assert(INFO, TEST(row_pointers), "Running IC without initialization...");
+        //Util::Assert(INFO, TEST(row_pointers), "Running IC without initialization...");
 
         std::array<Set::Scalar, 4> ret;
 

@@ -1,6 +1,7 @@
 #ifndef MODEL_SOLID_FINITE_NEOHOOKEANPREDEFORMED_H_
 #define MODEL_SOLID_FINITE_NEOHOOKEANPREDEFORMED_H_
 
+#include "AMReX_GpuQualifiers.H"
 #include "IO/ParmParse.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 
@@ -13,8 +14,13 @@ namespace Finite
 class NeoHookeanPredeformed : public NeoHookean
 {
 public:
+    AMREX_GPU_HOST_DEVICE
     NeoHookeanPredeformed() {};
+
+    AMREX_GPU_HOST_DEVICE
     NeoHookeanPredeformed(NeoHookean base) : NeoHookean(base) {};
+
+    AMREX_GPU_HOST_DEVICE
     virtual ~NeoHookeanPredeformed() {};
 
     AMREX_GPU_HOST_DEVICE

@@ -58,25 +58,27 @@ public:
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const override
     {
-            amrex::Box domain(a_geom.Domain());
-            domain.convert(amrex::IntVect::TheNodeVector());
-            const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-            for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        amrex::Box domain(a_geom.Domain());
+        domain.convert(amrex::IntVect::TheNodeVector());
+        const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+        for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.tilebox();
+            bx.grow(2);
+            bx = bx & domain;
+            amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
+
+            auto * self = this;
+
+            amrex::IndexType type = a_rhs->ixType();
+
+            amrex::LoopOnCpu (bx, [=] (int i, int j, int k)
             {
-                amrex::Box bx = mfi.tilebox();
-                bx.grow(2);
-                bx = bx & domain;
-                amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
-
-                auto * self = this;
-
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
                     Face face = Face::INT;
                         
-                    #if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 2
                         
                     if      (i==lo.x && j==lo.y) face = Face::XLO_YLO;
                     else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
@@ -88,7 +90,7 @@ public:
                     else if (j==lo.y) face = Face::YLO;
                     else if (j==hi.y) face = Face::YHI;
 
-                    #elif AMREX_SPACEDIM == 3
+#elif AMREX_SPACEDIM == 3
 
                     if      (i==lo.x && j==lo.y && k==lo.z) face = Face::XLO_YLO_ZLO;
                     else if (i==lo.x && j==lo.y && k==hi.z) face = Face::XLO_YLO_ZHI;
@@ -119,9 +121,8 @@ public:
                     else if (k==lo.z) face = Face::ZLO;
                     else if (k==hi.z) face = Face::ZHI;
 
-                    #endif
+#endif
 
-                    amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
                         if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
@@ -129,13 +130,13 @@ public:
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
-                            #if AMREX_SPACEDIM==1
+#if AMREX_SPACEDIM==1
                             rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),0.0,0.0,self->m_time);
-                            #elif AMREX_SPACEDIM==2
+#elif AMREX_SPACEDIM==2
                             rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),x(1),0.0,self->m_time);
-                            #elif AMREX_SPACEDIM==3
+#elif AMREX_SPACEDIM==3
                             rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),x(1),x(2),self->m_time);
-                            #endif
+#endif
                         }
                     }
                 }
@@ -160,6 +161,7 @@ public:
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
 
                 auto * self = this;
+                amrex::IndexType type = a_rhs->ixType();
 
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     
@@ -212,7 +214,6 @@ public:
 
                     #endif
 
-                    amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
                         if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
@@ -237,6 +238,7 @@ public:
 
 
     virtual
+    AMREX_GPU_HOST_DEVICE
     std::array<Type,AMREX_SPACEDIM> getType (
                 const int &i, const int &j, [[maybe_unused]] const int &k,
                 const amrex::Box &domain) override
@@ -359,6 +361,7 @@ public:
     }
 
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type, 
                     const Set::Vector &u, const Set::Matrix &gradu, const Set::Matrix &sigma, Set::Vector n) const
     {

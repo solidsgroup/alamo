@@ -259,6 +259,7 @@ public:
     }
 
     virtual
+    AMREX_GPU_HOST_DEVICE
     std::array<Type,AMREX_SPACEDIM> getType (
                 const int &i, const int &j, [[maybe_unused]] const int &k,
                 const amrex::Box &domain)
@@ -380,6 +381,7 @@ public:
     }
 
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type, 
                     const Set::Vector &u, const Set::Matrix &gradu, const Set::Matrix &sigma, Set::Vector n) const
     {

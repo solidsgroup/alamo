@@ -67,7 +67,7 @@ public:
             auto * self = this;
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            amrex::LoopOnCpu (bx,[=] (int i, int j, int k) 
             {
                 Set::Vector x = Set::Vector::Zero();
                 // NODE

@@ -213,7 +213,7 @@ public:
                 // This is for if psi is not being used and has not been set
                 if (m_psi == nullptr)
                 {
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    amrex::LoopOnCpu (bx, [=] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
@@ -237,7 +237,7 @@ public:
                 {
                     const amrex::Dim3 boxlo = amrex::lbound(bx), boxhi = amrex::ubound(bx);
                     amrex::Array4<const Set::Scalar>  const& psi = (*m_psi)[lev]->array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    amrex::LoopOnCpu (bx, [=] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary

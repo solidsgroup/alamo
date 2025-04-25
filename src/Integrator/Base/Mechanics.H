@@ -12,6 +12,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Operator/Operator.H"
+#include "IC/IC.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/Trig.H"

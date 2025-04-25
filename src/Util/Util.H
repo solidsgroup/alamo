@@ -63,12 +63,14 @@ void Finalize ();
 
 void Terminate(const char * msg, int signal, bool backtrace);
 
+AMREX_GPU_HOST_DEVICE
 void Abort (const char * msg);
 
 template<typename... Args>
-AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (pass) return;
 
     std::ostringstream infostream;
@@ -89,12 +91,17 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
+#else
+    // todo!
+#endif
 }
 
 
 template<typename... Args>
-void Abort (std::string file, std::string func, int line, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Abort (const char * file, const char * func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -113,12 +120,16 @@ void Abort (std::string file, std::string func, int line, Args const &... args)
         std::cout << info << message << std::endl;
     }
     Abort("Fatal Error");
+#else
+    // todo!
+#endif
 }
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void ParallelAbort (std::string file, std::string func, int line, Args const &... args)
 {
-
+#ifndef __CUDA_ARCH__
     std::ostringstream infostream;
     infostream << globalprefix;
     infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
@@ -135,11 +146,16 @@ void ParallelAbort (std::string file, std::string func, int line, Args const &..
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
+#else
+    // todo!
+#endif
 }
 
 template<typename... Args>
-void Message (std::string file, std::string func, int line, Args const &... args)
+AMREX_GPU_HOST_DEVICE
+void Message (const char * file, const char * func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -158,11 +174,16 @@ void Message (std::string file, std::string func, int line, Args const &... args
 
         std::cout << info << message << std::endl;
     }
+#else
+    // todo!
+#endif
 }
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void ParallelMessage (std::string file, std::string func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     std::ostringstream infostream;
     infostream << globalprefix;
     infostream << Color::Bold << Color::FG::Blue << "MESSAGE("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ": ";
@@ -175,11 +196,16 @@ void ParallelMessage (std::string file, std::string func, int line, Args const &
     std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
     String::ReplaceAll(message,'\n',"\n"+info);
     std::cout << info << message << std::endl;
+#else
+    // todo!
+#endif
 }
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void Warning (std::string file, std::string func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -198,12 +224,17 @@ void Warning (std::string file, std::string func, int line, Args const &... args
 
         std::cout << info << message << std::endl;
     }
+#else
+    // todo!
+#endif
 }
 
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 void Exception (std::string file, std::string func, int line, Args const &... args)
 {
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -226,14 +257,19 @@ void Exception (std::string file, std::string func, int line, Args const &... ar
 
         std::throw_with_nested(std::runtime_error("IO::Exception"));
     }
+#else
+    // todo!
+#endif
 }
 
 template<typename... Args>
+AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 void AssertException (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
     if (pass) return;
 
+#ifndef __CUDA_ARCH__
     if (amrex::ParallelDescriptor::IOProcessor())
     {
         std::ostringstream infostream;
@@ -255,6 +291,9 @@ void AssertException (std::string file, std::string func, int line, std::string 
 
         Exception(file,func,line,"Fatal Error");
     }
+#else
+    // todo!
+#endif
 }
 
 

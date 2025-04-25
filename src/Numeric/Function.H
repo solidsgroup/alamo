@@ -17,6 +17,7 @@ public:
     {
         a[0] = a0; a[1] = a1; a[2] = a2; a[3] = a3;
     }
+    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
         Set::Scalar operator() (const Set::Scalar x) const
     {
@@ -34,6 +35,7 @@ public:
     {
         a[0] = a0; a[1] = a1; a[2] = a2; a[3] = a3; a[4] = a4;
     }
+    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
         Set::Scalar operator() (const Set::Scalar x) const
     {

@@ -13,8 +13,11 @@ namespace Finite
 class NeoHookean : public Solid<Set::Sym::Major>
 {
 public:
+    AMREX_GPU_HOST_DEVICE
     NeoHookean() {};
+    AMREX_GPU_HOST_DEVICE
     NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
+    AMREX_GPU_HOST_DEVICE
     virtual ~NeoHookean() {};
 
     AMREX_GPU_HOST_DEVICE

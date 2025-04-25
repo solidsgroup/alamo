@@ -1,3 +1,4 @@
+AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 void operator += (const OP_CLASS &rhs)
 {
@@ -7,6 +8,7 @@ void operator += (const OP_CLASS &rhs)
 #undef X
 }    
 
+AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 OP_CLASS operator * (const Set::Scalar alpha) const
 {
@@ -17,7 +19,7 @@ OP_CLASS operator * (const Set::Scalar alpha) const
 #undef X
     return ret;
 }    
-friend OP_CLASS operator * (const Set::Scalar alpha, const OP_CLASS b);
-friend OP_CLASS operator + (const OP_CLASS a, const OP_CLASS b);
-friend OP_CLASS operator - (const OP_CLASS a, const OP_CLASS b);
-friend bool operator == (const OP_CLASS a, const OP_CLASS b);
+friend AMREX_GPU_HOST_DEVICE OP_CLASS operator * (const Set::Scalar alpha, const OP_CLASS b);
+friend AMREX_GPU_HOST_DEVICE OP_CLASS operator + (const OP_CLASS a, const OP_CLASS b);
+friend AMREX_GPU_HOST_DEVICE OP_CLASS operator - (const OP_CLASS a, const OP_CLASS b);
+friend AMREX_GPU_HOST_DEVICE bool operator == (const OP_CLASS a, const OP_CLASS b);
