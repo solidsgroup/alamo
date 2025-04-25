@@ -173,10 +173,10 @@ public:
             // Loop through all valid boxes
             for (amrex::MFIter mfi(*solver->ls_mf[lev], false); mfi.isValid(); ++mfi) {
                 // Get the mfi index and skip if not in narrowband boxlist
-                //const amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags;
+                const amrex::Vector<int> narrowband_flags = solver->level_sets[ils].narrowband_flags;
                 const int idx = mfi.index();
 
-                //if (narrowband_flags[idx] == 0) continue;
+                if (narrowband_flags[idx] == 0) continue;
 
                 // Define the valid box
                 const amrex::Box& bx = mfi.validbox();  // Valid region of the box

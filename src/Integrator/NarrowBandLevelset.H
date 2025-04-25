@@ -243,9 +243,9 @@ protected:
     void ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, int ls_id);
     void UpdateNarrowband(int lev, int ls_id);
     //amrex::BoxArray MakeBoxArrayFromIntVects(const amrex::Vector<amrex::IntVect>& ivects, bool simplify = true);
-    void ComputeNarrowBandBoxList(int lev, int ls_id);
-    void ComputeNarrowBandMapping(int lev, int ls_id);
-    void UpdateNarrowBandFlags(int lev, int ls_id);
+    //void ComputeNarrowBandBoxList(int lev, int ls_id);
+    //void ComputeNarrowBandMapping(int lev, int ls_id);
+    //void UpdateNarrowBandFlags(int lev, int ls_id);
     void UpdateNarrowbandTubeandMapping(int lev, int ls_id);
     // Geometries
     void ComputeNormal(int lev, int ls_id);
@@ -255,7 +255,7 @@ protected:
     void ComputeAndSetNewTimeStep();
     Set::Scalar GetTimeStep();
     // Advance
-    void ClampLS(int lev, int ls_id);
+    //void ClampLS(int lev, int ls_id);
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev, int ls_id);

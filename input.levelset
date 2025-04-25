@@ -1,10 +1,10 @@
 ## Simulation output
-plot_file = output_levelset_circle_Zerols_100X100_(1_1)_50steps_ext_debug_Print
+plot_file = output_levelset_disk_100X100_(1_0)_150steps
 
 # Simulation length
 timestep = 1.00
-stop_time = 0.500
-max_step = 50
+stop_time = 1.000
+max_step = 150
 
 # AMR parameters
 amr.plot_int = 5
@@ -16,7 +16,7 @@ amr.grid_eff = 1.0
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 2 2 1
+geometry.prob_hi = 0.85 1 1
 geometry.is_periodic = 0 0 0
 
 #cflNumber
@@ -32,20 +32,20 @@ FluxScheme = LocalLaxFriedrichs
 FluxReconstruction = FirstOrder
 
 # Initial conditions for levelset
-ic.ls.type = sphere
-ic.ls.sphere.radius = 0.25
-ic.ls.sphere.center = 0.5 0.5 0.5
-ic.ls.sphere.type   = "xy"
+ic.ls.type = zalesak
+#ic.ls.sphere.radius = 0.25
+#ic.ls.sphere.center = 0.5 0.5 0.5
+#ic.ls.sphere.type   = "xy"
 
-#ic.ls.zalesak.radius        = 0.25
-#ic.ls.zalesak.center        = 0.5 0.5 0.5
-#ic.ls.zalesak.slot_center   = 0.5 0.75 0.5
-#ic.ls.zalesak.slot_size     = 0.1 0.2 0.0
-#ic.ls.zalesak.fillet_radius = 0.005
-#ic.ls.zalesak.type          = "xy"
+ic.ls.zalesak.radius        = 0.25
+ic.ls.zalesak.center        = 0.5 0.5 0.5
+ic.ls.zalesak.slot_center   = 0.5 0.75 0.5
+ic.ls.zalesak.slot_size     = 0.1 0.2 0.0
+ic.ls.zalesak.fillet_radius = 0.005
+ic.ls.zalesak.type          = "xy"
 
 # Initial velocity field (constant)
-ic.velocity.value = 1.0 1.0 #0.0
+ic.velocity.value = 1.0 0.0 #0.0
 
 # Boundary conditions for levelset field
 bc.ls.type.xhi = neumann
