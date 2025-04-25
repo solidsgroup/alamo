@@ -35,8 +35,8 @@ Diagonal::Fapply (int amrlev,
     for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
     {
         const amrex::FArrayBox &ufab    = u[mfi];
-        if(ufab.contains_inf()) Util::Abort(INFO, "Inf in ufab [before update]");
-        if(ufab.contains_nan()) Util::Abort(INFO, "Nan in ufab [before update]");
+        //if(ufab.contains_inf()) Util::Abort(INFO, "Inf in ufab [before update]");
+        //if(ufab.contains_nan()) Util::Abort(INFO, "Nan in ufab [before update]");
     }
 
     for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
@@ -76,8 +76,8 @@ Diagonal::Fapply (int amrlev,
     for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
     {
         amrex::FArrayBox       &ffab    = f[mfi];
-        if(ffab.contains_inf()) Util::Abort(INFO, "Inf in ffab [after update]");
-        if(ffab.contains_nan()) Util::Abort(INFO, "Nan in ffab [after update]");
+        //if(ffab.contains_inf()) Util::Abort(INFO, "Inf in ffab [after update]");
+        //if(ffab.contains_nan()) Util::Abort(INFO, "Nan in ffab [after update]");
     }
 }
 

@@ -48,7 +48,7 @@ public:
         m_psi = &a_psi;
     }
 
-private:
+public:
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf,
         const Set::Field<Set::Scalar>& a_b_mf,
         Set::Field<Set::Scalar>& a_rhs_mf,
@@ -114,6 +114,7 @@ private:
             {
                 amrex::Box bx = mfi.nodaltilebox();
                 bx = bx & domain;
+                auto * self = this;
                 amrex::Array4<const Set::Scalar>  const& u = a_u_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
@@ -126,7 +127,7 @@ private:
                     {
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
-                        Set::Vector ret = m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
+                        Set::Vector ret = self->m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
                     }
                     else
@@ -203,6 +204,7 @@ private:
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                auto * self = this;
                 amrex::Array4<const Set::Vector>  const& u = a_u_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Vector>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
@@ -218,7 +220,7 @@ private:
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
+                            Set::Vector ret = self->m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
@@ -247,7 +249,7 @@ private:
                             {
                                 psiavg = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
                             }
-                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
+                            Set::Vector ret = self->m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else

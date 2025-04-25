@@ -17,14 +17,17 @@ public:
     NeoHookeanPredeformed(NeoHookean base) : NeoHookean(base) {};
     virtual ~NeoHookeanPredeformed() {};
 
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix& F) const override
     {
         return NeoHookean::W(F * F0.inverse());
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix& F) const override
     {
         return NeoHookean::DW(F * F0.inverse());
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
     {
         return NeoHookean::DDW(F * F0.inverse());

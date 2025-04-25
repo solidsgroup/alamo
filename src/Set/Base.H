@@ -24,6 +24,20 @@ using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using Matrix3d = Eigen::Matrix3d;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
+
+template<class W, class DW>
+struct Jet {
+    W zero;     // or "grad"
+    DW first; // or "jacobian" or "hessian" depending on context
+
+    AMREX_GPU_HOST_DEVICE
+    Jet() = default;
+
+    AMREX_GPU_HOST_DEVICE
+    Jet(const W v, const DW d) : zero(v), first(d) {}
+};
+
+
 AMREX_FORCE_INLINE
 Set::Matrix reduce(const Set::Matrix3d &in)
 {
@@ -115,6 +129,7 @@ bool operator == (const Quaternion a, const Quaternion b)
 }
 
 
+AMREX_GPU_HOST_DEVICE
 static Scalar Garbage = NAN;
 
 AMREX_FORCE_INLINE

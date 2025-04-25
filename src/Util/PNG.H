@@ -1,6 +1,7 @@
 
 #include <string.h>
 
+#include "AMReX_GpuQualifiers.H"
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
 
@@ -144,7 +145,8 @@ public:
     }
 
     [[nodiscard]]
-    std::array<Set::Scalar, 4> operator()(Set::Vector &x)
+    AMREX_GPU_HOST_DEVICE
+    std::array<Set::Scalar, 4> operator()(Set::Vector &x) const
     {
 #ifndef ALAMO_NOPNG
         Util::Assert(INFO, TEST(row_pointers), "Running IC without initialization...");

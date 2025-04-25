@@ -86,15 +86,15 @@ public:
         inv.lambda = lambda / (2*mu*(3*lambda + 2*mu));
         return inv;
     }
-    friend Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix  &b);
-    friend Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix3 &b);
-    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator - (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
-    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
-    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
-    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator / (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
-    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
-    friend bool operator == (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a,const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
-    friend Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator + (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a,const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
+    friend AMREX_GPU_HOST_DEVICE Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix  &b);
+    friend AMREX_GPU_HOST_DEVICE Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix3 &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator - (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator / (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Scalar &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator * (const Set::Scalar &b, const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a);
+    friend AMREX_GPU_HOST_DEVICE bool operator == (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a,const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM,Sym::Isotropic> operator + (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a,const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &b);
 
     //AMREX_GPU_HOST_DEVICE void operator =  (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a) {lambda =  a.lambda; mu =  a.mu;}
     AMREX_GPU_HOST_DEVICE void operator += (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a) {lambda += a.lambda; mu += a.mu;}

@@ -35,11 +35,12 @@ public:
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == (int)a_field[lev]->nComp())));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.growntilebox();
+            const amrex::Box &bx = mfi.growntilebox();
+            auto * self = this;
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                field(i,j,k,m) += m_value.size() == 1 ? m_value[0] : m_value[m];
+                field(i,j,k,m) += self->m_value.size() == 1 ? self->m_value[0] : self->m_value[m];
             });  
         }
     }
@@ -49,11 +50,12 @@ public:
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == AMREX_SPACEDIM)));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.growntilebox();
+            const amrex::Box &bx = mfi.growntilebox();
+            auto * self = this;
             amrex::Array4<Set::Vector> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    field(i,j,k)(m) += m_value.size() == 1 ? m_value[0] : m_value[m];
+                    field(i,j,k)(m) += self->m_value.size() == 1 ? self->m_value[0] : self->m_value[m];
             });  
         }
     }

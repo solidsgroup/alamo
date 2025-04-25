@@ -48,6 +48,7 @@ public:
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
+            auto * self = this;
             amrex::IndexType type = a_phi[lev]->ixType();
             if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
             else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
@@ -56,48 +57,48 @@ public:
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                Set::Vector x = Set::Position(i, j, k, self->geom[lev], type);
                 Set::Scalar min_grain_id = 0;
 
-                for (unsigned int n = 0; n < X.size(); n++)
+                for (unsigned int n = 0; n < self->X.size(); n++)
                 {
                     Set::Scalar d;
                     Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
 
-                    d = (x - X[n]).lpNorm<2>();
+                    d = (x - self->X[n]).lpNorm<2>();
 
-                    if (geom[0].isPeriodic(0))
+                    if (self->geom[0].isPeriodic(0))
                     {
-                        d1 = std::min((x - X[n] + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
-                            (x - X[n] - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
+                        d1 = std::min((x - self->X[n] + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
+                            (x - self->X[n] - size(0) * Set::Vector::Unit(0)).lpNorm<2>());
                     }
 #if AMREX_SPACEDIM > 1
-                    if (geom[0].isPeriodic(1))
+                    if (self->geom[0].isPeriodic(1))
                     {
-                        d1 = std::min((x - X[n] + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
-                            (x - X[n] - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
+                        d1 = std::min((x - self->X[n] + size(1) * Set::Vector::Unit(1)).lpNorm<2>(),
+                            (x - self->X[n] - size(1) * Set::Vector::Unit(1)).lpNorm<2>());
                     }
 #endif
 #if AMREX_SPACEDIM > 2
-                    if (geom[0].isPeriodic(2))
+                    if (self->geom[0].isPeriodic(2))
                     {
-                        d1 = std::min((x - X[n] + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
-                            (x - X[n] - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
+                        d1 = std::min((x - self->X[n] + size(2) * Set::Vector::Unit(2)).lpNorm<2>(),
+                            (x - self->X[n] - size(2) * Set::Vector::Unit(2)).lpNorm<2>());
                     }
 #endif
 
                     d = std::min(d, d1);
 
-                    if (d <= (R[n] + eps))
+                    if (d <= (self->R[n] + self->eps))
 
                     {
-                        Set::Scalar m = 0.5 * (1 + erf((-d + R[n]) / (eps)));
+                        Set::Scalar m = 0.5 * (1 + erf((-d + self->R[n]) / (self->eps)));
                         min_grain_id = min_grain_id + m * (1. - min_grain_id);
                     }
                 }
 
                 phi(i, j, k, 0) = min_grain_id;
-                if (invert) phi(i,j,k,0) = 1.0 - min_grain_id;
+                if (self->invert) phi(i,j,k,0) = 1.0 - min_grain_id;
                 if (ncomp > 1) phi(i, j, k, 1) = 1.0 - min_grain_id;
             });
         }

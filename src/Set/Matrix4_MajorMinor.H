@@ -162,14 +162,14 @@ public:
     }
 
 
-    friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
-    friend bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
-    friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
-    friend Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
-    friend Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
-    friend Matrix4<2,Sym::MajorMinor> operator * (Set::Scalar b, Matrix4<2,Sym::MajorMinor> a);
-    friend Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
-    friend Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
+    friend AMREX_GPU_HOST_DEVICE Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
+    friend AMREX_GPU_HOST_DEVICE bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2,Sym::MajorMinor> operator * (Set::Scalar b, Matrix4<2,Sym::MajorMinor> a);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
+    friend AMREX_GPU_HOST_DEVICE Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
@@ -486,14 +486,14 @@ public:
         return Cubic(C11,C12,C44,R);
     }
 
-    friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
-    friend Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
-    friend Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
-    friend Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
-    friend Matrix4<3,Sym::MajorMinor> operator * (Set::Scalar b, Matrix4<3,Sym::MajorMinor> a);
-    friend Matrix4<3,Sym::MajorMinor> operator / (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
-    friend Set::Vector operator * (Matrix4<3,Sym::MajorMinor> a, Set::Matrix3 b);
-    friend Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
+    friend AMREX_GPU_HOST_DEVICE bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3,Sym::MajorMinor> operator * (Set::Scalar b, Matrix4<3,Sym::MajorMinor> a);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<3,Sym::MajorMinor> operator / (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
+    friend AMREX_GPU_HOST_DEVICE Set::Vector operator * (Matrix4<3,Sym::MajorMinor> a, Set::Matrix3 b);
+    friend AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)

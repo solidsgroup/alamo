@@ -138,7 +138,7 @@ public:
         pp_query_default("tstart", value.tstart,-1.0);
     }
 
-protected:
+public:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
@@ -278,6 +278,7 @@ protected:
                 });
 
                 bx = mfi.nodaltilebox() & domain;
+                auto * self = this;
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
@@ -288,7 +289,7 @@ protected:
                     {
                         auto sten = Numeric::GetStencil(i,j,k,domain);                        
 
-                        auto bctype = bc->getType(i,j,k,domain);
+                        auto bctype = self->bc->getType(i,j,k,domain);
 
                         for (int d = 0; d < AMREX_SPACEDIM; d++)
                         {
@@ -352,9 +353,9 @@ protected:
                         //                    +(Cgrad3*gradu).col(2));
                         
                         Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
-                        f += mu_newton * lapv + b(i,j,k) - mu_dashpot*v(i,j,k);
+                        f += self->mu_newton * lapv + b(i,j,k) - self->mu_dashpot*v(i,j,k);
                         
-                        Set::Vector udotdot = f / rho;
+                        Set::Vector udotdot = f / self->rho;
                         vnew(i, j, k) = v(i, j, k) + dt * udotdot;
                         unew(i, j, k) = u(i, j, k) + dt * v(i, j, k);
                     }
@@ -396,7 +397,7 @@ protected:
 
         amrex::Box box = a_box;
         box.convert(amrex::IntVect::TheNodeVector());
-
+        auto * self = this;
 
         //Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 #if AMREX_SPACEDIM == 2
@@ -416,20 +417,20 @@ protected:
 #if AMREX_SPACEDIM == 2
             if (i == hi.x && j < boxhi.y)
             {
-                trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
-                disp_hi[0] = disp(i, j, k);
+                self->trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
+                self->disp_hi[0] = disp(i, j, k);
             }
             if (j == hi.y && i < boxhi.x)
             {
-                trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
-                disp_hi[1] = disp(i, j, k);
+                self->trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
+                self->disp_hi[1] = disp(i, j, k);
             }
 #elif AMREX_SPACEDIM == 3
             if (i == hi.x && (j < boxhi.y && k < boxhi.z))
             {
-                trac_hi[0] += (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
+                self->trac_hi[0] += (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
                     + stress(i, j, k + 1) + stress(i, j + 1, k + 1)) * da);
-                disp_hi[0] = disp(i, j, k);
+                self->disp_hi[0] = disp(i, j, k);
             }
 #endif
         });
@@ -446,13 +447,14 @@ protected:
         for (amrex::MFIter mfi(*strain_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
+            auto * self = this;
             bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Matrix> const& eps = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Matrix3 grad = Numeric::NodeGradientOnCell(eps, i, j, k, DX.data());
-                if (grad.norm() * DXnorm > m_elastic_ref_threshold)
+                if (grad.norm() * DXnorm > self->m_elastic_ref_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }

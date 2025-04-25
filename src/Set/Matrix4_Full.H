@@ -38,7 +38,7 @@ public:
         else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[3];
         // [1, 1, 1, 1]
         else if (uid==15 ) return data[4];
-        else Util::Abort(INFO,"Index out of range");
+        else //Util::Abort(INFO,"Index out of range");
         return data[0]; // this code is unreachable
     }
     Scalar operator () (const int i, const int j, const int k, const int l) const
@@ -54,7 +54,7 @@ public:
         else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[3];
         // [1, 1, 1, 1]
         else if (uid==15 ) return data[4];
-        else Util::Abort(INFO,"Index out of range");
+        else //Util::Abort(INFO,"Index out of range");
         return data[0]; // this code is unreachable
     }
     static Matrix4<2,Sym::Full> Randomize()
@@ -132,7 +132,7 @@ public:
         else if (uid==79 || uid==77 || uid==71 || uid==53 ) return data[13];
         // [2, 2, 2, 2]
         else if (uid==80 ) return data[14];
-        else Util::Abort(INFO,"uid not in range (uid=",uid,")");        
+        else //Util::Abort(INFO,"uid not in range (uid=",uid,")");        
         return data[0]; // this return statement is unreachable.
     }
     Scalar operator () (const int i, const int j, const int k, const int l) const
@@ -168,7 +168,7 @@ public:
         else if (uid==79 || uid==77 || uid==71 || uid==53 ) return data[13];
         // [2, 2, 2, 2]
         else if (uid==80 ) return data[14];
-        else Util::Abort(INFO,"uid not in range (uid=",uid,")");        
+        else //Util::Abort(INFO,"uid not in range (uid=",uid,")");        
         return data[0]; // this return statement is unreachable.
     }
     void Print (std::ostream& os)

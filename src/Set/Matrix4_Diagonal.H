@@ -33,14 +33,14 @@ public:
         zero.A = Set::Matrix::Zero();
         return zero;
     }
-    friend Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Matrix& b);
-    friend Set::Vector operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Matrix3& b);
-    friend bool operator == (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b);
-    friend Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator + (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b);
-    friend Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator - (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b);
-    friend Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Scalar& b);
-    friend Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * (const Set::Scalar& b, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a);
-    friend Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator / (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Scalar& b);
+    friend AMREX_GPU_HOST_DEVICE Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Matrix& b);
+    friend AMREX_GPU_HOST_DEVICE Set::Vector operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Matrix3& b);
+    friend AMREX_GPU_HOST_DEVICE bool operator == (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator + (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator - (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Scalar& b);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator * (const Set::Scalar& b, const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a);
+    friend AMREX_GPU_HOST_DEVICE Matrix4<AMREX_SPACEDIM, Sym::Diagonal> operator / (const Matrix4<AMREX_SPACEDIM, Sym::Diagonal>& a, const Set::Scalar& b);
 
 
     //AMREX_GPU_HOST_DEVICE void operator =  (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a) {lambda =  a.lambda; mu =  a.mu;}

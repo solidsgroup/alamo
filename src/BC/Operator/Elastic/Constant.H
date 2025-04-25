@@ -110,7 +110,10 @@ public:
                 amrex::Box bx = mfi.tilebox();
                 bx.grow(2);
                 bx = bx & domain;
-                amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
+                amrex::Array4<Set::Vector> const &rhs = a_rhs->array(mfi);
+
+                auto * self = this;
+
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
@@ -164,10 +167,10 @@ public:
 
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
                             rhs(i,j,k)(dir) = 0.0;
                         else 
-                            rhs(i,j,k)(dir) = m_bc_val[face][dir](m_time);
+                            rhs(i,j,k)(dir) = self->m_bc_val[face][dir](self->m_time);
                     }
                 }
             });
@@ -189,6 +192,9 @@ public:
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
+
+                auto * self = this;
+
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
@@ -242,10 +248,10 @@ public:
 
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
                             rhs(i,j,k,dir) = 0.0;
                         else 
-                            rhs(i,j,k,dir) = m_bc_val[face][dir](m_time);
+                            rhs(i,j,k,dir) = self->m_bc_val[face][dir](self->m_time);
                     }
                 }
             });
@@ -308,6 +314,7 @@ public:
     }
 
 
+    AMREX_GPU_HOST_DEVICE
     AMREX_FORCE_INLINE
     Set::Vector operator () (const Set::Vector &u,
                 const Set::Matrix &gradu,

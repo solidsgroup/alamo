@@ -35,10 +35,13 @@ public:
 
     static constexpr Set::Sym sym = SYM;
 
+    AMREX_GPU_HOST_DEVICE
     virtual Set::Scalar W(const Set::Matrix &) const      
     {Util::Abort(INFO,"W not implemented"); return 0.0;};
+    AMREX_GPU_HOST_DEVICE
     virtual Set::Matrix DW(const Set::Matrix &) const         
     {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
+    AMREX_GPU_HOST_DEVICE
     virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
     {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
     

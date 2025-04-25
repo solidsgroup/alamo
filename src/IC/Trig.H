@@ -1,6 +1,6 @@
 //
-// This is an old-fashioned IC. 
-// It is kept because it is still used with the Trig regression test, but 
+// This is an old-fashioned IC.
+// It is kept because it is still used with the Trig regression test, but
 // it is recommended to use IC::Expression instead.
 //
 
@@ -9,12 +9,12 @@
 
 #include <complex>
 
-#include "IO/ParmParse.H"
 #include "AMReX_Vector.H"
 #include "IC/IC.H"
+#include "IO/ParmParse.H"
 #include "Set/Base.H"
-#include "Util/Util.H"
 #include "Set/Set.H"
+#include "Util/Util.H"
 
 namespace IC
 {
@@ -22,174 +22,168 @@ namespace IC
 class Trig : public IC<Set::Scalar>, public IC<Set::Vector>
 {
 public:
-    static constexpr const char* name = "trig";
-    Trig (amrex::Vector<amrex::Geometry> &_geom,
-        Set::Scalar _alpha = 1.0,
-        AMREX_D_DECL(std::complex<int> _n1 = 0,
-                std::complex<int> _n2 = 0,
-                std::complex<int> _n3 = 0),
-        int _dim = AMREX_SPACEDIM) :
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+    static constexpr const char *name = "trig";
+    Trig(amrex::Vector<amrex::Geometry> &_geom,
+         Set::Scalar _alpha = 1.0,
+         AMREX_D_DECL(std::complex<int> _n1 = 0,
+                      std::complex<int> _n2 = 0,
+                      std::complex<int> _n3 = 0),
+         int _dim = AMREX_SPACEDIM) : IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
     {
-        Define(_alpha,AMREX_D_DECL(_n1,_n2,_n3),_dim);
+        Define(_alpha, AMREX_D_DECL(_n1, _n2, _n3), _dim);
     }
-    Trig(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : 
-        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
-    {pp_queryclass(name,*this);}
+    Trig(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+    {
+        pp_queryclass(name, *this);
+    }
 
-
-    void Define(Set::Scalar _alpha = 1.0,
-            AMREX_D_DECL(std::complex<int> _n1 = 0,
-                std::complex<int> _n2 = 0,
-                std::complex<int> _n3 = 0),
-            int _dim = AMREX_SPACEDIM)
+    void
+    Define(Set::Scalar _alpha = 1.0,
+           AMREX_D_DECL(std::complex<int> _n1 = 0,
+                        std::complex<int> _n2 = 0,
+                        std::complex<int> _n3 = 0),
+           int _dim = AMREX_SPACEDIM)
     {
         alpha = _alpha;
         AMREX_D_TERM(n1 = _n1;, n2 = _n2;, n3 = _n3;);
         dim = _dim;
-        AMREX_D_DECL(phi1 = std::atan2(n1.imag(),n1.real()),
-                phi2 = std::atan2(n2.imag(),n2.real()),
-                phi3 = std::atan2(n3.imag(),n3.real()));
+        AMREX_D_DECL(phi1 = std::atan2(n1.imag(), n1.real()),
+                     phi2 = std::atan2(n2.imag(), n2.real()),
+                     phi3 = std::atan2(n3.imag(), n3.real()));
     }
 
-
-    virtual void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar) override
+    virtual void
+    Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar) override
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
         const Set::Scalar AMREX_D_DECL(L1 = IC<Set::Scalar>::geom[lev].ProbHi()[0] - IC<Set::Scalar>::geom[lev].ProbLo()[0],
-                            L2 = IC<Set::Scalar>::geom[lev].ProbHi()[1] - IC<Set::Scalar>::geom[lev].ProbLo()[1],
-                            L3 = IC<Set::Scalar>::geom[lev].ProbHi()[2] - IC<Set::Scalar>::geom[lev].ProbLo()[2]);
-
+                                       L2 = IC<Set::Scalar>::geom[lev].ProbHi()[1] - IC<Set::Scalar>::geom[lev].ProbLo()[1],
+                                       L3 = IC<Set::Scalar>::geom[lev].ProbHi()[2] - IC<Set::Scalar>::geom[lev].ProbLo()[2]);
 
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
-            if (cellcentered) bx = mfi.growntilebox();
-            else bx = mfi.grownnodaltilebox();
-
+            if (cellcentered)
+                bx = mfi.growntilebox();
+            else
+                bx = mfi.grownnodaltilebox();
+            auto *self = this;
             amrex::Array4<Set::Scalar> const &field = a_field[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                Set::Scalar AMREX_D_DECL(x1,x2,x3);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                Set::Scalar AMREX_D_DECL(x1, x2, x3);
                 if (cellcentered)
                 {
-                    AMREX_D_TERM(x1 = IC<Set::Scalar>::geom[lev].ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * IC<Set::Scalar>::geom[lev].CellSize()[0];,
-                                x2 = IC<Set::Scalar>::geom[lev].ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * IC<Set::Scalar>::geom[lev].CellSize()[1];,
-                                x3 = IC<Set::Scalar>::geom[lev].ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * IC<Set::Scalar>::geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x1 = self->IC<Set::Scalar>::geom[lev].ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * self->IC<Set::Scalar>::geom[lev].CellSize()[0];,
+                                 x2 = self->IC<Set::Scalar>::geom[lev].ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * self->IC<Set::Scalar>::geom[lev].CellSize()[1];,
+                                 x3 = self->IC<Set::Scalar>::geom[lev].ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * self->IC<Set::Scalar>::geom[lev].CellSize()[2];);
                 }
                 else
                 {
-                    AMREX_D_TERM(x1 = IC<Set::Scalar>::geom[lev].ProbLo()[0] + (Set::Scalar)(i) * IC<Set::Scalar>::geom[lev].CellSize()[0];,
-                                x2 = IC<Set::Scalar>::geom[lev].ProbLo()[1] + (Set::Scalar)(j) * IC<Set::Scalar>::geom[lev].CellSize()[1];,
-                                x3 = IC<Set::Scalar>::geom[lev].ProbLo()[2] + (Set::Scalar)(k) * IC<Set::Scalar>::geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x1 = self->IC<Set::Scalar>::geom[lev].ProbLo()[0] + (Set::Scalar)(i)*self->IC<Set::Scalar>::geom[lev].CellSize()[0];,
+                                 x2 = self->IC<Set::Scalar>::geom[lev].ProbLo()[1] + (Set::Scalar)(j)*self->IC<Set::Scalar>::geom[lev].CellSize()[1];,
+                                 x3 = self->IC<Set::Scalar>::geom[lev].ProbLo()[2] + (Set::Scalar)(k)*self->IC<Set::Scalar>::geom[lev].CellSize()[2];);
                 }
-                                   
-                Set::Scalar trigfn = 1.0;
-                #if AMREX_SPACEDIM > 0
-                if (dim > 0)
-                    trigfn *= (fabs(std::cos(phi1))*std::cos(n1.real()*Set::Constant::Pi*x1 / L1) +
-                            fabs(std::sin(phi1))*std::sin(n1.imag()*Set::Constant::Pi*x1 / L1));
-                #endif
-                #if AMREX_SPACEDIM > 1
-                if (dim > 1)
-                    trigfn *= (fabs(std::cos(phi2))*std::cos(n2.real()*Set::Constant::Pi*x2 / L2) +
-                            fabs(std::sin(phi2))*std::sin(n2.imag()*Set::Constant::Pi*x2 / L2));
-                #endif
-                #if AMREX_SPACEDIM > 2
-                if (dim > 2)
-                    trigfn *= (fabs(std::cos(phi3))*std::cos(n3.real()*Set::Constant::Pi*x3 / L3) +
-                            fabs(std::sin(phi3))*std::sin(n3.imag()*Set::Constant::Pi*x3 / L3));
-                #endif
-                        
-                field(i,j,k,IC<Set::Scalar>::comp) += alpha * trigfn;
 
+                Set::Scalar trigfn = 1.0;
+#if AMREX_SPACEDIM > 0
+                if (self->dim > 0)
+                    trigfn *= (fabs(std::cos(self->phi1)) * std::cos(self->n1.real() * Set::Constant::Pi * x1 / L1) + fabs(std::sin(self->phi1)) * std::sin(self->n1.imag() * Set::Constant::Pi * x1 / L1));
+#endif
+#if AMREX_SPACEDIM > 1
+                if (self->dim > 1)
+                    trigfn *= (fabs(std::cos(self->phi2)) * std::cos(self->n2.real() * Set::Constant::Pi * x2 / L2) + fabs(std::sin(self->phi2)) * std::sin(self->n2.imag() * Set::Constant::Pi * x2 / L2));
+#endif
+#if AMREX_SPACEDIM > 2
+                if (self->dim > 2)
+                    trigfn *= (fabs(std::cos(self->phi3)) * std::cos(self->n3.real() * Set::Constant::Pi * x3 / L3) + fabs(std::sin(self->phi3)) * std::sin(self->n3.imag() * Set::Constant::Pi * x3 / L3));
+#endif
+
+                field(i, j, k, self->IC<Set::Scalar>::comp) += self->alpha * trigfn;
             });
         }
     }
-    virtual void Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar) override
+    virtual void
+    Add(const int &lev, Set::Field<Set::Vector> &a_field, Set::Scalar) override
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
         const Set::Scalar AMREX_D_DECL(L1 = IC<Set::Vector>::geom[lev].ProbHi()[0] - IC<Set::Vector>::geom[lev].ProbLo()[0],
-                            L2 = IC<Set::Vector>::geom[lev].ProbHi()[1] - IC<Set::Vector>::geom[lev].ProbLo()[1],
-                            L3 = IC<Set::Vector>::geom[lev].ProbHi()[2] - IC<Set::Vector>::geom[lev].ProbLo()[2]);
-
+                                       L2 = IC<Set::Vector>::geom[lev].ProbHi()[1] - IC<Set::Vector>::geom[lev].ProbLo()[1],
+                                       L3 = IC<Set::Vector>::geom[lev].ProbHi()[2] - IC<Set::Vector>::geom[lev].ProbLo()[2]);
 
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
-            if (cellcentered) bx = mfi.growntilebox();
-            else bx = mfi.grownnodaltilebox();
-
+            if (cellcentered)
+                bx = mfi.growntilebox();
+            else
+                bx = mfi.grownnodaltilebox();
+            auto * self = this;
             amrex::Array4<Set::Vector> const &field = a_field[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                Set::Scalar AMREX_D_DECL(x1,x2,x3);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                Set::Scalar AMREX_D_DECL(x1, x2, x3);
                 if (cellcentered)
                 {
-                    AMREX_D_TERM(x1 = IC<Set::Vector>::geom[lev].ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * IC<Set::Vector>::geom[lev].CellSize()[0];,
-                                x2 = IC<Set::Vector>::geom[lev].ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * IC<Set::Vector>::geom[lev].CellSize()[1];,
-                                x3 = IC<Set::Vector>::geom[lev].ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * IC<Set::Vector>::geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x1 = self->IC<Set::Vector>::geom[lev].ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * self->IC<Set::Vector>::geom[lev].CellSize()[0];,
+                                 x2 = self->IC<Set::Vector>::geom[lev].ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * self->IC<Set::Vector>::geom[lev].CellSize()[1];,
+                                 x3 = self->IC<Set::Vector>::geom[lev].ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * self->IC<Set::Vector>::geom[lev].CellSize()[2];);
                 }
                 else
                 {
-                    AMREX_D_TERM(x1 = IC<Set::Vector>::geom[lev].ProbLo()[0] + (Set::Scalar)(i) * IC<Set::Vector>::geom[lev].CellSize()[0];,
-                                x2 = IC<Set::Vector>::geom[lev].ProbLo()[1] + (Set::Scalar)(j) * IC<Set::Vector>::geom[lev].CellSize()[1];,
-                                x3 = IC<Set::Vector>::geom[lev].ProbLo()[2] + (Set::Scalar)(k) * IC<Set::Vector>::geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x1 = self->IC<Set::Vector>::geom[lev].ProbLo()[0] + (Set::Scalar)(i)*self->IC<Set::Vector>::geom[lev].CellSize()[0];,
+                                 x2 = self->IC<Set::Vector>::geom[lev].ProbLo()[1] + (Set::Scalar)(j)*self->IC<Set::Vector>::geom[lev].CellSize()[1];,
+                                 x3 = self->IC<Set::Vector>::geom[lev].ProbLo()[2] + (Set::Scalar)(k)*self->IC<Set::Vector>::geom[lev].CellSize()[2];);
                 }
-                                   
-                Set::Scalar trigfn = 1.0;
-                #if AMREX_SPACEDIM > 0
-                if (dim > 0)
-                    trigfn *= (fabs(std::cos(phi1))*std::cos(n1.real()*Set::Constant::Pi*x1 / L1) +
-                            fabs(std::sin(phi1))*std::sin(n1.imag()*Set::Constant::Pi*x1 / L1));
-                #endif
-                #if AMREX_SPACEDIM > 1
-                if (dim > 1)
-                    trigfn *= (fabs(std::cos(phi2))*std::cos(n2.real()*Set::Constant::Pi*x2 / L2) +
-                            fabs(std::sin(phi2))*std::sin(n2.imag()*Set::Constant::Pi*x2 / L2));
-                #endif
-                #if AMREX_SPACEDIM > 2
-                if (dim > 2)
-                    trigfn *= (fabs(std::cos(phi3))*std::cos(n3.real()*Set::Constant::Pi*x3 / L3) +
-                            fabs(std::sin(phi3))*std::sin(n3.imag()*Set::Constant::Pi*x3 / L3));
-                #endif
-                        
-                field(i,j,k)(IC<Set::Vector>::comp) += alpha * trigfn;
 
+                Set::Scalar trigfn = 1.0;
+#if AMREX_SPACEDIM > 0
+                if (self->dim > 0)
+                    trigfn *= (fabs(std::cos(self->phi1)) * std::cos(self->n1.real() * Set::Constant::Pi * x1 / L1) + fabs(std::sin(self->phi1)) * std::sin(self->n1.imag() * Set::Constant::Pi * x1 / L1));
+#endif
+#if AMREX_SPACEDIM > 1
+                if (self->dim > 1)
+                    trigfn *= (fabs(std::cos(self->phi2)) * std::cos(self->n2.real() * Set::Constant::Pi * x2 / L2) + fabs(std::sin(self->phi2)) * std::sin(self->n2.imag() * Set::Constant::Pi * x2 / L2));
+#endif
+#if AMREX_SPACEDIM > 2
+                if (self->dim > 2)
+                    trigfn *= (fabs(std::cos(self->phi3)) * std::cos(self->n3.real() * Set::Constant::Pi * x3 / L3) + fabs(std::sin(self->phi3)) * std::sin(self->n3.imag() * Set::Constant::Pi * x3 / L3));
+#endif
+
+                field(i, j, k)(self->IC<Set::Vector>::comp) += self->alpha * trigfn;
             });
         }
     }
 
 public:
-    static void Parse(Trig & value, IO::ParmParse & pp)
+    static void
+    Parse(Trig &value, IO::ParmParse &pp)
     {
-        std::vector<int> n_real(AMREX_SPACEDIM,0.0);
-        pp_queryarr("nr",n_real); // Number of real (cosin) waves
-        std::vector<int> n_imag(AMREX_SPACEDIM,0.0);
-        pp_queryarr("ni",n_imag); // Number of imaginary (sin) waves
+        std::vector<int> n_real(AMREX_SPACEDIM, 0.0);
+        pp_queryarr("nr", n_real); // Number of real (cosin) waves
+        std::vector<int> n_imag(AMREX_SPACEDIM, 0.0);
+        pp_queryarr("ni", n_imag); // Number of imaginary (sin) waves
 
         AMREX_D_TERM(
-            value.n1 = std::complex<int>(n_real[0],n_imag[0]);,
-            value.n2 = std::complex<int>(n_real[1],n_imag[1]);,
-            value.n3 = std::complex<int>(n_real[2],n_imag[2]););
+            value.n1 = std::complex<int>(n_real[0], n_imag[0]);,
+                                                               value.n2 = std::complex<int>(n_real[1], n_imag[1]);
+            ,
+            value.n3 = std::complex<int>(n_real[2], n_imag[2]););
 
         AMREX_D_DECL(
-            value.phi1 = std::atan2(value.n1.imag(),value.n1.real()),
-            value.phi2 = std::atan2(value.n2.imag(),value.n2.real()),
-            value.phi3 = std::atan2(value.n3.imag(),value.n3.real()));
+            value.phi1 = std::atan2(value.n1.imag(), value.n1.real()),
+            value.phi2 = std::atan2(value.n2.imag(), value.n2.real()),
+            value.phi3 = std::atan2(value.n3.imag(), value.n3.real()));
 
-        pp_query("dim",value.dim); // Spatial dimension
-        pp_query("alpha",value.alpha); // Multiplier
-
+        pp_query("dim", value.dim);     // Spatial dimension
+        pp_query("alpha", value.alpha); // Multiplier
     }
 
 private:
     int dim = AMREX_SPACEDIM;
     Set::Scalar alpha = 1.0;
     std::complex<int> AMREX_D_DECL(n1, n2, n3);
-    Set::Scalar AMREX_D_DECL(phi1=0.0,phi2=0.0,phi3=0.0);
+    Set::Scalar AMREX_D_DECL(phi1 = 0.0, phi2 = 0.0, phi3 = 0.0);
 };
 }
 #endif

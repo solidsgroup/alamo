@@ -67,6 +67,9 @@ public:
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
+
+                auto * self = this;
+
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
@@ -121,17 +124,17 @@ public:
                     amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
                             rhs(i,j,k)(dir) = 0.0;
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
                             #if AMREX_SPACEDIM==1
-                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),0.0,0.0,m_time);
+                            rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),0.0,0.0,self->m_time);
                             #elif AMREX_SPACEDIM==2
-                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),0.0,m_time);
+                            rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),x(1),0.0,self->m_time);
                             #elif AMREX_SPACEDIM==3
-                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),x(2),m_time);
+                            rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),x(1),x(2),self->m_time);
                             #endif
                         }
                     }
@@ -155,6 +158,9 @@ public:
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
+
+                auto * self = this;
+
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
@@ -209,17 +215,17 @@ public:
                     amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
                             rhs(i,j,k,dir) = 0.0;
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
                             #if AMREX_SPACEDIM==1
-                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),0.0,0.0,m_time);
+                            rhs(i,j,k,dir) = (self->m_bc_func[face][dir])(x(0),0.0,0.0,self->m_time);
                             #elif AMREX_SPACEDIM==2
-                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),0.0,m_time);
+                            rhs(i,j,k,dir) = (self->m_bc_func[face][dir])(x(0),x(1),0.0,self->m_time);
                             #elif AMREX_SPACEDIM==3
-                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),x(2),m_time);
+                            rhs(i,j,k,dir) = (self->m_bc_func[face][dir])(x(0),x(1),x(2),self->m_time);
                             #endif
                         }
                     }
@@ -288,6 +294,7 @@ public:
     
 
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Set::Vector operator () (const Set::Vector &u,
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,
