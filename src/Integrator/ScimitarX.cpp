@@ -477,17 +477,17 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
     pp.query_required("cflNumber", value.cflNumber); // Read CFL number
 
     // Add these to your Parse method
-    pp.query_default("enable_density_refinement", value.enable_density_refinement, true);
-    pp.query_default("density_refinement_criterion", value.density_refinement_criterion, 0.2);
+    pp.query_default("enable_density_refinement", value.enable_density_refinement, true); // enable density refinement
+    pp.query_default("density_refinement_criterion", value.density_refinement_criterion, 0.2); // density refinement criterion
     
-    pp.query_default("enable_pressure_refinement", value.enable_pressure_refinement, true);  
-    pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 0.15);
+    pp.query_default("enable_pressure_refinement", value.enable_pressure_refinement, true);  //enable pressure refinement 
+    pp.query_default("pressure_refinement_criterion", value.pressure_refinement_criterion, 0.15); // pressure refinement criterion
     
-    pp.query_default("enable_velocity_refinement", value.enable_velocity_refinement, false);
-    pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 0.1);
+    pp.query_default("enable_velocity_refinement", value.enable_velocity_refinement, false); // enable velocity refinement
+    pp.query_default("velocity_refinement_criterion", value.velocity_refinement_criterion, 0.1); //velocity refinement criterion
     
-    pp.query_default("enable_vorticity_refinement", value.enable_vorticity_refinement, true);
-    pp.query_default("vorticity_refinement_criterion", value.vorticity_refinement_criterion, 0.25);
+    pp.query_default("enable_vorticity_refinement", value.enable_vorticity_refinement, true); //enable vorticity refinement
+    pp.query_default("vorticity_refinement_criterion", value.vorticity_refinement_criterion, 0.25); // vorticity refinement criterion
     
     // Validate and setup numeric methods (centralized)
     value.ValidateAndSetupNumerics();
