@@ -19,9 +19,9 @@ stop_time = 0.25
 max_step = 1000
 
 # AMR parameters
-amr.plot_int = 500
+amr.plot_int = 100
 amr.max_level = 0
-amr.n_cell = 200 50 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.n_cell = 100 25 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 1
 amr.regrid_int = -1  # No regridding for uniform grid
 amr.grid_eff = 1.0
@@ -35,15 +35,13 @@ geometry.is_periodic = 0 0 0
 SolverType = SolveCompressibleEuler
 
 #cflNumber
-cflNumber = 0.2
+cflNumber = 0.8
 
 #TimeSteppingScheme
 TimeSteppingScheme = RK3
 
-
 #FluxMethod
 FluxScheme = HLLC #LocalLaxFriedrichs
-
 
 #FluxReconstruction
 FluxReconstruction = WENO

@@ -230,8 +230,8 @@ private:
         }
 
         // Parse shock position
-        pp.query("shock.xpos", riemann_shock_xpos);
-        pp.query("shock.ypos", riemann_shock_ypos);
+        pp.query("shock.xpos", riemann_shock_xpos);  // shock x-position
+        pp.query("shock.ypos", riemann_shock_ypos);  // shock y-position
 
         Util::Message(INFO, "Riemann2D interface position: x=" + std::to_string(riemann_shock_xpos) + 
                             " y=" + std::to_string(riemann_shock_ypos));

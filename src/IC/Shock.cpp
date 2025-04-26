@@ -57,9 +57,9 @@ void Shock::AddConstant(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Sca
 
         Set::Scalar gamma = 1.4;
 
-       //Use the pre-computed direction index for efficiency
-       int dir_idx = direction_index;
-       const std::size_t num_zones = zone_lower_bounds.size();
+        //Use the pre-computed direction index for efficiency
+        int dir_idx = direction_index;
+        const std::size_t num_zones = zone_lower_bounds.size();
 
         for (int n = 0; n < ncomp; ++n) {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -242,16 +242,16 @@ void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
 
     // Handle shock position - may be empty if number_of_shocks = 0
     if (number_of_shocks > 0) {
-       pp.queryarr("ic.shock.positions", shock_positions); // Positions of Shocks
+        pp.queryarr("ic.shock.positions", shock_positions); // Positions of Shocks
 
-     // Validate that we have the currect number of positions
-     if (shock_positions.size() != static_cast<size_t>(number_of_shocks)) {
+    // Validate that we have the currect number of positions
+    if (shock_positions.size() != static_cast<size_t>(number_of_shocks)) {
         
         Util::Warning(INFO, "Mismatch between ic.shock.count (" + std::to_string(number_of_shocks) +
-                      ") and shock_positions size (" + std::to_string(shock_positions.size()) + ")");
+                    ") and shock_positions size (" + std::to_string(shock_positions.size()) + ")");
         // Use the actual size from the positions array
         number_of_shocks = static_cast<int>(shock_positions.size());
-     }
+    }
     }   
 
     // Get domain bounds for all directions
@@ -294,7 +294,7 @@ void Shock::initialize(IO::ParmParse& pp, const std::string& name) {
     // Validate that the direction is valid for the current dimension
     if (direction_index >= AMREX_SPACEDIM) {
         Util::Warning(INFO, "Direction '" + shock_direction + 
-                     "' is invalid for current dimensionality, using xdir");
+                    "' is invalid for current dimensionality, using xdir");
         shock_direction = "xdir";
         direction_index = 0;
     }
