@@ -101,6 +101,8 @@ public:
                 return std::make_shared<Numeric::LocalLaxFriedrichsMethod<SolverType>>();
             case FluxScheme::HLLC:
                 return std::make_shared<Numeric::HLLCMethod<SolverType>>();
+            case FluxScheme::AUSMup:
+                return std::make_shared<Numeric::AUSMupMethod<SolverType>>();
             default:
                 throw std::runtime_error("Unsupported flux method");
         }

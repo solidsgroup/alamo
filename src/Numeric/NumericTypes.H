@@ -21,7 +21,9 @@ namespace Numeric {
     template <typename IntegratorType> class FirstOrderReconstruction;
     template <typename IntegratorType, typename VariantTraits> class WENOReconstruction;
     template <typename IntegratorType> class LocalLaxFriedrichsMethod;
-
+    template <typename IntegratorType> class HLLCMethod;
+    template <typename IntegratorType> class AUSMupMethod;
+    
     // Forward declaration of non-template classes
     class GenericVariableAccessor;
     class SolverCapabilities;
@@ -40,7 +42,8 @@ namespace Numeric {
 
     enum class FluxScheme {
         LocalLaxFriedrichs,  // Local Lax-Friedrichs (Rusanov) flux
-        HLLC                // Harten-Lax-van Leer Contact flux
+        HLLC,                 // Harten-Lax-van Leer Contact flux
+        AUSMup               // Advection upstream splitting method +up flux
     };
 
     enum class TimeSteppingSchemeType {

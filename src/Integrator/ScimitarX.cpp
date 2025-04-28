@@ -175,10 +175,12 @@ void ScimitarX::SetupNumericComponents()
         
         // Set up flux method
         if (flux_scheme == Numeric::FluxScheme::LocalLaxFriedrichs) {
-                fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
-        } else {
-                fluxHandler->SetFluxMethod(std::make_shared<Numeric::HLLCMethod<ScimitarX>>());
-        }       
+               fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+        } else if (flux_scheme == Numeric::FluxScheme::HLLC){
+               fluxHandler->SetFluxMethod(std::make_shared<Numeric::HLLCMethod<ScimitarX>>());
+        } else if (flux_scheme == Numeric::FluxScheme::AUSMup){
+	       fluxHandler->SetFluxMethod(std::make_shared<Numeric::AUSMupMethod<ScimitarX>>());
+	}      
         
         // Set up time stepping scheme
         if (temporal_scheme == Numeric::TimeSteppingSchemeType::ForwardEuler) {
@@ -531,7 +533,7 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
 }
 */
 
-void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow)
+void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, Set::Scalar /*time*/, int /*ngrow*/)
 {
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));

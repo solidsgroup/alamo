@@ -29,6 +29,7 @@ namespace Numeric {
         switch(scheme) {
             case FluxScheme::LocalLaxFriedrichs: return "LocalLaxFriedrichs";
             case FluxScheme::HLLC: return "HLLC";
+            case FluxScheme::AUSMup: return "AUSMup";
             default: throw std::runtime_error("Unknown FluxScheme");
         }
     }
@@ -67,6 +68,7 @@ namespace Numeric {
     FluxScheme NumericFactory::parseFluxScheme(const std::string& str) {
         if (str == "LocalLaxFriedrichs") return FluxScheme::LocalLaxFriedrichs;
         if (str == "HLLC") return FluxScheme::HLLC;
+        if (str == "AUSMup") return FluxScheme::AUSMup;
         throw std::runtime_error("Invalid FluxScheme: " + str);
     }
 

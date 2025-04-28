@@ -38,6 +38,7 @@ namespace Numeric {
     template<typename IntegratorDerivedClass, typename VariantTraits> class WENOReconstruction;
     template<typename IntegratorDerivedClass> class LocalLaxFriedrichsMethod;
     template<typename IntegratorDerivedClass> class HLLCMethod;
+    template<typename IntegratorDerivedClass> class AUSMupMethod;
     template<typename IntegratorDerivedClass> class TimeSteppingScheme;
     template<typename IntegratorDerivedClass> class EulerForwardScheme;
     template<typename IntegratorDerivedClass> class RK3Scheme;
@@ -483,6 +484,9 @@ private:
 
     template <typename IntegratorDerivedClass>
     friend class Numeric::HLLCMethod;
+    
+    template <typename IntegratorDerivedClass>
+    friend class Numeric::AUSMupMethod;
     
     template <typename IntegratorDerivedClass>
     friend class Numeric::TimeSteppingScheme;
