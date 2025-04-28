@@ -22,11 +22,16 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
+#include "Solver/Local/Riemann/Roe.H"
+
 int main (int argc, char* argv[])
 {
     Util::Initialize(argc, argv);
 
     int failed = 0;
+
+    Util::globalprefix = "  │  ";
+
 
     #define MODELTEST(TYPE) \
         Util::Test::Message(#TYPE); \
@@ -115,6 +120,14 @@ int main (int argc, char* argv[])
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 
+    Util::Test::Message("Solver::Nonlocal::Riemann::Roe test");
+    {
+        int subfailed = 0;
+        subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::globalprefix = "";
     Util::Message(INFO,failed," tests failed");
 
     Util::Finalize();

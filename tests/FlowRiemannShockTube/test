@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+import sys,glob
+sys.path.insert(0,"../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+
+path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+
+testlib.validate(path=path,
+                 outdir=outdir,
+                 start=[-5,0,0],
+                 end=[10,0,0],
+                 vars=["pressure","velocityx","density"],
+                 reference=["reference/pressure.csv","reference/velocity.csv","reference/density.csv"],
+                 tolerance=[0.05,0.05,0.05],
+                 abs_tolerance=1E100, #ignore absolute tolerance
+                 tight_layout=False)
+exit(0)
+
+
+
+
+

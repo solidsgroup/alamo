@@ -8,6 +8,7 @@
 #include "Numeric/Function.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/PNG.H"
 #include "Base/Mechanics.H"
 
 #include <cmath>
