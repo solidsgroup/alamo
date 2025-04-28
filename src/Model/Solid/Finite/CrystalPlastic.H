@@ -26,6 +26,8 @@
 #define MODEL_SOLID_FINITE_CRYSTALPLASTIC_H_
 
 
+#include "AMReX_Config.H"
+#include "AMReX_GpuLaunchMacrosG.H"
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
 #include "PseudoLinear/Cubic.H"
@@ -39,23 +41,34 @@ namespace Finite
 class CrystalPlastic : public PseudoLinear::Cubic
 {
 public:
-    AMREX_GPU_HOST_DEVICE CrystalPlastic() {};
-    AMREX_GPU_HOST_DEVICE virtual ~CrystalPlastic() {};
+    AMREX_GPU_HOST_DEVICE CrystalPlastic() = default;
+    AMREX_GPU_HOST_DEVICE virtual ~CrystalPlastic() = default;
 
     AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix & F) const override
     {
+#ifndef AMREX_DEVICE_COMPILE
         return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse());
+#else
+        Util::Abort(INFO,"Not supported for GPU yet");
+        return 0;
+#endif
     }
     AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix & F) const override
     {
+#ifndef AMREX_DEVICE_COMPILE
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         return PseudoLinear::Cubic::DW(F * Fpinv) * Fpinv.transpose();
+#else
+        Util::Abort(INFO, "Not supported for GPU yet");
+        return Set::Matrix::Zero();
+#endif
     }
     AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
     {
+#ifndef AMREX_DEVICE_COMPILE
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         auto DDW = PseudoLinear::Cubic::DDW(F * Fpinv);
         auto ret = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>::Zero();
@@ -70,11 +83,17 @@ public:
                                 ret(i,J,k,L) += DDW(i,Q,k,R)*Fpinv(J,Q)*Fpinv(L,R);
                     }
         return ret;
+#else
+        Util::Abort(INFO, "Not supported for GPU yet");
+        return Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major>::Zero();
+#endif
+            
     }
 
     AMREX_GPU_HOST_DEVICE
     virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
     {
+#ifndef AMREX_DEVICE_COMPILE
         if (time  < tstart) return;
 
         q.normalize();
@@ -99,6 +118,10 @@ public:
         }
 
         Fp += L * Fp * dt;
+#else
+        Util::Abort(INFO, "Not supported for GPU yet");
+#endif
+
     }
 
 

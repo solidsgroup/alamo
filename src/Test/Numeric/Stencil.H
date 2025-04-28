@@ -113,9 +113,9 @@ public:
         for (amrex::MFIter mfi(plotmf[0],false); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.validbox();
-            plotmf[0][mfi].copy((*phi[0])[mfi]        ,bx, 0, bx, 0, 1); 
-            plotmf[0][mfi].copy((*DphiExact[0])[mfi]  ,bx, 0, bx, 1, 1); 
-            plotmf[0][mfi].copy((*DphiNumeric[0])[mfi],bx, 0, bx, 2, 1); 
+            plotmf[0][mfi].copy<amrex::RunOn::Device>((*phi[0])[mfi]        ,bx, 0, bx, 0, 1); 
+            plotmf[0][mfi].copy<amrex::RunOn::Device>((*DphiExact[0])[mfi]  ,bx, 0, bx, 1, 1); 
+            plotmf[0][mfi].copy<amrex::RunOn::Device>((*DphiNumeric[0])[mfi],bx, 0, bx, 2, 1); 
         }
         amrex::WriteSingleLevelPlotfile(plotfile,plotmf[0],varnames,geom[0],0.0,1);
     }        

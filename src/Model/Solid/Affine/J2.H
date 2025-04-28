@@ -49,34 +49,41 @@ class J2 : public Isotropic
 {
 public:
 
-    AMREX_GPU_HOST_DEVICE J2() {};
-    AMREX_GPU_HOST_DEVICE virtual ~J2() {};
+    AMREX_GPU_HOST_DEVICE J2()  = default;
+    AMREX_GPU_HOST_DEVICE virtual ~J2() = default;
 
     AMREX_GPU_HOST_DEVICE
     void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/, Set::Scalar /*time*/) override
     {
+#ifndef AMREX_DEVICE_COMPILE
         Set::Matrix sigma = DW(eps);
         Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / 3.0;
-        if ((hardening<0.0) || (ratecoeff<0.0)) // rate independent
+        if ((hardening < 0.0) || (ratecoeff < 0.0)) // rate independent
         {
             Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
-            if (J2 < sigma0) return; // No plasticity happens.
-            Set::Matrix dsigp = (1. - sigma0/J2) * sig_dev;
-            F0 += ddw.Inverse() * dsigp; 
-        }
-        else // rate-dependent
+            if (J2 < sigma0)
+                return; // No plasticity happens.
+            Set::Matrix dsigp = (1. - sigma0 / J2) * sig_dev;
+            F0 += ddw.Inverse() * dsigp;
+        } else // rate-dependent
         {
             Set::Matrix eps_dev = eps - eps.trace() * Set::Matrix::Identity() / (double)AMREX_SPACEDIM;
             Set::Scalar m_mu = ddw.Mu();
-            Set::Matrix zeta_trial = sig_dev + 2.0*m_mu*eps_dev;
-            Set::Scalar f_trial = zeta_trial.norm() - sqrt(1.0 - 1.0/(double)AMREX_SPACEDIM)*(sigma0 + hardening*alpha);
-            if (f_trial <= 0.0) return;
+            Set::Matrix zeta_trial = sig_dev + 2.0 * m_mu * eps_dev;
+            Set::Scalar f_trial = zeta_trial.norm() - sqrt(1.0 - 1.0 / (double)AMREX_SPACEDIM) * (sigma0 + hardening * alpha);
+            if (f_trial <= 0.0)
+                return;
             Set::Matrix n_new = zeta_trial / zeta_trial.norm();
-            Set::Scalar dGamma = f_trial / (2.0*m_mu*(1 + hardening/(3.0*m_mu)));
+            Set::Scalar dGamma = f_trial / (2.0 * m_mu * (1 + hardening / (3.0 * m_mu)));
             dGamma *= ratecoeff * dt;
-            alpha = alpha + sqrt(1.0 - 1.0/(double)AMREX_SPACEDIM)*dGamma;
+            alpha = alpha + sqrt(1.0 - 1.0 / (double)AMREX_SPACEDIM) * dGamma;
             F0 += dGamma * n_new;
         }
+#else
+        Util::Abort(INFO, "This is not yet supported for GPU");
+#endif
+            
+            
     }
 
     // Parameters

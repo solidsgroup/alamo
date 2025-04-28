@@ -1,3 +1,4 @@
+
 #ifndef SET_MATRIX4_DIAGONAL_H
 #define SET_MATRIX4_DIAGONAL_H
 
@@ -27,6 +28,7 @@ public:
     {
         os << "A = \n" << A;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<AMREX_SPACEDIM, Sym::Diagonal> Zero()
     {
         Matrix4<AMREX_SPACEDIM, Sym::Diagonal> zero;

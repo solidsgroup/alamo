@@ -1,4 +1,5 @@
 #include "Constant.H"
+#include "AMReX_Loop.H"
 
 namespace BC
 {
@@ -72,7 +73,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     amrex::Array4<amrex::Real> const& in = a_in.array();
 
     for (int n = 0; n < a_in.nComp(); n++)
-    amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+    amrex::LoopConcurrentOnCpu (box,[=] (int i, int j, int k)
     {
         amrex::IntVect glevel;
         AMREX_D_TERM(glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,

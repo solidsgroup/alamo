@@ -101,7 +101,6 @@ public:
         value.RegisterNewFab(value.alpha_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "alpha_old", false);
     }
 
-protected:
 
     // Use the ic object to initialize the order parameter
     void Initialize(int lev)
@@ -122,6 +121,8 @@ protected:
             const amrex::Box& bx = mfi.tilebox();
             Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
+
+            auto ch = this->ch;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -165,6 +166,8 @@ protected:
             amrex::Array4<char>         const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar>  const& alpha = (*alpha_mf[lev]).array(mfi);
 
+            auto refinement_threshold = this->refinement_threshold;
+
             // Iterate over the grid as done above.
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -179,7 +182,7 @@ protected:
         }
     }
 
-protected:
+
     Set::Field<Set::Scalar> alpha_mf;         /// Temperature field variable (current timestep)
     Set::Field<Set::Scalar> alpha_old_mf;     /// Temperature field variable (previous timestep)
     IC::IC<Set::Scalar>* ic;                  /// Object used to initialize temperature field
@@ -196,7 +199,7 @@ protected:
         int direction = 0;
     } ch;
 
-private:
+
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 2;           // Number of ghost cells
 
@@ -206,3 +209,4 @@ private:
 };
 } // namespace Integrator
 #endif
+

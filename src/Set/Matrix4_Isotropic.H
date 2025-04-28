@@ -62,14 +62,17 @@ public:
     {
         os << "lambda = " << lambda << " mu = " << mu;
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar Lambda () const
     {
         return lambda;
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar Mu () const
     {
         return mu;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Zero()
     {
         Matrix4<AMREX_SPACEDIM,Sym::Isotropic> zero;

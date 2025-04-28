@@ -65,14 +65,15 @@ class Isotropic : public Solid<Set::Sym::Isotropic>
 {
 public:
 
-    AMREX_GPU_HOST_DEVICE Isotropic() {};
-    AMREX_GPU_HOST_DEVICE Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
+    AMREX_GPU_HOST_DEVICE Isotropic() = default;
+    AMREX_GPU_HOST_DEVICE Isotropic(const Solid<Set::Sym::Isotropic> &base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
         Define(a_mu,a_lambda);
     };
-    virtual ~Isotropic() {};
+    virtual ~Isotropic() = default;
 
+    AMREX_GPU_HOST_DEVICE
     void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
     {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
@@ -93,9 +94,10 @@ public:
     {
         return ddw;
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream &out) const override 
     {
-        out << ddw;
+        AMREX_IF_ON_HOST( out << ddw ;)
     }
 
 public:
@@ -109,6 +111,7 @@ public:
         ret.Define(Util::Random(),Util::Random());
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     static Isotropic Zero()
     {
         Isotropic ret;

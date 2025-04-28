@@ -15,9 +15,9 @@ class Isotropic : public Affine<Set::Sym::Isotropic>
 {
 public:
 
-    AMREX_GPU_HOST_DEVICE Isotropic() {};
-    AMREX_GPU_HOST_DEVICE Isotropic(Affine<Set::Sym::Isotropic> base) : Affine<Set::Sym::Isotropic>(base) {};
-    AMREX_GPU_HOST_DEVICE ~Isotropic() {};
+    AMREX_GPU_HOST_DEVICE Isotropic() = default;
+    AMREX_GPU_HOST_DEVICE Isotropic(const Affine<Set::Sym::Isotropic> &base) : Affine<Set::Sym::Isotropic>(base) {};
+    AMREX_GPU_HOST_DEVICE ~Isotropic() = default;
     
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0 = Set::Matrix::Zero())
     {
@@ -50,15 +50,10 @@ public:
     {
         return ddw;
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream& out) const override
     {
-        out << "lambda=" << ddw.Lambda() << ", mu=" << ddw.Mu() << ", F0=\n" << F0;
-    }
-    virtual bool ContainsNan() override
-    {
-        if (F0.hasNaN()) return true;
-        if (ddw.contains_nan()) return true;
-        else return false;
+        AMREX_IF_ON_HOST( out << "lambda=" << ddw.Lambda() << ", mu=" << ddw.Mu() << ", F0=\n" << F0; )
     }
 public:
     static Isotropic Zero()
@@ -187,8 +182,9 @@ std::string Set::Field<Model::Solid::Affine::Isotropic>::Name(int i) const
 #endif
     return name;
 }
-template<>
+template <>
 ALAMO_SINGLE_DEFINITION
+AMREX_GPU_HOST
 void Set::Field<Model::Solid::Affine::Isotropic>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

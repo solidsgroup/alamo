@@ -84,7 +84,6 @@ public:
         value.RegisterNewFab(value.phi_mf, value.bc_phi, value.number_of_components, value.number_of_ghost_cells, "phi", true);
         value.RegisterNewFab(value.phi_old_mf, value.bc_phi, value.number_of_components, value.number_of_ghost_cells, "phi_old", false);
     }
-protected:
 
     // Use the ic object to initialize the temperature field
     void Initialize(int lev)
@@ -118,6 +117,14 @@ protected:
             amrex::Array4<Set::Scalar>       const& temp_new = (*temp_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = (*phi_old_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar>       const& phi_new = (*phi_mf[lev]).array(mfi);
+
+            auto R = this->R;
+            auto alpha = this->alpha;
+            auto gamma = this->gamma;
+            auto delta = this->delta;
+            auto eps = this->eps;
+            auto tau = this->tau;
+            auto diffusion = this->diffusion;
 
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -179,6 +186,9 @@ protected:
             amrex::Array4<char>         const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar>  const& temp = (*temp_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar>  const& phi = (*phi_mf[lev]).array(mfi);
+
+            auto refinement_threshold_temp = this->refinement_threshold_temp;
+            auto refinement_threshold_phi = this->refinement_threshold_phi;
 
             // Iterate over the grid as done above.
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)

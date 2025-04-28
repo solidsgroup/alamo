@@ -167,7 +167,10 @@ void Finalize()
 
 
 void
-Abort (const char * msg) { Terminate(msg, SIGABRT, true); }
+Abort(const char *msg)
+{
+    AMREX_IF_ON_HOST( Terminate(msg, SIGABRT, true); )
+}
 
 void
 Terminate(const char * /* msg */, int signal, bool /*backtrace*/)

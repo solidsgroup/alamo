@@ -64,6 +64,7 @@
 #include <numeric>
 
 #include "AMReX.H"
+#include "AMReX_Loop.H"
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_ParmParse.H"
 
@@ -244,7 +245,7 @@ public:
                 amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
                     model(i, j, k) = MODEL::Zero();
                     for (unsigned int n = 0; n < models.size(); n++)
                         model(i, j, k) += eta(i, j, k, n) * models[n];
@@ -300,10 +301,14 @@ public:
             amrex::Box bx = mfi.nodaltilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
+
+            auto m_eta_ref_threshold = this->m_eta_ref_threshold;
+            int ncomp = eta_mf[lev]->nComp();
+
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 auto sten = Numeric::GetStencil(i, j, k, bx);
-                for (int n = 0; n < eta_mf[lev]->nComp(); n++)
+                for (int n = 0; n < ncomp; n++)
                 {
                     Set::Vector grad = Numeric::Gradient(eta, i, j, k, n, DX.data(), sten);
                     if (grad.lpNorm<2>() * DXnorm > m_eta_ref_threshold)

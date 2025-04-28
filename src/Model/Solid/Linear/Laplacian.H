@@ -27,9 +27,10 @@ class Laplacian : public Model::Solid::Solid<Set::Sym::Diagonal>
 public:
     AMREX_GPU_HOST_DEVICE  Laplacian() { Define(); } ;
     AMREX_GPU_HOST_DEVICE  Laplacian(Set::Scalar alpha) { Define(alpha); } ;
-    AMREX_GPU_HOST_DEVICE  Laplacian(Solid<Set::Sym::Diagonal> base) : Solid<Set::Sym::Diagonal>(base) {};
-    AMREX_GPU_HOST_DEVICE  ~Laplacian() {} ;
+    AMREX_GPU_HOST_DEVICE  Laplacian(const Solid<Set::Sym::Diagonal> &base) : Solid<Set::Sym::Diagonal>(base) {};
+    AMREX_GPU_HOST_DEVICE  ~Laplacian() = default ;
 
+    AMREX_GPU_HOST_DEVICE
     void Define(Set::Scalar alpha = 1.0)
     {
         ddw = alpha*Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>(Set::Matrix::Ones());
