@@ -124,6 +124,7 @@ parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,actio
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
 parser.add_argument('--gpu',default=False,action='store_true',help="Compile with GPU support (Cuda)")
+parser.add_argument('--cuda-arch',dest='cuda',default='sm_70',help="Cuda architecture")
 parser.set_defaults(debug=False)
 
 #
@@ -176,7 +177,7 @@ if args.memcheck:
     if args.memcheck_tool == "msan": postfix += "-msan"
 if args.profile: postfix += "-profile"
 if args.coverage: postfix += "-coverage"
-if args.gpu: postfix += "-gpu"
+if args.gpu: postfix += f"-cuda_{args.cuda}"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
 
@@ -273,6 +274,7 @@ if args.buildamrex and not args.amrex:
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix_amrex
+    amrex_make_local = []
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
@@ -280,14 +282,20 @@ if args.buildamrex and not args.amrex:
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     if args.fft: amrex_configure += " --enable-fft=yes"
     if args.gpu:
-        amrex_configure += " --with-cuda=yes"
-        if args.comp != "g++": raise Exception(error() + "only gcc is supported at the moment")
+        amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda} "
+        amrex_make_local.append('CUDA_CLANG = TRUE')
+        #if args.comp != "g++": raise Exception(error() + "only gcc is supported at the moment")
         
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
+    with open('ext/amrex/Make.local','w') as f_amrex_make:
+        for line in amrex_make_local:
+            print(line, file=f_amrex_make)
+        message("Amrex make.local",'\n'.join(amrex_make_local))
+
     f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
+    f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD) \n") # --output-sync=target
     f2.write("\t$(MAKE) -C ext/amrex install\n")
     f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
@@ -414,12 +422,18 @@ if mpidist == "openmpi":
     shellmessage("openmpi version", "mpicxx --showme:version")
     env = os.environ.copy()
     env.update({'OMPI_CXX': args.comp})
-
     mpicomp = shellmessage("openmpi cxx default", "mpicxx --showme:command").stdout.decode('utf-8').replace('\n','')
     if args.gpu:
-        ompicc = f"nvcc -MMD -MP -ccbin=mpicxx -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread  -std=c++17' --std=c++17 -Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3 --ptxas-options=-v --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_70,code=sm_70 -x cu -dc"
+        ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
+        shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
+        f.write(f"CC = {ompicc} -x cu --std=c++17\n")
+
+        f.write(f"CXX_COMPILE_FLAGS += --cuda-path=/usr/local/cuda --cuda-gpu-arch={args.cuda} \n")
+        f.write("LINKER_FLAGS      += -lcudart \n")
+
+        #ompicc = f"nvcc -MMD -MP -ccbin=mpicxx -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread  -std=c++17' --std=c++17 -Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3 --ptxas-options=-v --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_70,code=sm_70 -x cu -dc"
         #shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
-        f.write(f"CC = {ompicc} \n")
+        #f.write(f"CC = {ompicc} \n")
     else:
         ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
         shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)

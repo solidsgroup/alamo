@@ -265,7 +265,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
-    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
+    Set::Scalar dt_max = 1E100; //std::numeric_limits<Set::Scalar>::max();
     
     UpdateEta(lev, time);
 

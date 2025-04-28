@@ -73,7 +73,7 @@ public:
                             x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
                             x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                             
-                amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
+                amrex::Real min_distance = 1E100; //std::numeric_limits<amrex::Real>::infinity();
                 int min_grain_id = -1;
 
                 for (int n = 0; n<number_of_grains; n++)

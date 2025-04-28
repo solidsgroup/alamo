@@ -1,7 +1,7 @@
 #ifndef INTEGRATOR_FLAME_H
 #define INTEGRATOR_FLAME_H
 
-#include <limits>
+//#include <limits>
 
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
@@ -75,7 +75,7 @@ private:
     IC::IC<Set::Scalar>* ic_phi = nullptr;
     IC::IC<Set::Scalar>* ic_laser = nullptr;
 
-    Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
+    Set::Scalar phi_refinement_criterion = NAN; //std::numeric_limits<Set::Scalar>::infinity();
     Set::Scalar m_refinement_criterion = NAN;
     Set::Scalar t_refinement_criterion = NAN;
     Set::Scalar t_refinement_restriction = NAN;

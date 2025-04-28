@@ -59,7 +59,10 @@ public:
     }
     std::array<int,3> min()
     {
-        std::array<int,3> _min = {std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
+        std::array<int, 3> _min = { 1E100, // std::numeric_limits<int>::max()
+                                    1E100, // std::numeric_limits<int>::max(),
+                                    1E100  // std::numeric_limits<int>::max()
+        };
         for (unsigned int i = 0; i < data.size(); i++)
         {
             if (_min[0] > data[i][0]) _min[0] = data[i][0];

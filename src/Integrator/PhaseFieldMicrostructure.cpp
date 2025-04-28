@@ -43,7 +43,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
     std::swap(eta_old_mf[lev], eta_mf[lev]);
     
 
-    Set::Scalar df_max = std::numeric_limits<Set::Scalar>::min();
+    Set::Scalar df_max = 1E100; //std::numeric_limits<Set::Scalar>::min();
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
