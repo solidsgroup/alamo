@@ -1,5 +1,5 @@
 # Simulation output
-plot_file = output_sod_2d
+plot_file = output_firstorder_RK3_sodshock
 
 # Simulation length
 timestep = 0.001
@@ -26,20 +26,20 @@ SolverType = SolveCompressibleEuler
 cflNumber = 0.2
 
 #TimeSteppingScheme
-TimeSteppingScheme = ForwardEuler
+TimeSteppingScheme = RK3
 
 
 #FluxMethod
 FluxScheme = LocalLaxFriedrichs
 
 #FluxReconstruction
-FluxReconstruction = WENO
+FluxReconstruction = FirstOrder
 
 #WenoVariant
-#WENOVariant = WENOJS5
+#WenoVariant = WENOJS5
 
 #Reconstruction Mode
-ReconstructionMode = Primitive
+ReconstructionMode = Conservative
 
 # Initial conditions
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
