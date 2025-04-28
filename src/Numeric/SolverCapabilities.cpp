@@ -98,7 +98,7 @@ CompressibleEulerCapabilities::validateMethodCombination(
         "No implementation of primitive variable reconstruction is available for HLLC or Local Lax-Friedrichs flux schemes."
         );
     } else if (fluxScheme == FluxScheme::AUSMup &&
-               (reconstructionMode == ReconstructionMode::Primitive)){
+                (reconstructionMode == ReconstructionMode::Primitive)){
         result.isValid = false;
         result.warnings.push_back(
         "No implementation of primitve or characteristic variable reconstruction are available for AUSM+up flux scheme."

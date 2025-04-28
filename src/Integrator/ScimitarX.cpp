@@ -175,12 +175,12 @@ void ScimitarX::SetupNumericComponents()
         
         // Set up flux method
         if (flux_scheme == Numeric::FluxScheme::LocalLaxFriedrichs) {
-               fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+                fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
         } else if (flux_scheme == Numeric::FluxScheme::HLLC){
-               fluxHandler->SetFluxMethod(std::make_shared<Numeric::HLLCMethod<ScimitarX>>());
+                fluxHandler->SetFluxMethod(std::make_shared<Numeric::HLLCMethod<ScimitarX>>());
         } else if (flux_scheme == Numeric::FluxScheme::AUSMup){
-	       fluxHandler->SetFluxMethod(std::make_shared<Numeric::AUSMupMethod<ScimitarX>>());
-	}      
+            fluxHandler->SetFluxMethod(std::make_shared<Numeric::AUSMupMethod<ScimitarX>>());
+    }      
         
         // Set up time stepping scheme
         if (temporal_scheme == Numeric::TimeSteppingSchemeType::ForwardEuler) {
