@@ -37,6 +37,7 @@
 #ifndef MODEL_SOLID_LINEAR_HEXAGONAL_H_
 #define MODEL_SOLID_LINEAR_HEXAGONAL_H_
 
+#include "AMReX_GpuQualifiers.H"
 #include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
 
@@ -50,10 +51,10 @@ class Hexagonal : public Solid<Set::Sym::MajorMinor>
 {
 public:
 
-    Hexagonal() {};
-    Hexagonal(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
-    virtual ~Hexagonal() {};
-
+    AMREX_GPU_HOST_DEVICE Hexagonal() = default;
+    AMREX_GPU_HOST_DEVICE Hexagonal(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~Hexagonal() = default;
+    
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
@@ -109,21 +110,25 @@ public:
                                         ddw(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
                     }
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return ddw*gradu;
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream &out) const override 
     {
-        out << ddw;
+        AMREX_IF_ON_HOST( out << ddw; )
     }
 
 public:

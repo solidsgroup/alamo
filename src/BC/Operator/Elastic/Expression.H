@@ -6,6 +6,7 @@
 #ifndef BC_OPERATOR_ELASTIC_EXPRESSION_H
 #define BC_OPERATOR_ELASTIC_EXPRESSION_H
 
+#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "BC/Operator/Elastic/Elastic.H"
 
@@ -58,98 +59,6 @@ public:
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const override
     {
-        amrex::Box domain(a_geom.Domain());
-        domain.convert(amrex::IntVect::TheNodeVector());
-        const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-        for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            amrex::Box bx = mfi.tilebox();
-            bx.grow(2);
-            bx = bx & domain;
-            amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
-
-            auto * self = this;
-
-            amrex::IndexType type = a_rhs->ixType();
-
-            amrex::LoopOnCpu (bx, [=] (int i, int j, int k)
-            {
-                for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
-                {
-                    Face face = Face::INT;
-                        
-#if AMREX_SPACEDIM == 2
-                        
-                    if      (i==lo.x && j==lo.y) face = Face::XLO_YLO;
-                    else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
-                    else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
-                    else if (i==hi.x && j==hi.y) face = Face::XHI_YHI;
-
-                    else if (i==lo.x) face = Face::XLO;
-                    else if (i==hi.x) face = Face::XHI;
-                    else if (j==lo.y) face = Face::YLO;
-                    else if (j==hi.y) face = Face::YHI;
-
-#elif AMREX_SPACEDIM == 3
-
-                    if      (i==lo.x && j==lo.y && k==lo.z) face = Face::XLO_YLO_ZLO;
-                    else if (i==lo.x && j==lo.y && k==hi.z) face = Face::XLO_YLO_ZHI;
-                    else if (i==lo.x && j==hi.y && k==lo.z) face = Face::XLO_YHI_ZLO;
-                    else if (i==lo.x && j==hi.y && k==hi.z) face = Face::XLO_YHI_ZHI;
-                    else if (i==hi.x && j==lo.y && k==lo.z) face = Face::XHI_YLO_ZLO;
-                    else if (i==hi.x && j==lo.y && k==hi.z) face = Face::XHI_YLO_ZHI;
-                    else if (i==hi.x && j==hi.y && k==lo.z) face = Face::XHI_YHI_ZLO;
-                    else if (i==hi.x && j==hi.y && k==hi.z) face = Face::XHI_YHI_ZHI;
-
-                    else if (j==lo.y && k==lo.z) face = Face::YLO_ZLO;
-                    else if (j==lo.y && k==hi.z) face = Face::YLO_ZHI;
-                    else if (j==hi.y && k==lo.z) face = Face::YHI_ZLO;
-                    else if (j==hi.y && k==hi.z) face = Face::YHI_ZHI;
-                    else if (k==lo.z && i==lo.x) face = Face::ZLO_XLO;
-                    else if (k==lo.z && i==hi.x) face = Face::ZLO_XHI;
-                    else if (k==hi.z && i==lo.x) face = Face::ZHI_XLO;
-                    else if (k==hi.z && i==hi.x) face = Face::ZHI_XHI;
-                    else if (i==lo.x && j==lo.y) face = Face::XLO_YLO;
-                    else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
-                    else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
-                    else if (i==hi.x && j==hi.y) face = Face::XHI_YHI;
-
-                    else if (i==lo.x) face = Face::XLO;
-                    else if (i==hi.x) face = Face::XHI;
-                    else if (j==lo.y) face = Face::YLO;
-                    else if (j==hi.y) face = Face::YHI;
-                    else if (k==lo.z) face = Face::ZLO;
-                    else if (k==hi.z) face = Face::ZHI;
-
-#endif
-
-                    if (!(face == Face::INT))
-                    {
-                        if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
-                            rhs(i,j,k)(dir) = 0.0;
-                        else 
-                        {
-                            Set::Vector x = Set::Position(i, j, k, a_geom, type);
-#if AMREX_SPACEDIM==1
-                            rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),0.0,0.0,self->m_time);
-#elif AMREX_SPACEDIM==2
-                            rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),x(1),0.0,self->m_time);
-#elif AMREX_SPACEDIM==3
-                            rhs(i,j,k)(dir) = self->m_bc_func[face][dir](x(0),x(1),x(2),self->m_time);
-#endif
-                        }
-                    }
-                }
-            });
-        }                    
-    }
-
-    
-    virtual void
-    Init(amrex::MultiFab * a_rhs,
-        const amrex::Geometry &a_geom,
-        bool a_homogeneous = false) const override
-    {
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -158,12 +67,8 @@ public:
                 amrex::Box bx = mfi.tilebox();
                 bx.grow(2);
                 bx = bx & domain;
-                amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
-
-                auto * self = this;
-                amrex::IndexType type = a_rhs->ixType();
-
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
+                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
@@ -214,19 +119,108 @@ public:
 
                     #endif
 
+                    amrex::IndexType type = a_rhs->ixType();
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && self->m_bc_type[face][dir] == Type::Displacement) 
+                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                            rhs(i,j,k)(dir) = 0.0;
+                        else 
+                        {
+                            Set::Vector x = Set::Position(i, j, k, a_geom, type);
+                            #if AMREX_SPACEDIM==1
+                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),0.0,0.0,m_time);
+                            #elif AMREX_SPACEDIM==2
+                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),0.0,m_time);
+                            #elif AMREX_SPACEDIM==3
+                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),x(2),m_time);
+                            #endif
+                        }
+                    }
+                }
+            });
+        }                    
+    }
+
+    
+    virtual void
+    Init(amrex::MultiFab * a_rhs,
+        const amrex::Geometry &a_geom,
+        bool a_homogeneous = false) const override
+    {
+            amrex::Box domain(a_geom.Domain());
+            domain.convert(amrex::IntVect::TheNodeVector());
+            const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+            for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.tilebox();
+                bx.grow(2);
+                bx = bx & domain;
+                amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
+                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
+                    
+                for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
+                {
+                    Face face = Face::INT;
+                        
+                    #if AMREX_SPACEDIM == 2
+                        
+                    if      (i==lo.x && j==lo.y) face = Face::XLO_YLO;
+                    else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
+                    else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
+                    else if (i==hi.x && j==hi.y) face = Face::XHI_YHI;
+
+                    else if (i==lo.x) face = Face::XLO;
+                    else if (i==hi.x) face = Face::XHI;
+                    else if (j==lo.y) face = Face::YLO;
+                    else if (j==hi.y) face = Face::YHI;
+
+                    #elif AMREX_SPACEDIM == 3
+
+                    if      (i==lo.x && j==lo.y && k==lo.z) face = Face::XLO_YLO_ZLO;
+                    else if (i==lo.x && j==lo.y && k==hi.z) face = Face::XLO_YLO_ZHI;
+                    else if (i==lo.x && j==hi.y && k==lo.z) face = Face::XLO_YHI_ZLO;
+                    else if (i==lo.x && j==hi.y && k==hi.z) face = Face::XLO_YHI_ZHI;
+                    else if (i==hi.x && j==lo.y && k==lo.z) face = Face::XHI_YLO_ZLO;
+                    else if (i==hi.x && j==lo.y && k==hi.z) face = Face::XHI_YLO_ZHI;
+                    else if (i==hi.x && j==hi.y && k==lo.z) face = Face::XHI_YHI_ZLO;
+                    else if (i==hi.x && j==hi.y && k==hi.z) face = Face::XHI_YHI_ZHI;
+
+                    else if (j==lo.y && k==lo.z) face = Face::YLO_ZLO;
+                    else if (j==lo.y && k==hi.z) face = Face::YLO_ZHI;
+                    else if (j==hi.y && k==lo.z) face = Face::YHI_ZLO;
+                    else if (j==hi.y && k==hi.z) face = Face::YHI_ZHI;
+                    else if (k==lo.z && i==lo.x) face = Face::ZLO_XLO;
+                    else if (k==lo.z && i==hi.x) face = Face::ZLO_XHI;
+                    else if (k==hi.z && i==lo.x) face = Face::ZHI_XLO;
+                    else if (k==hi.z && i==hi.x) face = Face::ZHI_XHI;
+                    else if (i==lo.x && j==lo.y) face = Face::XLO_YLO;
+                    else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
+                    else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
+                    else if (i==hi.x && j==hi.y) face = Face::XHI_YHI;
+
+                    else if (i==lo.x) face = Face::XLO;
+                    else if (i==hi.x) face = Face::XHI;
+                    else if (j==lo.y) face = Face::YLO;
+                    else if (j==hi.y) face = Face::YHI;
+                    else if (k==lo.z) face = Face::ZLO;
+                    else if (k==hi.z) face = Face::ZHI;
+
+                    #endif
+
+                    amrex::IndexType type = a_rhs->ixType();
+                    if (!(face == Face::INT))
+                    {
+                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
                             rhs(i,j,k,dir) = 0.0;
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
                             #if AMREX_SPACEDIM==1
-                            rhs(i,j,k,dir) = (self->m_bc_func[face][dir])(x(0),0.0,0.0,self->m_time);
+                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),0.0,0.0,m_time);
                             #elif AMREX_SPACEDIM==2
-                            rhs(i,j,k,dir) = (self->m_bc_func[face][dir])(x(0),x(1),0.0,self->m_time);
+                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),0.0,m_time);
                             #elif AMREX_SPACEDIM==3
-                            rhs(i,j,k,dir) = (self->m_bc_func[face][dir])(x(0),x(1),x(2),self->m_time);
+                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),x(2),m_time);
                             #endif
                         }
                     }
@@ -238,7 +232,6 @@ public:
 
 
     virtual
-    AMREX_GPU_HOST_DEVICE
     std::array<Type,AMREX_SPACEDIM> getType (
                 const int &i, const int &j, [[maybe_unused]] const int &k,
                 const amrex::Box &domain) override
@@ -296,7 +289,6 @@ public:
     
 
     AMREX_FORCE_INLINE
-    AMREX_GPU_HOST_DEVICE
     Set::Vector operator () (const Set::Vector &u,
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,
@@ -361,7 +353,6 @@ public:
     }
 
     AMREX_FORCE_INLINE
-    AMREX_GPU_HOST_DEVICE
     Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type, 
                     const Set::Vector &u, const Set::Matrix &gradu, const Set::Matrix &sigma, Set::Vector n) const
     {

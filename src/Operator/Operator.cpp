@@ -3,6 +3,7 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
+#include "AMReX_Loop.H"
 #include "Util/Color.H"
 #include "Set/Set.H"
 #include "Operator.H"
@@ -182,7 +183,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
 
         for (int n = 0; n < ncomp; n++)
         {
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
 
                 x(i, j, k) /= diag(i, j, k);
 
@@ -318,7 +319,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
                 if ((I == lo.x || I == hi.x) &&
@@ -422,7 +423,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::ParallelFor(fine_bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(fine_bx, [=] (int i, int j, int k) {
 
                 int I = i / 2, J = j / 2, K = k / 2;
 
@@ -596,7 +597,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
                 if (nmask(I, J, K) == fine_fine_node || nmask(I, J, K) == coarse_fine_node)

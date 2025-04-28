@@ -1,7 +1,6 @@
 #ifndef MODEL_SOLID_FINITE_NEOHOOKEANPREDEFORMED_H_
 #define MODEL_SOLID_FINITE_NEOHOOKEANPREDEFORMED_H_
 
-#include "AMReX_GpuQualifiers.H"
 #include "IO/ParmParse.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 
@@ -14,14 +13,9 @@ namespace Finite
 class NeoHookeanPredeformed : public NeoHookean
 {
 public:
-    AMREX_GPU_HOST_DEVICE
-    NeoHookeanPredeformed() {};
-
-    AMREX_GPU_HOST_DEVICE
-    NeoHookeanPredeformed(NeoHookean base) : NeoHookean(base) {};
-
-    AMREX_GPU_HOST_DEVICE
-    virtual ~NeoHookeanPredeformed() {};
+    AMREX_GPU_HOST_DEVICE NeoHookeanPredeformed() = default;
+    AMREX_GPU_HOST_DEVICE NeoHookeanPredeformed(NeoHookean base) : NeoHookean(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~NeoHookeanPredeformed() = default;
 
     AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix& F) const override
@@ -38,9 +32,10 @@ public:
     {
         return NeoHookean::DDW(F * F0.inverse());
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream& out) const override
     {
-        out << "mu = " << mu << " kappa = " << kappa << " F0 = " << F0;
+        AMREX_IF_ON_HOST( out << "mu = " << mu << " kappa = " << kappa << " F0 = " << F0; )
     }
 
 public:

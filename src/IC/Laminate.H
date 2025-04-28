@@ -30,24 +30,23 @@ public:
         {
             amrex::Box bx = mfi.tilebox();
             bx.grow(a_field[lev]->nGrow());
-            auto * self = this;
             amrex::IndexType type = a_field[lev]->ixType();
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::LoopOnCpu(bx, [=] (int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
 
-                Set::Vector x = Set::Position(i, j, k, self->geom[lev], type);
+                Set::Vector x = Set::Position(i, j, k, geom[lev], type);
 
                 // The base matrix is always field(i,j,k,0)
                 // Inclusions start with field(i,j,k,1)
 
-                if (!self->singlefab)
+                if (!singlefab)
                 {
                     Set::Scalar value = 0.0;
-                    for (int m = 0; m < self->number_of_inclusions; m++)
+                    for (int m = 0; m < number_of_inclusions; m++)
                     {
-                        Set::Scalar t = std::abs((x - self->center[m]).transpose() * self->orientation[m]) - (self->thickness[m] / 2.0);
-                        field(i, j, k, m + 1) = 0.5 - 0.5 * std::erf(t / self->eps[m]);
+                        Set::Scalar t = std::abs((x - center[m]).transpose() * orientation[m]) - (thickness[m] / 2.0);
+                        field(i, j, k, m + 1) = 0.5 - 0.5 * std::erf(t / eps[m]);
                         if (field(i, j, k, m + 1) < 0.) field(i, j, k, m + 1) = 0.;
                         if (field(i, j, k, m + 1) > 1.) field(i, j, k, m + 1) = 1.;
                         value += field(i, j, k, m + 1);
@@ -58,9 +57,9 @@ public:
                 }
                 else
                 {
-                    Set::Scalar t = std::abs((x - self->center[0]).transpose() * self->orientation[0]) - (self->thickness[0] / 2.0);
-                    field(i, j, k, 0) = 0.5 - 0.5 * std::erf(t / self->eps[0]);
-                    if (self->invert) field(i, j, k, 0) = 1.0 - field(i, j, k, 0);
+                    Set::Scalar t = std::abs((x - center[0]).transpose() * orientation[0]) - (thickness[0] / 2.0);
+                    field(i, j, k, 0) = 0.5 - 0.5 * std::erf(t / eps[0]);
+                    if (invert) field(i, j, k, 0) = 1.0 - field(i, j, k, 0);
                 }
             });
         }

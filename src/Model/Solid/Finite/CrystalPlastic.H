@@ -39,19 +39,21 @@ namespace Finite
 class CrystalPlastic : public PseudoLinear::Cubic
 {
 public:
-    CrystalPlastic() {};
+    AMREX_GPU_HOST_DEVICE CrystalPlastic() {};
+    AMREX_GPU_HOST_DEVICE virtual ~CrystalPlastic() {};
 
-    virtual ~CrystalPlastic() {};
-
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix & F) const override
     {
         return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse());
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix & F) const override
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         return PseudoLinear::Cubic::DW(F * Fpinv) * Fpinv.transpose();
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
@@ -69,7 +71,8 @@ public:
                     }
         return ret;
     }
-    
+
+    AMREX_GPU_HOST_DEVICE
     virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
     {
         if (time  < tstart) return;

@@ -2,6 +2,7 @@
 #define INTEGRATOR_BASE_MECHANICS_H
 
 #include "AMReX.H"
+#include "AMReX_Loop.H"
 #include "BC/Operator/Elastic/Elastic.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "BC/Operator/Elastic/TensionTest.H"
@@ -12,7 +13,6 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Operator/Operator.H"
-#include "IC/IC.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/Trig.H"
@@ -139,7 +139,7 @@ public:
         pp_query_default("tstart", value.tstart,-1.0);
     }
 
-public:
+protected:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
@@ -217,7 +217,7 @@ public:
                 amrex::Array4<const Set::Vector> const& disp = disp_mf[lev]->array(mfi);
 
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
@@ -270,7 +270,7 @@ public:
                 Set::Patch<MODEL>             model = model_mf.Patch(lev,mfi);
 
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
@@ -279,8 +279,7 @@ public:
                 });
 
                 bx = mfi.nodaltilebox() & domain;
-                auto * self = this;
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
 
                     bool AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z));
@@ -290,7 +289,7 @@ public:
                     {
                         auto sten = Numeric::GetStencil(i,j,k,domain);                        
 
-                        auto bctype = self->bc->getType(i,j,k,domain);
+                        auto bctype = bc->getType(i,j,k,domain);
 
                         for (int d = 0; d < AMREX_SPACEDIM; d++)
                         {
@@ -354,9 +353,9 @@ public:
                         //                    +(Cgrad3*gradu).col(2));
                         
                         Set::Vector lapv = Numeric::Laplacian(v, i, j, k, DX);
-                        f += self->mu_newton * lapv + b(i,j,k) - self->mu_dashpot*v(i,j,k);
+                        f += mu_newton * lapv + b(i,j,k) - mu_dashpot*v(i,j,k);
                         
-                        Set::Vector udotdot = f / self->rho;
+                        Set::Vector udotdot = f / rho;
                         vnew(i, j, k) = v(i, j, k) + dt * udotdot;
                         unew(i, j, k) = u(i, j, k) + dt * v(i, j, k);
                     }
@@ -370,7 +369,7 @@ public:
             amrex::Array4<Set::Matrix>         const& eps = (*strain_mf[lev]).array(mfi);
             amrex::Array4<Set::Matrix>         const& sig = (*stress_mf[lev]).array(mfi);
             amrex::Array4<MODEL>               const& model = (*model_mf[lev]).array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
@@ -398,7 +397,7 @@ public:
 
         amrex::Box box = a_box;
         box.convert(amrex::IntVect::TheNodeVector());
-        auto * self = this;
+
 
         //Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 #if AMREX_SPACEDIM == 2
@@ -413,25 +412,25 @@ public:
 
         amrex::Array4<const Set::Matrix> const& stress = (*stress_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Vector> const& disp = (*disp_mf[amrlev]).array(mfi);
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
         {
 #if AMREX_SPACEDIM == 2
             if (i == hi.x && j < boxhi.y)
             {
-                self->trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
-                self->disp_hi[0] = disp(i, j, k);
+                trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
+                disp_hi[0] = disp(i, j, k);
             }
             if (j == hi.y && i < boxhi.x)
             {
-                self->trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
-                self->disp_hi[1] = disp(i, j, k);
+                trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
+                disp_hi[1] = disp(i, j, k);
             }
 #elif AMREX_SPACEDIM == 3
             if (i == hi.x && (j < boxhi.y && k < boxhi.z))
             {
-                self->trac_hi[0] += (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
+                trac_hi[0] += (0.25 * (stress(i, j, k) + stress(i, j + 1, k)
                     + stress(i, j, k + 1) + stress(i, j + 1, k + 1)) * da);
-                self->disp_hi[0] = disp(i, j, k);
+                disp_hi[0] = disp(i, j, k);
             }
 #endif
         });
@@ -448,14 +447,13 @@ public:
         for (amrex::MFIter mfi(*strain_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
-            auto * self = this;
             bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Matrix> const& eps = strain_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Matrix3 grad = Numeric::NodeGradientOnCell(eps, i, j, k, DX.data());
-                if (grad.norm() * DXnorm > self->m_elastic_ref_threshold)
+                if (grad.norm() * DXnorm > m_elastic_ref_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }

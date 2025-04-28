@@ -51,7 +51,7 @@ public:
         amrex::Array4<T> const& finearr = fine.array();
         amrex::Array4<T> const& slopearr = slopefab.array();
 
-        using namespace amrex; // normally avoid this! but use for now.
+        using namespace amrex; // normally avoid this! but must use for now.
 
         AMREX_LAUNCH_HOST_DEVICE_LAMBDA_FLAG(runon, cslope_bx, tbx,
             {

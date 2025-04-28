@@ -25,22 +25,26 @@ namespace Linear
 class Laplacian : public Model::Solid::Solid<Set::Sym::Diagonal>
 {
 public:
-    Laplacian() { Define(); } ;
-    Laplacian(Set::Scalar alpha) { Define(alpha); } ;
-    Laplacian(Solid<Set::Sym::Diagonal> base) : Solid<Set::Sym::Diagonal>(base) {};
-    ~Laplacian() {} ;
+    AMREX_GPU_HOST_DEVICE  Laplacian() { Define(); } ;
+    AMREX_GPU_HOST_DEVICE  Laplacian(Set::Scalar alpha) { Define(alpha); } ;
+    AMREX_GPU_HOST_DEVICE  Laplacian(Solid<Set::Sym::Diagonal> base) : Solid<Set::Sym::Diagonal>(base) {};
+    AMREX_GPU_HOST_DEVICE  ~Laplacian() {} ;
+
     void Define(Set::Scalar alpha = 1.0)
     {
         ddw = alpha*Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>(Set::Matrix::Ones());
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return ddw*gradu;
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal> DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;

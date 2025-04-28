@@ -68,7 +68,7 @@ void Abort (const char * msg);
 
 template<typename... Args>
 AMREX_GPU_HOST_DEVICE
-void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
+void Assert (const char * file, const char * func, int line, const char * smt, bool pass, Args const &... args)
 {
 #ifndef __CUDA_ARCH__
     if (pass) return;

@@ -18,10 +18,9 @@ namespace Linear
 class Cubic : public Solid<Set::Sym::MajorMinor>
 {
 public:
-
-    Cubic() {};
-    Cubic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
-    virtual ~Cubic() {};
+    AMREX_GPU_HOST_DEVICE Cubic() = default;
+    //AMREX_GPU_HOST_DEVICE Cubic(const Solid<Set::Sym::MajorMinor> &base) : Solid<Set::Sym::MajorMinor>(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~Cubic() = default;
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
@@ -33,21 +32,25 @@ public:
     {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,R);
     }
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream &out) const override 
     {
-        out << ddw;
+        AMREX_IF_ON_HOST( out << ddw; )
     }
 
 public:

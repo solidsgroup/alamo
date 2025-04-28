@@ -112,9 +112,8 @@ public:
     
     using Operator::Reflux;
 
-public:
+protected:
 
-    using Operator::Diagonal;
     virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
 
     virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const override final;
@@ -150,7 +149,6 @@ private:
     Set::Scalar m_psi_small = 1E-8;
     bool m_psi_set = false;
 
-public:
     virtual void averageDownCoeffs () override;
     void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
     

@@ -2,6 +2,7 @@
 #define SET_BASE_H
 
 #include "AMReX.H"
+#include "AMReX_GpuLaunchMacrosG.H"
 #include "AMReX_REAL.H"
 #include "AMReX_SPACE.H"
 #include "AMReX_Vector.H"
@@ -57,22 +58,28 @@ Set::Matrix3d expand(const Set::Matrix &in)
 class Quaternion : public Eigen::Quaterniond
 {
 public:
+    AMREX_GPU_HOST_DEVICE
     Quaternion()
         : Eigen::Quaterniond() {}
+    AMREX_GPU_HOST_DEVICE
     Quaternion(Set::Scalar w, Set::Scalar x, Set::Scalar y, Set::Scalar z)
         : Eigen::Quaterniond(w,x,y,z) {}
+    AMREX_GPU_HOST_DEVICE
     Quaternion(const Eigen::Matrix3d &R)
         : Eigen::Quaterniond(R) {}
+    AMREX_GPU_HOST_DEVICE
     Quaternion(Eigen::Quaterniond &q)
         : Eigen::Quaterniond(q.w(),q.x(),q.y(),q.z()) {}
 
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     void operator = (const Eigen::Quaterniond &rhs)
     {
         w() = rhs.w(); x() = rhs.x(); y() = rhs.y(); z() = rhs.z();
     }
 
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     void operator += (const Quaternion &rhs)
     {
         w() += rhs.w(); x() += rhs.x(); y() += rhs.y(); z() += rhs.z();
@@ -82,13 +89,14 @@ public:
     // {
     //     w += alpha; x *= alpha; y *= alpha; z *= alpha;
     // }
-    friend Quaternion operator * (const Set::Scalar alpha, const Quaternion b);
-    friend Quaternion operator * (const Quaternion b,const Set::Scalar alpha);
-    friend Quaternion operator + (const Quaternion a, const Quaternion b);
-    friend Quaternion operator - (const Quaternion a, const Quaternion b);
-    friend bool operator == (const Quaternion a, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator * (const Set::Scalar alpha, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator * (const Quaternion b,const Set::Scalar alpha);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator + (const Quaternion a, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE Quaternion operator - (const Quaternion a, const Quaternion b);
+    friend AMREX_GPU_HOST_DEVICE bool operator == (const Quaternion a, const Quaternion b);
 };
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator * (const Set::Scalar alpha, const Quaternion b)
 {
     Quaternion ret;
@@ -96,29 +104,33 @@ Quaternion operator * (const Set::Scalar alpha, const Quaternion b)
     return ret;
 }    
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator * (const Quaternion b, const Set::Scalar alpha)
 {
     Quaternion ret;
     ret.w() = b.w()*alpha; ret.x() = b.x()*alpha; ret.y() = b.y()*alpha; ret.z() = b.z()*alpha;
     return ret;
-}    
+}
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator + (const Quaternion a, const Quaternion b)
 {
     Quaternion ret;
     ret.w() = a.w()+b.w(); ret.x() = a.x()+b.x(); ret.y() = a.y()+b.y(); ret.z() = a.z()+b.z();
     return ret;
-}    
+}
 
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Quaternion operator - (const Quaternion a, const Quaternion b)
 {
     Quaternion ret;
     ret.w() = a.w()-b.w(); ret.x() = a.x()-b.x(); ret.y() = a.y()-b.y(); ret.z() = a.z()-b.z();
     return ret;
-}    
+}
 
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 bool operator == (const Quaternion a, const Quaternion b)
 {
     if (fabs((a.w() - b.w())/(a.w()+a.w())) > 1E-8) return false;

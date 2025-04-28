@@ -22,6 +22,7 @@ public:
     //    for (int i = 0; i < 6; i++) data[i] =  in.data[i];
     //}
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     const Scalar & operator () (const int i, const int j, const int k, const int l) const
     {
         int uid = i + 2*j + 4*k + 8*l;
@@ -35,6 +36,7 @@ public:
         return Set::Garbage;
     }
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
         int uid = i + 2*j + 4*k + 8*l;
@@ -109,12 +111,14 @@ public:
         for (int i = 0 ; i < 6; i++) ret.data[i] = (Util::Random());
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<2,Sym::MajorMinor> Zero()
     {
         Matrix4<2,Sym::MajorMinor> ret;
         for (int i = 0 ; i < 6; i++) ret.data[i] = 0.0;
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
@@ -145,6 +149,7 @@ public:
                     }                
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
                                             Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
@@ -154,6 +159,8 @@ public:
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         return Matrix4<2,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
     }
+
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
                                             Set::Quaternion q)
     {
@@ -254,6 +261,7 @@ class Matrix4<3,Sym::MajorMinor>
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     const Scalar & operator () (const int i, const int j, const int k, const int l) const
     {
         int uid = i + 3*j + 9*k + 27*l;
@@ -303,6 +311,7 @@ public:
         return Set::Garbage; 
     }
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
         int uid = i + 3*j + 9*k + 27*l;
@@ -434,12 +443,15 @@ public:
         for (int i = 0 ; i < 21; i++) ret.data[i] = (Util::Random());
         return ret;
     }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<3,Sym::MajorMinor> Zero()
     {
         Matrix4<3,Sym::MajorMinor> ret;
         for (int i = 0 ; i < 21; i++) ret.data[i] = 0.0;
         return ret;
     }
+
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
                                             Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
@@ -470,6 +482,8 @@ public:
                     }                
         return ret;
     }
+
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
                                             Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
@@ -479,6 +493,8 @@ public:
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         return Matrix4<3,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
     }
+
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
                                             Set::Quaternion q)
     {

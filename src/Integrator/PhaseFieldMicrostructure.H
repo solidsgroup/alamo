@@ -277,14 +277,15 @@ protected:
     /// \brief Evolve phase field in time
     void Advance (int lev, Real time, Real dt) override;
     void Initialize (int lev) override;
-
+public:
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
-
+protected:
     virtual void TimeStepBegin(amrex::Real time, int iter) override;
     virtual void TimeStepComplete(amrex::Real time, int iter) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
+public:
     virtual void UpdateEigenstrain(int lev);
     virtual void UpdateEigenstrain()
     {
@@ -294,7 +295,7 @@ protected:
 
     virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
 
-private:
+public:
 
     int number_of_grains = -1;
     int number_of_ghost_cells = 1;
@@ -419,4 +420,4 @@ private:
 
 };
 }
-#endif
+#endif 

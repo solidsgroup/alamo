@@ -1416,7 +1416,7 @@ public:
             ,
             +f(i, j, k - klo, m) + f(i - ilo, j, k - klo, m)
             + f(i, j - jlo, k - klo, m) + f(i - ilo, j - jlo, k - klo, m)
-        )) * fac;
+        )) * AMREX_D_PICK(0.5, 0.25, 0.125);
     }
     template<class T>
     [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -1435,7 +1435,7 @@ public:
             ,
             +f(i, j, k - klo, m) + f(i - ilo, j, k - klo, m)
             + f(i, j - jlo, k - klo, m) + f(i - ilo, j - jlo, k - klo, m)
-        )) * fac;
+        )) * AMREX_D_PICK(0.5, 0.25, 0.125);
     }
     template<class T>
     [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -1448,7 +1448,7 @@ public:
             ,
             +f(i, j, k + 1, m) + f(i + 1, j, k + 1, m)
             + f(i, j + 1, k + 1, m) + f(i + 1, j + 1, k + 1, m)
-        )) * fac;
+        )) * AMREX_D_PICK(0.5, 0.25, 0.125);
     }
     template<class T>
     [[nodiscard]] AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -1461,9 +1461,8 @@ public:
             ,
             +f(i, j, k + 1, m) + f(i + 1, j, k + 1, m)
             + f(i, j + 1, k + 1, m) + f(i + 1, j + 1, k + 1, m)
-        )) * fac;
+        )) * AMREX_D_PICK(0.5, 0.25, 0.125);
     }
-    constexpr static Set::Scalar fac = AMREX_D_PICK(0.5, 0.25, 0.125);
 };
 
 }

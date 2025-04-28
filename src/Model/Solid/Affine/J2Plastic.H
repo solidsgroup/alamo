@@ -17,8 +17,8 @@ namespace Affine
 class J2Plastic : public Isotropic
 {
 public:
-    J2Plastic() {};
-    J2Plastic(Solid<Set::Sym::Isotropic> base) : Isotropic(base) {};
+    AMREX_GPU_HOST_DEVICE J2Plastic() {};
+    AMREX_GPU_HOST_DEVICE J2Plastic(Solid<Set::Sym::Isotropic> base) : Isotropic(base) {};
 
     J2Plastic(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Scalar a_yield, Set::Scalar a_hardening, Set::Scalar a_theta=1.0)
     {

@@ -64,33 +64,33 @@ public:
             if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
             if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
             bx = bx & domain;
-            auto * self = this;
+
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::LoopOnCpu (bx,[=] (int i, int j, int k) 
+            amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) 
             {
                 Set::Vector x = Set::Vector::Zero();
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-                    x(0) = domlo(0) + ((Set::Scalar)(i)) * self->geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((Set::Scalar)(j)) * self->geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((Set::Scalar)(i)) * geom[lev].CellSize()[0];
+                    x(1) = domlo(1) + ((Set::Scalar)(j)) * geom[lev].CellSize()[1];
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-                    x(0) = domlo(0) + ((Set::Scalar)(i) + 0.5) * self->geom[lev].CellSize()[0];
-                    x(1) = domlo(1) + ((Set::Scalar)(j) + 0.5) * self->geom[lev].CellSize()[1];
+                    x(0) = domlo(0) + ((Set::Scalar)(i) + 0.5) * geom[lev].CellSize()[0];
+                    x(1) = domlo(1) + ((Set::Scalar)(j) + 0.5) * geom[lev].CellSize()[1];
                 }
 
                 //Set::Scalar x, y;
                 Set::Vector ximg;
 
-                if (self->fit == Fit::Stretch)
+                if (fit == Fit::Stretch)
                 {
                     ximg(0) = (x(0) - domlo(0)) / (domhi(0) - domlo(0)); 
                     ximg(1) = (x(1) - domlo(1)) / (domhi(1) - domlo(1)); 
                 }
-                else if (self->fit == Fit::FitWidth)
+                else if (fit == Fit::FitWidth)
                 {
                     Set::Scalar aspect_ratio = img_width / img_height;
                     ximg(0) = (x(0) - domlo(0)) / (domhi(0) - domlo(0)); 
@@ -98,7 +98,7 @@ public:
                     ximg(1) -= 0.5 - 0.5 / aspect_ratio;
                     ximg(1) *= aspect_ratio;
                 }
-                else if (self->fit == Fit::FitHeight)
+                else if (fit == Fit::FitHeight)
                 {
                     Set::Scalar aspect_ratio = img_height / img_width;
                     ximg(0) = (x(0) - domlo(0)) / (domhi(0) - domlo(0)); 
@@ -106,10 +106,10 @@ public:
                     ximg(0) -= 0.5 - 0.5 / aspect_ratio;
                     ximg(0) *= aspect_ratio;
                 }
-                else if (self->fit == Fit::Coord)
+                else if (fit == Fit::Coord)
                 {
-                    ximg(0) = (x(0) - self->coord_lo(0)) / (self->coord_hi(0)-self->coord_lo(0));
-                    ximg(1) = (x(1) - self->coord_lo(1)) / (self->coord_hi(1)-self->coord_lo(1));
+                    ximg(0) = (x(0) - coord_lo(0)) / (coord_hi(0)-coord_lo(0));
+                    ximg(1) = (x(1) - coord_lo(1)) / (coord_hi(1)-coord_lo(1));
                 }
 
                 ximg(0) = std::min(ximg(0),1.0); ximg(1) = std::min(ximg(1),1.0);
@@ -124,31 +124,31 @@ public:
                 Set::Scalar x1 = I*img_dx, x2 = (I+1)*img_dx;
                 Set::Scalar y1 = J*img_dy, y2 = (J+1)*img_dy;
 
-                if (I < self->bmp.nx-1 && J < self->bmp.ny - 1)
+                if (I < bmp.nx-1 && J < bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(self->bmp(I,  J  )[self->channel]) - self->min) / (self->max - self->min);
-                    Set::Scalar fQ12 = ((Set::Scalar)(self->bmp(I,  J+1)[self->channel]) - self->min) / (self->max - self->min);
-                    Set::Scalar fQ21 = ((Set::Scalar)(self->bmp(I+1,J  )[self->channel]) - self->min) / (self->max - self->min);
-                    Set::Scalar fQ22 = ((Set::Scalar)(self->bmp(I+1,J+1)[self->channel]) - self->min) / (self->max - self->min);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I,  J  )[channel]) - min) / (max - min);
+                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I,  J+1)[channel]) - min) / (max - min);
+                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[channel]) - min) / (max - min);
+                    Set::Scalar fQ22 = ((Set::Scalar)(bmp(I+1,J+1)[channel]) - min) / (max - min);
 
                     field(i,j,k) =
                         (fQ11*(x2-ximg(0))*(y2-ximg(1)) + fQ21*(ximg(0)-x1)*(y2-ximg(1)) + fQ12*(x2-ximg(0))*(ximg(1)-y1) + fQ22*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
                 }
-                else if (I == self->bmp.nx-1 && J <  self->bmp.ny - 1)
+                else if (I == bmp.nx-1 && J <  bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(self->bmp(I  ,J  )[self->channel]) - self->min) / (self->max - self->min);
-                    Set::Scalar fQ12 = ((Set::Scalar)(self->bmp(I  ,J+1)[self->channel]) - self->min) / (self->max - self->min);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
+                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I  ,J+1)[channel]) - min) / (max - min);
                     field(i,j,k) = fQ11 + (fQ12-fQ11) * (ximg(1) - y1);
                 }
-                else if (I < self->bmp.nx-1 && J == self->bmp.ny - 1)
+                else if (I <  bmp.nx-1 && J == bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(self->bmp(I  ,J  )[self->channel]) - self->min) / (self->max - self->min);
-                    Set::Scalar fQ21 = ((Set::Scalar)(self->bmp(I+1,J  )[self->channel]) - self->min) / (self->max - self->min);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
+                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[channel]) - min) / (max - min);
                     field(i,j,k) = fQ11 + (fQ21-fQ11) * (ximg(0) - x1);
                 }
-                else if (I ==  self->bmp.nx-1 && J == self->bmp.ny - 1)
+                else if (I ==  bmp.nx-1 && J == bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(self->bmp(I  ,J  )[self->channel]) - self->min) / (self->max - self->min);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
                     field(i,j,k) = fQ11;
                 }
                 else

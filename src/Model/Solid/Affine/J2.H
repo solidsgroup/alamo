@@ -49,8 +49,10 @@ class J2 : public Isotropic
 {
 public:
 
-    J2() {};
+    AMREX_GPU_HOST_DEVICE J2() {};
+    AMREX_GPU_HOST_DEVICE virtual ~J2() {};
 
+    AMREX_GPU_HOST_DEVICE
     void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/, Set::Scalar /*time*/) override
     {
         Set::Matrix sigma = DW(eps);

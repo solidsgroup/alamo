@@ -17,21 +17,24 @@ class Cubic : public PseudoLinear::Cubic
 public:
     static constexpr const char *name = "cubic";
     
-    Cubic() {};
-    Cubic(PseudoLinear::Cubic base) : PseudoLinear::Cubic(base) {};
-    virtual ~Cubic() {};
+    AMREX_GPU_HOST_DEVICE Cubic() = default;
+    AMREX_GPU_HOST_DEVICE Cubic(const PseudoLinear::Cubic &base) : PseudoLinear::Cubic(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~Cubic() = default;
 
-    Set::Scalar W(const Set::Matrix& F) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Scalar W(const Set::Matrix& F) const override
     {
         Set::Matrix F0inv = F0.inverse();
         return PseudoLinear::Cubic::W(F * F0inv);
     }
-    Set::Matrix DW(const Set::Matrix& F) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Matrix DW(const Set::Matrix& F) const override
     {
         Set::Matrix F0inv = F0.inverse();
         return PseudoLinear::Cubic::DW(F * F0inv) * F0inv.transpose();
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
     {
         Set::Matrix F0inv = F0.inverse();
         auto DDW = PseudoLinear::Cubic::DDW(F * F0inv);

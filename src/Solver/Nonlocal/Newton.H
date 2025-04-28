@@ -1,6 +1,7 @@
 #ifndef SOLVER_NONLOCAL_NEWTON
 #define SOLVER_NONLOCAL_NEWTON
 
+#include "AMReX_Loop.H"
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -48,7 +49,7 @@ public:
         m_psi = &a_psi;
     }
 
-public:
+private:
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf,
         const Set::Field<Set::Scalar>& a_b_mf,
         Set::Field<Set::Scalar>& a_rhs_mf,
@@ -73,7 +74,7 @@ public:
                 amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, T::sym>>  const& ddw = a_ddw_mf[lev]->array(mfi);
 
                 // Set model internal dw and ddw.
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
                     Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
@@ -114,12 +115,11 @@ public:
             {
                 amrex::Box bx = mfi.nodaltilebox();
                 bx = bx & domain;
-                auto * self = this;
                 amrex::Array4<const Set::Scalar>  const& u = a_u_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>        const& rhs = a_rhs_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     // Do this if on the domain boundary
@@ -127,7 +127,7 @@ public:
                     {
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
-                        Set::Vector ret = self->m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
+                        Set::Vector ret = m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
                     }
                     else
@@ -166,7 +166,7 @@ public:
                 amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, T::sym>>  const& ddw = a_ddw_mf[lev]->array(mfi);
 
                 // Set model internal dw and ddw.
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
@@ -204,7 +204,6 @@ public:
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                auto * self = this;
                 amrex::Array4<const Set::Vector>  const& u = a_u_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Vector>  const& b = a_b_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Matrix>  const& dw = a_dw_mf[lev]->array(mfi);
@@ -213,14 +212,14 @@ public:
                 // This is for if psi is not being used and has not been set
                 if (m_psi == nullptr)
                 {
-                    amrex::LoopOnCpu (bx, [=] (int i, int j, int k)
+                    amrex::LoopConcurrentOnCpu (bx, [=] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
                         if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-                            Set::Vector ret = self->m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
+                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else
@@ -237,7 +236,7 @@ public:
                 {
                     const amrex::Dim3 boxlo = amrex::lbound(bx), boxhi = amrex::ubound(bx);
                     amrex::Array4<const Set::Scalar>  const& psi = (*m_psi)[lev]->array(mfi);
-                    amrex::LoopOnCpu (bx, [=] (int i, int j, int k)
+                    amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
@@ -249,7 +248,7 @@ public:
                             {
                                 psiavg = Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0);
                             }
-                            Set::Vector ret = self->m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
+                            Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
                         }
                         else

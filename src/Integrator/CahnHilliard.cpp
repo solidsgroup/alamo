@@ -70,7 +70,7 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         amrex::Array4<amrex::Real> const& inter    = intermediate[lev]->array(mfi);
         amrex::Array4<amrex::Real> const& etanew    = etanew_mf[lev]->array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Scalar lap_eta = Numeric::Laplacian(eta,i,j,k,0,DX);
             
@@ -84,7 +84,7 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             etanew(i,j,k) = eta(i,j,k) - dt*inter(i,j,k); // Allen Cahn
         });
 
-        amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+        amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k){
             Set::Scalar lap_inter = Numeric::Laplacian(inter,i,j,k,0,DX);
 
             etanew(i,j,k) = eta(i,j,k) + dt*lap_inter;
@@ -214,7 +214,7 @@ CahnHilliard::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, Set::S
         amrex::Array4<char> const&     tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar>   eta = (*etanew_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             if (grad.lpNorm<2>() * dr > refinement_threshold)

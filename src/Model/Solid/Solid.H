@@ -17,6 +17,7 @@
 #include <eigen3/Eigen/Core>
 
 #include "Set/Set.H"
+#include "Set/Base.H"
 
 namespace Model
 {
@@ -29,37 +30,30 @@ template<Set::Sym SYM>
 class Solid
 {
 public:
-    AMREX_GPU_HOST_DEVICE
-    Solid() {} ;
-
-    AMREX_GPU_HOST_DEVICE
-    virtual ~Solid() {};
+    AMREX_GPU_HOST_DEVICE Solid() = default;
+    AMREX_GPU_HOST_DEVICE Solid(const Solid & base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~Solid() = default;
 
     static constexpr Set::Sym sym = SYM;
 
-    AMREX_GPU_HOST_DEVICE
-    virtual Set::Scalar W(const Set::Matrix &) const
-    {
-        Util::Abort(INFO, "W not implemented");
-        return 0.0;
-    };
-    AMREX_GPU_HOST_DEVICE
-    virtual Set::Matrix DW(const Set::Matrix &) const
+    AMREX_GPU_HOST_DEVICE virtual Set::Scalar W(const Set::Matrix &) const      
+    {Util::Abort(INFO,"W not implemented"); return 0.0;};
+    AMREX_GPU_HOST_DEVICE virtual Set::Matrix DW(const Set::Matrix &) const
     {
         Util::Abort(INFO, "DW not implemented");
         return Set::Matrix::Zero();
     };
-    AMREX_GPU_HOST_DEVICE
-    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const
+    AMREX_GPU_HOST_DEVICE virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const
     {
         Util::Abort(INFO, "DDW not implemented");
-        return Set::Matrix4<AMREX_SPACEDIM, SYM>::Zero();
+        return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();
     };
     
     AMREX_GPU_HOST_DEVICE
     virtual void Advance(Set::Scalar /*dt*/, Set::Matrix /*strain*/, Set::Matrix /*stress*/, Set::Scalar /*time*/) {}
 
     // Todo: implement for all models and make this pure virtual
+    AMREX_GPU_HOST_DEVICE
     virtual bool ContainsNan() {return true;};
 
 
@@ -67,14 +61,15 @@ public:
     static const KinematicVariable kinvar = KinematicVariable::F;
 
 
-        friend std::ostream& operator<<(std::ostream &out, const Solid &a)
+    friend std::ostream& operator<<(std::ostream &out, const Solid &a)
     {
         a.Print(out);
         return out;
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream &out) const
     {
-        out << "No print function written for this model.";
+        AMREX_IF_ON_HOST( out << "No print function written for this model.";)
     }
 
 public: 

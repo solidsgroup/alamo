@@ -51,7 +51,7 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::IndexType type = a_field[lev]->ixType();
 
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                 amrex::IntVect m(AMREX_D_DECL(i,j,k));
                 
                 Set::Vector x;

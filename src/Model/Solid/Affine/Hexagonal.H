@@ -26,9 +26,9 @@ class Hexagonal : public Linear::Hexagonal
 public:
     static constexpr const char *name = "hexagonal";
 
-    Hexagonal() {};
-    Hexagonal(Linear::Hexagonal base) : Linear::Hexagonal(base) {};
-    virtual ~Hexagonal() {};
+    AMREX_GPU_HOST_DEVICE Hexagonal() = default;
+    AMREX_GPU_HOST_DEVICE Hexagonal(Linear::Hexagonal base) : Linear::Hexagonal(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~Hexagonal() = default;
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2,Set::Matrix a_F0=Set::Matrix::Zero())
@@ -42,21 +42,25 @@ public:
         Linear::Hexagonal::Define(C11,C12,C13,C33,C44,R);
         F0 = a_F0;
     }
+    AMREX_GPU_HOST_DEVICE 
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return Linear::Hexagonal::W(gradu - F0);
     }
+    AMREX_GPU_HOST_DEVICE 
     Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return Linear::Hexagonal::DW(gradu - F0);
     }
+    AMREX_GPU_HOST_DEVICE 
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & gradu) const override
     {
         return Linear::Hexagonal::DDW(gradu - F0);
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream &out) const override 
     {
-        out << ddw;
+        AMREX_IF_ON_HOST( out << ddw; )
     }
     AMREX_FORCE_INLINE
     void SetF0 (Set::Matrix &a_F0) {F0 = a_F0;}

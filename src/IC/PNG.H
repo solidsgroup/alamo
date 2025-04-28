@@ -47,7 +47,6 @@ public:
         Set::Vector DX(geom[lev].CellSize());
         amrex::Box domain = geom[lev].Domain();
 
-
         amrex::IndexType type = a_field[lev]->ixType();
         domain.convert(type);
 
@@ -63,30 +62,26 @@ public:
             if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
             bx = bx & domain;
 
-            auto * self = this;
-            Util::PNG &png = this->png;
-            amrex::Geometry &geom = this->geom[lev];
-
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::LoopOnCpu(bx, [=] (int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Vector x = Set::Vector::Zero();
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-                    x(0) = domlo(0) + ((Set::Scalar)(i)) * geom.CellSize()[0];
-                    x(1) = domlo(1) + ((Set::Scalar)(j)) * geom.CellSize()[1];
+                    x(0) = domlo(0) + ((amrex::Real)(i)) * geom[lev].CellSize()[0];
+                    x(1) = domlo(1) + ((amrex::Real)(j)) * geom[lev].CellSize()[1];
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-                    x(0) = domlo(0) + ((Set::Scalar)(i)+0.5) * geom.CellSize()[0];
-                    x(1) = domlo(1) + ((Set::Scalar)(j)+0.5) * geom.CellSize()[1];
+                    x(0) = domlo(0) + ((amrex::Real)(i)+0.5) * geom[lev].CellSize()[0];
+                    x(1) = domlo(1) + ((amrex::Real)(j)+0.5) * geom[lev].CellSize()[1];
                 }
 
 
                 std::array<Set::Scalar, 4> val = png(x);
 
-                field(i,j,k,0) = val[self->channel];
+                field(i,j,k,0) = val[channel];
 
 
                 if (field.nComp() > 1) field(i, j, k, 1) = 1.0 - field(i, j, k, 0);

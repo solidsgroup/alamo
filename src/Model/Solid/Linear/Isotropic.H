@@ -65,8 +65,8 @@ class Isotropic : public Solid<Set::Sym::Isotropic>
 {
 public:
 
-    Isotropic() {};
-    Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
+    AMREX_GPU_HOST_DEVICE Isotropic() {};
+    AMREX_GPU_HOST_DEVICE Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
         Define(a_mu,a_lambda);
@@ -78,14 +78,17 @@ public:
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
     }
 
+    AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return ddw*gradu;
     }
+    AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;

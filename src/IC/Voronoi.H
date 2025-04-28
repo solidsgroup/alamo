@@ -65,7 +65,8 @@ public:
             bx.grow(a_field[lev]->nGrow());
             int ncomp = a_field[lev]->nComp();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k)
+            {
 
                 Set::Vector x;
                 AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,

@@ -13,12 +13,9 @@ namespace Finite
 class NeoHookean : public Solid<Set::Sym::Major>
 {
 public:
-    AMREX_GPU_HOST_DEVICE
-    NeoHookean() {};
-    AMREX_GPU_HOST_DEVICE
-    NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
-    AMREX_GPU_HOST_DEVICE
-    virtual ~NeoHookean() {};
+    AMREX_GPU_HOST_DEVICE NeoHookean() {};
+    AMREX_GPU_HOST_DEVICE NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~NeoHookean() = default;
 
     AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix& a_F) const override
@@ -122,9 +119,10 @@ public:
         return ddw;
 #endif
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream& out) const override
     {
-        out << "mu = " << mu << " kappa = " << kappa;
+        AMREX_IF_ON_HOST(out << "mu = " << mu << " kappa = " << kappa;)
     }
 
 public:

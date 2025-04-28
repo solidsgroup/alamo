@@ -21,9 +21,9 @@ class Cubic : public Linear::Cubic
 public:
     static constexpr const char *name = "cubic";
 
-    Cubic() {};
-    Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
-    virtual ~Cubic() {};
+    AMREX_GPU_HOST_DEVICE Cubic() = default;
+    AMREX_GPU_HOST_DEVICE Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~Cubic() = default;
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2,Set::Matrix a_F0=Set::Matrix::Zero())
@@ -37,21 +37,25 @@ public:
         Linear::Cubic::Define(C11,C12,C44,R);
         F0 = a_F0;
     }
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return Linear::Cubic::W(gradu - F0);
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    AMREX_GPU_HOST_DEVICE 
+    virtual Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return Linear::Cubic::DW(gradu - F0);
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & gradu) const override
+    AMREX_GPU_HOST_DEVICE 
+    virtual Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & gradu) const override
     {
         return Linear::Cubic::DDW(gradu - F0);
     }
+    AMREX_GPU_HOST_DEVICE
     virtual void Print(std::ostream &out) const override 
     {
-        out << ddw;
+        AMREX_IF_ON_HOST( out << ddw; )
     }
     AMREX_FORCE_INLINE
     void SetF0 (Set::Matrix &a_F0) {F0 = a_F0;}
@@ -120,7 +124,7 @@ public:
 
     #define OP_CLASS Cubic
     #define OP_VARS  X(ddw) X(F0)
-    #include "Model/Solid/InClassOperators.H"
+#include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
 
@@ -154,9 +158,9 @@ void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a
         {
             amrex::Array4<const Model::Solid::Affine::Cubic> const & src = ((*this)[a_lev])->array(mfi);
             amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
+                dst(i, j, k, a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
             });
 }
     }    

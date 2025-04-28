@@ -1,7 +1,9 @@
 #ifndef MODEL_SOLID_FINITE_PSEUDOLINEAR_CUBIC_H_
 #define MODEL_SOLID_FINITE_PSEUDOLINEAR_CUBIC_H_
 
+#include "AMReX_GpuQualifiers.H"
 #include "IO/ParmParse.H"
+#include "Set/Base.H"
 #include "Model/Solid/Solid.H"
 
 namespace Model
@@ -15,11 +17,12 @@ namespace PseudoLinear
 class Cubic : public Solid<Set::Sym::Major>
 {
 public:
-    Cubic() {};
-    //Cubic(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
-    virtual ~Cubic() {};
+    AMREX_GPU_HOST_DEVICE Cubic() = default;
+    //AMREX_GPU_HOST_DEVICE Cubic(const Solid<Set::Sym::Major> &base) : Solid<Set::Sym::Major>(base) {};
+    AMREX_GPU_HOST_DEVICE virtual ~Cubic() = default;
 
-    Set::Scalar W(const Set::Matrix & F) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Scalar W(const Set::Matrix & F) const override
     {
         q.normalize();
         Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> CC
@@ -27,7 +30,8 @@ public:
         Set::Matrix E = 0.5 * (F.transpose() * F - Set::Matrix::Identity());
         return 0.5 * (E * (CC*E).transpose()).trace();
     }
-    Set::Matrix DW(const Set::Matrix & F) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Matrix DW(const Set::Matrix & F) const override
     {
         q.normalize();
         Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> CC
@@ -44,7 +48,8 @@ public:
         }
         return dw;      
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
+    AMREX_GPU_HOST_DEVICE
+    virtual Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
     {
         q.normalize();
         Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> CC
@@ -70,11 +75,13 @@ public:
 
         return ddw;   
     }
-    virtual void Print(std::ostream &out) const override 
+    AMREX_GPU_HOST_DEVICE
+    void Print(std::ostream &out) const 
     {
-        //out << "CC = " << CC;
-        out << "C11=" << C11 << " C12=" << C12 << " C44=" << C44 <<
-            " q=" << q.w() << " + " << q.x() << "i + " << q.y() << "j + " << q.z() << "k";
+        AMREX_IF_ON_HOST(
+            out << "C11=" << C11 << " C12=" << C12 << " C44=" << C44 << " q=" << q.w()
+                << " + " << q.x() << "i + " << q.y() << "j + " << q.z() << "k";
+            )
     }
     
 public:
@@ -140,6 +147,10 @@ public:
 #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
+
+
+
+
 
 }
 }

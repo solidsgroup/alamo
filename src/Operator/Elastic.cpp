@@ -1,6 +1,7 @@
 // TODO: Remove these 
 
 #include "Elastic.H"
+#include "AMReX_Loop.H"
 #include "Set/Set.H"
 
 #include "Numeric/Stencil.H"
@@ -165,9 +166,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
         const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
-        auto* self = this;
-
-        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -194,10 +193,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             }
 
             Set::Scalar psi_avg = 1.0;
-            if (self->m_psi_set)
-                psi_avg =
-                    (1.0 - self->m_psi_small) *
-                    Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + self->m_psi_small;
+            if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
             // Stress tensor computed using the model fab
             Set::Matrix sig = (DDW(i, j, k) * gradu) * psi_avg;
@@ -207,7 +203,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
             {
-                f = (*(self->m_bc))(u, gradu, sig, i, j, k, domain);
+                f = (*m_bc)(u, gradu, sig, i, j, k, domain);
             }
             else
             {
@@ -248,7 +244,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
                 f = (DDW(i, j, k) * gradgradu) * psi_avg;
 
-                if (!self->m_uniform)
+                if (!m_uniform)
                 {
                     MATRIX4
                         AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4, 1, 0, 0>::D(DDW, i, j, k, 0, DX, sten)),
@@ -258,10 +254,10 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                         +(Cgrad2 * gradu).col(1),
                         +(Cgrad3 * gradu).col(2))) * (psi_avg);
                 }
-                if (self->m_psi_set)
+                if (m_psi_set)
                 {
                     Set::Vector gradpsi = Numeric::CellGradientOnNode(psi, i, j, k, 0, DX);
-                    gradpsi *= (1.0 - self->m_psi_small);
+                    gradpsi *= (1.0 - m_psi_small);
                     f += (DDW(i, j, k) * gradu) * gradpsi;
                 }
             }
@@ -293,9 +289,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 
         const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
-        auto* self = this;
-
-        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -303,7 +297,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                 AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
 
             Set::Scalar psi_avg = 1.0;
-            if (self->m_psi_set) psi_avg = (1.0 - self->m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + self->m_psi_small;
+            if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
             Set::Matrix gradu; // gradu(i,j) = u_{i,j)
             Set::Matrix3 gradgradu; // gradgradu[k](l,j) = u_{k,lj}
@@ -340,7 +334,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                     Set::Matrix sig = DDW(i, j, k) * gradu * psi_avg;
                     Set::Vector u = Set::Vector::Zero();
                     u(p) = 1.0;
-                    f = (*(self->m_bc))(u, gradu, sig, i, j, k, domain);
+                    f = (*m_bc)(u, gradu, sig, i, j, k, domain);
                     diag(i, j, k, p) = f(p);
                 }
                 else
@@ -480,8 +474,6 @@ Elastic<SYM>::Stress(int amrlev,
     amrex::Box domain(m_geom[amrlev][0].Domain());
     domain.convert(amrex::IntVect::TheNodeVector());
 
-    auto* self = this;
-
     for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.tilebox();
@@ -489,7 +481,7 @@ Elastic<SYM>::Stress(int amrlev,
         amrex::Array4<amrex::Real> const& sigma = a_sigma.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][0]->array(mfi);
         amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Matrix gradu;
 
@@ -505,7 +497,7 @@ Elastic<SYM>::Stress(int amrlev,
             }
 
             Set::Scalar psi_avg = 1.0;
-            if (self->m_psi_set) psi_avg = (1.0 - self->m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + self->m_psi_small;
+            if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
             Set::Matrix sig = (DDW(i, j, k) * gradu) * psi_avg;
 
             if (voigt)
@@ -658,7 +650,7 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
                 if (nmask(I, J, K) == fine_fine_node || nmask(I, J, K) == coarse_fine_node)
@@ -761,7 +753,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
                 if ((I == lo.x || I == hi.x) &&
@@ -836,7 +828,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
                 if ((I == lo.x || I == hi.x) &&
