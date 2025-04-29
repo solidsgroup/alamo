@@ -1,5 +1,6 @@
 
 #include "Hydro.H"
+#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
@@ -207,7 +208,7 @@ void Hydro::Mix(int lev)
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu (bx, [=] (int i, int j, int k)
         {  
             rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
@@ -288,7 +289,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
 
@@ -340,7 +341,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Scalar *dt_max_handle = &dt_max;
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {   
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
@@ -576,7 +577,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             if (grad_eta.lpNorm<2>() * dr * 2 > eta_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
         });
@@ -588,7 +589,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& omega = (*vorticity_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, bx);
             Set::Vector grad_omega = Numeric::Gradient(omega, i, j, k, 0, DX, sten);
             if (grad_omega.lpNorm<2>() * dr * 2 > omega_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
@@ -601,7 +602,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& v = (*velocity_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, bx);
             Set::Matrix grad_u = Numeric::Gradient(v, i, j, k, DX, sten);
             if (grad_u.lpNorm<2>() * dr * 2 > gradu_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
@@ -614,7 +615,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& p = (*pressure_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, bx);
             Set::Vector grad_p = Numeric::Gradient(p, i, j, k, 0, DX, sten);
             if (grad_p.lpNorm<2>() * dr * 2 > p_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;
@@ -627,7 +628,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*density_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, bx);
             Set::Vector grad_rho = Numeric::Gradient(rho, i, j, k, 0, DX, sten);
             if (grad_rho.lpNorm<2>() * dr * 2 > rho_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET;

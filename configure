@@ -415,8 +415,8 @@ elif "openmpi" in mpidiststr.lower():
 message("mpi implementation", mpidist)
 
 if mpidist == "openmpi":
-    compmpicmd = shellmessage("openmpi comp flags", "mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
-    compmpicmd = args.comp + " " + compmpicmd
+    compmpiinc = shellmessage("openmpi comp flags", "mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
+    compmpicmd = args.comp + " " + compmpiinc
     shellmessage("openmpi c++ link"   , "mpicxx --showme:link".format(args.comp))
     shellmessage("openmpi fort link"   , "mpifort --showme:link".format(args.comp))
     shellmessage("openmpi version", "mpicxx --showme:version")
@@ -424,16 +424,19 @@ if mpidist == "openmpi":
     env.update({'OMPI_CXX': args.comp})
     mpicomp = shellmessage("openmpi cxx default", "mpicxx --showme:command").stdout.decode('utf-8').replace('\n','')
     if args.gpu:
-        ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
-        shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
-        f.write(f"CC = {ompicc} -x cu --std=c++17\n")
-
-        f.write(f"CXX_COMPILE_FLAGS += --cuda-path=/usr/local/cuda --cuda-gpu-arch={args.cuda} \n")
-        f.write("LINKER_FLAGS      += -lcudart \n")
-
-        #ompicc = f"nvcc -MMD -MP -ccbin=mpicxx -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread  -std=c++17' --std=c++17 -Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3 --ptxas-options=-v --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_70,code=sm_70 -x cu -dc"
+        #ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
         #shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
-        #f.write(f"CC = {ompicc} \n")
+        #f.write(f"CC = {ompicc} -x cu --std=c++17\n")
+        
+        f.write(f"CXX_COMPILE_FLAGS = \n")
+        f.write("LINKER_FLAGS      += -lcudart \n")
+        
+        ompicc = f"nvcc -MMD -MP -ccbin=g++ -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread -std=c++17' --std=c++17 -Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3 --ptxas-options=-v --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_70,code=sm_70 -x cu -dc   -DBL_USE_MPI -DAMREX_USE_MPI -DAMREX_USE_CUDA -DAMREX_USE_GPU -DBL_COALESCE_FABS -DAMREX_GPU_MAX_THREADS=256 -DAMREX_USE_GPU_RDC -DBL_FORT_USE_UNDERSCORE -DAMREX_FORT_USE_UNDERSCORE -DBL_Linux -DAMREX_Linux -DNDEBUG -DOMPI_SKIP_MPICXX -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -I. -I../../..//Src/Base -I../../..//Src/Base/Parser -isystem /usr/local/cuda/include {compmpiinc} -c "
+
+
+        #ompicc = "mpicxx -MMD -MP -ccbin=g++ -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread -std=c++17' --std=c++17 -Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3 --ptxas-options=-v --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_70,code=sm_70 -x cu -dc"
+        f.write(f"CC = {ompicc} \n")
+        
     else:
         ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
         shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
