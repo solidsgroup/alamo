@@ -282,7 +282,7 @@ if args.buildamrex and not args.amrex:
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     if args.fft: amrex_configure += " --enable-fft=yes"
     if args.gpu:
-        amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda} "
+        amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda.replace('sm_','')} "
         amrex_make_local.append('CUDA_CLANG = TRUE')
         #if args.comp != "g++": raise Exception(error() + "only gcc is supported at the moment")
         
