@@ -58,7 +58,7 @@ protected:
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override
     {
         PF::TimeStepComplete(a_time, a_iter);
-        Hydro::TimeStepComplete(a_time, a_iter);
+        if (hydro_initialized) Hydro::TimeStepComplete(a_time, a_iter);
     }
 
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
@@ -76,7 +76,7 @@ protected:
     void Regrid(int lev, Set::Scalar time) override
     {
         PF::Regrid(lev, time);
-        Hydro::Regrid(lev, time);
+        if (hydro_initialized) Hydro::Regrid(lev, time);
     }
 
     void UpdateEta(int lev, Set::Scalar /*time*/) override

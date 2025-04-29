@@ -52,4 +52,6 @@ compile_commands.json
 .python-version
 .pyright-override.toml
 .clangd
-.DS_Store
+.DS_Store 
+# DELETEME before merge
+flame-sfi.output*/
