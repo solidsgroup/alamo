@@ -14,25 +14,19 @@ static std::array<StencilType, AMREX_SPACEDIM>
 AMREX_GPU_HOST_DEVICE
 DefaultType = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) };
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
-AMREX_GPU_HOST_DEVICE
 XLo         = { AMREX_D_DECL(StencilType::Lo,      StencilType::Central, StencilType::Central) };
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
-AMREX_GPU_HOST_DEVICE
 XHi         = { AMREX_D_DECL(StencilType::Hi,      StencilType::Central, StencilType::Central) };
 #if AMREX_SPACEDIM>1
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
-AMREX_GPU_HOST_DEVICE
 YLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Lo,      StencilType::Central) };
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
-AMREX_GPU_HOST_DEVICE
 YHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Hi,      StencilType::Central) };
 #endif
 #if AMREX_SPACEDIM>2
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
-AMREX_GPU_HOST_DEVICE
 ZLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Lo     ) };
 [[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
-AMREX_GPU_HOST_DEVICE
 ZHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Hi     ) };
 #endif
 
@@ -873,17 +867,17 @@ GradientSplit(  const amrex::Array4<const Set::Vector>& f,
     ret = Numeric::Stencil<Set::Vector, 1, 0, 0>::Dsplit(f, i, j, k, 0, dx, stencil);
     diag(0)        = ret.zero;
     offdiag.col(0) = ret.first;
- #endif
- #if AMREX_SPACEDIM > 1
+#endif
+#if AMREX_SPACEDIM > 1
     ret = Numeric::Stencil<Set::Vector, 0, 1, 0>::Dsplit(f, i, j, k, 0, dx, stencil);
     diag(1)        = ret.zero;
     offdiag.col(1) = ret.first;
- #endif
- #if AMREX_SPACEDIM > 2
+#endif
+#if AMREX_SPACEDIM > 2
     ret = Numeric::Stencil<Set::Vector, 0, 0, 1>::Dsplit(f, i, j, k, 0, dx, stencil);
     diag(2)        = ret.zero;
     offdiag.col(2) = ret.first;
- #endif
+#endif
     return Set::Jet(diag, offdiag);
 }
 

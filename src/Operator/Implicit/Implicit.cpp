@@ -49,13 +49,13 @@ void Implicit::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
             const Array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
             const FArrayBox& /*sol*/, Location /*loc*/, const int /*face_only*/) const
 {
-    amrex::BaseFab<amrex::Real> AMREX_D_DECL( &fxfab = *sigmafab[0],
-                                              &fyfab = *sigmafab[1],
-                                              &fzfab = *sigmafab[2] ) ;
+    amrex::BaseFab<amrex::Real> AMREX_D_DECL(   &fxfab = *sigmafab[0],
+                                                &fyfab = *sigmafab[1],
+                                                &fzfab = *sigmafab[2] ) ;
 
-    AMREX_D_TERM(fxfab.setVal<amrex::RunOn::Device>(0.0);,
-                 fyfab.setVal<amrex::RunOn::Device>(0.0);,
-                 fzfab.setVal<amrex::RunOn::Device>(0.0););
+    AMREX_D_TERM(   fxfab.setVal<amrex::RunOn::Device>(0.0);,
+                    fyfab.setVal<amrex::RunOn::Device>(0.0);,
+                    fzfab.setVal<amrex::RunOn::Device>(0.0););
 
 }
 

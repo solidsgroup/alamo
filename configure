@@ -123,8 +123,8 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
-parser.add_argument('--gpu',default=False,action='store_true',help="Compile with GPU support (Cuda)")
-parser.add_argument('--cuda-arch',dest='cuda',default='70',help="Cuda architecture")
+#parser.add_argument('--gpu',default=False,action='store_true',help="Compile with GPU support (Cuda)")
+parser.add_argument('--cuda',dest='cuda',const='80',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture (default: 80, works for A100)")
 parser.set_defaults(debug=False)
 
 #
@@ -132,6 +132,7 @@ parser.set_defaults(debug=False)
 #
 
 args=parser.parse_args()
+
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 
@@ -177,7 +178,7 @@ if args.memcheck:
     if args.memcheck_tool == "msan": postfix += "-msan"
 if args.profile: postfix += "-profile"
 if args.coverage: postfix += "-coverage"
-if args.gpu: postfix += f"-cuda{args.cuda}"
+if args.cuda: postfix += f"-cuda{args.cuda}"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
 
@@ -281,8 +282,8 @@ if args.buildamrex and not args.amrex:
     if args.debug: amrex_configure += ' --debug=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     if args.fft: amrex_configure += " --enable-fft=yes"
-    print("ARGS GPU",args.gpu)
-    if args.gpu:
+    print("cuda",args.cuda)
+    if args.cuda:
         amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda} "
         amrex_make_local.append('CUDA_CLANG = TRUE')
         #if args.comp != "g++": raise Exception(error() + "only gcc is supported at the moment")
@@ -426,7 +427,7 @@ if mpidist == "openmpi":
     env = os.environ.copy()
     env.update({'OMPI_CXX': args.comp})
     mpicomp = shellmessage(f"openmpi cxx default", "mpicxx --showme:command").stdout.decode('utf-8').replace('\n','')
-    if args.gpu:
+    if args.cuda:
         if args.comp != "g++": raise Exception(error("works only for g++ currently"))
 
         try:
