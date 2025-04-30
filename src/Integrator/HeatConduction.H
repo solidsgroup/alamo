@@ -18,6 +18,7 @@
 // AMReX Includes
 #include "AMReX_Array4.H"
 #include "AMReX_GpuComplex.H"
+#include "AMReX_Loop.H"
 #include "AMReX_MFIter.H"
 #include <AMReX.H>
 #include <AMReX_ParallelDescriptor.H>
@@ -102,7 +103,7 @@ public:
         }
     }
 
-protected:
+public:
 
     // Use the ic object to initialize the temperature field
     void Initialize(int lev)
@@ -139,7 +140,7 @@ protected:
             Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
 
             // Iterate over the grid on this patch
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 // Do the physics!
                 // Note that Numeric::Laplacian is an inlined function so there is no overhead.
@@ -219,6 +220,8 @@ protected:
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char>         const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar>  const& temp = (*temp_mf[lev]).array(mfi);
+
+            auto refinement_threshold = this->refinement_threshold;
 
             // Iterate over the grid as done above.
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)

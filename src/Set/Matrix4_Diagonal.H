@@ -15,7 +15,8 @@ public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_GPU_HOST_DEVICE Matrix4(Set::Matrix a_A): A(a_A) {};
     AMREX_FORCE_INLINE
-        Scalar operator () (const int i, const int j, const int k, const int l) const
+    AMREX_GPU_HOST_DEVICE
+    Scalar operator () (const int i, const int j, const int k, const int l) const
     {
         if (i == k && j == l) return A(i, j);
         else return 0.0;

@@ -6,6 +6,7 @@
 #include <iomanip>
 
 #include "AMReX.H"
+#include "AMReX_Loop.H"
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_ParmParse.H"
 
@@ -248,7 +249,7 @@ protected:
                 amrex::Array4<brittle_fracture_model_type_test> const &model = material.model_mf[ilev]->array(mfi);
                 amrex::Array4<const Set::Scalar>                const &mat = material.material_mf[ilev]->array(mfi);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
                                             brittle_fracture_model_type_test modelsum(0.0,0.0);
                                             for (int p = 0; p < number_of_materials; p++)
                                             {
@@ -273,7 +274,7 @@ protected:
                 Util::Abort(INFO,"This is depricated and needs to be upgraded!");
                 //amrex::Array4<brittle_fracture_model_type_test> model = (material.model_mf)[ilev]->array(mfi);
 
-                amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+                amrex::LoopConcurrentOnCpu (box,[=] (int i, int j, int k){
                                             Set::Scalar _temp = 0.0;
                                             // _temp = crack.cracktype->g_phi(c(i,j,k,0),0);
                                             _temp = crack.cracktype.g_phi(c(i,j,k,0),0) + crack.scaleModulusMax;
@@ -354,7 +355,7 @@ protected:
                 amrex::Array4<Set::Scalar> const& energy        = (*elastic.energy_pristine_mf[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_old    = (*elastic.energy_pristine_old_mf[ilev]).array(mfi);
 
-                amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+                amrex::LoopConcurrentOnCpu (box,[=] (int i, int j, int k){
                     
                                             Set::Matrix eps = Numeric::FieldToMatrix(strain,i,j,k);
                                             Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(eps);
@@ -410,7 +411,7 @@ protected:
             amrex::Array4<const Set::Scalar> const& energy = (*elastic.energy_pristine_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& mat = (*material.material_mf[lev]).array(mfi);
             
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+            amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k){
 
 #if AMREX_SPACEDIM !=2
                                         Util::Abort(INFO, "This doesn't work with 1D or 3D yet");
@@ -496,7 +497,7 @@ protected:
             amrex::Array4<const Set::Scalar> const      &c  = (*crack.c_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const      &mat    = (*material.material_mf[lev]).array(mfi);
             
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
                                         Set::Vector grad = Numeric::Gradient(c, i, j, k, 0, DX);
                                         Set::Vector grad2 = Numeric::Gradient(mat, i, j, k, 0, DX);
                                         if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold || dxnorm * grad2.lpNorm<2>() >= material.refinement_threshold)
@@ -514,7 +515,7 @@ protected:
         amrex::Array4<const Set::Scalar> const &c_new = (*crack.c_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Scalar> const &energy = (*elastic.energy_mf[amrlev]).array(mfi);
         
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k) 
                                 {
                                     crack.driving_force_norm += df(i,j,k,4) * DV;
                                     crack.int_crack += c_new(i,j,k) * DV;

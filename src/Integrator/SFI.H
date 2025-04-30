@@ -76,7 +76,7 @@ protected:
             Set::Patch<Set::Scalar> eta_new          = Hydro::eta_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> pf_eta_old = PF::eta_old_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> pf_eta_new = PF::eta_mf.Patch(lev,mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 if (invert)
                 {

@@ -124,7 +124,7 @@ parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,actio
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
 parser.add_argument('--gpu',default=False,action='store_true',help="Compile with GPU support (Cuda)")
-parser.add_argument('--cuda-arch',dest='cuda',default='sm_70',help="Cuda architecture")
+parser.add_argument('--cuda-arch',dest='cuda',default='70',help="Cuda architecture")
 parser.set_defaults(debug=False)
 
 #
@@ -177,7 +177,7 @@ if args.memcheck:
     if args.memcheck_tool == "msan": postfix += "-msan"
 if args.profile: postfix += "-profile"
 if args.coverage: postfix += "-coverage"
-if args.gpu: postfix += f"-cuda_{args.cuda}"
+if args.gpu: postfix += f"-cuda{args.cuda}"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
 
@@ -282,7 +282,7 @@ if args.buildamrex and not args.amrex:
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     if args.fft: amrex_configure += " --enable-fft=yes"
     if args.gpu:
-        amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda.replace('sm_','')} "
+        amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda} "
         amrex_make_local.append('CUDA_CLANG = TRUE')
         #if args.comp != "g++": raise Exception(error() + "only gcc is supported at the moment")
         
@@ -415,27 +415,42 @@ elif "openmpi" in mpidiststr.lower():
 message("mpi implementation", mpidist)
 
 if mpidist == "openmpi":
-    compmpiinc = shellmessage("openmpi comp flags", "mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
+    os.environ['OMPI_CXX'] = args.comp
+    compmpiinc = shellmessage("openmpi comp flags", f"mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
     compmpicmd = args.comp + " " + compmpiinc
-    shellmessage("openmpi c++ link"   , "mpicxx --showme:link".format(args.comp))
-    shellmessage("openmpi fort link"   , "mpifort --showme:link".format(args.comp))
+    cpplink    = shellmessage("openmpi c++ link"   , f"mpicxx --showme:link".format(args.comp)).stdout.decode('utf-8').replace('\n','')
+    fortlink   = shellmessage("openmpi fort link"   , f"mpifort --showme:link".format(args.comp)).stdout.decode('utf-8').replace('\n','')
     shellmessage("openmpi version", "mpicxx --showme:version")
     env = os.environ.copy()
     env.update({'OMPI_CXX': args.comp})
-    mpicomp = shellmessage("openmpi cxx default", "mpicxx --showme:command").stdout.decode('utf-8').replace('\n','')
+    mpicomp = shellmessage(f"openmpi cxx default", "mpicxx --showme:command").stdout.decode('utf-8').replace('\n','')
     if args.gpu:
+        if args.comp != "g++": raise Exception(error("works only for g++ currently"))
+
+        fortlib    = shellmessage("gfortran lib"   , f"gfortran -print-file-name=libgfortran.so").stdout.decode('utf-8').replace('\n','')
+        fortlibdir = os.path.dirname(fortlib)
+        message("gfortran lib path", fortlibdir)
+
         #ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
         #shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
         #f.write(f"CC = {ompicc} -x cu --std=c++17\n")
         
         f.write(f"CXX_COMPILE_FLAGS = \n")
-        f.write("LINKER_FLAGS      += -lcudart \n")
+        #f.write(f"LINKER_FLAGS   += -lcudart {cpplink} {fortlink} -lmpi_cxx -lmpi -lcuda -lcurand -lcusparse -lnvToolsExt -lgfortran -lquadmath\n")
+
+        generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda}"
+
+        ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread -std=c++17' --std=c++17 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+
+        ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++17  -pthread  -std=c++17' --std=c++17"
+
+        f.write(f"LINKER_FLAGS   += {cpplink} {fortlink} -lcuda -lcurand -lcusparse -L. -L{fortlibdir} -lgfortran -lquadmath\n")
         
-        ompicc = f"nvcc -MMD -MP -ccbin=g++ -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread -std=c++17' --std=c++17 -Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3 --ptxas-options=-v --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_70,code=sm_70 -x cu -dc   -DBL_USE_MPI -DAMREX_USE_MPI -DAMREX_USE_CUDA -DAMREX_USE_GPU -DBL_COALESCE_FABS -DAMREX_GPU_MAX_THREADS=256 -DAMREX_USE_GPU_RDC -DBL_FORT_USE_UNDERSCORE -DAMREX_FORT_USE_UNDERSCORE -DBL_Linux -DAMREX_Linux -DNDEBUG -DOMPI_SKIP_MPICXX -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -I. -I../../..//Src/Base -I../../..//Src/Base/Parser -isystem /usr/local/cuda/include {compmpiinc} -c "
 
 
-        #ompicc = "mpicxx -MMD -MP -ccbin=g++ -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread -std=c++17' --std=c++17 -Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3 --ptxas-options=-v --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_70,code=sm_70 -x cu -dc"
         f.write(f"CC = {ompicc} \n")
+        f.write(f"COMP_CMD = {ompicc} -c\n")
+        f.write(f"LINK_CMD = {ompilink} \n")
         
     else:
         ompicc = f"export OMPI_CXX={args.comp} && mpicxx"

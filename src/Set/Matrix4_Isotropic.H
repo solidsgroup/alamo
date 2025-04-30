@@ -45,6 +45,7 @@ public:
     /// you will get a `lvalue required as left operand of assignment` compile error.
     /// You should probably consider using a lower symmetry operator.
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Scalar operator () (const int i, const int j, const int k, const int l) const
     {
         Set::Scalar ret = 0.0;
