@@ -1,7 +1,6 @@
 // TODO: Remove these 
 
 #include "Elastic.H"
-#include "AMReX_Loop.H"
 #include "Set/Set.H"
 
 #include "Numeric/Stencil.H"

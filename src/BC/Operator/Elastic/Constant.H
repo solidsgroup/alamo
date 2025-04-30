@@ -18,7 +18,6 @@
 #define BC_OPERATOR_ELASTIC_CONSTANT_H
 
 // #include "Operator/Elastic.H"
-#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "Numeric/Interpolator/Linear.H"
 #include "BC/Operator/Elastic/Elastic.H"

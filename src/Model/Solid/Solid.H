@@ -17,7 +17,6 @@
 #include <eigen3/Eigen/Core>
 
 #include "Set/Set.H"
-#include "Set/Base.H"
 
 namespace Model
 {

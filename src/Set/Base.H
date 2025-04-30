@@ -2,7 +2,6 @@
 #define SET_BASE_H
 
 #include "AMReX.H"
-#include "AMReX_GpuLaunchMacrosG.H"
 #include "AMReX_REAL.H"
 #include "AMReX_SPACE.H"
 #include "AMReX_Vector.H"

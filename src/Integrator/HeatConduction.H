@@ -18,7 +18,6 @@
 // AMReX Includes
 #include "AMReX_Array4.H"
 #include "AMReX_GpuComplex.H"
-#include "AMReX_Loop.H"
 #include "AMReX_MFIter.H"
 #include <AMReX.H>
 #include <AMReX_ParallelDescriptor.H>

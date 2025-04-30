@@ -6,7 +6,6 @@
 #include <numeric>
 
 #include "AMReX.H"
-#include "AMReX_Loop.H"
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_ParmParse.H"
 

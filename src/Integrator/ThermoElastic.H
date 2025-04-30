@@ -1,7 +1,6 @@
 #ifndef INTEGRATOR_THERMOELASTIC_H
 #define INTEGRATOR_THERMOELASTIC_H
 
-#include "AMReX_Loop.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Integrator/Mechanics.H"
 #include "Integrator/HeatConduction.H"

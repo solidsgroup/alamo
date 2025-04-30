@@ -6,7 +6,6 @@
 #ifndef BC_OPERATOR_ELASTIC_EXPRESSION_H
 #define BC_OPERATOR_ELASTIC_EXPRESSION_H
 
-#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "BC/Operator/Elastic/Elastic.H"
 

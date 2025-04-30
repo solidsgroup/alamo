@@ -2,7 +2,6 @@
 #define INTEGRATOR_BASE_MECHANICS_H
 
 #include "AMReX.H"
-#include "AMReX_Loop.H"
 #include "BC/Operator/Elastic/Elastic.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "BC/Operator/Elastic/TensionTest.H"

@@ -3,7 +3,6 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
-#include "AMReX_Loop.H"
 #include "Util/Color.H"
 #include "Set/Set.H"
 #include "Operator.H"

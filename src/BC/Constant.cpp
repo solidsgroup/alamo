@@ -1,5 +1,4 @@
 #include "Constant.H"
-#include "AMReX_Loop.H"
 
 namespace BC
 {

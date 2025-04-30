@@ -1,6 +1,5 @@
 
 #include "Hydro.H"
-#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"

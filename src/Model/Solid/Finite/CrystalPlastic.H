@@ -26,8 +26,6 @@
 #define MODEL_SOLID_FINITE_CRYSTALPLASTIC_H_
 
 
-#include "AMReX_Config.H"
-#include "AMReX_GpuLaunchMacrosG.H"
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
 #include "PseudoLinear/Cubic.H"

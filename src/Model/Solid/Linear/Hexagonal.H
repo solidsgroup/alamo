@@ -37,7 +37,6 @@
 #ifndef MODEL_SOLID_LINEAR_HEXAGONAL_H_
 #define MODEL_SOLID_LINEAR_HEXAGONAL_H_
 
-#include "AMReX_GpuQualifiers.H"
 #include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
 

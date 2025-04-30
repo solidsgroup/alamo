@@ -1,5 +1,4 @@
 #include "Flame.H"
-#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"

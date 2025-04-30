@@ -1,7 +1,6 @@
 #ifndef SOLVER_NONLOCAL_NEWTON
 #define SOLVER_NONLOCAL_NEWTON
 
-#include "AMReX_Loop.H"
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"

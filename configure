@@ -281,6 +281,7 @@ if args.buildamrex and not args.amrex:
     if args.debug: amrex_configure += ' --debug=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     if args.fft: amrex_configure += " --enable-fft=yes"
+    print("ARGS GPU",args.gpu)
     if args.gpu:
         amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda} "
         amrex_make_local.append('CUDA_CLANG = TRUE')
@@ -289,10 +290,11 @@ if args.buildamrex and not args.amrex:
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    with open('ext/amrex/Make.local','w') as f_amrex_make:
-        for line in amrex_make_local:
-            print(line, file=f_amrex_make)
-        message("Amrex make.local",'\n'.join(amrex_make_local))
+    if len(amrex_make_local):
+        with open('ext/amrex/Make.local','w') as f_amrex_make:
+            for line in amrex_make_local:
+                print(line, file=f_amrex_make)
+            message("Amrex make.local",'\n'.join(amrex_make_local))
 
     f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
     f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD) \n") # --output-sync=target
@@ -433,10 +435,17 @@ if mpidist == "openmpi":
             device = cuda.Device(0)
             name = device.name()
             compute_capability = device.compute_capability()
-            print(f"GPU Name: {name}")
-            print(f"Compute Capability: {compute_capability[0]}.{compute_capability[1]}")
+            message("gpu name",name)
+            message("compute capability", f"{compute_capability[0]}.{compute_capability[1]}")
         except Exception as e:
             warning("pycuda error: "+str(e))
+
+        try:
+            shellmessage("nvidia info", "nvidia-smi --query-gpu=name --format=csv,noheader")
+        except Exception as e:
+            warning("Could not find information about current nvidia cards")
+
+
 
         fortlib    = shellmessage("gfortran lib"   , f"gfortran -print-file-name=libgfortran.so").stdout.decode('utf-8').replace('\n','')
         fortlibdir = os.path.dirname(fortlib)

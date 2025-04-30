@@ -1,7 +1,6 @@
 #ifndef MODEL_SOLID_FINITE_PSEUDOLINEAR_CUBIC_H_
 #define MODEL_SOLID_FINITE_PSEUDOLINEAR_CUBIC_H_
 
-#include "AMReX_GpuQualifiers.H"
 #include "IO/ParmParse.H"
 #include "Set/Base.H"
 #include "Model/Solid/Solid.H"

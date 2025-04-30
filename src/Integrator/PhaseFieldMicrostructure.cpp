@@ -5,10 +5,7 @@
 
 #include <AMReX_SPACE.H>
 
-
-
 #include "PhaseFieldMicrostructure.H"
-#include "AMReX_Loop.H"
 #include "Integrator/Base/Mechanics.H"
 #include "BC/Constant.H"
 #include "Set/Set.H"

@@ -1,4 +1,3 @@
-
 #ifndef SET_MATRIX4_DIAGONAL_H
 #define SET_MATRIX4_DIAGONAL_H
 

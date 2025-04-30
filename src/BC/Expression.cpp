@@ -1,5 +1,4 @@
 #include "Expression.H"
-#include "AMReX_Loop.H"
 
 namespace BC
 {
