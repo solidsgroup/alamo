@@ -427,16 +427,20 @@ if mpidist == "openmpi":
     if args.gpu:
         if args.comp != "g++": raise Exception(error("works only for g++ currently"))
 
+        try:
+            import pycuda.driver as cuda
+            import pycuda.autoinit
+            device = cuda.Device(0)
+            name = device.name()
+            compute_capability = device.compute_capability()
+            print(f"GPU Name: {name}")
+            print(f"Compute Capability: {compute_capability[0]}.{compute_capability[1]}")
+        except Exception as e:
+            warning("pycuda error: "+str(e))
+
         fortlib    = shellmessage("gfortran lib"   , f"gfortran -print-file-name=libgfortran.so").stdout.decode('utf-8').replace('\n','')
         fortlibdir = os.path.dirname(fortlib)
         message("gfortran lib path", fortlibdir)
-
-        #ompicc = f"export OMPI_CXX={args.comp} && mpicxx"
-        #shellmessage("openmpi cxx used",f"{ompicc} --version",shell=True)
-        #f.write(f"CC = {ompicc} -x cu --std=c++17\n")
-        
-        f.write(f"CXX_COMPILE_FLAGS = \n")
-        #f.write(f"LINKER_FLAGS   += -lcudart {cpplink} {fortlink} -lmpi_cxx -lmpi -lcuda -lcurand -lcusparse -lnvToolsExt -lgfortran -lquadmath\n")
 
         generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda}"
 
@@ -444,10 +448,8 @@ if mpidist == "openmpi":
 
         ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++17  -pthread  -std=c++17' --std=c++17"
 
+        f.write(f"CXX_COMPILE_FLAGS = \n")
         f.write(f"LINKER_FLAGS   += {cpplink} {fortlink} -lcuda -lcurand -lcusparse -L. -L{fortlibdir} -lgfortran -lquadmath\n")
-        
-
-
         f.write(f"CC = {ompicc} \n")
         f.write(f"COMP_CMD = {ompicc} -c\n")
         f.write(f"LINK_CMD = {ompilink} \n")
