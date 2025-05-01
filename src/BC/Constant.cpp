@@ -67,17 +67,26 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
     amrex::Box box = a_box;
     box.grow(ngrow);
-    const amrex::Dim3 lo= amrex::lbound(m_geom.Domain()), hi = amrex::ubound(m_geom.Domain());
+    const amrex::Dim3
+        lo= amrex::lbound(m_geom.Domain()),
+        hi = amrex::ubound(m_geom.Domain());
+
+    auto m_bc_type = this->m_bc_type;
+    auto m_bc_val  = this->m_bc_val;    
+
+
+
+        
 
     amrex::Array4<amrex::Real> const& in = a_in.array();
 
     for (int n = 0; n < a_in.nComp(); n++)
-    amrex::LoopConcurrentOnCpu (box,[=] (int i, int j, int k)
+    amrex::ParallelFor (box, [=] AMREX_GPU_DEVICE (int i, int j, int k)
     {
         amrex::IntVect glevel;
         AMREX_D_TERM(glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,
-                    glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
-                    glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
+                     glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
+                     glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
         
         if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
         {

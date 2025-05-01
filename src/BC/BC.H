@@ -132,11 +132,11 @@ protected:
 namespace BCUtil
 {
 int ReadString(std::string bcstring);
-bool IsPeriodic(int bctype);
-bool IsNeumann(int bctype);
-bool IsReflectEven(int bctype);
-bool IsReflectOdd(int bctype);
-bool IsDirichlet(int bctype);
+AMREX_GPU_HOST_DEVICE bool IsPeriodic(int bctype);
+AMREX_GPU_HOST_DEVICE bool IsNeumann(int bctype);
+AMREX_GPU_HOST_DEVICE bool IsReflectEven(int bctype);
+AMREX_GPU_HOST_DEVICE bool IsReflectOdd(int bctype);
+AMREX_GPU_HOST_DEVICE bool IsDirichlet(int bctype);
 }
 
 }

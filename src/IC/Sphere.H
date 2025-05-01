@@ -70,23 +70,31 @@ public:
         {
             amrex::Box bx = mfi.tilebox();
             // bx.grow(a_field[lev]->nGrow());
-
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
-            {
 
+	    auto geom = this->geom[lev];
+	    auto center = this->center;
+	    auto radius = this->radius;
+	    auto alpha_in = this->alpha_in;
+	    auto alpha_out = this->alpha_out;
+	    auto type = this->type;
+	    auto problo = this->geom[lev].ProbLo();
+	    auto cellsize = this->geom[lev].CellSize();
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            {
                 Set::Scalar AMREX_D_DECL(x, y, z);
                 if (cellcentered)
                 {
-                    AMREX_D_TERM(x = geom[lev].ProbLo()[0] + ((amrex::Real)(i)+0.5) * geom[lev].CellSize()[0];,
-                        y = geom[lev].ProbLo()[1] + ((amrex::Real)(j)+0.5) * geom[lev].CellSize()[1];,
-                        z = geom[lev].ProbLo()[2] + ((amrex::Real)(k)+0.5) * geom[lev].CellSize()[2];);
+		  AMREX_D_TERM(x = problo[0] + ((Set::Scalar)(i)+0.5) * cellsize[0];,
+			       y = problo[1] + ((Set::Scalar)(j)+0.5) * cellsize[1];,
+			       z = problo[2] + ((Set::Scalar)(k)+0.5) * cellsize[2];);
                 }
                 else
                 {
-                    AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i)*geom[lev].CellSize()[0];,
-                        y = geom[lev].ProbLo()[1] + (amrex::Real)(j)*geom[lev].CellSize()[1];,
-                        z = geom[lev].ProbLo()[2] + (amrex::Real)(k)*geom[lev].CellSize()[2];);
+		  AMREX_D_TERM(x = problo[0] + (Set::Scalar)(i)*cellsize[0];,
+			       y = problo[1] + (Set::Scalar)(j)*cellsize[1];,
+			       z = problo[2] + (Set::Scalar)(k)*cellsize[2];);
                 }
 
                 Set::Scalar rsq = NAN;
