@@ -45,6 +45,8 @@ class Fracture : public Integrator
 {
 
 public:
+    static constexpr const char* name = "fracture";
+
     Fracture()
     {
         IO::ParmParse pp_crack("crack");

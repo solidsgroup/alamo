@@ -149,3 +149,5 @@ laser.ic.type = constant
 laser.ic.constant.value = 1.0e6
 
 plot_field = 0
+
+amr.abort_on_nan = 0
