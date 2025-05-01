@@ -45,7 +45,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix & F) const override
     {
-#ifndef AMREX_DEVICE_COMPILE
+#ifndef __CUDA_ARCH__
         return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse());
 #else
         Util::Abort(INFO,"Not supported for GPU yet");
@@ -55,7 +55,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     Set::Matrix DW(const Set::Matrix & F) const override
     {
-#ifndef AMREX_DEVICE_COMPILE
+#ifndef __CUDA_ARCH__
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         return PseudoLinear::Cubic::DW(F * Fpinv) * Fpinv.transpose();
 #else
@@ -66,7 +66,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
     {
-#ifndef AMREX_DEVICE_COMPILE
+#ifndef __CUDA_ARCH__
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         auto DDW = PseudoLinear::Cubic::DDW(F * Fpinv);
         auto ret = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major>::Zero();
@@ -91,7 +91,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
     {
-#ifndef AMREX_DEVICE_COMPILE
+#ifndef __CUDA_ARCH__
         if (time  < tstart) return;
 
         q.normalize();

@@ -55,7 +55,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     void Advance(Set::Scalar dt, Set::Matrix eps, Set::Matrix /*sig*/, Set::Scalar /*time*/) override
     {
-#ifndef AMREX_DEVICE_COMPILE
+#ifndef __CUDA_ARCH__
         Set::Matrix sigma = DW(eps);
         Set::Matrix sig_dev = sigma - sigma.trace() * Set::Matrix::Identity() / 3.0;
         if ((hardening < 0.0) || (ratecoeff < 0.0)) // rate independent
