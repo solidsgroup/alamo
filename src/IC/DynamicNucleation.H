@@ -11,10 +11,10 @@
 
 namespace IC
 {
-class DynamicNucleation : public IC
+class DynamicNucleation : public IC<Set::Scalar>
 {
 public:
-    DynamicNucleation(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
+    DynamicNucleation(amrex::Vector<amrex::Geometry>& _geom) : IC<Set::Scalar>(_geom) {}
 
     // Instead of parsing from a file, we dynamically add positions and radii
     void AddNucleationPoint(const Set::Vector& position, Set::Scalar radius) {

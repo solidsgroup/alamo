@@ -276,7 +276,7 @@ public:
 
 protected:
     MODEL model;
-    IC::IC* ic;
+    IC::IC<Set::Scalar>* ic;
     Set::Scalar m_eta_ref_threshold = 1E-2;
  
 
@@ -291,7 +291,7 @@ protected:
 
     Set::Field<Set::Scalar> euler_mf;          //new line added
     Set::Scalar m_euler_ref_threshold = 0.01;   //new line added
-    IC::IC* ic_euler = nullptr;     //newline added
+    IC::IC<Set::Scalar>* ic_euler = nullptr;     //newline added
     int euler_ic_type_flag; // new member variable for the flag
     bool euler_reset_on_regrid = false;
 

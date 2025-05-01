@@ -648,7 +648,7 @@ public:
 
 protected:
     MODEL model;
-    IC::IC* ic;
+    IC::IC<Set::Scalar>* ic;
     BC::BC<Set::Scalar>*bc_d, *bc_p, *bc_pr;
     Set::Scalar m_eta_ref_threshold = 1E-2;
     Set::Field<Set::Scalar> d_old_mf;
@@ -667,7 +667,7 @@ protected:
 
     Set::Field<Set::Scalar> euler_mf;          //new line added
     Set::Scalar m_euler_ref_threshold = 0.01;   //new line added
-    IC::IC* ic_euler = nullptr;     //newline added
+    IC::IC<Set::Scalar>* ic_euler = nullptr;     //newline added
     int euler_ic_type_flag; // new member variable for the flag
     bool euler_reset_on_regrid = false;
     
@@ -680,7 +680,7 @@ protected:
     
     Set::Field<Set::Scalar> heatmap_mf;          //new line added
     Set::Scalar m_heatmap_ref_threshold = 0.01;   //new line added
-    IC::IC* ic_heatmap = nullptr;     //newline added
+    IC::IC<Set::Scalar>* ic_heatmap = nullptr;     //newline added
     int heatmap_ic_type_flag; // new member variable for the flag
     bool heatmap_reset_on_regrid = false;
     

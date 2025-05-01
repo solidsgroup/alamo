@@ -17,7 +17,7 @@
 
 namespace IC
 {
-class EulerAngles : public IC
+class EulerAngles : public IC<Set::Scalar>
 {
 public:
     enum Fit {Stretch, FitWidth, FitHeight, Coord};

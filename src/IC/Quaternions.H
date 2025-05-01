@@ -18,7 +18,7 @@
 
 namespace IC
 {
-class Quaternions : public IC  // Updated class name from EulerAngles to Quaternions
+class Quaternions : public IC<Set::Scalar>  // Updated class name from EulerAngles to Quaternions
 {
 public:
     enum Fit {Stretch, FitWidth, FitHeight, Coord};

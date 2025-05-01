@@ -21,7 +21,7 @@
 
 namespace IC
 {
-class PNG3 : public IC
+class PNG3 : public IC <Set::Scalar>
 {
 public:
     //enum Type {XYZ, XY, YZ, XZ};
