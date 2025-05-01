@@ -3,14 +3,14 @@
 ####################
 
 stop_time = 5.0
-timestep = 1e-6
+timestep = 1e-3
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 100
-amr.plot_dt = 1e-5
+amr.plot_dt = 1e-2
 # amr.plot_int = 1
 amr.plot_file = flame-sfi.output
 amr.max_level = 3
@@ -51,7 +51,7 @@ flame.pf.eta.bc.constant.type.ylo = neumann
 flame.pf.eta.bc.constant.type.yhi = neumann
 
 flame.pf.eta.ic.type = expression
-flame.pf.eta.ic.expression.region0 = "(x>24)"
+flame.pf.eta.ic.expression.region0 = "erf(0.75*(x-24))"
 
 flame.thermal.on = 1
 flame.thermal.bound = 300.0
