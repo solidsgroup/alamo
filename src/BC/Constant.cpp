@@ -75,11 +75,14 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     auto m_bc_val  = this->m_bc_val;    
 
 
-
+    
         
 
     amrex::Array4<amrex::Real> const& in = a_in.array();
 
+    Util::Warning(INFO,"!! Boundary conditions are NOT applied !! ");
+
+#ifdef WE_ARE_SKIPPING_THIS_FOR_NOW
     for (int n = 0; n < a_in.nComp(); n++)
     amrex::ParallelFor (box, [=] AMREX_GPU_DEVICE (int i, int j, int k)
     {
@@ -177,6 +180,8 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
 
     });
+#endif
+
 }
 
 amrex::BCRec
