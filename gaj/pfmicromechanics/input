@@ -44,7 +44,9 @@ geometry.is_periodic	= 0 0 0
 ## HEAT TRANSFER MODEL
 ##
 
-hc.heat.alpha = 2.0
+alpha = 2.0 2.0 2.0 2.0
+
+hc.heat.alpha = 2.0 2.0 2.0 2.0
 hc.heat.refinement_threshold = 0.1
 
 # Work on initial conditions for heat transfer
@@ -93,6 +95,7 @@ pfm.ic.expression.region3 = "(x > 0  and  y < 0)"
 # pfm.ic.value.region2 = "-1"
 # pfm.ic.value.region3 = "1"
 
+#pfm.pf.mu = 1
 
 # Mechanics Initial Conditions
 # There aren't really any initial conditions, I guess. Help
@@ -118,7 +121,10 @@ pfm.pf.sigma0	= 0.075
 pfm.pf.threshold.mechanics = 1
 pfm.mechanics.type			= static
 
-pfm.mechanics.model = affine.cubic
+pfm.mechanics.model1 = affine.cubic
+pfm.mechanics.model2 = affine.cubic
+pfm.mechanics.model3 = affine.cubic
+pfm.mechanics.model4 = affine.cubic
 pfm.mechanics.bc.type = tensiontest
 pfm.mechanics.bc.tensiontest.type = uniaxial_stress # this sets to uniaxial stress with neumann in lateral direction
 pfm.mechanics.bc.tensiontest.disp=0.001 # this sets the displacement in the x direction
@@ -147,9 +153,9 @@ pfm.mechanics.bc.tensiontest.disp=0.001 # this sets the displacement in the x di
 
 # Mechanics Model Information
 # How do I specify a different elastic properties for different regions?
-pfm.mechanics.model.C11 = 1.68
-pfm.mechanics.model.C12	= 1.21
-pfm.mechanics.model.C44	= 0.75
+#pfm.mechanics.model.C11 = 1.68
+#pfm.mechanics.model.C12	= 1.21
+#pfm.mechanics.model.C44	= 0.75
 
 # Mechanics Solver Information
 # mechanics.solver.fixed_iter			= 100 # Why is this line commented out?

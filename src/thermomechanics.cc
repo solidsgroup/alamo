@@ -8,7 +8,10 @@
 #include "IO/WriteMetaData.H"
 #include "AMReX_ParmParse.H"
 
+#include "Model/Solid/Affine/Cubic.H"
 #include "Integrator/ThermoMechanics.H"
+#include "Integrator/PhaseFieldMicrostructure.H"
+
 
 int main (int argc, char* argv[])
 {
@@ -19,9 +22,13 @@ int main (int argc, char* argv[])
     pp_query("alamo.program",program);
     srand(2);
 
-    Integrator::ThermoMechanics integrator(pp);
-    integrator.InitData();
-    integrator.Evolve();
+    Integrator::Integrator *integrator = nullptr;
+    pp.select_only<Integrator::ThermoMechanics>(integrator);
+    integrator->InitData();
+    integrator->Evolve();
+    
+    delete integrator;
     
     Util::Finalize();
 } 
+

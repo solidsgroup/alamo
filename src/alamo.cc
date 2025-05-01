@@ -32,7 +32,8 @@
 #include "Integrator/PFC.H"
 #include "Integrator/ThermoMechanics.H"
 
-int main (int argc, char* argv[])
+
+int main (int argc, char* argv[]) 
 {
     Util::Initialize(argc,argv);
 
@@ -40,7 +41,7 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     // This input determines which integrator is used.
     pp.query_validate(  "alamo.program", program,
-                        {"thermomechanics","microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
+                        {"microstructure","flame", "heat", "dendrite","allencahn","cahnhilliard","pfc","thermomechanics"});
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
@@ -65,7 +66,7 @@ int main (int argc, char* argv[])
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
     else if (program == "pfc")                  pp.select_only<Integrator::PFC>(integrator);
-    else if (program == "thermomechanics")      integrator = new Integrator::ThermoMechanics(pp);
+    else if (program == "thermomechanics")		pp.select_only<Integrator::ThermoMechanics>(integrator);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();
@@ -73,4 +74,4 @@ int main (int argc, char* argv[])
     delete integrator;
 
     Util::Finalize();
-} 
+}

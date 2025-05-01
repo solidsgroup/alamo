@@ -46,6 +46,9 @@ protected:
     {
         PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>::UpdateModel(a_step, a_time);
         
+        Util::AssertException(INFO,TEST(eta_mf[0]->nComp() == (int) alpha.size()), 
+        "eta has ", eta_mf[0]->nComp(), " components but alpha.size() =", alpha.size());
+        
         //Mechanics<Model::Solid::Affine::Cubic>::UpdateModel(a_step, a_time);
 
         //Set::Scalar alpha[2];
@@ -98,5 +101,5 @@ protected:
 
     std::vector<Set::Scalar> alpha;
 };
-} namespace Integrator
+} 
 #endif
