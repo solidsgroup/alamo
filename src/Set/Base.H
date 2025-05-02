@@ -23,6 +23,7 @@ using MultiVector = Eigen::Matrix<amrex::Real, Eigen::Dynamic, 1>; //Vectors wit
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using Matrix3d = Eigen::Matrix3d;
+using MultiMatrix = Eigen::Matrix<amrex::Real, Eigen::Dynamic, Eigen::Dynamic>; //Vectors with N-components
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
 

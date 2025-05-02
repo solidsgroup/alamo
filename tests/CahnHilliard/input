@@ -1,9 +1,19 @@
-#@  [2D-serial-level]
-#@  dim    = 2
-#@  nprocs = 1
-#@  check  = true
-#@  check-file = reference/reference-2d.csv
-#@  args   = stop_time=0.01
+#@ [2d-serial-level]
+#@ dim    = 2
+#@ nprocs = 1
+#@ check  = true
+#@ check-file = reference/reference-2d.csv
+#@ args   = stop_time=0.01
+#@
+#@ [2d-serial-fft]
+#@ dim = 2
+#@ fft  = true
+#@ check-file = reference/reference-2d-fft.csv
+#@ args = max_level=0
+#@ args = amr.n_cell=256 256 256
+#@ args = stop_time=0.01
+#@ args = timestep=0.0001
+#@ args = method=spectral
 
 alamo.program = cahnhilliard
 
@@ -20,28 +30,24 @@ amr.blocking_factor = 2
 amr.grid_eff = 0.8
 amr.n_cell = 64 64 0
 
-geometry.prob_lo = -0.5 -0.5 0.0
-geometry.prob_hi =  0.5  0.5 0.0
+geometry.prob_lo = -0.5 -0.5  -0.5
+geometry.prob_hi =  0.5  0.5  -0.5
 
-geometry.is_periodic = 0 0 0
+geometry.is_periodic = 1 1 1
 
 timestep  = 0.000001
 stop_time = 1.0
 
-eta.bc.constant.type.xlo = neumann
-eta.bc.constant.type.xhi = neumann
-eta.bc.constant.type.ylo = neumann
-eta.bc.constant.type.yhi = neumann
-eta.bc.constant.val.xlo = 0.0
-eta.bc.constant.val.xhi = 0.0
-eta.bc.constant.val.ylo = 0.0
-eta.bc.constant.val.yhi = 0.0
+eta.bc.constant.type.xlo = periodic
+eta.bc.constant.type.xhi = periodic
+eta.bc.constant.type.ylo = periodic
+eta.bc.constant.type.yhi = periodic
+eta.bc.constant.type.zlo = periodic
+eta.bc.constant.type.zhi = periodic
 
 eta.ic.random.offset = -1.0
 eta.ic.random.mult   = 2.0
 
-
-#gamma = 0.0005
 gamma = 0.00005
 
 refinement_threshold = 0.01

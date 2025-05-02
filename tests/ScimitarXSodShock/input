@@ -19,9 +19,9 @@ stop_time = 0.25
 max_step = 1000
 
 # AMR parameters
-amr.plot_int = 500
+amr.plot_int = 100
 amr.max_level = 0
-amr.n_cell = 200 50 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.n_cell = 100 25 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
 amr.blocking_factor = 1
 amr.regrid_int = -1  # No regridding for uniform grid
 amr.grid_eff = 1.0
@@ -35,37 +35,37 @@ geometry.is_periodic = 0 0 0
 SolverType = SolveCompressibleEuler
 
 #cflNumber
-cflNumber = 0.2
+cflNumber = 0.8
 
 #TimeSteppingScheme
 TimeSteppingScheme = RK3
 
-
 #FluxMethod
-FluxScheme = LocalLaxFriedrichs
+FluxScheme = HLLC #LocalLaxFriedrichs
 
 #FluxReconstruction
-FluxReconstruction = FirstOrder
+FluxReconstruction = WENO
 
-# Initial conditions
+#WenoVariant
+WenoVariant = WENOZ5
+
+#Reconstruction Mode
+ReconstructionMode = Characteristic
+
+# Shock configuration
+ic.shock.count     = 1
+ic.shock.positions = 0.5
+ic.shock.direction = xdir
+
 # Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
-ic.pvec.type = sodshock
-ic.pvec.sodshock.left.DENS = 1.0
-ic.pvec.sodshock.right.DENS = 0.125
-ic.pvec.sodshock.left.UVEL = 0.0
-ic.pvec.sodshock.right.UVEL = 0.0
-ic.pvec.sodshock.left.VVEL = 0.0
-ic.pvec.sodshock.right.VVEL = 0.0
+ic.pvec.type          = shock
+ic.shock.pvec.density = 1.0 0.125
+ic.shock.pvec.uvel    = 0.0 0.0 
+ic.shock.pvec.vvel    = 0.0 0.0
 
 # Pressure
-ic.pressure.type = sodshock
-ic.pressure.sodshock.left = 1.0
-ic.pressure.sodshock.right = 0.1
-
-# Shock position
-shock.xpos = 0.5
-shock.ypos = 0.0
-shock.zpos = 0.0
+ic.pressure.type      = shock
+ic.shock.pressure     = 1.0 0.1
 
 # Boundary conditions for 2D [Density, UVel, VVel, WVel, IE]
 bc.pvec.type.xhi = neumann neumann neumann neumann

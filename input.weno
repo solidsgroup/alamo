@@ -1,0 +1,87 @@
+# Simulation output
+plot_file = output_LLF_Conservative_WENOZ5_RK3
+
+# Simulation length
+timestep = 0.001
+stop_time = 0.25
+max_step = 3
+
+# AMR parameters
+amr.plot_int = 10
+amr.max_level = 0
+amr.n_cell = 200 10 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.blocking_factor = 1
+amr.regrid_int = -1  # No regridding for uniform grid
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1.0 0.05 1  # Set height proportionally to match reduced y-cells
+geometry.is_periodic = 0 0 0
+
+#SolverType
+SolverType = SolveCompressibleEuler
+
+#cflNumber
+cflNumber = 0.6
+
+#TimeSteppingScheme
+TimeSteppingScheme = RK3
+
+#FluxMethod
+FluxScheme = LocalLaxFriedrichs #HLLC
+
+#FluxReconstruction
+FluxReconstruction = WENO
+
+#WenoVariant
+WenoVariant = WENOZ5
+
+#Reconstruction Mode
+ReconstructionMode = Conservative
+
+# Shock configuration
+ic.shock.count = 1
+ic.shock.positions = 0.5
+ic.shock.direction = xdir
+
+# Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
+ic.pvec.type = shock
+ic.shock.pvec.density = 1.0 0.125
+ic.shock.pvec.uvel    = 0.0 0.0 
+ic.shock.pvec.vvel    = 0.0 0.0
+
+# Pressure
+ic.pressure.type      = shock
+ic.shock.pressure     = 1.0 0.1
+
+# Boundary conditions for 2D [Density, UVel, VVel, WVel, IE]
+bc.pvec.type.xhi = neumann neumann neumann neumann
+bc.pvec.type.xlo = neumann neumann neumann neumann
+bc.pvec.type.yhi = neumann neumann neumann neumann
+bc.pvec.type.ylo = neumann neumann neumann neumann
+bc.pvec.type.zhi = neumann neumann neumann neumann
+bc.pvec.type.zlo = neumann neumann neumann neumann
+
+bc.pvec.val.xhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.xlo = 0.0 0.0 0.0 0.0
+bc.pvec.val.yhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.ylo = 0.0 0.0 0.0 0.0
+bc.pvec.val.zhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.zlo = 0.0 0.0 0.0 0.0 
+
+#Boundary conditions for Pressure
+bc.pressure.type.xhi = neumann
+bc.pressure.type.xlo = neumann
+bc.pressure.type.yhi = neumann
+bc.pressure.type.ylo = neumann
+bc.pressure.type.zhi = neumann
+bc.pressure.type.zlo = neumann
+
+bc.pressure.val.xhi = 0.0
+bc.pressure.val.xlo = 0.0
+bc.pressure.val.yhi = 0.0
+bc.pressure.val.ylo = 0.0
+bc.pressure.val.zhi = 0.0
+bc.pressure.val.zlo = 0.0
+

@@ -25,6 +25,7 @@ def readHeader(path):
 
 def warning(msg):
     print(msg, file=sys.stderr)
+ 
 
 # Main function to validate simulation output against reference data, supporting 1D and 2D extractions.
 # This function validates simulation output by extracting 1D or 2D slices from the dataset
@@ -69,7 +70,7 @@ def validate(path,
     if generate_ref_data:
         new_df.to_csv(reference)
         print("Reference data generated, now exiting noisily so we don't accidentally pass the test")
-        exit(-1)
+        exit(-1)    
 
     if not isinstance(tolerance, list):
         tolerance = [tolerance] * len(vars)
@@ -154,4 +155,3 @@ def validate(path,
 
     if not all_ok:
         raise Exception("Regression test failed: one or more errors out of tolerance.")
-
