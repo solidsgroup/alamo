@@ -117,8 +117,6 @@ public:
                 }
             }   
         }
-        }   
-    }
 
         // API to debug internal energy computation
         static void DebugComputeInternalEnergyFromDensityAndPressure(int i, int j, int k, int lev,
