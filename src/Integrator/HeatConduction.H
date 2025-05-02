@@ -128,6 +128,8 @@ public:
         // Get the cell size corresponding to this level
         const Set::Scalar* DX = geom[lev].CellSize();
 
+        auto alpha = this->alpha;
+
         // Iterate over all of the patches on this level
         for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -138,8 +140,9 @@ public:
             Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
 
+
             // Iterate over the grid on this patch
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {
                 // Do the physics!
                 // Note that Numeric::Laplacian is an inlined function so there is no overhead.
