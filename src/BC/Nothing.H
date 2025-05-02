@@ -1,3 +1,8 @@
+//
+// Empty BC class, used when specifying boundaries that have no 
+// ghost cells/nodes but a BC object is still required.
+//
+
 #ifndef BC_NOTHING_H_
 #define BC_NOTHING_H_
 
@@ -5,6 +10,8 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
+
+#include "BC/BC.H"
 
 namespace BC
 {

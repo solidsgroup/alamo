@@ -1,28 +1,16 @@
 #ifndef INTEGRATOR_FLAME_H
 #define INTEGRATOR_FLAME_H
 
-#include <string>
 #include <limits>
-#include <memory>
 
-#include "Util/Util.H"
 #include "Integrator/Integrator.H"
-#include "Integrator/Mechanics.H"
 #include "BC/BC.H"
-#include "IC/Voronoi.H"
 #include "IC/IC.H"
-#include "IC/Wedge.H"
-#include "IC/Constant.H"
-#include "IC/Expression.H"
-#include "IC/PSRead.H" 
 #include "Set/Set.H"
-#include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
-#include "BC/Operator/Elastic/Constant.H"
-#include "Solver/Nonlocal/Newton.H"
 
-
+#include "Base/Mechanics.H"
 
 namespace Integrator
 {
@@ -34,6 +22,8 @@ class Flame : virtual public Integrator::Integrator,
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
 
 public:
+    static constexpr const char* name = "flame";
+
     Flame();
     Flame(IO::ParmParse& pp);
 
@@ -108,35 +98,34 @@ private:
     } pf;
 
     struct {
-        Set::Scalar P = 1.0;
-        Set::Scalar gamma = 1.4;
-        Set::Scalar Energy = 1;
+        Set::Scalar P = NAN;
+        Set::Scalar gamma = NAN;
 
         struct {
             Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
             Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
             Set::Scalar c1 = NAN;
-            int mob_ap = 0;
+            int mob_ap = NAN;
             int dependency = 1;
-            Set::Scalar h1 = 1.81, h2 = 1.34;
+            Set::Scalar h1 = NAN, h2 = NAN;
 
         } arrhenius;
         struct {
             Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
             Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
-            Set::Scalar a_fit = 0.0, b_fit = 0.0, c_fit = 0.0;
+            Set::Scalar a_fit = NAN, b_fit = NAN, c_fit = NAN;
         } power;
     } pressure;
 
     struct {
         bool on = 0;
-        Set::Scalar rho_ap, rho_htpb;
-        Set::Scalar k_ap, k_htpb;
-        Set::Scalar cp_ap, cp_htpb;
+        Set::Scalar rho_ap = NAN, rho_htpb = NAN;
+        Set::Scalar k_ap = NAN, k_htpb = NAN;
+        Set::Scalar cp_ap = NAN, cp_htpb = NAN;
         Set::Scalar q0 = NAN;
         Set::Scalar bound = NAN;
-        Set::Scalar m_ap, m_htpb, m_comb;
-        Set::Scalar E_ap, E_htpb;
+        Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
+        Set::Scalar E_ap = NAN, E_htpb = NAN;
         Set::Scalar hc = NAN, w1 = NAN;
         Set::Scalar modeling_ap = NAN, modeling_htpb = NAN;
         Set::Scalar mlocal_ap = NAN, mlocal_htpb = NAN, mlocal_comb = NAN;

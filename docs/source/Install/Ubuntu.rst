@@ -15,9 +15,39 @@
 | master        | |ubuntu-badge-master| |
 +---------------+-----------------------+
 
-20.04 and 22.04
----------------
+Install dependencies
+~~~~~~~~~~~~~~~~~~~~
 
-.. literalinclude:: ../../../.github/workflows/install-ubuntu-22.04.sh
+.. tab-set::
+
+    .. tab-item:: 24.04 LTS
+
+       MPICH does not currently work on 24.04, so OpenMPI is used instead.
+       If you already have multiple versions of MPI installed, 
+       see :ref:`Setting the default MPI` to set the correct one.
+
+        .. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-24.04.sh
+           :language: bash
+           :lines: 2-
+
+    .. tab-item:: 22.04 LTS
+
+        .. literalinclude:: ../../../.github/workflows/dependencies-ubuntu-22.04.sh
+           :language: bash
+           :lines: 2-
+
+
+Build code and run unit tests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../../../.github/workflows/build-and-test.sh
    :language: bash
    :lines: 2-
+
+Build this documentation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../../../.github/workflows/build-docs.sh
+   :language: bash
+   :lines: 2-
+      

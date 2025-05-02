@@ -54,7 +54,6 @@ public:
         pp_query_required("interval", value.interval);
         // regularization epsilon
         pp_query_default ("epsilon",value.epsilon,1E-20); 
-
         // whether to manually specify disconnection nucleation points
         pp.query("disconnection.fixed.on",value.fixed.on); 
         if (value.fixed.on)
