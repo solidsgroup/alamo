@@ -80,7 +80,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
     amrex::Array4<amrex::Real> const& in = a_in.array();
 
-    Util::Warning(INFO,"!! Boundary conditions are NOT applied !! ");
+    //Util::Warning(INFO,"!! Boundary conditions are NOT applied !! ");
 
 #ifdef WE_ARE_SKIPPING_THIS_FOR_NOW
     for (int n = 0; n < a_in.nComp(); n++)
