@@ -35,7 +35,7 @@ public:
     {
         // Define constants here
         gamma = 1.4;    // Example value for the specific heat ratio
-        At = 1.0;       // Example value for throat area (m^2)
+        At = 0.1;       // Example value for throat area (m^2)
         R = 287.0;        // Specific gas constant for air in J/(kg·K)
         T0 = 300.0;       // Initial temperature in K
         volume = 1.0;   // Volume in cubic meters
