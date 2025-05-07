@@ -177,3 +177,17 @@ and checked with CI.
 These are checked for `Performance <https://lookerstudio.google.com/s/id-e_zDzO8w>`_ 
 and `Code Coverage <https://solidsgroup.github.io/alamo/cov/>`_
 
+
+Citing Alamo 
+------------
+
+To acknowledge alamo in your publications, please cite the following article.
+
+.. code-block::
+
+    @article{runnels2025alamo,
+      title={The Alamo multiphysics solver for phase field simulations with strong-form mechanics and block structured adaptive mesh refinement},
+      author={Runnels, Brandon and Agrawal, Vinamra and Meier, Maycon},
+      journal={arXiv preprint arXiv:2503.08917},
+      year={2025}
+    }

@@ -39,10 +39,10 @@ void PFC::Parse(PFC &value, IO::ParmParse &pp)
 }
 
 
+#ifdef ALAMO_FFT
 void
 PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
 {
-#ifdef ALAMO_FFT
     //
     // FFT Boilerplate
     //
@@ -117,13 +117,14 @@ PFC::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
     // Transform solution back to realspace
     //
     my_fft.backward(eta_hat_mf, *eta_mf[lev]);
-
-#else
-    
-    Util::Abort(INFO,"Alamo must be compiled with fft");
-
-#endif 
 }
+#else
+void
+PFC::Advance (int, Set::Scalar, Set::Scalar)
+{   
+    Util::Abort(INFO,"Alamo must be compiled with fft");
+}
+#endif 
 
 void
 PFC::Initialize (int lev)

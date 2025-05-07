@@ -131,34 +131,34 @@ public:
         // TYPES
 
         std::vector<std::string> str;
-        pp_queryarr("type.xlo", str);  // BC type on the lower x edge (2d) face (3d)
+        pp_queryarr_default("type.xlo", str,"dirichlet");  // BC type on the lower x edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr("type.xhi", str);  // BC type on the upper x edge (2d) face (3d)
+        pp_queryarr_default("type.xhi", str,"dirichlet");  // BC type on the upper x edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr("type.ylo", str);  // BC type on the lower y edge (2d) face (3d)
+        pp_queryarr_default("type.ylo", str,"dirichlet");  // BC type on the lower y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr("type.yhi", str);  // BC type on the upper y edge (2d) face (3d)
+        pp_queryarr_default("type.yhi", str,"dirichlet");  // BC type on the upper y edge (2d) face (3d)
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp_queryarr("type.zlo", str);  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
+        pp_queryarr_default("type.zlo", str,"dirichlet");  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]);
         else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp, bcmap[str[0]]);
         else Util::Abort(INFO, "Incorrect number of ", pp.prefix(), " BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 #endif
-        pp_queryarr("type.zhi", str);  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
+        pp_queryarr_default("type.zhi", str,"dirichlet");  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO, "Invalid BC: ", str[i]);
         if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI].push_back(bcmap[str[i]]);

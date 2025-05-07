@@ -51,5 +51,6 @@ von-mises.xml
 compile_commands.json
 .cache/
 .python-version
+.pyright-override.toml
 .clangd
 .DS_Store

@@ -19,6 +19,7 @@ namespace Integrator
 class Hydro : virtual public Integrator
 {
 public:
+    static constexpr const char* name = "hydro";
 
     Hydro() {};
     Hydro(IO::ParmParse& pp);
