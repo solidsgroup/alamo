@@ -8,9 +8,8 @@
 # 2. 
 #
 # Current Error:
-# 1. Get mechanics to work
-# 1.1 A lot of unused variables
-#
+# 1. Running into a problem with disp_y being inverted and being too high 
+#    Try to get it to work for a single grain to match 'uniaxial tension'
 #
 
 
@@ -19,8 +18,7 @@ alamo.program		= thermomechanics # would the program be thermomechanics?
 plot_file			= gaj/pfmicromechanics/output
 
 timestep			= 0.0001
-#stop_time 			= 0.08
-stop_time			= 0.01
+stop_time			= 0.2
 
 amr.plot_dt			= 0.01
 amr.max_level		= 2
@@ -44,9 +42,9 @@ geometry.is_periodic	= 0 0 0
 ## HEAT TRANSFER MODEL
 ##
 
-alpha = 2.0 2.0 2.0 2.0
+alpha = 2.0 #2.0 2.0 2.0
 
-hc.heat.alpha = 2.0 2.0 2.0 2.0
+hc.heat.alpha = 2.0 #2.0 2.0 2.0
 hc.heat.refinement_threshold = 0.1
 
 # Work on initial conditions for heat transfer
@@ -60,10 +58,10 @@ hc.bc.temp.constant.type.xhi 	= dirichlet
 hc.bc.temp.constant.type.xlo 	= dirichlet
 hc.bc.temp.constant.type.yhi 	= dirichlet # check these BC's
 hc.bc.temp.constant.type.ylo 	= dirichlet
-hc.bc.temp.constant.val.xhi 	= 0.0
-hc.bc.temp.constant.val.xlo		= 0.0
-hc.bc.temp.constant.val.yhi		= 2.0
-hc.bc.temp.constant.val.ylo		= 0.0
+hc.bc.temp.constant.val.xhi 	= 1.0
+hc.bc.temp.constant.val.xlo		= 1.0
+hc.bc.temp.constant.val.yhi		= 1.0
+hc.bc.temp.constant.val.ylo		= 1.0
 
 ##
 ## PHASE FIELD MODEL
@@ -79,11 +77,12 @@ pfm.amr.max_level = 2
 # How can I get initial conditions started like this?
 # I need help on this part
 pfm.ic.type	= expression
-pfm.pf.number_of_grains = 4
-pfm.ic.expression.region0 = "(x > 0  and  y > 0)"
-pfm.ic.expression.region1 = "(x < 0  and  y > 0)"
-pfm.ic.expression.region2 = "(x < 0  and  y < 0)"
-pfm.ic.expression.region3 = "(x > 0  and  y < 0)"
+pfm.pf.number_of_grains = 1
+pfm.ic.expression.region0 = "(x > -4 and y > -4)"
+#pfm.ic.expression.region0 = "(x >= 0  and  y >= 0)"
+#pfm.ic.expression.region1 = "(x < 0  and  y > 0)"
+#pfm.ic.expression.region2 = "(x <= 0  and  y <= 0)"
+#pfm.ic.expression.region3 = "(x > 0  and  y < 0)"
 
 #ic.expression.phi.value.region0 = "0.0"
 #ic.expression.phi.value.region1 = "1.0"
@@ -114,7 +113,7 @@ pfm.bc.eta.constant.type.zlo	= neumann
 pfm.pf.M 		= 1.0
 # pfm.pf.mu 		= 10.0 # we no longer use this parameter...
 pfm.pf.gamma	= 1.0
-pfm.pf.l_gb		= 0.05
+pfm.pf.l_gb		= 0.1
 pfm.pf.sigma0	= 0.075
 
 # Mechanics Boundary Conditions
@@ -122,9 +121,9 @@ pfm.pf.threshold.mechanics = 1
 pfm.mechanics.type			= static
 
 pfm.mechanics.model1 = affine.cubic
-pfm.mechanics.model2 = affine.cubic
-pfm.mechanics.model3 = affine.cubic
-pfm.mechanics.model4 = affine.cubic
+#pfm.mechanics.model2 = affine.cubic
+#pfm.mechanics.model3 = affine.cubic
+#pfm.mechanics.model4 = affine.cubic
 pfm.mechanics.bc.type = tensiontest
 pfm.mechanics.bc.tensiontest.type = uniaxial_stress # this sets to uniaxial stress with neumann in lateral direction
 pfm.mechanics.bc.tensiontest.disp=0.001 # this sets the displacement in the x direction
@@ -166,7 +165,7 @@ pfm.mechanics.solver.tol_rel				= 1E-8
 pfm.mechanics.solver.tol_abs				= 1E-8
 pfm.mechanics.solver.average_down_coeffs 	= 0
 pfm.mechanics.time_evolving					= 1 # Should this be 1 or 0? Help
-pfm.mechanics.tstart						= 0
+pfm.mechanics.tstart						= 0.01
 
 
 
