@@ -4,7 +4,7 @@ plot_file		    = tests/void2/output
 
 
 timestep		    = 0.01
-stop_time		    = 2.0
+stop_time		    =1.0
 
 # amr parameters
 amr.plot_int		    = 1
@@ -31,8 +31,8 @@ geometry.is_periodic	    = 0 0 0
 #ic.bmp.channel  = g
 
 euler.ic.type         = eulerangles
-#euler.ic.eulerangles.filename = tests/void2/micrograph.png
-euler.ic.eulerangles.filename = tests/void2/quaternion.png
+euler.ic.eulerangles.filename = tests/void2/micrograph.png
+#euler.ic.eulerangles.filename = tests/void2/quaternion.png
 euler.ic.eulerangles.fit      = fitwidth
 
 
@@ -115,9 +115,9 @@ elastic.interval = 10
 eta_ref_threshold = 0.005
 spall.M = 1.0
 spall.kappa = -0.0005
-spall.po = 2.0
-spall.cp = 15.0
-spall.elastic_mult = -1.5
+spall.po = 6.0
+spall.cp = 10.0
+spall.elastic_mult = -1
 spall.small = 0.1
 
 
