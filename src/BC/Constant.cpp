@@ -67,9 +67,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
     Util::Assert(INFO,TEST(a_in.nComp() == (int)m_ncomp));
 
-    AMREX_D_TERM(int DX_0 = DX[0];,
-                 int DX_1 = DX[1];,
-                 int DX_2 = DX[2];);
+    AMREX_D_TERM(   int DX_0 = DX[0];,
+                    int DX_1 = DX[1];,
+                    int DX_2 = DX[2];);
 
     amrex::Box box = a_box;
     box.grow(ngrow);
@@ -93,7 +93,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
         auto bc_type_ylo_n = this->m_bc_type[Face::YLO][n];
         auto bc_val_ylo_size = m_bc_val[Face::YLO].size();
         auto bc_val_ylo_n = bc_val_ylo_size ? m_bc_val[Face::YLO][n](time) : 0.0;
-
+        
         auto bc_type_yhi_n = this->m_bc_type[Face::YHI][n];
         auto bc_val_yhi_size = m_bc_val[Face::YHI].size();
         auto bc_val_yhi_n = bc_val_yhi_size ? m_bc_val[Face::YHI][n](time) : 0.0;
@@ -112,9 +112,9 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
 
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-            AMREX_D_TERM(int glevel_0 = std::max(std::min(0,i-lo.x),i-hi.x); ,
-                         int glevel_1 = std::max(std::min(0,j-lo.y),j-hi.y); ,
-                         int glevel_2 = std::max(std::min(0,k-lo.z),k-hi.z); );
+            AMREX_D_TERM(   int glevel_0 = std::max(std::min(0,i-lo.x),i-hi.x); ,
+                            int glevel_1 = std::max(std::min(0,j-lo.y),j-hi.y); ,
+                            int glevel_2 = std::max(std::min(0,k-lo.z),k-hi.z); );
         
             if (glevel_0 < 0 && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
             {
