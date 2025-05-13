@@ -1,0 +1,101 @@
+####################
+# Alamo Parameters #
+####################
+
+stop_time = 30.0
+timestep = 1e-3
+
+####################
+# AMReX Parameters #
+####################
+
+amr.base_regrid_int = 100
+amr.plot_dt = 1e-2
+# amr.plot_int = 1
+amr.plot_file = output/flame.output
+amr.max_level = 3
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.grid_eff = 0.7
+amr.n_cell = 64 9
+
+geometry.prob_lo = 0.0 -0.03
+geometry.prob_hi = 0.48 0.03
+
+####################
+# Alamo Parameters #
+####################
+
+alamo.program = flame
+
+###############################
+# Flame Integrator Parameters #
+###############################
+
+plot_field = 0
+
+pf.eps = 1e-6
+pf.kappa = 1.0
+pf.gamma = 0.02726
+pf.lambda = 0.001
+pf.w1 = 1.0
+pf.w12 = 2.0
+pf.w0 = 0.0
+
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+
+pf.eta.ic.type = expression
+pf.eta.ic.expression.region0 = "0.5 * erf(0.75 * (x - 0.24)) + 0.5"
+
+thermal.on = 1
+thermal.bound = 300.0
+thermal.rho_ap = 1950.0  # [kg/m^3]
+thermal.rho_htpb = 920.0  # [kg/m^3]
+thermal.k_ap = 0.4186  # [W/mK]
+thermal.k_htpb = 0.13  # [W/mK]
+thermal.cp_ap = 1297.9  # [J/(kg*K)]
+thermal.cp_htpb = 2418.29  # [J/(kg*K)]
+thermal.m_ap = 1.45e5  # [m/s]
+thermal.m_htpb = 14.0  # [m/s]
+thermal.E_ap = 11000.0
+thermal.E_htpb = 7500.0
+thermal.hc = 1e7
+thermal.mlocal_ap = 1000.0
+thermal.mlocal_htpb = 5000.0
+thermal.mlocal_comb = 0.0
+thermal.T_fluid = 300.0
+
+thermal.temp.bc.constant.type.xlo = neumann
+flame.thermal.temp.bc.constant.type.xhi = neumann
+flame.thermal.temp.bc.constant.type.ylo = neumann
+flame.thermal.temp.bc.constant.type.yhi = neumann
+
+laser.ic.constant.value = 1e6
+
+temp.ic.constant.value = 300.0
+
+pressure.P = 4.0  # [MPa]
+pressure.a1 = 1.114
+pressure.a2 = 0.46
+pressure.a3 = 2.797
+pressure.b1 = 0.323
+pressure.b2 = 0.42
+pressure.b3 = 0.3225
+pressure.c1 = -0.09906
+
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 10.0
+
+phi.ic.type = laminate
+phi.ic.laminate.center = 0.0 0.0
+phi.ic.laminate.thickness = 1e-4
+phi.ic.laminate.orientation = 0.0 1.0
+phi.ic.laminate.eps = 2e-5
+phi.ic.laminate.singlefab = 1
+phi.ic.laminate.invert = 1
+
+elastic.type = disable
