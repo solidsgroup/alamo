@@ -190,15 +190,15 @@ public:
     Set::Field<Set::Scalar> &eta_mf = alpha_mf;
     Set::Field<Set::Scalar> &eta_old_mf = alpha_old_mf;
 
-    struct {
+    struct ch_struct {
         Set::Scalar L = NAN;
         Set::Scalar eps = NAN;
         Set::Scalar grad = NAN;
         Set::Scalar chempot = NAN;
         Set::Scalar direction_tstart = NAN;
         int direction = 0;
-    } ch;
-
+    };
+    ch_struct ch; // We must use a named struct to work on GPU
 
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 2;           // Number of ghost cells
