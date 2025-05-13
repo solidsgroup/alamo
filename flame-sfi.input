@@ -12,15 +12,15 @@ timestep = 1e-3
 amr.base_regrid_int = 100
 amr.plot_dt = 1e-2
 # amr.plot_int = 1
-amr.plot_file = flame-sfi.output
+amr.plot_file = output/flame-sfi.output
 amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
 amr.n_cell = 64 8
 
-geometry.prob_lo = 0.0 -3.0
-geometry.prob_hi = 48.0 3.0
+geometry.prob_lo = 0.0 -0.03
+geometry.prob_hi = 0.48 0.03
 
 ##################
 # SFI Parameters #
@@ -51,7 +51,7 @@ flame.pf.eta.bc.constant.type.ylo = neumann
 flame.pf.eta.bc.constant.type.yhi = neumann
 
 flame.pf.eta.ic.type = expression
-flame.pf.eta.ic.expression.region0 = "erf(0.75*(x-24))"
+flame.pf.eta.ic.expression.region0 = "0.5 * erf(0.75 * (x - 0.24)) + 0.5"
 
 flame.thermal.on = 1
 flame.thermal.bound = 300.0
