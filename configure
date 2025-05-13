@@ -431,20 +431,9 @@ if mpidist == "openmpi":
         if args.comp != "g++": raise Exception(error("works only for g++ currently"))
 
         try:
-            import pycuda.driver as cuda
-            import pycuda.autoinit
-            device = cuda.Device(0)
-            name = device.name()
-            compute_capability = device.compute_capability()
-            message("gpu name",name)
-            message("compute capability", f"{compute_capability[0]}.{compute_capability[1]}")
-        except Exception as e:
-            warning("pycuda error: "+str(e))
-
-        try:
             shellmessage("nvidia info", "nvidia-smi --query-gpu=name --format=csv,noheader")
         except Exception as e:
-            warning("Could not find information about current nvidia cards")
+            warning("Could not find information about current nvidia hardware")
 
 
 

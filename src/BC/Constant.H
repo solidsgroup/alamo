@@ -147,9 +147,6 @@ private:
     std::array<std::vector<int>, m_nfaces> m_bc_type;
     std::array<std::vector<Numeric::Interpolator::Linear<Set::Scalar>>, m_nfaces> m_bc_val;
 
-    amrex::Gpu::DeviceVector<Numeric::Interpolator::Linear<Set::Scalar>::OnDevice> test;
-
-
 public:
     static void Parse(Constant& value, IO::ParmParse& pp)
     {
