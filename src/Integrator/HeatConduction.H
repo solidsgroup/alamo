@@ -126,9 +126,10 @@ public:
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
 
         // Get the cell size corresponding to this level
-        const Set::Scalar* DX = geom[lev].CellSize();
+        const auto DX = Set::Vector(geom[lev].CellSize());
 
-        auto alpha = this->alpha;
+        // Member variable access list for GPU
+        const auto alpha = this->alpha;
 
         // Iterate over all of the patches on this level
         for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -147,7 +148,7 @@ public:
                 // Do the physics!
                 // Note that Numeric::Laplacian is an inlined function so there is no overhead.
                 // You can calculate the derivatives yourself if you want.
-                temp(i, j, k) = temp_old(i, j, k) + dt * alpha * Numeric::Laplacian(temp_old, i, j, k, 0, DX);
+                temp(i, j, k) = temp_old(i, j, k) + dt * alpha * Numeric::Laplacian(temp_old, i, j, k, 0, DX.data());
             });
         }
     }
@@ -211,7 +212,8 @@ public:
         if (method=="spectral") return;
 
         // Get cell dimensions as done above.
-        const Set::Scalar* DX = geom[lev].CellSize();
+        const auto DX = Set::Vector(geom[lev].CellSize());
+
         // Calculate the diagonal.
         Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
@@ -229,7 +231,7 @@ public:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 // Calculate the temperature gradient.
-                Set::Vector grad = Numeric::Gradient(temp, i, j, k, 0, DX);
+                Set::Vector grad = Numeric::Gradient(temp, i, j, k, 0, DX.data());
 
                 // Is the gradient * cell_size too big? If so, then
                 // mark this cell as needing refinement.
