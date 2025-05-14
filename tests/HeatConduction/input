@@ -1,6 +1,10 @@
 #@
 #@ [2d-serial]
 #@ dim=2
+#@
+#@ [2d-gpu]
+#@ cuda = true
+#@ dim=2
 #@ 
 #@ [2d-serial-coverage]
 #@ dim=2
@@ -14,11 +18,11 @@
 #@ benchmark-beaker=7.66
 #@ benchmark-waldorf=21.17
 #@
-#@ [3d-serial-coverage]
+#@ [3d-cuda]
 #@ dim=3
-#@ coverage=true
-#@ args=stop_time=0.0002
-#@ check=false
+#@ nprocs=1
+#@ cuda=true
+#@
 
 alamo.program = heat
 
