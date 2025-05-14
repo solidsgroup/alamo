@@ -114,7 +114,9 @@ public:
     {
         std::swap(*alpha_mf[lev], *alpha_old_mf[lev]);
 
-        const Set::Scalar *DX = this->geom[lev].CellSize();
+        const auto DX = Set::Vector(this->geom[lev].CellSize());
+        const auto ch = this->ch;
+
         // Evolve alpha
         for (amrex::MFIter mfi(*alpha_mf[lev], true); mfi.isValid(); ++mfi)
         {
@@ -122,7 +124,6 @@ public:
             Set::Patch<Set::Scalar>       alpha_new = alpha_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha     = alpha_old_mf.Patch(lev,mfi);
 
-            auto ch = this->ch;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -132,7 +133,7 @@ public:
                 Set::Scalar alpha_3 = alpha_2 * alpha(i, j, k);
                 driving_force += (ch.chempot / ch.eps) * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
                 // Gradient
-                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
+                Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX.data());
                 driving_force -= ch.eps * ch.grad * alpha_lap;
 
                 if (time >= ch.direction_tstart)
@@ -154,9 +155,10 @@ public:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
     {
         // Get cell dimensions as done above.
-        const Set::Scalar* DX = geom[lev].CellSize();
+        const auto DX = Set::Vector(geom[lev].CellSize());
+
         // Calculate the diagonal.
-        Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+        Set::Scalar dr = DX.lpNorm<2>();
 
         // Iterate over the patches on this level
         for (amrex::MFIter mfi(*alpha_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -172,7 +174,7 @@ public:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 // Calculate the temperature gradient.
-                Set::Vector grad = Numeric::Gradient(alpha, i, j, k, 0, DX);
+                Set::Vector grad = Numeric::Gradient(alpha, i, j, k, 0, DX.data());
 
                 // Is the gradient * cell_size too big? If so, then
                 // mark this cell as needing refinement.

@@ -51,11 +51,11 @@ public:
     }
 
     void
-    Define(Set::Scalar a_radius,
-           Set::Vector a_center,
-           Type a_type,
-           Set::Scalar a_alpha_in,
-           Set::Scalar a_alpha_out)
+    Define( Set::Scalar a_radius,
+            Set::Vector a_center,
+            Type a_type,
+            Set::Scalar a_alpha_in,
+            Set::Scalar a_alpha_out)
     {
         radius = a_radius;
         center = a_center;
@@ -107,29 +107,29 @@ public:
                 if (type == Type::XYZ)
                 {
                     // 3D Sphere
-                    rsq = AMREX_D_TERM((x - center(0)) * (x - center(0)),
-                                       +(y - center(1)) * (y - center(1)),
-                                       +(z - center(2)) * (z - center(2)));
+                    rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
+                                        +(y - center(1)) * (y - center(1)),
+                                        +(z - center(2)) * (z - center(2)));
                 }
                 else if (type == Type::XY)
                 {
                     // Cylinder along Z axis
-                    rsq = AMREX_D_TERM((x - center(0)) * (x - center(0)),
-                                       +(y - center(1)) * (y - center(1)), );
+                    rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
+                                        +(y - center(1)) * (y - center(1)), );
                 }
                 else if (type == Type::YZ)
                 {
                     // Cylinder along X axis
-                    rsq = AMREX_D_TERM(,
-                                       +(y - center(1)) * (y - center(1)),
-                                       +(z - center(2)) * (z - center(2)));
+                    rsq = AMREX_D_TERM( ,
+                                        +(y - center(1)) * (y - center(1)),
+                                        +(z - center(2)) * (z - center(2)));
                 }
                 else if (type == Type::ZX)
                 {
                     // Cylinder along Y axis
-                    rsq = AMREX_D_TERM((x - center(0)) * (x - center(0)),
-                                       ,
-                                       +(z - center(2)) * (z - center(2)));
+                    rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
+                                        ,
+                                        +(z - center(2)) * (z - center(2)));
                 }
 
                 if (rsq < radius * radius)
