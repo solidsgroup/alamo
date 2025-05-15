@@ -5,13 +5,16 @@
 #ifndef IC_RANDOM_H_
 #define IC_RANDOM_H_
 
+#include "AMReX_Random.H"
 #include "AMReX_Vector.H"
+#include "AMReX_RandomEngine.H"
 
 #include "IO/ParmParse.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
+#include "amrex/3d-cuda80-g++-25.04/include/AMReX_GpuDevice.H"
 
 namespace IC
 {
@@ -31,6 +34,11 @@ public:
   
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
+        auto mult = this->mult;
+        auto offset = this->offset;
+
+        //amrex::RandomEngine engine;
+
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
@@ -42,9 +50,8 @@ public:
             Set::Patch<Set::Scalar> field = a_field.Patch(lev,mfi);
             for (int n = 0; n < a_field[lev]->nComp(); n++)
             {
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
-                {
-                    field(i,j,k,n) += offset + mult * Util::Random();
+                amrex::ParallelForRNG(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k, amrex::RandomEngine const &engine) {
+                    field(i, j, k, n) += offset + mult * amrex::Random(engine);
                 });
             }
         }

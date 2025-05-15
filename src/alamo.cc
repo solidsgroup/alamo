@@ -41,6 +41,7 @@ int main (int argc, char* argv[])
     pp.query_validate(  "alamo.program", program,
                         {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
     srand(2);
+    amrex::InitRandom(2);
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")

@@ -595,21 +595,27 @@ if not args.compile_commands:
 
     projectdir = os.getcwd()
 
-    otherflags = ""
-    if args.fft: otherflags += "-DALAMO_FFT"
+    otherflags = []
+    if args.fft: otherflags.append("-DALAMO_FFT")
 
-    cc = compmpicmd
+    cc = compmpicmd.split(" ")
+
+    if args.cuda:
+        cc.insert(1,'-x')
+        cc.insert(2,'cuda')
+
     command_objects = []
     command_objects = [{
         "directory": projectdir,
         "file": srcfile,
         "arguments": [
-            *cc.split(" "),
-            *otherflags.split(" "),
+            *cc,
+            *otherflags,
             "-std=c++17",
             "-I./src/",
             srcfile,
             f"-I./ext/amrex/{postfix_amrex}/include",
+            f"-I./ext/",
         ],
     } for srcfile in srcfiles]
 
