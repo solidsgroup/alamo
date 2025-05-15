@@ -39,6 +39,14 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
     
+    auto const number_of_grains = this->number_of_grains;
+    auto const pf = this->pf;
+    auto const anisotropic_kinetics = this->anisotropic_kinetics;
+    auto const anisotropy = this->anisotropy;
+    auto const lagrange = this->lagrange;
+    auto const sdf = this->sdf;
+    auto const fluctuation = this->fluctuation;
+    auto const disconnection = this->disconnection;
 
     Set::Scalar df_max = 1E100; //std::numeric_limits<Set::Scalar>::min();
 
@@ -55,7 +63,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         Set::Patch<const Set::Matrix> sigma = stress_mf.Patch(lev,mfi); 
         Set::Patch<const Set::Vector> disp  = this->disp_mf.Patch(lev,mfi);
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             Set::Matrix sig = Set::Matrix::Zero();
             if (pf.elastic_df) sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
@@ -83,10 +91,16 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
                 if (!anisotropy.on || time < anisotropy.tstart)
                 {
+#ifndef ALAMO_GPU
                     kappa = pf.l_gb * 0.75 * pf.sigma0;
                     mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
                     if (pf.threshold.boundary)  driving_force_threshold += -kappa * laplacian;
-                    else                        driving_force += -kappa * laplacian;
+                    else
+                        driving_force += -kappa * laplacian;
+#else
+                    Util::Abort(
+#endif
+    
                 }
                 else
                 {

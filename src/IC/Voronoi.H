@@ -4,6 +4,9 @@
 #ifndef IC_VORONOI_H_
 #define IC_VORONOI_H_
 
+#include "AMReX_Arena.H"
+#include "AMReX_GpuContainers.H"
+#include "AMReX_GpuDevice.H"
 #include "Set/Set.H"
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
@@ -50,14 +53,37 @@ public:
                         voronoi[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
                         voronoi[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
         }
+
+        alpha_device.resize(number_of_grains);
+        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice,
+                              alpha.begin(), alpha.end(), alpha_device.begin());
+        alpha_ptr = alpha_device.data();
+        
+        voronoi_ptr = static_cast<Set::Vector*>(amrex::The_Device_Arena()->alloc(number_of_grains * sizeof(Set::Vector)));
+
+        //amrex::Gpu::copy(amrex::Gpu::hostToDevice, voronoi.begin(), voronoi.end(), voronoi_ptr);
+
+        amrex::Gpu::htod_memcpy(voronoi_ptr, voronoi.data(), number_of_grains*sizeof(Set::Vector));
+        //voronoi_device.resize(number_of_grains);
+        //amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice,
+        //                      voronoi.begin(), voronoi.end(), voronoi_device.begin());
+        //voronoi_ptr = voronoi_device.data();
     };
     
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Set::Vector size;
         AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
-                    size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
-                    size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
+                     size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
+                     size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
+
+        const Set::Vector problo(geom[lev].ProbLo());
+        const Set::Vector cellsize(geom[lev].CellSize());
+        const auto periodic = geom[lev].isPeriodic();
+        const auto number_of_grains = this->number_of_grains;
+        const auto type = this->type;
+        const auto alpha_ptr = this->alpha_ptr;
+        const auto voronoi_ptr = this->voronoi_ptr;
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -65,41 +91,41 @@ public:
             bx.grow(a_field[lev]->nGrow());
             int ncomp = a_field[lev]->nComp();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {
 
                 Set::Vector x;
-                AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-                            x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-                            x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+                AMREX_D_TERM(x(0) = problo(0) + ((Set::Scalar)(i) + 0.5) * cellsize(0);,
+                             x(1) = problo(1) + ((Set::Scalar)(j) + 0.5) * cellsize(1);,
+                             x(2) = problo(2) + ((Set::Scalar)(k) + 0.5) * cellsize(2););
                             
-                amrex::Real min_distance = 1E100; //std::numeric_limits<amrex::Real>::infinity();
+                Set::Scalar min_distance = 1E100; //std::numeric_limits<amrex::Real>::infinity();
                 int min_grain_id = -1;
 
                 for (int n = 0; n<number_of_grains; n++)
                 {
-                    Set::Scalar d = (x - voronoi[n]).lpNorm<2>();
+                    Set::Scalar d = (x - voronoi_ptr[n]).lpNorm<2>();
 
-                    if (geom[0].isPeriodic(0))
+                    if (periodic[0])
                         {
                             d = std::min(d,
-                                        std::min( (x-voronoi[n] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-                                                    (x-voronoi[n] - size(0)*Set::Vector::Unit(0)).lpNorm<2>()));
+                                        std::min( (x-voronoi_ptr[n] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+                                                    (x-voronoi_ptr[n] - size(0)*Set::Vector::Unit(0)).lpNorm<2>()));
                         }
 #if AMREX_SPACEDIM>1
-                    if (geom[0].isPeriodic(1))
+                    if (periodic[1])
                         {
                             d = std::min(d,
-                                        std::min( (x-voronoi[n] + size(0)*Set::Vector::Unit(1)).lpNorm<2>(),
-                                                    (x-voronoi[n] - size(0)*Set::Vector::Unit(1)).lpNorm<2>()));
+                                        std::min( (x-voronoi_ptr[n] + size(0)*Set::Vector::Unit(1)).lpNorm<2>(),
+                                                    (x-voronoi_ptr[n] - size(0)*Set::Vector::Unit(1)).lpNorm<2>()));
                         }
 #endif
 #if AMREX_SPACEDIM>2
-                    if (geom[0].isPeriodic(2))
+                    if (periodic[2])
                         {
                             d = std::min(d,
-                                        std::min( (x-voronoi[n] + size(0)*Set::Vector::Unit(2)).lpNorm<2>(),
-                                                    (x-voronoi[n] - size(0)*Set::Vector::Unit(2)).lpNorm<2>()));
+                                        std::min( (x-voronoi_ptr[n] + size(0)*Set::Vector::Unit(2)).lpNorm<2>(),
+                                                    (x-voronoi_ptr[n] - size(0)*Set::Vector::Unit(2)).lpNorm<2>()));
                         }
 #endif
                     if (d<min_distance)
@@ -109,8 +135,8 @@ public:
                         }
                 }
 
-                if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
-                else if (type == Type::Partition) field(i,j,k,min_grain_id % ncomp) = alpha[min_grain_id];
+                if (type == Type::Values) field(i,j,k) = alpha_ptr[min_grain_id];
+                else if (type == Type::Partition) field(i,j,k,min_grain_id % ncomp) = alpha_ptr[min_grain_id];
             });
         }
     }
@@ -135,6 +161,13 @@ private:
     int seed = 1;
     std::vector<Set::Scalar> alpha;
     std::vector<Set::Vector> voronoi;
+
+    amrex::Gpu::DeviceVector<Set::Scalar> alpha_device;
+    //amrex::Gpu::DeviceVector<Set::Vector> voronoi_device;
+    
+    Set::Scalar *alpha_ptr;
+    Set::Vector* voronoi_ptr;
+
     Type type;
 };
 }
