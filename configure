@@ -603,6 +603,7 @@ if not args.compile_commands:
     if args.cuda:
         cc.insert(1,'-x')
         cc.insert(2,'cuda')
+        otherflags.append("-DALAMO_GPU")
 
     command_objects = []
     command_objects = [{

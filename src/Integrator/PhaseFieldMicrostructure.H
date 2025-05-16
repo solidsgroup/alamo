@@ -238,17 +238,21 @@ public:
         pp_query_default("anisotropic_kinetics.on",value.anisotropic_kinetics.on, 0);
         if (value.anisotropic_kinetics.on)
         {
+#ifndef ALAMO_GPU
             // simulation time when anisotropic kinetics is activated
             pp_query_default("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart, 0.0);
             std::string mobility_filename, threshold_filename;
             // file containing anisotropic mobility data
-            pp_query_file("anisotropic_kinetics.mobility",mobility_filename); 
+            pp_query_file("anisotropic_kinetics.mobility", mobility_filename);
             value.anisotropic_kinetics.mobility = Numeric::Interpolator::Linear<Set::Scalar>::Read(mobility_filename);
             // file containing anisotropic mobility data
             pp_query_file("anisotropic_kinetics.threshold",threshold_filename); 
             value.anisotropic_kinetics.threshold = Numeric::Interpolator::Linear<Set::Scalar>::Read(threshold_filename);
             value.RegisterNewFab(value.anisotropic_kinetics.L_mf, value.mybc, value.number_of_grains, 0, "mobility",true);
             value.RegisterNewFab(value.anisotropic_kinetics.threshold_mf, value.mybc, value.number_of_grains, 0, "theshold",true);
+#else
+            Util::Abort(INFO,"Not implemented for GPU yet");
+#endif
         }
 
 
@@ -339,10 +343,12 @@ public:
     struct anisotropic_kinetics_struct{
         int on = 0;
         Set::Scalar tstart = 0.0;
+#ifndef ALAMO_GPU
         Numeric::Interpolator::Linear<Set::Scalar> mobility;
         Numeric::Interpolator::Linear<Set::Scalar> threshold;
-        Set::Field<Set::Scalar> L_mf;
-        Set::Field<Set::Scalar> threshold_mf;
+#endif
+        // Set::Field<Set::Scalar> L_mf;
+        // Set::Field<Set::Scalar> threshold_mf;
     };
     anisotropic_kinetics_struct anisotropic_kinetics;
 

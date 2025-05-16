@@ -91,19 +91,16 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
                 if (!anisotropy.on || time < anisotropy.tstart)
                 {
-#ifndef ALAMO_GPU
                     kappa = pf.l_gb * 0.75 * pf.sigma0;
                     mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
                     if (pf.threshold.boundary)  driving_force_threshold += -kappa * laplacian;
                     else
                         driving_force += -kappa * laplacian;
-#else
-                    Util::Abort(
-#endif
     
                 }
                 else
                 {
+#ifndef ALAMO_GPU
                     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDEta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
                     auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDEta);
                     if (pf.threshold.boundary) driving_force_threshold += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
@@ -113,6 +110,9 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     else                       driving_force += anisotropy.beta * std::get<1>(anisotropic_df);
                     if (std::isnan(std::get<1>(anisotropic_df))) Util::Abort(INFO);
                     mu = 0.75 * (1.0 / 0.23) * boundary->W(Deta) / pf.l_gb;
+#else
+                    Util::Abort(INFO,"Not supported for GPU yet");
+#endif
                 }
 
                 //
@@ -137,10 +137,14 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 //
                 if (lagrange.on && m == 0 && time > lagrange.tstart)
                 {
+#ifndef ALAMO_GPU
                     if (pf.threshold.lagrange)
                         driving_force_threshold += lagrange.lambda * (volume - lagrange.vol0);
                     else
                         driving_force += lagrange.lambda * (volume - lagrange.vol0);
+#else
+                    Util::Abort(INFO,"Not supported for GPU yet");
+#endif
                 }
 
                 //
@@ -148,10 +152,14 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 //
                 if (sdf.on && time > sdf.tstart)
                 {
+#ifndef ALAMO_GPU
                     if (pf.threshold.sdf)
-                        driving_force_threshold += sdf.val[m](time);
+                        driving_force_threshold += sdf_val[m];
                     else
                         driving_force += sdf.val[m](time);
+#else
+                    Util::Abort(INFO,"SDF not supported for GPU yet");
+#endif
                 }
 
               
@@ -160,6 +168,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 //
                 if (pf.elastic_df)
                 {
+#ifndef ALAMO_GPU
                     Set::Scalar elastic_df_m = 0.0;
                     
                     if (shearcouple.on)
@@ -216,6 +225,9 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                         driving_force_threshold -= pf.elastic_mult * elastic_df_m;
                     else
                         driving_force -= pf.elastic_mult * elastic_df_m;
+#else
+                    Util::Abort(INFO,"Elastic driving force not supported on GPU yet");
+#endif
                 }
 
                 //
@@ -232,9 +244,13 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 // (if we ARE using anisotropic kinetics)
                 else
                 {
+#ifndef ALAMO_GPU
                     Set::Scalar theta = atan2(Deta(1), Deta(0));
                     L = (4. / 3.) * anisotropic_kinetics.mobility(theta) / pf.l_gb;
                     threshold = anisotropic_kinetics.threshold(theta);
+#else
+                    Util::Abort(INFO,"Anisotropic kinetics not supported yet");
+#endif
                 }
 
                 Set::Scalar totaldf = 0.0;
@@ -271,6 +287,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 template <class model_type>
 void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
 {
+#ifndef AMREX_GPU
     if (this->m_type == Base::Mechanics<model_type>::Disable) return;
     eta_mf[lev]->FillBoundary();
     eta_old_mf[lev]->FillBoundary();
@@ -303,6 +320,9 @@ void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
     }
     
     Util::RealFillBoundary(*this->model_mf[lev],this->geom[lev]);
+#else
+    Util::Abort(INFO,"Not supported on GPU yet");
+#endif
 }
 
 template<class model_type>
@@ -350,6 +370,7 @@ void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar /*time*/
 template<class model_type>
 void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /*a_time*/)
 {
+#ifndef ALAMO_GPU
     BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
     if (a_step % this->m_interval) return;
 
@@ -422,7 +443,9 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
 
         Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
     }
-
+#else
+    Util::Abort(INFO,"Not supported on GPU yet");
+#endif
 }
 
 template<class model_type>
@@ -454,6 +477,7 @@ template<class model_type>
 void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar time, int step,
     const amrex::MFIter& mfi, const amrex::Box& box)
 {
+#ifndef ALAMO_GPU
     BL_PROFILE("PhaseFieldMicrostructure::Integrate");
     Base::Mechanics<model_type>::Integrate(amrlev, time, step, mfi, box);
 
@@ -462,7 +486,7 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
-    amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k) {
+    amrex::LoopConcurrentOnCpu(box, [=](int i, int j, int k) {
 #if AMREX_SPACEDIM == 2
         auto sten = Numeric::GetStencil(i, j, k, box);
 #endif
@@ -506,6 +530,9 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
             }
         }
     });
+#else
+    //Util::Warning(INFO,"Variable integration not implemented for GPU yet");
+#endif
 }
 
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>;

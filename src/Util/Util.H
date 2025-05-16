@@ -92,7 +92,7 @@ void Assert (const char * file, const char * func, int line, const char * smt, b
 
     Abort("Fatal Error");
 #else
-    // todo!
+    amrex::Abort();
 #endif
 }
 
