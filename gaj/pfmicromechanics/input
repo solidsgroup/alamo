@@ -4,12 +4,14 @@
 # ./bin/thermomechanics-2d-g++ ./gaj/pfmicromechanics/input
 # 
 # TODO:
-# 1. How to do initial conditions, especially for phasefield
-# 2. 
+# 1. Write a new tensiontest BC operator that has BCs as desired
+# 1a. Maybe write a bug report for tensiontest BCs
 #
+# 
 # Current Error:
-# 1. Running into a problem with disp_y being inverted and being too high 
-#    Try to get it to work for a single grain to match 'uniaxial tension'
+# 1. Still running into BC problems with tension test
+# 
+# 
 #
 
 
@@ -30,8 +32,6 @@ amr.base_regrid_int	= 100
 amr.grid_eff		= 1.0
 amr.ref_threshold	= 0.1
 amr.cell.all		= 1
-
-# ic.type = expressions # I don't think I need this, because I am specifying different ICs for each model Help
 
 geometry.prob_lo		= -4 -4 -4
 geometry.prob_hi		= 4 4 4
@@ -69,7 +69,6 @@ hc.bc.temp.constant.val.ylo		= 1.0
 
 # pfm.interval = 100 # What is this? Help
 pfm.mechanics.interval = 100 # If mechanics is controlled by the microstructure integrator, do I have to have the pfm prefix for mechanics?
-                             # BR: Yes, all prefixes are added
 
 pfm.amr.max_level = 2
 
@@ -78,7 +77,7 @@ pfm.amr.max_level = 2
 # I need help on this part
 pfm.ic.type	= expression
 pfm.pf.number_of_grains = 1
-pfm.ic.expression.region0 = "(x > -4 and y > -4)"
+pfm.ic.expression.region0 = "(x > -4 and y > -4)" # use in single grain case
 #pfm.ic.expression.region0 = "(x >= 0  and  y >= 0)"
 #pfm.ic.expression.region1 = "(x < 0  and  y > 0)"
 #pfm.ic.expression.region2 = "(x <= 0  and  y <= 0)"
@@ -88,11 +87,6 @@ pfm.ic.expression.region0 = "(x > -4 and y > -4)"
 #ic.expression.phi.value.region1 = "1.0"
 #ic.expression.phi.value.region2 = "2.0"
 #ic.expression.phi.value.region3 = "3.0"
-
-# pfm.ic.value.region0 = "-1"
-# pfm.ic.value.region1 = "1"
-# pfm.ic.value.region2 = "-1"
-# pfm.ic.value.region3 = "1"
 
 #pfm.pf.mu = 1
 
@@ -111,7 +105,6 @@ pfm.bc.eta.constant.type.zlo	= neumann
 
 # Microstructure Model Information
 pfm.pf.M 		= 1.0
-# pfm.pf.mu 		= 10.0 # we no longer use this parameter...
 pfm.pf.gamma	= 1.0
 pfm.pf.l_gb		= 0.1
 pfm.pf.sigma0	= 0.075
@@ -125,12 +118,12 @@ pfm.mechanics.model1 = affine.cubic
 #pfm.mechanics.model3 = affine.cubic
 #pfm.mechanics.model4 = affine.cubic
 pfm.mechanics.bc.type = tensiontest
-pfm.mechanics.bc.tensiontest.type = uniaxial_stress # this sets to uniaxial stress with neumann in lateral direction
+pfm.mechanics.bc.tensiontest.type = uniaxial_strain # this sets to uniaxial stress with neumann in lateral direction
 pfm.mechanics.bc.tensiontest.disp=0.001 # this sets the displacement in the x direction
 
 
 #mechanics.bc.type					= constant
-#mechanics.bc.constant.type.xlo		= neumann neumann neumann # How do I make this so that there is no displacement? Neumann? Help
+#mechanics.bc.constant.type.xlo		= neumann neumann neumann 
 #mechanics.bc.constant.type.xhi		= neumann neumann neumann
 #mechanics.bc.constant.type.xloyhi	= neumann neumann neumann
 #mechanics.bc.constant.type.xhiyhi	= neumann neumann neumann
@@ -145,9 +138,6 @@ pfm.mechanics.bc.tensiontest.disp=0.001 # this sets the displacement in the x di
 #mechanics.bc.constant.val.xloylo		= 0.0 0.0 0.0
 #mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
 #mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
-
-
-
 
 
 # Mechanics Model Information
@@ -165,7 +155,7 @@ pfm.mechanics.solver.tol_rel				= 1E-8
 pfm.mechanics.solver.tol_abs				= 1E-8
 pfm.mechanics.solver.average_down_coeffs 	= 0
 pfm.mechanics.time_evolving					= 1 # Should this be 1 or 0? Help
-pfm.mechanics.tstart						= 0.01
+pfm.mechanics.tstart						= 0
 
 
 
