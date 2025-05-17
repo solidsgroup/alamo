@@ -140,8 +140,22 @@ bool operator == (const Quaternion a, const Quaternion b)
 }
 
 
+#ifdef AMREX_DEVICE_COMPILE
+AMREX_GPU_DEVICE inline Scalar DeviceGarbage = NAN;
+#else
+AMREX_GPU_HOST inline Scalar HostGarbage = NAN;
+#endif
+
 AMREX_GPU_HOST_DEVICE
-static Scalar Garbage = NAN;
+AMREX_FORCE_INLINE
+Scalar& Garbage()
+{
+#ifdef AMREX_DEVICE_COMPILE
+    return DeviceGarbage;
+#else
+    return HostGarbage;
+#endif
+}
 
 AMREX_FORCE_INLINE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)

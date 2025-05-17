@@ -74,6 +74,9 @@ public:
                 Util::Abort(INFO,"Error in GB Read: t=",t," w=",w," dw=",dw," ddw=",ddw);
         }
     };
+
+    using GB::W, GB::DW, GB::DDW;
+
     Set::Scalar W(const Set::Scalar theta) const
     {
         return m_w(theta);

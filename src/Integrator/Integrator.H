@@ -385,7 +385,7 @@ private:
     int max_plot_level = -1;
 
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
-    int max_step = (int)1E100; //std::numeric_limits<int>::max(); ///< Maximum allowable timestep
+    int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
     amrex::Real tstart = 0; ///< Default start time (default: 0)
     amrex::Real stop_time = NAN; ///< Default stop time 
 

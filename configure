@@ -506,7 +506,7 @@ else:
 #
 if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
-    # f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    f.write("CXX_COMPILE_FLAGS += -Wno-inline\n")
     if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
         if args.memcheck_tool=="asan":

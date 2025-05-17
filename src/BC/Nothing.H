@@ -10,7 +10,7 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
-
+#include "Set/Base.H"
 #include "BC/BC.H"
 
 namespace BC
@@ -21,6 +21,7 @@ class Nothing
 
 public:
     Nothing () {};
+    using BC<Set::Scalar>::FillBoundary;
     virtual void FillBoundary (amrex::BaseFab<Set::Scalar>&,
                     const amrex::Box &,
                     int, int, int,

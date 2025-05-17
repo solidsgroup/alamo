@@ -30,7 +30,7 @@ class Solid
 {
 public:
     AMREX_GPU_HOST_DEVICE Solid() = default;
-    AMREX_GPU_HOST_DEVICE Solid(const Solid & base) {};
+    AMREX_GPU_HOST_DEVICE Solid(const Solid & base) = default;
     AMREX_GPU_HOST_DEVICE virtual ~Solid() = default;
 
     static constexpr Set::Sym sym = SYM;

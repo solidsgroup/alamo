@@ -109,11 +109,13 @@ public:
     void SetUniform(bool a_uniform) {m_uniform = a_uniform;}
     virtual void SetAverageDownCoeffs(bool a_average_down_coeffs) override
     {m_average_down_coeffs = a_average_down_coeffs;}
-    
+
     using Operator::Reflux;
 
 protected:
 
+
+    using Operator::Diagonal;
     virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
 
     virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const override final;

@@ -107,7 +107,7 @@ private:
             Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
             Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
             Set::Scalar c1 = NAN;
-            int mob_ap = NAN;
+            int mob_ap = -1;
             int dependency = 1;
             Set::Scalar h1 = NAN, h2 = NAN;
 

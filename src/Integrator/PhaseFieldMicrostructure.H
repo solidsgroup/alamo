@@ -4,6 +4,8 @@
 #ifndef INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 #define INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 
+#ifndef ALAMO_GPU
+
 #include <random>
 
 #include "AMReX_ParmParse.H"
@@ -428,3 +430,4 @@ public:
 };
 }
 #endif 
+#endif

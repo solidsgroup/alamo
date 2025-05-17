@@ -44,7 +44,11 @@ int main (int argc, char* argv[])
     amrex::InitRandom(2);
 
     Integrator::Integrator *integrator = nullptr;
-    if (program == "microstructure")
+    if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
+    else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
+    else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
+#ifndef ALAMO_GPU
+    else if (program == "microstructure")
     {
         std::string model;
         // This input determines which elastic model is used - only if using
@@ -60,11 +64,9 @@ int main (int argc, char* argv[])
         else Util::Abort(INFO,model," is not a valid model");
     }
     else if (program == "flame")                pp.select_only<Integrator::Flame>(integrator);
-    else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
     else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
-    else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
-    else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
     else if (program == "pfc")                  pp.select_only<Integrator::PFC>(integrator);
+#endif
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
     integrator->InitData();

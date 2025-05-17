@@ -42,14 +42,14 @@ public:
     using Constant::operator();
     using Constant::set;
 
-    enum LoadingMode {TRAC,DISP};
+    enum LoadingMode {TRAC,DISP,UNDEFINED};
 
 public:
     static void Parse(TensionTest & value, IO::ParmParse & pp)
     {
         std::string type = "uniaxial_stress_clamp";
         std::string disp = "0.0", trac = "0.0";
-        LoadingMode mode;
+        LoadingMode mode = LoadingMode::UNDEFINED;
 
         // Tension test type.
         pp_query_validate("type",type,{"uniaxial_stress_clamp","uniaxial_kolsky","uniaxial_stress","uniaxial_strain"});
