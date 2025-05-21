@@ -39,7 +39,6 @@
 
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
-#include "AMReX_GpuContainers.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "Numeric/Interpolator/Interpolator.H"
@@ -165,73 +164,6 @@ public:
     bool uniform = true;
 
     template<class U> friend Linear<U> operator * (const Set::Scalar alpha, const Linear<U> &b);
-
-
-    // struct OnDevice
-    // {
-    //     const T* data_ptr;
-    //     const Set::Scalar* interval_ptr;
-    //     int size;
-    //     bool uniform;
-
-    //     OnDevice(const OnDevice &from) = default;
-
-    //     OnDevice(
-    //         const std::vector<T> & data,
-    //         const std::vector<Set::Scalar> &interval,
-    //         bool a_uniform):
-    //         data_ptr(std::make_shared<amrex::Gpu::DeviceVector<T>>(data)),
-    //         interval_ptr(std::make_shared<amrex::Gpu::DeviceVector<T>>(interval)),
-    //         size(data.size()),
-    //         uniform(a_uniform)
-    //     {}
-
-    //     AMREX_GPU_HOST_DEVICE
-    //     T operator() (const Set::Scalar point) const
-    //     {
-    //         // If there is only one point stored, return it.
-    //         if (size == 1) return data_ptr[0];
-
-    //         // Do this if point is below interpolation range
-    //         if(point < interval_ptr[0])
-    //         {
-    //             return data_ptr[0];
-    //         }
-
-    //         Set::Scalar interval = interval_ptr[1]-interval_ptr[0];
-    //         int start = 0;
-    //         if (uniform)
-    //         {
-    //             start = (int)( (point - interval_ptr[0]) / interval);
-    //             start -= 1;
-    //             start = std::max(start,0);
-    //             start = std::min(start,(int)(size-2));
-    //         }
-
-    //         // Do this if point is within interpolation range
-    //         for (unsigned int i = start; i<size-1; i++)
-    //         {
-    //             if (interval_ptr[i] <= point && point <= interval_ptr[i+1])
-    //             {
-    //                 return data_ptr[i] +
-    //                     (point - interval_ptr[i]) * (data_ptr[i+1] - data_ptr[i]) /
-    //                     (interval_ptr[i+1] - interval_ptr[i]);
-
-    //             }
-    //         }
-
-    //         // Otherwise point must be outside interpolation range, so
-    //         // return the value for the highest point
-    //         return  data_ptr[size-1];
-    //     }
-    // };
-
-    // OnDevice ToDevice() const
-    // {
-    //     return OnDevice(data_points, interval_points, data_points.size(), uniform);
-    // }
-
-    
 };
 
 template<class T>
@@ -287,11 +219,6 @@ Linear<Set::Scalar> Linear<Set::Scalar>::Read(std::string filename, int derivati
     else Util::Abort(INFO,"derivative must be 0,1,2 but got ",derivative);
     exit(-1);
 }
-
-
-
-
-
 
 
 }

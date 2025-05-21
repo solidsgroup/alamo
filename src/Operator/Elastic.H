@@ -109,7 +109,7 @@ public:
     void SetUniform(bool a_uniform) {m_uniform = a_uniform;}
     virtual void SetAverageDownCoeffs(bool a_average_down_coeffs) override
     {m_average_down_coeffs = a_average_down_coeffs;}
-
+    
     using Operator::Reflux;
 
 protected:

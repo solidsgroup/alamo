@@ -111,3 +111,13 @@ jobs:
       run: make
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only
+  compile-24-04-gpu-cuda80:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: configure (2d)
+      run: ./configure --cuda
+    - name: make
+      run: make

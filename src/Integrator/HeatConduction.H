@@ -141,7 +141,6 @@ public:
             Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
 
-
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {

@@ -43,7 +43,7 @@
 #include <chrono>
 #include <ctime>
 #include <string>
-//#include <limits>
+#include <limits>
 #include <memory>
 
 #ifdef _OPENMP
@@ -260,9 +260,8 @@ protected:
         if (!dynamictimestep.on) return;
         if (!dynamictimestep.dt_limit_min.size())
         {
-            dynamictimestep.dt_limit_min.resize(max_level + 1,
-                                                1E100 // std::numeric_limits<Set::Scalar>::max()
-                );
+            dynamictimestep.dt_limit_min.resize(max_level+1,
+                                                std::numeric_limits<Set::Scalar>::max());
         }
         dynamictimestep.dt_limit_min[lev] = std::min(dt_min,
                                                     dynamictimestep.dt_limit_min[lev]);
@@ -292,7 +291,7 @@ protected:
                 timestep_average /= dynamictimestep.previous_timesteps.size();
             }
 
-            Set::Scalar new_timestep = 1E100; //std::numeric_limits<Set::Scalar>::max();
+            Set::Scalar new_timestep = std::numeric_limits<Set::Scalar>::max();
             for (int lev = 0; lev <= this->max_level; lev++)
             {
                 //const Set::Scalar* DX = this->geom[lev].CellSize();

@@ -211,4 +211,3 @@ public:
 };
 } // namespace Integrator
 #endif
-

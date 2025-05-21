@@ -53,7 +53,7 @@ public:
     AMREX_GPU_HOST_DEVICE Hexagonal() = default;
     AMREX_GPU_HOST_DEVICE Hexagonal(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
     AMREX_GPU_HOST_DEVICE virtual ~Hexagonal() = default;
-    
+
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {

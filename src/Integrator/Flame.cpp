@@ -616,15 +616,15 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
+    auto m_refinement_criterion = this->m_refinement_criterion;
+    auto t_refinement_restriction = this->t_refinement_restriction;
+
     // Eta criterion for refinement
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-
-        Set::Scalar m_refinement_criterion = this->m_refinement_criterion;
-        Set::Scalar t_refinement_restriction = this->t_refinement_restriction;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -636,13 +636,14 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     // Phi criterion for refinement 
     if (elastic.phirefinement) {
+        
+        auto phi_refinement_criterion = this->phi_refinement_criterion;
+
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
-
-            Set::Scalar phi_refinement_criterion = this->phi_refinement_criterion;
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -656,16 +657,16 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     // Thermal criterion for refinement 
     if (thermal.on) {
+
+        auto t_refinement_criterion = this->t_refinement_criterion;
+        auto t_refinement_restriction = this->t_refinement_restriction;
+
         for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<const Set::Scalar> const& temp = (*temp_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-
-            Set::Scalar t_refinement_criterion = this->t_refinement_criterion;
-            Set::Scalar t_refinement_restriction = this->t_refinement_restriction;
-
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
@@ -695,7 +696,6 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
     amrex::Array4<amrex::Real> const& mdot = (*mdot_mf[amrlev]).array(mfi);
-
     if (variable_pressure) {
         amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
         {

@@ -138,7 +138,7 @@ public:
         pp_query_default("tstart", value.tstart,-1.0);
     }
 
-protected:
+public:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
@@ -216,7 +216,7 @@ protected:
                 amrex::Array4<const Set::Vector> const& disp = disp_mf[lev]->array(mfi);
 
 
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)

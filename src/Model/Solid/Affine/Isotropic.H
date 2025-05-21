@@ -182,9 +182,8 @@ std::string Set::Field<Model::Solid::Affine::Isotropic>::Name(int i) const
 #endif
     return name;
 }
-template <>
+template<>
 ALAMO_SINGLE_DEFINITION
-AMREX_GPU_HOST
 void Set::Field<Model::Solid::Affine::Isotropic>::Copy(int a_lev, amrex::MultiFab& a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

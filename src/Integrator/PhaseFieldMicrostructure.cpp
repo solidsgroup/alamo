@@ -1,4 +1,3 @@
-#ifndef ALAMO_GPU
 
 #include <eigen3/Eigen/Eigenvalues>
 
@@ -7,6 +6,7 @@
 #include <AMReX_SPACE.H>
 
 #include "PhaseFieldMicrostructure.H"
+#include "AMReX_Loop.H"
 #include "Integrator/Base/Mechanics.H"
 #include "BC/Constant.H"
 #include "Set/Set.H"
@@ -40,16 +40,8 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
     
-    auto const number_of_grains = this->number_of_grains;
-    auto const pf = this->pf;
-    auto const anisotropic_kinetics = this->anisotropic_kinetics;
-    auto const anisotropy = this->anisotropy;
-    auto const lagrange = this->lagrange;
-    auto const sdf = this->sdf;
-    auto const fluctuation = this->fluctuation;
-    auto const disconnection = this->disconnection;
 
-    Set::Scalar df_max = 1E100; //std::numeric_limits<Set::Scalar>::min();
+    Set::Scalar df_max = std::numeric_limits<Set::Scalar>::min();
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
@@ -64,7 +56,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         Set::Patch<const Set::Matrix> sigma = stress_mf.Patch(lev,mfi); 
         Set::Patch<const Set::Vector> disp  = this->disp_mf.Patch(lev,mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Matrix sig = Set::Matrix::Zero();
             if (pf.elastic_df) sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
@@ -95,9 +87,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     kappa = pf.l_gb * 0.75 * pf.sigma0;
                     mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
                     if (pf.threshold.boundary)  driving_force_threshold += -kappa * laplacian;
-                    else
-                        driving_force += -kappa * laplacian;
-    
+                    else                        driving_force += -kappa * laplacian;
                 }
                 else
                 {
@@ -146,7 +136,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 if (sdf.on && time > sdf.tstart)
                 {
                     if (pf.threshold.sdf)
-                        driving_force_threshold += sdf_val[m];
+                        driving_force_threshold += sdf.val[m](time);
                     else
                         driving_force += sdf.val[m](time);
                 }
@@ -326,10 +316,8 @@ void PhaseFieldMicrostructure<model_type>::TagCellsForRefinement(int lev, amrex:
         amrex::Array4<const amrex::Real> const& etanew = (*eta_mf[lev]).array(mfi);
         amrex::Array4<char> const& tags = a_tags.array(mfi);
 
-        auto ref_threshold = this->ref_threshold;
-
         for (int n = 0; n < number_of_grains; n++)
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
             Set::Vector grad = Numeric::Gradient(etanew, i, j, k, n, DX);
 
             if (dxnorm * grad.lpNorm<2>() > ref_threshold)
@@ -363,10 +351,6 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
 
             amrex::Array4<model_type> const& model = this->model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
-
-            auto number_of_grains = this->number_of_grains;
-            auto mechanics = this->mechanics;
-            auto shearcouple = this->shearcouple;
 
             amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
@@ -419,6 +403,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
 
         Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
     }
+
 }
 
 template<class model_type>
@@ -459,6 +444,9 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
 
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
     amrex::LoopConcurrentOnCpu(box, [=](int i, int j, int k) {
+#if AMREX_SPACEDIM == 2
+        auto sten = Numeric::GetStencil(i, j, k, box);
+#endif
 
         volume += eta(i, j, k, 0) * dv;
 
@@ -507,5 +495,3 @@ template class PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubi
 
 
 } // namespace Integrator
-
-#endif

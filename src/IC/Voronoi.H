@@ -55,27 +55,24 @@ public:
         }
 
         alpha_device.resize(number_of_grains);
-        amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice,
-                              alpha.begin(), alpha.end(), alpha_device.begin());
+        amrex::Gpu::copyAsync(  amrex::Gpu::hostToDevice,
+                                alpha.begin(), alpha.end(), alpha_device.begin());
         alpha_ptr = alpha_device.data();
         
+        #ifdef ALAMO_GPU
         voronoi_ptr = static_cast<Set::Vector*>(amrex::The_Device_Arena()->alloc(number_of_grains * sizeof(Set::Vector)));
-
-        //amrex::Gpu::copy(amrex::Gpu::hostToDevice, voronoi.begin(), voronoi.end(), voronoi_ptr);
-
         amrex::Gpu::htod_memcpy(voronoi_ptr, voronoi.data(), number_of_grains*sizeof(Set::Vector));
-        //voronoi_device.resize(number_of_grains);
-        //amrex::Gpu::copyAsync(amrex::Gpu::hostToDevice,
-        //                      voronoi.begin(), voronoi.end(), voronoi_device.begin());
-        //voronoi_ptr = voronoi_device.data();
+#else
+        voronoi_ptr = voronoi.data();
+#endif
     };
     
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Set::Vector size;
-        AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
-                     size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
-                     size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
+        AMREX_D_TERM(   size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
+                        size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
+                        size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
 
         const Set::Vector problo(geom[lev].ProbLo());
         const Set::Vector cellsize(geom[lev].CellSize());
@@ -95,9 +92,9 @@ public:
             {
 
                 Set::Vector x;
-                AMREX_D_TERM(x(0) = problo(0) + ((Set::Scalar)(i) + 0.5) * cellsize(0);,
-                             x(1) = problo(1) + ((Set::Scalar)(j) + 0.5) * cellsize(1);,
-                             x(2) = problo(2) + ((Set::Scalar)(k) + 0.5) * cellsize(2););
+                AMREX_D_TERM(   x(0) = problo(0) + ((Set::Scalar)(i) + 0.5) * cellsize(0);,
+                                x(1) = problo(1) + ((Set::Scalar)(j) + 0.5) * cellsize(1);,
+                                x(2) = problo(2) + ((Set::Scalar)(k) + 0.5) * cellsize(2););
                             
                 Set::Scalar min_distance = 1E100; //std::numeric_limits<amrex::Real>::infinity();
                 int min_grain_id = -1;
@@ -108,9 +105,9 @@ public:
 
                     if (periodic[0])
                         {
-                            d = std::min(d,
-                                        std::min( (x-voronoi_ptr[n] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-                                                    (x-voronoi_ptr[n] - size(0)*Set::Vector::Unit(0)).lpNorm<2>()));
+                            d = std::min(   d,
+                                            std::min(   (x-voronoi_ptr[n] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+                                                        (x-voronoi_ptr[n] - size(0)*Set::Vector::Unit(0)).lpNorm<2>()));
                         }
 #if AMREX_SPACEDIM>1
                     if (periodic[1])
@@ -163,7 +160,6 @@ private:
     std::vector<Set::Vector> voronoi;
 
     amrex::Gpu::DeviceVector<Set::Scalar> alpha_device;
-    //amrex::Gpu::DeviceVector<Set::Vector> voronoi_device;
     
     Set::Scalar *alpha_ptr;
     Set::Vector* voronoi_ptr;

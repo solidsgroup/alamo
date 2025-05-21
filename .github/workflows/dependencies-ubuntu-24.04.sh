@@ -38,3 +38,5 @@ sudo apt install python3-clang
 sudo apt install npm
 npm install -g eclint
 
+# Needed to compile for nvidia gpu
+sudo apt install nvidia-cuda-toolkit

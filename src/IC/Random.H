@@ -14,7 +14,6 @@
 #include "Util/Util.H"
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
-#include "amrex/3d-cuda80-g++-25.04/include/AMReX_GpuDevice.H"
 
 namespace IC
 {
