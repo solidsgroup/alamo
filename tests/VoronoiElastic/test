@@ -15,7 +15,9 @@ testlib.validate(path="{}/00200cell/".format(outdir),
                  end=[5.0,2.5,0],
                  vars=["Eta001","disp_x","stress_xx"],
                  tolerance=tolerance,
-                 reference="reference/reference.csv")
+                 reference="reference/reference.csv",
+                 generate_ref_data = False,
+                 )
 
 exit(0)
 
