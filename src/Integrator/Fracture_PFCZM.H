@@ -178,6 +178,7 @@ public:
             material.eta_mf[lev]->setVal(1.0);
 
         // set history variable to zero
+        crack.energy_pristine_mf[lev]->setVal(0.0);
         crack.history_var_mf[lev]->setVal(0.0);
     }
 
@@ -386,6 +387,8 @@ public:
                             Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
                             Set::Scalar beta_bar = crack.cracktype[0].beta_bar();
                             Set::Scalar beta = 1.0;
+                            Set::Scalar irwing_length = crack.cracktype[0].l_w();
+                            Set::Scalar c_alpha = crack.cracktype[0].c_alpha();
 
                             // Now let's compute a candidate theta
                             // Ideally, theta = 0 is always a valid solution and corresponds to sig_nn = sig1, tau_nm = 0
@@ -397,8 +400,8 @@ public:
                             // Now we check for other feasible solutions. First we check for beta = 1.
                             Set::Scalar sig_nn1 = 0., tau_nm1 = 0.;
                             Set::Scalar theta_candidate1 = 0.0, f_candidate1 = 0.;
-                            Set::Scalar temp = (mohr_center / mohr_radius) * (chi * chi / (1.0 - (chi * chi)));
-                            if (temp > 0.0 && temp <= 1.0)
+                            Set::Scalar temp = std::abs((mohr_center / mohr_radius) * (chi * chi / (1.0 - (chi * chi))));
+                            if (temp >= 0.0 && temp <= 1.0)
                             {
                                 theta_candidate1 = 0.5 * std::acos(temp);
 
@@ -406,7 +409,7 @@ public:
                                 sig_nn1 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate1));
                                 tau_nm1 = mohr_radius * std::sin(2.0 * theta_candidate1);
 
-                                if (sig_nn1 > 0.0)
+                                if (sig_nn1 >= 0.0)
                                 {
                                     f_candidate1 = (crack.el_mult * crack.el_mult * sig_nn1 * sig_nn1 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm1 * tau_nm1 / (tau_f * tau_f)) - 1.0;
 
@@ -423,8 +426,8 @@ public:
                             // Now we check for the third feasible solution for beta = beta_bar.
                             Set::Scalar sig_nn2 = 0., tau_nm2 = 0.;
                             Set::Scalar theta_candidate2 = 0.0, f_candidate2 = 0.;
-                            temp = (mohr_center / mohr_radius) * (beta_bar * chi * chi / (1.0 - (beta_bar * chi * chi)));
-                            if (temp > 0.0 && temp <= 1.0)
+                            temp = std::abs((mohr_center / mohr_radius) * (beta_bar * chi * chi / (1.0 - (beta_bar * chi * chi))));
+                            if (temp >= 0.0 && temp <= 1.0)
                             {
                                 theta_candidate2 = 0.5 * std::acos(temp);
 
@@ -434,7 +437,7 @@ public:
                                 sig_nn2 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate2));
                                 tau_nm2 = mohr_radius * std::sin(2.0 * theta_candidate2);
 
-                                if (sig_nn2 < 0.0)
+                                if (sig_nn2 <= 0.0)
                                 {
                                     f_candidate2 = (beta_bar * crack.el_mult * crack.el_mult * sig_nn2 * sig_nn2 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm2 * tau_nm2 / (tau_f * tau_f)) - 1.0;
 
@@ -448,36 +451,23 @@ public:
                                 }
                             }
 
-                            // Let's try to calculate Delta sigma and Delta tau
-                            Set::Scalar sig_excess = 0.0;
-                            Set::Scalar tau_excess = 0.0;
-                            Set::Scalar sig_nn = mohr_center + (mohr_radius * std::cos(2.0 * theta));
-                            Set::Scalar tau_nm = mohr_radius * std::sin(2.0 * theta);
+                            // Set::Scalar sig_nn = 0, tau_nm = 0;
+                            // if (f_theta > 0)
+                            // {
+                            //     sig_nn = std::max(0.0, mohr_center + (mohr_radius * std::cos(2.0 * theta)));
+                            //     tau_nm = mohr_radius * std::sin(2.0 * theta);
 
-                            if (f_theta > 0.0)
-                            {
-                                Set::Scalar denominator = 2.0 * ((beta * beta * crack.el_mult * crack.el_mult * sig_nn * sig_nn / (sig_t * sig_t * sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm * tau_nm / (tau_f * tau_f * tau_f * tau_f)));
-                                sig_excess = (f_theta)*beta * sig_nn / (sig_t * sig_t * denominator);
-                                tau_excess = (f_theta)*tau_nm / (tau_f * tau_f * denominator);
+                            //     sig_nn *= crack.el_mult;
+                            //     tau_nm *= crack.el_mult;
+                            // }
 
-                                // Util::Message(INFO, "f_candidate1 = ", f_candidate1, ", theta_cand1 = ", theta_candidate1, ", sig_nn1 = ", sig_nn1, ", tau_nm1 = ", tau_nm1);
-                                // Util::Message(INFO, "f_candidate2 = ", f_candidate2, ", theta_cand2 = ", theta_candidate2, ", sig_nn2 = ", sig_nn2, ", tau_nm2 = ", tau_nm2);
-                                // Util::Message(INFO, "f_theta = ", f_theta, ", beta = ", beta, ", theta = ", theta, ", signn = ", sig_nn, ", sig_excess = ", sig_excess, ", tau_excess = ", tau_excess);
-                                // Util::Message(INFO, "mohr_center = ", mohr_center, ", mohr_radius = ", mohr_radius);
-                                // Util::Message(INFO, " ");
-                            }
+                            // Set::Scalar psi_1 = 0.5 * sig_nn * sig_nn / (crack.el_mult * material.models[0].DDW(Set::Matrix::Zero()).Youngs());
+                            // Set::Scalar psi_2 = 0.5 * tau_nm * tau_nm / (crack.el_mult * material.models[0].DDW(Set::Matrix::Zero()).Mu());
+                            // energy(i, j, k, 0) = psi_1 / crack.cracktype[0].GcI_bar();
+                            // energy(i, j, k, 1) = psi_2 / crack.cracktype[0].GcII_bar();
 
-                            // sig_excess = sig_excess > 0 ? sig_excess : 0.0;
-                            // tau_excess = tau_excess > 0 ? tau_excess : 0.0;
-
-                            // Now we compute the energy
-                            // Util::Message(INFO, "E = ", material.models[0].DDW(Set::Matrix::Zero()).Youngs(), ", Mu = ", material.models[0].DDW(Set::Matrix::Zero()).Mu());
-                            Set::Scalar psi_1 = 0.5 * sig_excess * sig_excess / (material.models[0].DDW(Set::Matrix::Zero()).Youngs());
-                            Set::Scalar psi_2 = 0.5 * tau_excess * tau_excess / (material.models[0].DDW(Set::Matrix::Zero()).Mu());
-
-                            // Next, we compute the energy
-                            energy(i, j, k, 0) = psi_1 / crack.cracktype[0].GcI_bar();
-                            energy(i, j, k, 1) = psi_2 / crack.cracktype[0].GcII_bar();
+                            energy(i,j,k,0) = (f_theta > 0) ? (c_alpha / (2.0 * irwing_length)) * ((f_theta)) : 0.0;
+                            energy(i,j,k,1) = 0.0;
 
                             if (energy(i, j, k, 0) + energy(i, j, k, 1) > history_var(i, j, k, 0) + history_var(i, j, k, 1))
                             {
@@ -592,7 +582,7 @@ public:
                     }
                     else
                     {
-                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * crack.el_mult * (energy(i, j, k, 0) + energy(i, j, k, 1));
+                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)); // * crack.el_mult;
                     }
                     rhs += df(i, j, k, 0);
 

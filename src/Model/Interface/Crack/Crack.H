@@ -16,7 +16,7 @@ namespace Crack
 class Crack
 {
     public:
-    enum GType  {GSQUARE, GMULTIWELL, GPHI4C3, GCUBICM, GSQUAREP, GSQUAREPM, GWULINEAR, GAIEXP};
+    enum GType  {GSQUARE, GMULTIWELL, GPHI4C3, GCUBICM, GSQUAREP, GSQUAREPM, GWULINEAR};
     enum G2Type {G2WULINEAR};
     enum WType  {WSQUARE, WMULTIWELL, WMULTIWELL2, WPHI4C3, WU};
     
@@ -65,10 +65,6 @@ class Crack
                                     // phi /= std::pow(c, m_pf_czm_order+1);
                                     // return 1.0 / (1.0 + phi);
                                 }
-            case GAIEXP:      {
-                                    Set::Scalar d = 1.0 - c;
-                                    return std::exp(-2.0 * m_pf_czm_a0 * d);
-                                }
             default:            return c*c;
         }
     }
@@ -115,11 +111,6 @@ class Crack
                                     Set::Scalar dQ_c = (-2.0*m_pf_czm_a0) + (2.0*m_pf_czm_a0*d);
                                     Set::Scalar Q_c = (2.0*m_pf_czm_a0*d) - (m_pf_czm_a0*d*d);
                                     return (2.0*c*Q_c - c*c*dQ_c) / ((c*c + Q_c)*(c*c + Q_c));
-                                }
-
-            case GAIEXP:      {
-                                    Set::Scalar d = 1.0 - c;
-                                    return (-1.0) * (-2.0 * m_pf_czm_a0) * std::exp(-2.0 * m_pf_czm_a0 * d);
                                 }
 
             default:             return 2*c;

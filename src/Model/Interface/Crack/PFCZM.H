@@ -25,6 +25,7 @@ public:
     // For the optimal function chosen in Wu 2024, $C_\alpha = \pi$ 
     Set::Scalar Gc (Set::Scalar ratio) { return _Gc / _c_alpha; }
     Set::Scalar c_alpha () { return _c_alpha; }
+    Set::Scalar l_w() { return _l_w; }
 
     // added functions for mixed mode
     Set::Scalar GcI_bar () {return _GcI_bar / _c_alpha; }
@@ -49,6 +50,7 @@ public:
 private:
     Set::Scalar _Gc = 1.0e3; 
     Set::Scalar _c_alpha = pi; // scaling factor.
+    Set::Scalar _l_w = 1.e-5; //irwing length
     Set::Scalar zeta = 1.e-5;
     Set::Scalar mobility = 1.e-2;
     Set::Scalar threshold = 0.0;
@@ -149,6 +151,7 @@ public:
         Set::Scalar irwing_length = youngs * value._Gc / (fracture_strength * fracture_strength);
         value.czm_a0 = 4.0 * irwing_length / (pi * value.zeta);
         Util::Message(INFO, "irwing_length = ", irwing_length, ", a0 = ", value.czm_a0);
+        value._l_w = irwing_length;
 
         if (value.zeta > 0.33 * irwing_length) Util::Warning(INFO, "Zeta value is greater than irwing length. Consider reducing it.");
 
@@ -157,12 +160,11 @@ public:
 
         std::string gtype = "";
         std::string wtype = "";
-        pp.query_validate("gtype", gtype, {"wu_linear", "ai_exp"}); // degradation function. For now, we only have linear softening
+        pp.query_validate("gtype", gtype, {"wu_linear"}); // degradation function. For now, we only have linear softening
         pp.query_validate("wtype", wtype, {"wu"}); // geometric function. no choice except for the optimal one for now.
         
         std::map<std::string,Model::Interface::Crack::Crack::GType>  g_map;
         g_map["wu_linear"] = Model::Interface::Crack::Crack::GType::GWULINEAR;
-        g_map["ai_exp"] = Model::Interface::Crack::Crack::GType::GAIEXP;
         
         std::map<std::string,Model::Interface::Crack::Crack::WType>  w_map;
         w_map["wu"] = Model::Interface::Crack::Crack::WType::WU;
