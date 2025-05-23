@@ -1,4 +1,5 @@
 #include "Set.H"
+#include "AMReX_ParallelDescriptor.H"
 #include <random>
 namespace Set
 {
@@ -6,9 +7,21 @@ namespace Set
 
 namespace Util
 {
-Set::Scalar Random()
+Set::Scalar Random(bool sync)
 {
-    return ((Set::Scalar) rand()) / ((Set::Scalar) RAND_MAX);
+    if (sync)
+    {
+        Set::Scalar ret = NAN;
+
+        if (amrex::ParallelDescriptor::IOProcessor())
+        {
+            ret = amrex::Random();
+        }
+        amrex::ParallelDescriptor::Bcast(&ret, 1);
+        return ret;
+    }
+
+    return amrex::Random();
 }
 Set::Scalar Gaussian(amrex::Real mean,amrex::Real std_deviation)
 {

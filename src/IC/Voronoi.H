@@ -46,12 +46,12 @@ public:
         type = a_type;
 
         voronoi.resize(number_of_grains);
-        srand(seed);
+
         for (int n = 0; n<number_of_grains; n++)
         {
-            AMREX_D_TERM(voronoi[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
-                        voronoi[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-                        voronoi[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+            AMREX_D_TERM(voronoi[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random(true);,
+                        voronoi[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random(true);,
+                        voronoi[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(true););
         }
 
         alpha_device.resize(number_of_grains);
@@ -59,7 +59,7 @@ public:
                                 alpha.begin(), alpha.end(), alpha_device.begin());
         alpha_ptr = alpha_device.data();
         
-        #ifdef ALAMO_GPU
+#ifdef ALAMO_GPU
         voronoi_ptr = static_cast<Set::Vector*>(amrex::The_Device_Arena()->alloc(number_of_grains * sizeof(Set::Vector)));
         amrex::Gpu::htod_memcpy(voronoi_ptr, voronoi.data(), number_of_grains*sizeof(Set::Vector));
 #else

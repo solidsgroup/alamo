@@ -1,6 +1,8 @@
 #ifndef UTIL_MPI_H
 #define UTIL_MPI_H
 
+#include "AMReX_ParallelReduce.H"
+
 namespace Util
 {
 namespace MPI
