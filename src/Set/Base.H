@@ -180,6 +180,7 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
 }
 
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Vector Normal(  AMREX_D_DECL(bool xmin,bool ymin, bool zmin),
                 AMREX_D_DECL(bool xmax,bool ymax, bool zmax))
 {
