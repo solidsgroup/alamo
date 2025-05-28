@@ -72,53 +72,9 @@ solver.nriters = 1
 solver.max_iter = 50
 
 ### UNIAXIAL TENSION ###
-bc.type = constant
+bc.type = tensiontest
+bc.tensiontest.type=uniaxial_strain
+bc.tensiontest.disp=0.001
 
-### --- Faces
-bc.constant.type.xlo = disp trac trac
-bc.constant.type.xhi = disp trac trac
-bc.constant.val.xhi = 0.1 0.0 0.0
-bc.constant.type.ylo = trac disp trac
-bc.constant.type.yhi = trac trac trac
-bc.constant.type.zlo = trac trac disp
-bc.constant.type.zhi = trac trac trac
-
-### --- Edges
-###     XY edges
-bc.constant.type.xloylo = disp trac trac
-bc.constant.type.xloyhi = disp trac trac
-bc.constant.type.xhiylo = disp trac trac
-bc.constant.type.xhiyhi = disp trac trac
-bc.constant.val.xhiylo = 0.1 0.0 0.0
-bc.constant.val.xhiyhi = 0.1 0.0 0.0
-###     ZX edges
-bc.constant.type.zloxlo = disp trac trac
-bc.constant.type.zhixlo = disp trac trac
-bc.constant.type.zloxhi = disp trac trac
-bc.constant.type.zhixhi = disp trac trac
-bc.constant.val.zloxhi = 0.1 0.0 0.0
-bc.constant.val.zhixhi = 0.1 0.0 0.0
-###     YZ edges
-bc.constant.type.ylozlo = trac disp disp
-bc.constant.type.ylozhi = trac disp trac
-bc.constant.type.yhizlo = trac trac disp
-bc.constant.type.yhizhi = trac trac trac
-
-
-### --- Corners
-###     on xmin face
-bc.constant.type.xloylozlo = disp disp disp
-bc.constant.type.xloylozhi = disp disp trac
-bc.constant.type.xloyhizlo = disp trac disp
-bc.constant.type.xloyhizhi = disp trac trac
-###     on xmax face
-bc.constant.type.xhiylozlo = disp disp disp
-bc.constant.val.xhiylozlo = 0.1 0.0 0.0
-bc.constant.type.xhiylozhi = disp disp trac
-bc.constant.val.xhiylozhi = 0.1 0.0 0.0
-bc.constant.type.xhiyhizlo = disp trac disp
-bc.constant.val.xhiyhizlo = 0.1 0.0 0.0
-bc.constant.type.xhiyhizhi = disp trac trac
-bc.constant.val.xhiyhizhi = 0.1 0.0 0.0
 
 

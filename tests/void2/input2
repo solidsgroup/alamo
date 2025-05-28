@@ -1,0 +1,133 @@
+alamo.program               = voidpf2
+alamo.program.mechanics.model = linear.cubic
+plot_file		    = tests/void2/output
+
+mechanics.type=dynamic
+
+timestep		    = 0.001
+stop_time		    =0.1
+
+# amr parameters
+amr.plot_int		    = 1
+amr.max_level		    = 1
+amr.n_cell		    = 128 128 128
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 1
+amr.grid_eff		    = 1.0
+amr.node.all = 1
+
+# geometry
+#geometry.prob_lo	    = -0.0001500 -0.0001500 0.0  
+#geometry.prob_hi	    = 0.0001500 0.0001500 0.0
+#geometry.is_periodic	    = 0 0 0
+
+# geometry
+geometry.prob_lo	    = -1.5 -1.5 0.0  
+geometry.prob_hi	    = 1.5 1.5 0.0
+geometry.is_periodic	    = 0 0 0
+
+#ic.type         = bmp
+#ic.bmp.filename = tests/void2/ebsd_blur.bmp
+#ic.bmp.fit      = fitwidth
+#ic.bmp.channel  = g
+
+euler.ic.type         = eulerangles
+euler.ic.eulerangles.filename = tests/void2/micrograph.png
+#euler.ic.eulerangles.filename = tests/void2/quaternion.png
+euler.ic.eulerangles.fit      = fitwidth
+
+
+heatmap.ic.type         = hm
+heatmap.ic.hm.filename = tests/void2/heatmap.png
+heatmap.ic.hm.fit      = fitwidth
+
+
+#quat.ic.type         = quaternions
+#quat.ic.quaternions.filename = tests/void2/heatmap.bmp
+#quat.ic.quaternions.fit      = fitwidth
+
+
+
+#the below three lines are only used along with psread.h
+spall.ic.type = psread
+spall.ic.psread.filename = tests/void2/nucleation.txt
+spall.ic.psread.eps = 0.01
+
+
+
+C11             = 260.2
+C12             = 154.5
+C44             = 82.6
+
+mechanics.viscous.mu_dashpot = 0.1
+mechanics.viscous.mu_newton = 0.0075
+
+#mechanics.interval = 1
+mechanics.tstart = 0.0
+
+#mechanics.solver.verbose = 3
+#mechanics.solver.nriters = 1
+#mechanics.solver.fixed_iter=100
+#mechanics.solver.tol_abs = 1E-16
+#mechanics.solver.bottom_solver =  smoother
+
+
+d.bc.constant.type.xlo = neumann
+d.bc.constant.type.xhi = neumann
+d.bc.constant.type.ylo = neumann
+d.bc.constant.type.yhi = neumann
+
+d.bc.constant.val.xlo = 0.0
+d.bc.constant.val.xhi = 0.0
+d.bc.constant.val.ylo = 0.0
+d.bc.constant.val.yhi = 0.0
+
+
+mechanics.bc.type = expression
+
+#bc
+mechanics.bc.expression.type.xlo     = trac trac disp
+mechanics.bc.expression.type.xloyhi  = trac disp trac
+mechanics.bc.expression.type.xloylo  = trac disp trac
+mechanics.bc.expression.type.xhi     = trac trac disp
+mechanics.bc.expression.type.xhiyhi  = trac disp trac
+mechanics.bc.expression.type.xhiylo  = trac disp trac
+mechanics.bc.expression.type.ylo     = trac disp trac
+mechanics.bc.expression.type.yhi     = trac disp trac 
+mechanics.bc.expression.val.xlo    = "1.0*(t<4)"  "0"
+mechanics.bc.expression.val.xloylo = "1.0*(t<4)"  "0"
+mechanics.bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+mechanics.print_model = 1
+elastic.interval = 10
+
+time_evolving = 0
+
+# current values which are not working!
+#eta_ref_threshold = 0.005
+#spall.M = 1.0
+#spall.kappa = -0.0005
+#spall.po = 1.0
+#spall.cp = 1.0
+#spall.elastic_mult = -2.0
+#spall.small = 0.1
+
+eta_ref_threshold = 0.005
+spall.M = 1.0
+spall.kappa = -0.0005
+spall.po = 6.0
+spall.cp = 10.0
+spall.elastic_mult = -1
+spall.small = 0.1
+
+
+#eta_ref_threshold = 0.005
+#spall.M = 1.0
+#spall.kappa = -0.0005
+#spall.po = 6.0
+#spall.cp = 10.0
+#spall.elastic_mult = -2.0
+#spall.small = 0.1
+
+nucleation.kb = 1.0
+nucleation.T = 300
+nucleation.threshold = 0.98

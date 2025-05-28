@@ -73,7 +73,7 @@ public:
         value.RegisterNewFab(value.d_mf, value.bc_d, 1, 3, "d",true);
         value.RegisterNewFab(value.d_old_mf, value.bc_d,  1, 3,"dold",false);
         value.RegisterNewFab(value.p_mf, value.bc_p, 1, 3, "p",true);
-         value.RegisterNewFab(value.pr_mf, value.bc_pr, 1, 3, "pr",true);
+        value.RegisterNewFab(value.pr_mf, value.bc_pr, 1, 3, "pr",true);
                 
         
         
@@ -213,7 +213,7 @@ public:
         // Track if nucleation happens
         bool nucleation_occurred = false;  // Flag to track nucleation
 
-        // **Step 1**: Store nucleation points temporarily
+        // store nucleation points temporarily
         std::vector<std::pair<Set::Scalar, Set::Scalar>> nucleation_points;  // Store (x, y) coordinates
 
 
@@ -221,7 +221,7 @@ public:
         
         if (a_step == 0)  // Only perform nucleation during the first time step
         {
-            // Step 1: Compute maximum strain energy (E_max)
+            //  Compute maximum strain energy (E_max)
             for (int lev = 0; lev <= finest_level; ++lev)
             {
                 amrex::Box domain = this->geom[lev].Domain();
@@ -254,7 +254,7 @@ public:
                 }
             }
 
-            // Step 2: Check for nucleation points and create voids
+            // Check for nucleation points and create voids
             for (int lev = 0; lev <= finest_level; ++lev)
             {
                 amrex::Box domain = this->geom[lev].Domain();
@@ -271,7 +271,7 @@ public:
                     amrex::Array4<Set::Scalar> const& dold = (*d_old_mf[lev]).array(mfi);
                     amrex::Array4<const Set::Scalar> const& heatmap = (*heatmap_mf[lev]).array(mfi);
 
-                    // Temporarily collect nucleation points from parallel for
+                    // Temporarily collect nucleation points 
                     amrex::ParallelFor(bx, [=, &dynamic_ic, &nucleation_occurred, E_max, &nucleation_points] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         // Initialize stress and strain matrices
@@ -308,10 +308,10 @@ public:
      
                             pr(i,j,k) = 1.0 - B;
 
-                            // Step 3: If nucleation probability exceeds the threshold, create a void
+                            // SIf nucleation probability exceeds the threshold, create a void
                             if (pr(i, j, k) > nucleation_threshold)
                             {
-                                // Step 4: Get the physical coordinates of the nucleation point
+                                // Get the physical coordinates of the nucleation point
                                 const Set::Scalar* prob_lo = geom[lev].ProbLo();
                                 Set::Scalar center_x = prob_lo[0] + (i + 0.5) * DX[0];
                                 Set::Scalar center_y = prob_lo[1] + (j + 0.5) * DX[1];
@@ -332,7 +332,7 @@ public:
                     });
                 }
 
-                // Step 6: Apply the nucleation points to the domain (after the parallel region)
+                //  Apply the nucleation points to the domain (after the parallel region)
                 dynamic_ic.Add(lev, d_mf, 1E-6);
                 //std::swap(d_old_mf[lev], d_mf[lev]);
                 Util::RealFillBoundary(*d_mf[lev], geom[lev]);
@@ -689,7 +689,7 @@ protected:
 
 
     struct {
-        //IC::IC *ic;
+        //IC::IC<Set::Scalar>* ic;
         Set::Scalar M = NAN;
         Set::Scalar kappa = NAN;
         Set::Scalar po = NAN;
