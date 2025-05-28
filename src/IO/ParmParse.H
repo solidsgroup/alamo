@@ -843,14 +843,18 @@ public:
     void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
     {
         int cnt = 0;
+        std::vector<std::string> read;
         for (unsigned int n = 0; n < names.size(); n++)
         {
             if (amrex::ParmParse::contains(names[n].c_str()))
             {
+                read.push_back(names[n]);
                 cnt++;
             }
         }
-        Util::Assert(INFO, TEST(cnt == N), "incorrect number of values specified");
+        Util::AssertException(  INFO, TEST(cnt == N), "incorrect number of values specified: only ", N,
+                                " values are allowed, but received ",Util::String::Join(read));
+
 
         cnt = 0;
         for (unsigned int n = 0; n < names.size(); n++)
