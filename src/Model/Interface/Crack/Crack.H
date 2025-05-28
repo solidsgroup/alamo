@@ -162,7 +162,7 @@ class Crack
         w_type = a_type;
     }
 
-    void SetG2Type (const G2Type a_type)
+    void SetG2Type (const G2Type /*a_type*/)
     {
 
     }

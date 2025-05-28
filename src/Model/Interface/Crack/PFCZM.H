@@ -18,12 +18,14 @@ namespace Crack
 class PFCZM : public Crack
 {
 public:
-    PFCZM(){};
+    PFCZM() = default;
+    virtual ~PFCZM() = default;
+
     // In Wu 2024 formulation, Gc is scaled by a constant C_alpha.
     // $C_\alpha = 4 \int_0^1 \sqrt{\alpha(\beta)} d\beta$
     // where $\alpha$ is the geometric function defined in the code as w_phi
     // For the optimal function chosen in Wu 2024, $C_\alpha = \pi$ 
-    Set::Scalar Gc (Set::Scalar ratio) { return _Gc / _c_alpha; }
+    Set::Scalar Gc (Set::Scalar /*ratio*/) { return _Gc / _c_alpha; }
     Set::Scalar c_alpha () { return _c_alpha; }
     Set::Scalar l_w() { return _l_w; }
 
@@ -65,7 +67,7 @@ private:
 
     Set::Scalar _chi = 1.0;
     Set::Scalar k1 = 1.0;
-    Set::Scalar k2 = 1.0;
+    // Set::Scalar k2 = 1.0; // not used
     Set::Scalar _beta_bar = -1.0;
 
     Set::Scalar _sig_t = 1.0;
@@ -86,7 +88,6 @@ public:
         Set::Scalar shear_strength = 1.41e8;
         Set::Scalar compressive_strength = 4.e8;
 
-        bool mixed_mode = false;
         // Toggle to determine mixed mode
         pp.query("mixed_mode", value._mixed_mode);
 

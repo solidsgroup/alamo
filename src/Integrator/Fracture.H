@@ -162,7 +162,7 @@ public:
 
         if (crack.is_ic)
         {
-            for (int i = 0; i < crack.ic.size(); i++)
+            for (unsigned int i = 0; i < crack.ic.size(); i++)
             {
                 // This initializes the crack field.
                 crack.ic[i]->Add(lev, crack.c_mf);
@@ -231,7 +231,7 @@ public:
     }
 
     void
-    TimeStepBegin(Set::Scalar a_time, int a_step) override
+    TimeStepBegin(Set::Scalar /*a_time*/, int a_step) override
     {
         // Deciding whether to do an elastic solve or not
         Util::Message(INFO, crack.driving_force_norm, " ", crack.driving_force_reference, " ", crack.driving_force_reference_prev, " ", crack.tol_rel);
@@ -392,7 +392,7 @@ public:
 
                             // Now let's compute a candidate theta
                             // Ideally, theta = 0 is always a valid solution and corresponds to sig_nn = sig1, tau_nm = 0
-                            Set::Scalar theta = 0.0;
+                            // Set::Scalar theta = 0.0; // removed because: set but not used
                             beta = sig1 < 0 ? beta_bar : 1.0;
                             Set::Scalar f_theta = (beta * (crack.el_mult * crack.el_mult * sig1 * sig1 / (sig_t * sig_t))) - 1;
                             // Set::Scalar r_star = sig1 - (sig_t/crack.el_mult);
@@ -416,7 +416,7 @@ public:
                                     // We only use this solution if the value of the failure surface is larger.
                                     if (f_candidate1 > f_theta)
                                     {
-                                        theta = theta_candidate1;
+                                        // theta = theta_candidate1; // removed because: set but not used
                                         f_theta = f_candidate1;
                                         beta = 1.0;
                                     }
@@ -431,7 +431,7 @@ public:
                             {
                                 theta_candidate2 = 0.5 * std::acos(temp);
 
-                                Set::Scalar theta_min = 0.5 * std::atan2(tau_f / crack.el_mult, (0.0 - mohr_center));
+                                // Set::Scalar theta_min = 0.5 * std::atan2(tau_f / crack.el_mult, (0.0 - mohr_center));
 
                                 // Now check if this actually leas to a negative sig_nn value
                                 sig_nn2 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate2));
@@ -444,7 +444,7 @@ public:
                                     // We only use this solution if the value of the failure surface is larger.
                                     if (f_candidate2 > f_theta)
                                     {
-                                        theta = theta_candidate2;
+                                        // theta = theta_candidate2; // removed because: set but not used
                                         f_theta = f_candidate2;
                                         beta = beta_bar;
                                     }
@@ -488,7 +488,7 @@ public:
     }
 
     void
-    Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt)
+    Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         // advance for crack field
         // Util::RealFillBoundary(*crack.c_old_mf[a_lev],geom[a_lev]);
@@ -575,7 +575,7 @@ public:
                         Gc *= (1.0 - _temp_product * (1. - crack.mult_Gc) / _temp_product2);
 
                     // =====================================================================
-                    Set::Scalar en_cell = energy(i, j, k, 0);
+                    // Set::Scalar en_cell = energy(i, j, k, 0); // set but not used
                     if (!crack.cracktype[0].mixed_mode())
                     {
                         df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)) * crack.el_mult / Gc;
@@ -685,8 +685,8 @@ public:
         Set::Vector DX(geom[amrlev].CellSize());
         const Set::Scalar DV = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
         amrex::Array4<const Set::Scalar> const &df = crack.driving_force_mf[amrlev]->array(mfi);
-        amrex::Array4<const Set::Scalar> const &c = crack.c_mf[amrlev]->array(mfi);
-        amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[amrlev]->array(mfi);
+        // amrex::Array4<const Set::Scalar> const &c = crack.c_mf[amrlev]->array(mfi); // not used
+        // amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[amrlev]->array(mfi); // not used
         amrex::ParallelFor(a_box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             crack.driving_force_norm += df(i, j, k, 4) * DV;
         });
@@ -695,7 +695,7 @@ public:
     }
 
     void
-    TimeStepComplete(Set::Scalar /*time*/, int /* iter*/)
+    TimeStepComplete(Set::Scalar /*time*/, int /* iter*/) override
     {
         if (elastic_do_solve_now)
             crack.driving_force_reference = crack.driving_force_norm;
