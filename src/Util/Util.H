@@ -336,7 +336,10 @@ void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
 
 void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);
 
-
+// Prevent compiler from complaining about unused variables
+template <class... Ts>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void IgnoreUnused (const Ts&...) {}
 
 
 }
