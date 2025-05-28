@@ -7,9 +7,6 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
 
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
@@ -28,7 +25,6 @@
 #include "Integrator/Flame.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
-#include "Integrator/Fracture_PFCZM.H"
 #include "Integrator/ThermoElastic.H"
 #include "Integrator/Dendrite.H"
 #include "Integrator/PFC.H"
@@ -41,7 +37,7 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     // This input determines which integrator is used.
     pp.query_validate(  "alamo.program", program,
-                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc","fracture","fracture_pfczm"});
+                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc","fracture"});
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
@@ -63,7 +59,6 @@ int main (int argc, char* argv[])
     else if (program == "flame")                pp.select_only<Integrator::Flame>(integrator);
     else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
     else if (program == "fracture")             pp.select_only<Integrator::Fracture>(integrator);
-    else if (program == "fracture_pfczm")       pp.select_only<Integrator::Fracture_PFCZM>(integrator);
     else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);

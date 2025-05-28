@@ -3,12 +3,12 @@
 #@ dim=2
 #@ args= stop_time=0.02
 
-alamo.program = fracture_pfczm
+alamo.program = fracture
 
 timestep = 5e-5
 stop_time = 0.6
 
-plot_file = tests/Fracture2DPFCZM/output
+plot_file = tests/FracturePFCZM/output
 amr.plot_int = 10
 amr.max_level = 4
 amr.n_cell = 128 128
@@ -42,15 +42,6 @@ crack.model1.gtype = wu_linear
 crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
 
-#crack.model2.G_c = 5.e2
-#crack.model2.fracture_strength = 3.16e7
-#crack.model2.E = 4.e11
-#crack.model2.zeta = 2.e-4
-#crack.model2.mobility = 5.0e-2
-#crack.model2.gtype = wu_linear
-#crack.model2.wtype = wu
-#crack.model2.threshold = 1.0 
-
 crack.ic.type = notch
 crack.ic.notch.center = -0.125 0
 crack.ic.notch.orientation = 1 0
@@ -65,21 +56,8 @@ crack.bc.type.xlo = NEUMANN
 crack.bc.type.yhi = NEUMANN
 crack.bc.type.ylo = NEUMANN
 
-#material.ic.type = expression
-#material.ic.expression.constant.eps = 0.001
-#material.ic.expression.region0 = "(0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
-#material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
-
-#material.ic.type = png
-#material.ic.png.filename = "A2_Blurred_Image.png"
-#material.ic.png.fit = "stretch"
-#material.ic.png.channel = b
-
-#material.model1.type = isotropic
 material.model1.E = 4.0    # inclusion
 material.model1.nu = 0.28
-#material.model1.E =4.0     # matrix
-#material.model1.nu = 0.28
 
 material.refinement_threshold = 100 #1.e-1
 
