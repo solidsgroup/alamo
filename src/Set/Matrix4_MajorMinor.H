@@ -162,7 +162,7 @@ public:
     }
 
 
-    static Matrix4<2,Sym::MajorMinor> Trans(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
         Set::Matrix4<2,Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};
@@ -210,19 +210,19 @@ public:
                     }
         return ret;
     }
-    static Matrix4<2,Sym::MajorMinor> Trans(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
         Eigen::Quaterniond q =
             Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         Eigen::Matrix3d R = q.toRotationMatrix();
-        return Matrix4<2,Sym::MajorMinor>::Trans(C11,C12,C13,C33,C44,R);
+        return Matrix4<2,Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,R);
     }
-    static Matrix4<2,Sym::MajorMinor> Trans(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Quaternion q)
+    static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Quaternion q)
     {
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
-        return Trans(C11,C12,C13,C33,C44,R);
+        return Transverse(C11,C12,C13,C33,C44,R);
     }
 
 
@@ -550,7 +550,7 @@ public:
         return Cubic(C11,C12,C44,R);
     }
 
-    static Matrix4<3,Sym::MajorMinor> Trans(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
         Set::Matrix4<3,Sym::MajorMinor> ret;
         Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};
@@ -598,19 +598,19 @@ public:
                     }
         return ret;
     }
-    static Matrix4<3,Sym::MajorMinor> Trans(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
         Eigen::Quaterniond q =
             Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
         Eigen::Matrix3d R = q.toRotationMatrix();
-        return Matrix4<3,Sym::MajorMinor>::Trans(C11,C12,C13,C33,C44,R);
+        return Matrix4<3,Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,R);
     }
     static Matrix4<3,Sym::MajorMinor> Trans(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Quaternion q)
     {
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
-        return Trans(C11,C12,C13,C33,C44,R);
+        return Transverse(C11,C12,C13,C33,C44,R);
     }
 
     friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);

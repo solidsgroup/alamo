@@ -109,7 +109,7 @@
 #@ exe=mechanics
 #@ dim = 3
 #@ check-file = reference/transverselyisotropic.dat
-#@ args = alamo.program.mechanics.model=linear.Transverse
+#@ args = alamo.program.mechanics.model=linear.transverse
 #@ args = model1.C11 = 168.3
 #@ args = model1.C12 = 1.221
 #@ args = model1.C13 = 1

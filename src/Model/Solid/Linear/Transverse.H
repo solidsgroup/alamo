@@ -1,3 +1,12 @@
+//
+// Transversely Isotropic Elasticity Model.
+// This file implements a transversely isotropic elasticity model for the materials that exhibit
+// isotropic behavior in a plane and a distinct response in the perpendicular direction.
+// The stiffness tensor is defined using elastic constants (C11, C12, C13, C33, C44) and an
+// orientation provided either by Bunge Euler angles (phi1, Phi, phi2) or a rotation matrix.
+// Reference: http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16
+//
+
 #ifndef MODEL_SOLID_LINEAR_TRANSVERSE_H_
 #define MODEL_SOLID_LINEAR_TRANSVERSE_H_
 
@@ -11,14 +20,7 @@ namespace Solid
 {
 namespace Linear
 {
-///
-/// Transversely Isotropic Elasticity Model.
-/// This file implements a transversely isotropic elasticity model for the materials that exhibit
-/// isotropic behavior in a plane and a distinct response in the perpendicular direction.
-/// The stiffness tensor is defined using elastic constants (C11, C12, C13, C33, C44) and an
-/// orientation provided either by Bunge Euler angles (phi1, Phi, phi2) or a rotation matrix.
-/// Reference: http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16
-///
+
 class Transverse : public Solid<Set::Sym::MajorMinor>
 {
 public:
@@ -30,14 +32,14 @@ public:
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
     {
-        ddw = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::MajorMinor>::Trans(
+        ddw = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::MajorMinor>::Transverse(
             C11, C12, C13, C33, C44, phi1, Phi, phi2);
     }
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
     {
-        ddw = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::MajorMinor>::Trans(
+        ddw = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::MajorMinor>::Transverse(
             C11, C12, C13, C33, C44, R);
     }
     Set::Scalar
