@@ -1,7 +1,7 @@
 #@ [2d-serial-notch]
 #@ exe=fracture
 #@ dim=2
-#@ args= stop_time=0.02
+#@ args= stop_time=0.1
 
 alamo.program = fracture
 
