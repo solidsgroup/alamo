@@ -13,6 +13,7 @@
 #include "Model/Solid/Linear/Isotropic.H"
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Linear/Laplacian.H"
+#include "Model/Solid/Linear/Transverse.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Finite/NeoHookean.H"
@@ -49,6 +50,7 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Linear::Isotropic);
     MODELTEST(Model::Solid::Linear::Cubic);
     MODELTEST(Model::Solid::Linear::Laplacian);
+    MODELTEST(Model::Solid::Linear::Transverse);
     MODELTEST(Model::Solid::Affine::Isotropic);
     MODELTEST(Model::Solid::Affine::Cubic);
     MODELTEST(Model::Solid::Linear::Hexagonal);
