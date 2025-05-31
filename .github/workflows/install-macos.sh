@@ -10,11 +10,11 @@ set -eu -o pipefail
 # [ you should only need to do this once ]
 #
 brew update
-brew install gcc || true
-brew install gfortran || true
-brew install mpich || true
-brew install eigen || true
-brew install libpng || true
+brew install --overwrite --force gcc || true
+brew install --overwrite --force gfortran || true
+brew install --overwrite --force mpich || true
+brew install --overwrite --force eigen || true
+brew install --overwrite --force libpng || true
 
 
 #
@@ -42,6 +42,7 @@ export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/inclu
 #
 # [ you need to include these arguments every time you configure ]
 #
+
 ./configure --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
 
 #
