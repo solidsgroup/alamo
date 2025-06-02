@@ -90,6 +90,7 @@ public:
         }
         a_field[lev]->FillBoundary();
 #else
+        Util::IgnoreUnused(lev,a_field);
         Util::Abort(INFO,"PNG is disabled");
 #endif
         

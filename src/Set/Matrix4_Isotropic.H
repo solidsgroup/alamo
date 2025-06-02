@@ -74,6 +74,16 @@ public:
         return mu;
     }
     AMREX_GPU_HOST_DEVICE
+    Set::Scalar Youngs() const
+    {
+        return mu * ( 3.0*lambda + 2.0*mu ) / (lambda + mu);
+    }
+    AMREX_GPU_HOST_DEVICE
+    Set::Scalar Nu() const
+    {
+        return 0.5 * lambda / (lambda + mu);
+    }
+    AMREX_GPU_HOST_DEVICE
     static Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Zero()
     {
         Matrix4<AMREX_SPACEDIM,Sym::Isotropic> zero;
