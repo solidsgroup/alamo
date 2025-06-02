@@ -2,10 +2,10 @@ name: Install
 
 on:
   push:
-    branches: ["test/macos-base", "master","candidate","candidate-install"]
+    branches: ["development", "master","candidate","candidate-install"]
   pull_request:
     branches:
-    - test/macos-base
+    - development
 
 jobs:
   install-ubuntu-22-04:
