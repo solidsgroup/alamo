@@ -27,6 +27,8 @@ public:
     Flame();
     Flame(IO::ParmParse& pp);
 
+    static void Forbids(Flame& value, IO::ParmParse& pp);
+
     static void Parse(Flame& value, IO::ParmParse& pp);
 
     virtual ~Flame()
@@ -80,9 +82,8 @@ private:
     Set::Scalar zeta = NAN;
     Set::Scalar zeta_0 =NAN;
     Set::Scalar small = NAN;
-    Set::Scalar base_time = NAN;
     IC::IC<Set::Scalar>* ic_eta = nullptr;
-    int ghost_count = -1;
+    static const int ghost_count = 2;
     int homogeneousSystem = -1;
     bool plot_field = true;
     int variable_pressure = -1;
