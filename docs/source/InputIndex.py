@@ -73,6 +73,8 @@ class HTMLPrinter:
         self.f.close()
     def starttable(self):
         if not self.intable:
+            print(".. raw:: html",file=self.f)
+            print("\n\n",file=self.f)
             print(self.mypr,"<table class='api-inputs-table'>", file=self.f)
             print(self.mypr,f"<thead><tr>", file=self.f)
             print(self.mypr,f"<th>Input name</th>", file=self.f)
@@ -234,8 +236,12 @@ class HTMLPrinter:
         print(self.mypr,"  "*lev,f"</tbody>",file=self.f)
 
     def printtablename(self,inputname,lev):
-        sanitizedname = inputname.replace('<','&lt;').replace('>','&gt;')
-        print(self.mypr,"  "*lev,f"<h3> {sanitizedname}  </h3>", file=self.f)
+        sanitizedname = inputname.replace('<'," <") 
+        print("\n", file=self.f)
+        print(sanitizedname, file=self.f)
+        print("~"*len(sanitizedname), file=self.f)
+        print("\n\n",file=self.f)
+
 
 for exe in ["alamo","mechanics","hydro","sfi","thermoelastic","topop"]:
     try:
