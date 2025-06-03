@@ -24,5 +24,5 @@ SpaceBeforeParens: Custom
 SpaceBeforeParensOptions:
   BeforeNonEmptyParentheses: false
 ColumnLimit: 0
-AlwaysBreakAfterDefinitionReturnType: false
+BreakAfterReturnType: Automatic
 AccessModifierOffset: -4

@@ -18,10 +18,12 @@ public:
     {pp.queryclass(name, *this);}
     ~PNG()
     {
+#ifndef ALAMO_NOPNG
         for (int y = 0; y < png_height; y++) {
             free(row_pointers[y]);
         }
         free(row_pointers);
+#endif
     } 
 
     //enum Type {XYZ, XY, YZ, XZ};

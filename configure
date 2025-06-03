@@ -361,9 +361,11 @@ elif (args.eigen != ""):
 # MAC OS SUPPORT
 #
 if args.macos:
-    #f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
     f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
-#else:
+
+#
+# LINK LIBPNG
+#
 f.write("LIB += -lpng \n")
 
 #
