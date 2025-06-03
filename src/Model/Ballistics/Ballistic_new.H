@@ -17,7 +17,7 @@ public:
     {
         // Initialize constants and initial values
         DefineConstants();
-        pressure0=4.0;
+        pressure0=4.0;  
         dpdt.push_back(0.0);  // Initialize dp/dt as zero
     }
 
@@ -37,33 +37,39 @@ public:
         gamma = 1.4;    // Example value for the specific heat ratio
         At = 0.1;       // Example value for throat area (m^2)
         R = 287.0;        // Specific gas constant for air in J/(kg·K)
-        T0 = 300.0;       // Initial temperature in K
+        T0 = 300.0;       // Initial temperature
         volume = 1.0;   // Volume in cubic meters
     }
 
     // Function that computes dpdt using the mass flow rate (mdot)
     void Compute(Set::Scalar mdot, Set::Scalar dt)
-{
-    // Get the current pressure                
-    Set::Scalar current_p = pressure0;
-
-    // Calculate mass flow rates
-    Set::Scalar mdot_in = mdot;
+    {
+        // Get the current pressure                
+        Set::Scalar current_p = pressure0;
+        
+        std::cout << "current_p" << current_p << "\n";
     
-    Set::Scalar mdot_out = (current_p * At) / sqrt(gamma * R * T0);
-
-    // Compute dp/dt
-    Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
-
-    // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt
-    Set::Scalar new_p = current_p + current_dpdt * dt;
-
-    // Store the updated dp/dt and update chamber pressure
-    dpdt.push_back(current_dpdt);
-    pressure0 = new_p;
+        // Calculate mass flow rates
+        Set::Scalar mdot_in = mdot;
+        
+        std::cout << "mdot_in" << mdot_in << "\n";
+        
+        Set::Scalar mdot_out = (current_p * At) / sqrt(gamma * R * T0);
+        
+        std::cout << "mdot_out" << mdot_out << "\n";
+        
+        // Compute dp/dt
+        Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
+        
     
-}
-
+        // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt
+        Set::Scalar new_p = current_p + current_dpdt * dt;
+    
+        // Store the updated dp/dt and update chamber pressure
+        dpdt.push_back(current_dpdt);
+        pressure0 = new_p;
+        
+    }
 
     // Class members for chamber properties
     Set::Scalar pressure0=NAN;  // Chamber pressure
