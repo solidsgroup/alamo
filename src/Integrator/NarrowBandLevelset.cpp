@@ -5,7 +5,7 @@
 
 // Alamo Includes
 #include "IO/ParmParse.H"
-#include "Integrator/NarrowBandLevelset.H"
+#include "NarrowBandLevelset.H"
 
 // BC
 #include "BC/BC.H"
@@ -16,9 +16,9 @@
 #include "IC/Constant.H"
 #include "IC/LS/Sphere.H"
 #include "IC/LS/Zalesak.H"
-#include "NarrowBandLevelset.H"
 
-#include "Numeric/FluxHandler.H"
+// Numerc
+#include "Numeric/NarrowBandFluxHandler.H"
 #include "Numeric/TimeStepper.H"
 //#include "Util/NarrowBandLevelset_Util.H"
 
