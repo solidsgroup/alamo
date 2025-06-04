@@ -8,8 +8,8 @@
 #include <AMReX_Array4.H>
 #include "Set/Set.H"
 #include "Integrator/Integrator.H"
-#include "Integrator/NarrowBandLevelset.H"
-#include "Numeric/FluxHandler.H"
+#include "Integrator/NarrowBandLevelset.H"  // or whatever the correct path is
+#include "Numeric/NumericFactory.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 #include <memory>
@@ -17,8 +17,8 @@
 
 // Include foward declare for ScimitarX.H
 namespace Integrator {
-class ScimitarX;
-class NarrowBandLevelset;
+    class ScimitarX;
+    class NarrowBandLevelset;
 }
 
 namespace Numeric {
@@ -129,7 +129,7 @@ public:
 
 #if (AMREX_SPACEDIM == 3)
                     // Z-direction flux divergence
-                    flux_div += (zflux_arr(i, j, k, n) - zflux_arr(i, j, k - 1, n)) / DX[2];
+                    flux_div += (zflux_arr(i, j, k, n) - zflux_arr(i, j, k-1, n)) / DX[2];
 #endif
 
                     // Update conserved variable using Euler Forward step
@@ -256,9 +256,9 @@ class RK3Scheme : public TimeSteppingScheme<IntegratorDerivedClass> {
 public:
     struct RK3Constants {
         static constexpr int stages = 3;  // RK3 has 3 stages
-        static constexpr Set::Scalar a[] = { 1.0, 0.25, 2.0 / 3.0 };  // Coefficients
-        static constexpr Set::Scalar b[] = { 0.0, 0.75, 1.0 / 3.0 };
-        static constexpr Set::Scalar c[] = { 1.0, 0.25, 2.0 / 3.0 };
+        static constexpr Set::Scalar a[] = {1.0, 0.75, 1.0 / 3.0};  // Coefficients
+        static constexpr Set::Scalar b[] = {0.0, 0.25, 2.0 / 3.0};
+        static constexpr Set::Scalar c[] = {1.0, 0.25, 2.0 / 3.0};
     };
 
     void ComputeSubStep(int lev, Set::Scalar dt, int stage, IntegratorDerivedClass* solver) override {
@@ -268,7 +268,8 @@ public:
 
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
 
-        for (amrex::MFIter mfi(*solver->QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        //for (amrex::MFIter mfi(*solver->QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        for (amrex::MFIter mfi(*solver->QVec_mf[lev], false); mfi.isValid(); ++mfi) {
             const amrex::Box& bx = mfi.validbox();
             auto const& q_arr = solver->QVec_mf.Patch(lev, mfi);  // Updated conserved variables
             auto const& q_old_arr = solver->QVec_old_mf.Patch(lev, mfi);  // Old conserved variables
@@ -284,29 +285,25 @@ public:
                     Set::Scalar flux_div = 0.0;
                     Set::Scalar xflux_right = 0.0, xflux_left = 0.0;
                     Set::Scalar yflux_top = 0.0, yflux_bottom = 0.0;
+#if (AMREX_SPACEDIM == 3)
                     Set::Scalar zflux_front = 0.0, zflux_back = 0.0;
+#endif
 
                     // X-direction flux divergence
-                    if (solver->XFlux_mf[lev]) {
                         xflux_right = xflux_arr(i, j, k, n);  // Right face flux
-                        xflux_left = xflux_arr(i - 1, j, k, n);  // Left face flux
+                        xflux_left = xflux_arr(i-1, j, k, n);  // Left face flux
                         flux_div += (xflux_right - xflux_left) / DX[0];
-                    }
 
                     // Y-direction flux divergence (if 2D or 3D)
-                    if (solver->YFlux_mf[lev]) {
                         yflux_top = yflux_arr(i, j, k, n);  // Top face flux
-                        yflux_bottom = yflux_arr(i, j - 1, k, n);  // Bottom face flux
+                        yflux_bottom = yflux_arr(i, j-1, k, n);  // Bottom face flux
                         flux_div += (yflux_top - yflux_bottom) / DX[1];
-                    }
 
                     // Z-direction flux divergence (if 3D)
 #if (AMREX_SPACEDIM == 3)
-                    if (solver->ZFlux_mf[lev]) {
                         zflux_front = zflux_arr(i, j, k, n);  // Front face flux
-                        zflux_back = zflux_arr(i, j, k - 1, n);  // Back face flux
+                        zflux_back = zflux_arr(i, j, k-1, n);  // Back face flux
                         flux_div += (zflux_front - zflux_back) / DX[2];
-                    }
 #endif
 
                     // **Runge-Kutta 3rd order update formula**

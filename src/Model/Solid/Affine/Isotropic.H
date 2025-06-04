@@ -78,58 +78,65 @@ public:
     {
         Set::Scalar mu = NAN, lambda = NAN;
         Set::Matrix F0 = Set::Matrix::Zero();
-        if (pp.contains("lame") && pp.contains("shear"))
+
+        std::pair<std::string, Set::Scalar> moduli[2];
+
+        pp.forbid("lame","Use 'lambda' instead for lame constant");
+        pp.forbid("shear","Use 'mu' instead for shear modulus");
+        pp.forbid("bulk","Use 'kappa' instead for bulk modulus");
+
+        // Specify exactly two of: lame constant \(\lambda\),
+        // shear modulus \(\mu\), Young's modulus \(E\), Poisson's ratio \(\nu\),
+        // bulk modulus \(\kappa\).
+        // \(\mu\) and \(\lambda\) are how the final values are stored.
+        pp.query_exactly<2>({"lambda","mu","E","nu","kappa"}, moduli);
+
+        if      (moduli[0].first == "lambda" && moduli[1].first == "mu")
         {
-            pp_query("lame", lambda); // Lame modulus
-            pp_query("shear", mu); // Shear modulus
+            lambda = moduli[0].second;
+            mu = moduli[1].second;
         }
-        else if (pp.contains("E") && pp.contains("nu"))
+        else if (moduli[0].first == "lambda" && moduli[1].first == "E")
         {
-            Set::Scalar E, nu;
-            pp_query("E", E); // Elastic modulus
-            pp_query("nu", nu); // Poisson's ratio
+            lambda = moduli[0].second;
+            Set::Scalar E = moduli[1].second;
+            mu = (E - 3.0 * lambda + sqrt(E * E + 9.0 * lambda * lambda + 2.0 * E * lambda)) / 4.0;
+        }
+        else if (moduli[0].first == "lambda" && moduli[1].first == "nu")
+        {
+            lambda = moduli[0].second;
+            Set::Scalar nu = moduli[1].second;
+            mu = lambda * (1.0 - 2.0 * nu) / 2.0 / nu;
+        }
+        else if (moduli[0].first == "mu" && moduli[1].first == "E")
+        {
+            mu = moduli[0].second;
+            Set::Scalar E = moduli[1].second;
+            lambda = mu * (E - 2.0 * mu) / (3.0 * mu - E);
+        }
+        else if (moduli[0].first == "mu" && moduli[1].first == "nu")
+        {
+            mu = moduli[0].second;
+            Set::Scalar nu = moduli[1].second;
+            lambda = 2.0 * mu * nu / (1.0 - 2.0 * nu);
+        }
+        else if (moduli[0].first == "mu" && moduli[1].first == "K")
+        {
+            mu = moduli[0].second;
+            Set::Scalar K = moduli[1].second;
+            lambda = K - (2.0 * mu / 3.0);
+        }
+        else if (moduli[0].first == "E" && moduli[1].first == "nu")
+        {
+            Set::Scalar E = moduli[0].second, nu = moduli[1].second;
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0 * nu);
             mu = E / 2.0 / (1.0 + nu);
         }
-        else if (pp.contains("E") && pp.contains("shear"))
-        {
-            Set::Scalar E;
-            pp_query("E", E); // Young's modulus
-            pp_query("shear", mu); // Shear modulus
-            lambda = mu * (E - 2.0 * mu) / (3.0 * mu - E);
-        }
-        else if (pp.contains("E") && pp.contains("lame"))
-        {
-            Set::Scalar E;
-            pp_query("E", E); // Young's modulus
-            pp_query("lame", lambda); // Lame parameter
-            mu = (E - 3.0 * lambda + sqrt(E * E + 9.0 * lambda * lambda + 2.0 * E * lambda)) / 4.0;
-        }
-        else if (pp.contains("nu") && pp.contains("shear"))
-        {
-            Set::Scalar nu;
-            pp_query("nu", nu); // Poisson's ratio
-            pp_query("shear", mu); // Shear modulus
-            lambda = 2.0 * mu * nu / (1.0 - 2.0 * nu);
-        }
-        else if (pp.contains("lambda") && pp.contains("nu"))
-        {
-            Set::Scalar nu;
-            pp_query("lambda", lambda); // Lame parameter
-            pp_query("nu", nu); // Poisson's ratio
-            mu = lambda * (1.0 - 2.0 * nu) / 2.0 / nu;
-        }
-        else if (pp.contains("bulk") && pp.contains("shear"))
-        {
-            Set::Scalar K;
-            pp_query("bulk", K); // Bulk modulus
-            pp_query("shear", mu); // Shear modulus
-            lambda = K - (2.0 * mu / 3.0);
-        }
         else
         {
-            Util::Exception(INFO, "Model parameters not specified with either (lame, shear), or (E, nu)");
+            Util::Exception(INFO,"Haven't implemented ",moduli[0].first," and ",moduli[1].first," (sorry!)");
         }
+
         if (pp.contains("F0"))
         {
             pp_queryarr("F0", F0); // Eigendeformation gradient

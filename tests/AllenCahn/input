@@ -42,14 +42,14 @@ geometry.is_periodic = 0 0 0
 timestep  = 0.01
 stop_time = 100.0
 
-alpha.bc.type.xlo = neumann
-alpha.bc.type.xhi = neumann
-alpha.bc.type.ylo = neumann
-alpha.bc.type.yhi = neumann
-alpha.bc.val.xlo = 0.0
-alpha.bc.val.xhi = 0.0
-alpha.bc.val.ylo = 0.0
-alpha.bc.val.yhi = 0.0
+alpha.bc.constant.type.xlo = neumann
+alpha.bc.constant.type.xhi = neumann
+alpha.bc.constant.type.ylo = neumann
+alpha.bc.constant.type.yhi = neumann
+alpha.bc.constant.val.xlo = 0.0
+alpha.bc.constant.val.xhi = 0.0
+alpha.bc.constant.val.ylo = 0.0
+alpha.bc.constant.val.yhi = 0.0
 
 alpha.ic.type = bmp
 alpha.ic.bmp.filename = tests/AllenCahn/bordernoise.bmp
