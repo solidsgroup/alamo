@@ -110,8 +110,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, value.ghost_count + 1, "temps", false);
             value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, value.ghost_count + 1, "temps_old", false);
 
-            value.RegisterNewFab(value.mdot_mf, value.bc_eta, 1, value.ghost_count + 1, "mdot", value.plot_field);
-            value.RegisterNewFab(value.mob_mf, value.bc_eta, 1, value.ghost_count + 1, "mob", value.plot_field);
+            value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, value.ghost_count + 1, "mdot", value.plot_field);
+            value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, value.ghost_count + 1, "mob", value.plot_field);
             value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, value.ghost_count + 1, "alpha", value.plot_field);
             value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, value.ghost_count + 1, "heatflux", value.plot_field);
             value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, value.ghost_count + 1, "laser", value.plot_field);
