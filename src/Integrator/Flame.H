@@ -11,6 +11,7 @@
 #include "IO/ParmParse.H"
 
 #include "Base/Mechanics.H"
+#include "Model/Regression/Regression.H"
 
 namespace Integrator
 {
@@ -27,7 +28,7 @@ public:
     Flame();
     Flame(IO::ParmParse& pp);
 
-    static void Forbids(Flame& value, IO::ParmParse& pp);
+    static void Forbids(IO::ParmParse& pp);
 
     static void Parse(Flame& value, IO::ParmParse& pp);
 
@@ -119,6 +120,27 @@ private:
     } pressure;
 
     struct {
+        std::string type = "";
+        struct {
+            Set::Scalar L = NAN;
+        } constant;
+        struct {
+            Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
+            Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
+            Set::Scalar a_fit = NAN, b_fit = NAN, c_fit = NAN;
+        } powerlaw;
+        struct {
+            Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
+            Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
+            Set::Scalar c1 = NAN;
+            int mob_ap = NAN;
+            int dependency = 1;
+            Set::Scalar h1 = NAN, h2 = NAN;
+        } arrhenius;
+    } rate;
+
+
+    struct {
         bool on = 0;
         Set::Scalar rho_ap = NAN, rho_htpb = NAN;
         Set::Scalar k_ap = NAN, k_htpb = NAN;
@@ -153,10 +175,10 @@ private:
     Set::Scalar chamber_pressure = 1.0;
     Set::Scalar massflux = 0.00000001;
 
-    Set::Scalar x_len = NAN;
-    Set::Scalar y_len = NAN;
-
     BC::BC<Set::Scalar>* bc_psi = nullptr;
+
+    Model::Regression::Regression *regression;
+    
 };
 }
 

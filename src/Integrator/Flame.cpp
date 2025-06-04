@@ -1,6 +1,7 @@
 #include "Flame.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
+#include "Model/Regression/Regression.H"
 #include "Numeric/Stencil.H"
 #include "IC/Laminate.H"
 #include "IC/Constant.H"
@@ -10,6 +11,8 @@
 #include "IC/BMP.H"
 #include "IC/PNG.H"
 #include "Base/Mechanics.H"
+#include "Util/Util.H"
+#include "Model/Regression/Regression.H"
 
 #include <cmath>
 
@@ -25,11 +28,26 @@ Flame::Flame(IO::ParmParse& pp) : Flame()
 
 
 void
-Flame::Forbids(Flame& value, IO::ParmParse& pp)
+Flame::Forbids(IO::ParmParse& pp)
 {
     pp.forbid("geometry.x_len","This is specified by geometry.prob_lo, geometry.prob_hi");
     pp.forbid("geometry.y_len","This is specified by geometry.prob_lo, geometry.prob_hi");
     pp.forbid("amr.ghost_cells", "This should not be adjustable and will cause errors if changed from 2");
+
+    pp.forbid("pf.gamma","implemented in regression rate law objects now"); 
+
+
+    pp.forbid("pressure.r_ap",   "use regression.powerlaw.r_ap");     // AP power pressure law parameter (r*P^n)
+    pp.forbid("pressure.r_htpb", "use regression.powerlaw.r_htpb"); // HTPB power pressure law parameter (r*P^n)
+    pp.forbid("pressure.r_comb", "use regression.powerlaw.r_comb"); // AP/HTPB power pressure law parameter (r*P^n)
+    pp.forbid("pressure.n_ap",   "use regression.powerlaw.n_ap");     // AP power pressure law parameter (r*P^n)
+    pp.forbid("pressure.n_htpb", "use regression.powerlaw.n_htpb"); // HTPB power pressure law parameter (r*P^n)
+    pp.forbid("pressure.n_comb", "use regression.powerlaw.n_comb"); // AP/HTPB power pressure law parameter (r*P^n)
+
+    // pp_query_required("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
+    // pp_query_required("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
+    // pp_query_required("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
+    // pp_query_required("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
 
 }
 
@@ -40,7 +58,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
 
-    Forbids(value,pp);
+    Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
     pp_query_default("plot_field",value.plot_field,true); 
@@ -51,7 +69,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         
     pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
     pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
-    pp_query_default("pf.gamma", value.pf.gamma, 1.0); // Scaling factor for mobility
     pp_query_default("pf.lambda", value.pf.lambda, 0.0); // Chemical potential multiplier
     pp_query_default("pf.w1", value.pf.w1, 0.0); // Unburned rest energy
     pp_query_default("pf.w12", value.pf.w12, 0.0);  // Barrier energy
@@ -65,8 +82,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
 
+    // regression rate model
+    pp.select<Model::Regression::PowerLaw>("regression",value.regression);
+    if (value.regression->needs_deltaw) value.regression->set_deltaw(value.pf.w1-value.pf.w0);
+
     // Whether to use the Thermal Transport Model
     pp_query_default("thermal.on", value.thermal.on, false); 
+
     pp_query_default("thermal.bound", value.thermal.bound, 0.0); // System Initial Temperature
 
     if (value.thermal.on) {
@@ -78,11 +100,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_required("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
 
         pp_query_default("thermal.q0", value.thermal.q0, 0.0); // Baseline heat flux
-
-        pp_query_required("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
-        pp_query_required("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
-        pp_query_required("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
-        pp_query_required("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
 
         pp_query_default("thermal.hc", value.thermal.hc, 1.0); // Used to change heat flux units
         pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8); // Systen AP mass fraction
@@ -128,6 +145,47 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     }
 
 
+    pp.query_validate("rate.type",value.rate.type,{"constant","powerlaw","arrhenius"});
+    if (value.rate.type=="constant")
+    {
+        
+    }
+    else if (value.rate.type == "powerlaw")
+    {
+        
+    }
+    else if (value.rate.type == "arrhenius")
+    {
+        if (!value.thermal.on) 
+            Util::Exception(INFO,"thermal.on must be true if using the arrhenius rate law");
+        
+        // Surrogate heat flux model paramater - AP
+        pp_query_required("rate.arrhenius.a1",         value.rate.arrhenius.a1); 
+        // Surrogate heat flux model paramater - HTPB
+        pp_query_required("rate.arrhenius.a2",         value.rate.arrhenius.a2); 
+        // Surrogate heat flux model paramater - Total
+        pp_query_required("rate.arrhenius.a3",         value.rate.arrhenius.a3); 
+        // Surrogate heat flux model paramater - AP
+        pp_query_required("rate.arrhenius.b1",         value.rate.arrhenius.b1);
+        // Surrogate heat flux model paramater - HTPB
+        pp_query_required("rate.arrhenius.b2",         value.rate.arrhenius.b2);
+        // Surrogate heat flux model paramater - Total
+        pp_query_required("rate.arrhenius.b3",         value.rate.arrhenius.b3); 
+        // Surrogate heat flux model paramater - Total
+        pp_query_required("rate.arrhenius.c1",         value.rate.arrhenius.c1); 
+
+        // Whether to include pressure to the arrhenius law
+        pp_query_default ("rate.arrhenius.mob_ap",     value.rate.arrhenius.mob_ap, 0); 
+        // Whether to use pressure to determined the reference Zeta 
+        pp_query_default ("rate.arrhenius.dependency", value.rate.arrhenius.dependency, 1); 
+        // Surrogate heat flux model paramater - Homogenized
+        pp_query_default ("rate.arrhenius.h1",         value.rate.arrhenius.h1, 1.81); 
+        // Surrogate heat flux model paramater - Homogenized
+        pp_query_default ("rate.arrhenius.h2",         value.rate.arrhenius.h2, 1.34); 
+
+    }
+    else Util::Exception(INFO);
+
     pp_query_default("pressure.P", value.pressure.P, 1.0); // Constant pressure value
     if (value.thermal.on)
     {
@@ -146,12 +204,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     }
     else
     {
-        pp_query_required("pressure.r_ap", value.pressure.power.r_ap);     // AP power pressure law parameter (r*P^n)
-        pp_query_required("pressure.r_htpb", value.pressure.power.r_htpb); // HTPB power pressure law parameter (r*P^n)
-        pp_query_required("pressure.r_comb", value.pressure.power.r_comb); // AP/HTPB power pressure law parameter (r*P^n)
-        pp_query_required("pressure.n_ap", value.pressure.power.n_ap);     // AP power pressure law parameter (r*P^n)
-        pp_query_required("pressure.n_htpb", value.pressure.power.n_htpb); // HTPB power pressure law parameter (r*P^n)
-        pp_query_required("pressure.n_comb", value.pressure.power.n_comb); // AP/HTPB power pressure law parameter (r*P^n)
+        //
     }
     pp_query_default("variable_pressure", value.variable_pressure, 0); // Whether to compute the pressure evolution
     pp_query_default("homogeneousSystem", value.homogeneousSystem, 0); // Whether to initialize Phi with homogenized properties
@@ -163,51 +216,17 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);// Refinement criterion for phi field [infinity]
     pp_query_default("small", value.small, 1.0e-8); // Lowest value of Eta.
 
-    {
-        // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
-        // specified using these parameters. 
-        std::string phi_ic_type = "packedspheres";
-        pp_query_validate("phi.ic.type", phi_ic_type, {"psread", "laminate", "expression", "constant", "bmp", "png"}); // IC type (psread, laminate, constant)
-        if (phi_ic_type == "psread") {
-            value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-            //value.ic_phicell = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-            pp_query_default("phi.ic.psread.eps", value.zeta, 1.0e-5); // AP/HTPB interface length
-            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-        }
-        else if (phi_ic_type == "laminate") {
-            value.ic_phi = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
-            //value.ic_phicell = new IC::Laminate(value.geom, pp, "phi.ic.laminate");
-            pp_query_default("phi.ic.laminate.eps", value.zeta, 1.0e-5); // AP/HTPB interface length
-            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-        }
-        else if (phi_ic_type == "expression") {
-            value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
-            //value.ic_phicell = new IC::Expression(value.geom, pp, "phi.ic.expression");
-            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
-        }
-        else if (phi_ic_type == "constant") {
-            value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
-            //value.ic_phicell = new IC::Constant(value.geom, pp, "phi.ic.constant");
-            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
-        }
-        else if (phi_ic_type == "bmp") {
-            value.ic_phi = new IC::BMP(value.geom, pp, "phi.ic.bmp");
-            //value.ic_phicell = new IC::BMP(value.geom, pp, "phi.ic.bmp");
-            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
-        }
-        else if (phi_ic_type == "png") {
-            value.ic_phi = new IC::PNG(value.geom, pp, "phi.ic.png");
-            pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); // Reference interface length for heat integration
-            pp_query_default("phi.zeta", value.zeta, 1.0e-5); // AP/HTPB interface length
-        }
-        else Util::Abort(INFO, "Invalid IC type ", phi_ic_type);
-        //value.RegisterNewFab(value.phi_mf, 1, "phi_cell", true);
-        value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
-        //value.RegisterNewFab(value.phicell_mf, value.bc_eta, 1, value.ghost_count + 1, "phi", true);
-    }
+
+    pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>("phi.ic",value.ic_phi,value.geom);
+    // Reference interface length for heat integration
+    pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); 
+
+    // AP/HTPB interface length
+    pp_query_default("phi.zeta", value.zeta, 1.0e-5); 
+    pp_query("phi.ic.laminate.eps", value.zeta); 
+    pp_query("phi.ic.psread.eps", value.zeta); 
+
+    value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
 
     pp_query_default("elastic.on", value.elastic.on, 0); // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.traction", value.elastic.traction, 0.0); // Body force
@@ -237,7 +256,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.AllUnusedInputs();
         Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
     }
-        
 }
 
 void Flame::Initialize(int lev)
@@ -385,233 +403,241 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
 
-    if (true) //lev == finest_level) //(true)
+
+    std::swap(eta_old_mf[lev], eta_mf[lev]);
+
+
+    //
+    // Chamber pressure update
+    //
+    if (variable_pressure) {
+        pressure.P = exp(0.00075 * massflux);
+        if (pressure.P > 10.0) {
+            pressure.P = 10.0;
+        }
+        else if (pressure.P <= 0.99) {
+            pressure.P = 0.99;
+        }
+        elastic.traction = pressure.P;
+    }
+
+
+    //
+    // Multi-well chemical potential
+    //
+    Numeric::Function::Polynomial<4> w(pf.w0,
+                                       0.0,
+                                       -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * pf.w0,
+                                       14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * pf.w0,
+                                       -8.0 * pf.w1 + 16.0 * pf.w12 - 8.0 * pf.w0);
+    Numeric::Function::Polynomial<3> dw = w.D();
+
+
+    if (regression->needs_pressure) regression->set_pressure(pressure.P);
+
+
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        if (thermal.on)
+        const amrex::Box& bx = mfi.tilebox();
+        // Phase fields
+        Set::Patch<Set::Scalar> etanew    = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
+        // Heat transfer fields
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       alpha = alpha_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       laser = laser_mf.Patch(lev,mfi);
+        // Diagnostic fields
+        Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
+
+
+        Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
+        Set::Scalar zeta_1;
+        if (pressure.arrhenius.dependency == 1) zeta_1 = zeta_2;
+        else zeta_1 = zeta_0;
+        Set::Scalar k1 = pressure.arrhenius.a1 * pressure.P + pressure.arrhenius.b1 - zeta_1 / zeta;
+        Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P + pressure.arrhenius.b2 - zeta_1 / zeta;
+        Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
+        Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
+
+
+        // for the pressure power law option
+        // Set::Scalar fmod_ap = pressure.power.r_ap * pow(pressure.P, pressure.power.n_ap);
+        // Set::Scalar fmod_htpb = pressure.power.r_htpb * pow(pressure.P, pressure.power.n_htpb);
+        // Set::Scalar fmod_comb = pressure.power.r_comb * pow(pressure.P, pressure.power.n_comb);
+        // pressure.power.a_fit = -1.16582 * sin(pressure.P) - 0.681788 * cos(pressure.P) + 3.3563;
+        // pressure.power.b_fit = -0.708225 * sin(pressure.P) + 0.548067 * cos(pressure.P) + 1.55985;
+        // pressure.power.c_fit = -0.0130849 * sin(pressure.P) - 0.03597 * cos(pressure.P) + 0.00725694;
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            std::swap(eta_old_mf[lev], eta_mf[lev]);
-            std::swap(temp_old_mf[lev], temp_mf[lev]);
-            std::swap(temps_old_mf[lev], temps_mf[lev]);
+            //
+            // CALCULATE PHI-AVERAGED QUANTITIES
+            //
+            Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+            Set::Scalar K; // Calculate effective thermal conductivity
+            Set::Scalar rho; // No special interface mixure rule is needed here.
+            Set::Scalar cp; 
+            if (homogeneousSystem) {
+                K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg); // Calculate effective thermal conductivity
+                rho = (thermal.rho_ap * thermal.massfraction + thermal.rho_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion2 * (1. - phi_avg); // No special interface mixure rule is needed here.
+                cp = (thermal.cp_ap * thermal.massfraction + thermal.cp_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion3 * (1. - phi_avg);
+            }
+            else {
+                K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
+                rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
+                cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
+            }
 
-            Numeric::Function::Polynomial<4> w(pf.w0,
-                0.0,
-                -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * pf.w0,
-                14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * pf.w0,
-                -8.0 * pf.w1 + 16.0 * pf.w12 - 8.0 * pf.w0);
-            Numeric::Function::Polynomial<3> dw = w.D();
+            // Calculate thermal diffusivity and store in field for later use
 
-            for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+            if (thermal.on)
             {
-                const amrex::Box& bx = mfi.tilebox();
-                // Phase fields
-                amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
-                //amrex::Array4<const Set::Scalar> const& phicell = (*phicell_mf[lev]).array(mfi);
-                // Heat transfer fields
-                amrex::Array4<Set::Scalar>       const& tempnew = (*temp_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const& temp = (*temp_old_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar>       const& alpha = (*alpha_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar>       const& tempsnew = (*temps_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar>       const& temps = (*temps_old_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar>       const& laser = (*laser_mf[lev]).array(mfi);
-                // Diagnostic fields
-                amrex::Array4<Set::Scalar> const& mob = (*mob_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
+                alpha(i, j, k) = K / rho / cp; 
+                if (isnan(alpha(i, j, k))) Util::Exception(INFO); 
+            }
 
-                if (variable_pressure) {
-                    pressure.P = exp(0.00075 * massflux);
-                    if (pressure.P > 10.0) {
-                        pressure.P = 10.0;
-                    }
-                    else if (pressure.P <= 0.99) {
-                        pressure.P = 0.99;
-                    }
-                    elastic.traction = pressure.P;
+            //
+            // CALCULATE MOBILITY
+            // 
+            if (regression->needs_temperature) regression->set_temperature(temp(i,j,k));
+            if (regression->needs_phi) regression->set_phi(phi_avg);
+            Set::Scalar L = regression->L();
 
+            // if (rate.type == "arrhenius")
+            // {
+            //     if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i, j, k)) * phi_avg;
+            //     else L = thermal.m_ap * exp(-thermal.E_ap / temp(i, j, k)) * phi_avg;
+            //     L += thermal.m_htpb * exp(-thermal.E_htpb / temp(i, j, k)) * (1.0 - phi_avg);
+            //     if (temp(i, j, k) <= thermal.bound) L = 0.0;
+            // }
+            // else if (rate.type == "powerlaw")
+            // {
+            //     if (homogeneousSystem == 1) {
+            //         Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            //         Set::Scalar angle = acos(grad_eta[0] / grad_eta.lpNorm<2>()) * 180 / 3.1415;
+            //         if (angle > 90) angle = angle - 90.0;
+            //         if (angle > 180) angle = angle - 180.0;
+            //         if (angle > 270) angle = angle - 270.0;
+            //         L = pressure.power.a_fit + pressure.power.b_fit * exp(-pressure.power.c_fit * angle);
+            //     }
+            //     else {
+            //         Set::Scalar fs_actual;
+            //         fs_actual = fmod_ap * phi(i, j, k)
+            //             + fmod_htpb * (1.0 - phi(i, j, k))
+            //             + 4.0 * fmod_comb * phi(i, j, k) * (1.0 - phi(i, j, k));
+            //         L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
+            //     }                
+            // }
+            // else Util::Exception(INFO,"Not implemented");
+
+            if (isnan(L))  Util::Exception(INFO);
+
+            // 
+            // EVOLVE PHASE FIELD (ETA)
+            // 
+
+            Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
+            Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
+            etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
+            if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+
+            if (isnan(etanew(i, j, k))) Util::Exception(INFO);
+
+            
+            //
+            // CALCULATE MASS FLUX BASED ON EVOLVING ETA
+            //
+
+            if (thermal.on)
+            {
+                mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; 
+
+                if (isnan(mdot(i, j, k))) Util::Exception(INFO);
+            }
+
+
+            //
+            // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
+            //
+            
+            if (thermal.on)
+            {
+                if (homogeneousSystem) {
+                    Set::Scalar qflux = k4 * phi_avg;
+                    Set::Scalar mlocal = (thermal.mlocal_ap) * thermal.massfraction + (thermal.mlocal_htpb) * (1.0 - thermal.massfraction);
+                    Set::Scalar mdota = fabs(mdot(i, j, k));
+                    Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
+                    heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * qflux) / K;
                 }
+                else {
+                    Set::Scalar qflux = k1 * phi_avg +
+                        k2 * (1.0 - phi_avg) +
+                        (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
+                    Set::Scalar mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
+                    Set::Scalar mdota = fabs(mdot(i, j, k));
+                    Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
+                    heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
+                }
+                if (isnan(heatflux(i, j, k))) Util::Exception(INFO);
+            }
 
-                Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
-                Set::Scalar zeta_1;
-                if (pressure.arrhenius.dependency == 1) zeta_1 = zeta_2;
-                else zeta_1 = zeta_0;
+        });
 
-                Set::Scalar k1 = pressure.arrhenius.a1 * pressure.P + pressure.arrhenius.b1 - zeta_1 / zeta;
-                Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P + pressure.arrhenius.b2 - zeta_1 / zeta;
-                Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
-                Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
+    } // MFi For loop 
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
-                    Set::Scalar K; // Calculate effective thermal conductivity
-                    Set::Scalar rho; // No special interface mixure rule is needed here.
-                    Set::Scalar cp;
-                    if (homogeneousSystem) {
-                        K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg); // Calculate effective thermal conductivity
-                        rho = (thermal.rho_ap * thermal.massfraction + thermal.rho_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion2 * (1. - phi_avg); // No special interface mixure rule is needed here.
-                        cp = (thermal.cp_ap * thermal.massfraction + thermal.cp_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion3 * (1. - phi_avg);
-                    }
-                    else {
-                        K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
-                        rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
-                        cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
-                    }
-                    Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
-                    etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
-                    if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
 
-                    alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
-                    mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt  
+    //
+    // THERMAL TRANSPORT
+    // 
+    if (thermal.on)
+    {
+        std::swap(temp_old_mf[lev], temp_mf[lev]);
+        std::swap(temps_old_mf[lev], temps_mf[lev]);
 
-                    if (isnan(etanew(i, j, k)) || isnan(alpha(i, j, k)) || isnan(mdot(i, j, k))) {
-                        Util::Message(INFO, etanew(i, j, k), "etanew contains nan (i=", i, " j= ", j, ")");
-                        Util::Message(INFO, mdot(i, j, k), "mdot contains nan (i=", i, " j= ", j, ")");
-                        Util::Message(INFO, alpha(i, j, k), "alpha contains nan (i=", i, " j= ", j, ")");
-                        Util::Abort(INFO);
-                    }
-                });
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phicell(i,j,k);
-                    Set::Scalar K;
-                    Set::Scalar qflux;
-                    Set::Scalar mlocal;
-                    Set::Scalar mdota;
-                    Set::Scalar mbase;
-
-                    if (homogeneousSystem) {
-                        qflux = k4 * phi_avg;
-                        mlocal = (thermal.mlocal_ap) * thermal.massfraction + (thermal.mlocal_htpb) * (1.0 - thermal.massfraction);
-                        mdota = fabs(mdot(i, j, k));
-                        mbase = tanh(4.0 * mdota / (mlocal));
-                        K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg);
-                        heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * qflux) / K;
-                    }
-                    else {
-                        qflux = k1 * phi_avg +
-                            k2 * (1.0 - phi_avg) +
-                            (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
-                        mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
-                        mdota = fabs(mdot(i, j, k));
-                        mbase = tanh(4.0 * mdota / (mlocal));
-
-                        K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg);
-                        heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
-                    }
-
-                    if (isnan(heatflux(i, j, k))) {
-                        Util::Message(INFO, heatflux(i, j, k), "heat contains nan (i=", i, " j= ", j, ")");
-                        Util::Abort(INFO);
-                    }
-                });
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    auto sten = Numeric::GetStencil(i, j, k, bx);
-                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-                    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-                    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                    Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX, sten);
-                    Set::Scalar dTdt = 0.0;
-                    dTdt += grad_eta.dot(grad_temp * alpha(i, j, k));
-                    dTdt += grad_alpha.dot(eta(i, j, k) * grad_temp);
-                    dTdt += eta(i, j, k) * alpha(i, j, k) * lap_temp;
-                    dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
-                    Set::Scalar Tsolid;
-                    Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
-                    tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
-                    tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
-                    if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
-                        Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, " j= ", j, ")");
-                        Util::Message(INFO, temps(i, j, k), "temps contains nan (i=", i, " j= ", j, ")");
-                        Util::Abort(INFO);
-                    }
-
-                });
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    //phi_avg = phicell(i,j,k);
-
-                    Set::Scalar L;
-                    if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
-                    else L = thermal.m_ap * exp(-thermal.E_ap / tempnew(i, j, k)) * phi_avg;
-                    L += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i, j, k)) * (1.0 - phi_avg);
-                    //L += thermal.m_comb * (0.5 * tempnew(i, j, k) / thermal.bound) * phi(i, j, k) * (1.0 - phi(i, j, k));
-                    if (tempnew(i, j, k) <= thermal.bound) mob(i, j, k) = 0;
-                    else mob(i, j, k) = L;
-                    //mob(i,j,k) = L;
-                    if (isnan(mob(i, j, k))) {
-                        Util::Message(INFO, mob(i, j, k), "mob contains nan (i=", i, " j= ", j, ")");
-                        Util::Abort(INFO);
-                    }
-                });
-            } // MFi For loop 
-
-        } // thermal IF
-        else
+        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
-            std::swap(eta_old_mf[lev], eta_mf[lev]);
-            Numeric::Function::Polynomial<4> w(pf.w0,
-                0.0,
-                -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * pf.w0,
-                14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * pf.w0,
-                -8.0 * pf.w1 + 16.0 * pf.w12 - 8.0 * pf.w0
-            );
-            Numeric::Function::Polynomial<3> dw = w.D();
+            const amrex::Box& bx = mfi.tilebox();
 
-            for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+            Set::Patch<Set::Scalar>       tempnew = temp_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       tempsnew = temps_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> temp = temp_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> alpha = alpha_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> temps = temps_old_mf.Patch(lev,mfi);
+            //Set::Patch<const Set::Scalar> laser = laser_mf.Patch(lev,mfi);
+            // Phase field
+            Set::Patch<Set::Scalar>       etanew = (*eta_mf[lev]).array(mfi);
+            Set::Patch<const Set::Scalar> eta = (*eta_old_mf[lev]).array(mfi);
+            // Diagnostic fields
+            Set::Patch<const Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                const amrex::Box& bx = mfi.tilebox();
-                //Phase Fields
-                amrex::Array4<Set::Scalar> const& etanew = (*eta_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
-
-                Set::Scalar fmod_ap = pressure.power.r_ap * pow(pressure.P, pressure.power.n_ap);
-                Set::Scalar fmod_htpb = pressure.power.r_htpb * pow(pressure.P, pressure.power.n_htpb);
-                Set::Scalar fmod_comb = pressure.power.r_comb * pow(pressure.P, pressure.power.n_comb);
-
-                pressure.power.a_fit = -1.16582 * sin(pressure.P) - 0.681788 * cos(pressure.P) + 3.3563;
-                pressure.power.b_fit = -0.708225 * sin(pressure.P) + 0.548067 * cos(pressure.P) + 1.55985;
-                pressure.power.c_fit = -0.0130849 * sin(pressure.P) - 0.03597 * cos(pressure.P) + 0.00725694;
-
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    //Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-                    Set::Scalar L;
-                    if (homogeneousSystem == 1) {
-                        Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                        Set::Scalar angle = acos(grad_eta[0] / grad_eta.lpNorm<2>()) * 180 / 3.1415;
-                        if (angle > 90) angle = angle - 90.0;
-                        if (angle > 180) angle = angle - 180.0;
-                        if (angle > 270) angle = angle - 270.0;
-                        L = pressure.power.a_fit + pressure.power.b_fit * exp(-pressure.power.c_fit * angle);
-                    }
-                    else {
-                        Set::Scalar fs_actual;
-                        fs_actual = fmod_ap * phi(i, j, k)
-                            + fmod_htpb * (1.0 - phi(i, j, k))
-                            + 4.0 * fmod_comb * phi(i, j, k) * (1.0 - phi(i, j, k));
-                        L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
-                    }
-                    Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
-                    Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
-                    etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
-
-                    if (etanew(i, j, k) > eta(i, j, k)) etanew(i, j, k) = eta(i, j, k);
-                });
-            } // MFI For Loop 
-        } // thermal ELSE      
-    }// First IF
+                auto sten = Numeric::GetStencil(i, j, k, bx);
+                Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+                Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+                Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX, sten);
+                Set::Scalar dTdt = 0.0;
+                dTdt += grad_eta.dot(grad_temp * alpha(i, j, k));
+                dTdt += grad_alpha.dot(eta(i, j, k) * grad_temp);
+                dTdt += eta(i, j, k) * alpha(i, j, k) * lap_temp;
+                dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
+                Set::Scalar Tsolid;
+                Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
+                tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
+                tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
+                if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
+                    Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, " j= ", j, ")");
+                    Util::Message(INFO, temps(i, j, k), "temps contains nan (i=", i, " j= ", j, ")");
+                    Util::Abort(INFO);
+                }
+            });
+        }
+    }
+ 
 } //Function
 
 
