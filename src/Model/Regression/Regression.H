@@ -13,37 +13,14 @@ namespace Regression
 class Regression
 {
 public:
-    virtual Set::Scalar L() = 0;
+    virtual Set::Scalar operator() (Set::Scalar phi, Set::Scalar T)  = 0;
 
     bool needs_normal = false;
 
-
     Set::Scalar P = NAN;
-    bool needs_pressure = false;
     virtual void set_pressure(const Set::Scalar P) 
     {
         this->P = P;
-    }
-
-    Set::Scalar temperature = NAN;
-    bool needs_temperature = false;
-    virtual void set_temperature(const Set::Scalar temperature) 
-    {
-        this->temperature = temperature;
-    }
-
-    Set::Scalar phi1 = NAN;
-    bool needs_phi = false;
-    virtual void set_phi(const Set::Scalar phi1)
-    {
-        this->phi1 = phi1;
-    }
-
-    Set::Scalar deltaw = NAN;
-    bool needs_deltaw = false;
-    virtual void set_deltaw(const Set::Scalar deltaw)
-    {
-        this->deltaw = deltaw;
     }
 };
 
@@ -59,13 +36,13 @@ public:
         pp_queryclass(name,*this);
     }
 
-    virtual Set::Scalar L() override
+    virtual Set::Scalar operator() (Set::Scalar phi, Set::Scalar T) override
     {
         Set::Scalar L = NAN;
-        if (mob_ap == 1) L = m_ap * P * exp(-E_ap / temperature) * phi1;
-        else L = m_ap * exp(-E_ap / temperature) * phi1;
-        L += m_htpb * exp(-E_htpb / temperature) * (1.0 - phi1);
-        if (temperature <= bound) L = 0.0;
+        if (mob_ap == 1) L = m_ap * P * exp(-E_ap / T) * phi;
+        else L = m_ap * exp(-E_ap / T) * phi;
+        L += m_htpb * exp(-E_htpb / T) * (1.0 - phi);
+        if (T <= bound) L = 0.0;
         return L;
     }
 
@@ -81,8 +58,6 @@ public:
         pp_query_required("m_ap", value.m_ap); 
         // HTPB Pre-exponential factor for Arrhenius Law
         pp_query_required("m_htpb", value.m_htpb); 
-        // 
-        pp_query_required("m_comb", value.m_comb); 
 
         // AP Activation Energy for Arrhenius Law
         pp_query_required("E_ap", value.E_ap); 
@@ -90,7 +65,7 @@ public:
         pp_query_required("E_htpb", value.E_htpb); 
         
         // HTPB Activation Energy for Arrhenius Law
-        pp_query_default("bound", value.bound,1E100); 
+        pp_query_default("bound", value.bound,0.0); 
     }
 };
 
@@ -106,7 +81,7 @@ public:
         pp_queryclass(name,*this);
     }
 
-    virtual Set::Scalar L() override
+    virtual Set::Scalar operator() (Set::Scalar phi, Set::Scalar /*T*/) override
     {
         Set::Scalar L = NAN;
         // if (homogeneousSystem == 1) {
@@ -119,9 +94,9 @@ public:
         // }
         // else 
         {
-            Set::Scalar fs_actual = fmod_ap * phi1
-                + fmod_htpb * (1.0 - phi1)
-                + 4.0 * fmod_comb * phi1 * (1.0 - phi1);
+            Set::Scalar fs_actual = fmod_ap * phi
+                + fmod_htpb * (1.0 - phi)
+                + 4.0 * fmod_comb * phi * (1.0 - phi);
             L = fs_actual / gamma / deltaw /*(pf.w1 - pf.w0)*/;
         }
 
@@ -143,24 +118,29 @@ public:
     static void Parse(PowerLaw& value, IO::ParmParse& pp)
     {
         Util::Message(INFO,pp.getPrefix());
-        pp_query_required("gamma", value.gamma);   // Scaling factor for mobility
-        pp_query_required("r_ap", value.r_ap);     // AP power pressure law parameter (r*P^n)
-        pp_query_required("r_htpb", value.r_htpb); // HTPB power pressure law parameter (r*P^n)
-        pp_query_required("r_comb", value.r_comb); // AP/HTPB power pressure law parameter (r*P^n)
-        pp_query_required("n_ap", value.n_ap);     // AP power pressure law parameter (r*P^n)
-        pp_query_required("n_htpb", value.n_htpb); // HTPB power pressure law parameter (r*P^n)
-        pp_query_required("n_comb", value.n_comb); // AP/HTPB power pressure law parameter (r*P^n)
-
-        value.needs_pressure = true;
-        value.needs_phi = true;
-        value.needs_deltaw = true;
+        // Scaling factor for mobility
+        pp_query_required("gamma", value.gamma);   
+        // AP power pressure law parameter (r*P^n)
+        pp_query_required("r_ap", value.r_ap);
+        // HTPB power pressure law parameter (r*P^n)
+        pp_query_required("r_htpb", value.r_htpb);
+        // AP/HTPB power pressure law parameter (r*P^n)
+        pp_query_required("r_comb", value.r_comb);
+        // AP power pressure law parameter (r*P^n)
+        pp_query_required("n_ap", value.n_ap);
+        // HTPB power pressure law parameter (r*P^n)
+        pp_query_required("n_htpb", value.n_htpb);
+        // AP/HTPB power pressure law parameter (r*P^n)
+        pp_query_required("n_comb", value.n_comb); 
+        // jump in chemical potential
+        pp_query_default("deltaw", value.deltaw, 1.0); 
     }
 
     Set::Scalar gamma = NAN;
     Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
     Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
     Set::Scalar fmod_ap = NAN, fmod_htpb = NAN, fmod_comb = NAN;
-    //Set::Scalar a_fit = NAN, b_fit = NAN, c_fit = NAN;
+    Set::Scalar deltaw = NAN;
 };
 
 

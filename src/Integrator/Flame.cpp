@@ -83,8 +83,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
 
     // regression rate model
-    pp.select<Model::Regression::PowerLaw>("regression",value.regression);
-    if (value.regression->needs_deltaw) value.regression->set_deltaw(value.pf.w1-value.pf.w0);
+    pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>("regression",value.regression);
 
     // Whether to use the Thermal Transport Model
     pp_query_default("thermal.on", value.thermal.on, false); 
@@ -433,8 +432,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Numeric::Function::Polynomial<3> dw = w.D();
 
 
-    if (regression->needs_pressure) regression->set_pressure(pressure.P);
-
+    regression->set_pressure(pressure.P);
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -501,9 +499,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //
             // CALCULATE MOBILITY
             // 
-            if (regression->needs_temperature) regression->set_temperature(temp(i,j,k));
-            if (regression->needs_phi) regression->set_phi(phi_avg);
-            Set::Scalar L = regression->L();
+            Set::Scalar L = (*regression)(phi(i,j,k),
+                                          thermal.on ? temp(i,j,k) : 0);
 
             // if (rate.type == "arrhenius")
             // {

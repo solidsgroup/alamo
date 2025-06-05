@@ -60,7 +60,6 @@ phi.ic.laminate.invert = 1
 phi.ic.laminate.eps = 0.00002
 
 pf.kappa = 1.0
-pf.gamma = 0.02726
 pf.w1 = 1.0
 pf.w12 = 2.0
 pf.w0 = 0.0
@@ -82,14 +81,18 @@ pf.eta.bc.constant.val.zhi = 0.0
 pf.eta.ic.type = constant
 pf.eta.ic.constant.value = 1.0
 
+# Regression rate
+regression.type = "arrhenius"
+regression.arrhenius.m_ap = 1.45e5 #[m/s]
+regression.arrhenius.m_htpb = 1.4e1 # 0.2 # [m/s]
+regression.arrhenius.E_ap = 11000.0   # 1050.0 # 4.0
+regression.arrhenius.E_htpb = 7500.0   # 1200.0
+
+
 
 # THERMAL VARIABLES ######################################################### THERMAL
 thermal.T_fluid = 300.0
 
-thermal.m_ap = 1.45e5 #[m/s]
-thermal.m_htpb = 1.4e1 # 0.2 # [m/s]
-thermal.E_ap = 11000.0   # 1050.0 # 4.0
-thermal.E_htpb = 7500.0   # 1200.0
 
 thermal.on = 1  #activates the thermal functions
 thermal.bound = 300.0

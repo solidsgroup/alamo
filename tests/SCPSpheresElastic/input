@@ -136,7 +136,6 @@ elastic.bc.constant.type.xloyhi = trac disp
 
 small = 1E-4
 amr.node.all = 1
-amr.ghost_cells = 2
 
 elastic.traction = 0.0
 
