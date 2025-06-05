@@ -173,14 +173,16 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);// Refinement criterion for phi field [infinity]
     pp_query_default("small", value.small, 1.0e-8); // Lowest value of Eta.
 
-
+    // Initial condition for $\phi$ field.
     pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>("phi.ic",value.ic_phi,value.geom);
+
     // Reference interface length for heat integration
     pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); 
-
     // AP/HTPB interface length
     pp_query_default("phi.zeta", value.zeta, 1.0e-5); 
-    pp_query("phi.ic.laminate.eps", value.zeta); 
+    // in case we used the laminate IC, we will extract zeta from there.
+    pp_query("phi.ic.laminate.eps", value.zeta);
+    // or in case we used the psread IC, we will extract zeta from there.
     pp_query("phi.ic.psread.eps", value.zeta); 
 
     value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
@@ -278,10 +280,10 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
             //amrex::Box bx = mfi.nodaltilebox();
             //bx.grow(1);
-            amrex::Array4<model_type>        const& model = model_mf[lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
-            amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
+            Set::Patch<model_type>        model = model_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
+            Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
             // amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi); // [error]
 
             if (elastic.on)
@@ -381,11 +383,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //
     // Multi-well chemical potential
     //
-    Numeric::Function::Polynomial<4> w(pf.w0,
-                                       0.0,
-                                       -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * pf.w0,
-                                       14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * pf.w0,
-                                       -8.0 * pf.w1 + 16.0 * pf.w12 - 8.0 * pf.w0);
+    Numeric::Function::Polynomial<4> w( pf.w0,
+                                        0.0,
+                                        -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * pf.w0,
+                                        14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * pf.w0,
+                                        -8.0 * pf.w1 + 16.0 * pf.w12 - 8.0 * pf.w0);
     Numeric::Function::Polynomial<3> dw = w.D();
 
 
@@ -453,8 +455,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //
             // CALCULATE MOBILITY
             // 
-            Set::Scalar L = (*regression)(phi(i,j,k),
-                                          thermal.on ? temp(i,j,k) : 0);
+            Set::Scalar L = (*regression)(  phi(i,j,k),
+                                            thermal.on ? temp(i,j,k) : 0);
             if (isnan(L))  Util::Exception(INFO);
 
             // 
@@ -526,7 +528,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Patch<const Set::Scalar> temp = temp_old_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha = alpha_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> temps = temps_old_mf.Patch(lev,mfi);
-            //Set::Patch<const Set::Scalar> laser = laser_mf.Patch(lev,mfi);
             // Phase field
             Set::Patch<Set::Scalar>       etanew = (*eta_mf[lev]).array(mfi);
             Set::Patch<const Set::Scalar> eta = (*eta_old_mf[lev]).array(mfi);
