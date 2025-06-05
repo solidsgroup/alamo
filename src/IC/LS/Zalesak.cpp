@@ -40,13 +40,13 @@ void Zalesak::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
 }
 
 void Zalesak::Parse(Zalesak& value, IO::ParmParse& pp) {
-    pp_query("radius", value.radius);
-    pp_queryarr("center", value.center);
-    pp_queryarr("slot_center", value.slot_center);
-    pp_queryarr("slot_size", value.slot_size);
-    pp_query("fillet_radius", value.fillet_radius);
+    pp_query("radius", value.radius);  // radius of the circle the slot is cut from
+    pp_queryarr("center", value.center);  // center vector coordinate of disk
+    pp_queryarr("slot_center", value.slot_center);  // the center coordinate of the slot rectangle that is cut out
+    pp_queryarr("slot_size", value.slot_size); // lengths iin x, y, and z planes of rectangle that is cut out
+    pp_query("fillet_radius", value.fillet_radius); // the radius of the fillet used to smooth slot
     std::string type_str;
-    pp_query("type", type_str);
+    pp_query("type", type_str); // the plane of the circle the disk lies on
 
     if (type_str == "yz" || type_str == "zy") value.type = Type::YZ;
     else if (type_str == "zx" || type_str == "xz") value.type = Type::ZX;
@@ -62,12 +62,12 @@ AMREX_GPU_HOST_DEVICE Set::Vector Zalesak::computeCoordinates(int i, int j, int 
 
     if (cellcentered) {
         AMREX_D_TERM(coords(0) = prob_lo[0] + (i + 0.5) * DX[0];,
-                     coords(1) = prob_lo[1] + (j + 0.5) * DX[1];,
-                     coords(2) = prob_lo[2] + (k + 0.5) * DX[2];);
+                    coords(1) = prob_lo[1] + (j + 0.5) * DX[1];,
+                    coords(2) = prob_lo[2] + (k + 0.5) * DX[2];);
     } else {
         AMREX_D_TERM(coords(0) = prob_lo[0] + i * DX[0];,
-                     coords(1) = prob_lo[1] + j * DX[1];,
-                     coords(2) = prob_lo[2] + k * DX[2];);
+                    coords(1) = prob_lo[1] + j * DX[1];,
+                    coords(2) = prob_lo[2] + k * DX[2];);
     }
     return coords;
 }
@@ -80,13 +80,13 @@ Set::Scalar Zalesak::computeRSquared(const Set::Vector& coords, Type type, const
                             + (coords(2) - center(2)) * (coords(2) - center(2)));
     case Type::XY:
         return (coords(0) - center(0)) * (coords(0) - center(0)) +
-               (coords(1) - center(1)) * (coords(1) - center(1));
+                (coords(1) - center(1)) * (coords(1) - center(1));
     case Type::YZ:
         return (coords(1) - center(1)) * (coords(1) - center(1)) +
-               (coords(2) - center(2)) * (coords(2) - center(2));
+                (coords(2) - center(2)) * (coords(2) - center(2));
     case Type::ZX:
         return (coords(0) - center(0)) * (coords(0) - center(0)) +
-               (coords(2) - center(2)) * (coords(2) - center(2));
+                (coords(2) - center(2)) * (coords(2) - center(2));
     default:
         return NAN;
     }

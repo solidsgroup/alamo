@@ -46,10 +46,10 @@ void Sphere::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar) 
 
 // Parse function to set parameters from input
 void Sphere::Parse(Sphere& value, IO::ParmParse& pp) {
-    pp_query("radius", value.radius);
-    pp_queryarr("center", value.center);
+    pp_query("radius", value.radius); // radius of the circle
+    pp_queryarr("center", value.center); // coordinate vector of circle center
     std::string type_str;
-    pp_query("type", type_str);
+    pp_query("type", type_str); // plane on which circle lies
 
     if (type_str == "yz" || type_str == "zy") value.type = Type::YZ;
     else if (type_str == "zx" || type_str == "xz") value.type = Type::ZX;
@@ -68,12 +68,12 @@ AMREX_GPU_HOST_DEVICE inline Set::Vector Sphere::computeCoordinates(int i, int j
 
     if (cellcentered) {
         AMREX_D_TERM(coords(0) = prob_lo[0] + (i + 0.5) * DX[0];,
-                     coords(1) = prob_lo[1] + (j + 0.5) * DX[1];,
-                     coords(2) = prob_lo[2] + (k + 0.5) * DX[2];);
+                    coords(1) = prob_lo[1] + (j + 0.5) * DX[1];,
+                    coords(2) = prob_lo[2] + (k + 0.5) * DX[2];);
     } else {
         AMREX_D_TERM(coords(0) = prob_lo[0] + i * DX[0];,
-                     coords(1) = prob_lo[1] + j * DX[1];,
-                     coords(2) = prob_lo[2] + k * DX[2];);
+                    coords(1) = prob_lo[1] + j * DX[1];,
+                    coords(2) = prob_lo[2] + k * DX[2];);
     }
     return coords;
 }
@@ -88,15 +88,15 @@ Set::Scalar Sphere::computeRSquared(const Set::Vector& coords, Type type, const 
 
     case Type::XY:
         return (coords(0) - center(0)) * (coords(0) - center(0)) +
-               (coords(1) - center(1)) * (coords(1) - center(1));
+                (coords(1) - center(1)) * (coords(1) - center(1));
 
     case Type::YZ:
         return (coords(1) - center(1)) * (coords(1) - center(1)) +
-               (coords(2) - center(2)) * (coords(2) - center(2));
+                (coords(2) - center(2)) * (coords(2) - center(2));
 
     case Type::ZX:
         return (coords(0) - center(0)) * (coords(0) - center(0)) +
-               (coords(2) - center(2)) * (coords(2) - center(2));
+                (coords(2) - center(2)) * (coords(2) - center(2));
 
     default:
         return NAN;

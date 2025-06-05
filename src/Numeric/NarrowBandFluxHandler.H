@@ -146,7 +146,7 @@ public:
                 auto& full_flux_mf =
                     (dir == 0) ? solver->XFlux_mf:
                     (dir == 1) ? solver->YFlux_mf:
-                                 solver->ZFlux_mf;
+                                solver->ZFlux_mf;
 
                 // Get the index types for temp_flux_mf and full_flux_mf
                 const amrex::IndexType full_flux_ixType = full_flux_mf[lev]->boxArray().ixType();
@@ -162,7 +162,7 @@ public:
 
                 // Perform reconstruction and flux computation
                 reconstruction->ReconstructFlux(dir, lev, solver, narrowband,
-                     narrowband_Vel, narrowband_LS, QL_stencil, QR_stencil);
+                    narrowband_Vel, narrowband_LS, QL_stencil, QR_stencil);
                 flux_method->ComputeFlux(dir, lev, solver, narrowband, narrowband_Vel, QL_stencil, QR_stencil, temp_flux_mf, full_flux_mf);
             }
         }
@@ -313,11 +313,11 @@ public:
 
                     // Create amrex::IntVect to store coords
                     const amrex::IntVect cell_center_IV(AMREX_D_DECL(cell_centered_index[0], 
-                                                                     cell_centered_index[1], 
-                                                                     cell_centered_index[2])); 
+                                                                    cell_centered_index[1], 
+                                                                    cell_centered_index[2])); 
                     const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
-                                                                          right_cell_centered_index[1], 
-                                                                          right_cell_centered_index[2]));
+                                                                        right_cell_centered_index[1], 
+                                                                        right_cell_centered_index[2]));
 
                     // Debug print
                     //if (cell_center_IV == debug) amrex::Print() << "debugging point " << debug << " for direction " << direction << std::endl;
@@ -331,8 +331,8 @@ public:
                     int face_centered_index[3] = { iface, jface, kface };
                     ClampIndices(face_centered_index, lower_bounds, upper_bounds);
                     const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
-                                                                       face_centered_index[1], 
-                                                                       face_centered_index[2]));
+                                                                    face_centered_index[1], 
+                                                                    face_centered_index[2]));
 
                     // Compute velocity and its sign (branch-free)
                     Set::Scalar vel = vel_arr(cell_center_IV, direction);
@@ -430,11 +430,11 @@ public:
 
                     // Create amrex::IntVect to store coords
                     const amrex::IntVect cell_center_IV(AMREX_D_DECL(cell_centered_index[0], 
-                                                                     cell_centered_index[1], 
-                                                                     cell_centered_index[2])); 
+                                                                    cell_centered_index[1], 
+                                                                    cell_centered_index[2])); 
                     const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
-                                                                          right_cell_centered_index[1], 
-                                                                          right_cell_centered_index[2]));
+                                                                        right_cell_centered_index[1], 
+                                                                        right_cell_centered_index[2]));
                     
                     // Exit early if not narrowband cell
                     int nb_val = nb_arr(cell_center_IV);
@@ -445,8 +445,8 @@ public:
                     ClampIndices(face_centered_index, lower_bounds, upper_bounds);
 
                     const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
-                                                                       face_centered_index[1], 
-                                                                       face_centered_index[2]));
+                                                                        face_centered_index[1], 
+                                                                        face_centered_index[2]));
 
                     // Get velocities at left and right faces
                     Set::Scalar VL = velocity_arr(cell_center_IV, direction);
