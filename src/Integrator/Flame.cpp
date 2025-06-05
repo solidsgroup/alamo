@@ -36,19 +36,20 @@ Flame::Forbids(IO::ParmParse& pp)
 
     pp.forbid("pf.gamma","implemented in regression rate law objects now"); 
 
+    pp.forbid("pressure.r_ap",   "use regression.powerlaw.r_ap");
+    pp.forbid("pressure.r_htpb", "use regression.powerlaw.r_htpb");
+    pp.forbid("pressure.r_comb", "use regression.powerlaw.r_comb");
+    pp.forbid("pressure.n_ap",   "use regression.powerlaw.n_ap");
+    pp.forbid("pressure.n_htpb", "use regression.powerlaw.n_htpb");
+    pp.forbid("pressure.n_comb", "use regression.powerlaw.n_comb");
 
-    pp.forbid("pressure.r_ap",   "use regression.powerlaw.r_ap");     // AP power pressure law parameter (r*P^n)
-    pp.forbid("pressure.r_htpb", "use regression.powerlaw.r_htpb"); // HTPB power pressure law parameter (r*P^n)
-    pp.forbid("pressure.r_comb", "use regression.powerlaw.r_comb"); // AP/HTPB power pressure law parameter (r*P^n)
-    pp.forbid("pressure.n_ap",   "use regression.powerlaw.n_ap");     // AP power pressure law parameter (r*P^n)
-    pp.forbid("pressure.n_htpb", "use regression.powerlaw.n_htpb"); // HTPB power pressure law parameter (r*P^n)
-    pp.forbid("pressure.n_comb", "use regression.powerlaw.n_comb"); // AP/HTPB power pressure law parameter (r*P^n)
+    pp.forbid("thermal.m_ap",   "use regression.arrhenius.m_ap");
+    pp.forbid("thermal.m_htpb", "use regression.arrhenius.m_htpb");
+    pp.forbid("thermal.E_ap",   "use regression.arrhenius.E_ap");
+    pp.forbid("thermal.E_htpb", "use regression.arrhenius.E_htpb");
 
-    // pp_query_required("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
-    // pp_query_required("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
-    // pp_query_required("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
-    // pp_query_required("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
-
+    pp.forbid("thermal.modeling_ap",   "Old debug variable. You can ignore if you had set it to one."); 
+    pp.forbid("thermal.modeling_htpb", "Old debug variable. You can ignore if you had set it to one."); 
 }
 
 
@@ -112,8 +113,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query("thermal.disperssion2", value.thermal.disperssion2); // rho; dispersion variables are use to set the outter field properties for the void grain case.
         pp_query("thermal.disperssion3", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
 
-        pp_query_default("thermal.modeling_ap", value.thermal.modeling_ap, 1.0); // Scaling factor for AP thermal conductivity (default = 1.0)
-        pp_query_default("thermal.modeling_htpb", value.thermal.modeling_htpb, 1.0); // Scaling factor for HTPB thermal conductivity (default = 1.0)
 
 
         //Temperature boundary condition
@@ -143,47 +142,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.select_default<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom);
     }
 
-
-    pp.query_validate("rate.type",value.rate.type,{"constant","powerlaw","arrhenius"});
-    if (value.rate.type=="constant")
-    {
-        
-    }
-    else if (value.rate.type == "powerlaw")
-    {
-        
-    }
-    else if (value.rate.type == "arrhenius")
-    {
-        if (!value.thermal.on) 
-            Util::Exception(INFO,"thermal.on must be true if using the arrhenius rate law");
-        
-        // Surrogate heat flux model paramater - AP
-        pp_query_required("rate.arrhenius.a1",         value.rate.arrhenius.a1); 
-        // Surrogate heat flux model paramater - HTPB
-        pp_query_required("rate.arrhenius.a2",         value.rate.arrhenius.a2); 
-        // Surrogate heat flux model paramater - Total
-        pp_query_required("rate.arrhenius.a3",         value.rate.arrhenius.a3); 
-        // Surrogate heat flux model paramater - AP
-        pp_query_required("rate.arrhenius.b1",         value.rate.arrhenius.b1);
-        // Surrogate heat flux model paramater - HTPB
-        pp_query_required("rate.arrhenius.b2",         value.rate.arrhenius.b2);
-        // Surrogate heat flux model paramater - Total
-        pp_query_required("rate.arrhenius.b3",         value.rate.arrhenius.b3); 
-        // Surrogate heat flux model paramater - Total
-        pp_query_required("rate.arrhenius.c1",         value.rate.arrhenius.c1); 
-
-        // Whether to include pressure to the arrhenius law
-        pp_query_default ("rate.arrhenius.mob_ap",     value.rate.arrhenius.mob_ap, 0); 
-        // Whether to use pressure to determined the reference Zeta 
-        pp_query_default ("rate.arrhenius.dependency", value.rate.arrhenius.dependency, 1); 
-        // Surrogate heat flux model paramater - Homogenized
-        pp_query_default ("rate.arrhenius.h1",         value.rate.arrhenius.h1, 1.81); 
-        // Surrogate heat flux model paramater - Homogenized
-        pp_query_default ("rate.arrhenius.h2",         value.rate.arrhenius.h2, 1.34); 
-
-    }
-    else Util::Exception(INFO);
 
     pp_query_default("pressure.P", value.pressure.P, 1.0); // Constant pressure value
     if (value.thermal.on)
@@ -290,7 +248,6 @@ void Flame::Initialize(int lev)
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-        // pressure_mf[lev]->setVal(1.0); // [error]
         thermal.w1 = 0.2 * pressure.P + 0.9;
         thermal.T_fluid = thermal.bound;
         ic_laser->Initialize(lev, laser_mf);
@@ -459,15 +416,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
         Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
 
-
-        // for the pressure power law option
-        // Set::Scalar fmod_ap = pressure.power.r_ap * pow(pressure.P, pressure.power.n_ap);
-        // Set::Scalar fmod_htpb = pressure.power.r_htpb * pow(pressure.P, pressure.power.n_htpb);
-        // Set::Scalar fmod_comb = pressure.power.r_comb * pow(pressure.P, pressure.power.n_comb);
-        // pressure.power.a_fit = -1.16582 * sin(pressure.P) - 0.681788 * cos(pressure.P) + 3.3563;
-        // pressure.power.b_fit = -0.708225 * sin(pressure.P) + 0.548067 * cos(pressure.P) + 1.55985;
-        // pressure.power.c_fit = -0.0130849 * sin(pressure.P) - 0.03597 * cos(pressure.P) + 0.00725694;
-
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             //
@@ -478,13 +426,19 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar rho; // No special interface mixure rule is needed here.
             Set::Scalar cp; 
             if (homogeneousSystem) {
-                K = (thermal.modeling_ap * thermal.k_ap * thermal.massfraction + thermal.modeling_htpb * thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg); // Calculate effective thermal conductivity
-                rho = (thermal.rho_ap * thermal.massfraction + thermal.rho_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion2 * (1. - phi_avg); // No special interface mixure rule is needed here.
+                // Calculate effective thermal conductivity
+                K = (thermal.k_ap * thermal.massfraction + thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg);
+                // No special interface mixure rule is needed here.
+                rho = (thermal.rho_ap * thermal.massfraction + thermal.rho_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion2 * (1. - phi_avg); 
+                // Calculate effective heat capacity
                 cp = (thermal.cp_ap * thermal.massfraction + thermal.cp_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion3 * (1. - phi_avg);
             }
             else {
-                K = thermal.modeling_ap * thermal.k_ap * phi_avg + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi_avg); // Calculate effective thermal conductivity
-                rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); // No special interface mixure rule is needed here.
+                // Calculate effective thermal conductivity
+                K = thermal.k_ap * phi_avg + thermal.k_htpb * (1.0 - phi_avg);
+                // No special interface mixure rule is needed here.
+                rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); 
+                // Calculate effective heat capacity
                 cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
             }
 
@@ -501,34 +455,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // 
             Set::Scalar L = (*regression)(phi(i,j,k),
                                           thermal.on ? temp(i,j,k) : 0);
-
-            // if (rate.type == "arrhenius")
-            // {
-            //     if (pressure.arrhenius.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i, j, k)) * phi_avg;
-            //     else L = thermal.m_ap * exp(-thermal.E_ap / temp(i, j, k)) * phi_avg;
-            //     L += thermal.m_htpb * exp(-thermal.E_htpb / temp(i, j, k)) * (1.0 - phi_avg);
-            //     if (temp(i, j, k) <= thermal.bound) L = 0.0;
-            // }
-            // else if (rate.type == "powerlaw")
-            // {
-            //     if (homogeneousSystem == 1) {
-            //         Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            //         Set::Scalar angle = acos(grad_eta[0] / grad_eta.lpNorm<2>()) * 180 / 3.1415;
-            //         if (angle > 90) angle = angle - 90.0;
-            //         if (angle > 180) angle = angle - 180.0;
-            //         if (angle > 270) angle = angle - 270.0;
-            //         L = pressure.power.a_fit + pressure.power.b_fit * exp(-pressure.power.c_fit * angle);
-            //     }
-            //     else {
-            //         Set::Scalar fs_actual;
-            //         fs_actual = fmod_ap * phi(i, j, k)
-            //             + fmod_htpb * (1.0 - phi(i, j, k))
-            //             + 4.0 * fmod_comb * phi(i, j, k) * (1.0 - phi(i, j, k));
-            //         L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
-            //     }                
-            // }
-            // else Util::Exception(INFO,"Not implemented");
-
             if (isnan(L))  Util::Exception(INFO);
 
             // 
@@ -550,7 +476,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             if (thermal.on)
             {
                 mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; 
-
                 if (isnan(mdot(i, j, k))) Util::Exception(INFO);
             }
 
@@ -579,7 +504,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 }
                 if (isnan(heatflux(i, j, k))) Util::Exception(INFO);
             }
-
         });
 
     } // MFi For loop 

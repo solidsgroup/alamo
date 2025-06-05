@@ -150,7 +150,6 @@ private:
         Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
         Set::Scalar E_ap = NAN, E_htpb = NAN;
         Set::Scalar hc = NAN, w1 = NAN;
-        Set::Scalar modeling_ap = NAN, modeling_htpb = NAN;
         Set::Scalar mlocal_ap = NAN, mlocal_htpb = NAN, mlocal_comb = NAN;
         Set::Scalar T_fluid = NAN;
         Set::Scalar massfraction = NAN;
