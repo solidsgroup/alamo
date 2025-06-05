@@ -100,7 +100,6 @@ private:
     } pf;
 
     struct {
-        Set::Scalar P = NAN;
         Set::Scalar gamma = NAN;
 
         struct {
@@ -120,32 +119,10 @@ private:
     } pressure;
 
     struct {
-        std::string type = "";
-        struct {
-            Set::Scalar L = NAN;
-        } constant;
-        struct {
-            Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
-            Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
-            Set::Scalar a_fit = NAN, b_fit = NAN, c_fit = NAN;
-        } powerlaw;
-        struct {
-            Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
-            Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
-            Set::Scalar c1 = NAN;
-            int mob_ap = NAN;
-            int dependency = 1;
-            Set::Scalar h1 = NAN, h2 = NAN;
-        } arrhenius;
-    } rate;
-
-
-    struct {
         bool on = 0;
         Set::Scalar rho_ap = NAN, rho_htpb = NAN;
         Set::Scalar k_ap = NAN, k_htpb = NAN;
         Set::Scalar cp_ap = NAN, cp_htpb = NAN;
-        Set::Scalar q0 = NAN;
         Set::Scalar bound = NAN;
         Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
         Set::Scalar E_ap = NAN, E_htpb = NAN;
@@ -167,12 +144,14 @@ private:
         int phirefinement = -1;
     } elastic;
 
-    // Integrated variables
-    Set::Scalar volume = 0.0;
-    Set::Scalar area = 0.0;
-    Set::Scalar chamber_area = 0.0;
-    Set::Scalar chamber_pressure = 1.0;
-    Set::Scalar massflux = 0.00000001;
+    struct {
+        // Integrated variables
+        Set::Scalar volume = 0.0;
+        Set::Scalar area = 0.0;
+        Set::Scalar massflux = 0.0;
+        // Intensive variables
+        Set::Scalar pressure = NAN;
+    } chamber;
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
 

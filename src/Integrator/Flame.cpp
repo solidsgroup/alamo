@@ -12,7 +12,8 @@
 #include "IC/PNG.H"
 #include "Base/Mechanics.H"
 #include "Util/Util.H"
-#include "Model/Regression/Regression.H"
+#include "Model/Regression/PowerLaw.H"
+#include "Model/Regression/Arrhenius.H"
 
 #include <cmath>
 
@@ -30,9 +31,9 @@ Flame::Flame(IO::ParmParse& pp) : Flame()
 void
 Flame::Forbids(IO::ParmParse& pp)
 {
-    pp.forbid("geometry.x_len","This is specified by geometry.prob_lo, geometry.prob_hi");
-    pp.forbid("geometry.y_len","This is specified by geometry.prob_lo, geometry.prob_hi");
-    pp.forbid("amr.ghost_cells", "This should not be adjustable and will cause errors if changed from 2");
+    pp.forbid("geometry.x_len","This is specified by geometry.prob_lo/hi");
+    pp.forbid("geometry.y_len","This is specified by geometry.prob_lo/hi");
+    pp.forbid("amr.ghost_cells", "This should not be adjustable ");
 
     pp.forbid("pf.gamma","implemented in regression rate law objects now"); 
 
@@ -47,9 +48,8 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("thermal.m_htpb", "use regression.arrhenius.m_htpb");
     pp.forbid("thermal.E_ap",   "use regression.arrhenius.E_ap");
     pp.forbid("thermal.E_htpb", "use regression.arrhenius.E_htpb");
-
-    pp.forbid("thermal.modeling_ap",   "Old debug variable. You can ignore if you had set it to one."); 
-    pp.forbid("thermal.modeling_htpb", "Old debug variable. You can ignore if you had set it to one."); 
+    pp.forbid("thermal.modeling_ap",   "Old debug variable. Should equal 1 "); 
+    pp.forbid("thermal.modeling_htpb", "Old debug variable. Should equal 1"); 
 }
 
 
@@ -92,26 +92,39 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("thermal.bound", value.thermal.bound, 0.0); // System Initial Temperature
 
     if (value.thermal.on) {
-        pp_query_required("thermal.rho_ap", value.thermal.rho_ap); // AP Density
-        pp_query_required("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
-        pp_query_required("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
-        pp_query_required("thermal.k_htpb", value.thermal.k_htpb); // HTPB Thermal Conductivity
-        pp_query_required("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
-        pp_query_required("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
+        // AP Density
+        pp_query_required("thermal.rho_ap", value.thermal.rho_ap);
+        // HTPB Density
+        pp_query_required("thermal.rho_htpb", value.thermal.rho_htpb);
+        // AP Thermal Conductivity
+        pp_query_required("thermal.k_ap", value.thermal.k_ap);
+        // HTPB Thermal Conductivity
+        pp_query_required("thermal.k_htpb", value.thermal.k_htpb);
+        // AP Specific Heat
+        pp_query_required("thermal.cp_ap", value.thermal.cp_ap);
+        //HTPB Specific Heat
+        pp_query_required("thermal.cp_htpb", value.thermal.cp_htpb); 
 
-        pp_query_default("thermal.q0", value.thermal.q0, 0.0); // Baseline heat flux
+        // Used to change heat flux units
+        pp_query_default("thermal.hc", value.thermal.hc, 1.0);
+        // Systen AP mass fraction
+        pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
+        // AP mass flux reference value 
+        pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0);
+        // HTPB mass flux reference value 
+        pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0);
+        // AP/HTPB mass flux reference value 
+        pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); 
 
-        pp_query_default("thermal.hc", value.thermal.hc, 1.0); // Used to change heat flux units
-        pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8); // Systen AP mass fraction
-        pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0); // AP mass flux reference value 
-        pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0); // HTPB mass flux reference value 
-        pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); // AP/HTPB mass flux reference value 
+        // Temperature of the Standin Fluid 
+        pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); 
 
-        pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); // Temperature of the Standin Fluid 
-
-        pp_query("thermal.disperssion1", value.thermal.disperssion1); // K; dispersion variables are use to set the outter field properties for the void grain case.
-        pp_query("thermal.disperssion2", value.thermal.disperssion2); // rho; dispersion variables are use to set the outter field properties for the void grain case.
-        pp_query("thermal.disperssion3", value.thermal.disperssion3); // cp; dispersion variables are use to set the outter field properties for the void grain case.
+        // K; dispersion variables are use to set the outter field properties for the void grain case.
+        pp_query("thermal.disperssion1", value.thermal.disperssion1);
+        // rho; dispersion variables are use to set the outter field properties for the void grain case.
+        pp_query("thermal.disperssion2", value.thermal.disperssion2);
+        // cp; dispersion variables are use to set the outter field properties for the void grain case.
+        pp_query("thermal.disperssion3", value.thermal.disperssion3); 
 
 
 
@@ -129,11 +142,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, value.ghost_count + 1, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, value.ghost_count + 1, "laser", value.plot_field);
 
-        value.RegisterIntegratedVariable(&value.volume, "total_area");
-        value.RegisterIntegratedVariable(&value.area, "Interface_area");
-        value.RegisterIntegratedVariable(&value.chamber_area, "chamber_area", false);
-        value.RegisterIntegratedVariable(&value.massflux, "mass_flux");
-        value.RegisterIntegratedVariable(&value.chamber_pressure, "Pressure", false);
+        value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
+        value.RegisterIntegratedVariable(&value.chamber.area, "area");
+        value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
+        value.RegisterIntegratedVariable(&value.chamber.pressure, "pressure", false);
 
         // laser initial condition
         pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom);
@@ -143,35 +155,55 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     }
 
 
-    pp_query_default("pressure.P", value.pressure.P, 1.0); // Constant pressure value
+    // Constant pressure value
+    pp_query_default("chamber.pressure", value.chamber.pressure, 1.0); 
+
     if (value.thermal.on)
     {
-        pp_query_required("pressure.a1", value.pressure.arrhenius.a1); // Surgate heat flux model paramater - AP
-        pp_query_required("pressure.a2", value.pressure.arrhenius.a2); // Surgate heat flux model paramater - HTPB
-        pp_query_required("pressure.a3", value.pressure.arrhenius.a3); // Surgate heat flux model paramater - Total
-        pp_query_required("pressure.b1", value.pressure.arrhenius.b1); // Surgate heat flux model paramater - AP
-        pp_query_required("pressure.b2", value.pressure.arrhenius.b2); // Surgate heat flux model paramater - HTPB
-        pp_query_required("pressure.b3", value.pressure.arrhenius.b3); // Surgate heat flux model paramater - Total
-        pp_query_required("pressure.c1", value.pressure.arrhenius.c1); // Surgate heat flux model paramater - Total
-        pp_query_default("pressure.mob_ap", value.pressure.arrhenius.mob_ap, 0); // Whether to include pressure to the arrhenius law
-        pp_query_default("pressure.dependency", value.pressure.arrhenius.dependency, 1); // Whether to use pressure to determined the reference Zeta 
-        pp_query_default("pressure.h1", value.pressure.arrhenius.h1, 1.81); // Surgate heat flux model paramater - Homogenized
-        pp_query_default("pressure.h2", value.pressure.arrhenius.h2, 1.34); // Surgate heat flux model paramater - Homogenized
+        // Surgate heat flux model paramater - AP
+        pp_query_required("pressure.a1", value.pressure.arrhenius.a1);
+        // Surgate heat flux model paramater - HTPB
+        pp_query_required("pressure.a2", value.pressure.arrhenius.a2);
+        // Surgate heat flux model paramater - Total
+        pp_query_required("pressure.a3", value.pressure.arrhenius.a3);
+        // Surgate heat flux model paramater - AP
+        pp_query_required("pressure.b1", value.pressure.arrhenius.b1);
+        // Surgate heat flux model paramater - HTPB
+        pp_query_required("pressure.b2", value.pressure.arrhenius.b2); 
+        // Surgate heat flux model paramater - Total
+        pp_query_required("pressure.b3", value.pressure.arrhenius.b3);
+        // Surgate heat flux model paramater - Total
+        pp_query_required("pressure.c1", value.pressure.arrhenius.c1);
+        // Whether to include pressure to the arrhenius law
+        pp_query_default("pressure.mob_ap", value.pressure.arrhenius.mob_ap, 0);
+        // Whether to use pressure to determined the reference Zeta 
+        pp_query_default("pressure.dependency", value.pressure.arrhenius.dependency, 1);
+        // Surgate heat flux model paramater - Homogenized
+        pp_query_default("pressure.h1", value.pressure.arrhenius.h1, 1.81);
+        // Surgate heat flux model paramater - Homogenized
+        pp_query_default("pressure.h2", value.pressure.arrhenius.h2, 1.34); 
 
     }
     else
     {
         //
     }
-    pp_query_default("variable_pressure", value.variable_pressure, 0); // Whether to compute the pressure evolution
-    pp_query_default("homogeneousSystem", value.homogeneousSystem, 0); // Whether to initialize Phi with homogenized properties
 
+    // Whether to compute the pressure evolution
+    pp_query_default("variable_pressure", value.variable_pressure, 0);
+    // Whether to initialize Phi with homogenized properties
+    pp_query_default("homogeneousSystem", value.homogeneousSystem, 0); 
 
-    pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);// Refinement criterion for eta field   
-    pp_query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, 0.001);// Refinement criterion for temperature field    
-    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0.1);// Eta value to restrict the refinament for the temperature field 
-    pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);// Refinement criterion for phi field [infinity]
-    pp_query_default("small", value.small, 1.0e-8); // Lowest value of Eta.
+    // Refinement criterion for eta field   
+    pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);
+    // Refinement criterion for temperature field    
+    pp_query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, 0.001);
+    // Eta value to restrict the refinament for the temperature field 
+    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0.1);
+    // Refinement criterion for phi field [infinity]
+    pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
+    // Lowest value of Eta.
+    pp_query_default("small", value.small, 1.0e-8); 
 
     // Initial condition for $\phi$ field.
     pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>("phi.ic",value.ic_phi,value.geom);
@@ -195,8 +227,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     if (value.m_type != Type::Disable)
     {
-        value.elastic.Tref = value.thermal.bound;
-        pp_query_default("Tref", value.elastic.Tref, 300.0); // Initial temperature for thermal expansion computation
+        //value.elastic.Tref = value.thermal.bound;
+        pp_query_default("Tref", value.elastic.Tref, value.thermal.bound); // Initial temperature for thermal expansion computation
+        // elastic model of AP
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
@@ -250,12 +283,12 @@ void Flame::Initialize(int lev)
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-        thermal.w1 = 0.2 * pressure.P + 0.9;
+        thermal.w1 = 0.2 * chamber.pressure + 0.9;
         thermal.T_fluid = thermal.bound;
         ic_laser->Initialize(lev, laser_mf);
         thermal.mlocal_htpb = 685000.0 - 850e3 * thermal.massfraction;
     }
-    if (variable_pressure) pressure.P = 1.0;
+    if (variable_pressure) chamber.pressure = 1.0;
 }
 
 void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
@@ -348,10 +381,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
         Set::Scalar x_len = geom[0].ProbDomain().length(0);
         Set::Scalar y_len = geom[0].ProbDomain().length(1);
         Set::Scalar domain_area = x_len * y_len;
-        chamber_pressure = pressure.P;
-        chamber_area = domain_area - volume;
-        Util::Message(INFO, "Mass = ", massflux);
-        Util::Message(INFO, "Pressure = ", pressure.P);
+        Util::Message(INFO, "Mass = ", chamber.massflux);
+        Util::Message(INFO, "Pressure = ", chamber.pressure);
     }
 }
 
@@ -369,14 +400,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Chamber pressure update
     //
     if (variable_pressure) {
-        pressure.P = exp(0.00075 * massflux);
-        if (pressure.P > 10.0) {
-            pressure.P = 10.0;
+        chamber.pressure = exp(0.00075 * chamber.massflux);
+        if (chamber.pressure > 10.0) {
+            chamber.pressure = 10.0;
         }
-        else if (pressure.P <= 0.99) {
-            pressure.P = 0.99;
+        else if (chamber.pressure <= 0.99) {
+            chamber.pressure = 0.99;
         }
-        elastic.traction = pressure.P;
+        elastic.traction = chamber.pressure;
     }
 
 
@@ -391,7 +422,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Numeric::Function::Polynomial<3> dw = w.D();
 
 
-    regression->set_pressure(pressure.P);
+    regression->set_pressure(chamber.pressure);
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -409,14 +440,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
 
-        Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
+        Set::Scalar zeta_2 = 0.000045 - chamber.pressure * 6.42e-6;
         Set::Scalar zeta_1;
         if (pressure.arrhenius.dependency == 1) zeta_1 = zeta_2;
         else zeta_1 = zeta_0;
-        Set::Scalar k1 = pressure.arrhenius.a1 * pressure.P + pressure.arrhenius.b1 - zeta_1 / zeta;
-        Set::Scalar k2 = pressure.arrhenius.a2 * pressure.P + pressure.arrhenius.b2 - zeta_1 / zeta;
-        Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * pressure.P * pressure.P + pressure.arrhenius.a3 * pressure.P + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
-        Set::Scalar k4 = pressure.arrhenius.h1 * pressure.P + pressure.arrhenius.h2;
+        Set::Scalar k1 = pressure.arrhenius.a1 * chamber.pressure + pressure.arrhenius.b1 - zeta_1 / zeta;
+        Set::Scalar k2 = pressure.arrhenius.a2 * chamber.pressure + pressure.arrhenius.b2 - zeta_1 / zeta;
+        Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * chamber.pressure * chamber.pressure + pressure.arrhenius.a3 * chamber.pressure + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
+        Set::Scalar k4 = pressure.arrhenius.h1 * chamber.pressure + pressure.arrhenius.h2;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -620,8 +651,6 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             });
         }
     }
-
-
 }
 
 void Flame::Regrid(int lev, Set::Scalar time)
@@ -644,27 +673,27 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            volume += eta(i, j, k, 0) * dv;
+            chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
-            area += da;
+            chamber.area += da;
 
             Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
             Set::Scalar mnormgrad = mgrad.lpNorm<2>();
             Set::Scalar dm = mnormgrad * dv;
-            massflux += dm;
+            chamber.massflux += dm;
 
         });
     }
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            volume += eta(i, j, k, 0) * dv;
+            chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
-            area += da;
+            chamber.area += da;
         });
     }
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)

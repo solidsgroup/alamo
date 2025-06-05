@@ -176,17 +176,15 @@ class HTMLPrinter:
             print(self.mypr,"  "*lev,f"    {processed_doc}", file=self.f)
             print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
-    def printconditionalstart(self,input,prefix,lev,classes=[]):
+    def printconditionalstart(self,input,name,lev,things=[]):
         self.tbody_cntr += 1
 
-        name = f'.'.join(prefix + [input['string']])
         input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
         bdg_success   = "sd-sphinx-override sd-badge sd-outline-success sd-text-success"
         bdg_primary   = "sd-sphinx-override sd-badge sd-outline-primary sd-text-primary"
         bdg_secondary = "sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary"
         bdg_danger    = "sd-sphinx-override sd-badge sd-outline-danger sd-text-danger"
         
-        input['possibles'] = [str(cl).split('::')[-1].lower() for cl in input["classes"]]
         srcfile = input['file']
         line = input['line']
 
@@ -202,17 +200,13 @@ class HTMLPrinter:
         print(self.mypr,"  "*lev,f"  <td colspan=2>", file=self.f)
         print(self.mypr,"  "*lev,f"    {processed_doc}<br/>", file=self.f)
 
-        things = input['possibles']
-
         for thing in things:
-            conditional_class_all = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-') + "-type"
-            conditional_class_thing = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-') + "-type-" + thing
+            conditional_class_all = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-')
+            conditional_class_thing = "n" + str(self.tbody_cntr) + "-" + name.replace('.','-') + thing
             jscript_cmd = f"""showTab("{conditional_class_all}\",\"{conditional_class_thing}",this)"""
             print(self.mypr,"  "*lev,f"     <button class='btn-{conditional_class_all} {bdg_primary}' onclick='{jscript_cmd}'>{thing}</button>", file=self.f)
         print(self.mypr,"  "*lev,f"  </p></td>", file=self.f)
         print(self.mypr,"  "*lev,f"</tr>", file=self.f)
-
-
 
     def printconditional(self,inputname,inputvalue,lev,classes=[]):
         input_classes = "sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary reference external"
