@@ -89,7 +89,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Whether to use the Thermal Transport Model
     pp_query_default("thermal.on", value.thermal.on, false); 
 
-    pp_query_default("thermal.bound", value.thermal.bound, 0.0); // System Initial Temperature
+    pp_query_default("thermal.Tref", value.thermal.TSolid, 300.0); // System Initial Temperature. TFluid and TElastic can be individually assigned, but will otherwise be assigned the value of Tref.
+    pp_query_default("thermal.TFluid", value.thermal.TFluid, value.thermal.TSolid); // System Initial Temperature
 
     if (value.thermal.on) {
         // AP Density
@@ -109,21 +110,19 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("thermal.hc", value.thermal.hc, 1.0);
         // Systen AP mass fraction
         pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
-        // AP mass flux reference value 
+        // AP maximum (or reference) mass flux value - See Meier and Schmidt et al 2024 eq. 16
         pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0);
-        // HTPB mass flux reference value 
-        pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0);
-        // AP/HTPB mass flux reference value 
+        // AP/HTPB maximum (or reference) mass flux value, i.e. Interface maximum mass flux
         pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); 
 
         // Temperature of the Standin Fluid 
-        pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); 
+        pp_query_default("thermal.TFluid", value.thermal.TFluid, 300.0); 
 
-        // K; dispersion variables are use to set the outter field properties for the void grain case.
+        // K; dispersion variables are use to create an inert region for the void grain case. An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
         pp_query("thermal.disperssion1", value.thermal.disperssion1);
-        // rho; dispersion variables are use to set the outter field properties for the void grain case.
+        // rho; dispersion variables are use to create an inert region for the void grain case. An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
         pp_query("thermal.disperssion2", value.thermal.disperssion2);
-        // cp; dispersion variables are use to set the outter field properties for the void grain case.
+        // cp; dispersion variables are use to create an inert region for the void grain case. An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
         pp_query("thermal.disperssion3", value.thermal.disperssion3); 
 
 
@@ -227,12 +226,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     if (value.m_type != Type::Disable)
     {
-        //value.elastic.Tref = value.thermal.bound;
-        pp_query_default("Tref", value.elastic.Tref, value.thermal.bound); // Initial temperature for thermal expansion computation
-
-        // the elastic model for AP
+        pp_query_default("TElastic", value.elastic.TElastic, value.thermal.TSolid); // Initial temperature for thermal expansion computation
+        // elastic model of AP
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
-        // the elastic model for HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
@@ -276,17 +272,16 @@ void Flame::Initialize(int lev)
         }
         else
         {
-            temp_mf[lev]->setVal(thermal.bound);
-            temp_old_mf[lev]->setVal(thermal.bound);
-            temps_mf[lev]->setVal(thermal.bound);
-            temps_old_mf[lev]->setVal(thermal.bound);
+            temp_mf[lev]->setVal(thermal.TSolid);
+            temp_old_mf[lev]->setVal(thermal.TSolid);
+            temps_mf[lev]->setVal(thermal.TSolid);
+            temps_old_mf[lev]->setVal(thermal.TSolid);
         }
         alpha_mf[lev]->setVal(0.0);
         mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
         thermal.w1 = 0.2 * chamber.pressure + 0.9;
-        thermal.T_fluid = thermal.bound;
         ic_laser->Initialize(lev, laser_mf);
         thermal.mlocal_htpb = 685000.0 - 850e3 * thermal.massfraction;
     }
@@ -335,11 +330,11 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
-                    model_ap.F0 *= (temp_avg - elastic.Tref);
+                    model_ap.F0 *= (temp_avg - elastic.TElastic);
                     model_ap.F0 += Set::Matrix::Identity();
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 -= Set::Matrix::Identity();
-                    model_htpb.F0 *= (temp_avg - elastic.Tref);
+                    model_htpb.F0 *= (temp_avg - elastic.TElastic);
                     model_htpb.F0 += Set::Matrix::Identity();
 
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
@@ -583,7 +578,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar Tsolid;
                 Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                 tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
-                tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.T_fluid;
+                tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.TFluid;
                 if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
                     Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, " j= ", j, ")");
                     Util::Message(INFO, temps(i, j, k), "temps contains nan (i=", i, " j= ", j, ")");
