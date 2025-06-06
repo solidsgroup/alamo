@@ -274,7 +274,7 @@ public:
 
 namespace Util
 {
-Set::Scalar Random();
+Set::Scalar Random(bool sync = false);
 Set::Scalar Gaussian(amrex::Real mean,amrex::Real std_deviation);
 }
 

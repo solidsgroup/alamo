@@ -43,7 +43,7 @@
 #include <chrono>
 #include <ctime>
 #include <string>
-//#include <limits>
+#include <limits>
 #include <memory>
 
 #ifdef _OPENMP
@@ -260,7 +260,7 @@ protected:
         if (!dynamictimestep.on) return;
         if (!dynamictimestep.dt_limit_min.size())
         {
-            dynamictimestep.dt_limit_min.resize(max_level + 1,
+            dynamictimestep.dt_limit_min.resize(max_level+1,
                                                 std::numeric_limits<Set::Scalar>::max());
         }
         dynamictimestep.dt_limit_min[lev] = std::min(dt_min,

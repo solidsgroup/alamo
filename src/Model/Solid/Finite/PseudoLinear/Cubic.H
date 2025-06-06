@@ -2,7 +2,6 @@
 #define MODEL_SOLID_FINITE_PSEUDOLINEAR_CUBIC_H_
 
 #include "IO/ParmParse.H"
-#include "Set/Base.H"
 #include "Model/Solid/Solid.H"
 
 namespace Model
@@ -17,7 +16,6 @@ class Cubic : public Solid<Set::Sym::Major>
 {
 public:
     AMREX_GPU_HOST_DEVICE Cubic() = default;
-    //AMREX_GPU_HOST_DEVICE Cubic(const Solid<Set::Sym::Major> &base) : Solid<Set::Sym::Major>(base) {};
     AMREX_GPU_HOST_DEVICE virtual ~Cubic() = default;
 
     AMREX_GPU_HOST_DEVICE
@@ -75,7 +73,7 @@ public:
         return ddw;   
     }
     AMREX_GPU_HOST_DEVICE
-    void Print(std::ostream &out) const 
+    void Print(std::ostream &out) const override
     {
         AMREX_IF_ON_HOST(
             out << "C11=" << C11 << " C12=" << C12 << " C44=" << C44 << " q=" << q.w()
@@ -146,10 +144,6 @@ public:
 #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
-
-
-
-
 
 }
 }

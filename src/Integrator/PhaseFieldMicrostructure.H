@@ -271,21 +271,16 @@ public:
     }
 
     
-protected:
-
     /// \fn    Advance
     /// \brief Evolve phase field in time
     void Advance (int lev, Real time, Real dt) override;
     void Initialize (int lev) override;
-public:
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
-protected:
     virtual void TimeStepBegin(amrex::Real time, int iter) override;
     virtual void TimeStepComplete(amrex::Real time, int iter) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
-public:
     virtual void UpdateEigenstrain(int lev);
     virtual void UpdateEigenstrain()
     {
@@ -294,8 +289,6 @@ public:
     }
 
     virtual void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override;
-
-public:
 
     int number_of_grains = -1;
     int number_of_ghost_cells = 1;
@@ -319,7 +312,7 @@ public:
     enum ThresholdType {
         Continuous = 0, Chop = 1
     };
-    struct {
+    struct pf_struct{
         Set::Scalar M = NAN;
         Set::Scalar L = NAN;
         Set::Scalar mu = NAN;
@@ -328,7 +321,7 @@ public:
         Set::Scalar l_gb = NAN;
         bool elastic_df = false;
         Set::Scalar elastic_mult = NAN;
-        struct {
+        struct threshold_struct{
             bool on = false;
             bool chempot = false;
             bool boundary = false;
@@ -338,19 +331,22 @@ public:
             bool sdf = false;
             Set::Scalar value = NAN;
             ThresholdType type = ThresholdType::Continuous;
-        } threshold;
-    } pf;
+        };
+        threshold_struct threshold;
+    };
+    pf_struct pf;
 
-    struct {
+    struct anisotropic_kinetics_struct{
         int on = 0;
         Set::Scalar tstart = 0.0;
         Numeric::Interpolator::Linear<Set::Scalar> mobility;
         Numeric::Interpolator::Linear<Set::Scalar> threshold;
         Set::Field<Set::Scalar> L_mf;
         Set::Field<Set::Scalar> threshold_mf;
-    } anisotropic_kinetics;
+    };
+    anisotropic_kinetics_struct anisotropic_kinetics;
 
-    struct {
+    struct anisotropy_struct{
         int on = 0;
         Set::Scalar beta;
         Set::Scalar timestep;
@@ -361,34 +357,39 @@ public:
         Set::Scalar theta0,sigma0,sigma1;
         Set::Scalar phi0 = 0.0;
         int elastic_int = -1;
-    } anisotropy;
+    };
+    anisotropy_struct anisotropy;
     
-    struct { 
+    struct lagrange_struct{ 
         bool on = 0;
         Set::Scalar tstart = NAN;
         Set::Scalar vol0 = NAN;
         Set::Scalar lambda = NAN;
-    } lagrange;
+    };
+    lagrange_struct lagrange;
 
-    struct {
+    struct sdf_struct{
         int on = 0;
         std::vector<Numeric::Interpolator::Linear<Set::Scalar>> val;
         Set::Scalar tstart = 0.0;
-    } sdf;
+    };
+    sdf_struct sdf;
 
-    struct {
+    struct fluctuation_struct {
         int on = 0;
         Set::Scalar amp = 0.0;
         Set::Scalar sd = 0.0;
         Set::Scalar tstart = 0.0;
         std::normal_distribution<double> norm_dist;
         std::default_random_engine rand_num_gen;
-    } fluctuation;
+    };
+    fluctuation_struct fluctuation;
 
-    struct {
+    struct disconnection_struct{
         int on = 0;
         Model::Defect::Disconnection model;
-    } disconnection;
+    };
+    disconnection_struct disconnection;
 
     struct {
         int on = 0;
@@ -420,4 +421,4 @@ public:
 
 };
 }
-#endif 
+#endif

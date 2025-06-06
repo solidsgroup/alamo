@@ -231,6 +231,7 @@ public:
 
 
     virtual
+    AMREX_GPU_HOST_DEVICE
     std::array<Type,AMREX_SPACEDIM> getType (
                 const int &i, const int &j, [[maybe_unused]] const int &k,
                 const amrex::Box &domain) override

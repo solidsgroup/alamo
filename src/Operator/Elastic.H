@@ -114,6 +114,8 @@ public:
 
 protected:
 
+
+    using Operator::Diagonal;
     virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
 
     virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const override final;

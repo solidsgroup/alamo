@@ -697,7 +697,7 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
                         fdata(i, j, k, n) / 8.0;
 
 #ifdef AMREX_DEBUG
-                    if (cdata(i, j, k).contains_nan()) Util::Abort(INFO, "restricted model is nan at (", i, ",", j, ",", k, "), fine_amrlev=", fine_amrlev);
+                    if (cdata(I, J, K).contains_nan()) Util::Abort(INFO, "restricted model is nan at (", i, ",", j, ",", k, "), fine_amrlev=", fine_amrlev);
 #endif
                 }
 

@@ -50,7 +50,7 @@ public:
     /// Scan input values and initialize fields
     static void Parse(CahnHilliard& value, IO::ParmParse& pp);
 
-protected:
+public:
 
     /// Set values in fields
     void Initialize (int lev) override;

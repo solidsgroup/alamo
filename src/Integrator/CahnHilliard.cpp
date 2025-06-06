@@ -62,7 +62,11 @@ void
 CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
 {
     std::swap(etaold_mf[lev], etanew_mf[lev]);
-    const Set::Scalar* DX = geom[lev].CellSize();
+
+    const Set::Vector DX(geom[lev].CellSize());
+
+    const auto gamma = this->gamma;
+
     for ( amrex::MFIter mfi(*etanew_mf[lev],true); mfi.isValid(); ++mfi )
     {
         const amrex::Box& bx = mfi.tilebox();
@@ -70,9 +74,9 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
         amrex::Array4<amrex::Real> const& inter    = intermediate[lev]->array(mfi);
         amrex::Array4<amrex::Real> const& etanew    = etanew_mf[lev]->array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
-            Set::Scalar lap_eta = Numeric::Laplacian(eta,i,j,k,0,DX);
+            Set::Scalar lap_eta = Numeric::Laplacian(eta,i,j,k,0,DX.data());
             
 
             inter(i,j,k) =
@@ -84,8 +88,8 @@ CahnHilliard::AdvanceReal (int lev, Set::Scalar /*time*/, Set::Scalar dt)
             etanew(i,j,k) = eta(i,j,k) - dt*inter(i,j,k); // Allen Cahn
         });
 
-        amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-            Set::Scalar lap_inter = Numeric::Laplacian(inter,i,j,k,0,DX);
+        amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE (int i, int j, int k){
+            Set::Scalar lap_inter = Numeric::Laplacian(inter,i,j,k,0,DX.data());
 
             etanew(i,j,k) = eta(i,j,k) + dt*lap_inter;
         });
@@ -205,8 +209,10 @@ CahnHilliard::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, Set::S
 {
     if (method == "spectral") return;
 
-    const Set::Scalar* DX = geom[lev].CellSize();
-    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+    const Set::Vector DX(geom[lev].CellSize());
+    const Set::Scalar dr = DX.lpNorm<2>();
+
+    const auto refinement_threshold = this->refinement_threshold;
 
     for (amrex::MFIter mfi(*etanew_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -214,9 +220,9 @@ CahnHilliard::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, Set::S
         amrex::Array4<char> const&     tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar>   eta = (*etanew_mf[lev]).array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
-            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
             if (grad.lpNorm<2>() * dr > refinement_threshold)
                 tags(i, j, k) = amrex::TagBox::SET;
         });

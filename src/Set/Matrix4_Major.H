@@ -65,7 +65,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
 
     AMREX_GPU_HOST_DEVICE
@@ -85,7 +85,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
 
     void Print(std::ostream &os)
@@ -328,7 +328,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
     
 
@@ -385,7 +385,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return Set::Garbage;
+        return Set::Garbage();
     }
 
     AMREX_GPU_HOST_DEVICE

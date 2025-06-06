@@ -8,6 +8,7 @@
 #include "GB.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
+#include "IO/ParmParse.H"
 
 namespace Model
 {
@@ -40,6 +41,11 @@ void Randomize()
     sigma0 = Util::Random();
     sigma1 = Util::Random();
 };
+
+using GB::W;
+using GB::DW;
+using GB::DDW;
+    
 Set::Scalar W(const Set::Scalar theta) const
 {
     //sigma(theta)=sigma0+sigma1*fabs(sin(n*(theta-theta0)))

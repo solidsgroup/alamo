@@ -10,6 +10,7 @@ set -eu -o pipefail
 # [ you should only need to do this once ]
 #
 brew update
+brew install gcc || true
 brew install gfortran || true
 brew install mpich || true
 brew install eigen || true

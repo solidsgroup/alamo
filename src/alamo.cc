@@ -39,8 +39,14 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     // This input determines which integrator is used.
     pp.query_validate(  "alamo.program", program,
-                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
-    srand(2);
+                        {
+                            "microstructure", "flame", "heat",
+                            "dendrite","allencahn","cahnhilliard","pfc"});
+
+    int seed;
+    // Seed for random generator
+    pp.query_default("seed",seed,2);
+    amrex::InitRandom(seed + amrex::ParallelDescriptor::MyProc());
 
     Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")

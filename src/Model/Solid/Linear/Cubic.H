@@ -6,6 +6,7 @@
 #ifndef MODEL_SOLID_LINEAR_CUBIC_H_
 #define MODEL_SOLID_LINEAR_CUBIC_H_
 
+#include "AMReX_ParallelDescriptor.H"
 #include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
 
@@ -19,7 +20,6 @@ class Cubic : public Solid<Set::Sym::MajorMinor>
 {
 public:
     AMREX_GPU_HOST_DEVICE Cubic() = default;
-    //AMREX_GPU_HOST_DEVICE Cubic(const Solid<Set::Sym::MajorMinor> &base) : Solid<Set::Sym::MajorMinor>(base) {};
     AMREX_GPU_HOST_DEVICE virtual ~Cubic() = default;
 
     void
@@ -82,13 +82,13 @@ public:
     {
         return Random(Util::Random(), Util::Random(), Util::Random());
     }
-    static Cubic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
+    static Cubic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, bool parallelsync = false)
     {
         Cubic ret;
-        Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random();
-        Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random();
-        Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
-        ret.Define(C11,C12,C44,phi1,Phi,phi2);
+        Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random(parallelsync);
+        Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random(parallelsync);
+        Set::Scalar phi2 = 2.0 * Set::Constant::Pi * Util::Random(parallelsync);
+        ret.Define(C11, C12, C44, phi1, Phi, phi2);
         return ret;
     }
 
@@ -101,7 +101,7 @@ public:
 
         if (pp.contains("random"))
         {
-            value = Cubic::Random(C11,C12,C44);
+            value = Cubic::Random(C11,C12,C44,true);
             return;
         }
 

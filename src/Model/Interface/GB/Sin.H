@@ -8,6 +8,7 @@
 #include "GB.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
+#include "IO/ParmParse.H"
 
 namespace Model
 {
@@ -39,6 +40,11 @@ public:
         sigma0 = Util::Random();
         sigma1 = Util::Random();
     };
+
+    using GB::W;
+    using GB::DW;
+    using GB::DDW;
+
     Set::Scalar W(const Set::Scalar theta) const
     {
         return sigma0 + 0.5*sigma1*(1.0 - cos(n*(theta-theta0)));

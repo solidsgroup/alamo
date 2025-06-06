@@ -39,7 +39,7 @@ public:
         delete bc_temp;
     }
 
-protected:
+public:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
@@ -49,7 +49,6 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
-private:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
@@ -87,7 +86,7 @@ private:
     bool plot_field = true;
     int variable_pressure = -1;
 
-    struct {
+    struct pf_struct{
         Set::Scalar gamma = NAN;
         Set::Scalar eps = NAN;
         Set::Scalar lambda = NAN;
@@ -95,29 +94,29 @@ private:
         Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
         Set::Scalar min_eta = 0.001;
         int evolve = 1;
-    } pf;
+    }; pf_struct pf;
 
-    struct {
+    struct pressure_struct{
         Set::Scalar P = NAN;
         Set::Scalar gamma = NAN;
 
-        struct {
+        struct arrhenius_struct{
             Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
             Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
             Set::Scalar c1 = NAN;
-            int mob_ap = NAN;
+            int mob_ap = -1;
             int dependency = 1;
             Set::Scalar h1 = NAN, h2 = NAN;
 
-        } arrhenius;
-        struct {
+        }; arrhenius_struct arrhenius;
+        struct power_struct{
             Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
             Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
             Set::Scalar a_fit = NAN, b_fit = NAN, c_fit = NAN;
-        } power;
-    } pressure;
+        }; power_struct power;
+    }; pressure_struct pressure;
 
-    struct {
+    struct thermal_struct{
         bool on = 0;
         Set::Scalar rho_ap = NAN, rho_htpb = NAN;
         Set::Scalar k_ap = NAN, k_htpb = NAN;
@@ -135,15 +134,16 @@ private:
         Set::Scalar disperssion2 = NAN;
         Set::Scalar disperssion3 = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
-    } thermal;
+    }; thermal_struct thermal;
 
-    struct {
+    struct elastic_struct{
         int on = 0;
         Set::Scalar Tref = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
-    } elastic;
+    }; 
+    elastic_struct elastic;
 
     // Integrated variables
     Set::Scalar volume = 0.0;

@@ -18,10 +18,12 @@ public:
     {pp.queryclass(name, *this);}
     ~PNG()
     {
+#ifndef ALAMO_NOPNG
         for (int y = 0; y < png_height; y++) {
             free(row_pointers[y]);
         }
         free(row_pointers);
+#endif
     } 
 
     //enum Type {XYZ, XY, YZ, XZ};
@@ -158,7 +160,7 @@ public:
         Set::Scalar img_dy = 1.0;
         
         //Set::Scalar x, y;
-        Set::Vector ximg;
+        Set::Vector ximg = Set::Vector::Zero();
 
         if (fit == Fit::Stretch)
         {
@@ -189,8 +191,10 @@ public:
 
 
 
-        ximg(0) = std::min(ximg(0), 1.0); ximg(1) = std::min(ximg(1), 1.0);
-        ximg(0) = std::max(ximg(0), 0.0); ximg(1) = std::max(ximg(1), 0.0);
+        ximg(0) = std::min(ximg(0), 1.0);
+        ximg(1) = std::min(ximg(1), 1.0);
+        ximg(0) = std::max(ximg(0), 0.0);
+        ximg(1) = std::max(ximg(1), 0.0);
 
         ximg(0) *= img_width;
         ximg(1) *= img_height;

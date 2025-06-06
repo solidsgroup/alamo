@@ -105,6 +105,7 @@ parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_t
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
+parser.add_argument('--cuda',dest='cuda',const='80',default=None,action='store',nargs='?',type=str,help="Run tests with cuda")
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -274,6 +275,14 @@ def test(testdir):
                 if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
                     if not args.fft and not args.fft_only: continue
 
+            # For now, run cuda tests if and only if --cuda is specified
+            if args.cuda:
+                if 'cuda' not in config[desc]:
+                    continue
+            else:
+                if 'cuda' in config[desc]:
+                    continue
+
             # If not running in serial, specify mpirun command
             if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
             # Specify alamo command.
@@ -283,6 +292,7 @@ def test(testdir):
             if args.memcheck: exestr += "-{}".format(args.memcheck)
             if args.profile: exestr += "-profile"
             if coverage: exestr += "-coverage"
+            if args.cuda: exestr += f"-cuda{args.cuda}"
             exestr += "-"+args.comp
             
             #

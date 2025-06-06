@@ -1,6 +1,7 @@
 #ifndef UTIL_BMP_H
 #define UTIL_BMP_H
 
+#include <limits>
 #include <string>
 #include <iostream>
 #include <vector>
@@ -89,8 +90,15 @@ public:
 
 public:
     int nx, ny;
-    std::array<int, 3> m_min = { (int)1E100 , (int)1E100, (int)1E100};
-    std::array<int, 3> m_max = { -(int)1E100 , -(int)1E100, -(int)1E100};
+    std::array<int, 3> m_min = {
+        std::numeric_limits<int>::max(),
+        std::numeric_limits<int>::max(),
+        std::numeric_limits<int>::max()
+    };
+    std::array<int, 3> m_max = {
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::min()};
 
     amrex::Gpu::DeviceVector<std::array<int,3>> data;
     std::array<int,3> *data_ptr = nullptr;
