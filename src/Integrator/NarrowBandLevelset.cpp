@@ -20,7 +20,6 @@
 // Numerc
 #include "Numeric/NarrowBandFluxHandler.H"
 #include "Numeric/TimeStepper.H"
-//#include "Util/NarrowBandLevelset_Util.H"
 
 namespace Integrator
 {
