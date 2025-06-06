@@ -54,7 +54,7 @@ public:
             else Util::Abort(INFO, "Unkonwn index type");
 
             amrex::Array4<Set::Scalar> const& phi = a_phi[lev]->array(mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector x = Set::Position(i, j, k, geom[lev], type);
                 Set::Scalar min_grain_id = 0;
@@ -62,7 +62,7 @@ public:
                 for (unsigned int n = 0; n < X.size(); n++)
                 {
                     Set::Scalar d;
-                    Set::Scalar d1 = 1E100; //std::numeric_limits<Set::Scalar>::infinity();
+                    Set::Scalar d1 = std::numeric_limits<Set::Scalar>::infinity();
 
                     d = (x - X[n]).lpNorm<2>();
 

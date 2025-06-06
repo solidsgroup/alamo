@@ -123,7 +123,6 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
-#parser.add_argument('--gpu',default=False,action='store_true',help="Compile with GPU support (Cuda)")
 parser.add_argument('--cuda',dest='cuda',const='80',default=None,action='store',nargs='?',type=str,help="Compile with cuda, optionally specify architecture (default: 80, works for A100)")
 parser.set_defaults(debug=False)
 
@@ -132,7 +131,6 @@ parser.set_defaults(debug=False)
 #
 
 args=parser.parse_args()
-
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 
@@ -286,7 +284,6 @@ if args.buildamrex and not args.amrex:
     if args.cuda:
         amrex_configure += f" --with-cuda=yes --cuda-arch={args.cuda} "
         amrex_make_local.append('CUDA_CLANG = TRUE')
-        #if args.comp != "g++": raise Exception(error() + "only gcc is supported at the moment")
         
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
@@ -520,7 +517,6 @@ if args.comp == 'g++':
     if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
     elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
-    #else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
     else:                            f.write("CXX_COMPILE_FLAGS += -O3\n")
 if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")

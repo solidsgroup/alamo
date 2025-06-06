@@ -165,7 +165,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
         const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
-        amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
+        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -288,7 +288,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 
         const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
-        amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
+        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -480,7 +480,7 @@ Elastic<SYM>::Stress(int amrlev,
         amrex::Array4<amrex::Real> const& sigma = a_sigma.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][0]->array(mfi);
         amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Matrix gradu;
 
@@ -649,7 +649,7 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = I * 2, j = J * 2, k = K * 2;
 
                 if (nmask(I, J, K) == fine_fine_node || nmask(I, J, K) == coarse_fine_node)
@@ -752,7 +752,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
                 if ((I == lo.x || I == hi.x) &&
@@ -827,7 +827,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
                 if ((I == lo.x || I == hi.x) &&

@@ -44,9 +44,7 @@ protected:
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
-public:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
-protected:
     void Regrid(int lev, Set::Scalar time) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
@@ -75,7 +73,7 @@ private:
     IC::IC<Set::Scalar>* ic_phi = nullptr;
     IC::IC<Set::Scalar>* ic_laser = nullptr;
 
-    Set::Scalar phi_refinement_criterion = NAN; //std::numeric_limits<Set::Scalar>::infinity();
+    Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
     Set::Scalar m_refinement_criterion = NAN;
     Set::Scalar t_refinement_criterion = NAN;
     Set::Scalar t_refinement_restriction = NAN;

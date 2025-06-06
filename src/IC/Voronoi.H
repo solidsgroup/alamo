@@ -65,15 +65,14 @@ public:
             bx.grow(a_field[lev]->nGrow());
             int ncomp = a_field[lev]->nComp();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=](int i, int j, int k)
-            {
+            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
                 Set::Vector x;
                 AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
                             x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
                             x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                             
-                amrex::Real min_distance = 1E100; //std::numeric_limits<amrex::Real>::infinity();
+                amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
                 int min_grain_id = -1;
 
                 for (int n = 0; n<number_of_grains; n++)

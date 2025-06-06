@@ -222,10 +222,6 @@ protected:
 
     void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) override
     {
-        #ifdef ALAMO_GPU
-        Util::Abort(INFO,"No gpu support yet");
-        #else 
-
         Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.driving_force_tolerance_rel);
         if (crack.driving_force_norm / crack.driving_force_reference < crack.driving_force_tolerance_rel)
             elastic.do_solve_now = true;
@@ -483,14 +479,10 @@ protected:
                                     });
         }
         Util::RealFillBoundary(*crack.c_mf[lev],geom[lev]);
-        #endif
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
     {
-        #ifdef ALAMO_GPU
-        Util::Abort(INFO,"No gpu support yet");
-        #else 
         const amrex::Real *DX = geom[lev].CellSize();
         const Set::Vector dx(DX);
         const Set::Scalar dxnorm = dx.lpNorm<2>();
@@ -511,15 +503,10 @@ protected:
                                             tags(i, j, k) = amrex::TagBox::SET;
                                     });
         }
-        #endif 
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter &mfi, const amrex::Box &box) override
     {
-        #ifdef ALAMO_GPU
-        Util::Abort(INFO,"No gpu support yet");
-        #else 
-
         const amrex::Real* DX = geom[amrlev].CellSize();
         const Set::Scalar DV = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
@@ -533,7 +520,6 @@ protected:
                                     crack.int_crack += c_new(i,j,k) * DV;
                                     elastic.int_energy += energy(i,j,k) * DV;
                                 });
-        #endif
     }
 
     void TimeStepComplete(amrex::Real /*time*/,int /*iter*/) override

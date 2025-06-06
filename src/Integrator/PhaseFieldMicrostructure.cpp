@@ -1,4 +1,3 @@
-
 #include <eigen3/Eigen/Eigenvalues>
 
 #include <cmath>
@@ -40,7 +39,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
     std::swap(eta_old_mf[lev], eta_mf[lev]);
     
 
-    Set::Scalar df_max = 1E100; //std::numeric_limits<Set::Scalar>::min();
+    Set::Scalar df_max = std::numeric_limits<Set::Scalar>::min();
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
@@ -55,7 +54,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         Set::Patch<const Set::Matrix> sigma = stress_mf.Patch(lev,mfi); 
         Set::Patch<const Set::Vector> disp  = this->disp_mf.Patch(lev,mfi);
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Matrix sig = Set::Matrix::Zero();
             if (pf.elastic_df) sig = Numeric::Interpolate::NodeToCellAverage(sigma, i, j, k, 0);
@@ -270,8 +269,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etanew = eta_mf.Patch(lev,mfi);
         Set::Patch<model_type>        model  = model_mf.Patch(lev,mfi);
-
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             for (int m = 0; m < number_of_grains; m++)
                 for (int n = 0; n < number_of_grains; n++)
@@ -448,7 +446,7 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
     amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
-    amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k) {
+    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 #if AMREX_SPACEDIM == 2
         auto sten = Numeric::GetStencil(i, j, k, box);
 #endif
@@ -500,4 +498,3 @@ template class PhaseFieldMicrostructure<Model::Solid::Finite::PseudoAffine::Cubi
 
 
 } // namespace Integrator
-

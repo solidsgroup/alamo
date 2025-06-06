@@ -84,6 +84,7 @@ public:
         value.RegisterNewFab(value.phi_mf, value.bc_phi, value.number_of_components, value.number_of_ghost_cells, "phi", true);
         value.RegisterNewFab(value.phi_old_mf, value.bc_phi, value.number_of_components, value.number_of_ghost_cells, "phi_old", false);
     }
+protected:
 
     // Use the ic object to initialize the temperature field
     void Initialize(int lev)

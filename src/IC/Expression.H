@@ -72,7 +72,7 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (unsigned int n = 0; n < f.size(); n++)
             {
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Vector x = Set::Position(i, j, k, IC<Set::Scalar>::geom[lev], type);
                     if (coord == Expression::CoordSys::Cartesian)
@@ -112,7 +112,7 @@ public:
             Set::Patch<Set::Vector> field = a_field.Patch(lev,mfi);
             for (unsigned int n = 0; n < AMREX_SPACEDIM; n++)
             {
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Vector x = Set::Position(i, j, k, IC<Set::Vector>::geom[lev], type);
                     if (coord == Expression::CoordSys::Cartesian)

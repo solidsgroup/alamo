@@ -216,7 +216,7 @@ protected:
                 amrex::Array4<const Set::Vector> const& disp = disp_mf[lev]->array(mfi);
 
 
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
@@ -269,7 +269,7 @@ protected:
                 Set::Patch<MODEL>             model = model_mf.Patch(lev,mfi);
 
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
@@ -278,7 +278,7 @@ protected:
                 });
 
                 bx = mfi.nodaltilebox() & domain;
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
                     bool AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z));
@@ -368,7 +368,7 @@ protected:
             amrex::Array4<Set::Matrix>         const& eps = (*strain_mf[lev]).array(mfi);
             amrex::Array4<Set::Matrix>         const& sig = (*stress_mf[lev]).array(mfi);
             amrex::Array4<MODEL>               const& model = (*model_mf[lev]).array(mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
@@ -411,7 +411,7 @@ protected:
 
         amrex::Array4<const Set::Matrix> const& stress = (*stress_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Vector> const& disp = (*disp_mf[amrlev]).array(mfi);
-        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
 #if AMREX_SPACEDIM == 2
             if (i == hi.x && j < boxhi.y)
@@ -449,7 +449,7 @@ protected:
             bx.convert(amrex::IntVect::TheCellVector());
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             amrex::Array4<Set::Matrix> const& eps = strain_mf[lev]->array(mfi);
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Matrix3 grad = Numeric::NodeGradientOnCell(eps, i, j, k, DX.data());
                 if (grad.norm() * DXnorm > m_elastic_ref_threshold)

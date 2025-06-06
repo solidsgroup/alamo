@@ -142,7 +142,7 @@ public:
             amrex::Array4<const Set::Scalar> const& psi = (*psi_old_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& psinew = (*psi_mf[lev]).array(mfi);
 
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Scalar driving_force = 0.0;
 
@@ -175,7 +175,7 @@ public:
         amrex::Array4<amrex::Real> const& psi = (*psi_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Matrix> const& sig = (*stress_mf[amrlev]).array(mfi);
         amrex::Array4<const Set::Matrix> const& eps = (*strain_mf[amrlev]).array(mfi);
-        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             volume += psi(i, j, k, 0) * dv;
             w_chem_potential += alpha * psi(i, j, k, 0) * psi(i, j, k, 0) * (1. - psi(i, j, k, 0) * psi(i, j, k, 0)) * dv;
@@ -202,7 +202,7 @@ public:
             if (psi_on)
             {
                 amrex::Array4<Set::Scalar> const& psi = psi_mf[lev]->array(mfi);
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     {

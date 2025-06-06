@@ -45,7 +45,6 @@ public:
     AMREX_GPU_HOST_DEVICE
     Set::Scalar W(const Set::Matrix & F) const override
     {
-#ifndef __CUDA_ARCH__
         return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse());
 #else
         Util::Abort(INFO,"Not supported for GPU yet");

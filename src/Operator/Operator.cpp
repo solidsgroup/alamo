@@ -182,7 +182,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
 
         for (int n = 0; n < ncomp; n++)
         {
-            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
                 x(i, j, k) /= diag(i, j, k);
 
@@ -318,7 +318,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         {
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
-            amrex::LoopConcurrentOnCpu(bx, [=] (int I, int J, int K) {
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int I, int J, int K) {
                 int i = 2 * I, j = 2 * J, k = 2 * K;
 
                 if ((I == lo.x || I == hi.x) &&
