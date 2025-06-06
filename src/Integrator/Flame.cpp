@@ -229,8 +229,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     {
         //value.elastic.Tref = value.thermal.bound;
         pp_query_default("Tref", value.elastic.Tref, value.thermal.bound); // Initial temperature for thermal expansion computation
-        // elastic model of AP
+
+        // the elastic model for AP
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+        // the elastic model for HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
