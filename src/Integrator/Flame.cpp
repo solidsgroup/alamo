@@ -109,21 +109,19 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("thermal.hc", value.thermal.hc, 1.0);
         // Systen AP mass fraction
         pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
-        // AP mass flux reference value 
+        // AP maximum (or reference) mass flux value - See Meier and Schmidt et al 2024 eq. 16
         pp_query_default("thermal.mlocal_ap", value.thermal.mlocal_ap, 0.0);
-        // HTPB mass flux reference value 
-        pp_query_default("thermal.mlocal_htpb", value.thermal.mlocal_htpb, 0.0);
-        // AP/HTPB mass flux reference value 
+        // AP/HTPB maximum (or reference) mass flux value, i.e. Interface maximum mass flux
         pp_query_default("thermal.mlocal_comb", value.thermal.mlocal_comb, 0.0); 
 
         // Temperature of the Standin Fluid 
         pp_query_default("thermal.T_fluid", value.thermal.T_fluid, 300.0); 
 
-        // K; dispersion variables are use to set the outter field properties for the void grain case.
+        // K; dispersion variables are use to create an inert region for the void grain case. An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
         pp_query("thermal.disperssion1", value.thermal.disperssion1);
-        // rho; dispersion variables are use to set the outter field properties for the void grain case.
+        // rho; dispersion variables are use to create an inert region for the void grain case. An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
         pp_query("thermal.disperssion2", value.thermal.disperssion2);
-        // cp; dispersion variables are use to set the outter field properties for the void grain case.
+        // cp; dispersion variables are use to create an inert region for the void grain case. An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
         pp_query("thermal.disperssion3", value.thermal.disperssion3); 
 
 
