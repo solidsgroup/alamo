@@ -1,10 +1,10 @@
 ## Simulation output
-plot_file = output_levelset_diskExpression_256X256
+plot_file = output_levelset_diskExpression_256X256_10_steps
 
 # Simulation length
 timestep = 1.00
 stop_time = 1.000
-max_step = 1
+max_step = 10
 
 # AMR parameters
 amr.plot_int = 1
@@ -60,21 +60,22 @@ ls.bc.val.ylo  = 0.0
 ls.bc.val.zhi  = 0.0
 ls.bc.val.zlo  = 0.0
 
-# Initial velocity field (constant)
-velocity.ic.region0 = "0.0"
-velocity.ic.region1 = "0.0"
+# Initial velocity field 
+velocity.ic.type = expression  
+velocity.ic.expression.region0 = "-2.0 * (4.0 * atan(1)) * y"
+velocity.ic.expression.region1 = "2.0 * (4.0 * atan(1)) * x"
 
 # Boundary conditions for velocity [UVel, VVel]
-velocity.bc.type.xhi = neumann neumann  
-velocity.bc.type.xlo = neumann neumann 
-velocity.bc.type.yhi = neumann neumann 
-velocity.bc.type.ylo = neumann neumann 
-velocity.bc.type.zhi = neumann neumann 
-velocity.bc.type.zlo = neumann neumann 
+velocity.bc.constant.type.xhi = neumann neumann  
+velocity.bc.constant.type.xlo = neumann neumann 
+velocity.bc.constant.type.yhi = neumann neumann 
+velocity.bc.constant.type.ylo = neumann neumann 
+velocity.bc.constant.type.zhi = neumann neumann 
+velocity.bc.constant.type.zlo = neumann neumann 
 
-velocity.bc.val.xhi = 0.0 0.0 
-velocity.bc.val.xlo = 0.0 0.0
-velocity.bc.val.yhi = 0.0 0.0 
-velocity.bc.val.ylo = 0.0 0.0 
-velocity.bc.val.zhi = 0.0 0.0 
-velocity.bc.val.zlo = 0.0 0.0 
+velocity.bc.constant.val.xhi = 0.0 0.0 
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0 
+velocity.bc.constant.val.ylo = 0.0 0.0 
+velocity.bc.constant.val.zhi = 0.0 0.0 
+velocity.bc.constant.val.zlo = 0.0 0.0 

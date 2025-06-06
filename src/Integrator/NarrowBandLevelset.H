@@ -40,6 +40,7 @@ namespace Integrator
 class NarrowBandLevelset : virtual public Integrator
 {
 public:
+    static constexpr const char* name = "narrowbandlevelset";
 
     // Constructors
     NarrowBandLevelset(int a_nghost = 1); // Default constructor
@@ -255,7 +256,6 @@ protected:
     void ComputeAndSetNewTimeStep();
     Set::Scalar GetTimeStep();
     // Advance
-    //void ClampLS(int lev, int ls_id);
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev, int ls_id);
@@ -285,7 +285,7 @@ protected:
     friend class Numeric::EulerForwardScheme;
 
     template <typename T>
-    friend class Numeric::RK3Scheme;  
+    friend class Numeric::RK3Scheme;
 
 private:
     //

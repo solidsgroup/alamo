@@ -7,16 +7,15 @@
 #include "IO/ParmParse.H"
 #include "NarrowBandLevelset.H"
 
-// BC
-#include "BC/BC.H"
-#include "BC/Constant.H"
-#include "BC/Expression.H"
-
 // IC
 #include "IC/Constant.H"
 #include "IC/LS/Sphere.H"
 #include "IC/LS/Zalesak.H"
 #include "IC/Expression.H"
+
+// BC
+#include "BC/Constant.H"
+#include "BC/Expression.H"
 
 // Numerc
 #include "Numeric/NarrowBandFluxHandler.H"
@@ -43,10 +42,13 @@ NarrowBandLevelset::NarrowBandLevelset(IO::ParmParse& pp) : NarrowBandLevelset()
 
 // Define Parse function
 void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
+    // Read CFL number
+    pp.query_required("cflNumber", value.cflNumber);
+
     {// Define initial and boundary conditions
     
     // Query the IC assuming either LS::Sphere or LS::Zalesak
-    pp.select_default<IC::Expression, IC::LS::Sphere, IC::LS::Zalesak>("ls.ic",value.ic_ls,value.geom);
+    pp.select_default<IC::LS::Sphere,IC::LS::Zalesak,IC::Expression>("ls.ic",value.ic_ls,value.geom);
     
     // Assume Neumann BC for levelset field
     value.bc_ls = new BC::Constant(value.number_of_components, pp, "ls.bc");
@@ -60,11 +62,9 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     // Define levelset data structure
     value.level_sets.resize(value.number_of_components);
     
-    {// Initialize constant velocity. Will be removed once integrated with ScimitarX integrator
-    // Define constant velocity vector
-    value.ic_velocity = new IC::Expression(value.geom, pp, "velocity.ic");
-    value.bc_velocity = new BC::Constant(AMREX_SPACEDIM, pp, "velocity.bc");
-    //pp_queryarr("ic.velocity.value", value.constant_velocity);
+    {// Initialize velocity field. Will be removed once integrated with ScimitarX integrator
+    pp.select_default<IC::Constant,IC::Expression>("velocity.ic",value.ic_velocity,value.geom);
+    pp.select_default<BC::Constant,BC::Expression>("velocity.bc",value.bc_velocity,AMREX_SPACEDIM);
 
     // Define velocity, normal, and curvature multifabs
     for (int ils=0; ils < value.number_of_components; ils++){
@@ -129,9 +129,6 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
         }
     }
     }
-
-    // Read CFL number and initial time step
-    pp.query_required("cflNumber", value.cflNumber);
 }
 
 // Define required override functions
@@ -171,7 +168,6 @@ void NarrowBandLevelset::Initialize(int lev){
         level_sets[ils].narrowband_dm = ls_mf[lev]->DistributionMap();
 
         // Define initial narrowband boxarray and distribution mapping
-        //amrex::Print() << "Initializing tube" << std::endl;
         UpdateNarrowbandTubeandMapping(lev, ils);
 
         // Save Tube_imf to Tube_imf
@@ -191,10 +187,6 @@ void NarrowBandLevelset::Initialize(int lev){
 
     // Get the proper timestep
     ComputeAndSetNewTimeStep();
-    
-    // After Initialization, check flux ix Types
-    //amrex::Print() << "XFlux ix Type: " << XFlux_mf[lev]->boxArray().ixType() << std::endl;
-    //amrex::Print() << "YFlux ix Type: " << YFlux_mf[lev]->boxArray().ixType() << std::endl;
 }
 
 void NarrowBandLevelset::InitializeCPT(int lev, int ls_id){
@@ -261,7 +253,6 @@ void NarrowBandLevelset::CopyZerolsAndCPTIMFtoMF(int lev){
             zerols_mf_arr(i,j,k) = static_cast<Set::Scalar>(zerols_imf_arr(i,j,k));
             cpt_mf_arr(i,j,k) = static_cast<Set::Scalar>(cpt_imf_arr(i,j,k));
             ba_mf_arr(i,j,k) = static_cast<Set::Scalar>(ba_imf_arr(i,j,k));
-
         });
     }
 }
