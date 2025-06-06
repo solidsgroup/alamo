@@ -13,6 +13,8 @@
 #include "Base/Mechanics.H"
 #include "Model/Regression/Regression.H"
 
+#include "Model/SurfaceCombustion/SurfaceCombustion.H"
+
 namespace Integrator
 {
 
@@ -123,12 +125,11 @@ private:
         Set::Scalar rho_ap = NAN, rho_htpb = NAN;
         Set::Scalar k_ap = NAN, k_htpb = NAN;
         Set::Scalar cp_ap = NAN, cp_htpb = NAN;
-        Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
-        Set::Scalar E_ap = NAN, E_htpb = NAN;
+
         Set::Scalar hc = NAN, w1 = NAN;
         Set::Scalar mlocal_ap = NAN, mlocal_htpb = NAN, mlocal_comb = NAN;
-        Set::Scalar TFluid = NAN;
-        Set::Scalar TSolid = NAN;
+        Set::Scalar Tref = NAN;
+        Set::Scalar Tfluid = NAN;
         Set::Scalar massfraction = NAN;
         Set::Scalar disperssion1 = NAN;
         Set::Scalar disperssion2 = NAN;
@@ -157,6 +158,8 @@ private:
 
     Model::Regression::Regression *regression;
     
+    Model::SurfaceCombusion::SurfaceCombustion *surfacecombustion;
+
 };
 }
 

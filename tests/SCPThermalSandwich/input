@@ -125,24 +125,22 @@ thermal.temp.bc.constant.val.zhi = 0.0
 
 thermal.hc = 1.0e7
 
-thermal.mlocal_ap = 1000.0
-thermal.mlocal_htpb = 5000.0
-thermal.mlocal_comb = 0.0
+surfacecombustion.mesoscale.mlocal_ap = 1000.0
+surfacecombustion.mesoscale.mlocal_htpb = 5000.0
+#thermal.mlocal_comb = 0.0
 
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
-pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
-pressure.mob_ap = 0
+chamber.pressure = 4.0  ## Pressure is to be inputed in MPa units.
 
-pressure.a1 = 1.114 
-pressure.a2 = 0.46  
-pressure.a3 = 2.797
-
-pressure.b1 = 0.323
-pressure.b2 = 0.42
-pressure.b3 = 0.3225
-
-pressure.c1 = -0.09906
+surfacecombustion.type = mesoscale
+surfacecombustion.mesoscale.a1 = 1.114 
+surfacecombustion.mesoscale.a2 = 0.46  
+surfacecombustion.mesoscale.a3 = 2.797
+surfacecombustion.mesoscale.b1 = 0.323
+surfacecombustion.mesoscale.b2 = 0.42
+surfacecombustion.mesoscale.b3 = 0.3225
+surfacecombustion.mesoscale.c1 = -0.09906
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 
