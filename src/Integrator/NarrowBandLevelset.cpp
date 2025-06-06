@@ -16,6 +16,7 @@
 #include "IC/Constant.H"
 #include "IC/LS/Sphere.H"
 #include "IC/LS/Zalesak.H"
+#include "IC/Expression.H"
 
 // Numerc
 #include "Numeric/NarrowBandFluxHandler.H"
@@ -45,10 +46,10 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     {// Define initial and boundary conditions
     
     // Query the IC assuming either LS::Sphere or LS::Zalesak
-    pp.select_default<IC::LS::Sphere,IC::LS::Zalesak>("ic.ls",value.ic_ls,value.geom);
+    pp.select_default<IC::Expression, IC::LS::Sphere, IC::LS::Zalesak>("ls.ic",value.ic_ls,value.geom);
     
     // Assume Neumann BC for levelset field
-    value.bc_ls = new BC::Constant(value.number_of_components, pp, "bc.ls");
+    value.bc_ls = new BC::Constant(value.number_of_components, pp, "ls.bc");
     }
     
     {// Define levelset multifab objects - only old and new domain levelset fields
@@ -61,8 +62,8 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     
     {// Initialize constant velocity. Will be removed once integrated with ScimitarX integrator
     // Define constant velocity vector
-    value.ic_velocity = new IC::Constant(value.geom, pp, "ic.velocity");
-    value.bc_velocity = new BC::Constant(AMREX_SPACEDIM, pp, "bc.velocity");
+    value.ic_velocity = new IC::Expression(value.geom, pp, "velocity.ic");
+    value.bc_velocity = new BC::Constant(AMREX_SPACEDIM, pp, "velocity.bc");
     //pp_queryarr("ic.velocity.value", value.constant_velocity);
 
     // Define velocity, normal, and curvature multifabs
