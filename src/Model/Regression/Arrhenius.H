@@ -29,7 +29,7 @@ public:
     }
 
 
-    int mob_ap = NAN;
+    int mob_ap = -1;
     Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
     Set::Scalar E_ap = NAN, E_htpb = NAN;
     Set::Scalar bound = NAN;
@@ -38,6 +38,7 @@ public:
     {
         // AP Pre-exponential factor for Arrhenius Law
         pp_query_required("m_ap", value.m_ap); 
+
         // HTPB Pre-exponential factor for Arrhenius Law
         pp_query_required("m_htpb", value.m_htpb); 
 
@@ -46,6 +47,9 @@ public:
         // HTPB Activation Energy for Arrhenius Law
         pp_query_required("E_htpb", value.E_htpb); 
         
+        // Whether to include pressure to the arrhenius law [??]
+        pp_query_default("mob_ap", value.mob_ap,0); 
+
         // HTPB Activation Energy for Arrhenius Law
         pp_query_default("bound", value.bound,0.0); 
     }

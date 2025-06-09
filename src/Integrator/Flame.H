@@ -158,7 +158,7 @@ private:
 
     Model::Regression::Regression *regression;
     
-    Model::SurfaceCombusion::SurfaceCombustion *surfacecombustion;
+    Model::SurfaceCombustion::SurfaceCombustion *surfacecombustion;
 
 };
 }

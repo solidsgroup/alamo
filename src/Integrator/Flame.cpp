@@ -15,6 +15,7 @@
 #include "Util/Util.H"
 #include "Model/Regression/PowerLaw.H"
 #include "Model/Regression/Arrhenius.H"
+#include "Model/SurfaceCombustion/Mesoscale.H"
 
 #include <cmath>
 
@@ -118,7 +119,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.thermal.on) {
 
         // Select reduced order model to capture heat feedback
-        pp.select<Model::SurfaceCombusion::Mesoscale>("surfacecombustion",value.surfacecombustion);
+        pp.select<Model::SurfaceCombustion::Mesoscale>("surfacecombustion",value.surfacecombustion);
 
         // AP Density
         pp_query_required("thermal.rho_ap", value.thermal.rho_ap);
@@ -222,9 +223,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     if (value.m_type != Type::Disable)
     {
-        pp_query_default("TElastic", value.elastic.TElastic, value.thermal.Tref); // Initial temperature for thermal expansion computation
+        // Reference temperature for thermal expansion 
+        // (temperature at which the material is strain-free)
+        pp_query_default("Telastic", value.elastic.TElastic, value.thermal.Tref); 
         // elastic model of AP
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+        // elastic model of HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();

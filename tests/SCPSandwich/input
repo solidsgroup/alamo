@@ -59,7 +59,7 @@ regression.powerlaw.n_htpb = 0.0 # [ 1 ]
 regression.powerlaw.n_comb = 0.0 # [ 1 ]
 
 # Pressure used in regression rate calc
-pressure.P = 0.2
+chamber.pressure = 0.2
 
 # Phase field IC
 pf.eta.ic.type = constant
