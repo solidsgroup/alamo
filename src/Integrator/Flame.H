@@ -6,6 +6,8 @@
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
 #include "IC/IC.H"
+#include "Model/Regression/Arrhenius.H"
+#include "Model/Regression/PowerLaw.H"
 #include "Set/Set.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
@@ -156,7 +158,11 @@ private:
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
 
-    Model::Regression::Regression *regression;
+    //Model::Regression::Regression *regression;
+
+    Model::Regression::Regression<
+        Model::Regression::PowerLaw,
+        Model::Regression::Arrhenius> regression;
     
     Model::SurfaceCombustion::SurfaceCombustion *surfacecombustion;
 

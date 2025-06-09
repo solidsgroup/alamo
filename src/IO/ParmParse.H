@@ -136,6 +136,24 @@ public:
     {
         (void)amrex::ParmParse::contains(name.c_str());
     }
+    
+    void pushPrefix(const std::string prefix)
+    {
+        if (m_prefix.length())
+            m_prefix = m_prefix + "." + prefix;
+        else
+            m_prefix = prefix;
+    }
+
+    void popPrefix()
+    {
+        size_t pos = m_prefix.rfind('.');
+        if (pos == std::string::npos)
+            m_prefix = "";
+        else
+            m_prefix = m_prefix.substr(0, pos);
+    }
+
 
     void forbid(std::string name, std::string explanation,
                 std::string file = "", std::string func = "", int line = -1)

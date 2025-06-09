@@ -7,7 +7,7 @@ namespace Model
 {
 namespace Regression
 {
-class PowerLaw : public Regression
+class PowerLaw
 {
 public:
     static constexpr const char* name = "powerlaw";
@@ -18,7 +18,7 @@ public:
         pp_queryclass(name,*this);
     }
 
-    virtual Set::Scalar operator() (Set::Scalar phi, Set::Scalar /*T*/) override
+    Set::Scalar operator() (Set::Scalar phi, Set::Scalar /*T*/) 
     {
         Set::Scalar L = NAN;
         // if (homogeneousSystem == 1) {
@@ -40,7 +40,7 @@ public:
         return L;
     }
 
-    virtual void set_pressure(const Set::Scalar P) override
+    void set_pressure(const Set::Scalar P) 
     {
         // for the pressure power law option
         fmod_ap = r_ap * pow(P, n_ap);

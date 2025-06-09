@@ -2,12 +2,13 @@
 #define MODEL_REGRESSION_ARRHENIUS_H
 
 #include "Regression.H"
+#include <cmath>
 
 namespace Model
 {
 namespace Regression
 {
-class Arrhenius : public Regression
+class Arrhenius
 {
 public:
     static constexpr const char* name = "arrhenius";
@@ -18,7 +19,14 @@ public:
         pp_queryclass(name,*this);
     }
 
-    virtual Set::Scalar operator() (Set::Scalar phi, Set::Scalar T) override
+    Set::Scalar P = NAN;
+
+    void set_pressure(const Set::Scalar P)
+    {
+        this->P = P;
+    }
+
+    Set::Scalar operator() (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;
         if (mob_ap == 1) L = m_ap * P * exp(-E_ap / T) * phi;

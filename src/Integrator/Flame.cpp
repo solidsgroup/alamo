@@ -82,6 +82,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
 
+    pp.pushPrefix("regression");
+    value.regression.Parse(value.regression,pp);
+    pp.popPrefix();
+
     Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
@@ -107,7 +111,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
 
     // regression rate model
-    pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>("regression",value.regression);
+    //pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>("regression",value.regression);
 
     // Whether to use the Thermal Transport Model
     pp_query_default("thermal.on", value.thermal.on, false); 
@@ -419,7 +423,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Numeric::Function::Polynomial<3> dw = w.D();
 
 
-    regression->set_pressure(chamber.pressure);
+    regression.set_pressure(chamber.pressure);
 
     if (thermal.on) surfacecombustion->set_pressure(chamber.pressure);
 
@@ -485,8 +489,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //
             // CALCULATE MOBILITY
             // 
-            Set::Scalar L = (*regression)(  phi(i,j,k),
-                                            thermal.on ? temp(i,j,k) : 0);
+            Set::Scalar L = regression(  phi(i,j,k),
+                                         thermal.on ? temp(i,j,k) : 0);
             if (isnan(L))  Util::Exception(INFO);
 
             // 
