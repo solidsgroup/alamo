@@ -79,7 +79,7 @@ public:
     }
     
     static void printNeighbors2D(int i_min, int i_max, int j_min, int j_max, amrex::MultiFab& mf, const amrex::Geometry& geom, int /*lev*/, 
-                                 const std::string& field_name, const std::string& context){
+                                const std::string& field_name, const std::string& context){
         
         // Print the debug context
         printf("%s\n", context.c_str());
@@ -99,10 +99,10 @@ public:
                     if (j >= j_min  && j <= j_max){
                         printf("i: %d, j: %d, %s(i,j): %f\n", i, j, field_name.c_str(), arr(i,j,k));
                         printf("%s(i-1,j+1): %f, %s(i,j+1): %f, %s(i+1,j+1): %f\n", field_name.c_str(), arr(i-1,j+1,k), 
-                               field_name.c_str(), arr(i,j+1,k), field_name.c_str(), arr(i+1,j+1,k));
+                            field_name.c_str(), arr(i,j+1,k), field_name.c_str(), arr(i+1,j+1,k));
                         printf("%s(i-1,j): %f, %s(i+1,j): %f\n", field_name.c_str(), arr(i-1,j,k), field_name.c_str(), arr(i+1,j,k));
                         printf("%s(i-1,j-1): %f, %s(i,j-1): %f, %s(i+1,j-1): %f\n", field_name.c_str(), arr(i-1,j-1,k), 
-                               field_name.c_str(), arr(i,j-1,k), field_name.c_str(), arr(i+1,j-1,k)); 
+                            field_name.c_str(), arr(i,j-1,k), field_name.c_str(), arr(i+1,j-1,k)); 
                     }
                 }
             });

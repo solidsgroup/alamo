@@ -18,7 +18,7 @@
 #include "IC/LS/Zalesak.H"
 #include "NarrowBandLevelset.H"
 
-#include "Numeric/FluxHandler.H"
+#include "Numeric/NarrowBandFluxHandler.H"
 #include "Numeric/TimeStepper.H"
 //#include "Util/NarrowBandLevelset_Util.H"
 
@@ -962,7 +962,7 @@ Set::Scalar NarrowBandLevelset::GetTimeStep() {
                         minDt_local = std::min(minDt_local, dtLocal);
                     }
                     else {
-                         minDt_local = min_DX;
+                        minDt_local = min_DX;
                     }
                 });
     
@@ -1082,7 +1082,7 @@ void NarrowBandLevelset::UpdateInterfaceVelocity(int lev){
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 for (int dim=0; dim < AMREX_SPACEDIM; ++dim){
-                   vel_arr(i,j,k,dim) = vel_arr(i,j,k,dim);
+                    vel_arr(i,j,k,dim) = vel_arr(i,j,k,dim);
                 }
             });
         }
@@ -1091,9 +1091,9 @@ void NarrowBandLevelset::UpdateInterfaceVelocity(int lev){
 
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 Set::Scalar SafeLSAccess(const amrex::Array4<const Set::Scalar>& arr,
-                         const amrex::IntVect& coord,
-                         const amrex::IntVect& offset,
-                         const amrex::Box& domain)
+                        const amrex::IntVect& coord,
+                        const amrex::IntVect& offset,
+                        const amrex::Box& domain)
 {
     const amrex::IntVect nbr = coord + offset;
     return domain.contains(nbr) ? arr(nbr) : arr(coord); // Neumann BC

@@ -1,0 +1,107 @@
+# Simulation output
+plot_file = output_amr_riemann2d_higherthreshold
+
+# Simulation length
+timestep = 0.001
+stop_time = 0.35
+max_step = 2000
+
+# AMR parameters
+amr.plot_int = 5
+amr.max_level = 2
+amr.n_cell = 40 40 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.blocking_factor = 8
+amr.regrid_int = 10  # No regridding for uniform grid
+amr.grid_eff = 0.7   # refinement efficiency
+amr.max_grid_size = 8
+amr.n_error_buf = 1  # 1-cell buffer around tagged regions
+
+density_refinement_criterion = 0.4  # Higher threshold = narrower refinement
+pressure_refinement_criterion = 0.3 
+vorticity_refinement_criterion = 0.5
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = -0.5 -0.5 0
+geometry.prob_hi = 0.5 0.5 1  # Set height proportionally to match reduced y-cells
+geometry.is_periodic = 0 0 0
+
+#SolverType
+SolverType = SolveCompressibleEuler
+
+#cflNumber
+cflNumber = 0.8
+
+#TimeSteppingScheme
+TimeSteppingScheme = RK3
+
+
+#FluxMethod
+FluxScheme = HLLC #LocalLaxFriedrichs #HLLC
+
+#FluxReconstruction
+FluxReconstruction = WENO
+
+#WenoVariant
+WenoVariant = WENOZ5
+
+#Reconstruction Mode
+ReconstructionMode = Characteristic
+
+# Initial conditions
+# Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
+ic.pvec.type = riemann2d
+ic.riemann2d.pvec.q1.DENS = 1.5
+ic.riemann2d.pvec.q2.DENS = 0.5323
+ic.riemann2d.pvec.q3.DENS = 0.138
+ic.riemann2d.pvec.q4.DENS = 0.5323
+ic.riemann2d.pvec.q1.UVEL = 0.0
+ic.riemann2d.pvec.q2.UVEL = 1.206
+ic.riemann2d.pvec.q3.UVEL = 1.206
+ic.riemann2d.pvec.q4.UVEL = 0.0
+ic.riemann2d.pvec.q1.VVEL = 0.0
+ic.riemann2d.pvec.q2.VVEL = 0.0
+ic.riemann2d.pvec.q3.VVEL = 1.206
+ic.riemann2d.pvec.q4.VVEL = 1.206
+
+# Pressure
+ic.pressure.type = riemann2d
+ic.riemann2d.pressure.q1 = 1.5
+ic.riemann2d.pressure.q2 = 0.3
+ic.riemann2d.pressure.q3 = 0.029
+ic.riemann2d.pressure.q4 = 0.3
+
+# Shock position
+shock.xpos = 0.0
+shock.ypos = 0.0
+shock.zpos = 0.0
+
+# Boundary conditions for 2D [Density, UVel, VVel, WVel, IE]
+bc.pvec.type.xhi = neumann neumann neumann neumann
+bc.pvec.type.xlo = neumann neumann neumann neumann
+bc.pvec.type.yhi = neumann neumann neumann neumann
+bc.pvec.type.ylo = neumann neumann neumann neumann
+bc.pvec.type.zhi = neumann neumann neumann neumann
+bc.pvec.type.zlo = neumann neumann neumann neumann
+
+bc.pvec.val.xhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.xlo = 0.0 0.0 0.0 0.0
+bc.pvec.val.yhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.ylo = 0.0 0.0 0.0 0.0
+bc.pvec.val.zhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.zlo = 0.0 0.0 0.0 0.0 
+
+#Boundary conditions for Pressure
+bc.pressure.type.xhi = neumann
+bc.pressure.type.xlo = neumann
+bc.pressure.type.yhi = neumann
+bc.pressure.type.ylo = neumann
+bc.pressure.type.zhi = neumann
+bc.pressure.type.zlo = neumann
+
+bc.pressure.val.xhi = 0.0
+bc.pressure.val.xlo = 0.0
+bc.pressure.val.yhi = 0.0
+bc.pressure.val.ylo = 0.0
+bc.pressure.val.zhi = 0.0
+bc.pressure.val.zlo = 0.0
+
