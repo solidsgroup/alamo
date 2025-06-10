@@ -15,13 +15,15 @@ namespace Regression
 template<typename... OBJ>
 class Regression
 {
-public:
+    friend IO::ParmParse;
+private:
     std::tuple<OBJ...> obj;
 
     static constexpr const char* names[] = { OBJ::name... };
     
     int selected = -1;
 
+public:
 
     template<int I = 0>
     void set_pressure (Set::Scalar P)

@@ -82,9 +82,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
 
-    pp.pushPrefix("regression");
-    value.regression.Parse(value.regression,pp);
-    pp.popPrefix();
+    // pp.pushPrefix("regression");
+    // value.regression.Parse(value.regression,pp);
+    // pp.popPrefix();
+    pp.select<
+        Model::Regression::PowerLaw, 
+        Model::Regression::Arrhenius>("regression",value.regression);
+
 
     Forbids(pp);
 

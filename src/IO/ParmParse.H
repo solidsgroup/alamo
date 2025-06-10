@@ -857,6 +857,78 @@ public:
     }
 
 
+    //
+    // Under construction
+    // 
+
+    
+    // // Helper class: accepts explicit OBJ..., deduces CLASS from CLASS<OBJ...>
+    // template <typename... OBJ>
+    // struct SelectHelper
+    // {
+    //     template <template <typename...> class CLASS, int I = 0>
+    //     static void go(std::string name, CLASS<OBJ...>& value, ParmParse &pp)
+    //     {
+    //         if constexpr (I == 0)
+    //         {
+    //             std::string type;
+    //             pp.query_default("type", type, value.names[0]);
+
+    //             for (int i = 0; i < sizeof...(OBJ); ++i)
+    //                 if (type == value.names[i])
+    //                     value.selected = i;
+
+    //             pp.pushPrefix(type);
+    //         }
+
+    //         if constexpr (I < sizeof...(OBJ))
+    //         {
+    //             if (value.selected == I)
+    //             {
+    //                 std::get<I>(value.obj).Parse(std::get<I>(value.obj), pp);
+    //                 pp.popPrefix();
+    //                 return;
+    //             }
+    //             else
+    //             {
+    //                 go<CLASS, I + 1>(name, value, pp);  // Recursive call
+    //                 return;
+    //             }
+    //         }
+    //         else
+    //         {
+    //             Util::Abort(INFO);
+    //         }
+    //     }
+    // };
+
+
+    // // Recursive helper with reordered parameters for easy recursion
+    // template <template <typename...> class CLASS, typename... OBJ, int N = 0>
+    // void _helper(std::string name, CLASS<OBJ...>& value)
+    // {
+    //     std::cout << "N = " << N << ", name = " << name << '\n';
+
+    //     // if constexpr (N < sizeof...(OBJ))
+    //     //     _helper<CLASS, OBJ..., N + 1>(name, value);
+    // }
+
+
+    template <typename... OBJ, typename CLASS>
+    void select(std::string name, CLASS& value)
+    {
+        helper<CLASS, 0, OBJ...>(name,value);
+    }
+
+    // does not work yet but recursive structure is in place
+    template <typename CLASS, int N, typename... OBJ>
+    void helper(std::string name, CLASS& value)
+    {
+        if constexpr (N < sizeof...(OBJ)) {
+            helper<CLASS, N+1, OBJ...>(name,value);
+        }
+    }
+
     template <int N>
     void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
     {
