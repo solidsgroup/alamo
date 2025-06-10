@@ -2,8 +2,6 @@
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "Model/Regression/Regression.H"
-#include "Model/SurfaceCombustion/Homogenize.H"
-#include "Model/SurfaceCombustion/SurfaceCombustion.H"
 #include "Numeric/Stencil.H"
 #include "IC/Laminate.H"
 #include "IC/Constant.H"
@@ -16,7 +14,9 @@
 #include "Util/Util.H"
 #include "Model/Regression/PowerLaw.H"
 #include "Model/Regression/Arrhenius.H"
-#include "Model/SurfaceCombustion/Mesoscale.H"
+#include "Model/Propellant/Propellant.H"
+#include "Model/Propellant/Mesoscale.H"
+#include "Model/Propellant/Homogenize.H"
 
 #include <cmath>
 
@@ -56,25 +56,36 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("thermal.modeling_ap",   "Old debug variable. Should equal 1 "); 
     pp.forbid("thermal.modeling_htpb", "Old debug variable. Should equal 1"); 
 
-
-    pp.forbid("pressure.a1", "use surfacecombustion.mesoscale.a1 instead"); // Surgate heat flux model paramater - AP
-    pp.forbid("pressure.a2", "use surfacecombustion.mesoscale.a2 instead"); // Surgate heat flux model paramater - HTPB
-    pp.forbid("pressure.a3", "use surfacecombustion.mesoscale.a3 instead"); // Surgate heat flux model paramater - Total
-    pp.forbid("pressure.b1", "use surfacecombustion.mesoscale.b1 instead"); // Surgate heat flux model paramater - AP
-    pp.forbid("pressure.b2", "use surfacecombustion.mesoscale.b2 instead"); // Surgate heat flux model paramater - HTPB
-    pp.forbid("pressure.b3", "use surfacecombustion.mesoscale.b3 instead"); // Surgate heat flux model paramater - Total
-    pp.forbid("pressure.c1", "use surfacecombustion.mesoscale.c1 instead"); // Surgate heat flux model paramater - Total
+    pp.forbid("pressure.a1", "use propellant.mesoscale.a1 instead"); // Surgate heat flux model paramater - AP
+    pp.forbid("pressure.a2", "use propellant.mesoscale.a2 instead"); // Surgate heat flux model paramater - HTPB
+    pp.forbid("pressure.a3", "use propellant.mesoscale.a3 instead"); // Surgate heat flux model paramater - Total
+    pp.forbid("pressure.b1", "use propellant.mesoscale.b1 instead"); // Surgate heat flux model paramater - AP
+    pp.forbid("pressure.b2", "use propellant.mesoscale.b2 instead"); // Surgate heat flux model paramater - HTPB
+    pp.forbid("pressure.b3", "use propellant.mesoscale.b3 instead"); // Surgate heat flux model paramater - Total
+    pp.forbid("pressure.c1", "use propellant.mesoscale.c1 instead"); // Surgate heat flux model paramater - Total
     pp.forbid("pressure.mob_ap", "no longer used"); // Whether to include pressure to the arrhenius law
-    pp.forbid("pressure.dependency", "use surfacecombustion.mesoscale.arrhenius_dependency"); // Whether to use pressure to determined the reference Zeta 
-    pp.forbid("pressure.h1", "use surfacecombustion.mesoscale.h1 instead"); // Surgate heat flux model paramater - Homogenized
-    pp.forbid("pressure.h2", "use surfacecombustion.mesoscale.h1 instead"); // 
+    pp.forbid("pressure.dependency", "use propellant.mesoscale.arrhenius_dependency"); // Whether to use pressure to determined the reference Zeta 
+    pp.forbid("pressure.h1", "use propellant.mesoscale.h1 instead"); // Surgate heat flux model paramater - Homogenized
+    pp.forbid("pressure.h2", "use propellant.mesoscale.h1 instead"); // 
     // AP maximum (or reference) mass flux value - See Meier and Schmidt et al 2024 eq. 16
-    pp.forbid("thermal.mlocal_ap", "use surfacecombustion.mesoscale.mlocal_ap");
-    pp.forbid("thermal.mlocal_comb", "use surfacecombustion.mesoscale.mlocal_comb");
+    pp.forbid("thermal.mlocal_ap", "use propellant.mesoscale.mlocal_ap");
+    pp.forbid("thermal.mlocal_comb", "use propellant.mesoscale.mlocal_comb");
     pp.forbid("thermal.mlocal_htpb", "this actually did **nothing** - it was overridden by a hard code using massfraction.");
+
+
+    pp.forbid("thermal.disperssion1", "use propellant.mesoscale.dispersion1");
+    pp.forbid("thermal.disperssion2", "use propellant.mesoscale.dispersion2");
+    pp.forbid("thermal.disperssion3", "use propellant.mesoscale.dispersion3"); 
+
+
+    pp.forbid("thermal.rho_ap", "use propellant.XX.rho_ap ");
+    pp.forbid("thermal.rho_htpb","use propellant.XX.rho_htpb ");
+    pp.forbid("thermal.k_ap",   "use propellant.XX.k_ap ");
+    pp.forbid("thermal.k_htpb", "use propellant.XX.k_htpb ");
+    pp.forbid("thermal.cp_ap", "use propellant.XX.cp_ap ");
+    pp.forbid("thermal.cp_htpb","use propellant.XX.cp_htpb "); 
+
 }
-
-
 
 
 // [parser]
@@ -86,8 +97,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // pp.pushPrefix("regression");
     // value.regression.Parse(value.regression,pp);
     // pp.popPrefix();
-    pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>
-        ("regression",value.regression);
+    // pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>
+    //     ("regression",value.regression);
 
 
     Forbids(pp);
@@ -124,42 +135,23 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // TFluid and TElastic can be individually assigned, but will otherwise be assigned the value of Tref.
     pp_query_default("thermal.Tref", value.thermal.Tref, 300.0); 
 
+
+    // Select reduced order model to capture heat feedback
+    pp.select<Model::Propellant::PowerLaw, 
+              Model::Propellant::Mesoscale,
+              Model::Propellant::Homogenize>
+        ("propellant",value.propellant);
+
     if (value.thermal.on) {
 
-        // Select reduced order model to capture heat feedback
-        pp.select<Model::SurfaceCombustion::Mesoscale,Model::SurfaceCombustion::Homogenize>
-            ("surfacecombustion",value.surfacecombustion);
-
-        // AP Density
-        pp_query_required("thermal.rho_ap", value.thermal.rho_ap);
-        // HTPB Density
-        pp_query_required("thermal.rho_htpb", value.thermal.rho_htpb);
-        // AP Thermal Conductivity
-        pp_query_required("thermal.k_ap", value.thermal.k_ap);
-        // HTPB Thermal Conductivity
-        pp_query_required("thermal.k_htpb", value.thermal.k_htpb);
-        // AP Specific Heat
-        pp_query_required("thermal.cp_ap", value.thermal.cp_ap);
-        //HTPB Specific Heat
-        pp_query_required("thermal.cp_htpb", value.thermal.cp_htpb); 
 
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, 1.0);
         // System AP mass fraction
-        pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
+        //pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
 
         // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
-
-        // K; dispersion variables are use to create an inert region for the void grain case. 
-        // An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
-        pp_query("thermal.disperssion1", value.thermal.disperssion1);
-        // rho; dispersion variables are use to create an inert region for the void grain case. 
-        // An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
-        pp_query("thermal.disperssion2", value.thermal.disperssion2);
-        // cp; dispersion variables are use to create an inert region for the void grain case. 
-        // An inert region is one that dissipates energy fast enough to remove regression and thermal strain effects.
-        pp_query("thermal.disperssion3", value.thermal.disperssion3); 
 
 
         //Temperature boundary condition
@@ -292,7 +284,6 @@ void Flame::Initialize(int lev)
         heatflux_mf[lev]->setVal(0.0);
         thermal.w1 = 0.2 * chamber.pressure + 0.9;
         ic_laser->Initialize(lev, laser_mf);
-        //thermal.mlocal_htpb = 685000.0 - 850e3 * thermal.massfraction; // DANGER what was happening here?
     }
     if (variable_pressure) chamber.pressure = 1.0;
 }
@@ -398,9 +389,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
 
-
     std::swap(eta_old_mf[lev], eta_mf[lev]);
-
 
     //
     // Chamber pressure update
@@ -427,10 +416,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                                         -8.0 * pf.w1 + 16.0 * pf.w12 - 8.0 * pf.w0);
     Numeric::Function::Polynomial<3> dw = w.D();
 
-
-    regression.set_pressure(chamber.pressure);
-
-    if (thermal.on) surfacecombustion.set_pressure(chamber.pressure);
+    propellant.set_pressure(chamber.pressure);
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -454,33 +440,17 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE PHI-AVERAGED QUANTITIES
             //
             Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
-            Set::Scalar K; // Calculate effective thermal conductivity
-            Set::Scalar rho; // No special interface mixure rule is needed here.
-            Set::Scalar cp; 
-            if (homogeneousSystem) {
-                // Calculate effective thermal conductivity
-                K = (thermal.k_ap * thermal.massfraction + thermal.k_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion1 * (1. - phi_avg);
-                // No special interface mixure rule is needed here.
-                rho = (thermal.rho_ap * thermal.massfraction + thermal.rho_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion2 * (1. - phi_avg); 
-                // Calculate effective heat capacity
-                cp = (thermal.cp_ap * thermal.massfraction + thermal.cp_htpb * (1.0 - thermal.massfraction)) * phi_avg + thermal.disperssion3 * (1. - phi_avg);
-            }
-            else {
-                // Calculate effective thermal conductivity
-                K = thermal.k_ap * phi_avg + thermal.k_htpb * (1.0 - phi_avg);
-                // No special interface mixure rule is needed here.
-                rho = thermal.rho_ap * phi_avg + thermal.rho_htpb * (1.0 - phi_avg); 
-                // Calculate effective heat capacity
-                cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
-            }
+            Set::Scalar T = thermal.on ? temp(i,j,k) : NAN;
 
+            Set::Scalar K = propellant.get_K(phi_avg);
+            Set::Scalar rho = propellant.get_rho(phi_avg);
+            Set::Scalar cp = propellant.get_cp(phi_avg);
 
             //
             // CALCULATE MOBILITY
             // 
-            Set::Scalar L = regression(  phi(i,j,k),
-                                         thermal.on ? temp(i,j,k) : 0);
-            if (isnan(L))  Util::Exception(INFO);
+            Set::Scalar L = propellant.get_L(  phi_avg, T);
+            Util::AssertException(INFO,TEST(!isnan(L)));
 
             // 
             // EVOLVE PHASE FIELD (ETA)
@@ -490,8 +460,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
-            if (isnan(etanew(i, j, k))) Util::Exception(INFO);
-
+            Util::AssertException (INFO, TEST(!isnan(etanew(i, j, k))));
             
             if (thermal.on)
             {
@@ -515,7 +484,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
                 //
 
-                Set::Scalar q0 = surfacecombustion.get_qdot(mdot(i,j,k), phi_avg);
+                Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
                 if (isnan(heatflux(i, j, k))) Util::Exception(INFO);
             }

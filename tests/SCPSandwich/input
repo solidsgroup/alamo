@@ -47,16 +47,16 @@ pf.w12 = 2.0
 pf.w0 = 0.0
 
 # Regression law
-regression.type = powerlaw
-regression.powerlaw.gamma = 0.02726
+propellant.type = powerlaw
+propellant.powerlaw.gamma = 0.02726
 
 # AP / HTPB regression rate params 
-regression.powerlaw.r_ap = 1.222 # [ mm / s ]
-regression.powerlaw.n_ap = 1.042 # [ 1 ]
-regression.powerlaw.r_htpb = 0.1 # [ mm / s]
-regression.powerlaw.r_comb = 10.0 # [ mm / s]
-regression.powerlaw.n_htpb = 0.0 # [ 1 ]
-regression.powerlaw.n_comb = 0.0 # [ 1 ]
+propellant.powerlaw.r_ap = 1.222 # [ mm / s ]
+propellant.powerlaw.n_ap = 1.042 # [ 1 ]
+propellant.powerlaw.r_htpb = 0.1 # [ mm / s]
+propellant.powerlaw.r_comb = 10.0 # [ mm / s]
+propellant.powerlaw.n_htpb = 0.0 # [ 1 ]
+propellant.powerlaw.n_comb = 0.0 # [ 1 ]
 
 # Pressure used in regression rate calc
 chamber.pressure = 0.2

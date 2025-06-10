@@ -6,6 +6,9 @@
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
 #include "IC/IC.H"
+#include "Model/Propellant/Homogenize.H"
+#include "Model/Propellant/Mesoscale.H"
+#include "Model/Propellant/Propellant.H"
 #include "Model/Regression/Arrhenius.H"
 #include "Model/Regression/PowerLaw.H"
 #include "Set/Set.H"
@@ -15,9 +18,9 @@
 #include "Base/Mechanics.H"
 #include "Model/Regression/Regression.H"
 
-#include "Model/SurfaceCombustion/SurfaceCombustion.H"
-#include "Model/SurfaceCombustion/Mesoscale.H"
-#include "Model/SurfaceCombustion/Homogenize.H"
+#include "Model/Propellant/PowerLaw.H"
+#include "Model/Propellant/Mesoscale.H"
+#include "Model/Propellant/Homogenize.H"
 
 namespace Integrator
 {
@@ -126,18 +129,10 @@ private:
 
     struct {
         bool on = 0;
-        Set::Scalar rho_ap = NAN, rho_htpb = NAN;
-        Set::Scalar k_ap = NAN, k_htpb = NAN;
-        Set::Scalar cp_ap = NAN, cp_htpb = NAN;
-
         Set::Scalar hc = NAN, w1 = NAN;
         Set::Scalar mlocal_ap = NAN, mlocal_htpb = NAN, mlocal_comb = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
-        Set::Scalar massfraction = NAN;
-        Set::Scalar disperssion1 = NAN;
-        Set::Scalar disperssion2 = NAN;
-        Set::Scalar disperssion3 = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
@@ -162,13 +157,14 @@ private:
 
     //Model::Regression::Regression *regression;
 
-    Model::Regression::Regression<
-        Model::Regression::PowerLaw,
-        Model::Regression::Arrhenius> regression;
+    // Model::Regression::Regression<
+    //     Model::Regression::PowerLaw,
+    //     Model::Regression::Arrhenius> regression;
     
-    Model::SurfaceCombustion::SurfaceCombustion<
-        Model::SurfaceCombustion::Mesoscale,
-        Model::SurfaceCombustion::Homogenize> surfacecombustion;
+    Model::Propellant::Propellant<
+        Model::Propellant::PowerLaw,
+        Model::Propellant::Mesoscale,
+        Model::Propellant::Homogenize> propellant;
 };
 }
 

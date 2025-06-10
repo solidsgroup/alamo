@@ -892,6 +892,12 @@ private:
             for (unsigned int i = 0; i < sizeof...(OBJ); i++)
                 if (type == value.names[i])
                     value.selected = i;
+
+            if (value.selected < 0)
+                Util::Exception(INFO,
+                                "Error reading " + getPrefix() + 
+                                ", invalid type " + type);
+
             
             pushPrefix(type);
         }

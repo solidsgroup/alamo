@@ -1,12 +1,11 @@
-#ifndef MODEL_SURFACECOMBUSTION_MESOSCALE_H
-#define MODEL_SURFACECOMBUSTION_MESOSCALE_H
+#ifndef MODEL_PROPELLANT_MESOSCALE_H
+#define MODEL_PROPELLANT_MESOSCALE_H
 
-#include "Model/SurfaceCombustion/SurfaceCombustion.H"
-#include "SurfaceCombustion.H"
+#include "Propellant.H"
 
 namespace Model
 {
-namespace SurfaceCombustion
+namespace Propellant
 {
 class Mesoscale
 {
@@ -19,9 +18,10 @@ public:
         pp_queryclass(name,*this);
     }
 
-
     void set_pressure(const Set::Scalar P) 
     {
+        this->P = P;
+        
         zeta_2 = 0.000045 - P * 6.42e-6;
         if (arrhenius_dependency == 1) zeta_1 = zeta_2;
         else zeta_1 = zeta_0;
@@ -46,8 +46,34 @@ public:
         Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
 
         return mbase * qflux;
-        //heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
     }
+
+
+    Set::Scalar get_K (const Set::Scalar phi)
+    {
+        return k_ap * phi + k_htpb * (1.0 - phi);
+    }
+
+    Set::Scalar get_rho (const Set::Scalar phi)
+    {
+        return rho_ap * phi + rho_htpb * (1.0 - phi); 
+    }
+
+    Set::Scalar get_cp (const Set::Scalar phi)
+    {
+        return cp_ap * phi + cp_htpb * (1.0 - phi);
+    }
+
+    Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
+    {
+        Set::Scalar L = NAN;
+        if (mob_ap == 1) L = m_ap * P * exp(-E_ap / T) * phi;
+        else L = m_ap * exp(-E_ap / T) * phi;
+        L += m_htpb * exp(-E_htpb / T) * (1.0 - phi);
+        if (T <= bound) L = 0.0;
+        return L;
+    }
+
 
     static void Parse(Mesoscale& value, IO::ParmParse& pp)
     {
@@ -73,10 +99,6 @@ public:
 
         // Whether to use pressure to determined the reference Zeta 
         pp_query_default("pressure.dependency", value.arrhenius_dependency, true); 
-        // // Surrogate heat flux model parameter - Homogenized
-        // pp_query_default("pressure.h1", value.h1, 1.81); 
-        // // Surrogate heat flux model parameter - Homogenized
-        // pp_query_default("pressure.h2", value.h2, 1.34); 
 
         // AP mass flux reference value 
         pp_query_default("mlocal_ap", value.mlocal_ap, 0.0); 
@@ -85,6 +107,33 @@ public:
 
         Set::Scalar massfraction = 0.8;
         value.mlocal_htpb = 685000.0 - 850e3 * massfraction; // Replicating but needs to be revised!
+
+        // AP Density
+        pp_query_required("rho_ap", value.rho_ap);
+        // HTPB Density
+        pp_query_required("rho_htpb", value.rho_htpb);
+        // AP Thermal Conductivity
+        pp_query_required("k_ap", value.k_ap);
+        // HTPB Thermal Conductivity
+        pp_query_required("k_htpb", value.k_htpb);
+        // AP Specific Heat
+        pp_query_required("cp_ap", value.cp_ap);
+        //HTPB Specific Heat
+        pp_query_required("cp_htpb", value.cp_htpb); 
+
+        // AP Pre-exponential factor for Arrhenius Law
+        pp_query_required("m_ap", value.m_ap); 
+        // HTPB Pre-exponential factor for Arrhenius Law
+        pp_query_required("m_htpb", value.m_htpb); 
+        // AP Activation Energy for Arrhenius Law
+        pp_query_required("E_ap", value.E_ap); 
+        // HTPB Activation Energy for Arrhenius Law
+        pp_query_required("E_htpb", value.E_htpb); 
+        // Whether to include pressure to the arrhenius law [??]
+        pp_query_default("mob_ap", value.mob_ap,0); 
+        // HTPB Activation Energy for Arrhenius Law
+        pp_query_default("bound", value.bound,0.0); 
+
     }
 
     // IO Variables
@@ -96,7 +145,19 @@ public:
     bool arrhenius_dependency = false;
     Set::Scalar mlocal_ap = NAN, mlocal_comb = NAN, mlocal_htpb = NAN;
 
+    //Thermal properties
+    Set::Scalar k_ap = NAN, k_htpb = NAN;
+    Set::Scalar rho_ap = NAN, rho_htpb = NAN;
+    Set::Scalar cp_ap = NAN, cp_htpb = NAN;
+
+    // Regression variables
+    int mob_ap = -1;
+    Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
+    Set::Scalar E_ap = NAN, E_htpb = NAN;
+    Set::Scalar bound = NAN;
+
     // Calculated variables
+    Set::Scalar P = NAN;
     Set::Scalar zeta_1 = NAN, zeta_2 = NAN;
     Set::Scalar k1=NAN, k2=NAN, k3=NAN, k4=NAN;
 };
