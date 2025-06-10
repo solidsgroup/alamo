@@ -9,6 +9,7 @@
 #include "Set/Set.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
+#include "Model/Ballistics/Ballistic_new.H"
 
 #include "Base/Mechanics.H"
 
@@ -177,6 +178,8 @@ private:
     Set::Scalar y_len = NAN;
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
+
+    Model::Ballistics::Ballistic_new  ballistic_;
 };
 }
 

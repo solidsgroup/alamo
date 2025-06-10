@@ -412,7 +412,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
     }
     if (chamber.on)
     {
-        Model::Ballistics::Ballistic_new ballistic;
+        // Model::Ballistics::Ballistic_new ballistic;
         // Model::Ballistics::Chamber Chamber;
         if (a_iter)
         {
@@ -421,8 +421,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         // Chamber.Update(chamber.mdot, timestep);  // now clean and persistent
         // Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
         
-        ballistic.Execute(chamber.mdot, timestep);
-        chamber.pressure = ballistic.pressure0; // Access updated pressure
+        ballistic_.Execute(chamber.mdot, timestep);
+        chamber.pressure = ballistic_.pressure0; // Access updated pressure
         //Util::ParallelMessage(INFO, "Mdot = ", chamber.mdot);
         Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
         
