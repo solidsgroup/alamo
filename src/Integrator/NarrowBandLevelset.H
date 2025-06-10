@@ -43,7 +43,7 @@ public:
     static constexpr const char* name = "narrowbandlevelset";
 
     // Constructors
-    NarrowBandLevelset(int a_nghost = 1); // Default constructor
+    NarrowBandLevelset(int a_nghost = 2); // Default constructor
     NarrowBandLevelset(IO::ParmParse& pp); // Constructor that triggers parse
     static void Parse(NarrowBandLevelset& value, IO::ParmParse& pp);
 
@@ -149,7 +149,6 @@ protected:
     {
         int id = -1;
         int material_id = -1;
-        Set::Field<Set::Scalar> velocity_mf;
         Set::Field<Set::Scalar> normal_mf;
         Set::Field<Set::Scalar> curvature_mf;
         
@@ -158,8 +157,6 @@ protected:
         bool has_narrowband;
 
         std::unique_ptr<amrex::iMultiFab> Tube_imf;
-        //amrex::Vector<amrex::IntVect> narrowband_cells; 
-        //amrex::BoxList narrowband_boxes;
         amrex::BoxArray narrowband_ba;
         amrex::DistributionMapping narrowband_dm;
         amrex::Vector<int> narrowband_flags;
@@ -169,12 +166,12 @@ protected:
     struct NarrowBandTubeType
     {
         static constexpr int Interface =  0;            // 0 level set
-        static constexpr int InnerTube = -1;            // phi < 0 && phi >= -6.0 * min_DX
-        static constexpr int OuterTube =  1;            // phi > 0 && phi <= 6.0 * min_DX
+        static constexpr int InnerTube = -1;            // phi < 0 && phi > -6.0 * min_DX
+        static constexpr int OuterTube =  1;            // phi > 0 && phi < 6.0 * min_DX
         static constexpr int InnerEdge = -2;            // neighbors of narrowband (inside)
         static constexpr int OuterEdge =  2;            // neighbors of narrowband (outside)
-        static constexpr int OutsideNarrowBandNeg = -3; // phi > 6.0 * min_DX
-        static constexpr int OutsideNarrowBandPos = 3;  // Phi < -6.0 * min_DX
+        static constexpr int OutsideNarrowBandNeg = -3; // phi <= -6.0 * min_DX
+        static constexpr int OutsideNarrowBandPos = 3;  // Phi >= 6.0 * min_DX
     };
 
     struct Neighbors {
@@ -215,17 +212,18 @@ protected:
     // Variables (multi-fabs)
     Set::Field<Set::Scalar>    ls_mf;                   // Levelset field variable (current timestep)
     Set::Field<Set::Scalar>    ls_old_mf;               // Levelset field variable (previous timestep)
+    Set::Field<Set::Scalar>    velocity_mf;             // Velocity field
     Set::Field<Set::Scalar>    XFlux_mf;                // X-direction flux field
     Set::Field<Set::Scalar>    YFlux_mf;                // Y-direction flux field
     Set::Field<Set::Scalar>    ZFlux_mf;                // Z-direction flux field
     Set::Field<Set::Scalar>    Zerols_mf;               // Zero levelset field variable for plotting
     Set::Field<Set::Scalar>    Tube_mf;                 // Narrowband Tube field variable for plotting
     Set::Field<Set::Scalar>    cpt_mf;                  // CPT field variable for plotting
-    Set::Field<Set::Scalar>    BA_mf;                   // Narowband Box Array field variable for plotting
 
     std::unique_ptr<amrex::iMultiFab> Zerols_imf;       // Zero levelset imultifab to track izerols
     std::unique_ptr<amrex::iMultiFab> cpt_imf;          // CPT flag imultifab to track objects
-    std::unique_ptr<amrex::iMultiFab> BA_imf;          // CPT flag imultifab to track objects
+
+    std::string velocity_method;                        // Determines the velocity field based on validation case
 
     // Solver setup and control functions (override)
     void Initialize(int lev) override;
@@ -237,16 +235,7 @@ protected:
 
     // Class specific functions
     // Narrowband functions
-    void InitializeCPT(int lev, int ls_id);
-    void CopyZerolsAndCPTIMFtoMF(int lev);
-    void CopyTubeIMFtoMF(int lev, int ls_id);
-
     void ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, int ls_id);
-    void UpdateNarrowband(int lev, int ls_id);
-    //amrex::BoxArray MakeBoxArrayFromIntVects(const amrex::Vector<amrex::IntVect>& ivects, bool simplify = true);
-    //void ComputeNarrowBandBoxList(int lev, int ls_id);
-    //void ComputeNarrowBandMapping(int lev, int ls_id);
-    //void UpdateNarrowBandFlags(int lev, int ls_id);
     void UpdateNarrowbandTubeandMapping(int lev, int ls_id);
     // Geometries
     void ComputeNormal(int lev, int ls_id);
@@ -259,6 +248,9 @@ protected:
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev, int ls_id);
+    // Plotting
+    void CopyZerolsAndCPTIMFtoMF(int lev);
+    void CopyTubeIMFtoMF(int lev, int ls_id);
     
     std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;
@@ -292,9 +284,8 @@ private:
     // Definition of parameters set only at instantiation by
     // constructors. 
     //
-    int current_timestep            = 0;
     const int number_of_components  = 1;     // Number of components (1-levelset value)
-    const int number_of_ghost_cells = 1;     // Number of ghost cells
+    const int number_of_ghost_cells = 2;     // Number of ghost cells
     
     // Define LevelSetData structure object
     std::vector<LevelSetData> level_sets;
@@ -317,7 +308,7 @@ private:
     FluxScheme flux_scheme;                      // Selected flux scheme
     TimeSteppingScheme temporal_scheme;          // Selected time-stepping scheme
 
-    Set::Scalar cflNumber = 0.5;                 // CFL number for flow (read from input)
+    Set::Scalar cflNumber = NAN;                 // CFL number for flow (read from input)
     Set::Scalar cflReinit = 0.4;                 // CFL for reinitialization only
 
 }; //NarrowBandLevelset Class

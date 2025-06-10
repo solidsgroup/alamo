@@ -388,7 +388,7 @@ shellmessage("Comp-Version",args.comp+" --version")
 # CHECK MPI DISTRIBUTION AND SET OPTIONS
 #
 
-p = shellmessage("MPI","mpicxx -show")
+'''p = shellmessage("MPI","mpicxx -show")
 mpidiststr = p.stdout.decode('utf-8').replace('\n','')
 
 mpidist = None
@@ -400,6 +400,37 @@ elif "mvapich" in mpidiststr.lower():
     mpidist = "mvapich"
 elif "openmpi" in mpidiststr.lower():
     mpidist = "openmpi"
+message("mpi implementation", mpidist)'''
+
+# Run mpicxx -show safely
+try:
+    p = shellmessage("MPI", "mpicxx -show")
+    mpidiststr = p.stdout.decode('utf-8').replace('\n', '').lower()
+except Exception:
+    mpidiststr = ""
+
+# Try to detect from compiler flags
+mpidist = None
+if "mpich" in mpidiststr:
+    mpidist = "mpich"
+elif "mvapich2" in mpidiststr:
+    mpidist = "mvapich2"
+elif "mvapich" in mpidiststr:
+    mpidist = "mvapich"
+elif "openmpi" in mpidiststr or "-lmpi_usempi" in mpidiststr:
+    mpidist = "openmpi"
+
+# If still undetected, try from env vars
+if mpidist is None:
+    conda_list = subprocess.run("conda list", shell=True, stdout=subprocess.PIPE)
+    conda_pkgs = conda_list.stdout.decode("utf-8").lower()
+    if "mpich" in conda_pkgs:
+        mpidist = "mpich"
+    elif "openmpi" in conda_pkgs:
+        mpidist = "openmpi"
+    elif "intelmpi" in conda_pkgs:
+        mpidist = "intelmpi"
+
 message("mpi implementation", mpidist)
 
 if mpidist == "openmpi":

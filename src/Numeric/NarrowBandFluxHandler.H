@@ -18,21 +18,6 @@ namespace Integrator {
 }
 
 namespace Numeric {
-
-/*// Clamp all indices
-AMREX_GPU_DEVICE
-inline void ClampIndices(int indices[3], const int lower_bounds[3], const int upper_bounds[3]) {
-    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-        indices[d] = amrex::max(lower_bounds[d], amrex::min(indices[d], upper_bounds[d]));
-    }
-}
-
-// Clamp a single index (optimized)
-AMREX_GPU_DEVICE
-inline void ShiftAndClampIndex(int& index, int offset, int lower_bound, int upper_bound) {
-    index = amrex::max(lower_bound, amrex::min(index + offset, upper_bound));
-}*/
-
 // Base class for flux reconstruction
 template <>
 class FluxReconstruction<Integrator::NarrowBandLevelset> {
@@ -105,6 +90,8 @@ public:
         int ncomp = solver->number_of_components;
         int nghosts = solver->number_of_ghost_cells;
 
+        auto const& velocity = solver->velocity_mf;
+
         // Loop through all levelset fields
         for (int ils = 0; ils < ncomp; ++ils) {
             // Create all temporary multifabs here so no need to perform multiple copies
@@ -121,7 +108,6 @@ public:
             
             // ParallelCopy
             auto const& Tube = ls_data.Tube_imf;
-            auto const& velocity = ls_data.velocity_mf;
             narrowband.ParallelCopy(*Tube, 0, 0, 1, nghosts, nghosts);
             narrowband_Vel.ParallelCopy(*velocity[lev], 0, 0, AMREX_SPACEDIM, nghosts, nghosts);
             narrowband_LS.ParallelCopy(*solver->ls_mf[lev], ils, 0, 1, nghosts, nghosts);
@@ -140,7 +126,7 @@ public:
                 
                 // Create temporary flux to store flux values for narrowband cells
                 amrex::MultiFab temp_flux_mf(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
-                temp_flux_mf.setVal(0.0, nghosts);
+                temp_flux_mf.setVal(0.0);
 
                 // Get the corresponding full flux MultiFab and its index type
                 auto& full_flux_mf =
@@ -158,7 +144,7 @@ public:
                 if (full_flux_ixType != temp_flux_ixType) ConvertToFaceCentered(dir, lev, full_flux_mf);
 
                 // Zero out the full domain flux so that no remnant fluxes are present
-                full_flux_mf[lev]->setVal(0.0, nghosts);
+                full_flux_mf[lev]->setVal(0.0);
 
                 // Perform reconstruction and flux computation
                 reconstruction->ReconstructFlux(dir, lev, solver, narrowband,
@@ -172,77 +158,6 @@ private:
     std::shared_ptr<FluxReconstruction<Integrator::NarrowBandLevelset>> reconstruction;  // Reconstruction method
     std::shared_ptr<FluxMethod<Integrator::NarrowBandLevelset>> flux_method;             // Flux method
 };
-
-/*// FluxHandler class for Integrator::NarrowBandLevelset to correctly assess distribution
-// mapping for narrowband
-template <>
-class FluxHandler<Integrator::NarrowBandLevelset> {
-public:
-    enum Directions { Xdir = 0, Ydir = 1, Zdir = 2 };
-
-    FluxHandler() {}
-
-    void SetReconstruction(std::shared_ptr<FluxReconstruction<Integrator::NarrowBandLevelset>> recon) {
-        reconstruction = std::move(recon);
-    }
-
-    void SetFluxMethod(std::shared_ptr<FluxMethod<Integrator::NarrowBandLevelset>> method) {
-        flux_method = std::move(method);
-    }
-
-    void ConstructFluxes(int lev, Integrator::NarrowBandLevelset* solver) const {
-        if (!reconstruction || !flux_method) {
-            amrex::Abort("FluxHandler: Reconstruction or flux method is not set.");
-        }
-
-        // Get number of levelset fields
-        int ncomp = solver->number_of_components;
-        int nghosts = solver->number_of_ghost_cells;
-
-        // Loop through all levelset fields
-        for (int ils=0; ils<ncomp; ils++){
-            // Get proper distribution mapping for narrowband
-            const amrex::BoxArray narrowband_ba = solver->level_sets[ils].narrowband_ba;
-            const amrex::DistributionMapping narrowband_dm = solver->level_sets[ils].narrowband_dm;
-
-            // Loop through all dimensions
-            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
-                // Convert narrowband_ba to face-centered direction dir
-                amrex::BoxArray face_ba(narrowband_ba);  // make a copy to modify
-                amrex::IntVect face_type = amrex::IntVect::TheZeroVector(); // {0, 0, 0}
-                face_type[dir] = 1;
-                face_ba.convert(face_type);  // now face_ba is face-centered in `dir`
-
-                // Create temporary QL and QR MultiFabs at face-centered positions
-                amrex::MultiFab QL_stencil(face_ba, narrowband_dm, ncomp, nghosts);
-                amrex::MultiFab QR_stencil(face_ba, narrowband_dm, ncomp, nghosts);
-
-                // Get the proper index information for flux multifab
-                auto const& flux_mf = (dir == 0) ? solver->XFlux_mf[lev] :
-                (dir == 1) ? solver->YFlux_mf[lev] :
-                solver->ZFlux_mf[lev];
-
-                // Create temporary flux multifab to save computations and parallel copy back
-                amrex::MultiFab temp_flux(face_ba, narrowband_dm, ncomp, nghosts);
-
-                // Perform reconstruction and flux computation
-                reconstruction->ReconstructFlux(dir, lev, solver, QL_stencil, QR_stencil);
-                flux_method->ComputeFlux(dir, lev, solver, QL_stencil, QR_stencil, temp_flux);
-            }
-        }
-    }
-
-private:
-    std::shared_ptr<FluxReconstruction<Integrator::NarrowBandLevelset>> reconstruction;  // Reconstruction method
-    std::shared_ptr<FluxMethod<Integrator::NarrowBandLevelset>> flux_method;             // Flux method
-
-};*/
-
-inline void FillBoundaryField(Set::Field<Set::Scalar>& field, int level) {
-    if (field.size() > level && field[level]) {
-        field[level]->FillBoundary();
-    }
-}
 
 // First-order specific to NarrowBandLevelset integrator class
 template <>

@@ -1,15 +1,15 @@
 ## Simulation output
-plot_file = output_levelset_diskExpression_256X256_10_steps
+plot_file = output_levelset_circle_Test_100X100_Tube_Debug_10Steps
 
 # Simulation length
-timestep = 1.00
-stop_time = 1.000
+timestep = 0.01
+stop_time = 0.75
 max_step = 10
 
 # AMR parameters
 amr.plot_int = 1
 amr.max_level = 0
-amr.n_cell = 256 256 100
+amr.n_cell = 100 100 100
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -29,22 +29,22 @@ FluxScheme = LocalLaxFriedrichs
 TimeSteppingScheme = ForwardEuler
 
 #cflNumber
-cflNumber = 0.5
+cflNumber = 1.0
 
 # Initial conditions for levelset field
 ls.ic.type = expression
 # Circle/Sphere
-ls.ic.expression.constant.r = 0.15   # Disk radius
-ls.ic.expression.constant.xC = 0.5   # Disk center x
-ls.ic.expression.constant.yC = 0.75  # Disk center y
-#ls.ic.expression.region0 = "sqrt((x - xC)^2 + (y - yC)^2) - r"
+ls.ic.expression.constant.r = 0.10   # Disk radius
+ls.ic.expression.constant.xC = 0.50  # Disk center x
+ls.ic.expression.constant.yC = 0.50  # Disk center y
+ls.ic.expression.region0 = "sqrt((x - xC)^2 + (y - yC)^2) - r"
 
 # Zalesak disk
-ls.ic.expression.constant.xD = 0.5   # Slot center x
-ls.ic.expression.constant.yD = 0.625 # Slot center y
-ls.ic.expression.constant.wD = 0.05  # Slot width (full)
-ls.ic.expression.constant.hD = 0.25  # Slot height (full)
-ls.ic.expression.region0 = "max(sqrt((x - xC)^2 + (y - yC)^2) - r, -(max(abs(x - xD) - wD/2, abs(y - yD) - hD/2)))"
+#ls.ic.expression.constant.xD = 0.50   # Slot center x
+#ls.ic.expression.constant.yD = 0.725 # Slot center y
+#ls.ic.expression.constant.wD = 0.05  # Slot width (full)
+#ls.ic.expression.constant.hD = 0.25  # Slot height (full)
+#ls.ic.expression.region0 = "max(sqrt((x - xC)^2 + (y - yC)^2) - r, -(max(abs(x - xD) - wD/2, abs(y - yD) - hD/2)))"
 
 # Boundary conditions for levelset field
 ls.bc.type.xhi = neumann
@@ -60,10 +60,14 @@ ls.bc.val.ylo  = 0.0
 ls.bc.val.zhi  = 0.0
 ls.bc.val.zlo  = 0.0
 
+# Velocity field method
+velocity.method = "constant"
+
 # Initial velocity field 
 velocity.ic.type = expression  
-velocity.ic.expression.region0 = "-2.0 * (4.0 * atan(1)) * y"
-velocity.ic.expression.region1 = "2.0 * (4.0 * atan(1)) * x"
+#velocity.ic.expression.constant.pi = "4.0 * atan(1)"
+velocity.ic.expression.region0 = "1.0"
+velocity.ic.expression.region1 = "1.0"
 
 # Boundary conditions for velocity [UVel, VVel]
 velocity.bc.constant.type.xhi = neumann neumann  
