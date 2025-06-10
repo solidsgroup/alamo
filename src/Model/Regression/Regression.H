@@ -15,12 +15,10 @@ namespace Regression
 template<typename... OBJ>
 class Regression
 {
-    friend IO::ParmParse;
 private:
+    friend IO::ParmParse;
     std::tuple<OBJ...> obj;
-
     static constexpr const char* names[] = { OBJ::name... };
-    
     int selected = -1;
 
 public:
@@ -45,37 +43,38 @@ public:
             else return operator()<I+1>(phi,T);
         }
         else Util::Abort(INFO,selected);
+        return NAN;
     }
 
 
-    template<int I = 0>
-    static void Parse (Regression<OBJ...> &value, IO::ParmParse &pp)
-    {
-        if constexpr (I == 0)
-        {
-            std::string type;
-            pp.query_default("type",type,value.names[0]);
+    // template<int I = 0>
+    // static void Parse (Regression<OBJ...> &value, IO::ParmParse &pp)
+    // {
+    //     if constexpr (I == 0)
+    //     {
+    //         std::string type;
+    //         pp.query_default("type",type,value.names[0]);
 
-            for (int i = 0; i < sizeof...(OBJ); i++)
-                if (type == value.names[i])
-                    value.selected = i;
+    //         for (int i = 0; i < sizeof...(OBJ); i++)
+    //             if (type == value.names[i])
+    //                 value.selected = i;
             
-            pp.pushPrefix(type);
-        }
+    //         pp.pushPrefix(type);
+    //     }
 
-        if constexpr (I < sizeof...(OBJ))
-        {
-            if (value.selected == I)
-            {
-                std::get<I>(value.obj).Parse(std::get<I>(value.obj), pp);
-                pp.popPrefix();
-                return;
-            }
-            else 
-                return Parse<I+1>(value,pp);
-        }
-        else Util::Abort(INFO);
-    }
+    //     if constexpr (I < sizeof...(OBJ))
+    //     {
+    //         if (value.selected == I)
+    //         {
+    //             std::get<I>(value.obj).Parse(std::get<I>(value.obj), pp);
+    //             pp.popPrefix();
+    //             return;
+    //         }
+    //         else 
+    //             return Parse<I+1>(value,pp);
+    //     }
+    //     else Util::Abort(INFO);
+    // }
 };
 
 

@@ -8,7 +8,7 @@ namespace Model
 {
 namespace SurfaceCombustion
 {
-class Mesoscale : public SurfaceCombustion
+class Mesoscale
 {
 public:
     static constexpr const char* name = "mesoscale";
@@ -20,7 +20,7 @@ public:
     }
 
 
-    virtual void set_pressure(const Set::Scalar P) override
+    void set_pressure(const Set::Scalar P) 
     {
         zeta_2 = 0.000045 - P * 6.42e-6;
         if (arrhenius_dependency == 1) zeta_1 = zeta_2;
@@ -30,11 +30,12 @@ public:
         k1 = a1 * P + b1 - zeta_1 / zeta;
         k2 = a2 * P + b2 - zeta_1 / zeta;
         k3 = 4.0 * log((c1 * P * P + a3 * P + b3) - k1 / 2.0 - k2 / 2.0);
-        k4 = h1 * P + h2;
+        //k4 = h1 * P + h2;
         return;
     }
     
-    virtual Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) override
+    AMREX_FORCE_INLINE
+    Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
     {
 
         Set::Scalar qflux = k1 * phi +
@@ -55,20 +56,27 @@ public:
         // Reference interface length for heat integration
         pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); 
         
-        pp_query_required("a1", value.a1); // Surrogate heat flux model paramater - AP
-        pp_query_required("a2", value.a2); // Surrogate heat flux model paramater - HTPB
-        pp_query_required("a3", value.a3); // Surrogate heat flux model paramater - Total
-        pp_query_required("b1", value.b1); // Surrogate heat flux model paramater - AP
-        pp_query_required("b2", value.b2); // Surrogate heat flux model paramater - HTPB
-        pp_query_required("b3", value.b3); // Surrogate heat flux model paramater - Total
-        pp_query_required("c1", value.c1); // Surrogate heat flux model paramater - Total
+        // Surrogate heat flux model paramater - AP
+        pp_query_required("a1", value.a1); 
+        // Surrogate heat flux model paramater - HTPB
+        pp_query_required("a2", value.a2); 
+        // Surrogate heat flux model paramater - Total
+        pp_query_required("a3", value.a3); 
+        // Surrogate heat flux model paramater - AP
+        pp_query_required("b1", value.b1); 
+        // Surrogate heat flux model paramater - HTPB
+        pp_query_required("b2", value.b2); 
+        // Surrogate heat flux model paramater - Total
+        pp_query_required("b3", value.b3); 
+        // Surrogate heat flux model paramater - Total
+        pp_query_required("c1", value.c1); 
 
         // Whether to use pressure to determined the reference Zeta 
         pp_query_default("pressure.dependency", value.arrhenius_dependency, true); 
-        // Surgate heat flux model parameter - Homogenized
-        pp_query_default("pressure.h1", value.h1, 1.81); 
-        // Surgate heat flux model parameter - Homogenized
-        pp_query_default("pressure.h2", value.h2, 1.34); 
+        // // Surrogate heat flux model parameter - Homogenized
+        // pp_query_default("pressure.h1", value.h1, 1.81); 
+        // // Surrogate heat flux model parameter - Homogenized
+        // pp_query_default("pressure.h2", value.h2, 1.34); 
 
         // AP mass flux reference value 
         pp_query_default("mlocal_ap", value.mlocal_ap, 0.0); 
@@ -84,7 +92,7 @@ public:
     Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
     Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
     Set::Scalar c1 = NAN;
-    Set::Scalar h1 = NAN, h2 = NAN;
+    //Set::Scalar h1 = NAN, h2 = NAN;
     bool arrhenius_dependency = false;
     Set::Scalar mlocal_ap = NAN, mlocal_comb = NAN, mlocal_htpb = NAN;
 

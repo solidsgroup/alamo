@@ -16,6 +16,8 @@
 #include "Model/Regression/Regression.H"
 
 #include "Model/SurfaceCombustion/SurfaceCombustion.H"
+#include "Model/SurfaceCombustion/Mesoscale.H"
+#include "Model/SurfaceCombustion/Homogenize.H"
 
 namespace Integrator
 {
@@ -164,8 +166,9 @@ private:
         Model::Regression::PowerLaw,
         Model::Regression::Arrhenius> regression;
     
-    Model::SurfaceCombustion::SurfaceCombustion *surfacecombustion;
-
+    Model::SurfaceCombustion::SurfaceCombustion<
+        Model::SurfaceCombustion::Mesoscale,
+        Model::SurfaceCombustion::Homogenize> surfacecombustion;
 };
 }
 

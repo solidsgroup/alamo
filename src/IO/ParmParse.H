@@ -856,78 +856,61 @@ public:
         ic_eta = new INTEGRATOR((*this));
     }
 
-
-    //
-    // Under construction
-    // 
-
     
-    // // Helper class: accepts explicit OBJ..., deduces CLASS from CLASS<OBJ...>
-    // template <typename... OBJ>
-    // struct SelectHelper
-    // {
-    //     template <template <typename...> class CLASS, int I = 0>
-    //     static void go(std::string name, CLASS<OBJ...>& value, ParmParse &pp)
-    //     {
-    //         if constexpr (I == 0)
-    //         {
-    //             std::string type;
-    //             pp.query_default("type", type, value.names[0]);
-
-    //             for (int i = 0; i < sizeof...(OBJ); ++i)
-    //                 if (type == value.names[i])
-    //                     value.selected = i;
-
-    //             pp.pushPrefix(type);
-    //         }
-
-    //         if constexpr (I < sizeof...(OBJ))
-    //         {
-    //             if (value.selected == I)
-    //             {
-    //                 std::get<I>(value.obj).Parse(std::get<I>(value.obj), pp);
-    //                 pp.popPrefix();
-    //                 return;
-    //             }
-    //             else
-    //             {
-    //                 go<CLASS, I + 1>(name, value, pp);  // Recursive call
-    //                 return;
-    //             }
-    //         }
-    //         else
-    //         {
-    //             Util::Abort(INFO);
-    //         }
-    //     }
-    // };
-
-
-    // // Recursive helper with reordered parameters for easy recursion
-    // template <template <typename...> class CLASS, typename... OBJ, int N = 0>
-    // void _helper(std::string name, CLASS<OBJ...>& value)
-    // {
-    //     std::cout << "N = " << N << ", name = " << name << '\n';
-
-    //     // if constexpr (N < sizeof...(OBJ))
-    //     //     _helper<CLASS, OBJ..., N + 1>(name, value);
-    // }
-
+    //
+    // functionally simlar to other kinds of select, execpt works on
+    // template-based static dispatch.
+    //
 
     template <typename... OBJ, typename CLASS>
     void select(std::string name, CLASS& value)
     {
-        helper<CLASS, 0, OBJ...>(name,value);
+        pushPrefix(name);
+        static_polymorphism_parser<CLASS, 0, OBJ...>(value);
+        popPrefix();
     }
 
-    // does not work yet but recursive structure is in place
+private:
+    //
+    // This function is a virtual "swtich / case" block for static
+    // dispatch. It works on a faux-virtual class "CLASS" that must 
+    // contain a tuple of "obj" with each "obj" being a derived type.
+    // Recursion is used to unroll the list, identify the correct class
+    // based on "name/type", set the "selected" index, then call the
+    // appropriate class' Parse function.
+    // 
+    // This is only for use by the "select" functions.
+    // 
     template <typename CLASS, int N, typename... OBJ>
-    void helper(std::string name, CLASS& value)
+    void static_polymorphism_parser(CLASS& value)
     {
-        if constexpr (N < sizeof...(OBJ)) {
-            helper<CLASS, N+1, OBJ...>(name,value);
+        if constexpr (N == 0)
+        {
+            std::string type;
+            query_default("type",type,value.names[0]);
+
+            for (unsigned int i = 0; i < sizeof...(OBJ); i++)
+                if (type == value.names[i])
+                    value.selected = i;
+            
+            pushPrefix(type);
         }
+
+        if constexpr (N < sizeof...(OBJ))
+        {
+            if (value.selected == N)
+            {
+                std::get<N>(value.obj).Parse(std::get<N>(value.obj), *this);
+                popPrefix();
+                return;
+            }
+            else 
+                return static_polymorphism_parser<CLASS, N+1, OBJ...>(value);
+        }
+        else Util::Abort(INFO);
     }
+
+public:
 
     template <int N>
     void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])

@@ -2,6 +2,7 @@
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "Model/Regression/Regression.H"
+#include "Model/SurfaceCombustion/Homogenize.H"
 #include "Model/SurfaceCombustion/SurfaceCombustion.H"
 #include "Numeric/Stencil.H"
 #include "IC/Laminate.H"
@@ -85,9 +86,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // pp.pushPrefix("regression");
     // value.regression.Parse(value.regression,pp);
     // pp.popPrefix();
-    pp.select<
-        Model::Regression::PowerLaw, 
-        Model::Regression::Arrhenius>("regression",value.regression);
+    pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>
+        ("regression",value.regression);
 
 
     Forbids(pp);
@@ -127,7 +127,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.thermal.on) {
 
         // Select reduced order model to capture heat feedback
-        pp.select<Model::SurfaceCombustion::Mesoscale>("surfacecombustion",value.surfacecombustion);
+        pp.select<Model::SurfaceCombustion::Mesoscale,Model::SurfaceCombustion::Homogenize>
+            ("surfacecombustion",value.surfacecombustion);
 
         // AP Density
         pp_query_required("thermal.rho_ap", value.thermal.rho_ap);
@@ -144,10 +145,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, 1.0);
-        // Systen AP mass fraction
+        // System AP mass fraction
         pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
 
-        // System Initial Temperature
+        // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
 
         // K; dispersion variables are use to create an inert region for the void grain case. 
@@ -429,7 +430,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     regression.set_pressure(chamber.pressure);
 
-    if (thermal.on) surfacecombustion->set_pressure(chamber.pressure);
+    if (thermal.on) surfacecombustion.set_pressure(chamber.pressure);
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -446,15 +447,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
-
-        // Set::Scalar zeta_2 = 0.000045 - chamber.pressure * 6.42e-6;
-        // Set::Scalar zeta_1;
-        // if (pressure.arrhenius.dependency == 1) zeta_1 = zeta_2;
-        // else zeta_1 = zeta_0;
-        // Set::Scalar k1 = pressure.arrhenius.a1 * chamber.pressure + pressure.arrhenius.b1 - zeta_1 / zeta;
-        // Set::Scalar k2 = pressure.arrhenius.a2 * chamber.pressure + pressure.arrhenius.b2 - zeta_1 / zeta;
-        // Set::Scalar k3 = 4.0 * log((pressure.arrhenius.c1 * chamber.pressure * chamber.pressure + pressure.arrhenius.a3 * chamber.pressure + pressure.arrhenius.b3) - k1 / 2.0 - k2 / 2.0);
-        // Set::Scalar k4 = pressure.arrhenius.h1 * chamber.pressure + pressure.arrhenius.h2;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -482,13 +474,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 cp = thermal.cp_ap * phi_avg + thermal.cp_htpb * (1.0 - phi_avg);
             }
 
-            // Calculate thermal diffusivity and store in field for later use
-
-            if (thermal.on)
-            {
-                alpha(i, j, k) = K / rho / cp; 
-                if (isnan(alpha(i, j, k))) Util::Exception(INFO); 
-            }
 
             //
             // CALCULATE MOBILITY
@@ -505,48 +490,33 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
-
             if (isnan(etanew(i, j, k))) Util::Exception(INFO);
 
             
-            //
-            // CALCULATE MASS FLUX BASED ON EVOLVING ETA
-            //
-
             if (thermal.on)
             {
+                //
+                // Calculate thermal diffisivity and store for later gradient
+                //
+
+                alpha(i, j, k) = K / rho / cp; 
+                if (isnan(alpha(i, j, k))) Util::Exception(INFO); 
+
+
+                //
+                // CALCULATE MASS FLUX BASED ON EVOLVING ETA
+                //
+            
                 mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; 
                 if (isnan(mdot(i, j, k))) Util::Exception(INFO);
-            }
 
 
-            //
-            // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
-            //
-            
-            if (thermal.on)
-            {
+                //
+                // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
+                //
 
-                Set::Scalar q0 = surfacecombustion->get_qdot(mdot(i,j,k), phi_avg);
-                
+                Set::Scalar q0 = surfacecombustion.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
-
-                // if (homogeneousSystem) {
-                //     Set::Scalar qflux = k4 * phi_avg;
-                //     Set::Scalar mlocal = (thermal.mlocal_ap) * thermal.massfraction + (thermal.mlocal_htpb) * (1.0 - thermal.massfraction);
-                //     Set::Scalar mdota = fabs(mdot(i, j, k));
-                //     Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
-                //     heatflux(i, j, k) = (laser(i, j, k) * phi_avg + thermal.hc * mbase * qflux) / K;
-                // }
-                // else {
-                //     Set::Scalar qflux = k1 * phi_avg +
-                //         k2 * (1.0 - phi_avg) +
-                //         (zeta_1 / zeta) * exp(k3 * phi_avg * (1.0 - phi_avg));
-                //     Set::Scalar mlocal = (thermal.mlocal_ap) * phi_avg + (thermal.mlocal_htpb) * (1.0 - phi_avg) + thermal.mlocal_comb * phi_avg * (1.0 - phi_avg);
-                //     Set::Scalar mdota = fabs(mdot(i, j, k));
-                //     Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
-                //     heatflux(i, j, k) = (thermal.hc * mbase * qflux + laser(i, j, k)) / K;
-                // }
                 if (isnan(heatflux(i, j, k))) Util::Exception(INFO);
             }
         });
