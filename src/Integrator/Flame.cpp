@@ -56,27 +56,24 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("thermal.modeling_ap",   "Old debug variable. Should equal 1 "); 
     pp.forbid("thermal.modeling_htpb", "Old debug variable. Should equal 1"); 
 
-    pp.forbid("pressure.a1", "use propellant.mesoscale.a1 instead"); // Surgate heat flux model paramater - AP
-    pp.forbid("pressure.a2", "use propellant.mesoscale.a2 instead"); // Surgate heat flux model paramater - HTPB
-    pp.forbid("pressure.a3", "use propellant.mesoscale.a3 instead"); // Surgate heat flux model paramater - Total
-    pp.forbid("pressure.b1", "use propellant.mesoscale.b1 instead"); // Surgate heat flux model paramater - AP
-    pp.forbid("pressure.b2", "use propellant.mesoscale.b2 instead"); // Surgate heat flux model paramater - HTPB
-    pp.forbid("pressure.b3", "use propellant.mesoscale.b3 instead"); // Surgate heat flux model paramater - Total
-    pp.forbid("pressure.c1", "use propellant.mesoscale.c1 instead"); // Surgate heat flux model paramater - Total
-    pp.forbid("pressure.mob_ap", "no longer used"); // Whether to include pressure to the arrhenius law
-    pp.forbid("pressure.dependency", "use propellant.mesoscale.arrhenius_dependency"); // Whether to use pressure to determined the reference Zeta 
-    pp.forbid("pressure.h1", "use propellant.mesoscale.h1 instead"); // Surgate heat flux model paramater - Homogenized
-    pp.forbid("pressure.h2", "use propellant.mesoscale.h1 instead"); // 
-    // AP maximum (or reference) mass flux value - See Meier and Schmidt et al 2024 eq. 16
+    pp.forbid("pressure.a1", "use propellant.mesoscale.a1 instead");
+    pp.forbid("pressure.a2", "use propellant.mesoscale.a2 instead");
+    pp.forbid("pressure.a3", "use propellant.mesoscale.a3 instead");
+    pp.forbid("pressure.b1", "use propellant.mesoscale.b1 instead");
+    pp.forbid("pressure.b2", "use propellant.mesoscale.b2 instead");
+    pp.forbid("pressure.b3", "use propellant.mesoscale.b3 instead");
+    pp.forbid("pressure.c1", "use propellant.mesoscale.c1 instead");
+    pp.forbid("pressure.mob_ap", "no longer used"); 
+    pp.forbid("pressure.dependency", "use propellant.mesoscale.arrhenius_dependency"); 
+    pp.forbid("pressure.h1", "use propellant.mesoscale.h1 instead"); 
+    pp.forbid("pressure.h2", "use propellant.mesoscale.h1 instead"); 
     pp.forbid("thermal.mlocal_ap", "use propellant.mesoscale.mlocal_ap");
     pp.forbid("thermal.mlocal_comb", "use propellant.mesoscale.mlocal_comb");
     pp.forbid("thermal.mlocal_htpb", "this actually did **nothing** - it was overridden by a hard code using massfraction.");
 
-
     pp.forbid("thermal.disperssion1", "use propellant.mesoscale.dispersion1");
     pp.forbid("thermal.disperssion2", "use propellant.mesoscale.dispersion2");
     pp.forbid("thermal.disperssion3", "use propellant.mesoscale.dispersion3"); 
-
 
     pp.forbid("thermal.rho_ap", "use propellant.XX.rho_ap ");
     pp.forbid("thermal.rho_htpb","use propellant.XX.rho_htpb ");
@@ -84,7 +81,6 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("thermal.k_htpb", "use propellant.XX.k_htpb ");
     pp.forbid("thermal.cp_ap", "use propellant.XX.cp_ap ");
     pp.forbid("thermal.cp_htpb","use propellant.XX.cp_htpb "); 
-
 }
 
 
@@ -93,13 +89,6 @@ void
 Flame::Parse(Flame& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Flame::Flame()");
-
-    // pp.pushPrefix("regression");
-    // value.regression.Parse(value.regression,pp);
-    // pp.popPrefix();
-    // pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>
-    //     ("regression",value.regression);
-
 
     Forbids(pp);
 
@@ -168,7 +157,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
-        //value.RegisterIntegratedVariable(&value.chamber.pressure, "pressure", false);
 
         // laser initial condition
         pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom);
@@ -447,7 +435,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
-            Util::AssertException(INFO,TEST(!isnan(L)));
 
             // 
             // EVOLVE PHASE FIELD (ETA)
@@ -457,7 +444,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
-            Util::AssertException (INFO, TEST(!isnan(etanew(i, j, k))));
             
             if (thermal.on)
             {
@@ -466,7 +452,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //
 
                 alpha(i, j, k) = K / rho / cp; 
-                if (isnan(alpha(i, j, k))) Util::Exception(INFO); 
 
 
                 //
@@ -474,7 +459,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //
             
                 mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; 
-                if (isnan(mdot(i, j, k))) Util::Exception(INFO);
 
 
                 //
@@ -483,7 +467,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
-                if (isnan(heatflux(i, j, k))) Util::Exception(INFO);
             }
         });
 
@@ -530,11 +513,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                 tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
                 tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
-                if (isnan(tempsnew(i, j, k)) || isnan(temps(i, j, k))) {
-                    Util::Message(INFO, tempsnew(i, j, k), "tempsnew contains nan (i=", i, " j= ", j, ")");
-                    Util::Message(INFO, temps(i, j, k), "temps contains nan (i=", i, " j= ", j, ")");
-                    Util::Abort(INFO);
-                }
             });
         }
     }

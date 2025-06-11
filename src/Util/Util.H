@@ -69,6 +69,7 @@ template<typename... Args>
 AMREX_FORCE_INLINE
 void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
+#ifdef AMREX_DEBUG
     if (pass) return;
 
     std::ostringstream infostream;
@@ -89,6 +90,7 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
+#endif
 }
 
 
@@ -232,6 +234,7 @@ template<typename... Args>
 AMREX_FORCE_INLINE
 void AssertException (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
+    
     if (pass) return;
 
     if (amrex::ParallelDescriptor::IOProcessor())
