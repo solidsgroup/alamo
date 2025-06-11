@@ -466,8 +466,6 @@ if args.perf:
                      cmd="git clone https://github.com/brendangregg/FlameGraph",
                      message="Cloning flamegraph",
                      cwd="ext/")
-    f.write("CXX_COMPILE_FLAGS += -g -fno-omit-frame-pointer\n")
-    f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    
 
 #
 # ADD NECESSARY COMPILER-SPECIFIC MPI FLAGS
@@ -477,7 +475,8 @@ if args.perf:
 if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
+    if args.coverage:
+        f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
         if args.memcheck_tool=="asan":
             f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
@@ -487,15 +486,26 @@ if args.comp == 'g++':
             f.write("LINKER_FLAGS += -fsanitize=memory\n")
         else:
             error("Invalid memory check tool ", args.memcheck_tool)
-    if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
-    elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
-    else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+    if args.coverage and args.debug:
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
+    elif args.debug:
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    elif args.coverage:
+        f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    else:
+        f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+        f.write("LINKER_FLAGS += -flto\n")
 if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+    if args.debug:
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    elif args.perf:
+        f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
+        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    
+    else:
+        f.write("CXX_COMPILE_FLAGS += -O3\n")
+        f.write("LINKER_FLAGS += -flto \n")    
 if args.comp == 'icc':
     f.write("MPI_LIB += -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
@@ -504,6 +514,9 @@ if args.comp == 'icc':
 if args.fft:
     f.write("MPI_LIB += -lfftw3 -lfftw3f\n")
     f.write("CXX_COMPILE_FLAGS += -DALAMO_FFT\n")
+
+    
+
 
 #
 # DIFF
