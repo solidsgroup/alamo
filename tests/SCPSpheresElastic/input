@@ -60,22 +60,34 @@ pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
-regression.type = "arrhenius"
-regression.arrhenius.m_ap = 1.45e5
-regression.arrhenius.m_htpb = 1.04e2
-regression.arrhenius.E_ap = 11000.0
-regression.arrhenius.E_htpb = 7500.0
-regression.arrhenius.mob_ap = 1
+propellant.type = "mesoscale"
+propellant.mesoscale.m_ap = 1.45e5
+propellant.mesoscale.m_htpb = 1.04e2
+propellant.mesoscale.E_ap = 11000.0
+propellant.mesoscale.E_htpb = 7500.0
+propellant.mesoscale.mob_ap = 1
+propellant.mesoscale.bound = 300.0
+propellant.mesoscale.T_fluid = 600.0
+propellant.mesoscale.rho_ap = 1950.0
+propellant.mesoscale.rho_htpb = 920.0
+propellant.mesoscale.k_ap = 0.4186e0
+propellant.mesoscale.k_htpb = 0.13
+propellant.mesoscale.cp_ap = 1297.9
+propellant.mesoscale.cp_htpb = 2418.29
+
+propellant.mesoscale.a1 = 1.114
+propellant.mesoscale.a2 = 0.46
+propellant.mesoscale.a3 = 2.797
+propellant.mesoscale.b1 = 0.323
+propellant.mesoscale.b2 = 0.42
+propellant.mesoscale.b3 = 0.3225
+propellant.mesoscale.c1 = -0.09906
+propellant.mesoscale.mlocal_ap = 1000.0
+#prpoellant.mesoscale.mlocal_htpb = 5000.0
+propellant.mesoscale.mlocal_comb = 0.0
+
 
 thermal.on = 1
-thermal.bound = 300.0
-thermal.T_fluid = 600.0
-thermal.rho_ap = 1950.0
-thermal.rho_htpb = 920.0
-thermal.k_ap = 0.4186e0
-thermal.k_htpb = 0.13
-thermal.cp_ap = 1297.9
-thermal.cp_htpb = 2418.29
 
 thermal.temp.bc.type = constant
 thermal.temp.bc.constant.type.xlo = neumann
@@ -98,17 +110,6 @@ temp.ic.constant.value=500
 
 chamber.pressure = 4.0
 
-surfacecombustion.type = mesoscale
-surfacecombustion.mesoscale.a1 = 1.114
-surfacecombustion.mesoscale.a2 = 0.46
-surfacecombustion.mesoscale.a3 = 2.797
-surfacecombustion.mesoscale.b1 = 0.323
-surfacecombustion.mesoscale.b2 = 0.42
-surfacecombustion.mesoscale.b3 = 0.3225
-surfacecombustion.mesoscale.c1 = -0.09906
-surfacecombustion.mesoscale.mlocal_ap = 1000.0
-#surfacecombustion.mesoscale.mlocal_htpb = 5000.0
-surfacecombustion.mesoscale.mlocal_comb = 0.0
 
 
 
