@@ -37,7 +37,8 @@ public:
     //  Elastic energy, stress, tangent
     // ------------------------------------------------------------------
     Set::Scalar W(const Set::Matrix &F) const override
-    { return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse()); }
+    { 
+        return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse()); }
 
     Set::Matrix DW(const Set::Matrix &F) const override
     {
@@ -70,11 +71,11 @@ public:
         return ret;
     }
 
-virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
+virtual void Advance(Set::Scalar dt, Set::Matrix F, Set::Matrix P, Set::Scalar time) override
 {
     if (time < tstart) return;
 
-    const int MAX_IT = 100;
+    const int MAX_IT = 10;
     const Set::Scalar RTOL = 1e-6;
 
     
@@ -106,12 +107,15 @@ virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scal
         std::cout << "  Fp_old:\n" << Fp_old << "\n";
         std::cout << "  Fp_new:\n" << Fp_new << "\n";
         std::cout << "  Fpinv:\n" << Fpinv << "\n";
-
-        Set::Matrix3d Fe = F * Fpinv;
+        std::cout << "  F:\n" << F << "\n";
+        
+        Set::Matrix3d Fe = Set::Matrix3d::Zero();
+        Fe = Set::expand(F) * Fp;
         std::cout << "  Fe:\n" << Fe << "\n";
 
         Set::Matrix3d P3 = Set::expand(P);
         std::cout << "  P3:\n" << P3 << "\n";
+        std::cout << "  P:\n" << P << "\n";
 
         Eigen::Matrix<Set::Scalar,12,1> Rvec;
         for(int a = 0; a < 12; ++a)
