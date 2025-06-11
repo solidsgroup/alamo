@@ -86,6 +86,7 @@ parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tes
 parser.add_argument('--exe',default=None, nargs='*', help='Run only certain executables')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--perf',default=False,action='store_true',help='Use clang perf')
 parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code for all tests')
 parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
 parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
@@ -181,6 +182,9 @@ def test(testdir):
     # Iterate through all test configurations
     for desc in sections:
 
+        # Start off with the current environment as the default
+        env = os.environ.copy()
+
         record = dict()
         record['testdir'] = testdir
         record['section'] = desc
@@ -274,6 +278,10 @@ def test(testdir):
                 if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
                     if not args.fft and not args.fft_only: continue
 
+            # Specify performance flag
+            if args.perf:
+                env["CPUPROFILE"] = "profile.prof"
+
             # If not running in serial, specify mpirun command
             if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
             # Specify alamo command.
@@ -282,6 +290,7 @@ def test(testdir):
             if args.debug: exestr += "-debug"
             if args.memcheck: exestr += "-{}".format(args.memcheck)
             if args.profile: exestr += "-profile"
+            if args.perf: exestr += "-perf"
             if coverage: exestr += "-coverage"
             exestr += "-"+args.comp
             
@@ -292,11 +301,6 @@ def test(testdir):
             if not os.path.isfile(exestr):
                 exestr=exestr.replace("-coverage","")
 
-            #if args.debug and args.profile: exestr = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
-            #elif args.debug: exestr = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
-            #elif args.profile: exestr = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
-            #else: exestr = "./bin/alamo-{}d-{}".format(dim,args.comp)
-
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
@@ -305,7 +309,8 @@ def test(testdir):
                 if not exe in args.exe:
                     continue
 
-            # If the exestr doesn't exist, exit noisily. The script will continue but will return a nonzero
+            # If the exestr doesn't exist, exit noisily.
+            # The script will continue but will return a nonzero
             # exit code.
             if not os.path.isfile(exestr):
                 print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exestr,color.reset))
@@ -324,7 +329,12 @@ def test(testdir):
             command += "{}/input ".format(testdir)
             command += cmdargs
         
-        # Run the actual test.
+
+
+        # 
+        # [ R U N   T H E   T E S T ]
+        #
+
         print("  ├ " + desc)
         if args.cmd: print("  ├      " + command)
         bs = "\b\b\b\b\b\b"
@@ -361,7 +371,8 @@ def test(testdir):
                     time.sleep(1)
 
             # Start the run
-            proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                                    env=env)
 
             # Start the check_progress thread
             monitor_thread = threading.Thread(target=check_progress, args=(proc,""))
@@ -464,6 +475,70 @@ def test(testdir):
             fails += 1
             continue
         
+
+        #
+        # 
+        # [ P R O F I L I N G ]
+        #
+        #
+
+        if args.perf:
+
+            profile_file = None
+
+            if nprocs>1:
+                profile_file = "profile.prof.rank-0"
+            else:
+                profile_file = "profile.prof"
+
+            output_svg = f"{testdir}/{testid}_{desc}/flame.svg"
+
+            # Step 1: Collapse the profile
+            try:
+                print("  │      Processing profiling data...............................",
+                      end="",flush=True)
+                result = subprocess.run(
+                    ["google-pprof", "--collapsed", exestr, "profile.prof"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    check=True, text=True)
+
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
+                print("  │      Generating flame plot...................................",
+                      end="",flush=True)
+
+                with open("out.folded", "w") as f:
+                    f.write(result.stdout)
+            
+                result = subprocess.run(
+                    ["ext/FlameGraph/flamegraph.pl", "out.folded"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    check=True, text=True )
+            
+                with open(output_svg, "w") as f:
+                    f.write(result.stdout)
+            
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
+                print(f"  │      {color.lightgray}{output_svg}{color.reset}")
+
+            except subprocess.CalledProcessError as e:
+                print("[{}FAIL{}]".format(color.red,color.reset))
+                for line in e.stderr.split('\n'):
+                    print("  │      {}ERROR: {}{}".format(color.red,clean(line,1000),color.reset))
+                print("Error during flamegraph generation:")
+                print(e.stderr)
+                raise
+
+            subprocess.run("rm -rf out.folded".split())
+            subprocess.run("rm -rf profile.prof*".split())
+
+
+        #
+        # 
+        # [ V E R I F I C A T I O N   T E S T ]
+        #
+        #
+
+
         # If we have specified that we are doing a check, use the 
         # ./tests/MyTest/test 
         # script to determine if the run was successful.
