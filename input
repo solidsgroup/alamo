@@ -1,4 +1,4 @@
-#input file with higher dimension; breaks as mdot_out in chamber is not updating with updated pressure; mdot in flame isnt working correctly giving fluctuations.
+#input file with higher dimension; finally the mdot_out is updating now with pressure :) but still need to tweak some parameters; mdot in flame isnt working correctly giving fluctuations still.
 #thermo.dat issue fixed; to see the variables in thermo.dat with just thermo on, need to comment out the lines 491-493 in flame where if(variable pressure)...
 Tref = 300
 alamo.program = flame
@@ -110,7 +110,8 @@ pressure.b2 = 0.42
 pressure.b3 = 0.3225
 pressure.h2 = 1.34
 pressure.c1 = -0.09906
-chamber.on = 0
+
+chamber.on = 1
 chamber.rho0 = 1.5
 chamber.c_star = 1
 chamber.pressure = 4.0

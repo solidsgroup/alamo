@@ -412,7 +412,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
     }
     if (chamber.on)
     {
-        Model::Ballistics::Ballistic_new ballistic;
+        // Model::Ballistics::Ballistic_new ballistic;
         // Model::Ballistics::Chamber Chamber;
         if (a_iter)
         {
@@ -421,8 +421,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int a_iter)
         // Chamber.Update(chamber.mdot, timestep);  // now clean and persistent
         // Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
         
-        ballistic.Execute(chamber.mdot, timestep);
-        chamber.pressure = ballistic.pressure0; // Access updated pressure
+        ballistic_.Execute(chamber.mdot, timestep);
+        chamber.pressure = ballistic_.pressure0; // Access updated pressure
         //Util::ParallelMessage(INFO, "Mdot = ", chamber.mdot);
         Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
         
@@ -491,9 +491,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 amrex::Array4<Set::Scalar> const& mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& heatflux = (*heatflux_mf[lev]).array(mfi);
 
-                // if (variable_pressure) {
-                //     pressure.P = chamber.pressure;
-                // }
+                //  if (variable_pressure) {
+                //      pressure.P = chamber.pressure;
+                //  }
 
                 Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
                 Set::Scalar zeta_1;
@@ -795,5 +795,3 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
 }
 
 } // namespace Integrator
-
-
