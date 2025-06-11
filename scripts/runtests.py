@@ -502,7 +502,7 @@ def test(testdir):
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     check=True, text=True)
 
-                print("[{}DONE{}]".format(color.green,color.reset))
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
                 print("  │      Generating flame plot...................................",
                       end="",flush=True)
 
