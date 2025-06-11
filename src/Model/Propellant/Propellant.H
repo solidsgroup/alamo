@@ -1,6 +1,7 @@
 #ifndef MODEL_PROPELLANT_H
 #define MODEL_PROPELLANT_H
 
+#include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
 
 namespace Model
@@ -19,6 +20,7 @@ private:
 public:
 
     template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     void set_pressure (Set::Scalar P)
     {
         if constexpr (I < sizeof...(OBJ))
@@ -30,6 +32,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_K (const Set::Scalar phi)
     {
         if constexpr (I < sizeof...(OBJ))
@@ -42,6 +45,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_rho (const Set::Scalar phi)
     {
         if constexpr (I < sizeof...(OBJ))
@@ -54,6 +58,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar phi)
     {
         if constexpr (I < sizeof...(OBJ))
@@ -66,6 +71,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_qdot (const Set::Scalar mdot, const Set::Scalar phi) 
     {
         if constexpr (I < sizeof...(OBJ))
@@ -78,6 +84,7 @@ public:
     }
 
     template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_L (const Set::Scalar phi, const Set::Scalar T) 
     {
         if constexpr (I < sizeof...(OBJ))

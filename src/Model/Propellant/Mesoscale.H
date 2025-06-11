@@ -48,21 +48,25 @@ public:
     }
 
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_K (const Set::Scalar phi)
     {
         return k_ap * phi + k_htpb * (1.0 - phi);
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_rho (const Set::Scalar phi)
     {
         return rho_ap * phi + rho_htpb * (1.0 - phi); 
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar phi)
     {
         return cp_ap * phi + cp_htpb * (1.0 - phi);
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;

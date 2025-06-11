@@ -19,6 +19,7 @@ public:
     }
 
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     void set_pressure(const Set::Scalar P) 
     {
         // for the pressure power law option
@@ -31,11 +32,16 @@ public:
         // c_fit = -0.0130849 * sin(P) - 0.03597 * cos(P) + 0.00725694;
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_K (const Set::Scalar /*phi*/) {return NAN;}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_rho (const Set::Scalar /*phi*/) {return NAN;}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar /*phi*/) {return NAN;}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) {return NAN;}
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar /*T*/) 
     {
         Set::Scalar L = NAN;
