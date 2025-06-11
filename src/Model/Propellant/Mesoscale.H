@@ -30,7 +30,6 @@ public:
         k1 = a1 * P + b1 - zeta_1 / zeta;
         k2 = a2 * P + b2 - zeta_1 / zeta;
         k3 = 4.0 * log((c1 * P * P + a3 * P + b3) - k1 / 2.0 - k2 / 2.0);
-        //k4 = h1 * P + h2;
         return;
     }
     

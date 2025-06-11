@@ -89,12 +89,12 @@ private:
     Set::Scalar m_refinement_criterion = NAN;
     Set::Scalar t_refinement_criterion = NAN;
     Set::Scalar t_refinement_restriction = NAN;
-    Set::Scalar zeta = NAN;
-    Set::Scalar zeta_0 =NAN;
+    // Set::Scalar zeta = NAN;
+    // Set::Scalar zeta_0 =NAN;
     Set::Scalar small = NAN;
     IC::IC<Set::Scalar>* ic_eta = nullptr;
-    static const int ghost_count = 2;
-    int homogeneousSystem = -1;
+    //static const int ghost_count = 2;
+    //int homogeneousSystem = -1;
     bool plot_field = true;
     int variable_pressure = -1;
 

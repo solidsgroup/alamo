@@ -125,9 +125,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
 
-    // regression rate model
-    //pp.select<Model::Regression::PowerLaw,Model::Regression::Arrhenius>("regression",value.regression);
-
     // Whether to use the Thermal Transport Model
     pp_query_default("thermal.on", value.thermal.on, false); 
 
@@ -137,9 +134,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
 
     // Select reduced order model to capture heat feedback
-    pp.select<Model::Propellant::PowerLaw, 
-              Model::Propellant::Mesoscale,
-              Model::Propellant::Homogenize>
+    pp.select<  Model::Propellant::PowerLaw, 
+                Model::Propellant::Mesoscale,
+                Model::Propellant::Homogenize>
         ("propellant",value.propellant);
 
     if (value.thermal.on) {
@@ -188,7 +185,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, 0);
     // Whether to initialize Phi with homogenized properties
-    pp_query_default("homogeneousSystem", value.homogeneousSystem, 0); 
+    //pp_query_default("homogeneousSystem", value.homogeneousSystem, 0); 
 
     // Refinement criterion for eta field   
     pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);
@@ -211,7 +208,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // // or in case we used the psread IC, we will extract zeta from there.
     // pp_query("phi.ic.psread.eps", value.zeta); 
 
-    value.RegisterNodalFab(value.phi_mf, 1, value.ghost_count + 1, "phi", true);
+    value.RegisterNodalFab(value.phi_mf, 1, 3, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
@@ -233,7 +230,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
         value.bc_psi = new BC::Nothing();
-        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, value.ghost_count, "psi", value.plot_psi);
+        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", value.plot_psi);
         value.psi_on = true;
     }
 
@@ -377,7 +374,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
     if (variable_pressure) {
         Set::Scalar x_len = geom[0].ProbDomain().length(0);
         Set::Scalar y_len = geom[0].ProbDomain().length(1);
-        Set::Scalar domain_area = x_len * y_len;
+        // Set::Scalar domain_area = x_len * y_len;
         Util::Message(INFO, "Mass = ", chamber.massflux);
         Util::Message(INFO, "Pressure = ", chamber.pressure);
     }

@@ -38,6 +38,7 @@ public:
             else return get_K<I+1>(phi);
         }
         else Util::Abort(INFO,selected);
+        return NAN;
     }
 
     template<int I = 0>
@@ -49,6 +50,7 @@ public:
             else return get_rho<I+1>(phi);
         }
         else Util::Abort(INFO,selected);
+        return NAN;
     }
 
     template<int I = 0>
@@ -60,6 +62,7 @@ public:
             else return get_cp<I+1>(phi);
         }
         else Util::Abort(INFO,selected);
+        return NAN;
     }
 
     template<int I = 0>
@@ -71,6 +74,7 @@ public:
             else return get_qdot<I+1>(mdot,phi);
         }
         else Util::Abort(INFO,selected);
+        return NAN;
     }
 
     template<int I = 0>
@@ -82,6 +86,7 @@ public:
             else return get_L<I+1>(phi, T);
         }
         else Util::Abort(INFO,selected);
+        return NAN;
     }
 };
 }

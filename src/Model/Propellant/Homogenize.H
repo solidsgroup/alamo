@@ -1,7 +1,14 @@
+//
+// 
+//
+//
+//
+
+
 #ifndef MODEL_PROPELLANT_HOMOGENIZE_H
 #define MODEL_PROPELLANT_HOMOGENIZE_H
 
-#include "Model/Propellant/Propellant.H"
+#include "Propellant.H"
 
 namespace Model
 {
@@ -18,14 +25,19 @@ public:
         pp_queryclass(name,*this);
     }
 
+    Set::Scalar P = NAN;
     void set_pressure(const Set::Scalar P) 
     {
-        // TODO
+        k4 = h1 * P + h2;
     }
     
     virtual Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
     {
-        return NAN;
+        Set::Scalar qflux = k4 * phi;
+        Set::Scalar mlocal = (mlocal_ap) * massfraction + (mlocal_htpb) * (1.0 - massfraction);
+        Set::Scalar mdota = fabs(mdot);
+        Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
+        return  mbase * qflux;
     }
 
     Set::Scalar get_K (const Set::Scalar phi)
@@ -45,7 +57,12 @@ public:
 
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
-        return NAN;
+        Set::Scalar L = NAN;
+        if (mob_ap == 1) L = m_ap * P * exp(-E_ap / T) * phi;
+        else L = m_ap * exp(-E_ap / T) * phi;
+        L += m_htpb * exp(-E_htpb / T) * (1.0 - phi);
+        if (T <= bound) L = 0.0;
+        return L;
     }
 
 
@@ -67,28 +84,60 @@ public:
 
 
         // AP Density
-        pp_query_required("thermal.rho_ap", value.rho_ap);
+        pp_query_required("rho_ap", value.rho_ap);
         // HTPB Density
-        pp_query_required("thermal.rho_htpb", value.rho_htpb);
+        pp_query_required("rho_htpb", value.rho_htpb);
         // AP Thermal Conductivity
-        pp_query_required("thermal.k_ap", value.k_ap);
+        pp_query_required("k_ap", value.k_ap);
         // HTPB Thermal Conductivity
-        pp_query_required("thermal.k_htpb", value.k_htpb);
+        pp_query_required("k_htpb", value.k_htpb);
         // AP Specific Heat
-        pp_query_required("thermal.cp_ap", value.cp_ap);
+        pp_query_required("cp_ap", value.cp_ap);
         //HTPB Specific Heat
-        pp_query_required("thermal.cp_htpb", value.cp_htpb); 
+        pp_query_required("cp_htpb", value.cp_htpb); 
 
+
+        // Surgate heat flux model paramater - Homogenized
+        pp_query_default("h1", value.h1, 1.81); 
+        // Surgate heat flux model paramater - Homogenized
+        pp_query_default("h2", value.h2, 1.34); 
+
+
+        // AP mass flux reference value 
+        pp_query_default("mlocal_ap", value.mlocal_ap, 0.0); 
+        value.mlocal_htpb = 685000.0 - 850e3 * value.massfraction;
+        
+        // AP Pre-exponential factor for Arrhenius Law
+        pp_query_required("m_ap", value.m_ap); 
+        // HTPB Pre-exponential factor for Arrhenius Law
+        pp_query_required("m_htpb", value.m_htpb); 
+        // AP Activation Energy for Arrhenius Law
+        pp_query_required("E_ap", value.E_ap); 
+        // HTPB Activation Energy for Arrhenius Law
+        pp_query_required("E_htpb", value.E_htpb); 
+        // Whether to include pressure to the arrhenius law [??]
+        pp_query_default("mob_ap", value.mob_ap,0); 
+        // HTPB Activation Energy for Arrhenius Law
+        pp_query_default("bound", value.bound,0.0); 
     }
 
+    // IO variables
     Set::Scalar massfraction = NAN;
     Set::Scalar dispersion1 = NAN, dispersion2 = NAN, dispersion3 = NAN;
-
     Set::Scalar k_ap = NAN, k_htpb = NAN;
     Set::Scalar rho_ap = NAN, rho_htpb = NAN;
     Set::Scalar cp_ap = NAN, cp_htpb = NAN;
+    Set::Scalar h1 = NAN, h2=NAN;
+    Set::Scalar mlocal_ap = NAN;
+    // Regression variables
+    int mob_ap = -1;
+    Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
+    Set::Scalar E_ap = NAN, E_htpb = NAN;
+    Set::Scalar bound = NAN;
 
-    // TODO
+    // Calculated variables
+    Set::Scalar k4 = NAN;
+    Set::Scalar mlocal_htpb = NAN;
 };
 
 }
