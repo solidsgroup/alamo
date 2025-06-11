@@ -175,6 +175,7 @@ if args.memcheck:
     if args.memcheck_tool == "asan": postfix += "-asan"
     if args.memcheck_tool == "msan": postfix += "-msan"
 if args.profile: postfix += "-profile"
+if args.perf: postfix += "-perf"
 if args.coverage: postfix += "-coverage"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
@@ -466,6 +467,7 @@ if args.perf:
                      message="Cloning flamegraph",
                      cwd="ext/")
     f.write("CXX_COMPILE_FLAGS += -g -fno-omit-frame-pointer\n")
+    f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    
 
 #
 # ADD NECESSARY COMPILER-SPECIFIC MPI FLAGS
