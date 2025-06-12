@@ -102,7 +102,6 @@ propellant.fullfeedback.phi.zeta = 1.13e-5
 
 # Activate thermal transport
 thermal.on = 1
-thermal.Tfluid = 600.0
 
 # Temperature boundary conditions
 thermal.temp.bc.type = constant
