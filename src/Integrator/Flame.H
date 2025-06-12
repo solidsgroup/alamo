@@ -6,20 +6,14 @@
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
 #include "IC/IC.H"
-#include "Model/Propellant/Homogenize.H"
-#include "Model/Propellant/Mesoscale.H"
-#include "Model/Propellant/Propellant.H"
-#include "Model/Regression/Arrhenius.H"
-#include "Model/Regression/PowerLaw.H"
 #include "Set/Set.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
 
 #include "Base/Mechanics.H"
-#include "Model/Regression/Regression.H"
 
 #include "Model/Propellant/PowerLaw.H"
-#include "Model/Propellant/Mesoscale.H"
+#include "Model/Propellant/FullFeedback.H"
 #include "Model/Propellant/Homogenize.H"
 
 namespace Integrator
@@ -89,61 +83,39 @@ private:
     Set::Scalar m_refinement_criterion = NAN;
     Set::Scalar t_refinement_criterion = NAN;
     Set::Scalar t_refinement_restriction = NAN;
-    // Set::Scalar zeta = NAN;
-    // Set::Scalar zeta_0 =NAN;
     Set::Scalar small = NAN;
     IC::IC<Set::Scalar>* ic_eta = nullptr;
-    //static const int ghost_count = 2;
-    //int homogeneousSystem = -1;
     bool plot_field = true;
     int variable_pressure = -1;
 
+    // Phase field model variables
     struct {
-        Set::Scalar gamma = NAN;
         Set::Scalar eps = NAN;
         Set::Scalar lambda = NAN;
         Set::Scalar kappa = NAN;
         Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
         Set::Scalar min_eta = 0.001;
-        int evolve = 1;
     } pf;
 
-    struct {
-        Set::Scalar gamma = NAN;
-
-        struct {
-            Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
-            Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
-            Set::Scalar c1 = NAN;
-            int mob_ap = NAN;
-            int dependency = 1;
-            Set::Scalar h1 = NAN, h2 = NAN;
-
-        } arrhenius;
-        struct {
-            Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
-            Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
-            Set::Scalar a_fit = NAN, b_fit = NAN, c_fit = NAN;
-        } power;
-    } pressure;
-
+    // Thermal transport variables
     struct {
         bool on = 0;
         Set::Scalar hc = NAN, w1 = NAN;
-        Set::Scalar mlocal_ap = NAN, mlocal_htpb = NAN, mlocal_comb = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
+    // Thermoelastic variables
     struct {
         int on = 0;
-        Set::Scalar TElastic = NAN;
+        Set::Scalar Telastic = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
     } elastic;
 
+    // Chamber state variables (not inputs)
     struct {
         // Integrated variables
         Set::Scalar volume = 0.0;
@@ -155,15 +127,10 @@ private:
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
 
-    //Model::Regression::Regression *regression;
-
-    // Model::Regression::Regression<
-    //     Model::Regression::PowerLaw,
-    //     Model::Regression::Arrhenius> regression;
-    
+    // Propellant model
     Model::Propellant::Propellant<
         Model::Propellant::PowerLaw,
-        Model::Propellant::Mesoscale,
+        Model::Propellant::FullFeedback,
         Model::Propellant::Homogenize> propellant;
 };
 }

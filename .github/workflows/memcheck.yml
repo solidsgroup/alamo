@@ -2,7 +2,7 @@ name: Memory Leak Check
 
 on:
   push:
-    branches-ignore: [flame-refactor2]
+    branches-ignore: []
 
 permissions:
   contents: read

@@ -1,3 +1,15 @@
+//
+// This SCP model implements the method described in the following paper
+//
+// .. bibliography::
+//    :list: none
+//    :filter: False
+// 
+//    kanagarajan2022diffuse
+//
+// This method imitates inheritance :code:`Propellant::Propellant` using static polymorphism
+// 
+
 #ifndef MODEL_PROPELLANT_POWERLAW_H
 #define MODEL_PROPELLANT_POWERLAW_H
 

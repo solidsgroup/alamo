@@ -46,11 +46,9 @@ pf.w1 = 1.0
 pf.w12 = 2.0
 pf.w0 = 0.0
 
-# Regression law
+# Propellant model parameters
 propellant.type = powerlaw
 propellant.powerlaw.gamma = 0.02726
-
-# AP / HTPB regression rate params 
 propellant.powerlaw.r_ap = 1.222 # [ mm / s ]
 propellant.powerlaw.n_ap = 1.042 # [ 1 ]
 propellant.powerlaw.r_htpb = 0.1 # [ mm / s]
@@ -58,14 +56,14 @@ propellant.powerlaw.r_comb = 10.0 # [ mm / s]
 propellant.powerlaw.n_htpb = 0.0 # [ 1 ]
 propellant.powerlaw.n_comb = 0.0 # [ 1 ]
 
-# Pressure used in regression rate calc
+# Chamber pressure (affects the propellant model)
 chamber.pressure = 0.2
 
-# Phase field IC
+# Phase field initial condition
 pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1
+pf.eta.ic.constant.value = 1.0
 
-# Species field params
+# Species field initial condition
 phi.ic.type = laminate
 phi.ic.laminate.number_of_inclusions = 1
 phi.ic.laminate.center  = 0.0 0.0 0.0
@@ -74,10 +72,6 @@ phi.ic.laminate.orientation = 0 1
 phi.ic.laminate.eps = 0.015
 phi.ic.laminate.singlefab = 1
 phi.ic.laminate.invert = 1
-
-# Initial conditions on eta
-pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1.0
 
 # Boundary conditions on eta
 pf.eta.bc.type = constant
@@ -90,9 +84,9 @@ pf.eta.bc.constant.val.xhi = 1.0
 pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 0.0
 
-pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1.0
+# Deactivate thermal transport model
+thermal.on = 0
 
-thermal.on = 0 
+# Deactivate elastic model
 elastic.type = disable
-#amr.node.any = 0
+

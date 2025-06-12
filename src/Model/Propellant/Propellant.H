@@ -1,3 +1,19 @@
+// 
+// This header defines the :code:`Model::Propellant::Propellant` class, which introduces a static 
+// dispatch mechanism to replicate traditional dynamic polymorphism without incurring the performance 
+// cost of virtual table lookups. 
+// 
+// The :code:`Propellant` class acts as the static equivalent of a pure abstract interface for 
+// composite solid propellant models. Each function (e.g., :code:`get_K`, :code:`get_cp`, 
+// :code:`get_L`) statically dispatches to the appropriate underlying implementation, encapsulating 
+// key thermophysical properties such as  density, thermal conductivity, and specific heat. The 
+// :code:`set_pressure` and :code:`get_*` functions are resolved at compile-time for GPU 
+// compatibility and runtime performance.
+// 
+// This system enables polymorphic behavior without relying on runtime virtual functions, making it 
+// suitable for high-performance computing environments.
+// 
+
 #ifndef MODEL_PROPELLANT_H
 #define MODEL_PROPELLANT_H
 

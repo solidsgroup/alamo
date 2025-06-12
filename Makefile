@@ -69,8 +69,7 @@ CTR_EXE = 0
 .SECONDARY: 
 
 
-#mytest:
-#	@printf "$(B_ON)$(FG_GREEN)TESTAA$(RESET)\n"
+
 
 
 default: $(DEP) $(EXE)

@@ -1,7 +1,6 @@
 #include "Flame.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
-#include "Model/Regression/Regression.H"
 #include "Numeric/Stencil.H"
 #include "IC/Laminate.H"
 #include "IC/Constant.H"
@@ -12,10 +11,8 @@
 #include "IC/PNG.H"
 #include "Base/Mechanics.H"
 #include "Util/Util.H"
-#include "Model/Regression/PowerLaw.H"
-#include "Model/Regression/Arrhenius.H"
 #include "Model/Propellant/Propellant.H"
-#include "Model/Propellant/Mesoscale.H"
+#include "Model/Propellant/FullFeedback.H"
 #include "Model/Propellant/Homogenize.H"
 
 #include <cmath>
@@ -49,6 +46,8 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("pressure.n_htpb", "use regression.powerlaw.n_htpb");
     pp.forbid("pressure.n_comb", "use regression.powerlaw.n_comb");
 
+    pp.forbid("thermal.bound",   "use thermal.Tref");
+    pp.forbid("thermal.T_fluid",   "use thermal.Tfluid (or nothing)");
     pp.forbid("thermal.m_ap",   "use regression.arrhenius.m_ap");
     pp.forbid("thermal.m_htpb", "use regression.arrhenius.m_htpb");
     pp.forbid("thermal.E_ap",   "use regression.arrhenius.E_ap");
@@ -66,7 +65,7 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("pressure.mob_ap", "no longer used"); 
     pp.forbid("pressure.dependency", "use propellant.mesoscale.arrhenius_dependency"); 
     pp.forbid("pressure.h1", "use propellant.mesoscale.h1 instead"); 
-    pp.forbid("pressure.h2", "use propellant.mesoscale.h1 instead"); 
+    pp.forbid("pressure.h2", "use propellant.mesoscale.h2 instead"); 
     pp.forbid("thermal.mlocal_ap", "use propellant.mesoscale.mlocal_ap");
     pp.forbid("thermal.mlocal_comb", "use propellant.mesoscale.mlocal_comb");
     pp.forbid("thermal.mlocal_htpb", "this actually did **nothing** - it was overridden by a hard code using massfraction.");
@@ -114,22 +113,23 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
 
-    // Whether to use the Thermal Transport Model
-    pp_query_default("thermal.on", value.thermal.on, false); 
-
-    // System Initial Temperature. 
-    // TFluid and TElastic can be individually assigned, but will otherwise be assigned the value of Tref.
-    pp_query_default("thermal.Tref", value.thermal.Tref, 300.0); 
 
 
     // Select reduced order model to capture heat feedback
     pp.select<  Model::Propellant::PowerLaw, 
-                Model::Propellant::Mesoscale,
+                Model::Propellant::FullFeedback,
                 Model::Propellant::Homogenize>
         ("propellant",value.propellant);
 
-    if (value.thermal.on) {
 
+    // Whether to use the Thermal Transport Model
+    pp_query_default("thermal.on", value.thermal.on, false); 
+
+    // Reference temperature
+    // Used to set all other reference temperatures by default.
+    pp_query_default("thermal.Tref", value.thermal.Tref, 300.0); 
+
+    if (value.thermal.on) {
 
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, 1.0);
@@ -138,7 +138,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
-
 
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1);
@@ -169,39 +168,36 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, 1.0); 
 
-
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, 0);
-    // Whether to initialize Phi with homogenized properties
-    //pp_query_default("homogeneousSystem", value.homogeneousSystem, 0); 
 
     // Refinement criterion for eta field   
     pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);
+
     // Refinement criterion for temperature field    
     pp_query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, 0.001);
+
     // Eta value to restrict the refinament for the temperature field 
     pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0.1);
+
     // Refinement criterion for phi field [infinity]
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
-    // Lowest value of Eta.
+
+    // Minimum allowable threshold for $\eta$
     pp_query_default("small", value.small, 1.0e-8); 
 
     // Initial condition for $\phi$ field.
     pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>
         ("phi.ic",value.ic_phi,value.geom);
 
-
-    // // in case we used the laminate IC, we will extract zeta from there.
-    // pp_query("phi.ic.laminate.eps", value.zeta);
-    // // or in case we used the psread IC, we will extract zeta from there.
-    // pp_query("phi.ic.psread.eps", value.zeta); 
-
     value.RegisterNodalFab(value.phi_mf, 1, 3, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
+
     // Body force
     pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
+
     // Phi refinement criteria 
     pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
 
@@ -211,7 +207,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     {
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
-        pp_query_default("Telastic", value.elastic.TElastic, value.thermal.Tref); 
+        pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref); 
         // elastic model of AP
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
         // elastic model of HTPB
@@ -283,9 +279,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         domain.convert(amrex::IntVect::TheNodeVector());
         const Set::Scalar* DX = geom[lev].CellSize();
 
-        //psi_mf[lev]->setVal(1.0);
         phi_mf[lev]->FillBoundary();
-        //phicell_mf[lev]->FillBoundary();
         eta_mf[lev]->FillBoundary();
         temp_mf[lev]->FillBoundary();
 
@@ -293,17 +287,14 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         {
             amrex::Box smallbox = mfi.nodaltilebox();
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
-            //amrex::Box bx = mfi.nodaltilebox();
-            //bx.grow(1);
             Set::Patch<model_type>        model = model_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            // amrex::Array4<const Set::Scalar> const& Pressure = pressure_mf[lev]->array(mfi); // [error]
 
             if (elastic.on)
             {
-                amrex::Array4<const Set::Scalar> const& temp = temp_mf[lev]->array(mfi);
+                Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
@@ -315,11 +306,11 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 -= Set::Matrix::Identity();
-                    model_ap.F0 *= (temp_avg - elastic.TElastic);
+                    model_ap.F0 *= (temp_avg - elastic.Telastic);
                     model_ap.F0 += Set::Matrix::Identity();
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 -= Set::Matrix::Identity();
-                    model_htpb.F0 *= (temp_avg - elastic.TElastic);
+                    model_htpb.F0 *= (temp_avg - elastic.Telastic);
                     model_htpb.F0 += Set::Matrix::Identity();
 
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
@@ -360,8 +351,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure) {
-        Set::Scalar x_len = geom[0].ProbDomain().length(0);
-        Set::Scalar y_len = geom[0].ProbDomain().length(1);
+        //Set::Scalar x_len = geom[0].ProbDomain().length(0);
+        //Set::Scalar y_len = geom[0].ProbDomain().length(1);
         // Set::Scalar domain_area = x_len * y_len;
         Util::Message(INFO, "Mass = ", chamber.massflux);
         Util::Message(INFO, "Pressure = ", chamber.pressure);
@@ -533,7 +524,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -549,7 +540,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         {
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
-            amrex::Array4<const Set::Scalar> const& phi = (*phi_mf[lev]).array(mfi);
+            Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
@@ -567,8 +558,8 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         {
             const amrex::Box& bx = mfi.tilebox();
             amrex::Array4<char> const& tags = a_tags.array(mfi);
-            amrex::Array4<const Set::Scalar> const& temp = (*temp_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+            Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(lev,mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
@@ -594,8 +585,8 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     BL_PROFILE("Flame::Integrate");
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-    amrex::Array4<amrex::Real> const& eta = (*eta_mf[amrlev]).array(mfi);
-    amrex::Array4<amrex::Real> const& mdot = (*mdot_mf[amrlev]).array(mfi);
+    Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
+    Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {

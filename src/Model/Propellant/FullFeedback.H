@@ -1,5 +1,17 @@
-#ifndef MODEL_PROPELLANT_MESOSCALE_H
-#define MODEL_PROPELLANT_MESOSCALE_H
+//
+// This SCP model implements the method described in the following paper
+//
+// .. bibliography::
+//    :list: none
+//    :filter: False
+// 
+//    meier2024diffuse
+//
+// This method imitates inheritance :code:`Propellant::Propellant` using static polymorphism
+// 
+
+#ifndef MODEL_PROPELLANT_FULLFEEDBACK_H
+#define MODEL_PROPELLANT_FULLFEEDBACK_H
 
 #include "Propellant.H"
 
@@ -7,13 +19,13 @@ namespace Model
 {
 namespace Propellant
 {
-class Mesoscale
+class FullFeedback
 {
 public:
-    static constexpr const char* name = "mesoscale";
+    static constexpr const char* name = "fullfeedback";
 
-    Mesoscale() = default;
-    Mesoscale(IO::ParmParse &pp, std::string name) 
+    FullFeedback() = default;
+    FullFeedback(IO::ParmParse &pp, std::string name) 
     {
         pp_queryclass(name,*this);
     }
@@ -78,7 +90,7 @@ public:
     }
 
 
-    static void Parse(Mesoscale& value, IO::ParmParse& pp)
+    static void Parse(FullFeedback& value, IO::ParmParse& pp)
     {
         // AP/HTPB interface length
         pp_query_default("phi.zeta", value.zeta, 1.0e-5); 

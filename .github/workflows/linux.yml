@@ -2,7 +2,7 @@ name: Linux
 
 on:
   push:
-    branches-ignore: [flame-refactor2]
+    branches-ignore: []
 
 jobs:
   style-check:
