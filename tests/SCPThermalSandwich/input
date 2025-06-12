@@ -87,8 +87,7 @@ propellant.mesoscale.m_ap = 1.45e5 #[m/s]
 propellant.mesoscale.m_htpb = 1.4e1 # 0.2 # [m/s]
 propellant.mesoscale.E_ap = 11000.0   # 1050.0 # 4.0
 propellant.mesoscale.E_htpb = 7500.0   # 1200.0
-
-
+propellant.mesoscale.phi.zeta = 0.00002
 
 # THERMAL VARIABLES ######################################################### THERMAL
 thermal.T_fluid = 300.0
