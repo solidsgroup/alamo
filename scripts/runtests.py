@@ -498,7 +498,7 @@ def test(testdir):
                 print("  │      Processing profiling data...............................",
                       end="",flush=True)
                 result = subprocess.run(
-                    ["google-pprof", "--collapsed", exestr, "profile.prof"],
+                    ["google-pprof", "--collapsed", exestr, profile_file],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     check=True, text=True)
 
@@ -528,8 +528,11 @@ def test(testdir):
                 print(e.stderr)
                 raise
 
-            subprocess.run("rm -rf out.folded".split())
-            subprocess.run("rm -rf profile.prof*".split())
+
+            # remove profiling files
+            os.remove("out.folded")
+            for f in glob.glob("profile.prof*"):
+                os.remove(f)
 
 
         #

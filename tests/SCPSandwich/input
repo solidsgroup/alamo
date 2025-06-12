@@ -22,9 +22,9 @@ alamo.program = flame
 # AMR parameters
 plot_file = tests/SCPSandwich/output
 amr.plot_dt = 0.01
-amr.max_level = 7 
-amr.n_cell = 16 2 2
-amr.blocking_factor = 2
+amr.max_level = 2
+amr.n_cell = 512 64 64
+amr.blocking_factor = 16
 amr.regrid_int = 100
 amr.base_regrid_int = 20
 amr.grid_eff = 0.7
@@ -35,7 +35,7 @@ geometry.prob_hi = 4.0 0.25 0.1 # [mm]
 geometry.is_periodic = 0 1 1
 
 # Timestep and duration
-timestep = 0.00005 # [s]
+timestep = 0.0000125 # [s]
 stop_time = 0.2 # [s]
 
 # Phase field params
