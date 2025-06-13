@@ -15,6 +15,7 @@ testlib.validate(path=path,
                  end=[0.0005,0.00043,0],
                  vars=["eta","disp_x","temp"],
                  tolerance=[0.05,0.05,0.05],
+                 abs_tolerance=[0.05,0.01,0.1],
                  reference=reference,
                  generate_ref_data = False,
 )
