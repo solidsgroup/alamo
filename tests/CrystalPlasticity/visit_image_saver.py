@@ -23,7 +23,7 @@ for output_folder in glob.glob(os.path.join(base_dir, "output_1")):
     node_directories = find_node_directories(output_folder)
 
     # Create a directory to save images in the current output folder
-    image_output_dir = os.path.join(output_folder, "visit_images_disp")
+    image_output_dir = os.path.join(output_folder, "visit_images_gamma")
     if not os.path.exists(image_output_dir):
         os.makedirs(image_output_dir)
         print(f"Created image output directory: {image_output_dir}")
@@ -40,7 +40,16 @@ for output_folder in glob.glob(os.path.join(base_dir, "output_1")):
             OpenDatabase("localhost:" + header_file, 0)
 
             # Add the desired plots
-            AddPlot("Pseudocolor", "disp_x", 1, 1)
+            AddPlot("Pseudocolor", "gamma1", 1, 1)
+            # --- set a fixed color-bar range ----------------------------
+            pc = PseudocolorAttributes()
+            pc.minFlag = 1           # use a user-defined minimum
+            pc.maxFlag = 1           # use a user-defined maximum
+            pc.min      = 0.00     # <-- set your desired lower bound here
+            pc.max      =  0.0008      # <-- set your desired upper bound here
+            pc.scaling  = pc.Linear  # or pc.Log for logarithmic scaling
+            SetPlotOptions(pc)       # apply the settings
+
             #AddPlot("Contour", "d", 1, 1)
             DrawPlots()
 
