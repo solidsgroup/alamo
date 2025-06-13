@@ -13,6 +13,7 @@
 
 #include "Base/Mechanics.H"
 
+#include "Model/Propellant/Constant.H"
 #include "Model/Propellant/PowerLaw.H"
 #include "Model/Propellant/FullFeedback.H"
 #include "Model/Propellant/Homogenize.H"
@@ -137,6 +138,7 @@ private:
 
     // Propellant model
     Model::Propellant::Propellant<
+        Model::Propellant::Constant,
         Model::Propellant::PowerLaw,
         Model::Propellant::FullFeedback,
         Model::Propellant::Homogenize> propellant;

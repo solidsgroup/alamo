@@ -114,7 +114,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
 
     // Select reduced order model to capture heat feedback
-    pp.select<  Model::Propellant::PowerLaw, Model::Propellant::FullFeedback, Model::Propellant::Homogenize>("propellant",value.propellant);
+    pp.select<  Model::Propellant::Constant,
+                Model::Propellant::PowerLaw, 
+                Model::Propellant::FullFeedback, 
+                Model::Propellant::Homogenize>("propellant",value.propellant);
 
     if (value.propellant.get_name() == "homogenize")  value.homogenized = true;
 
@@ -372,10 +375,11 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure)
     {
+        Util::Message(INFO, "chamber.pressure = ", chamber.pressure);
         chamber.pressure = chamber.model.Advance(timestep, chamber.mdot, 
                                                  chamber.volume, chamber.pressure);
 
-        Util::ParallelMessage(INFO, "Pressure0 = ", chamber.pressure);
+        Util::ParallelMessage(INFO, "chamber.pressure = ", chamber.pressure);
         
     }
 }
@@ -430,7 +434,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar rho = propellant.get_rho(phi_avg);
 
             Set::Scalar cp = propellant.get_cp(phi_avg);
-
+            
             //
             // CALCULATE MOBILITY
             // 
@@ -451,7 +455,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // Calculate thermal diffisivity and store for later gradient
                 //
 
-                alpha(i, j, k) = K / rho / cp; 
+                alpha(i, j, k) =  K / rho / cp; 
 
                 //
                 // CALCULATE MASS FLUX BASED ON EVOLVING ETA
@@ -465,7 +469,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
-
             }
 
         });
@@ -508,6 +511,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 dTdt += grad_alpha.dot(eta(i, j, k) * grad_temp);
                 dTdt += eta(i, j, k) * alpha(i, j, k) * lap_temp;
                 dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
+
 
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                 tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;

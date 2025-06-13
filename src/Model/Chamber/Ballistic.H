@@ -30,6 +30,11 @@ public:
         Set::Scalar mdot_in = mdot;
         
         Util::Message(INFO,"mdot_in",mdot_in);
+
+        Util::Message(INFO,"pressure",pressure);
+        Util::Message(INFO,"At",At);
+        Util::Message(INFO,"gamma",gamma);
+        Util::Message(INFO,"R",T0);
         
         Set::Scalar mdot_out = (pressure * At) / sqrt(gamma * R * T0);
         
@@ -61,8 +66,9 @@ public:
         // Initial temperature [K]
         pp.query_default("T0",value.T0,300.0);
 
-        // // Chamber volume [??]
-        // pp.query_default("volume",value.volume,1.0);
+        // Initial temperature [K]
+        pp.query_default("gamma",value.gamma,1.4);
+
     }
 
 
