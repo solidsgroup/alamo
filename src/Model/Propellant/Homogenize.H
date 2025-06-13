@@ -47,6 +47,7 @@ public:
 
     Set::Scalar get_rho (const Set::Scalar phi)
     {
+
         return (rho_ap * massfraction + rho_htpb * (1.0 - massfraction)) * phi + dispersion2 * (1. - phi); 
     }
 
@@ -102,6 +103,8 @@ public:
         // Surgate heat flux model paramater - Homogenized
         pp_query_default("h2", value.h2, 1.34); 
 
+        // AP/HTPB ratio for homogenized domain
+        pp_query_default("massfraction", value.massfraction, 0.8);
 
         // AP mass flux reference value 
         pp_query_default("mlocal_ap", value.mlocal_ap, 0.0); 

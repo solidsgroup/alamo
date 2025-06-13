@@ -147,8 +147,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 3, "temps", false);
         value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 3, "temps_old", false);
 
-        value.RegisterNewFab(value.mdot_mf, value.bc_eta, 1, 3, "mdot", value.plot_field);
-        value.RegisterNewFab(value.mob_mf, value.bc_eta, 1, 3, "mob", value.plot_field);
+        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 3, "mdot", value.plot_field);
+        value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 3, "mob", value.plot_field);
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 3, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 3, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 3, "laser", value.plot_field);
@@ -419,7 +419,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar T = thermal.on ? temp(i,j,k) : NAN;
 
             Set::Scalar K = propellant.get_K(phi_avg);
+
             Set::Scalar rho = propellant.get_rho(phi_avg);
+
             Set::Scalar cp = propellant.get_cp(phi_avg);
 
             //
@@ -435,7 +437,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
-            
+
             if (thermal.on)
             {
                 //
@@ -444,13 +446,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 alpha(i, j, k) = K / rho / cp; 
 
-
                 //
                 // CALCULATE MASS FLUX BASED ON EVOLVING ETA
                 //
             
                 mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; 
-
 
                 //
                 // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
@@ -458,7 +458,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
+
             }
+
         });
 
     } // MFi For loop 
@@ -504,6 +506,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                 tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
                 tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
+
             });
         }
     }
