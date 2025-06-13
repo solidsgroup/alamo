@@ -54,3 +54,4 @@ compile_commands.json
 .pyright-override.toml
 .clangd
 .DS_Store
+profile.prof*
