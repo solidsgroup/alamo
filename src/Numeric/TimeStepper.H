@@ -165,10 +165,10 @@ public:
 
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
         const int ncomp = solver->number_of_components;
-        //const int OuterGhost= solver->GetOuterGhost();
+        const int OutsideTube = solver->GetOutsideTube();
 
         for (int ils = 0; ils < ncomp; ++ils) {
-            ComputeEulerUpdateForComponent(lev, ils, dt, solver, DX, 2);
+            ComputeEulerUpdateForComponent(lev, ils, dt, solver, DX, OutsideTube);
         }
     }
 
@@ -181,19 +181,15 @@ private:
         int lev, int ils, Set::Scalar dt,
         Integrator::NarrowBandLevelset* solver,
         const Set::Scalar* DX,
-        int OuterGhost)
+        int OutsideTube)
     {
+        // Get narrowband variables
         const auto& ls_data = solver->level_sets[lev][ils];
         const auto& ba = ls_data.narrowband_ba;
         const auto& dm = ls_data.narrowband_dm;
-
-        amrex::iMultiFab narrowband(ba, dm, 1, 0);
-        amrex::MultiFab LS(ba, dm, 1, 0);
-        amrex::MultiFab LS_old(ba, dm, 1, 0);
-
-        narrowband.ParallelCopy(*ls_data.Tube, 0, 0, 1, 0, 0);
-        LS.ParallelCopy(*solver->ls_mf[lev], ils, 0, 1, 0, 0);
-        LS_old.ParallelCopy(*solver->ls_old_mf[lev], ils, 0, 1, 0, 0);
+        const auto& narrowband = *ls_data.Tube;
+        auto& LS  = *ls_data.Tube_ls;
+        const auto& LS_old = *ls_data.Tube_ls_old;
 
         // Define face-centered multifabs from solver
         amrex::IntVect face_type_x = amrex::IntVect::TheCellVector();  // All 0s: cell-centered
@@ -251,7 +247,7 @@ private:
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 const amrex::IntVect coord(AMREX_D_DECL(i,j,k));
-                if (std::abs(nb_arr(i, j, k)) >= OuterGhost) return;
+                if (std::abs(nb_arr(i, j, k)) == OutsideTube) return;
 
                 Set::Scalar flux_div = (xflux_arr(i, j, k) - xflux_arr(i - 1, j, k)) / DX[0];
                 
@@ -271,8 +267,6 @@ private:
                 }
             });
         }
-
-        solver->ls_mf[lev]->ParallelCopy(LS, 0, ils, 1, 0, 0);
     }
 };
 

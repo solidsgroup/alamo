@@ -1,10 +1,10 @@
 ## Simulation output
-plot_file = output_levelset_circle_Test_100X100_GeometryDebug_2Comp
+plot_file = output_levelset_circle_Test_100X100_Advect_3Step_1Comp
 
 # Simulation length
 timestep = 0.01
 stop_time = 0.75
-max_step = 1
+max_step = 3
 
 # AMR parameters
 amr.plot_int = 1
@@ -31,7 +31,7 @@ TimeSteppingScheme = ForwardEuler
 #cflNumber
 cflNumber = 0.5
 
-levelset.number_of_levelsets = 2
+levelset.number_of_levelsets = 1
 
 # Initial conditions for levelset field
 ls.ic.type = expression
@@ -40,12 +40,12 @@ ls.ic.expression.constant.r0 = 0.1   # Disk radius
 ls.ic.expression.constant.xC0 = 0.3  # Disk center x
 ls.ic.expression.constant.yC0 = 0.5  # Disk center y
 
-ls.ic.expression.constant.r1 = 0.1   # Disk radius
-ls.ic.expression.constant.xC1 = 0.7  # Disk center x
-ls.ic.expression.constant.yC1 = 0.5  # Disk center y
+#ls.ic.expression.constant.r1 = 0.1   # Disk radius
+#ls.ic.expression.constant.xC1 = 0.7  # Disk center x
+#ls.ic.expression.constant.yC1 = 0.5  # Disk center y
 
 ls.ic.expression.region0 = "sqrt((x - xC0)^2 + (y - yC0)^2) - r0"
-ls.ic.expression.region1 = "sqrt((x - xC1)^2 + (y - yC1)^2) - r1"
+#ls.ic.expression.region1 = "sqrt((x - xC1)^2 + (y - yC1)^2) - r1"
 
 # Zalesak disk
 #ls.ic.expression.constant.xD = 0.50  # Slot center x
@@ -56,19 +56,19 @@ ls.ic.expression.region1 = "sqrt((x - xC1)^2 + (y - yC1)^2) - r1"
 
 # Boundary conditions for levelset field
 ls.bc.type = expression
-ls.bc.expression.type.xlo = neumann neumann
-ls.bc.expression.type.xhi = neumann neumann
-ls.bc.expression.type.ylo = neumann neumann
-ls.bc.expression.type.yhi = neumann neumann
-ls.bc.expression.type.zlo = neumann neumann
-ls.bc.expression.type.zhi = neumann neumann  
+ls.bc.expression.type.xlo = neumann #neumann
+ls.bc.expression.type.xhi = neumann #neumann
+ls.bc.expression.type.ylo = neumann #neumann
+ls.bc.expression.type.yhi = neumann #neumann
+ls.bc.expression.type.zlo = neumann #neumann
+ls.bc.expression.type.zhi = neumann #neumann  
 
-ls.bc.expression.val.xlo = 0.0 0.0
-ls.bc.expression.val.xhi = 0.0 0.0
-ls.bc.expression.val.ylo = 0.0 0.0
-ls.bc.expression.val.yhi = 0.0 0.0
-ls.bc.expression.val.zlo = 0.0 0.0  
-ls.bc.expression.val.zhi = 0.0 0.0 
+ls.bc.expression.val.xlo = 0.0 #0.0
+ls.bc.expression.val.xhi = 0.0 #0.0
+ls.bc.expression.val.ylo = 0.0 #0.0
+ls.bc.expression.val.yhi = 0.0 #0.0
+ls.bc.expression.val.zlo = 0.0 #0.0  
+ls.bc.expression.val.zhi = 0.0 #0.0 
 
 # Velocity field method
 velocity.method = "constant"

@@ -27,7 +27,7 @@ public:
     /**
     * @brief Perform flux reconstruction for the specified direction.
     */
-    virtual void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband,
+    virtual void ReconstructFlux(int direction, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband,
         const amrex::MultiFab& narrowband_Vel, const amrex::MultiFab& narrowband_LS, 
         amrex::MultiFab& QL_stencil, amrex::MultiFab& QR_stencil) const = 0;
 };
@@ -41,7 +41,7 @@ public:
     /**
     * @brief Compute the flux for the specified direction.
     */
-    virtual void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband, 
+    virtual void ComputeFlux(int direction, int lev, int ils, Integrator::NarrowBandLevelset* solver, const amrex::iMultiFab& narrowband, 
         const amrex::MultiFab& narrowband_Vel, const amrex::MultiFab& QL_stencil, const amrex::MultiFab& QR_stencil, 
         amrex::MultiFab& temp_flux_mf) const = 0;
 };
@@ -66,7 +66,7 @@ public:
     flux_mf_wrapper.Define(lev, flux_ba, dmap, flux_mf_wrapper[lev]->nComp(), flux_mf_wrapper[lev]->nGrow());
 }*/
 
-void ApplyDirectionalNeumannBC(
+/*void ApplyDirectionalNeumannBC(
     amrex::MultiFab& narrowband_LS,
     const amrex::iMultiFab& narrowband,
     int nghosts,
@@ -110,7 +110,7 @@ void ApplyDirectionalNeumannBC(
 
     // Final fill of ghost regions from updated data
     narrowband_LS.FillBoundary();
-}
+}*/
 
 // FluxHandler class for Integrator::NarrowBandLevelset to correctly assess distribution 
 // mapping for narrowband
@@ -134,12 +134,9 @@ public:
             amrex::Abort("FluxHandler: Reconstruction or flux method is not set.");
         }
 
-        // Get number of levelset fields
+        // Get solver variables
         const int ncomp = solver->number_of_components;
         const int nghosts = solver->number_of_ghost_cells;
-        const int OuterTube = solver->GetOutsideTube();
-
-        auto const& velocity = solver->velocity_mf;
 
         // Loop through all levelset fields
         for (int ils = 0; ils < ncomp; ++ils) {
@@ -150,22 +147,13 @@ public:
             const amrex::BoxArray& narrowband_ba = ls_data.narrowband_ba;
             const amrex::DistributionMapping& narrowband_dm = ls_data.narrowband_dm;
 
-            // Define cell centered multifabs from solver
-            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, nghosts);
-            amrex::MultiFab narrowband_Vel(narrowband_ba, narrowband_dm, AMREX_SPACEDIM, nghosts);
-            
-            // ParallelCopy
-            auto const& Tube = ls_data.Tube;
-            narrowband.ParallelCopy(*Tube, 0, 0, 1, nghosts, nghosts);
-            narrowband_Vel.ParallelCopy(*velocity[lev], 0, 0, AMREX_SPACEDIM, nghosts, nghosts);
+            // Define narrowband variables
+            const auto& narrowband = *ls_data.Tube;
+            const auto& ls = *ls_data.Tube_ls;
+            const auto& velocity = *ls_data.Tube_velocity;
 
             // Loop through all dimensions
             for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
-                // Apply LS BC's in  dir
-                amrex::MultiFab narrowband_LS(narrowband_ba, narrowband_dm, 1, nghosts);
-                narrowband_LS.ParallelCopy(*solver->ls_mf[lev], ils, 0, 1, nghosts, nghosts);
-                //ApplyDirectionalNeumannBC(narrowband_LS, narrowband, nghosts, dir, OuterGhost, OuterTube);
-
                 // Convert narrowband_ba to face-centered direction dir
                 amrex::BoxArray narrowband_face_ba(narrowband_ba);  
                 amrex::IntVect narrowband_face_type = amrex::IntVect::TheCellVector(); 
@@ -173,17 +161,18 @@ public:
                 narrowband_face_ba.convert(narrowband_face_type);
 
                 // Create temporary QL and QR MultiFabs at face-centered positions
-                amrex::MultiFab QL_stencil(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
-                amrex::MultiFab QR_stencil(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
+                amrex::MultiFab QL_stencil(narrowband_face_ba, narrowband_dm, 1, nghosts);
+                amrex::MultiFab QR_stencil(narrowband_face_ba, narrowband_dm, 1, nghosts);
                 
                 // Create temporary flux to store flux values for narrowband cells
-                amrex::MultiFab temp_flux_mf(narrowband_face_ba, narrowband_dm, ncomp, nghosts);
+                amrex::MultiFab temp_flux_mf(narrowband_face_ba, narrowband_dm, 1, nghosts);
                 temp_flux_mf.setVal(0.0);
 
                 // Perform reconstruction and flux computation
-                reconstruction->ReconstructFlux(dir, lev, solver, narrowband,
-                    narrowband_Vel, narrowband_LS, QL_stencil, QR_stencil);
-                flux_method->ComputeFlux(dir, lev, solver, narrowband, narrowband_Vel, QL_stencil, QR_stencil, temp_flux_mf);
+                reconstruction->ReconstructFlux(dir, solver, narrowband,
+                    velocity, ls, QL_stencil, QR_stencil);
+                flux_method->ComputeFlux(dir, lev, ils, solver, narrowband, velocity, QL_stencil, QR_stencil, temp_flux_mf);
+
             }
         }
     }
@@ -197,7 +186,7 @@ private:
 template <>
 class FirstOrderReconstruction<Integrator::NarrowBandLevelset> : public FluxReconstruction<Integrator::NarrowBandLevelset> {
 public:
-    void ReconstructFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, 
+    void ReconstructFlux(int direction, Integrator::NarrowBandLevelset* solver, 
         const amrex::iMultiFab& narrowband, 
         const amrex::MultiFab& narrowband_Vel, 
         const amrex::MultiFab& narrowband_LS, 
@@ -205,117 +194,113 @@ public:
         amrex::MultiFab& QR_stencil) const override {
         // Define multifab constants 
         const int nghosts = 1;
-        const int ncomp = solver->number_of_components;
 
         // Define OutsideNarrowband
-        //const int OuterGhost = solver->GetOuterGhost();
+        const int OutsideTube = solver->GetOutsideTube();
 
         const amrex::IntVect debug(AMREX_D_DECL(19, 49, 0));
         const amrex::IntVect debug2(AMREX_D_DECL(20, 49, 0));
 
-        // Loop through all the levelset fields
-        for (int ils = 0; ils < ncomp; ils++) {
-            // Loop through the face centered stencil
-            for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-                // Extend the box to access ghost cells
-                const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+        // Loop through the face centered stencil
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            // Extend the box to access ghost cells
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
-                // Compute valid index bounds using compiler
-                int lower_bounds[3] = { 0, 0, 0 };
-                int upper_bounds[3] = { 0, 0, 0 };
+            // Compute valid index bounds using compiler
+            int lower_bounds[3] = { 0, 0, 0 };
+            int upper_bounds[3] = { 0, 0, 0 };
 
 #if AMREX_SPACEDIM >= 1
-                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0);
-                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0);
+            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
 #endif
 
 #if AMREX_SPACEDIM >= 2
-                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1);
-                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1);
+            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
 #endif
 
 #if AMREX_SPACEDIM == 3
-                lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
-                upper_bounds[2] = face_bx_with_ghosts.bigEnd(2) - 1;
+            lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+            upper_bounds[2] = face_bx_with_ghosts.bigEnd(2) - 1;
 #endif
 
-                // Define multifab arrays
-                auto const& nb_arr = narrowband.const_array(mfi);
-                auto const& vel_arr = narrowband_Vel.const_array(mfi);
-                auto const& ls = narrowband_LS.const_array(mfi);
-                auto const& QL_arr = QL_stencil.array(mfi);
-                auto const& QR_arr = QR_stencil.array(mfi);
+            // Define multifab arrays
+            auto const& nb_arr = narrowband.const_array(mfi);
+            auto const& vel_arr = narrowband_Vel.const_array(mfi);
+            auto const& ls = narrowband_LS.const_array(mfi);
+            auto const& QL_arr = QL_stencil.array(mfi);
+            auto const& QR_arr = QR_stencil.array(mfi);
                
-                // Loop through all face cell indices
-                amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                    // Construct cell-centered indices
-                    int cell_centered_index[3] = { iface, jface, kface };
-                    int right_cell_centered_index[3] = { iface, jface, kface };
-                    int right_cell_centered_offset[3] = { 0, 0, 0 };
+            // Loop through all face cell indices
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                // Construct cell-centered indices
+                int cell_centered_index[3] = { iface, jface, kface };
+                int right_cell_centered_index[3] = { iface, jface, kface };
+                int right_cell_centered_offset[3] = { 0, 0, 0 };
 
-                    // Define offsets (modular for future higher-order schemes)
-                    right_cell_centered_offset[direction] = 1;  // Right offset for first-order upwind scheme
+                // Define offsets (modular for future higher-order schemes)
+                right_cell_centered_offset[direction] = 1;  // Right offset for first-order upwind scheme
 
-                    // Clamp cell centered indices
-                    ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
-                    ShiftAndClampIndices(right_cell_centered_index, right_cell_centered_offset, lower_bounds, upper_bounds, direction);
+                // Clamp cell centered indices
+                ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
+                ShiftAndClampIndices(right_cell_centered_index, right_cell_centered_offset, lower_bounds, upper_bounds, direction);
 
-                    // Create amrex::IntVect to store coords
-                    const amrex::IntVect cell_center_IV(AMREX_D_DECL(cell_centered_index[0], 
-                                                                    cell_centered_index[1], 
-                                                                    cell_centered_index[2])); 
-                    const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
-                                                                        right_cell_centered_index[1], 
-                                                                        right_cell_centered_index[2]));
+                // Create amrex::IntVect to store coords
+                const amrex::IntVect cell_center_IV(AMREX_D_DECL(cell_centered_index[0], 
+                                                                cell_centered_index[1], 
+                                                                cell_centered_index[2])); 
+                const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
+                                                                    right_cell_centered_index[1], 
+                                                                    right_cell_centered_index[2]));
 
-                    // Debug print
-                    //if (cell_center_IV == debug) amrex::Print() << "debugging point " << debug << " for direction " << direction << std::endl;
+                // Debug print
+                //if (cell_center_IV == debug) amrex::Print() << "debugging point " << debug << " for direction " << direction << std::endl;
 
-                    // Exit early if not narrowband cell
-                    int nb_L = std::abs(nb_arr(cell_center_IV));
-                    int nb_R = std::abs(nb_arr(right_cell_center_IV));
-                    //if (nb_L >= OuterGhost && nb_R >= OuterGhost) return;
+                // Exit early if not narrowband cell
+                int nb_L = std::abs(nb_arr(cell_center_IV));
+                int nb_R = std::abs(nb_arr(right_cell_center_IV));
+                if (nb_L == OutsideTube && nb_R == OutsideTube) return;
 
-                    //int nb_val = nb_arr(cell_center_IV);
-                    //if (cell_center_IV == debug) amrex::Print() << "Narrowband: " << nb_val << std::endl;
-                    //if (std::abs(nb_val) == OutsideNarrowband) return;
+                //int nb_val = nb_arr(cell_center_IV);
+                //if (cell_center_IV == debug) amrex::Print() << "Narrowband: " << nb_val << std::endl;
+                //if (std::abs(nb_val) == OutsideNarrowband) return;
 
-                    // Clamp face centered indices
-                    int face_centered_index[3] = { iface, jface, kface };
-                    ClampIndices(face_centered_index, lower_bounds, upper_bounds);
-                    const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
-                                                                    face_centered_index[1], 
-                                                                    face_centered_index[2]));
+                // Clamp face centered indices
+                int face_centered_index[3] = { iface, jface, kface };
+                ClampIndices(face_centered_index, lower_bounds, upper_bounds);
+                const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
+                                                                face_centered_index[1], 
+                                                                face_centered_index[2]));
 
-                    // Compute velocity at face and its sign (branch-free)
-                    Set::Scalar V = vel_arr(cell_center_IV, direction);
-                    int sigma = V > 0 ? 1 : 0;
+                // Compute velocity at face and its sign (branch-free)
+                Set::Scalar V = vel_arr(cell_center_IV, direction);
+                int sigma = V > 0 ? 1 : 0;
 
-                    // Get left and right LS values
-                    Set::Scalar LS = ls(cell_center_IV);
-                    Set::Scalar LS_R = ls(right_cell_center_IV);
+                // Get left and right LS values
+                Set::Scalar LS = ls(cell_center_IV);
+                Set::Scalar LS_R = ls(right_cell_center_IV);
 
-                    // Perform reconstruction
-                    Set::Scalar QL = sigma * LS + (1.0 - sigma) * LS_R;
-                    Set::Scalar QR = sigma * LS_R + (1.0 - sigma) * LS;
+                // Perform reconstruction
+                Set::Scalar QL = sigma * LS + (1.0 - sigma) * LS_R;
+                Set::Scalar QR = sigma * LS_R + (1.0 - sigma) * LS;
 
-                    // Store results
-                    QL_arr(face_centered_IV, ils) = QL;
-                    QR_arr(face_centered_IV, ils) = QR;
+                // Store results
+                QL_arr(face_centered_IV, 0) = QL;
+                QR_arr(face_centered_IV, 0) = QR;
 
-                    // Debug
-                    /*if ((cell_center_IV == debug  || cell_center_IV == debug2) && direction == 0 ){
-                        amrex::Print() << "Debugging point " << cell_center_IV<< " for direction " << direction << " in reconstuction" << std::endl;
-                        amrex::Print() << "nb_left: " << nb_L << std::endl;
-                        amrex::Print() << "nb_right: " << nb_R << std::endl;
-                        amrex::Print() << "Velocity: " << V << std::endl;
-                        amrex::Print() << "LS: " << LS << std::endl;
-                        amrex::Print() << "LS Right: " << LS_R << std::endl;
-                        amrex::Print() << "QL: " << QL << std::endl;
-                        amrex::Print() << "QR: " << QR << std::endl;
-                    }*/
-                });
-            }
+                // Debug
+                /*if ((cell_center_IV == debug  || cell_center_IV == debug2) && direction == 0 ){
+                    amrex::Print() << "Debugging point " << cell_center_IV<< " for direction " << direction << " in reconstuction" << std::endl;
+                    amrex::Print() << "nb_left: " << nb_L << std::endl;
+                    amrex::Print() << "nb_right: " << nb_R << std::endl;
+                    amrex::Print() << "Velocity: " << V << std::endl;
+                    amrex::Print() << "LS: " << LS << std::endl;
+                    amrex::Print() << "LS Right: " << LS_R << std::endl;
+                    amrex::Print() << "QL: " << QL << std::endl;
+                    amrex::Print() << "QR: " << QR << std::endl;
+                }*/
+            });
         }
 
         // Fill Boundary after updating arrays
@@ -327,110 +312,106 @@ public:
 template <>
 class LocalLaxFriedrichsMethod<Integrator::NarrowBandLevelset> : public FluxMethod<Integrator::NarrowBandLevelset> {
 public:
-    void ComputeFlux(int direction, int lev, Integrator::NarrowBandLevelset* solver, 
+    void ComputeFlux(int direction, int lev, int ils, Integrator::NarrowBandLevelset* solver, 
         const amrex::iMultiFab& narrowband,
         const amrex::MultiFab& narrowband_Vel, 
         const amrex::MultiFab& QL_stencil, 
         const amrex::MultiFab& QR_stencil, 
         amrex::MultiFab& temp_flux_mf) const override {
         const int nghosts = 1; 
-        const int ncomp = solver->number_of_components;
 
         // Define OutsideNarrowband
-        //const int OuterGhost = solver->GetOuterGhost();
+        const int OutsideTube = solver->GetOutsideTube();
 
         const amrex::IntVect debug(AMREX_D_DECL(19, 49, 0));
         const amrex::IntVect debug2(AMREX_D_DECL(20, 49, 0));
 
-        // Loop through all the levelset fields
-        for (int ils = 0; ils < ncomp; ils++) {
-            // Loop through face-centered cells
-            for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
-                // Use a face-centered box to compute fluxes
-                const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+        // Loop through face-centered cells
+        for (amrex::MFIter mfi(QL_stencil, false); mfi.isValid(); ++mfi) {
+            // Use a face-centered box to compute fluxes
+            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
-                // Compute valid index bounds using compiler
-                int lower_bounds[3] = { 0, 0, 0 };
-                int upper_bounds[3] = { 0, 0, 0 };
+            // Compute valid index bounds using compiler
+            int lower_bounds[3] = { 0, 0, 0 };
+            int upper_bounds[3] = { 0, 0, 0 };
 
 #if AMREX_SPACEDIM >= 1
-                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0);
-                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0);
+            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
 #endif
 
 #if AMREX_SPACEDIM >= 2
-                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1);
-                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1);
+            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
 #endif
 
 #if AMREX_SPACEDIM == 3
-                lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
-                upper_bounds[2] = face_bx_with_ghosts.bigEnd(2) - 1;
+            lower_bounds[2] = face_bx_with_ghosts.smallEnd(2);
+            upper_bounds[2] = face_bx_with_ghosts.bigEnd(2) - 1;
 #endif
 
-                // Define multifab arrays
-                auto const& nb_arr = narrowband.const_array(mfi);
-                auto const& vel_arr = narrowband_Vel.const_array(mfi);
-                auto const& QL_arr = QL_stencil.const_array(mfi);
-                auto const& QR_arr = QR_stencil.const_array(mfi);
-                auto const& flux_arr = temp_flux_mf.array(mfi);
+            // Define multifab arrays
+            auto const& nb_arr = narrowband.const_array(mfi);
+            auto const& vel_arr = narrowband_Vel.const_array(mfi);
+            auto const& QL_arr = QL_stencil.const_array(mfi);
+            auto const& QR_arr = QR_stencil.const_array(mfi);
+            auto const& flux_arr = temp_flux_mf.array(mfi);
 
-                // Loop through face indices
-                amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                    // Define cell centered indices/offsets
-                    int cell_centered_index[3] = { iface, jface, kface };
-                    int right_cell_centered_index[3] = { iface, jface, kface };
-                    int right_cell_centered_offset[3] = { 0, 0, 0 };
+            // Loop through face indices
+            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                // Define cell centered indices/offsets
+                int cell_centered_index[3] = { iface, jface, kface };
+                int right_cell_centered_index[3] = { iface, jface, kface };
+                int right_cell_centered_offset[3] = { 0, 0, 0 };
 
-                    // Define offsets (modular for future higher-order schemes)
-                    right_cell_centered_offset[direction] = 1;  // Left offset for first-order upwind scheme
+                // Define offsets (modular for future higher-order schemes)
+                right_cell_centered_offset[direction] = 1;  // Left offset for first-order upwind scheme
 
-                    // Clamp cell centered indices
-                    ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
-                    ShiftAndClampIndices(right_cell_centered_index, right_cell_centered_offset, lower_bounds, upper_bounds, direction);
+                // Clamp cell centered indices
+                ClampIndices(cell_centered_index, lower_bounds, upper_bounds);
+                ShiftAndClampIndices(right_cell_centered_index, right_cell_centered_offset, lower_bounds, upper_bounds, direction);
 
-                    // Create amrex::IntVect to store coords
-                    const amrex::IntVect cell_center_IV(AMREX_D_DECL(cell_centered_index[0], 
-                                                                    cell_centered_index[1], 
-                                                                    cell_centered_index[2])); 
-                    const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
-                                                                        right_cell_centered_index[1], 
-                                                                        right_cell_centered_index[2]));
+                // Create amrex::IntVect to store coords
+                const amrex::IntVect cell_center_IV(AMREX_D_DECL(cell_centered_index[0], 
+                                                                cell_centered_index[1], 
+                                                                cell_centered_index[2])); 
+                const amrex::IntVect right_cell_center_IV(AMREX_D_DECL(right_cell_centered_index[0], 
+                                                                    right_cell_centered_index[1], 
+                                                                    right_cell_centered_index[2]));
                     
-                    // Exit early if not narrowband cell
-                    int nb_L = nb_arr(cell_center_IV);
-                    int nb_R = nb_arr(right_cell_center_IV);
-                    //if (std::abs(nb_L) >= OuterGhost && std::abs(nb_R) >= OuterGhost) return;
+                // Exit early if not narrowband cell
+                int nb_L = nb_arr(cell_center_IV);
+                int nb_R = nb_arr(right_cell_center_IV);
+                if (std::abs(nb_L) == OutsideTube && std::abs(nb_R) == OutsideTube) return;
 
-                    // Clamp face centered indices
-                    int face_centered_index[3] = { iface, jface, kface };
-                    ClampIndices(face_centered_index, lower_bounds, upper_bounds);
+                // Clamp face centered indices
+                int face_centered_index[3] = { iface, jface, kface };
+                ClampIndices(face_centered_index, lower_bounds, upper_bounds);
 
-                    const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
-                                                                        face_centered_index[1], 
-                                                                        face_centered_index[2]));
+                const amrex::IntVect face_centered_IV(AMREX_D_DECL(face_centered_index[0], 
+                                                                    face_centered_index[1], 
+                                                                    face_centered_index[2]));
 
-                    // Get velocity of cell center
-                    Set::Scalar V = vel_arr(cell_center_IV, direction);
+                // Get velocity of cell center
+                Set::Scalar V = vel_arr(cell_center_IV, direction);
 
-                    // Fetch reconstructed level-set values
-                    Set::Scalar QL = QL_arr(face_centered_IV, ils);
-                    Set::Scalar QR = QR_arr(face_centered_IV, ils);
+                // Fetch reconstructed level-set values
+                Set::Scalar QL = QL_arr(face_centered_IV, 0);
+                Set::Scalar QR = QR_arr(face_centered_IV, 0);
 
-                    // Compute first order numerical flux
-                    Set::Scalar flux = V * QL;
+                // Compute first order numerical flux
+                Set::Scalar flux = V * QL;
 
-                    // Store computed flux
-                    flux_arr(face_centered_IV, ils) = flux;
-                    /*if ((cell_center_IV == debug || cell_center_IV == debug2) && direction  == 0){
-                        amrex::Print() << "Debugging point " << cell_center_IV << " for direction " << direction << " in compute flux" << std::endl;
-                        amrex::Print() << "V: " << V << std::endl;
-                        amrex::Print() << "QL: " << QL << std::endl;
-                        amrex::Print() << "QR: " << QR << std::endl;
-                        amrex::Print() << "temp_flux_mf: " << flux << std::endl;
-                    }*/
-                });
-            }
+                // Store computed flux
+                flux_arr(face_centered_IV, 0) = flux;
+                /*if ((cell_center_IV == debug || cell_center_IV == debug2) && direction  == 0){
+                    amrex::Print() << "Debugging point " << cell_center_IV << " for direction " << direction << " in compute flux" << std::endl;
+                    amrex::Print() << "V: " << V << std::endl;
+                    amrex::Print() << "QL: " << QL << std::endl;
+                    amrex::Print() << "QR: " << QR << std::endl;
+                    amrex::Print() << "temp_flux_mf: " << flux << std::endl;
+                }*/
+            });
         }
 
         // Fill ghost cells
@@ -441,7 +422,7 @@ public:
             (direction == 0) ? solver->XFlux_mf:
             (direction == 1) ? solver->YFlux_mf:
                                 solver->ZFlux_mf;
-        full_flux_mf[lev]->ParallelCopy(temp_flux_mf, 0, 0, ncomp, 1, 1);
+        full_flux_mf[lev]->ParallelCopy(temp_flux_mf, 0, ils, 1, nghosts, nghosts);
     }
 };
 

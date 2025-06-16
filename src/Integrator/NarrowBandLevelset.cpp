@@ -73,7 +73,7 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     {// Initialize velocity field. Will be removed once integrated with ScimitarX integrator
     pp.select_default<IC::Constant,IC::Expression>("velocity.ic",value.ic_velocity,value.geom); // velocity initial condtion
     pp.select_default<BC::Constant,BC::Expression>("velocity.bc",value.bc_velocity,AMREX_SPACEDIM); // velocty boundary condition
-    value.RegisterNewFab(value.velocity_mf, value.bc_velocity, AMREX_SPACEDIM, 0, "velocity", true);
+    value.RegisterNewFab(value.velocity_mf, value.bc_velocity, AMREX_SPACEDIM, value.number_of_ghost_cells, "velocity", true);
     
     // Select method to update velocity field based on validation method
     pp.query_validate("velocity.method",value.velocity_method,{"constant"});
@@ -342,7 +342,7 @@ void NarrowBandLevelset::BuildNarrowbandMask(
                     }
 
                     if (is_interface) {
-                        //nb_val = Interface;
+                        nb_val = Interface;
                         zero_array(coord) = ls_id;
                     }
                 }
@@ -502,6 +502,8 @@ void NarrowBandLevelset::UpdateNarrowbandTubeandMapping(int lev, int ls_id) {
             CPT_imf_arr(i,j,k)  = static_cast<int>(CPT_mf_arr(i,j,k)); 
             Zero_imf_arr(i,j,k) = static_cast<int>(Zero_mf_arr(i,j,k)); 
             Tube_imf_arr(i,j,k) = static_cast<int>(Tube_mf_arr(i,j,k));
+            if(CPT_imf_arr(i,j,k) == ls_id) CPT_imf_arr(i,j,k) = -1;
+            if(Zero_imf_arr(i,j,k) == ls_id) Zero_imf_arr(i,j,k) = -1;
         });
     }
 
@@ -517,8 +519,12 @@ void NarrowBandLevelset::UpdateNarrowbandTubeandMapping(int lev, int ls_id) {
 
     // Update narrowband boxes
     amrex::Box physical_domain = geom[lev].Domain();
-    const auto [Tube_ba, Tube_dm] = BuildTileBoxes(narrowband, physical_domain, number_of_ghost_cells);
-
+    amrex::BoxArray Tube_ba = ls_data.narrowband_ba;
+    if (ls_data.reconstruct_tube){
+        const auto [Tube_ba, Tube_dm] = BuildTileBoxes(narrowband, physical_domain, number_of_ghost_cells);
+        ls_data.reconstruct_tube = false;
+    }
+    
     // Update ls_data structure
     bool has_narrowband = true;
     if (!Tube_ba.ok()) has_narrowband = false;
@@ -1079,7 +1085,7 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         }
     }*/
 
-    //if  (current_timestep > 0)  std::swap(*ls_mf[lev], *ls_old_mf[lev]);
+    std::swap(*ls_mf[lev], *ls_old_mf[lev]);
 
     /*for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
     {
@@ -1095,7 +1101,7 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     }*/
     
     // Advect
-    //Advect(lev, time, dt);
+    Advect(lev, time, dt);
 
     /*for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
     {
@@ -1123,9 +1129,10 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //Integrator::ApplyPatch(lev, time, ls_mf, *ls_mf[lev], *bc_ls, 0);
 
     // Reinitialize every 5 timesteps
-    /*if (current_timestep % 100 == 0){
+    if (current_timestep % 100 == 0){
         for (int ls_id =0; ls_id < number_of_components; ls_id++){
             Reinitialize(lev, ls_id);
+            // Activate flag to update box
         }
 
         // Apply Boundary conditions after reinitialization
@@ -1141,10 +1148,10 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         //ComputeGeometryQuantities(lev, ls_id);
 
         // Save Tube_imf to Tube_imf
-        CopyTubeIMFtoMF(lev, ls_id);
+        //CopyTubeIMFtoMF(lev, ls_id);
     }
 
-    for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
+    /*for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         const amrex::FArrayBox& ls_fab     = (*ls_mf[lev])[mfi];
@@ -1156,9 +1163,9 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     }
 
     // Copy the zero
-    CopyZerolsAndCPTIMFtoMF(lev);*/
+    //CopyZerolsAndCPTIMFtoMF(lev);
 
-    /*for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*ls_mf[lev]); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         const amrex::FArrayBox& ls_fab     = (*ls_mf[lev])[mfi];
