@@ -1,0 +1,133 @@
+alamo.program = fracture
+
+timestep = 5e-6
+stop_time = 1
+
+plot_file = output_fracture
+amr.plot_int = 100
+amr.max_level = 5
+amr.n_cell = 128 128
+amr.blocking_factor = 32
+amr.regrid_int = 10
+amr.grid_eff = 0.9
+amr.thermo.int = 1
+amr.nsubsteps = 1
+amr.node.any = 0
+amr.cell.all = 1
+
+geometry.prob_lo = -0.125 -0.125
+geometry.prob_hi = 0.125 0.125
+geometry.is_periodic = 0 0
+
+crack.refinement_threshold = 0.1
+crack.df.tol_rel = 0.01
+crack.df.tol_abs = 0.0
+
+crack.df.mult_Gc = 1.0
+crack.df.mult_lap = 1.0
+crack.df.beta = 0.0
+crack.df.el_mult = 1.e11
+
+# crack.model1.G_c = 5.e2
+crack.model1.fracture_strength = 3.16e8
+crack.model1.E = 4.e11
+crack.model1.zeta = 2.e-4
+crack.model1.mobility = 5.0e-2
+crack.model1.gtype = wu_linear
+crack.model1.wtype = wu
+crack.model1.threshold = 1.0 
+
+# crack.model2.G_c = 5.e2
+crack.model2.fracture_strength = 3.16e7
+crack.model2.E = 4.e11
+crack.model2.zeta = 2.e-4
+crack.model2.mobility = 5.0e-2
+crack.model2.gtype = wu_linear
+crack.model2.wtype = wu
+crack.model2.threshold = 1.0 
+
+crack.ic.type = notch
+crack.ic.notch.center = -0.125 0
+crack.ic.notch.orientation = 1 0
+crack.ic.notch.length = 0.035
+crack.ic.notch.thickness = 2.e-3
+
+crack.ic.notch.eps = 5.e-4
+crack.ic.notch.mollifier = erf
+
+crack.bc.type.xhi = NEUMANN
+crack.bc.type.xlo = NEUMANN
+crack.bc.type.yhi = NEUMANN
+crack.bc.type.ylo = NEUMANN
+
+crack.Gc.ic.type = constant
+crack.Gc.ic.constant.value = 5e2
+crack.Gc.bc.type = constant
+crack.Gc.bc.type.xlo = neumann
+crack.Gc.bc.type.xhi = neumann
+crack.Gc.bc.type.ylo = neumann
+crack.Gc.bc.type.yhi = neumann
+
+#material.ic.type = expression
+#material.ic.expression.constant.eps = 0.001
+#material.ic.expression.region0 = "(0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
+#material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
+
+material.ic.type = png
+material.ic.png.filename = "test_image_hmx_1.png"
+material.ic.png.fit = "stretch"
+material.ic.png.channel = b
+
+#material.model1.type = isotropic
+material.model1.E = 5.0    # inclusion
+material.model1.nu = 0.21
+# material.model1.E = 4.0     # matrix
+# material.model1.nu = 0.28
+
+#material.model2.type = isotropic
+material.model2.E = 2.0
+material.model2.nu = 0.28
+
+material.refinement_threshold = 100 #1.e-1
+
+### Mode-I test
+bc.type = constant
+bc.constant.type.xloylo = disp disp
+bc.constant.type.xlo    = disp trac
+bc.constant.type.xloyhi = disp disp
+bc.constant.type.ylo    = disp disp
+bc.constant.type.yhi    = disp disp
+bc.constant.type.xhi    = disp trac
+bc.constant.type.xhiylo = disp disp
+bc.constant.type.xhiyhi = disp disp
+bc.constant.val.yhi =       0.0 8.e-5
+bc.constant.val.xloyhi =    0.0 8.e-5
+bc.constant.val.xhiyhi =    0.0 8.e-5
+
+#
+# Solver inputs
+#
+elasticop.small=1.e-3
+solver.bottom_solver = smoother
+solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
+solver.tol_rel = 1e-7
+solver.verbose = 3
+solver.nriters = 1
+solver.fixed_iter = 10000
+solver.normalize_ddw = 1
+solver.average_down_coeffs = 1
+
+
+#
+# Mechanics inputs
+#
+interval = 1
+print_residual=1
+print_model = 1
+plot_psi = 1
+elastic_ref_threshold = 0.0001
+zero_out_displacement = 0
+
+
+amrex.throw_exception = 1
+
