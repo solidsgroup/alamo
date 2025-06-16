@@ -58,13 +58,17 @@ public:
     }
 
     // Getter for Narrowband tube type
-    AMREX_FORCE_INLINE static int GetOutsideNarrowBandPos() {
-        return NarrowBandTubeType::OutsideNarrowBandPos;
+    AMREX_FORCE_INLINE static int GetOutsideTube() {
+        return NarrowBandTubeType::OutsideTube;
     }
 
-    AMREX_FORCE_INLINE static int GetOuterEdge() {
-        return NarrowBandTubeType::OuterEdge;
+    /*AMREX_FORCE_INLINE static int GetOuterGhost() {
+        return NarrowBandTubeType::OuterGhost;
     }
+
+    AMREX_FORCE_INLINE static int GetOuterTube() {
+        return NarrowBandTubeType::OuterTube;
+    }*/
     
     // Flux Reconstruction Schemes
     enum class FluxReconstruction {
@@ -147,31 +151,42 @@ protected:
     // Each level set has its own material ID and phi field
     struct LevelSetData
     {
+        // IDs
         int id = -1;
         int material_id = -1;
-        Set::Field<Set::Scalar> normal_mf;
-        Set::Field<Set::Scalar> curvature_mf;
-        
-        // KEY CONCEPT: Each level set tracks its own narrow band region
-        // as a collection of boxes - enabling quick intersection tests
-        bool has_narrowband;
+    
+        // Booleans
+        bool has_narrowband;   // Bool to mark if narowband is present
+        bool reinitialize;     // Bool to trigger reinitialization
+        bool reconstruct_tube; // Bool to update narrowband domain and tileboxes
 
-        std::unique_ptr<amrex::iMultiFab> Tube_imf;
-        amrex::BoxArray narrowband_ba;
+        // Processor information
+        amrex::Box Tube_domain;        // Bounding box info (similar to geom domain)
+        amrex::BoxArray narrowband_ba; // Tile box information
         amrex::DistributionMapping narrowband_dm;
-        amrex::Vector<int> narrowband_flags;
+
+        // (i)MultiFabs
+        std::unique_ptr<amrex::iMultiFab> Tube_zerols;   // Narrowband Zero levelset
+        std::unique_ptr<amrex::iMultiFab> Tube;          // Narrowband Tube
+        std::unique_ptr<amrex::MultiFab>  Tube_ls;       // Narrowband Levelset 
+        std::unique_ptr<amrex::MultiFab>  Tube_ls_old;   // Narrowband old Levelset
+        //std::unique_ptr<amrex::MultiFab>  normal;      // Narrowband normal
+        Set::Field<Set::Scalar>           normal_mf;     // Narrowband normal
+        std::unique_ptr<amrex::MultiFab>  Tube_velocity; // Narrowband velocity (tube ext)
     };
 
     // Define a structure for the values of the narrowband
     struct NarrowBandTubeType
     {
-        static constexpr int Interface =  0;            // 0 level set
-        static constexpr int InnerTube = -1;            // phi < 0 && phi > -6.0 * min_DX
-        static constexpr int OuterTube =  1;            // phi > 0 && phi < 6.0 * min_DX
-        static constexpr int InnerEdge = -2;            // neighbors of narrowband (inside)
-        static constexpr int OuterEdge =  2;            // neighbors of narrowband (outside)
-        static constexpr int OutsideNarrowBandNeg = -3; // phi <= -6.0 * min_DX
-        static constexpr int OutsideNarrowBandPos = 3;  // Phi >= 6.0 * min_DX
+        static constexpr int Interface   = 0;           // 0 level set
+        static constexpr int InsideTube  = 1;           // |phi| < 6.0 *  min_DX
+        static constexpr int OutsideTube = 2;           // |phi| >= 6.0 *  min_DX
+        //static constexpr int InnerTube = -1;            // phi < 0 && phi > -6.0 * min_DX
+        //static constexpr int OuterTube =  1;            // phi > 0 && phi < 6.0 * min_DX
+        //static constexpr int OuterGhost = 2;            // tracks edge cells that are outside narrowband
+        //static constexpr int InnerGhost = -2;           // tracks edge cells that are outside narrowband negative
+        //static constexpr int OutsideNarrowBandNeg = -3; // phi <= -6.0 * min_DX
+        //static constexpr int OutsideNarrowBandPos = 3;  // Phi >= 6.0 * min_DX
     };
 
     struct Neighbors {
@@ -212,16 +227,17 @@ protected:
     // Variables (multi-fabs)
     Set::Field<Set::Scalar>    ls_mf;                   // Levelset field variable (current timestep)
     Set::Field<Set::Scalar>    ls_old_mf;               // Levelset field variable (previous timestep)
+    Set::Field<Set::Scalar>    curvature_mf;            // Curvature field
     Set::Field<Set::Scalar>    velocity_mf;             // Velocity field
     Set::Field<Set::Scalar>    XFlux_mf;                // X-direction flux field
     Set::Field<Set::Scalar>    YFlux_mf;                // Y-direction flux field
     Set::Field<Set::Scalar>    ZFlux_mf;                // Z-direction flux field
     Set::Field<Set::Scalar>    Zerols_mf;               // Zero levelset field variable for plotting
-    Set::Field<Set::Scalar>    Tube_mf;                 // Narrowband Tube field variable for plotting
     Set::Field<Set::Scalar>    cpt_mf;                  // CPT field variable for plotting
+    Set::Field<Set::Scalar>    Tube_mf;                 // Narrowband Tube field variable for plotting
 
-    std::unique_ptr<amrex::iMultiFab> Zerols_imf;       // Zero levelset imultifab to track izerols
-    std::unique_ptr<amrex::iMultiFab> cpt_imf;          // CPT flag imultifab to track objects
+    //std::unique_ptr<amrex::iMultiFab> Zerols_imf;       // Zero levelset imultifab to track izerols
+    //std::unique_ptr<amrex::iMultiFab> cpt_imf;          // CPT flag imultifab to track objects
 
     std::string velocity_method;                        // Determines the velocity field based on validation case
 
@@ -235,11 +251,21 @@ protected:
 
     // Class specific functions
     // Narrowband functions
-    void ZeroTheZeros(amrex::iMultiFab& zerols, amrex::iMultiFab& cpt, int ls_id);
+    void ClampPhi(int lev);
+    void BuildNarrowbandMask(
+        amrex::MultiFab& ls,
+        amrex::iMultiFab& narrowband,
+        amrex::iMultiFab& zero_arr,
+        amrex::iMultiFab& cpt,
+        const int ls_id,
+        const Set::Scalar tube_width,
+        const Set::Scalar inner_tube_width);
+    std::pair<amrex::BoxArray, amrex::DistributionMapping>
+    BuildTileBoxes(const amrex::iMultiFab& narrowband_mask,
+                                    const amrex::Box& domain,
+                                    const int number_of_ghost_cells);
     void UpdateNarrowbandTubeandMapping(int lev, int ls_id);
     // Geometries
-    void ComputeNormal(int lev, int ls_id);
-    void ComputeCurvature(int lev, int ls_id);
     void ComputeGeometryQuantities(int lev, int ls_id);
     // Timestepping
     void ComputeAndSetNewTimeStep();
@@ -248,9 +274,6 @@ protected:
     void Advect(int lev, Set::Scalar time, Set::Scalar dt);
     void UpdateInterfaceVelocity(int lev);
     void Reinitialize(int lev, int ls_id);
-    // Plotting
-    void CopyZerolsAndCPTIMFtoMF(int lev);
-    void CopyTubeIMFtoMF(int lev, int ls_id);
     
     std::shared_ptr<Numeric::FluxHandler<NarrowBandLevelset>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<NarrowBandLevelset>> timeStepper;
@@ -284,11 +307,13 @@ private:
     // Definition of parameters set only at instantiation by
     // constructors. 
     //
-    const int number_of_components  = 1;     // Number of components (1-levelset value)
+    int current_timestep            = 0;
+    int number_of_components        = NAN;     // Number of components (1-levelset value)
     const int number_of_ghost_cells = 2;     // Number of ghost cells
     
     // Define LevelSetData structure object
-    std::vector<LevelSetData> level_sets;
+    std::vector<std::vector<LevelSetData>> level_sets;
+    //std::vector<LevelSetData> level_sets;
     
     // Define size for narrowband
     const Set::Scalar inner_narrow_band_width = 4.0;
