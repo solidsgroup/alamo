@@ -92,7 +92,8 @@ def recurse(root,srcfile,printer=DefaultPrinter(),f=None):
     
                 inputname = '.'.join(prefix + [input['string'],"type"])
 
-                printer.printconditionalstart(input,prefix,lev)
+                printer.printconditionalstart(input,f'.'.join(prefix + [input['string'],'type']),lev,
+                                              things = [str(cl).split('::')[-1].lower() for cl in input["classes"]])
 
                 for cl in input['classes']:
                     subclassname, subclasstemplates = extractTemplates(cl,classname)
@@ -109,11 +110,22 @@ def recurse(root,srcfile,printer=DefaultPrinter(),f=None):
     
             elif input['type'] in ['queryclass']:
                 subclassname, subclasstemplates = extractTemplates(templateReplace(input['class'],templates),classname)
+
+
                 if input['string']:
+                    inputname = '.'.join(prefix + [input['string']])
+                    printer.printconditionalstart(input,inputname,lev,[str(input['class']).split('::')[-1].lower()])
+                    subclassname, subclasstemplates = extractTemplates(input['class'],classname)
+                    inputvalue = subclassname.split('::')[-1].lower()
+                    printer.printconditional(inputname,inputvalue,lev)
+
                     getInputs(root,subclassname.replace("::","/"), prefix + [input['string']], subclasstemplates, lev)
+
+                    printer.printconditionalend(input,prefix,lev)
                 else:
                     getInputs(root,subclassname.replace("::","/"), prefix, subclasstemplates, lev)
                     
+
             elif input['type'] in ['queryclass_enumerate']:
                 subclassname, subclasstemplates = extractTemplates(templateReplace(input['class'],templates),classname)
                 getInputs(root,subclassname.replace("::","/"), prefix + [input['string']+r'#'], subclasstemplates, lev)

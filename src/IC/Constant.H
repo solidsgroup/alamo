@@ -7,6 +7,7 @@
 #define IC_CONSTANT_H_
 
 #include "AMReX_Config.H"
+#include "AMReX_Loop.H"
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
@@ -38,7 +39,7 @@ public:
             const amrex::Box& bx = mfi.growntilebox();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                 field(i,j,k,m) += m_value.size() == 1 ? m_value[0] : m_value[m];
             });  
         }
@@ -52,7 +53,7 @@ public:
             const amrex::Box& bx = mfi.growntilebox();
             amrex::Array4<Set::Vector> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                     field(i,j,k)(m) += m_value.size() == 1 ? m_value[0] : m_value[m];
             });  
         }

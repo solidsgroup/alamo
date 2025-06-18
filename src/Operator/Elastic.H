@@ -112,7 +112,7 @@ public:
     
     using Operator::Reflux;
 
-protected:
+public:
 
 
     using Operator::Diagonal;
@@ -135,7 +135,7 @@ protected:
         Operator<Grid::Node>::prepareForSolve();
     };
 
-private:
+public:
     /// Simple arrays storing boundary conditions for each component and each face.
     std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
     std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]

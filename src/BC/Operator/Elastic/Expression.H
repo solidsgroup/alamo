@@ -6,6 +6,7 @@
 #ifndef BC_OPERATOR_ELASTIC_EXPRESSION_H
 #define BC_OPERATOR_ELASTIC_EXPRESSION_H
 
+#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "BC/Operator/Elastic/Elastic.H"
 
@@ -67,7 +68,7 @@ public:
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
@@ -155,7 +156,7 @@ public:
                 bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                     
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {

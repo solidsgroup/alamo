@@ -5,23 +5,21 @@ AMREX_TARGET ?=
 CC ?= mpicxx -cxx=g++
 MPI_LIB ?= -lmpich
 
-RESET              = \033[0m
-B_ON               = \033[1m
-FG_RED             = \033[31m
-FG_DIM             = \033[2m
-FG_LIGHTRED        = \033[91m
-FG_LIGHTGRAY       = \033[37m
-FG_GRAY            = \033[90m
-FG_GREEN           = \033[32m
-FG_LIGHTGREEN      = \033[92m
-FG_YELLOW          = \033[33m
-FG_LIGHTYELLOW     = \033[93m
-FG_BLUE            = \033[34m
-FG_LIGHTBLUE       = \033[94m
-FG_CYAN            = \033[36m
-FG_MAGENTA         = \033[35m
-
-
+RESET           = $(shell tput sgr0)
+B_ON            = $(shell tput bold)
+FG_RED          = $(shell tput setaf 1)
+FG_DIM          = $(shell tput dim)
+FG_LIGHTRED     = $(shell tput bold; tput setaf 1)
+FG_LIGHTGRAY    = $(shell tput setaf 7)
+FG_GRAY         = $(shell tput setaf 8)
+FG_GREEN        = $(shell tput setaf 2)
+FG_LIGHTGREEN   = $(shell tput bold; tput setaf 2)
+FG_YELLOW       = $(shell tput setaf 3)
+FG_LIGHTYELLOW  = $(shell tput bold; tput setaf 3)
+FG_BLUE         = $(shell tput setaf 4)
+FG_LIGHTBLUE    = $(shell tput bold; tput setaf 4)
+FG_CYAN         = $(shell tput setaf 6)
+FG_MAGENTA      = $(shell tput setaf 5)
 
 
 QUIET ?= @

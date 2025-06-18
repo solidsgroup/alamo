@@ -1,6 +1,7 @@
 // TODO: Remove these 
 
 #include "Elastic.H"
+#include "AMReX_Loop.H"
 #include "Set/Set.H"
 
 #include "Numeric/Stencil.H"
@@ -165,7 +166,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
         const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
-        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -288,7 +289,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 
         const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
-        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::LoopConcurrentOnCpu(tilebox, [=] (int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
 
@@ -480,7 +481,7 @@ Elastic<SYM>::Stress(int amrlev,
         amrex::Array4<amrex::Real> const& sigma = a_sigma.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][0]->array(mfi);
         amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Matrix gradu;
 
