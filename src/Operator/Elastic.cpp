@@ -74,7 +74,7 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 
             amrex::Array4<MATRIX4> const& ddw = (*(m_ddw_mf[amrlev][0])).array(mfi);
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k) {
                 ddw(i, j, k) = a_model;
 
 #ifdef AMREX_DEBUG
@@ -698,7 +698,9 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
                         fdata(i, j, k, n) / 8.0;
 
 #ifdef AMREX_DEBUG
+#ifndef ALAMO_GPU
                     if (cdata(I, J, K).contains_nan()) Util::Abort(INFO, "restricted model is nan at (", i, ",", j, ",", k, "), fine_amrlev=", fine_amrlev);
+#endif
 #endif
                 }
 
@@ -799,7 +801,9 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
 
 #ifdef AMREX_DEBUG
+#ifndef ALAMO_GPU
                 if (cdata(I, J, K).contains_nan()) Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
+#endif
 #endif
             });
         }

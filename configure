@@ -101,7 +101,7 @@ parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
-parser.add_argument('--build-amrex-fork', dest="amrexfork",action='store_true',default="AMReX-Codes", help='Download and build AMReX automatically')
+parser.add_argument('--build-amrex-fork', dest="amrexfork",default="AMReX-Codes", help='Specify a github fork of amrex')
 parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--build-amrex-tag',dest="buildamrextag",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
@@ -218,20 +218,22 @@ if args.omp:
 if args.buildamrex and not args.amrex:
     if not os.path.isdir("ext"): 
         shellmessage("Make ext",'mkdir -p ext')
-    if not os.path.isdir("ext/amrex"):
+    if not os.path.isdir(f"ext/{args.amrexfork}"):
+        shellmessage("Make ext",f'mkdir -p ext/{args.amrexfork}')
+    if not os.path.isdir(f"ext/{args.amrexfork}/amrex"):
         if args.offline:
             raise Exception(error("Cannot download AMReX and no version currently exists!"))
         if args.buildamrexbranch:
             shellmessage("AMReX-Clone",
-                            cmd = "git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch,
+                            cmd = f"git clone https://github.com/{args.amrexfork}/amrex.git --branch " + args.buildamrexbranch,
                             message="Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",
-                            cwd="ext/")
+                            cwd=f"ext/{args.amrexfork}")
         else: shellmessage("AMReX-Clone", 
-                            cmd="git clone https://github.com/AMReX-Codes/amrex.git",
+                            cmd=f"git clone https://github.com/{args.amrexfork}/amrex.git",
                             message="Cloning AMReX [default branch] -- This may take a while",
-                            cwd="ext/")
+                            cwd=f"ext/{args.amrexfork}")
     elif not args.offline:
-        shellmessage("AMReX-Update",cmd="git -C ext/amrex fetch --all")
+        shellmessage("AMReX-Update",cmd=f"git -C ext/{args.amrexfork}/amrex fetch --all")
         #p = subprocess.Popen("".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
     
@@ -239,13 +241,13 @@ if args.buildamrex and not args.amrex:
         try:
             if args.buildamrextag:
                 shellmessage("AMReX-Checkout",
-                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrextag)
+                                cmd=f"git -c advice.detachedHead=false -C ext/{args.amrexfork}/amrex checkout "+args.buildamrextag)
             elif args.buildamrexbranch:
                 shellmessage("AMReX-Checkout",
-                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrexbranch)
+                                cmd=f"git -c advice.detachedHead=false -C ext/{args.amrexfork}/amrex checkout "+args.buildamrexbranch)
             else:
                 shellmessage("AMReX-Checkout",
-                                cmd="git -C ext/amrex pull")
+                                cmd=f"git -C ext/{args.amrexfork}/amrex pull")
         except Exception as e:
             error("There was an error updating AMReX. It often helps to run")
             error(color.bgdarkgray+color.green+"make realclean"+color.reset)
@@ -257,7 +259,7 @@ if args.buildamrex and not args.amrex:
 
     amrexdescribe = ""
     for cmd, desc in zip(["git describe --always --dirty", "git log -1 --pretty=format:%H"], ["AMReX-Describe","AMReX-Hash"]):
-        ret = subprocess.run(cmd.split(' '),cwd="ext/amrex/",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        ret = subprocess.run(cmd.split(' '),cwd=f"ext/{args.amrexfork}/amrex/",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         if not ret.returncode:
             message(desc, ret.stdout.decode())
         else:
@@ -267,10 +269,10 @@ if args.buildamrex and not args.amrex:
     
     postfix_amrex = postfix+"-"+amrexdescribe
     
-    args.amrex = "ext/amrex/"+postfix_amrex
-    f.write("AMREX = ext/amrex/" + postfix_amrex + "/\n")
-    f.write("AMREX_TARGET = ext/amrex/" + postfix_amrex + "\n")
-    f.write('AMREX_SRC := $(shell find ext/amrex/Src -name "*.H") $(shell find ext/amrex/Src -name "*.cpp")' + "\n")
+    args.amrex = f"ext/{args.amrexfork}/amrex/"+postfix_amrex
+    f.write(f"AMREX = ext/{args.amrexfork}/amrex/" + postfix_amrex + "/\n")
+    f.write(f"AMREX_TARGET = ext/{args.amrexfork}/amrex/" + postfix_amrex + "\n")
+    f.write(f'AMREX_SRC := $(shell find ext/{args.amrexfork}/amrex/Src -name "*.H") $(shell find ext/{args.amrexfork}/amrex/Src -name "*.cpp")' + "\n")
     
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
@@ -289,24 +291,24 @@ if args.buildamrex and not args.amrex:
         amrex_make_local.append('CUDA_CLANG = TRUE')
         
     message("AMReX-Configure",amrex_configure,False)
-    subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
+    subprocess.Popen(amrex_configure.split(),cwd=f"ext/{args.amrexfork}/amrex")
     
     if len(amrex_make_local):
-        with open('ext/amrex/Make.local','w') as f_amrex_make:
+        with open(f'ext/{args.amrexfork}/amrex/Make.local','w') as f_amrex_make:
             for line in amrex_make_local:
                 print(line, file=f_amrex_make)
             message("Amrex make.local",'\n'.join(amrex_make_local))
 
-    f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD) \n") # --output-sync=target
-    f2.write("\t$(MAKE) -C ext/amrex install\n")
-    f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
+    f2.write(f"ext/{args.amrexfork}/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD) \n") # --output-sync=target
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex install\n")
+    f2.write(f"\ttouch $@\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")
     else:        
         message("AMReX-Status", "Using pre-downloaded version")
-    message("AMReX-Directory", "ext/amrex/"+postfix_amrex)
+    message("AMReX-Directory", f"ext/{args.amrexfork}/amrex/"+postfix_amrex)
 
 
             
@@ -443,11 +445,16 @@ if mpidist == "openmpi":
         fortlibdir = os.path.dirname(fortlib)
         message("gfortran lib path", fortlibdir)
 
-        generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
+        
+        if args.debug:
+            generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O0 --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
+            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -finline-limit=43210 -std=c++17  -std=c++17' --std=c++17 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+            ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++17  -std=c++17' --std=c++17"
 
-        ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -std=c++17' --std=c++17 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
-
-        ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++17  -std=c++17' --std=c++17"
+        else:
+            generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
+            ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -std=c++17' --std=c++17 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+            ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++17  -std=c++17' --std=c++17"
 
         f.write(f"CXX_COMPILE_FLAGS = \n")
         f.write(f"LINKER_FLAGS   += {cpplink} {fortlink} -lcuda -lcurand -lcusparse -L. -L{fortlibdir} -lgfortran -lquadmath\n")
@@ -633,7 +640,7 @@ if not args.compile_commands:
             "-std=c++17",
             "-I./src/",
             srcfile,
-            f"-I./ext/amrex/{postfix_amrex}/include",
+            f"-I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include",
         ],
     } for srcfile in srcfiles]
 
