@@ -18,6 +18,7 @@
 #ifndef IC_PERTURBEDINTERFACE_H_
 #define IC_PERTURBEDINTERFACE_H_
 
+#include "AMReX_Loop.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
@@ -51,7 +52,7 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::IndexType type = a_field[lev]->ixType();
 
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
                 amrex::IntVect m(AMREX_D_DECL(i,j,k));
                 
                 Set::Vector x;
@@ -112,7 +113,9 @@ public:
                     Set::Scalar t = 0.0;
                     if (normal == Direction::X) t = x(0) - bdry - offset;
                     else if (normal == Direction::Y) t = x(1) - bdry - offset;
+#if AMREX_SPACEDIM == 3
                     else if (normal == Direction::Z) t = x(2) - bdry - offset;
+#endif
 
                     Set::Scalar value = 0.5 + 0.5*std::erf(t/eps);
                     // Util::Message(INFO, "value = ", value);

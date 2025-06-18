@@ -1,4 +1,5 @@
 #include "Expression.H"
+#include "AMReX_Loop.H"
 
 namespace BC
 {
@@ -22,7 +23,7 @@ Expression::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     amrex::IndexType type = amrex::IndexType::TheCellType();
 
     for (int n = 0; n < a_in.nComp(); n++)
-    amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+    amrex::LoopConcurrentOnCpu (box,[=] (int i, int j, int k)
     {
         Set::Vector pos = Set::Position(i, j, k, m_geom, type);
         Set::Scalar x = 0.0, y=0.0, z=0.0, t=time;

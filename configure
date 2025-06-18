@@ -445,9 +445,9 @@ if mpidist == "openmpi":
 
         generalopts = f"-Wno-deprecated-gpu-targets -m64 -maxrregcount=255 --expt-relaxed-constexpr --expt-extended-lambda --forward-unknown-to-host-compiler -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -Xcudafe --diag_suppress=implicit_return_from_non_void_function --Werror cross-execution-space-call -lineinfo --ptxas-options=-O3  --use_fast_math  --Werror ext-lambda-captures-this --display-error-number --diag-error 20092 --generate-code arch=compute_{args.cuda},code=sm_{args.cuda} -DALAMO_GPU"
 
-        ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -pthread -std=c++17' --std=c++17 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
+        ompicc =   f"export OMPI_CXX={args.comp} && nvcc -ccbin=mpicxx -MMD -MP  -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O3 -finline-limit=43210 -std=c++17  -std=c++17' --std=c++17 {generalopts} -x cu -dc -Itmp_build_dir/s/3d.llvm.MPI.CUDA.EXE -isystem /usr/local/cuda/include {compmpiinc} -c "
 
-        ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++17  -pthread  -std=c++17' --std=c++17"
+        ompilink = f"export OMPI_CXX={args.comp} && nvcc {generalopts} -ccbin=g++ -Xcompiler='-fno-lto -Werror=return-type -gdwarf-4 -O0 -ggdb -ftrapv -Wall -Wextra -Wlogical-op -Wfloat-conversion -Wnull-dereference -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wmissing-include-dirs -Wshadow -Woverloaded-virtual -Wnon-virtual-dtor -std=c++17  -std=c++17' --std=c++17"
 
         f.write(f"CXX_COMPILE_FLAGS = \n")
         f.write(f"LINKER_FLAGS   += {cpplink} {fortlink} -lcuda -lcurand -lcusparse -L. -L{fortlibdir} -lgfortran -lquadmath\n")
@@ -532,6 +532,8 @@ if args.comp == 'g++':
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     elif args.coverage:
         f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    elif args.cuda:
+        None
     else:
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")

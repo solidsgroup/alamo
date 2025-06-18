@@ -71,7 +71,7 @@ public:
     {
         Set::Vector n = a_n / a_n.lpNorm<2>();
         Set::Scalar theta = std::acos(n(0));
-        Set::Scalar phi   = std::atan2(n(2),n(1));
+        Set::Scalar phi   = AMREX_D_PICK(0.0, 0.0, std::atan2(n(2),n(1)));
         return W(theta,phi);
     };
     virtual Set::Scalar DW(const Set::Vector &a_n, const Set::Vector &t_n) const override

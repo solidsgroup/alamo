@@ -25,10 +25,10 @@ public:
     static constexpr const char* name = "powerlaw";
     
     PowerLaw() = default;
-    PowerLaw(IO::ParmParse &pp, std::string name) 
-    {
-        pp_queryclass(name,*this);
-    }
+    // PowerLaw(IO::ParmParse &pp, std::string name) 
+    // {
+    //     pp_queryclass(name,*this);
+    // }
 
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE

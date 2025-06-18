@@ -30,6 +30,7 @@ public:
         pp_queryclass(name,*this);
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     void set_pressure(const Set::Scalar P) 
     {
         this->P = P;
@@ -45,7 +46,7 @@ public:
         return;
     }
     
-    AMREX_FORCE_INLINE
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
     {
 

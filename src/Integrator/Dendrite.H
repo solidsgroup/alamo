@@ -84,7 +84,6 @@ public:
         value.RegisterNewFab(value.phi_mf, value.bc_phi, value.number_of_components, value.number_of_ghost_cells, "phi", true);
         value.RegisterNewFab(value.phi_old_mf, value.bc_phi, value.number_of_components, value.number_of_ghost_cells, "phi_old", false);
     }
-protected:
 
     // Use the ic object to initialize the temperature field
     void Initialize(int lev)
@@ -208,7 +207,6 @@ protected:
         }
     }
 
-protected:
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> phi_mf;
@@ -217,7 +215,6 @@ protected:
     Set::Field<Set::Scalar> &eta_mf = phi_mf;
     Set::Field<Set::Scalar> &eta_old_mf = phi_old_mf;
 
-private:
     int number_of_components = 1;            // Number of components
     int number_of_ghost_cells = 1;           // Number of ghost cells
 

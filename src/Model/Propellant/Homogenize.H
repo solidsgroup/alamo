@@ -26,11 +26,13 @@ public:
     }
 
     Set::Scalar P = NAN;
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     void set_pressure(const Set::Scalar P) 
     {
         k4 = h1 * P + h2;
     }
     
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     virtual Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
     {
         Set::Scalar qflux = k4 * phi;
@@ -40,22 +42,26 @@ public:
         return  mbase * qflux;
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_K (const Set::Scalar phi)
     {
         return (k_ap * massfraction + k_htpb * (1.0 - massfraction)) * phi + dispersion1 * (1. - phi);
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_rho (const Set::Scalar phi)
     {
 
         return (rho_ap * massfraction + rho_htpb * (1.0 - massfraction)) * phi + dispersion2 * (1. - phi); 
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_cp (const Set::Scalar phi)
     {
         return (cp_ap * massfraction + cp_htpb * (1.0 - massfraction)) * phi + dispersion3 * (1. - phi);
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;

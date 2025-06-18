@@ -89,7 +89,11 @@ public:
 #if AMREX_SPACEDIM>1
                     else if (coord == Expression::CoordSys::Polar)
                     {
+#if AMREX_SPACEDIM == 2
+                        field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), 0.0, a_time);
+#elif AMREX_SPACEDIM == 3
                         field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time);
+#endif
                     }
 #endif
                 });
@@ -129,7 +133,11 @@ public:
 #if AMREX_SPACEDIM>1
                     else if (coord == Expression::CoordSys::Polar)
                     {
+#if AMREX_SPACEDIM == 2
+                        field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), 0.0, a_time);
+#elif AMREX_SPACEDIM == 3
                         field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time);
+#endif
                     }
 #endif
                 });

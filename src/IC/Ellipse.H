@@ -6,6 +6,7 @@
 #ifndef IC_ELLIPSE_H_
 #define IC_ELLIPSE_H_
 
+#include "AMReX_Loop.H"
 #include "Set/Set.H"
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
@@ -36,7 +37,7 @@ public:
             if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
             
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::LoopConcurrentOnCpu (bx,[=] (int i, int j, int k) {
 
                 Set::Vector x;
                 // NODE

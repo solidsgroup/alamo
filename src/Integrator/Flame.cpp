@@ -1,4 +1,5 @@
 #include "Flame.H"
+#include "AMReX_Loop.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
@@ -295,12 +296,12 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
-                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(smallbox, [=] (int i, int j, int k)
                 {
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     rhs(i, j, k) = elastic.traction * grad_eta;
                 });
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     Set::Scalar phi_avg = phi(i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
@@ -318,7 +319,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             }
             else
             {
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     //phi_avg = phi(i,j,k,0);
@@ -410,7 +411,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             //
             // CALCULATE PHI-AVERAGED QUANTITIES
@@ -489,7 +490,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // Diagnostic fields
             Set::Patch<const Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 auto sten = Numeric::GetStencil(i, j, k, bx);
                 Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -529,7 +530,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
             if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
@@ -545,7 +546,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
                 if (gradphi.lpNorm<2>() * dr >= phi_refinement_criterion)
@@ -563,7 +564,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             amrex::Array4<char> const& tags = a_tags.array(mfi);
             Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(lev,mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
                 if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
@@ -591,7 +592,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
     if (variable_pressure) {
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
         {
             chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
@@ -607,7 +608,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
         });
     }
     else {
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k)
         {
             chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);

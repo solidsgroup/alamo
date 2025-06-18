@@ -20,6 +20,7 @@
 
 #include <random>
 
+#include "AMReX_Loop.H"
 #include "AMReX_SPACE.H"
 #include "IO/ParmParse.H"
 #include "Set/Base.H"
@@ -114,7 +115,7 @@ public:
         {
             const amrex::Box &bx = mfi.tilebox();
             amrex::Array4<amrex::Real> const &eta = (*eta_mf[max_lev]).array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
             {
                 Set::Scalar E0 = 2.0*nucleation_energy;
                 E0 /= epsilon + 256.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1);
@@ -154,7 +155,7 @@ public:
                 {
                     const amrex::Box bx = mfi.grownnodaltilebox() & domain;
                     amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
                     {
                         Set::Vector x;
                         AMREX_D_TERM(
