@@ -9,9 +9,14 @@
 #include "Set/Set.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
-#include "Model/Ballistics/Ballistic_new.H"
+#include "Model/Chamber/Ballistic.H"
 
 #include "Base/Mechanics.H"
+
+#include "Model/Propellant/Constant.H"
+#include "Model/Propellant/PowerLaw.H"
+#include "Model/Propellant/FullFeedback.H"
+#include "Model/Propellant/Homogenize.H"
 
 namespace Integrator
 {
@@ -27,6 +32,8 @@ public:
 
     Flame();
     Flame(IO::ParmParse& pp);
+
+    static void Forbids(IO::ParmParse& pp);
 
     static void Parse(Flame& value, IO::ParmParse& pp);
 
@@ -78,108 +85,64 @@ private:
     Set::Scalar m_refinement_criterion = NAN;
     Set::Scalar t_refinement_criterion = NAN;
     Set::Scalar t_refinement_restriction = NAN;
-    Set::Scalar zeta = NAN;
-    Set::Scalar zeta_0 =NAN;
     Set::Scalar small = NAN;
-    Set::Scalar base_time = NAN;
     IC::IC<Set::Scalar>* ic_eta = nullptr;
-    int ghost_count = -1;
-    int homogeneousSystem = -1;
     bool plot_field = true;
     int variable_pressure = -1;
 
+    bool homogenized = false;
+    Set::Scalar massfraction = NAN;
+
+    // Phase field model variables
     struct {
-        Set::Scalar gamma = NAN;
         Set::Scalar eps = NAN;
         Set::Scalar lambda = NAN;
         Set::Scalar kappa = NAN;
         Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
         Set::Scalar min_eta = 0.001;
-        int evolve = 1;
     } pf;
 
-    struct {
-        Set::Scalar P = NAN;
-        Set::Scalar gamma = NAN;
-
-        struct {
-            Set::Scalar a1 = NAN, a2 = NAN, a3 = NAN;
-            Set::Scalar b1 = NAN, b2 = NAN, b3 = NAN;
-            Set::Scalar c1 = NAN;
-            int mob_ap = NAN;
-            int dependency = 1;
-            Set::Scalar h1 = NAN, h2 = NAN;
-
-        } arrhenius;
-        struct {
-            Set::Scalar r_ap = NAN, r_htpb = NAN, r_comb = NAN;
-            Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
-            Set::Scalar a_fit = NAN, b_fit = NAN, c_fit = NAN;
-        } power;
-    } pressure;
-
+    // Thermal transport variables
     struct {
         bool on = 0;
-        Set::Scalar rho_ap = NAN, rho_htpb = NAN;
-        Set::Scalar k_ap = NAN, k_htpb = NAN;
-        Set::Scalar cp_ap = NAN, cp_htpb = NAN;
-        Set::Scalar q0 = NAN;
-        Set::Scalar bound = NAN;
-        Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
-        Set::Scalar E_ap = NAN, E_htpb = NAN;
         Set::Scalar hc = NAN, w1 = NAN;
-        Set::Scalar modeling_ap = NAN, modeling_htpb = NAN;
-        Set::Scalar mlocal_ap = NAN, mlocal_htpb = NAN, mlocal_comb = NAN;
-        Set::Scalar T_fluid = NAN;
-        Set::Scalar massfraction = NAN;
-        Set::Scalar disperssion1 = NAN;
-        Set::Scalar disperssion2 = NAN;
-        Set::Scalar disperssion3 = NAN;
+        Set::Scalar Tref = NAN;
+        Set::Scalar Tfluid = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
+    // Thermoelastic variables
     struct {
         int on = 0;
-        Set::Scalar Tref = NAN;
+        Set::Scalar Telastic = NAN;
         model_type model_ap, model_htpb, model_void;
         Set::Scalar traction = NAN;
-        int phirefinement = NAN;
+        int phirefinement = -1;
     } elastic;
 
-    // Integrated variables
-    Set::Scalar volume = 0.0;
-    Set::Scalar area = 0.0;
-    Set::Scalar chamber_area = 0.0;
-    Set::Scalar chamber_pressure = 1.0;
-    Set::Scalar massflux = 0.00000001;
-    //Set::Scalar pre_compute_mdot = 0.0;
-
+    // Chamber state variables (not inputs)
     struct {
-        bool on = 0;
-        // integrated **spatially**
-        Set::Scalar mdot = 0.0; // total mass inside chamber
-        Set::Scalar area = 0.0; // area of burn surface
-        Set::Scalar volume = 0.0; // chamber volume
-        // integrated **temporally**
-        Set::Scalar mass = NAN; // chamber mass - must be initialized with parmparse
-        // determined as a function of time
-        Set::Scalar pressure = 0.0; // chamber pressure - must be ininitialized with parmparse
-        // parameters
-        Set::Scalar rho0 = NAN; // initial chamber density
-        Set::Scalar c_star = NAN;
-        Set::Scalar At = NAN;
-        Set::Scalar p0 = NAN;
-        Set::Scalar gamma = NAN;
-        Set::Scalar T0 = NAN;
-        Set::Scalar R = NAN;
-    } chamber;
+        // Integrated variables
+        Set::Scalar volume = 0.0;
+        Set::Scalar area = 0.0;
+        //Set::Scalar massflux = 0.0;
+        Set::Scalar mdot = 0.0;
+        // Intensive variables
+        Set::Scalar pressure = NAN;
 
-    Set::Scalar x_len = NAN;
-    Set::Scalar y_len = NAN;
+        Model::Chamber::Ballistic  model;
+
+    } chamber;
 
     BC::BC<Set::Scalar>* bc_psi = nullptr;
 
-    Model::Ballistics::Ballistic_new  ballistic_;
+    // Propellant model
+    Model::Propellant::Propellant<
+        Model::Propellant::Constant,
+        Model::Propellant::PowerLaw,
+        Model::Propellant::FullFeedback,
+        Model::Propellant::Homogenize> propellant;
+
 };
 }
 

@@ -136,6 +136,24 @@ public:
     {
         (void)amrex::ParmParse::contains(name.c_str());
     }
+    
+    void pushPrefix(const std::string prefix)
+    {
+        if (m_prefix.length())
+            m_prefix = m_prefix + "." + prefix;
+        else
+            m_prefix = prefix;
+    }
+
+    void popPrefix()
+    {
+        size_t pos = m_prefix.rfind('.');
+        if (pos == std::string::npos)
+            m_prefix = "";
+        else
+            m_prefix = m_prefix.substr(0, pos);
+    }
+
 
     void forbid(std::string name, std::string explanation,
                 std::string file = "", std::string func = "", int line = -1)
@@ -838,6 +856,67 @@ public:
         ic_eta = new INTEGRATOR((*this));
     }
 
+    
+    //
+    // functionally simlar to other kinds of select, execpt works on
+    // template-based static dispatch.
+    //
+
+    template <typename... OBJ, typename CLASS>
+    void select(std::string name, CLASS& value)
+    {
+        pushPrefix(name);
+        static_polymorphism_parser<CLASS, 0, OBJ...>(value);
+        popPrefix();
+    }
+
+private:
+    //
+    // This function is a virtual "swtich / case" block for static
+    // dispatch. It works on a faux-virtual class "CLASS" that must 
+    // contain a tuple of "obj" with each "obj" being a derived type.
+    // Recursion is used to unroll the list, identify the correct class
+    // based on "name/type", set the "selected" index, then call the
+    // appropriate class' Parse function.
+    // 
+    // This is only for use by the "select" functions.
+    // 
+    template <typename CLASS, int N, typename... OBJ>
+    void static_polymorphism_parser(CLASS& value)
+    {
+        if constexpr (N == 0)
+        {
+            std::string type;
+            query_default("type",type,value.names[0]);
+
+            for (unsigned int i = 0; i < sizeof...(OBJ); i++)
+                if (type == value.names[i])
+                    value.selected = i;
+
+            if (value.selected < 0)
+                Util::Exception(INFO,
+                                "Error reading " + getPrefix() + 
+                                ", invalid type " + type);
+
+            
+            pushPrefix(type);
+        }
+
+        if constexpr (N < sizeof...(OBJ))
+        {
+            if (value.selected == N)
+            {
+                std::get<N>(value.obj).Parse(std::get<N>(value.obj), *this);
+                popPrefix();
+                return;
+            }
+            else 
+                return static_polymorphism_parser<CLASS, N+1, OBJ...>(value);
+        }
+        else Util::Abort(INFO);
+    }
+
+public:
 
     template <int N>
     void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
