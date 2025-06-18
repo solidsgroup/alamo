@@ -21,6 +21,7 @@ std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
 bool initialized = false;
 bool finalized = false;
+bool warn_about_launch_region_temp_fix = true;
 
 std::string GetFileName()
 {
@@ -131,6 +132,7 @@ void Initialize ()
     char **argv = nullptr;
     Initialize(argc,argv);
     initialized = true;
+    warn_about_launch_region_temp_fix = true;
 }
 void Initialize (int argc, char* argv[])
 {

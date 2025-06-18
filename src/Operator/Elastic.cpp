@@ -887,6 +887,11 @@ template<int SYM>
 void
 Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const Geometry& geom)
 {
+    #ifdef ALAMO_GPU
+    Util::Warning(INFO,"This is a temporary fix and needs to be removed");
+    amrex::Gpu::setLaunchRegion(false);
+    #endif
+
     BL_PROFILE("Elastic::FillBoundaryCoeff()");
     for (int i = 0; i < 2; i++)
     {
@@ -899,12 +904,21 @@ Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const Geometry& geom)
         tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
         mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
     }
+
+    #ifdef ALAMO_GPU
+    amrex::Gpu::setLaunchRegion(true);
+    #endif
 }
 
 template<int SYM>
 void
 Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const Geometry& geom)
 {
+    #ifdef ALAMO_GPU
+    Util::Warning(INFO,"This is a temporary fix and needs to be removed");
+    amrex::Gpu::setLaunchRegion(false);
+    #endif
+
     BL_PROFILE("Elastic::FillBoundaryCoeff()");
     for (int i = 0; i < 2; i++)
     {
@@ -917,6 +931,10 @@ Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const Geometry& geom)
         tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
         mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
     }
+
+    #ifdef ALAMO_GPU
+    amrex::Gpu::setLaunchRegion(true);
+    #endif
 }
 
 template class Elastic<Set::Sym::Major>;

@@ -47,7 +47,7 @@ std::complex<int> Parse(std::string);
 extern std::string globalprefix;
 extern bool initialized;
 extern bool finalized;
-
+extern bool warn_about_launch_region_temp_fix;
 
 std::string GetFileName();
 void CopyFileToOutputDir(std::string a_path, bool fullpath = true, std::string prefix = "");
@@ -356,20 +356,53 @@ int SubFinalMessage(int failed);
 // These two functions are not really necessary anymore.
 // TODO: remove RealFillBoundary and all references to them.
 //
+
+
 template<class T>
 AMREX_FORCE_INLINE
 void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
 {
     BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
+
+    #ifdef ALAMO_GPU
+    if (warn_about_launch_region_temp_fix)
+    {
+        Util::Warning(INFO,"This is a temporary fix and needs to be removed");
+        warn_about_launch_region_temp_fix = false;
+    }
+    amrex::Gpu::setLaunchRegion(false);
+    #endif
+
     a_mf.FillBoundary();
+
+    #ifdef ALAMO_GPU
+    amrex::Gpu::setLaunchRegion(true);
+    #endif
+
 }
 AMREX_FORCE_INLINE
 void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
 {
     BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
+
+    #ifdef ALAMO_GPU
+    if (warn_about_launch_region_temp_fix)
+    {
+        Util::Warning(INFO,"This is a temporary fix and needs to be removed");
+        warn_about_launch_region_temp_fix = false;
+    }
+    amrex::Gpu::setLaunchRegion(false);
+    #endif
+
     a_mf.FillBoundary();
+
+
+    #ifdef ALAMO_GPU
+    amrex::Gpu::setLaunchRegion(true);
+    #endif
+
 }
 
 

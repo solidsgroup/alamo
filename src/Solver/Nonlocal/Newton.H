@@ -48,7 +48,6 @@ public:
         m_psi = &a_psi;
     }
 
-private:
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf,
         const Set::Field<Set::Scalar>& a_b_mf,
         Set::Field<Set::Scalar>& a_rhs_mf,
@@ -165,7 +164,7 @@ private:
                 amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, T::sym>>  const& ddw = a_ddw_mf[lev]->array(mfi);
 
                 // Set model internal dw and ddw.
-                amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+                amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
 
@@ -271,7 +270,6 @@ private:
     }
 
 
-public:
     Set::Scalar solve(const Set::Field<Set::Vector>& a_u_mf,
         const Set::Field<Set::Vector>& a_b_mf,
         Set::Field<T>& a_model_mf,
@@ -623,7 +621,6 @@ public:
     }
 
 
-public:
     int m_nriters = 1;
     Set::Scalar m_nrtolerance = 0.0;
     Operator::Elastic<T::sym>* m_elastic;
@@ -631,7 +628,6 @@ public:
 
     Set::Field<Set::Scalar>* m_psi = nullptr;
 
-public:
     // These paramters control a standard Newton-Raphson solve.
     // 
     // **Note**: 
