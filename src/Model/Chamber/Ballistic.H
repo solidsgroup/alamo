@@ -24,24 +24,24 @@ public:
 public:
     // Function that computes dpdt using the mass flow rate (mdot)
     [[nodiscard]] Set::Scalar 
-    Advance(Set::Scalar dt, Set::Scalar mdot, Set::Scalar volume, Set::Scalar pressure)
+    Advance(Set::Scalar dt, Set::Scalar mdot, Set::Scalar pressure)
     {
         // Calculate mass flow rates
         Set::Scalar mdot_in = mdot;
         
         Util::Message(INFO,"mdot_in",mdot_in);
-
         Util::Message(INFO,"pressure",pressure);
         Util::Message(INFO,"At",At);
+        Util::Message(INFO,"vol",vol);
         Util::Message(INFO,"gamma",gamma);
-        Util::Message(INFO,"R",T0);
+        Util::Message(INFO,"R",R);
         
         Set::Scalar mdot_out = (pressure * At) / sqrt(gamma * R * T0);
         
         Util::Message(INFO,"mdot_out", mdot_out);
         
         // Compute dp/dt
-        Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
+        Set::Scalar current_dpdt = (mdot_in - mdot_out) / (vol / (R * T0));
     
         // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt
         Set::Scalar new_p = pressure + current_dpdt * dt;
@@ -53,22 +53,23 @@ public:
     }
 
     static void Parse (Ballistic &value, IO::ParmParse &pp)
-    {
+    { 
         // Chamber pressure [MPa]
         pp.query_default("pressure0",value.pressure0,4.0);
         
         // Throat area [m^2]
         pp.query_default("At",value.At,0.1);
-
+        
+        pp.query_default("vol",value.vol,1.0);
+        
         // Specific gas constant for air [J/kg/K]
         pp.query_default("R",value.R, 287.0);
-
+        
         // Initial temperature [K]
         pp.query_default("T0",value.T0,300.0);
-
+        
         // Initial temperature [K]
         pp.query_default("gamma",value.gamma,1.4);
-
     }
 
 
@@ -78,7 +79,7 @@ public:
     Set::Scalar gamma=NAN;      // Specific heat ratio
     Set::Scalar R=NAN;          // Gas constant
     Set::Scalar T0=NAN;         // Initial temperature
-    //Set::Scalar volume=NAN;     // Chamber volume
+    Set::Scalar vol=NAN;     // Chamber volume
 
     std::vector<Set::Scalar> dpdt;  // dp/dt vector to store rate of change of pressure over time
 };
