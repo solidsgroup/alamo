@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import sys
+
+sys.path.append('./scripts')
+from report import init_html, append_html, finalize_html
+
 import argparse
 import os, glob, subprocess
 import configparser, io
@@ -42,6 +46,7 @@ def clean(text,max_length=60):
 #
 now = datetime.now()
 testid = now.strftime("output_%Y-%m-%d_%H.%M.%S_"+socket.gethostname())
+init_html()
 print("Test ID = ",testid)
 
 #
@@ -620,7 +625,7 @@ def test(testdir):
             except Exception as e:
                 print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
         records.append(record)
-
+        append_html(record)
 
         #
         # Clean up all of the node and cell file 
@@ -705,6 +710,8 @@ print("")
 return_code = stats.fails + stats.skips
 if not args.permit_timeout:
     return_code += stats.timeouts
+
+finalize_html()
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
 exit(return_code)
