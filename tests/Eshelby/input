@@ -28,6 +28,7 @@
 #@  benchmark-beaker = 24.66
 #@  benchmark-statler = 18.76
 
+amrex.the_arena_is_managed=1
 
 alamo.program = mechanics
 alamo.program.mechanics.model = affine.isotropic

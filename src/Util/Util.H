@@ -365,20 +365,20 @@ void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geom
     BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
 
-    #ifdef ALAMO_GPU
-    if (warn_about_launch_region_temp_fix)
-    {
-        Util::Warning(INFO,"This is a temporary fix and needs to be removed");
-        warn_about_launch_region_temp_fix = false;
-    }
-    amrex::Gpu::setLaunchRegion(false);
-    #endif
+    // #ifdef ALAMO_GPU
+    // if (warn_about_launch_region_temp_fix)
+    // {
+    //     Util::Warning(INFO,"This is a temporary fix and needs to be removed");
+    //     warn_about_launch_region_temp_fix = false;
+    // }
+    // amrex::Gpu::setLaunchRegion(false);
+    // #endif
 
     a_mf.FillBoundary();
 
-    #ifdef ALAMO_GPU
-    amrex::Gpu::setLaunchRegion(true);
-    #endif
+    // #ifdef ALAMO_GPU
+    // amrex::Gpu::setLaunchRegion(true);
+    // #endif
 
 }
 AMREX_FORCE_INLINE
@@ -387,21 +387,21 @@ void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
     BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
 
-    #ifdef ALAMO_GPU
-    if (warn_about_launch_region_temp_fix)
-    {
-        Util::Warning(INFO,"This is a temporary fix and needs to be removed");
-        warn_about_launch_region_temp_fix = false;
-    }
-    amrex::Gpu::setLaunchRegion(false);
-    #endif
+    // #ifdef ALAMO_GPU
+    // if (warn_about_launch_region_temp_fix)
+    // {
+    //     Util::Warning(INFO,"This is a temporary fix and needs to be removed");
+    //     warn_about_launch_region_temp_fix = false;
+    // }
+    // amrex::Gpu::setLaunchRegion(false);
+    // #endif
 
     a_mf.FillBoundary();
 
 
-    #ifdef ALAMO_GPU
-    amrex::Gpu::setLaunchRegion(true);
-    #endif
+    // #ifdef ALAMO_GPU
+    // amrex::Gpu::setLaunchRegion(true);
+    // #endif
 
 }
 
