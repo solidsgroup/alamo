@@ -280,12 +280,12 @@ def test(testdir):
                     if not args.fft and not args.fft_only: continue
 
             # For now, run cuda tests if and only if --cuda is specified
-            # if args.cuda:
-            #     if 'cuda' not in config[desc]:
-            #         continue
-            # else:
-            #     if 'cuda' in config[desc]:
-            #         continue
+            if args.cuda:
+                if 'cuda' not in config[desc]:
+                    continue
+            else:
+                if 'cuda' in config[desc]:
+                    continue
 
             # Specify performance flag
             if args.perf:

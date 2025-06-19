@@ -271,6 +271,7 @@ if args.buildamrex and not args.amrex:
     
     args.amrex = f"ext/{args.amrexfork}/amrex/"+postfix_amrex
     f.write(f"AMREX = ext/{args.amrexfork}/amrex/" + postfix_amrex + "/\n")
+    f.write(f"AMREX_HOME = ext/{args.amrexfork}/amrex/\n")
     f.write(f"AMREX_TARGET = ext/{args.amrexfork}/amrex/" + postfix_amrex + "\n")
     f.write(f'AMREX_SRC := $(shell find ext/{args.amrexfork}/amrex/Src -name "*.H") $(shell find ext/{args.amrexfork}/amrex/Src -name "*.cpp")' + "\n")
     
