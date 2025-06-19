@@ -38,6 +38,7 @@ public:
         
         Set::Scalar mdot_out = (pressure * At) / sqrt(gamma * R * T0);
         
+        Util::Message(INFO,"c*", sqrt(gamma * R * T0));
         Util::Message(INFO,"mdot_out", mdot_out);
         
         // Compute dp/dt

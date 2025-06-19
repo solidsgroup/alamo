@@ -626,6 +626,8 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
             chamber.area += da;
+
+            chamber.mdot += mdot(i, j, k, 0) * dv;
         });
     }
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
