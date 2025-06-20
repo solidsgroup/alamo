@@ -1,10 +1,10 @@
-# Import VisIt functions
+# Import visit functions here
 from visit import *
 import os
 import sys
 import glob
 
-# Function to find all directories with "node" in their names
+# Find all files with the word node
 def find_node_directories(base_path):
     node_dirs = []
     for root, dirs, files in os.walk(base_path):
@@ -13,13 +13,13 @@ def find_node_directories(base_path):
                 node_dirs.append(os.path.join(root, dir_name))
     return node_dirs
 
-# Correct base directory
+# the base directory path
 base_dir = "/home/thoopul/alamo/tests/CrystalPlasticity"
 
-# Loop through each directory starting with "output"
-for output_folder in glob.glob(os.path.join(base_dir, "output_1")):
+# loop through the output directory that you need to use
+for output_folder in glob.glob(os.path.join(base_dir, "output_sr")):
     
-    # Find all directories containing "node" within the current output folder
+    # Find all directories containing "node" within the output directory
     node_directories = find_node_directories(output_folder)
 
     # Create a directory to save images in the current output folder
@@ -41,12 +41,12 @@ for output_folder in glob.glob(os.path.join(base_dir, "output_1")):
 
             # Add the desired plots
             AddPlot("Pseudocolor", "gamma1", 1, 1)
-            # --- set a fixed color-bar range ----------------------------
+           
             pc = PseudocolorAttributes()
             pc.minFlag = 1           # use a user-defined minimum
             pc.maxFlag = 1           # use a user-defined maximum
-            pc.min      = 0.00     # <-- set your desired lower bound here
-            pc.max      =  0.0008      # <-- set your desired upper bound here
+            pc.min      = 0.00     # <-- set your desired lower bound 
+            pc.max      =  0.011      # <-- set your desired upper 
             pc.scaling  = pc.Linear  # or pc.Log for logarithmic scaling
             SetPlotOptions(pc)       # apply the settings
 
@@ -57,7 +57,7 @@ for output_folder in glob.glob(os.path.join(base_dir, "output_1")):
             SaveWindowAtts = SaveWindowAttributes()
             SaveWindowAtts.outputToCurrentDirectory = 0
             SaveWindowAtts.outputDirectory = image_output_dir
-            SaveWindowAtts.fileName = os.path.basename(node_dir)  # Save with the directory name
+            SaveWindowAtts.fileName = os.path.basename(node_dir) 
             SaveWindowAtts.family = 0
             SaveWindowAtts.format = SaveWindowAtts.PNG
             SaveWindowAtts.width = 1024
@@ -82,7 +82,7 @@ for output_folder in glob.glob(os.path.join(base_dir, "output_1")):
 
             DeleteAllPlots()
 
-# Close the VisIt session
+# Close visit
 CloseComputeEngine()
 
 sys.exit("All images saved successfully.")
