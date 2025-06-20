@@ -2,7 +2,7 @@
 #thermo.dat issue fixed; (old flame) to see the variables in thermo.dat with just thermo on, need to comment out the lines 491-493 in flame where if(variable pressure)...; refinement issue fixed for just thermo on
 
 alamo.program = flame
-plot_file = output_1
+plot_file = output_12
 amr.plot_int = 10
 amr.max_level = 7
 amr.blocking_factor = 4
@@ -13,7 +13,7 @@ amr.refinement_criterion = 0.05 #0.1
 amr.refinement_criterion_temp = 10.0
 #amr.refinement_restriction = 0.3
 amr.phi_refinement_criterion = 0.6
-amr.n_cell = 8 8 8
+amr.n_cell = 4 4 4
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
 geometry.prob_lo = 0.0 0.0 0.0
@@ -21,7 +21,7 @@ geometry.prob_hi = 0.1 0.1 0.1
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 1.0e-4 #1.0e-4
+timestep = 1.0e-5 #1.0e-4
 stop_time = 5.0 #0.3
 
 # Phase field parameters
@@ -71,13 +71,13 @@ propellant.homogenize.k_htpb = 1.0e-8
 propellant.homogenize.cp_ap = 1858.095
 propellant.homogenize.cp_htpb = 1.0e-8
 propellant.homogenize.massfraction = 0.8
-propellant.homogenize.dispersion1 = 0.1
+propellant.homogenize.disminpersion1 = 0.1
 propellant.homogenize.dispersion2 = 1
 propellant.homogenize.dispersion3 = 1
 propellant.homogenize.mob_ap = 1
 
 thermal.on = 1
-thermal.Tref = 400
+thermal.Tref = 500
 thermal.temp.bc.type = constant
 thermal.temp.bc.constant.type.xlo = neumann
 thermal.temp.bc.constant.type.xhi = neumann
@@ -94,7 +94,7 @@ thermal.temp.bc.constant.val.zhi = 0.0
 
 # Temperature initial conditions
 temp.ic.type="constant"
-temp.ic.constant.value=400
+temp.ic.constant.value=500
 
 # Laser source term
 laser.ic.type = constant
@@ -106,7 +106,7 @@ propellant.homogenize.mlocal_ap = 1000.0
 chamber.pressure = 4.0 # [MPa]
 variable_pressure = 1
 chamber.ballistic.At = 0.1
-chamber.ballistic.T0 = 400
+chamber.ballistic.T0 = 500
 chamber.ballistic.R = 0.000287
 
 propellant.homogenize.mob_ap = 1
