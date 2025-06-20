@@ -188,7 +188,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>
         ("phi.ic",value.ic_phi,value.geom);
 
-    value.RegisterNodalFab(value.phi_mf, 1, 3, "phi", true);
+    value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
