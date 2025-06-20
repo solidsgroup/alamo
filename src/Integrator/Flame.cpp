@@ -376,7 +376,7 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
     if (variable_pressure)
     {
         Util::Message(INFO, "chamber.pressure = ", chamber.pressure);
-        chamber.pressure = chamber.model.Advance(timestep, chamber.mdot, chamber.pressure);
+        chamber.pressure = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
 
         Util::ParallelMessage(INFO, "chamber.pressure = ", chamber.pressure);
         

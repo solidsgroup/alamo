@@ -102,9 +102,9 @@ public:
     static void Parse(FullFeedback& value, IO::ParmParse& pp)
     {
         // AP/HTPB interface length
-        pp_query_default("phi.zeta", value.zeta, 1.0e-5); 
+        pp_query_default("phi.zeta", value.zeta, 1.0e-4); 
         // Reference interface length for heat integration
-        pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); 
+        pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-4); 
         
         // Surrogate heat flux model paramater - AP
         pp_query_required("a1", value.a1); 
