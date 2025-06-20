@@ -144,14 +144,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             
         value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
-        value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 3, "temps", false);
-        value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 3, "temps_old", false);
+        value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
 
-        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 3, "mdot", value.plot_field);
-        value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 3, "mob", value.plot_field);
-        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 3, "alpha", value.plot_field);
-        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 3, "heatflux", value.plot_field);
-        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 3, "laser", value.plot_field);
+        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.plot_field);
+        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
+        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
+        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -250,17 +248,14 @@ void Flame::Initialize(int lev)
             thermal.ic_temp->Initialize(lev,temp_mf);
             thermal.ic_temp->Initialize(lev,temp_old_mf);
             thermal.ic_temp->Initialize(lev,temps_mf);
-            thermal.ic_temp->Initialize(lev,temps_old_mf);
         }
         else
         {
             temp_mf[lev]->setVal(thermal.Tref);
             temp_old_mf[lev]->setVal(thermal.Tref);
             temps_mf[lev]->setVal(thermal.Tref);
-            temps_old_mf[lev]->setVal(thermal.Tref);
         }
         alpha_mf[lev]->setVal(0.0);
-        mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
         thermal.w1 = 0.2 * chamber.pressure + 0.9;
@@ -472,17 +467,18 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     if (thermal.on)
     {
         std::swap(temp_old_mf[lev], temp_mf[lev]);
-        std::swap(temps_old_mf[lev], temps_mf[lev]);
 
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
 
             Set::Patch<Set::Scalar>       tempnew = temp_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar>       tempsnew = temps_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> temp = temp_old_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha = alpha_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> temps = temps_old_mf.Patch(lev,mfi);
+
+            Set::Patch<Set::Scalar>       temps = temps_mf.Patch(lev,mfi);
+
+
             // Phase field
             Set::Patch<Set::Scalar>       etanew = (*eta_mf[lev]).array(mfi);
             Set::Patch<const Set::Scalar> eta = (*eta_old_mf[lev]).array(mfi);
@@ -504,9 +500,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
 
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
-                tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
-                tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
-
+                temps(i, j, k) = temps(i, j, k) + dt * Tsolid;
+                tempnew(i, j, k) = etanew(i, j, k) * temps(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
             });
         }
     }

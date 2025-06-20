@@ -60,11 +60,9 @@ private:
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;
-    Set::Field<Set::Scalar> temps_old_mf;
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
-    Set::Field<Set::Scalar> mob_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
