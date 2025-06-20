@@ -123,7 +123,6 @@ private:
         Set::Scalar pressure = NAN;
     } chamber;
 
-    BC::BC<Set::Scalar>* bc_psi = nullptr;
 
     // Propellant model
     Model::Propellant::Propellant<
