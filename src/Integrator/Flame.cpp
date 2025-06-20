@@ -211,9 +211,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // elastic model of HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
-        value.bc_psi = new BC::Nothing();
-        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", value.plot_psi);
-        value.psi_on = true;
+        // Use our current eta field as the psi field for the solver
+        value.psi_on = false;
+        value.solver.setPsi(value.eta_mf);
     }
 
     bool allow_unused;
@@ -239,7 +239,6 @@ void Flame::Initialize(int lev)
     //ic_phicell->Initialize(lev, phicell_mf);
 
     if (elastic.on) {
-        psi_mf[lev]->setVal(1.0);
         rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
     if (thermal.on) {
@@ -327,8 +326,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         }
         Util::RealFillBoundary(*model_mf[lev], geom[lev]);
 
-        psi_mf[lev]->setVal(1.0);
-        amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]->nGrow());
     }
 }
 
