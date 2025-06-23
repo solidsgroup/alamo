@@ -16,6 +16,6 @@ make
 ls ./bin/
 
 #
-# Run the unit test suite using the regression test script
+# Run the unit test suite in serial using the regression test script
 #
-scripts/runtests.py --dim=3 tests/Unit
+scripts/runtests.py --dim=3 --serial tests/Unit

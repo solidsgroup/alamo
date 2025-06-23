@@ -1,3 +1,8 @@
+//
+// Empty BC class, used when specifying boundaries that have no 
+// ghost cells/nodes but a BC object is still required.
+//
+
 #ifndef BC_NOTHING_H_
 #define BC_NOTHING_H_
 

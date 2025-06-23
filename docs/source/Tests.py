@@ -76,7 +76,7 @@ docfile.write(r"""
 
 docfile.write("\n\n")
 
-docfile.write(".. flat-table:: \n")
+docfile.write(".. list-table:: \n")
 docfile.write("    :widths: 3 15 10 10 10\n")
 docfile.write("    :header-rows: 1\n\n")
 docfile.write("    * - Status\n")
@@ -97,8 +97,10 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     testname = os.path.basename(testdirname)
 
     if not os.path.isfile(testdirname+"/input"):
-        #docfile.write("    * - :icon-red:`error`\n\n")
         docfile.write("    * - :fas:`circle-xmark;sd-text-danger fa-fw fa-lg`\n\n")
+        docfile.write("      - {}\n\n".format(testname))
+        docfile.write("      - {}\n\n".format(testname))
+        docfile.write("      - {}\n\n".format(testname))
         docfile.write("      - {}\n\n".format(testname))
         continue
 
@@ -121,15 +123,13 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     readmes = find_files_ignore_case(Path(testdirname), "README.rst")
 
     if len(config) <= 1:
-        #docfile.write("    * - :icon-gray:`warning`\n\n")
-        docfile.write("    * - :fas:`triangle-exclamation;sd-text-secondary fa-fw fa-lg`\n\n")
+        docfile.write("    * - :fas:`triangle-exclamation;sd-text-secondary fa-fw fa-lg`\n")
         if readmes:
             docfile.write("      - :ref:`{}`\n".format(testname))
         else: 
             docfile.write("      - {}\n\n".format(testname))
     else:
-        #docfile.write("    * - :icon-green:`check_circle`\n\n")
-        docfile.write("    * - :fas:`circle-check;sd-text-success fa-fw fa-lg`\n\n")
+        docfile.write("    * - :fas:`circle-check;sd-text-success fa-fw fa-lg`\n")
         docfile.write("      - :ref:`{}`\n".format(testname))
         docfile.write("      - {}\n".format(str(len(config)-1)))
     
@@ -141,18 +141,20 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                 if config[c]["dim"] == "3": has3D = True
         
         dimstr = ""
-        #if has2D: dimstr += ":icon:`2d` "
         if has2D: dimstr += ":fas:`maximize;fa-fw fa-lg sd-text-secondary` "
-        #if has3D: dimstr += ":icon:`3d_rotation` "
         if has3D: dimstr += ":fab:`unity;fa-fw fa-lg sd-text-secondary` "
         docfile.write("      - {}\n".format(dimstr))
         
         if os.path.isfile(testdirname+"/test"):
-            #docfile.write("      - :icon-green:`verified`\n")
             docfile.write("      - :fas:`medal;fa-fw fa-lg sd-text-secondary`\n")
+        else:
+            docfile.write("      - \n")
         docfile.write("\n")
 
     if len(config) <= 1 and len(readmes) == 0:
+        docfile.write("      - \n")
+        docfile.write("      - \n")
+        docfile.write("      - \n")
         continue
     with open("Tests/{}.rst".format(testname),"w") as testdocfile:
         toctreestr += "   Tests/{}\n".format(testname)

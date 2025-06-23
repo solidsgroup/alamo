@@ -5,23 +5,24 @@ AMREX_TARGET ?=
 CC ?= mpicxx -cxx=g++
 MPI_LIB ?= -lmpich
 
-RESET              = \033[0m
-B_ON               = \033[1m
-FG_RED             = \033[31m
-FG_DIM             = \033[2m
-FG_LIGHTRED        = \033[91m
-FG_LIGHTGRAY       = \033[37m
-FG_GRAY            = \033[90m
-FG_GREEN           = \033[32m
-FG_LIGHTGREEN      = \033[92m
-FG_YELLOW          = \033[33m
-FG_LIGHTYELLOW     = \033[93m
-FG_BLUE            = \033[34m
-FG_LIGHTBLUE       = \033[94m
-FG_CYAN            = \033[36m
-FG_MAGENTA         = \033[35m
+RESET           = $(shell tput sgr0)
+B_ON            = $(shell tput bold)
+FG_RED          = $(shell tput setaf 1)
+FG_DIM          = $(shell tput dim)
+FG_LIGHTRED     = $(shell tput bold; tput setaf 1)
+FG_LIGHTGRAY    = $(shell tput setaf 7)
+FG_GRAY         = $(shell tput setaf 8)
+FG_GREEN        = $(shell tput setaf 2)
+FG_LIGHTGREEN   = $(shell tput bold; tput setaf 2)
+FG_YELLOW       = $(shell tput setaf 3)
+FG_LIGHTYELLOW  = $(shell tput bold; tput setaf 3)
+FG_BLUE         = $(shell tput setaf 4)
+FG_LIGHTBLUE    = $(shell tput bold; tput setaf 4)
+FG_CYAN         = $(shell tput setaf 6)
+FG_MAGENTA      = $(shell tput setaf 5)
 
 
+QUIET ?= @
 
 
 METADATA_GITHASH  = $(shell git describe --always --dirty)
@@ -71,14 +72,8 @@ CTR_EXE = 0
 
 
 
-default: $(DEP) $(EXE) $(DEP_EXTRA)
+default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
-
-
-python: $(OBJ)
-	@printf "$(B_ON)$(FG_MAGENTA)PYTHON  $(RESET)    Compiling library\n" 
-	@$(CC) -x c++ -c py/alamo.cpy -fPIC -o py/alamo.cpy.o ${ALAMO_INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
-	@$(CC) -shared -Wl,-soname,alamo.so -o alamo.so py/alamo.cpy.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
 
 tidy:
 	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
@@ -109,7 +104,7 @@ realclean: clean
 
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
-	@$(CC) --version
+	$(CC) --version
 
 -include .make/Makefile.post.conf
 
@@ -121,7 +116,7 @@ bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	@printf '%9s' "($(CTR_EXE)/$(NUM_EXE)) " 
 	@printf "$(RESET)$@\n"
 	@mkdir -p bin/
-	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
+	$(QUIET)$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
 
 obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -129,7 +124,7 @@ obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET} 
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -137,7 +132,7 @@ obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cpp.o: 
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -145,7 +140,7 @@ obj/obj-$(POSTFIX)/%.cpp.o:
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
@@ -153,7 +148,7 @@ obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+	$(QUIET)$(CC) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS}-MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
@@ -161,15 +156,15 @@ obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
+	$(QUIET)$(CC) -Wno-unused-command-line-argument -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
-obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
+obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET} ${DEP_DIFF}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
 	@printf "$(B_ON)$(FG_LIGHTYELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} \n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	$(QUIET)$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 .PHONY: .FORCE
 
@@ -199,10 +194,10 @@ test: .FORCE
 	@make docs
 	@./scripts/runtests.py
 
-GCDA = $(shell find obj/ -name "*.gcda" )
-GCNO = $(shell find obj/ -name "*.gcno" )
+GCDA = $(shell mkdir -p obj && find obj/ -name "*.gcda")
+GCNO = $(shell mkdir -p obj && find obj/ -name "*.gcno")
 
-GCDA_DIRS  = $(shell find obj/ -maxdepth 1 -name "*coverage*" )
+GCDA_DIRS  = $(shell mkdir -p obj && find obj/ -maxdepth 1 -name "*coverage*" )
 GCDA_DIMS  = $(subst obj-,,$(subst -coverage-g++,,$(notdir $(GCDA_DIRS))))
 GCDA_INFOS = $(subst obj-,cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))
 GCDA_LCOVS = $(subst obj-,--add-tracefile cov/coverage_,$(subst -coverage-g++,.info,$(notdir $(GCDA_DIRS))))

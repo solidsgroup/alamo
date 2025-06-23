@@ -102,6 +102,7 @@
 #define pp_query_file(...) pp.query_file(__VA_ARGS__,INFO)
 #define pp_queryarr(...) pp.queryarr(__VA_ARGS__,INFO)
 #define pp_queryarr_required(...) pp.queryarr_required(__VA_ARGS__,INFO)
+#define pp_queryarr_default(...) pp.queryarr_default(__VA_ARGS__,INFO)
 #define pp_query(...) pp.query(__VA_ARGS__)
 #define pp_queryclass(...) pp.queryclass(__VA_ARGS__,INFO)
 #define pp_forbid(...) pp.forbid(__VA_ARGS__,INFO)
@@ -135,6 +136,24 @@ public:
     {
         (void)amrex::ParmParse::contains(name.c_str());
     }
+    
+    void pushPrefix(const std::string prefix)
+    {
+        if (m_prefix.length())
+            m_prefix = m_prefix + "." + prefix;
+        else
+            m_prefix = prefix;
+    }
+
+    void popPrefix()
+    {
+        size_t pos = m_prefix.rfind('.');
+        if (pos == std::string::npos)
+            m_prefix = "";
+        else
+            m_prefix = m_prefix.substr(0, pos);
+    }
+
 
     void forbid(std::string name, std::string explanation,
                 std::string file = "", std::string func = "", int line = -1)
@@ -387,8 +406,8 @@ public:
         return 0;
     }
     template<typename T>
-    int queryarr_required(   std::string name, std::vector<T> & value,
-                    std::string file, std::string func, int line)
+    int queryarr_required(  std::string name, std::vector<T> & value,
+                            std::string file, std::string func, int line)
     {
         if (!contains(name.c_str()))
         {
@@ -396,6 +415,154 @@ public:
         }        
         return queryarr(name,value,file,func,line);
     }
+
+
+    int queryarr_default(   std::string name, std::vector<std::string> & value, std::string defaultvalue,
+                            std::string = "", std::string = "", int = -1)
+    {
+        if (!contains(name.c_str()))
+        {
+            add(name.c_str(),defaultvalue);
+        }
+        return queryarr(name.c_str(),value);
+    }
+
+    
+
+    template <typename T>
+    int
+    queryclass_enumerate(std::string a_name, std::vector<T> &value, int number = 1,
+                            std::string file = "", std::string func = "", int line = __LINE__)
+    {
+        value.clear();
+
+        //
+        // If only one is present with no subscript, then read
+        // it only and return.
+        //
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            for (int n = 0; n < number; n++)
+            {
+                T tmp;
+                this->queryclass<T>(name, tmp, file, func, line);
+                value.push_back(tmp);
+            }
+            return 0;
+        }
+
+        //
+        // Some logic to determine whether we are starting with zero
+        // (model0, model1, model2, ...)
+        // or one
+        // (model1, model2, model3, ...)
+        // since both are supported
+        //
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+        }
+
+        //
+        // Iterate over items called (model0), model1, model2, etc
+        // until no more are found then exit. 
+        //
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            if (this->contains(name.c_str()))
+            {
+                T tmp;
+                this->queryclass<T>(name, tmp, file, func, line);
+                value.push_back(tmp);
+            }
+            name = a_name + std::to_string(cntr+1);
+        }
+
+        return 0;
+    }
+
+
+    template <typename T>
+    int
+    query_enumerate(std::string a_name, std::vector<T> &value, int number = 1,
+                    std::string file = "", std::string func = "", int line = __LINE__)
+    {
+        value.clear();
+
+        //
+        // If only one is present with no subscript, then read
+        // it only and return.
+        //
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            for (int n = 0; n < number; n++)
+            {
+                T tmp;
+                this->query_required(name, tmp, file, func, line);
+                value.push_back(tmp);
+            }
+            return 0;
+        }
+
+        //
+        // Some logic to determine whether we are starting with zero
+        // (model0, model1, model2, ...)
+        // or one
+        // (model1, model2, model3, ...)
+        // since both are supported
+        //
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+        }
+
+        //
+        // Iterate over items called (model0), model1, model2, etc
+        // until no more are found then exit. 
+        //
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            if (this->contains(name.c_str()))
+            {
+                T tmp;
+                this->query_required(name, tmp, file, func, line);
+                value.push_back(tmp);
+            }
+            name = a_name + std::to_string(cntr+1);
+        }
+
+        return 0;
+    }
+
+
 
     int AnyUnusedInputs()
     {
@@ -503,6 +670,7 @@ public:
         }
         m_prefix = old_prefix;
     }
+
     template<class T>
     void queryclass(T * value,
                     std::string file = "", std::string func = "", int line = __LINE__)
@@ -528,28 +696,38 @@ public:
         {
             Util::ParmParseException(INFO,file,func,line,getPrefix());
         }
-    }    
+    }
 
     //
     // Variadic template parsing operator to assign a pointer to
     // one of a set of possible class objects, then call that method's
     // Parse function.
     //
-    // This requires that a "type" be specified and will error if not.
+    // If there is more than one instantiating class, then type must be set.
+    // Otherwise, no type is necessary.
     //
     template<typename... IC, typename... Args, typename PTRTYPE>
     void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
     {
-        std::string type = "";
-
-        this->query_required(name + ".type", type);
-        
-        bool matched = ((type == IC::name 
-                        ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
-                        true
-                        : false) || ...);
-        if (!matched)
-            Util::Exception(INFO,type," not a valid type for ",name);
+        // if there is only one IC arg provided, we don't need to check the type - assume that
+        // it is the default.
+        if constexpr (sizeof...(IC) == 0)
+        {
+            using first_IC = std::tuple_element_t<0, std::tuple<IC...>>;
+            ic_eta = new first_IC(std::forward<Args>(args)..., (*this), name + "." + std::string(first_IC::name));
+        }
+        // otherwise, check the type.
+        else
+        {
+            std::string type = "";
+            this->query_required(name + ".type", type);
+            bool matched = ((   type == IC::name 
+                                ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                                true
+                                : false) || ...);
+            if (!matched)
+                Util::Exception(INFO, type, " not a valid type for ", name);
+        }
     }
 
     //
@@ -576,6 +754,202 @@ public:
         if (!matched)
             Util::Exception(INFO,type," not a valid type for ",name);
     }
+
+
+    //
+    //
+    template<typename... IC, typename... Args, typename PTRTYPE>
+    void select_enumerate (std::string a_name, std::vector<PTRTYPE*> & value, Args&&... args)
+    {
+
+        value.clear();
+
+        //
+        // If only one is present with no subscript, then read
+        // it only and return.
+        //
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            PTRTYPE *tmp;
+            this->select<IC...>(a_name, tmp, args...);
+            value.push_back(tmp);
+            return;
+        }
+
+        //
+        // Some logic to determine whether we are starting with zero
+        // (model0, model1, model2, ...)
+        // or one
+        // (model1, model2, model3, ...)
+        // since both are supported
+        //
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+        }
+
+        //
+        // Iterate over items called (model0), model1, model2, etc
+        // until no more are found then exit. 
+        //
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            if (this->contains(name.c_str()))
+            {
+                PTRTYPE *tmp;
+                this->select<IC...>(name, tmp, args...);
+                value.push_back(tmp);
+            }
+            name = a_name + std::to_string(cntr+1);
+        }
+    }
+
+
+
+    //
+    // Similar to select but specialized for main functions
+    //
+    template<typename... INTEGRATOR, typename... Args, typename PTRTYPE>
+    void select_main (PTRTYPE *& ic_eta, Args&&... args)
+    {
+        std::string type = "";
+
+        this->query_required("alamo.program", type);
+        
+        bool matched = ((type == INTEGRATOR::name 
+                        ? (ic_eta = new INTEGRATOR(std::forward<Args>(args)..., (*this))),
+                        true
+                        : false) || ...);
+        if (!matched)
+            Util::Exception(INFO,type," not a valid type for ",type);
+    }
+
+    //
+    // Similar to select_main but works for one function only
+    // and doesn't require a type specifier.
+    //
+
+    // with variadic arguments
+    template<typename INTEGRATOR, typename Args, typename PTRTYPE>
+    void select_only (PTRTYPE *& ic_eta, Args&& args)
+    {
+        ic_eta = new INTEGRATOR(std::forward<Args>(args), (*this));
+    }
+    // without variadic arguments
+    template<typename INTEGRATOR, typename PTRTYPE>
+    void select_only (PTRTYPE *& ic_eta)
+    {
+        ic_eta = new INTEGRATOR((*this));
+    }
+
+    
+    //
+    // functionally simlar to other kinds of select, execpt works on
+    // template-based static dispatch.
+    //
+
+    template <typename... OBJ, typename CLASS>
+    void select(std::string name, CLASS& value)
+    {
+        pushPrefix(name);
+        static_polymorphism_parser<CLASS, 0, OBJ...>(value);
+        popPrefix();
+    }
+
+private:
+    //
+    // This function is a virtual "swtich / case" block for static
+    // dispatch. It works on a faux-virtual class "CLASS" that must 
+    // contain a tuple of "obj" with each "obj" being a derived type.
+    // Recursion is used to unroll the list, identify the correct class
+    // based on "name/type", set the "selected" index, then call the
+    // appropriate class' Parse function.
+    // 
+    // This is only for use by the "select" functions.
+    // 
+    template <typename CLASS, int N, typename... OBJ>
+    void static_polymorphism_parser(CLASS& value)
+    {
+        if constexpr (N == 0)
+        {
+            std::string type;
+            query_default("type",type,value.names[0]);
+
+            for (unsigned int i = 0; i < sizeof...(OBJ); i++)
+                if (type == value.names[i])
+                    value.selected = i;
+
+            if (value.selected < 0)
+                Util::Exception(INFO,
+                                "Error reading " + getPrefix() + 
+                                ", invalid type " + type);
+
+            
+            pushPrefix(type);
+        }
+
+        if constexpr (N < sizeof...(OBJ))
+        {
+            if (value.selected == N)
+            {
+                std::get<N>(value.obj).Parse(std::get<N>(value.obj), *this);
+                popPrefix();
+                return;
+            }
+            else 
+                return static_polymorphism_parser<CLASS, N+1, OBJ...>(value);
+        }
+        else Util::Abort(INFO);
+    }
+
+public:
+
+    template <int N>
+    void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
+    {
+        int cnt = 0;
+        std::vector<std::string> read;
+        for (unsigned int n = 0; n < names.size(); n++)
+        {
+            if (amrex::ParmParse::contains(names[n].c_str()))
+            {
+                read.push_back(names[n]);
+                cnt++;
+            }
+        }
+        Util::AssertException(  INFO, TEST(cnt == N), "incorrect number of values specified: only ", N,
+                                " values are allowed, but received ",Util::String::Join(read));
+
+
+        cnt = 0;
+        for (unsigned int n = 0; n < names.size(); n++)
+        {
+            if (amrex::ParmParse::contains(names[n].c_str()))
+            {
+                values[cnt].first = names[n];
+                query_required(names[n],values[cnt].second);
+                cnt++;
+            }
+        }
+    }
+
+
+
+
 };
 }
 #endif

@@ -260,7 +260,7 @@ public:
     int NComp() const
     {Util::Abort(INFO,"This should never be called");return -1;}
 
-    amrex::Array4<Set::Scalar> Patch (int lev, amrex::MFIter &mfi) const &
+    amrex::Array4<Set::Scalar> Patch (const int lev, const amrex::MFIter &mfi) const &
     {
         if (this->size()) return (*(*this)[lev]).array(mfi);
         else return empty;

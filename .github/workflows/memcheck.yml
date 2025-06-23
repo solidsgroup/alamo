@@ -15,9 +15,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: installing preliminaries
-      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh 
+    - name: installing mpich (needed for asan)
+      run: sudo apt install -y libmpich-dev libmpich12 mpich
+    - name: switch mpi compiler to mpich
+      run: sudo update-alternatives --set mpi /usr/bin/mpicc.mpich
+    - name: switch mpirun to mpich
+      run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d)
-      continue-on-error: true
       run: ./configure --dim=2 --debug --memcheck --memcheck-tool=asan 
     - name: make (2d)
       run: make
