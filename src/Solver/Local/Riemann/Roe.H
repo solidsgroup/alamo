@@ -91,6 +91,8 @@ public:
         Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
         Set::Scalar a_RL_sq = std::max(0.0,(gamma - 1.0) * (h_RL - 0.5 * u_RL * u_RL));
 
+
+#ifdef AMREX_DEBUG
         if (verbose && ((a_RL_sq<0) || (a_RL_sq!=a_RL_sq)))
         {   
             Util::Message(INFO, "sound speed ", a_RL_sq);
@@ -112,6 +114,7 @@ public:
         }
         Util::AssertException(INFO,TEST(a_RL_sq==a_RL_sq)," a_RL_sq is nan/inf; (a_RL_sq=", a_RL_sq,")");
         Util::AssertException(INFO,TEST(a_RL_sq>=0),      " a_RL_sq is negative; (a_RL_sq=(",a_RL_sq,")");
+#endif
 
         Set::Scalar a_RL = std::sqrt(a_RL_sq) + small;
 
