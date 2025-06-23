@@ -188,13 +188,13 @@ protected:
 
 
     /// Add a new cell-based scalar field.
-    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,bool evolving = true,std::vector<std::string> suffix = {});
     /// Add a new cell-based scalar field (with additional arguments).
-    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout,bool evolving=true, std::vector<std::string> suffix = {});
     /// Add a new node-based scalar field
-    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout,bool evolving=true,std::vector<std::string> suffix = {});
     /// Add a new node-based scalar field (wtih additional arguments)
-    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,std::vector<std::string> suffix = {});
+    void RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,bool evolving=true, std::vector<std::string> suffix = {});
     template<class T>
     /// Add a templated nodal field
     void RegisterGeneralFab(Set::Field<T>& new_fab, int ncomp, int nghost, bool evolving = true);
@@ -401,6 +401,7 @@ protected:
         std::vector<std::vector<std::string>> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
         std::vector<bool> writeout_array;
+        std::vector<bool> evolving_array;
         bool any = true;
         bool all = false;
     } node;
@@ -413,6 +414,7 @@ protected:
         std::vector<std::vector<std::string>> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
         std::vector<bool> writeout_array;
+        std::vector<bool> evolving_array;
         bool any = true;
         bool all = false;
     } cell;
@@ -463,7 +465,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>
     int nghost,
     std::string name,
     bool writeout,
-    bool /*evolving*/,
+    bool evolving,
     std::vector<std::string> suffix)
 {
     int nlevs_max = maxLevel() + 1;
@@ -475,6 +477,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>
     cell.nghost_array.push_back(nghost);
     //cell.name_array.push_back(name);
     cell.writeout_array.push_back(writeout);
+    cell.evolving_array.push_back(evolving);
     cell.number_of_fabs++;
 
     Util::Assert(INFO,TEST((int)suffix.size() == 0 || (int)suffix.size() == ncomp));
@@ -502,7 +505,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
     int nghost,
     std::string name,
     bool writeout,
-    bool /*evolving*/,
+    bool evolving,
     std::vector<std::string> suffix)
 {
     BL_PROFILE("Integrator::RegisterNodalFab");
@@ -513,7 +516,7 @@ void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>
     node.physbc_array.push_back(&bcnothing);
     node.ncomp_array.push_back(ncomp);
     node.nghost_array.push_back(nghost);
-    //node.name_array.push_back(name);
+    node.evolving_array.push_back(evolving);
     node.writeout_array.push_back(writeout);
     node.number_of_fabs++;
 

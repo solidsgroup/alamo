@@ -77,34 +77,34 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = 2;
+        int nghost = 1;
 
-        value.RegisterNewFab(value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true );
-        value.RegisterNewFab(value.eta_old_mf, value.eta_bc, 1, nghost, "eta_old", true);
-        value.RegisterNewFab(value.etadot_mf,  value.eta_bc, 1, nghost, "etadot",  true );
+        value.RegisterNewFab(value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true, true);
+        value.RegisterNewFab(value.eta_old_mf, value.eta_bc, 1, nghost, "eta_old", true, true);
+        value.RegisterNewFab(value.etadot_mf,  value.eta_bc, 1, nghost, "etadot",  true, false);
 
-        value.RegisterNewFab(value.density_mf,     value.density_bc, 1, nghost, "density",     true );
-        value.RegisterNewFab(value.density_old_mf, value.density_bc, 1, nghost, "density_old", false);
+        value.RegisterNewFab(value.density_mf,     value.density_bc, 1, nghost, "density",     true , true);
+        value.RegisterNewFab(value.density_old_mf, value.density_bc, 1, nghost, "density_old", false, true);
 
-        value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true );
-        value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false);
+        value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true ,true);
+        value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false, true);
 
-        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true , {"x","y"});
-        value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false);
+        value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true ,true, {"x","y"});
+        value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false, true);
  
-        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, {"x","y"});
-        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true);
+        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
+        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
+        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
 
-        value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, 1, 0, "m0",  true);
-        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, {"x","y"});
-        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, {"x","y"});
+        value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, 1, 0, "m0",  true, false);
+        value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
+        value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, false, {"x","y"});
 
-        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true, {"x","y"});
-        value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true);
-        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true);
+        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
+        value.RegisterNewFab(value.solid.density_mf,  &value.neumann_bc_1,  1, nghost, "solid.density", true, false);
+        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
-        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true);
+        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true, false);
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
