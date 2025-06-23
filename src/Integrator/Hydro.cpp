@@ -1,5 +1,6 @@
 
 #include "Hydro.H"
+#include "AMReX_FabArrayBase.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
@@ -10,6 +11,10 @@
 #include "IC/BMP.H"
 #include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
+#include "Solver/Local/Riemann/HLLE.H"
+#include "AMReX_TimeIntegrator.H"
+#include <typeinfo>
+
 
 #if AMREX_SPACEDIM == 2
 
@@ -152,7 +157,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select_default<Solver::Local::Riemann::Roe>("solver",value.roesolver);
+    pp.select_default<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
 }
 
 
@@ -431,12 +436,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             try
             {
                 //lo interface fluxes
-                flux_xlo = roesolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_ylo = roesolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
 
                 //hi interface fluxes
-                flux_xhi = roesolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_yhi = roesolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
             }
             catch(...)
             {
