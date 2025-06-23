@@ -14,7 +14,7 @@
  
 
 System Install Scripts
-======================
+----------------------
 
 .. dropdown:: Table of contents
 
@@ -25,5 +25,4 @@ System Install Scripts
         Install/Ubuntu
         Install/MacOS
         Install/Windows
-        Install/HPC
            
