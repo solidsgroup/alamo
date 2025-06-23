@@ -55,18 +55,14 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
-protected:
-    // eta_mf and eta_old_mf are protected so SFI.H can access them
-    Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
 private:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;
-    Set::Field<Set::Scalar> temps_old_mf;
 
-    Set::Field<Set::Scalar> mob_mf;
+    Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
@@ -127,7 +123,6 @@ private:
         Set::Scalar pressure = NAN;
     } chamber;
 
-    BC::BC<Set::Scalar>* bc_psi = nullptr;
 
     // Propellant model
     Model::Propellant::Propellant<
