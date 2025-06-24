@@ -2,7 +2,7 @@
 #thermo.dat issue fixed; (old flame) to see the variables in thermo.dat with just thermo on, need to comment out the lines 491-493 in flame where if(variable pressure)...; refinement issue fixed for just thermo on
 
 alamo.program = flame
-plot_file = output_12
+plot_file = output
 amr.plot_int = 10
 amr.max_level = 7
 amr.blocking_factor = 4
