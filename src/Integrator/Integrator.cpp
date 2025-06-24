@@ -324,28 +324,28 @@ Integrator::ClearLevel(int lev)
 
 
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true, suffix);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, evolving, suffix);
 }
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true, suffix);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, evolving, suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true,suffix);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, evolving,suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true,suffix);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, evolving,suffix);
 }
 
 
@@ -1171,9 +1171,9 @@ Integrator::TimeStep(int lev, amrex::Real time, int /*iteration*/)
     }
 
     for (int n = 0; n < cell.number_of_fabs; n++)
-        FillPatch(lev, time, *cell.fab_array[n], *(*cell.fab_array[n])[lev], *cell.physbc_array[n], 0);
+        if (cell.evolving_array[n]) FillPatch(lev, time, *cell.fab_array[n], *(*cell.fab_array[n])[lev], *cell.physbc_array[n], 0);
     for (int n = 0; n < node.number_of_fabs; n++)
-        FillPatch(lev, time, *node.fab_array[n], *(*node.fab_array[n])[lev], *node.physbc_array[n], 0);
+        if (node.evolving_array[n]) FillPatch(lev, time, *node.fab_array[n], *(*node.fab_array[n])[lev], *node.physbc_array[n], 0);
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
         if (m_basefields_cell[n]->evolving) m_basefields_cell[n]->FillPatch(lev, time);
     for (unsigned int n = 0; n < m_basefields.size(); n++)
