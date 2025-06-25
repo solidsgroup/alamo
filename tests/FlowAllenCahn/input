@@ -7,7 +7,7 @@
 #@ args = amr.blocking_factor = 4
 
 
-
+hydro.allow_unused=true
 
 alamo.program = allencahn
 plot_file = ./output.allencahn
