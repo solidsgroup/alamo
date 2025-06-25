@@ -10,6 +10,11 @@
 #@ args = scheme=rk4
 #@ args = timestep=1.0e-3
 #@
+#@ [2d-serial-ssprk3]
+#@ exe=hydro
+#@ dim=2
+#@ args = scheme=ssprk3
+#@ args = timestep=1.0e-3
 
 
 ### OUTPUT ###

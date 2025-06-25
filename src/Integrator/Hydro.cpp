@@ -567,6 +567,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
+        const Set::Scalar* DX = geom[lev].CellSize();
         
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
@@ -576,6 +577,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+
+        Set::Patch<Set::Scalar> omega         = vorticity_mf.Patch(lev,mfi);
+        
+        Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Source = Source_mf.Patch(lev,mfi);
+
+        Set::Scalar *dt_max_handle = &dt_max;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -587,13 +595,24 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
             }
 
+            Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
+            omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
+
+            if (dynamictimestep.on)
+            {
+                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta(i,j,k) + small));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta(i,j,k) + small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+            }
         });
     }
 
 
     if (dynamictimestep.on)
+    {
         this->DynamicTimestep_SyncTimeStep(lev,dt_max);
-
+    }
 
 }//end Advance
 
