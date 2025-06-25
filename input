@@ -1,4 +1,5 @@
-#input file with higher dimension; finally the mdot_out is updating now with pressure :) but still need to tweak some parameters; mdot in flame isnt working correctly giving fluctuations still.
+#working input file with chamber model/variable pressure
+#input file with higher dimension;finally the mdot_out is updating now with pressure :)
 #thermo.dat issue fixed; (old flame) to see the variables in thermo.dat with just thermo on, need to comment out the lines 491-493 in flame where if(variable pressure)...; refinement issue fixed for just thermo on
 
 alamo.program = flame
@@ -25,7 +26,7 @@ timestep = 1.0e-5 #1.0e-4
 stop_time = 5.0 #0.3
 
 # Phase field parameters
-pf.eps = 0.0008 #0.00008
+pf.eps = 0.00008 #0.00008
 pf.lambda = 0.001
 pf.eta.ic.type = bmp
 pf.eta.ic.bmp.filename = simple_circle.bmp
@@ -60,7 +61,7 @@ pf.eta.bc.constant.val.yhi = 1.0
 #propellant.constant.L = 0
 
 propellant.type = homogenize
-propellant.homogenize.m_ap = 145000.0
+propellant.homogenize.m_ap = 1450000.0 #145000.0
 propellant.homogenize.m_htpb = 0.0
 propellant.homogenize.E_ap = 9500.0
 propellant.homogenize.E_htpb = 0.0
