@@ -32,6 +32,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // momentum-based refinement
         // pp.query_default("m_refinement_criterion",     value.m_refinement_criterion    , 0.01);
 
+        std::string scheme_str;
+        // time integration scheme to use
+        pp.query_validate("scheme",scheme_str, {"forwardeuler","rk4"});
+        if (scheme_str == "forwardeuler") value.scheme = IntegrationScheme::ForwardEuler;
+        else if (scheme_str == "rk4") value.scheme = IntegrationScheme::RK4;
+
+
         // eta-based refinement
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
         // vorticity-based refinement
@@ -153,6 +160,19 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     // Riemann solver
     pp.select_default<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
+
+
+
+    bool allow_unused;
+    // Set this to true to allow unused inputs without error.
+    // (Not recommended.)
+    pp.query_default("allow_unused",allow_unused,false);
+    if (!allow_unused && pp.AnyUnusedInputs(false, false))
+    {
+        Util::Warning(INFO,"The following inputs were specified but not used:");
+        pp.AllUnusedInputs();
+        Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
+    }
 }
 
 
@@ -281,56 +301,175 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         });
     }
 
-    RHS(lev, time, dt,
-        *density_mf[lev],     *momentum_mf[lev],     *energy_mf[lev],
-        *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
 
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    if (scheme == IntegrationScheme::ForwardEuler) // forward euler
     {
-        const amrex::Box& bx = mfi.validbox();
+
+        RHS(lev, time, 
+            *density_mf[lev],     *momentum_mf[lev],     *energy_mf[lev],
+            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
+
+        for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
         
-        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> rho_rhs = density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E_rhs   = energy_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> M_rhs   = momentum_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rho_rhs = density_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> E_rhs   = energy_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> M_rhs   = momentum_mf.Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> rho_old = density_old_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E_old   = energy_old_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> M_old   = momentum_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rho_old = density_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> E_old   = energy_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> M_old   = momentum_old_mf.Patch(lev,mfi);
 
-        Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
         
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
-            rho_new(i, j, k) = rho_old(i, j, k) + dt * rho_rhs(i,j,k);
-            M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
-            M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
-            E_new(i,j,k)     = E_old(i,j,k)     + dt * E_rhs(i,j,k);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {   
+                rho_new(i, j, k) = rho_old(i, j, k) + dt * rho_rhs(i,j,k);
+                M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
+                M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
+                E_new(i,j,k)     = E_old(i,j,k)     + dt * E_rhs(i,j,k);
 
-            if (eta(i,j,k) < cutoff)
-            {
-                rho_new(i,j,k,0) = rho_solid(i,j,k,0);
-                M_new(i,j,k,0)   = M_solid(i,j,k,0);
-                M_new(i,j,k,1)   = M_solid(i,j,k,1);
-                E_new(i,j,k,0)   = E_solid(i,j,k,0);
-            }
+                if (eta(i,j,k) < cutoff)
+                {
+                    rho_new(i,j,k,0) = rho_solid(i,j,k,0);
+                    M_new(i,j,k,0)   = M_solid(i,j,k,0);
+                    M_new(i,j,k,1)   = M_solid(i,j,k,1);
+                    E_new(i,j,k,0)   = E_solid(i,j,k,0);
+                }
 
-        });
+            });
+        }
+        if (dynamictimestep.on)
+            this->DynamicTimestep_SyncTimeStep(lev,dt_max);
     }
-    if (dynamictimestep.on)
-        this->DynamicTimestep_SyncTimeStep(lev,dt_max);
+    else if (scheme == IntegrationScheme::RK4)
+    {
+        
+        const amrex::BoxArray &ba = density_mf[lev]->boxArray();
+        const amrex::DistributionMapping &dm = density_mf[lev]->DistributionMap();
+        const int ng = density_mf[lev]->nGrow();
 
+        Util::Message(INFO, "lev=", lev);
+        // handles to old solution
+        const amrex::MultiFab &density_old = *density_old_mf[lev];
+        const amrex::MultiFab &momentum_old = *momentum_old_mf[lev];
+        const amrex::MultiFab &energy_old = *energy_old_mf[lev];
+
+        // runge kutta stages
+        amrex::MultiFab density_k1(ba,dm,1,0), momentum_k1(ba,dm,2,0), energy_k1(ba,dm,1,0);
+        amrex::MultiFab density_k2(ba,dm,1,0), momentum_k2(ba,dm,2,0), energy_k2(ba,dm,1,0);
+        amrex::MultiFab density_k3(ba,dm,1,0), momentum_k3(ba,dm,2,0), energy_k3(ba,dm,1,0);
+        amrex::MultiFab density_k4(ba,dm,1,0), momentum_k4(ba,dm,2,0), energy_k4(ba,dm,1,0);
+        
+        // temporary storage
+        amrex::MultiFab density_st(ba,dm,1,ng), momentum_st(ba,dm,2,ng), energy_st(ba,dm,1,ng);
+            
+        // handles to new solution
+        amrex::MultiFab &density_new = *density_mf[lev];
+        amrex::MultiFab &momentum_new = *momentum_mf[lev];
+        amrex::MultiFab &energy_new = *energy_mf[lev];
+
+
+        Util::Message(INFO, "lev=", lev);
+        //
+        // K1
+        // 
+
+        RHS(lev,time,
+            density_k1,momentum_k1,energy_k1,
+            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
+
+        Util::Message(INFO, "lev=", lev);
+        //
+        // K2
+        //
+
+        // [state] = [old] + (dt/2)[k1]
+        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt/2.0, density_k1,  0, 0, 1, 0);
+        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k1, 0, 0, 2, 0);
+        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k1,   0, 0, 1, 0);
+
+        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary();
+        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary();
+        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary();
+        
+
+        RHS(lev,time,
+            density_k2, momentum_k2, energy_k2,
+            density_st, momentum_st, energy_st);
+
+        Util::Message(INFO, "lev=", lev);
+        //
+        // K3
+        //
+
+        // [state] = [old] + (dt/2)[k2]
+        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt/2.0, density_k2,  0, 0, 1, 0);
+        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k2, 0, 0, 2, 0);
+        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k2,   0, 0, 1, 0);
+
+        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary();
+        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary();
+        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary();
+
+        RHS(lev,time,
+            density_k3, momentum_k3, energy_k3,
+            density_st, momentum_st, energy_st);
+        
+        Util::Message(INFO, "lev=", lev);
+        //
+        // K4
+        //
+        
+        // [state] = [old] + (dt/2)[k2]
+        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt, density_k3,  0, 0, 1, 0);
+        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt, momentum_k3, 0, 0, 2, 0);
+        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt, energy_k3,   0, 0, 1, 0);
+
+        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary();
+        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary();
+        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary();
+
+
+        RHS(lev,time,
+            density_k4, momentum_k4, energy_k4,
+            density_st, momentum_st, energy_st);
+
+        
+        // [new] = [old] + (dt/6)k1
+        amrex::MultiFab::LinComb(density_new,  1.0, density_old,  0, (dt/6.0), density_k1,  0, 0, 1, 0);
+        amrex::MultiFab::LinComb(momentum_new, 1.0, momentum_old, 0, (dt/6.0), momentum_k1, 0, 0, 2, 0);
+        amrex::MultiFab::LinComb(energy_new,   1.0, energy_old,   0, (dt/6.0), energy_k1,   0, 0, 1, 0);
+
+        // [new] += (2 dt/6)k2
+        amrex::MultiFab::Saxpy(density_new,  (dt/3.0), density_k2,  0, 0, 1, 0);
+        amrex::MultiFab::Saxpy(momentum_new, (dt/3.0), momentum_k2, 0, 0, 2, 0);
+        amrex::MultiFab::Saxpy(energy_new,   (dt/3.0), energy_k2,   0, 0, 1, 0);
+
+        // [new] += (2 dt/6)k3
+        amrex::MultiFab::Saxpy(density_new,  (dt/3.0), density_k3,  0, 0, 1, 0);
+        amrex::MultiFab::Saxpy(momentum_new, (dt/3.0), momentum_k3, 0, 0, 2, 0);
+        amrex::MultiFab::Saxpy(energy_new,   (dt/3.0), energy_k3,   0, 0, 1, 0);
+                                 
+        // [new] += (dt/6)k4
+        amrex::MultiFab::Saxpy(density_new,  (dt/6.0), density_k4,  0, 0, 1, 0);
+        amrex::MultiFab::Saxpy(momentum_new, (dt/6.0), momentum_k4, 0, 0, 2, 0);
+        amrex::MultiFab::Saxpy(energy_new,   (dt/6.0), energy_k4,   0, 0, 1, 0);
+
+    }
 }//end Advance
 
 
-void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
+void Hydro::RHS(int lev, Set::Scalar /*time*/, 
          amrex::MultiFab &rho_rhs_mf, 
          amrex::MultiFab &M_rhs_mf, 
          amrex::MultiFab &E_rhs_mf,
@@ -529,6 +668,8 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta(i,j,k) + small)
                 // ) * dt;
                 ;
+
+
                 
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
@@ -574,6 +715,38 @@ void Hydro::RHS(int lev, Set::Scalar time, Set::Scalar dt,
                 // ) * dt;
                 ;
             
+
+            if ((rho_rhs(i,j,k) != rho_rhs(i,j,k)) ||
+                (M_rhs(i,j,k,0) != M_rhs(i,j,k,0)) ||
+                (M_rhs(i,j,k,1) != M_rhs(i,j,k,1)) ||
+                (E_rhs(i,j,k) != E_rhs(i,j,k)))
+            {
+                Util::ParallelMessage(INFO,"lev=",lev);
+                Util::ParallelMessage(INFO,"i=",i,"j=",j);
+                Util::ParallelMessage(INFO,"drhof_dt",drhof_dt); // dies
+                Util::ParallelMessage(INFO,"flux_xlo.mass",flux_xlo.mass);
+                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
+                Util::ParallelMessage(INFO,"flux_ylo.mass",flux_ylo.mass);
+                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_yhi.mass);
+                Util::ParallelMessage(INFO,"eta",eta(i,j,k));
+                Util::ParallelMessage(INFO,"Source",Source(i,j,k,0));
+                Util::ParallelMessage(INFO,"state_x",state_x); // <<<<
+                Util::ParallelMessage(INFO,"state_y",state_y);
+                Util::ParallelMessage(INFO,"state_x_solid",state_x_solid); // <<<<
+                Util::ParallelMessage(INFO,"state_y_solid",state_y_solid);
+                Util::ParallelMessage(INFO,"state_xhi",state_xhi); // <<<<
+                Util::ParallelMessage(INFO,"state_yhi",state_yhi);
+                Util::ParallelMessage(INFO,"state_xhi_solid",state_xhi_solid);
+                Util::ParallelMessage(INFO,"state_yhi_solids",state_yhi_solid);
+                Util::ParallelMessage(INFO,"state_xlo",state_xlo);
+                Util::ParallelMessage(INFO,"state_ylo",state_ylo);
+                Util::ParallelMessage(INFO,"state_xlo_solid",state_xlo_solid);
+                Util::ParallelMessage(INFO,"state_ylo_solid",state_ylo_solid);
+                Util::Exception(INFO);
+            }
+
+
+
 
             // todo - may need to move this for higher order schemes...
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));

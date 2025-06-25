@@ -2,6 +2,12 @@
 #@ exe=hydro
 #@ dim=2
 
+#@ [roe-rk4]
+#@ exe=hydro
+#@ dim=2
+#@ args = scheme=rk4
+#@ args = timestep=5.0e-5
+
 #@ [roe-fix1]
 #@ exe=hydro
 #@ dim=2

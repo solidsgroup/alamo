@@ -44,7 +44,7 @@ public:
         // Grab and label the input states
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
-        Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
+        //Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
 
         // Ensure no negative densities

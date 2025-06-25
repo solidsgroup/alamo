@@ -61,7 +61,7 @@ protected:
     virtual void UpdateEta(int lev, Set::Scalar time);
 private:
     
-    void RHS(int lev, Set::Scalar time, Set::Scalar dt,
+    void RHS(int lev, Set::Scalar time, 
              amrex::MultiFab &rho_rhs_mf, 
              amrex::MultiFab &M_rhs_mf, 
              amrex::MultiFab &E_rhs_mf,
@@ -137,6 +137,11 @@ private:
     Set::Scalar lagrange=NAN;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
+
+    enum IntegrationScheme {
+        ForwardEuler, RK4
+    };
+    IntegrationScheme scheme;
 
 };
 }
