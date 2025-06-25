@@ -618,12 +618,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
 
 void Hydro::RHS(int lev, Set::Scalar /*time*/, 
-         amrex::MultiFab &rho_rhs_mf, 
-         amrex::MultiFab &M_rhs_mf, 
-         amrex::MultiFab &E_rhs_mf,
-         const amrex::MultiFab &rho_mf,
-         const amrex::MultiFab &M_mf,
-         const amrex::MultiFab &E_mf)
+                amrex::MultiFab &rho_rhs_mf, 
+                amrex::MultiFab &M_rhs_mf, 
+                amrex::MultiFab &E_rhs_mf,
+                const amrex::MultiFab &rho_mf,
+                const amrex::MultiFab &M_mf,
+                const amrex::MultiFab &E_mf)
 {
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
@@ -633,8 +633,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
         Set::Patch<const Set::Scalar> M         = M_mf.array(mfi);    // momentum
-        Set::Patch<const Set::Scalar> E         = E_mf.array(mfi);    // total energy (internal energy + kinetic energy) per unit volume
-                                                                      // E/rho = e + 0.5*v^2
+        Set::Patch<const Set::Scalar> E         = E_mf.array(mfi);    // total energy (internal energy + kinetic energy) per unit volume (E/rho = e + 0.5*v^2)
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);

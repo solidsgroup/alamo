@@ -35,7 +35,9 @@ public:
 
     static void Parse(HLLE & value, IO::ParmParse & pp)
     {
+        // toggle to apply a low mach correction approximation
         pp.query_default("lowmach",value.lowmach,false);
+        // cutoff value if using the low mach approximation
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
