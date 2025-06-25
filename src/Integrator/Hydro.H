@@ -46,7 +46,7 @@ public:
         delete solid.density_ic;
         delete solid.energy_ic;
 
-        delete roesolver;
+        delete riemannsolver;
     }
 
 protected:
@@ -128,7 +128,7 @@ private:
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
 
-    Solver::Local::Riemann::Roe *roesolver = nullptr;
+    Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
 };
 }

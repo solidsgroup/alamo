@@ -10,7 +10,7 @@
 #include "IC/BMP.H"
 #include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
-
+#include "Solver/Local/Riemann/HLLE.H"
 #if AMREX_SPACEDIM == 2
 
 namespace Integrator
@@ -152,7 +152,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select_default<Solver::Local::Riemann::Roe>("solver",value.roesolver);
+    pp.select_default<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
 }
 
 
@@ -241,8 +241,8 @@ void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
 
 void Hydro::TimeStepComplete(Set::Scalar, int lev)
 {
-    Integrator::DynamicTimestep_Update();
-
+    if (dynamictimestep.on)
+        Integrator::DynamicTimestep_Update();
     return;
 
     const Set::Scalar* DX = geom[lev].CellSize();
@@ -395,8 +395,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             // Lagrange terms to enforce no-penetration
-            Source(i,j,k,1) -= lagrange*u.dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,2) -= lagrange*u.dot(grad_eta)*grad_eta(1);
+            Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
+            Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
 
             //Godunov flux
             //states of total fields
@@ -431,12 +431,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             try
             {
                 //lo interface fluxes
-                flux_xlo = roesolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_ylo = roesolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
 
                 //hi interface fluxes
-                flux_xhi = roesolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_yhi = roesolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
             }
             catch(...)
             {
@@ -538,18 +538,21 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
-            *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(0)*eta(i,j,k) + small));
-            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(1)*eta(i,j,k) + small)));
-            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
-            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+            if (dynamictimestep.on)
+            {
+                *dt_max_handle =                               std::fabs(cfl * DX[0] / (u(0)*eta(i,j,k) + small));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(1)*eta(i,j,k) + small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+            }
 
             // Compute vorticity
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
 
         });
-
     }
-    this->DynamicTimestep_SyncTimeStep(lev,dt_max);
+    if (dynamictimestep.on)
+        this->DynamicTimestep_SyncTimeStep(lev,dt_max);
 
 }//end Advance
 
