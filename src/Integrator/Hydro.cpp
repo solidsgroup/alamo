@@ -245,8 +245,8 @@ void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
 
 void Hydro::TimeStepComplete(Set::Scalar, int lev)
 {
-    Integrator::DynamicTimestep_Update();
-
+    if (dynamictimestep.on)
+        Integrator::DynamicTimestep_Update();
     return;
 
     const Set::Scalar* DX = geom[lev].CellSize();
@@ -399,8 +399,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             // Lagrange terms to enforce no-penetration
-            Source(i,j,k,1) -= lagrange*u.dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,2) -= lagrange*u.dot(grad_eta)*grad_eta(1);
+            Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
+            Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
 
             //Godunov flux
             //states of total fields
@@ -455,6 +455,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_ylo.mass - flux_yhi.mass) / DX[1] +
                 Source(i, j, k, 0);
 
+            if (drhof_dt != drhof_dt) drhof_dt = 0.0;
+
             rho_new(i, j, k) = rho(i, j, k) + 
                 (
                     drhof_dt +
@@ -496,6 +498,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //(mu * (lap_ux * eta(i, j, k))) +
                 Source(i, j, k, 1);
 
+            if (dMxf_dt != dMxf_dt) dMxf_dt = 0.0;
+
             M_new(i, j, k, 0) = M(i, j, k, 0) +
                 ( 
                     dMxf_dt + 
@@ -509,6 +513,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 div_tau(1) * eta(i,j,k) + 
                 //(mu * (lap_uy * eta(i, j, k))) +
                 Source(i, j, k, 2);
+
+            if (dMyf_dt != dMyf_dt) dMyf_dt = 0.0;
+
                 
             M_new(i, j, k, 1) = M(i, j, k, 1) +
                 ( 
@@ -522,6 +529,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
                 Source(i, j, k, 3);
                 
+            if (dEf_dt != dEf_dt) dEf_dt = 0.0;
+
             E_new(i, j, k) = E(i, j, k) + 
                 ( 
                     dEf_dt +
@@ -542,18 +551,21 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             //Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
             //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 
-            *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(0)*eta(i,j,k) + small));
-            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(1)*eta(i,j,k) + small)));
-            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
-            *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+            if (dynamictimestep.on)
+            {
+                *dt_max_handle =                               std::fabs(cfl * DX[0] / (u(0)*eta(i,j,k) + small));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(1)*eta(i,j,k) + small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+            }
 
             // Compute vorticity
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
 
         });
-
     }
-    this->DynamicTimestep_SyncTimeStep(lev,dt_max);
+    if (dynamictimestep.on)
+        this->DynamicTimestep_SyncTimeStep(lev,dt_max);
 
 }//end Advance
 
