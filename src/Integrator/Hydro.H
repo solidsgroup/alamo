@@ -139,7 +139,7 @@ private:
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
     enum IntegrationScheme {
-        ForwardEuler, RK4
+        ForwardEuler, SSPRK3, RK4
     };
     IntegrationScheme scheme;
 
