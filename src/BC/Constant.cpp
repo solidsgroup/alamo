@@ -72,102 +72,116 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     amrex::Array4<amrex::Real> const& in = a_in.array();
 
     for (int n = 0; n < a_in.nComp(); n++)
-    amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
     {
-        amrex::IntVect glevel;
-        AMREX_D_TERM(glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,
-                    glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
-                    glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
+        amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            amrex::IntVect glevel;
+            AMREX_D_TERM(glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,
+                         glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
+                         glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
         
-        if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
-        {
-            if (BCUtil::IsDirichlet(m_bc_type[Face::XLO][n]))
-                in(i,j,k,n) = m_bc_val[Face::XLO][n](time);
-            else if(BCUtil::IsNeumann(m_bc_type[Face::XLO][n]))
-                in(i,j,k,n) = in(i-glevel[0],j,k,n) - (m_bc_val[Face::XLO].size() > 0 ? m_bc_val[Face::XLO][n](time)*DX[0] : 0);
-            else if(BCUtil::IsReflectEven(m_bc_type[Face::XLO][n]))
-                in(i,j,k,n) = in(1-glevel[0],j,k,n);
-            else if(BCUtil::IsReflectOdd(m_bc_type[Face::XLO][n]))
-                in(i,j,k,n) = -in(1-glevel[0],j,k,n);
-            else if(BCUtil::IsPeriodic(m_bc_type[Face::XLO][n])) {}
-            else
-                Util::Abort(INFO, "Incorrect boundary conditions");
-        }
-        else if (glevel[0]>0 && (face == Orientation::xhi || face == Orientation::All)) // Right boundary
-        {
-            if (BCUtil::IsDirichlet(m_bc_type[Face::XHI][n]))
-                in(i,j,k,n) = m_bc_val[Face::XHI][n](time);
-            else if(BCUtil::IsNeumann(m_bc_type[Face::XHI][n]))
-                in(i,j,k,n) = in(i-glevel[0],j,k,n) - (m_bc_val[Face::XHI].size() > 0 ? m_bc_val[Face::XHI][n](time)*DX[0] : 0);
-            else if(BCUtil::IsReflectEven(m_bc_type[Face::XHI][n]))
-                in(i,j,k,n) = in(hi.x-glevel[0],j,k,n);
-            else if(BCUtil::IsReflectOdd(m_bc_type[Face::XHI][n]))
-                in(i,j,k,n) = -in(hi.x-glevel[0],j,k,n);
-            else if(BCUtil::IsPeriodic(m_bc_type[Face::XHI][n])) {}
-            else
-                Util::Abort(INFO, "Incorrect boundary conditions");
-        }
+            if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
+            {
+                if (BCUtil::IsDirichlet(m_bc_type[Face::XLO][n]))
+                    in(i,j,k,n) = m_bc_val[Face::XLO][n](time);
+                else if(BCUtil::IsNeumann(m_bc_type[Face::XLO][n]))
+                    in(i,j,k,n) = in(i-glevel[0],j,k,n) - (m_bc_val[Face::XLO].size() > 0 ? m_bc_val[Face::XLO][n](time)*DX[0] : 0);
+                else if(BCUtil::IsReflectEven(m_bc_type[Face::XLO][n]))
+                    in(i,j,k,n) = in(1-glevel[0],j,k,n);
+                else if(BCUtil::IsReflectOdd(m_bc_type[Face::XLO][n]))
+                    in(i,j,k,n) = -in(1-glevel[0],j,k,n);
+                else if(BCUtil::IsPeriodic(m_bc_type[Face::XLO][n])) {}
+                else
+                    Util::Abort(INFO, "Incorrect boundary conditions");
+            }
+            else if (glevel[0]>0 && (face == Orientation::xhi || face == Orientation::All)) // Right boundary
+            {
+                if (BCUtil::IsDirichlet(m_bc_type[Face::XHI][n]))
+                    in(i,j,k,n) = m_bc_val[Face::XHI][n](time);
+                else if(BCUtil::IsNeumann(m_bc_type[Face::XHI][n]))
+                    in(i,j,k,n) = in(i-glevel[0],j,k,n) - (m_bc_val[Face::XHI].size() > 0 ? m_bc_val[Face::XHI][n](time)*DX[0] : 0);
+                else if(BCUtil::IsReflectEven(m_bc_type[Face::XHI][n]))
+                    in(i,j,k,n) = in(hi.x-glevel[0],j,k,n);
+                else if(BCUtil::IsReflectOdd(m_bc_type[Face::XHI][n]))
+                    in(i,j,k,n) = -in(hi.x-glevel[0],j,k,n);
+                else if(BCUtil::IsPeriodic(m_bc_type[Face::XHI][n])) {}
+                else
+                    Util::Abort(INFO, "Incorrect boundary conditions");
+            }
         
-        else if (glevel[1]<0 && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
-        {
-            if (BCUtil::IsDirichlet(m_bc_type[Face::YLO][n]))
-                in(i,j,k,n) = m_bc_val[Face::YLO][n](time);
-            else if (BCUtil::IsNeumann(m_bc_type[Face::YLO][n]))
-                in(i,j,k,n) = in(i,j-glevel[1],k,n) - (m_bc_val[Face::YLO].size() > 0 ? m_bc_val[Face::YLO][n](time)*DX[1] : 0);
-            else if (BCUtil::IsReflectEven(m_bc_type[Face::YLO][n]))
-                in(i,j,k,n) = in(i,j-glevel[1],k,n);
-            else if (BCUtil::IsReflectOdd(m_bc_type[Face::YLO][n]))
-                in(i,j,k,n) = -in(i,j-glevel[1],k,n);
-            else if(BCUtil::IsPeriodic(m_bc_type[Face::YLO][n])) {}
-            else
-                Util::Abort(INFO, "Incorrect boundary conditions");
-        }
-        else if (glevel[1]>0 && (face == Orientation::yhi || face == Orientation::All)) // Top boundary
-        {
-            if (BCUtil::IsDirichlet(m_bc_type[Face::YHI][n]))
-                in(i,j,k,n) = m_bc_val[Face::YHI][n](time);
-            else if (BCUtil::IsNeumann(m_bc_type[Face::YHI][n]))
-                in(i,j,k,n) = in(i,j-glevel[1],k,n) - (m_bc_val[Face::YHI].size() > 0 ? m_bc_val[Face::YHI][n](time)*DX[1] : 0);
-            else if (BCUtil::IsReflectEven(m_bc_type[Face::YHI][n]))
-                in(i,j,k,n) = in(i,hi.y-glevel[1],k,n);
-            else if (BCUtil::IsReflectOdd(m_bc_type[Face::YHI][n]))
-                in(i,j,k,n) = -in(i,hi.y-glevel[1],k,n);
-            else if(BCUtil::IsPeriodic(m_bc_type[Face::YHI][n])) {}
-            else
-                Util::Abort(INFO, "Incorrect boundary conditions");
-        }
+            else if (glevel[1]<0 && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
+            {
+                if (BCUtil::IsDirichlet(m_bc_type[Face::YLO][n]))
+                    in(i,j,k,n) = m_bc_val[Face::YLO][n](time);
+                else if (BCUtil::IsNeumann(m_bc_type[Face::YLO][n]))
+                    in(i,j,k,n) = in(i,j-glevel[1],k,n) - (m_bc_val[Face::YLO].size() > 0 ? m_bc_val[Face::YLO][n](time)*DX[1] : 0);
+                else if (BCUtil::IsReflectEven(m_bc_type[Face::YLO][n]))
+                    in(i,j,k,n) = in(i,j-glevel[1],k,n);
+                else if (BCUtil::IsReflectOdd(m_bc_type[Face::YLO][n]))
+                    in(i,j,k,n) = -in(i,j-glevel[1],k,n);
+                else if(BCUtil::IsPeriodic(m_bc_type[Face::YLO][n])) {}
+                else
+                    Util::Abort(INFO, "Incorrect boundary conditions");
+            }
+            else if (glevel[1]>0 && (face == Orientation::yhi || face == Orientation::All)) // Top boundary
+            {
+                if (BCUtil::IsDirichlet(m_bc_type[Face::YHI][n]))
+                    in(i,j,k,n) = m_bc_val[Face::YHI][n](time);
+                else if (BCUtil::IsNeumann(m_bc_type[Face::YHI][n]))
+                    in(i,j,k,n) = in(i,j-glevel[1],k,n) - (m_bc_val[Face::YHI].size() > 0 ? m_bc_val[Face::YHI][n](time)*DX[1] : 0);
+                else if (BCUtil::IsReflectEven(m_bc_type[Face::YHI][n]))
+                    in(i,j,k,n) = in(i,hi.y-glevel[1],k,n);
+                else if (BCUtil::IsReflectOdd(m_bc_type[Face::YHI][n]))
+                    in(i,j,k,n) = -in(i,hi.y-glevel[1],k,n);
+                else if(BCUtil::IsPeriodic(m_bc_type[Face::YHI][n])) {}
+                else
+                    Util::Abort(INFO, "Incorrect boundary conditions");
+            }
 
 #if AMREX_SPACEDIM>2
-        else if (glevel[2]<0 && (face == Orientation::zlo || face == Orientation::All))
-        {
-            if (BCUtil::IsDirichlet(m_bc_type[Face::ZLO][n]))
-                in(i,j,k,n) = m_bc_val[Face::ZLO][n](time);
-            else if (BCUtil::IsNeumann(m_bc_type[Face::ZLO][n]))
-                in(i,j,k,n) = in(i,j,k-glevel[2],n) - (m_bc_val[Face::ZLO].size() > 0 ? m_bc_val[Face::ZLO][n](time)*DX[2] : 0);
-            else if (BCUtil::IsReflectEven(m_bc_type[Face::ZLO][n]))
-                in(i,j,k,n) = in(i,j,1-glevel[2],n);
-            else if (BCUtil::IsReflectOdd(m_bc_type[Face::ZLO][n]))
-                in(i,j,k,n) = -in(i,j,1-glevel[2],n);
-            else if(BCUtil::IsPeriodic(m_bc_type[Face::ZLO][n])) {}
-            else Util::Abort(INFO, "Incorrect boundary conditions");
-        }
-        else if (glevel[2]>0 && (face == Orientation::zhi || face == Orientation::All))
-        {
-            if (BCUtil::IsDirichlet(m_bc_type[Face::ZHI][n]))
-                in(i,j,k,n) = m_bc_val[Face::ZHI][n](time);
-            else if(BCUtil::IsNeumann(m_bc_type[Face::ZHI][n]))
-                in(i,j,k,n) = in(i,j,k-glevel[2],n) - (m_bc_val[Face::ZHI].size() > 0 ? m_bc_val[Face::ZHI][n](time)*DX[2] : 0);
-            else if(BCUtil::IsReflectEven(m_bc_type[Face::ZHI][n]))
-                in(i,j,k,n) = in(i,j,hi.z-glevel[2],n);
-            else if(BCUtil::IsReflectOdd(m_bc_type[Face::ZHI][n]))
-                in(i,j,k,n) = -in(i,j,hi.z-glevel[2],n);
-            else if(BCUtil::IsPeriodic(m_bc_type[Face::ZHI][n])) {}
-            else Util::Abort(INFO, "Incorrect boundary conditions");
-        }
+            else if (glevel[2]<0 && (face == Orientation::zlo || face == Orientation::All))
+            {
+                if (BCUtil::IsDirichlet(m_bc_type[Face::ZLO][n]))
+                    in(i,j,k,n) = m_bc_val[Face::ZLO][n](time);
+                else if (BCUtil::IsNeumann(m_bc_type[Face::ZLO][n]))
+                    in(i,j,k,n) = in(i,j,k-glevel[2],n) - (m_bc_val[Face::ZLO].size() > 0 ? m_bc_val[Face::ZLO][n](time)*DX[2] : 0);
+                else if (BCUtil::IsReflectEven(m_bc_type[Face::ZLO][n]))
+                    in(i,j,k,n) = in(i,j,1-glevel[2],n);
+                else if (BCUtil::IsReflectOdd(m_bc_type[Face::ZLO][n]))
+                    in(i,j,k,n) = -in(i,j,1-glevel[2],n);
+                else if(BCUtil::IsPeriodic(m_bc_type[Face::ZLO][n])) {}
+                else Util::Abort(INFO, "Incorrect boundary conditions");
+            }
+            else if (glevel[2]>0 && (face == Orientation::zhi || face == Orientation::All))
+            {
+                if (BCUtil::IsDirichlet(m_bc_type[Face::ZHI][n]))
+                    in(i,j,k,n) = m_bc_val[Face::ZHI][n](time);
+                else if(BCUtil::IsNeumann(m_bc_type[Face::ZHI][n]))
+                    in(i,j,k,n) = in(i,j,k-glevel[2],n) - (m_bc_val[Face::ZHI].size() > 0 ? m_bc_val[Face::ZHI][n](time)*DX[2] : 0);
+                else if(BCUtil::IsReflectEven(m_bc_type[Face::ZHI][n]))
+                    in(i,j,k,n) = in(i,j,hi.z-glevel[2],n);
+                else if(BCUtil::IsReflectOdd(m_bc_type[Face::ZHI][n]))
+                    in(i,j,k,n) = -in(i,j,hi.z-glevel[2],n);
+                else if(BCUtil::IsPeriodic(m_bc_type[Face::ZHI][n])) {}
+                else Util::Abort(INFO, "Incorrect boundary conditions");
+            }
 #endif
+        });
 
+        // Average the value of corner cells based on the neighboring ghost cells.
+        // This fixes NAN issues that can arise from neumann conditions calculated in ghost cells
+        // Fixes this issue in 2D only for now.
+        //
+        // TODO: more general fix for 3D cell-based fields
+        amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (i < lo.x && j < lo.y) in(i,j,k,n) = 0.5*( in(i+1,j,k,n) + in(i,j+1,k,n) );
+            if (i < lo.x && j > hi.y) in(i,j,k,n) = 0.5*( in(i+1,j,k,n) + in(i,j-1,k,n) );
+            if (i > hi.x && j < lo.y) in(i,j,k,n) = 0.5*( in(i-1,j,k,n) + in(i,j+1,k,n) );
+            if (i > hi.x && j > hi.y) in(i,j,k,n) = 0.5*( in(i-1,j,k,n) + in(i,j-1,k,n) );
+        });
 
-    });
+    }
 }
 
 amrex::BCRec
