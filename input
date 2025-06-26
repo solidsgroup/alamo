@@ -1,0 +1,58 @@
+# Input file for vibration
+alamo.program = mechanics
+alamo.program.mechanics.model = finite.neohookean
+type=dynamic
+
+plot_file = output_vibrate
+
+# AMR parameters
+amr.plot_int		    = 20
+amr.max_level		    = 1
+#amr.max_grid_size       = 256 256
+amr.n_cell		        = 384 192
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 1
+amr.grid_eff		    = 1.0
+amr.node.all            = 1
+amr.cell.all            = 1
+
+# Geometry and AMR level specification
+geometry.prob_lo	    = -0.75 -0.5
+geometry.prob_hi	    = 0.75   0.25
+geometry.is_periodic    = 0 0 0
+
+# Timestep and duration
+timestep = 1e-5 # seconds
+stop_time = 1 # seconds
+
+# Inputs
+ic.type = bmp
+ic.bmp.filename = tests/CompositeImpact/spheres2.bmp
+ic.bmp.fit = "coord"
+ic.bmp.coord.lo = -1.6 -.6
+ic.bmp.coord.hi = 1.6 0.2
+
+# Elastic moduli
+nmodels = 2
+model1.E = 2 #MPa - ASTM A36 Steel
+model1.nu = 0.26
+model2.E = 4 #MPa - Norbide Hot Pressed Ceramic
+model2.nu = 0.18
+
+# Boundary conditions
+bc.type = expression
+bc.expression.type.xlo     = disp trac
+bc.expression.type.xhi     = disp trac
+bc.expression.type.ylo     = trac trac
+bc.expression.type.yhi     = trac trac
+
+#bc.expression.type.xloylo = disp trac
+#bc.expression.type.xloyhi = disp trac
+#bc.expression.type.xhiylo = disp trac
+#bc.expression.type.xhiyhi = disp trac
+
+# Load
+bc.expression.val.yhi = "0.0" "sin(2 * 3.14159 * 20 * t)" "0.0" # KN * Area
+
+
+print_model = 0
