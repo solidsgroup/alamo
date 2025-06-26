@@ -722,7 +722,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             // sten is necessary here because sometimes corner ghost
             // cells don't get filled
-            Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX,sten);
+            Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
                 for (int q = 0; q < 2; q++)
