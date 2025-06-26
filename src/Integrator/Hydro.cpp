@@ -397,9 +397,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::MultiFab::LinComb(momentum_temp, 1.0, momentum_old, 0, dt*a21, momentum_k1, 0, 0, 2, 0);
         amrex::MultiFab::LinComb(energy_temp,   1.0, energy_old,   0, dt*a21, energy_k1,   0, 0, 1, 0);
         // fill boundary
-        density_bc ->FillBoundary(density_temp,  0, 1, time, 0); density_temp.FillBoundary();
-        momentum_bc->FillBoundary(momentum_temp, 0, 2, time, 0); momentum_temp.FillBoundary();
-        energy_bc  ->FillBoundary(energy_temp,   0, 1, time, 0); energy_temp.FillBoundary();
+        density_bc ->FillBoundary(density_temp,  0, 1, time, 0); density_temp.FillBoundary(true);
+        momentum_bc->FillBoundary(momentum_temp, 0, 2, time, 0); momentum_temp.FillBoundary(true);
+        energy_bc  ->FillBoundary(energy_temp,   0, 1, time, 0); energy_temp.FillBoundary(true);
         // k2 = RHS(t + c2*dt, ytemp)
         RHS(lev,time + c2*dt,
             density_k2, momentum_k2, energy_k2,
@@ -419,9 +419,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::MultiFab::Saxpy(momentum_temp, dt*a32, momentum_k2, 0, 0, 2, 0);
         amrex::MultiFab::Saxpy(energy_temp,   dt*a32, energy_k2,   0, 0, 1, 0);
         // 3. fill boundary
-        density_bc ->FillBoundary(density_temp,  0, 1, time+c2*dt, 0); density_temp.FillBoundary();
-        momentum_bc->FillBoundary(momentum_temp, 0, 2, time+c2*dt, 0); momentum_temp.FillBoundary();
-        energy_bc  ->FillBoundary(energy_temp,   0, 1, time+c2*dt, 0); energy_temp.FillBoundary();
+        density_bc ->FillBoundary(density_temp,  0, 1, time+c2*dt, 0); density_temp.FillBoundary(true);
+        momentum_bc->FillBoundary(momentum_temp, 0, 2, time+c2*dt, 0); momentum_temp.FillBoundary(true);
+        energy_bc  ->FillBoundary(energy_temp,   0, 1, time+c2*dt, 0); energy_temp.FillBoundary(true);
         // 4. k3 = RHS(t + c3*dt, ytemp)
         RHS(lev,time + c3*dt,
             density_k3, momentum_k3, energy_k3,
@@ -485,7 +485,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         RHS(lev,time,
             density_k1,momentum_k1,energy_k1,
-            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
+            density_old, momentum_old, energy_old);
 
         //
         // K2
@@ -496,9 +496,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k1, 0, 0, 2, 0);
         amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k1,   0, 0, 1, 0);
 
-        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary();
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary();
-        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary();
+        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary(true);
+        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
+        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary(true);
         
 
         RHS(lev,time,
@@ -514,9 +514,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k2, 0, 0, 2, 0);
         amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k2,   0, 0, 1, 0);
 
-        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary();
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary();
-        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary();
+        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary(true);
+        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
+        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary(true);
 
         RHS(lev,time,
             density_k3, momentum_k3, energy_k3,
@@ -526,14 +526,14 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // K4
         //
         
-        // [state] = [old] + (dt/2)[k2]
+        // [state] = [old] + (dt/2)[k3]
         amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt, density_k3,  0, 0, 1, 0);
         amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt, momentum_k3, 0, 0, 2, 0);
         amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt, energy_k3,   0, 0, 1, 0);
 
-        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary();
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary();
-        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary();
+        density_bc-> FillBoundary(density_st,  0, 1, time, 0); density_st.FillBoundary(true);
+        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
+        energy_bc->  FillBoundary(energy_st,   0, 1, time, 0); energy_st.FillBoundary(true);
 
 
         RHS(lev,time,
@@ -720,7 +720,9 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Vector Pdot0 = Set::Vector::Zero(); 
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
-            Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
+            // sten is necessary here because sometimes corner ghost
+            // cells don't get filled
+            Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX,sten);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
                 for (int q = 0; q < 2; q++)
@@ -862,36 +864,65 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 // ) * dt;
                 ;
             
-
+#ifdef AMREX_DEBUG
             if ((rho_rhs(i,j,k) != rho_rhs(i,j,k)) ||
                 (M_rhs(i,j,k,0) != M_rhs(i,j,k,0)) ||
                 (M_rhs(i,j,k,1) != M_rhs(i,j,k,1)) ||
                 (E_rhs(i,j,k) != E_rhs(i,j,k)))
             {
+                Util::ParallelMessage(INFO,"rho_rhs=",rho_rhs(i,j,k));
+                Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,0));
+                Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,1));
+                Util::ParallelMessage(INFO,"E_rhs=",E_rhs(i,j,k));
+
                 Util::ParallelMessage(INFO,"lev=",lev);
-                Util::ParallelMessage(INFO,"i=",i,"j=",j);
-                Util::ParallelMessage(INFO,"drhof_dt",drhof_dt); // dies
-                Util::ParallelMessage(INFO,"flux_xlo.mass",flux_xlo.mass);
-                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
-                Util::ParallelMessage(INFO,"flux_ylo.mass",flux_ylo.mass);
-                Util::ParallelMessage(INFO,"flux_xhi.mass",flux_yhi.mass);
-                Util::ParallelMessage(INFO,"eta",eta(i,j,k));
-                Util::ParallelMessage(INFO,"Source",Source(i,j,k,0));
-                Util::ParallelMessage(INFO,"state_x",state_x); // <<<<
-                Util::ParallelMessage(INFO,"state_y",state_y);
-                Util::ParallelMessage(INFO,"state_x_solid",state_x_solid); // <<<<
-                Util::ParallelMessage(INFO,"state_y_solid",state_y_solid);
-                Util::ParallelMessage(INFO,"state_xhi",state_xhi); // <<<<
-                Util::ParallelMessage(INFO,"state_yhi",state_yhi);
-                Util::ParallelMessage(INFO,"state_xhi_solid",state_xhi_solid);
-                Util::ParallelMessage(INFO,"state_yhi_solids",state_yhi_solid);
-                Util::ParallelMessage(INFO,"state_xlo",state_xlo);
-                Util::ParallelMessage(INFO,"state_ylo",state_ylo);
-                Util::ParallelMessage(INFO,"state_xlo_solid",state_xlo_solid);
-                Util::ParallelMessage(INFO,"state_ylo_solid",state_ylo_solid);
+                Util::ParallelMessage(INFO,"i=",i," j=",j);
+                Util::ParallelMessage(INFO,"drhof_dt ",drhof_dt); // dies
+                Util::ParallelMessage(INFO,"flux_xlo.mass ",flux_xlo.mass);
+                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
+                Util::ParallelMessage(INFO,"flux_ylo.mass ",flux_ylo.mass);
+                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_yhi.mass);
+                Util::ParallelMessage(INFO,"eta ",eta(i,j,k));
+                Util::ParallelMessage(INFO,"etadot ",etadot(i,j,k));
+                Util::ParallelMessage(INFO,"Source ",Source(i,j,k,0));
+                Util::ParallelMessage(INFO,"state_x ",state_x); // <<<<
+                Util::ParallelMessage(INFO,"state_y ",state_y);
+                Util::ParallelMessage(INFO,"state_x_solid ",state_x_solid); // <<<<
+                Util::ParallelMessage(INFO,"state_y_solid ",state_y_solid);
+                Util::ParallelMessage(INFO,"state_xhi ",state_xhi); // <<<<
+                Util::ParallelMessage(INFO,"state_yhi ",state_yhi);
+                Util::ParallelMessage(INFO,"state_xhi_solid ",state_xhi_solid);
+                Util::ParallelMessage(INFO,"state_yhi_solids ",state_yhi_solid);
+                Util::ParallelMessage(INFO,"state_xlo ",state_xlo);
+                Util::ParallelMessage(INFO,"state_ylo ",state_ylo);
+                Util::ParallelMessage(INFO,"state_xlo_solid ",state_xlo_solid);
+                Util::ParallelMessage(INFO,"state_ylo_solid ",state_ylo_solid);
+
+                Util::ParallelMessage(INFO,"Mx_solid ",M_solid(i,j,k,0));
+                Util::ParallelMessage(INFO,"My_solid ",M_solid(i,j,k,1));
+                Util::ParallelMessage(INFO,"small ",small);
+                Util::ParallelMessage(INFO,"Mx ",M(i,j,k,0));
+                Util::ParallelMessage(INFO,"My ",M(i,j,k,1));
+                Util::ParallelMessage(INFO,"dMx/dt ",dMxf_dt);
+                Util::ParallelMessage(INFO,"dMy/dt ",dMyf_dt);
+
+
+                Util::Message(INFO,flux_xlo.momentum_tangent);
+                Util::Message(INFO,flux_xhi.momentum_tangent);
+                Util::Message(INFO,DX[0]);
+                Util::Message(INFO,flux_ylo.momentum_normal);
+                Util::Message(INFO,flux_yhi.momentum_normal);
+                Util::Message(INFO,DX[1]);
+                Util::Message(INFO,div_tau);
+                Util::Message(INFO,Source(i, j, k, 2));
+                
+                Util::Message(INFO,hess_eta);
+                Util::Message(INFO,velocity(i,j,k,0));
+                Util::Message(INFO,velocity(i,j,k,1));
+
                 Util::Exception(INFO);
             }
-
+#endif
 
 
 
