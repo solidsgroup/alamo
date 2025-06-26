@@ -54,3 +54,5 @@ compile_commands.json
 .clangd
 .DS_Store
 profile.prof*
+report*.html
+report.tar.gz

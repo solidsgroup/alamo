@@ -126,9 +126,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                     in(i,j,k,n) = in(1-glevel_0,j,k,n);
                 else if(BCUtil::IsReflectOdd(bc_type_xlo_n))
                     in(i,j,k,n) = -in(1-glevel_0,j,k,n);
-                else if(BCUtil::IsPeriodic(bc_type_xlo_n))
-                {
-                }
+                else if(BCUtil::IsPeriodic(bc_type_xlo_n)){}
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
@@ -142,9 +140,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                     in(i,j,k,n) = in(hi.x-glevel_0,j,k,n);
                 else if(BCUtil::IsReflectOdd(bc_type_xhi_n))
                     in(i,j,k,n) = -in(hi.x-glevel_0,j,k,n);
-                else if(BCUtil::IsPeriodic(bc_type_xhi_n))
-                {
-                }
+                else if(BCUtil::IsPeriodic(bc_type_xhi_n)){}
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
@@ -158,9 +154,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                     in(i,j,k,n) = in(i,j-glevel_1,k,n);
                 else if (BCUtil::IsReflectOdd(bc_type_ylo_n))
                     in(i,j,k,n) = -in(i,j-glevel_1,k,n);
-                else if(BCUtil::IsPeriodic(bc_type_ylo_n))
-                {
-                }
+                else if(BCUtil::IsPeriodic(bc_type_ylo_n)){}
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
@@ -174,9 +168,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                     in(i,j,k,n) = in(i,hi.y-glevel_1,k,n);
                 else if (BCUtil::IsReflectOdd(bc_type_yhi_n))
                     in(i,j,k,n) = -in(i,hi.y-glevel_1,k,n);
-                else if(BCUtil::IsPeriodic(bc_type_yhi_n))
-                {
-                }
+                else if(BCUtil::IsPeriodic(bc_type_yhi_n)){}
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
@@ -191,9 +183,7 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                     in(i,j,k,n) = in(i,j,1-glevel_2,n);
                 else if (BCUtil::IsReflectOdd(bc_type_zlo_n))
                     in(i,j,k,n) = -in(i,j,1-glevel_2,n);
-                else if(BCUtil::IsPeriodic(bc_type_zlo_n))
-                {
-                }
+                else if(BCUtil::IsPeriodic(bc_type_zlo_n)){}
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
@@ -207,17 +197,26 @@ Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
                     in(i,j,k,n) = in(i,j,hi.z-glevel_2,n);
                 else if(BCUtil::IsReflectOdd(bc_type_zhi_n))
                     in(i,j,k,n) = -in(i,j,hi.z-glevel_2,n);
-                else if(BCUtil::IsPeriodic(bc_type_zhi_n))
-                {
-                }
+                else if(BCUtil::IsPeriodic(bc_type_zhi_n)){}
                 else
                     Util::Abort(INFO, "Incorrect boundary conditions");
             }
-#endif            
+#endif
         });
-    }
-//#endif
+        // Average the value of corner cells based on the neighboring ghost cells.
+        // This fixes NAN issues that can arise from neumann conditions calculated in ghost cells
+        // Fixes this issue in 2D only for now.
+        //
+        // TODO: more general fix for 3D cell-based fields
+        amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            if (i < lo.x && j < lo.y) in(i,j,k,n) = 0.5*( in(i+1,j,k,n) + in(i,j+1,k,n) );
+            if (i < lo.x && j > hi.y) in(i,j,k,n) = 0.5*( in(i+1,j,k,n) + in(i,j-1,k,n) );
+            if (i > hi.x && j < lo.y) in(i,j,k,n) = 0.5*( in(i-1,j,k,n) + in(i,j+1,k,n) );
+            if (i > hi.x && j > hi.y) in(i,j,k,n) = 0.5*( in(i-1,j,k,n) + in(i,j-1,k,n) );
+        });
 
+    }
 }
 
 amrex::BCRec

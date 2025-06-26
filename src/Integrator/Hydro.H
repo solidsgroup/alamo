@@ -46,7 +46,7 @@ public:
         delete solid.density_ic;
         delete solid.energy_ic;
 
-        delete roesolver;
+        delete riemannsolver;
     }
 
 protected:
@@ -60,6 +60,14 @@ protected:
 
     virtual void UpdateEta(int lev, Set::Scalar time);
 private:
+    
+    void RHS(   int lev, Set::Scalar time, 
+                amrex::MultiFab &rho_rhs_mf, 
+                amrex::MultiFab &M_rhs_mf, 
+                amrex::MultiFab &E_rhs_mf,
+                const amrex::MultiFab &rho_mf,
+                const amrex::MultiFab &M_mf,
+                const amrex::MultiFab &E_mf);
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> density_old_mf;
@@ -128,7 +136,12 @@ private:
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
 
-    Solver::Local::Riemann::Roe *roesolver = nullptr;
+    Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
+
+    enum IntegrationScheme {
+        ForwardEuler, SSPRK3, RK4
+    };
+    IntegrationScheme scheme;
 
 };
 }

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import sys
+
+sys.path.append('./scripts')
+from report import init_html, append_html, finalize_html
+
 import argparse
 import os, glob, subprocess
 import configparser, io
@@ -42,6 +46,7 @@ def clean(text,max_length=60):
 #
 now = datetime.now()
 testid = now.strftime("output_%Y-%m-%d_%H.%M.%S_"+socket.gethostname())
+init_html()
 print("Test ID = ",testid)
 
 #
@@ -436,6 +441,7 @@ def test(testdir):
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
             for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            append_html(record)
             continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
@@ -483,6 +489,7 @@ def test(testdir):
             record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            append_html(record)
             continue
         
 
@@ -591,6 +598,7 @@ def test(testdir):
                 for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
                 for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
                 fails += 1
+                append_html(record)
                 continue
             except DryRunException as e:
                 print("[----]")
@@ -600,6 +608,7 @@ def test(testdir):
                 record['checkStatus'] = 'FAIL'
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
+                append_html(record)
                 continue
         else:
             record['checkStatus'] = 'NONE'
@@ -630,7 +639,7 @@ def test(testdir):
             except Exception as e:
                 print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
         records.append(record)
-
+        append_html(record)
 
         #
         # Clean up all of the node and cell file 
@@ -715,6 +724,8 @@ print("")
 return_code = stats.fails + stats.skips
 if not args.permit_timeout:
     return_code += stats.timeouts
+
+finalize_html()
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
 exit(return_code)
