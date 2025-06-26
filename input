@@ -46,10 +46,10 @@ bc.expression.type.xhi     = disp trac
 bc.expression.type.ylo     = trac trac
 bc.expression.type.yhi     = trac trac
 
-#bc.expression.type.xloylo = disp trac
-#bc.expression.type.xloyhi = disp trac
-#bc.expression.type.xhiylo = disp trac
-#bc.expression.type.xhiyhi = disp trac
+bc.expression.type.xloylo = disp trac
+bc.expression.type.xloyhi = disp trac
+bc.expression.type.xhiylo = disp trac
+bc.expression.type.xhiyhi = disp trac
 
 # Load
 bc.expression.val.yhi = "0.0" "sin(2 * 3.14159 * 20 * t)" "0.0" # KN * Area

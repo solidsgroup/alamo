@@ -273,8 +273,15 @@ protected:
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     eps(i, j, k) = Numeric::Gradient(u, i, j, k, DX,sten);
-                    sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
-                    //ddw(i,j,k) = model(i,j,k).DDW(eps(i,j,k));
+
+                    if (MODEL::kinvar == Model::Solid::KinematicVariable::F)
+                    {
+                        sig(i, j, k) = model(i, j, k).DW(eps(i, j, k) + Set::Matrix::Identity());
+                    }
+                    else
+                    {
+                        sig(i, j, k) = model(i, j, k).DW(eps(i, j, k));
+                    }
                 });
 
                 bx = mfi.nodaltilebox() & domain;
@@ -306,9 +313,18 @@ protected:
                                 
                                 Set::Matrix A = Set::Matrix::Zero();
                                 Set::Vector rhs = b(i,j,k);
-                                Set::Matrix DW_F0 = model(i,j,k).DW(Set::Matrix::Zero());
-                                MATRIX4 ddw = model(i,j,k).DDW(eps(i,j,k));
-                                //Util::Message(INFO,b(i,j,k).transpose());
+                                Set::Matrix DW_F0;
+                                MATRIX4 ddw;
+                                if (MODEL::kinvar == Model::Solid::KinematicVariable::F)
+                                {
+                                    DW_F0 = model(i,j,k).DW(Set::Matrix::Identity());
+                                    ddw = model(i,j,k).DDW(eps(i,j,k) + Set::Matrix::Identity());
+                                }
+                                else
+                                {
+                                    DW_F0 = model(i,j,k).DW(Set::Matrix::Zero());
+                                    ddw = model(i,j,k).DDW(eps(i,j,k));
+                                }
 
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
                                     for (int q = 0; q < AMREX_SPACEDIM; q++)
