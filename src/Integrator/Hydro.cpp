@@ -371,7 +371,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::MultiFab density_k3(ba,dm,1,0), momentum_k3(ba,dm,2,0), energy_k3(ba,dm,1,0);
             
         // buffer to hold combs of k1
-        amrex::MultiFab density_temp(ba,dm,1,1), momentum_temp(ba,dm,2,1), energy_temp(ba,dm,1,ng);
+        amrex::MultiFab density_temp(ba,dm,1,ng), momentum_temp(ba,dm,2,ng), energy_temp(ba,dm,1,ng);
 
         // handles to new solution
         amrex::MultiFab &density_new = *density_mf[lev];
