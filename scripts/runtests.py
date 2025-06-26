@@ -431,6 +431,7 @@ def test(testdir):
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
             for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            append_html(record)
             continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
@@ -478,6 +479,7 @@ def test(testdir):
             record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            append_html(record)
             continue
         
 
@@ -586,6 +588,7 @@ def test(testdir):
                 for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
                 for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
                 fails += 1
+                append_html(record)
                 continue
             except DryRunException as e:
                 print("[----]")
@@ -595,6 +598,7 @@ def test(testdir):
                 record['checkStatus'] = 'FAIL'
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
+                append_html(record)
                 continue
         else:
             record['checkStatus'] = 'NONE'

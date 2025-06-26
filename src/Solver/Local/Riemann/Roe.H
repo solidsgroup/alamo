@@ -26,7 +26,7 @@ namespace Riemann
 {
 
 /// Roe Riemann Solver based on Gas Dynamics - Culbert B. Laney
-class Roe
+class Roe : public Riemann
 {
 public:
 
@@ -44,6 +44,8 @@ public:
 
     int verbose = 0;
     int entropy_fix = 0;
+    int lowmach = 0;
+    Set::Scalar phi = NAN;
 
     static void Parse(Roe & value, IO::ParmParse & pp)
     {
@@ -52,13 +54,18 @@ public:
         // apply entropy fix if tru
         pp.query_default("entropy_fix", value.entropy_fix, false);
 
+        // Apply the lowmach fix descripte in Rieper 2010
+        // "A low-Mach number fix for Roe’s approximate Riemann solver"
+        pp.query_default("lowmach",value.lowmach,false);
+
+
         if (value.entropy_fix == 1)
             Util::Warning(INFO,"The entropy fix is experimental and should be used with caution");
         else if (value.entropy_fix == 2)
             Util::Warning(INFO,"The entropy fix is experimental and should be used with caution. Has previously caused errors with FlowDrivenCavity regression test");
     }
 
-    Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small)
+    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) override
     {
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
@@ -131,6 +138,15 @@ public:
         Set::Scalar deltarho= rho_R - rho_L;
         Set::Scalar deltap  = p_R - p_L;
         Set::Scalar deltau  = u_R - u_L;
+
+        if (lowmach)
+        {
+            Set::Scalar v_RL    = (std::sqrt(rho_L) * v_L  + std::sqrt(rho_R) * v_R ) / 
+                (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
+            Set::Scalar Ma = (std::abs(u_RL) + std::abs(v_RL)) / (a_RL + small);
+            Ma = std::min(Ma, 1.0);
+            deltau *= Ma;
+        }
 
         Set::Scalar deltav1 = deltarho - deltap / (a_RL_sq + small);       // 5.54a
         Set::Scalar deltav2 = deltau   + deltap / (rho_RL * a_RL + small); // 5.54b
