@@ -168,7 +168,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     // Set this to true to allow unused inputs without error.
     // (Not recommended.)
     pp.query_default("allow_unused",allow_unused,false);
-    if (!allow_unused && pp.AnyUnusedInputs(false, false))
+    if (!allow_unused && pp.AnyUnusedInputs(true, false))
     {
         Util::Warning(INFO,"The following inputs were specified but not used:");
         pp.AllUnusedInputs();

@@ -571,7 +571,7 @@ public:
         {
                 if (!li->second.m_count)
                 {
-                    if (inscopeonly)
+                    if (inscopeonly && getPrefix() != "")
                     {
                         if (li->first.rfind(getPrefix()+".",0) != std::string::npos)
                         {
