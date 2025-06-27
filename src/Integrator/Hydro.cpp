@@ -750,6 +750,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
+            u0 = u0.lpNorm<2>() *  grad_eta / (grad_eta_mag + small);
+
             // Lagrange terms to enforce no-penetration
             Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
             Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
