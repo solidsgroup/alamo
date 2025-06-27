@@ -170,9 +170,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.variable_pressure)
     {
         pp.queryclass<Model::Chamber::Ballistic>("chamber.ballistic",value.chamber.model);
+        
+        value.RegisterIntegratedVariable(&value.chamber.pressure, "chamber_pressure", false);
     }
-
-
+   
     // Refinement criterion for eta field   
     pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);
 
@@ -364,10 +365,9 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
         chamber.pressure = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
 
         Util::ParallelMessage(INFO, "chamber.pressure = ", chamber.pressure);
-        
     }
 }
-
+    
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");

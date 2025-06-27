@@ -60,7 +60,7 @@ public:
     static void Parse (Ballistic &value, IO::ParmParse &pp)
     { 
         // Chamber pressure [MPa]
-        pp.query_default("pressure0",value.pressure0,4.0);
+        pp.query_default("pressure",value.pressure,4.0);
         
         // Throat area [m^2]
         pp.query_default("At",value.At,0.1);
@@ -79,7 +79,7 @@ public:
 
 
     // Class members for chamber properties
-    Set::Scalar pressure0=NAN;  
+    Set::Scalar pressure=NAN;  
     Set::Scalar At=NAN;         // Throat area
     Set::Scalar gamma=NAN;      // Specific heat ratio
     Set::Scalar R=NAN;          // Gas constant
