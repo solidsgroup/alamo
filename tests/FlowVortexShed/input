@@ -11,8 +11,6 @@
 #@ args = stop_time = 100
 #@ check-file = reference/parallel.csv
 
-alamo.program = hydro
-
 ### OUTPUT ###
 
 plot_file = ./output.VortexShed

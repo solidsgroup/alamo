@@ -171,6 +171,7 @@ class Riemann
 {
 public:
     virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) = 0;
+    virtual ~Riemann() = default;
 };
 
 
