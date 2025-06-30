@@ -136,15 +136,16 @@ small=0.01
 
 # 256
 
-amr.n_cell = 256 32 #128 16 #64 8
-timestep=0.25e-5
+timestep=1e-5
+amr.n_cell = 64 8 #128 16 #64 8
+amr.max_level = 1
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps = 0.01
+eta.ic.expression.constant.eps = 0.02
 eta.ic.expression.region0 = "1 - 0.5 * (erf((x)/eps) + 1)"
 
-amr.max_level = 0
 
-scheme = ssprk3
+scheme = rk4
 
 prescribedflowmode = relative
+

@@ -11,6 +11,7 @@
 #include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
+#include "Util/Util.H"
 #if AMREX_SPACEDIM == 2
 
 namespace Integrator
@@ -378,6 +379,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // buffer to hold combs of k1
         amrex::MultiFab density_temp(ba,dm,1,ng), momentum_temp(ba,dm,2,ng), energy_temp(ba,dm,1,ng);
 
+        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
+        density_temp.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+        momentum_temp.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
+        energy_temp.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+
         // handles to new solution
         amrex::MultiFab &density_new = *density_mf[lev];
         amrex::MultiFab &momentum_new = *momentum_mf[lev];
@@ -478,6 +484,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // temporary storage
         amrex::MultiFab density_st(ba,dm,1,ng), momentum_st(ba,dm,2,ng), energy_st(ba,dm,1,ng);
             
+        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
+        density_st.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+        momentum_st.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
+        energy_st.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+
+
         // handles to new solution
         amrex::MultiFab &density_new = *density_mf[lev];
         amrex::MultiFab &momentum_new = *momentum_mf[lev];
