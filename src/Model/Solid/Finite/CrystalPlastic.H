@@ -96,6 +96,7 @@ virtual void Advance(Set::Scalar dt, Set::Matrix F, Set::Matrix P, Set::Scalar t
     {
         std::cout << "[DEBUG] === Newton iter " << it << " ===\n";
 
+        //Set::Matrix3d Lp = Set::Matrix3d::Zero();
         Set::Matrix3d Lp = Set::Matrix3d::Zero();
         for(int a = 0; a < 12; ++a) {
             Lp += (dgamma[a] / dt) * ss[a].first * ss[a].second.transpose();
@@ -110,7 +111,7 @@ virtual void Advance(Set::Scalar dt, Set::Matrix F, Set::Matrix P, Set::Scalar t
         std::cout << "  F:\n" << F << "\n";
         
         Set::Matrix3d Fe = Set::Matrix3d::Zero();
-        Fe = Set::expand(F) * Fp;
+        Fe = Set::expand(F)* Fpinv;
         std::cout << "  Fe:\n" << Fe << "\n";
 
         Set::Matrix3d P3 = Set::expand(P);

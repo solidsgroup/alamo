@@ -3,8 +3,8 @@ alamo.program.mechanics.model = finite.crystalplastic
 #alamo.program.mechanics.model = elastic.pseudolinearcubic
 plot_file = tests/CrystalPlasticity/output
 
-timestep		    = 1.0e-6
-stop_time		    = 0.002
+timestep		    = 0.0001
+stop_time		    = 0.2
 
 # amr parameters
 amr.plot_int		    = 50
@@ -27,7 +27,7 @@ nmodels = 1
 model1.C11 = 1.68
 model1.C12 = 1.21
 model1.C44 = 0.75
-model1.tstart = 2.0e-6
+model1.tstart = 0.0002
 model1.tau_crss = 1
 #model1.random = 1
 
@@ -49,9 +49,9 @@ bc.type = expression
 bc.expression.type.xlo = trac trac trac
 bc.expression.type.xhi = trac trac trac
 
-bc.expression.val.xloyhi = "0.0" "-0.1*((t <= 0.001) * t + (t > 0.001) * (0.002 - t)) / 0.001" "0.0"
-bc.expression.val.xhiyhi = "0.0" "-0.1*((t <= 0.001) * t + (t > 0.001) * (0.002 - t)) / 0.001" "0.0"
-bc.expression.val.yhi     = "0.0" "-0.1*((t <= 0.001) * t + (t > 0.001) * (0.002 - t)) / 0.001" "0.0"
+bc.expression.val.xloyhi = "0.0" "-0.1*((t <= 0.1) * t + (t > 0.1) * (0.2 - t)) / 0.1" "0.0"
+bc.expression.val.xhiyhi = "0.0" "-0.1*((t <= 0.1) * t + (t > 0.1) * (0.2 - t)) / 0.1" "0.0"
+bc.expression.val.yhi     = "0.0" "-0.1*((t <= 0.1) * t + (t > 0.1) * (0.2 - t)) / 0.1" "0.0"
 
 # Expression-based boundary condition
 #bc.type = expression
