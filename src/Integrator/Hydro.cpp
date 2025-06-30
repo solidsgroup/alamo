@@ -11,6 +11,7 @@
 #include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
+#include "Solver/Local/Riemann/HLLC.H"
 #include "Util/Util.H"
 #if AMREX_SPACEDIM == 2
 
@@ -19,7 +20,7 @@ namespace Integrator
 
 Hydro::Hydro(IO::ParmParse& pp) : Hydro()
 {
-    pp.queryclass(*this);
+    pp_queryclass(*this);
 }
 
 void
@@ -161,7 +162,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select_default<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
+    pp.select_default<Solver::Local::Riemann::Roe,
+                      Solver::Local::Riemann::HLLE,
+                      Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
 
     std::string prescribedflowmode_str;
@@ -169,6 +172,19 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.query_validate("prescribedflowmode",prescribedflowmode_str,{"absolute","relative"});
     if (prescribedflowmode_str == "absolute") value.prescribedflowmode = PrescribedFlowMode::Absolute;
     else if (prescribedflowmode_str == "relative") value.prescribedflowmode = PrescribedFlowMode::Relative;
+
+
+
+    Util::Message(INFO);
+    pp.queryarr_default("g",value.g,Set::Vector::Zero());
+    Util::Message(INFO);
+
+
+
+
+
+
+
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
@@ -180,6 +196,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.AllUnusedInputs();
         Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
     }
+
 }
 
 
@@ -394,6 +411,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // Calculate K1
         //
         // k1 = RHS(t, yold)
+
 
         RHS(lev,time,
             density_k1,momentum_k1,energy_k1,
@@ -848,6 +866,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
                 div_tau(0) * eta(i,j,k) +
+                g(0)*rho(i,j,k) +
                 Source(i, j, k, 1);
 
             M_rhs(i,j,k,0) = 
@@ -863,6 +882,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
                 div_tau(1) * eta(i,j,k) + 
+                g(1)*rho(i,j,k) +
                 Source(i, j, k, 2);
                 
             M_rhs(i,j,k,1) = 

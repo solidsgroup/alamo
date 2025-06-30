@@ -149,6 +149,8 @@ private:
     PrescribedFlowMode prescribedflowmode;
 
 
+    Set::Vector g;
+
 };
 }
 
