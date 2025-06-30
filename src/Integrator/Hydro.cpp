@@ -163,6 +163,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
 
 
+    std::string prescribedflowmode_str;
+    // 
+    pp.query_validate("prescribedflowmode",prescribedflowmode_str,{"absolute","relative"});
+    if (prescribedflowmode_str == "absolute") value.prescribedflowmode = PrescribedFlowMode::Absolute;
+    else if (prescribedflowmode_str == "relative") value.prescribedflowmode = PrescribedFlowMode::Relative;
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
@@ -716,6 +721,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
 
+
+            if (prescribedflowmode == PrescribedFlowMode::Relative)
+            {
+                Set::Vector N = grad_eta / (grad_eta_mag + small);
+                Set::Vector T(N(1), -N(0));
+                u0 = N * u0(0) + T * u0(1);
+            }
+
+
             Set::Scalar mdot0 = -m0(i,j,k) * grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); 
             Set::Scalar qdot0 = q0.dot(grad_eta);
@@ -749,8 +763,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
             Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
-
-            u0 = u0.lpNorm<2>() *  grad_eta / (grad_eta_mag + small);
 
             // Lagrange terms to enforce no-penetration
             Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);

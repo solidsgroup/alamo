@@ -143,6 +143,12 @@ private:
     };
     IntegrationScheme scheme;
 
+    enum PrescribedFlowMode {
+        Absolute, Relative
+    };
+    PrescribedFlowMode prescribedflowmode;
+
+
 };
 }
 

@@ -12,7 +12,7 @@ timestep = 0.1e-5
 amr.base_regrid_int = 10
 amr.plot_dt = 0.01
 # amr.plot_int = 1
-amr.plot_file = output.flame-sfi
+amr.plot_file = output.hydro.sphereflux
 amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
@@ -184,7 +184,7 @@ solid.density.ic.constant.value = 40.0
 solid.energy.ic.constant.value = 0.0
 
 m0.ic.constant.value = 0 #40.0
-u0.ic.constant.value = -0.1 0.0
+u0.ic.constant.value = 0.1 0.0
 q.ic.constant.value = 0.0
 
 small=1E-3
@@ -233,3 +233,5 @@ eta.ic.expression.region0 = "0.5 * (erf((sqrt(x^2 + y^2) - 0.05)/eps) + 1)"
 
 amr.max_level = 0
 scheme = ssprk3
+
+prescribedflowmode = relative

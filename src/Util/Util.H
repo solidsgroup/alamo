@@ -44,6 +44,7 @@ template<>
 std::complex<int> Parse(std::string);
 }
 
+
 extern std::string globalprefix;
 extern bool initialized;
 extern bool finalized;

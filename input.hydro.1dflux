@@ -1,0 +1,150 @@
+####################
+# Alamo Parameters #
+####################
+
+stop_time = 5.0
+timestep = 0.1e-5
+
+####################
+# AMReX Parameters #
+####################
+
+amr.base_regrid_int = 10
+amr.plot_dt = 0.01
+# amr.plot_int = 1
+amr.plot_file = output.hydro.1dflux
+amr.max_level = 3
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.grid_eff = 0.7
+
+amr.n_cell = 64 8
+geometry.prob_lo = -0.24 -0.03
+geometry.prob_hi = 0.24  0.03
+
+###############################
+# Hydro Integrator Parameters #
+###############################
+
+### HYDRO PARAM ###
+gamma = 1.4
+mu    = 5.0
+pref    = 10000
+#hydro.rho_solid = 30.0 #kg/m^3
+#hydro.rho_fluid = 20.0 #kg/m^3
+#hydro.E_solid   = 5.0
+density.ic.constant.value = 40.0
+velocity.ic.type = expression
+velocity.ic.expression.constant.eps   = 0.1
+velocity.ic.expression.constant.x0    = -2.0
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "0.0"
+pressure.ic.type = expression
+pressure.ic.expression.constant.gamma = 1.4
+pressure.ic.expression.constant.E_solid = 5.0
+pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+### ETA BC  ###
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+### HYDRO BC ###
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.xlo = neumann #dirichlet
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+density.bc.constant.val.xhi = 0.0
+density.bc.constant.val.xlo = 0.0
+density.bc.constant.val.ylo = 0.0 
+density.bc.constant.val.yhi = 0.0
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann #dirichlet #neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0 #1000.0 #0.0
+energy.bc.constant.val.ylo = 0.0 
+energy.bc.constant.val.yhi = 0.0
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
+momentum.bc.constant.type.ylo = neumann dirichlet
+momentum.bc.constant.type.yhi = neumann dirichlet
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0  0.0 #10. 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+#eta.ic.constant.value = 1.0
+### HYDRO REFINEMENT CRITERIA ###
+#hydro.r_refinement_criterion   = 0.1
+#hydro.e_refinement_criterion   = 0.1
+#hydro.m_refinement_criterion   = 0.1
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion = 100000000
+
+solid.momentum.ic.constant.value = 0.0
+solid.density.ic.constant.value = 40.0
+solid.energy.ic.constant.value = 0.0
+
+m0.ic.constant.value = 0 #40.0
+u0.ic.constant.value = 0.1 0.0
+q.ic.constant.value = 0.0
+
+small=1E-3
+cutoff=0.2
+lagrange=2000.0
+
+#hydro.Lfactor=-10
+#hydro.Pfactor=10
+cfl   = 10.0
+cfl_v   = 10.0
+
+#hydro.solver.type = roe
+#hydro.solver.roe.lowmach = 1
+#timestep = 1e-5
+
+solver.type = hlle
+
+
+amr.plot_dt = 0.001
+amr.base_regrid_int = 1000000000000
+amr.regrid_int = 1000000000000
+
+#amr.max_level = 0    #1       #2      #3
+#amr.n_cell =  512 64 #256 32  #128 16 #64 8
+#timestep = 0.125e-5  #0.25e-5 #0.5e-5 #1.0e-5
+
+
+#dynamictimestep.on = 0
+#dynamictimestep.verbose = 1
+#dynamictimestep.max  = 1E+10
+#dynamictimestep.min  = 1E-10
+#hydro.cfl   = 1-19
+#hydro.cfl_v = 1.E2
+
+#flame.phi.ic.laminate.eps = 0.1e-5
+amr.blocking_factor = 8
+small=0.01
+
+# 256
+
+amr.n_cell = 256 32 #128 16 #64 8
+timestep=0.25e-5
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps = 0.01
+eta.ic.expression.region0 = "1 - 0.5 * (erf((x)/eps) + 1)"
+
+amr.max_level = 0
+
+scheme = ssprk3
+
+prescribedflowmode = relative
