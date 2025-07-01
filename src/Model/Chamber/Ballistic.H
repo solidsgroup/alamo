@@ -36,9 +36,9 @@ public:
         Util::Message(INFO,"gamma",gamma);
         Util::Message(INFO,"R",R);
         
-        // Set::Scalar c_star = sqrt(gamma * R * T0);
-        Set::Scalar c_star = sqrt((gamma / (R * T0))*(pow(2 / (gamma - 1),(gamma + 1.0) / (gamma - 1.0))));
-        Set::Scalar mdot_out = (pressure * At) / c_star;
+        // Set::Scalar c_star
+        Set::Scalar c_star = sqrt((gamma / (R * T0))*(pow(2 / (gamma + 1),(gamma + 1.0) / (2 * (gamma - 1.0)))));
+        Set::Scalar mdot_out = (pressure * At * c_star);
         
         Util::Message(INFO,"c*", c_star);
         Util::Message(INFO,"mdot_out", mdot_out);
