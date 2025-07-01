@@ -443,6 +443,8 @@ public:
             if (!contains(name.c_str()))
             {
                 add(name.c_str(),Util::String::Join(defaultvalue));
+                value = defaultvalue;
+                return 0;
             }
             return queryarr(name.c_str(),value, file, func, line);
         }
