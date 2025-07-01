@@ -19,7 +19,7 @@
 
 ### OUTPUT ###
 
-plot_file = output.hydro.rt
+plot_file = output.hydro.rm
 
 ### MESHING ###
 
@@ -29,26 +29,29 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.base_regrid_int = 100
 amr.grid_eff = 0.8
+#
+#amr.max_level = 3
+#timestep  =1e-5
+#amr.n_cell = 8 32
+#
+#amr.max_level = 2
+#timestep  =0.5e-5
+#amr.n_cell = 16 64 #8 32
+#
 
 amr.max_level = 3
 timestep  =1e-5
-amr.n_cell = 8 32
 
-amr.max_level = 2
-timestep  =0.5e-5
-amr.n_cell = 16 64 #8 32
-
-amr.max_level = 2
-timestep  =0.125e-5
-amr.n_cell = 32 128 #8 32
+amr.n_cell = 64 16 #8 32
+amr.plot_int=100
 
 #amr.max_level = 0
 #timestep  = 0.125e-5 #0.125e-5
 #amr.n_cell = 64 256 #8 32
 
 ### DIMENSIONS ###
-geometry.prob_lo = 0    -0.5    0.0 # [ m ]
-geometry.prob_hi = 0.25  0.5  12.0 0.0 # [ m ]
+geometry.prob_lo = -0.5  0      0.0 # [ m ]
+geometry.prob_hi =  0.0  0.125 12.0 0.0 # [ m ]
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
@@ -64,28 +67,55 @@ eta.ic.expression.region0 = "1.0"
 
 ### HYDRO PARAM ###
 
-gamma = 10.4
+gamma = 1.4
 cfl   = 0.4
 mu    = 0.00000001
 
-density.ic.type = expression
-#density.ic.expression.region0 = "1.0 + 1.0*(y>0.025*cos(2*3.14*x/0.25))"
-density.ic.expression.constant.eps = 0.0025
-density.ic.expression.region0 = "1.0 + 1.0*( 0.5 + 0.5*erf( (y - 0.025*cos(2*3.14*x/0.25)) / eps ) )" 
-
+#
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "1.2" 
+#
+
+
+
+density.ic.type = expression
+density.ic.expression.constant.eps = 0.0001
+density.ic.expression.constant.xshock = -0.45
+density.ic.expression.constant.interface = -0.4
+density.ic.expression.constant.amp = 0.04
+density.ic.expression.constant.N = 9
+density.ic.expression.constant.L = 0.2
+density.ic.expression.region0 =  "(x < xshock) * 1.8611 + (x >= xshock) * (1.0 + (3.0 - 1.0) * (0.5 + 0.5 * erf((x - (interface + amp * cos(N*3.14*y/L))) / eps)))"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.constant.xshock = -0.45
+velocity.ic.expression.region0 = "(x < xshock) * 0.6857 + (x >= xshock) * 0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "100000.0"
-pref = 100000.0
+pressure.ic.expression.constant.xshock = -0.45
+pressure.ic.expression.region0 = "(x < xshock) * 2.4583 + (x >= xshock) * 1.0"
 
 
-g = 0 -1000
+
+tracer.ic.type = expression
+tracer.ic.expression.constant.interface = -0.4
+tracer.ic.expression.constant.amp = 0.04
+tracer.ic.expression.constant.N = 9
+tracer.ic.expression.constant.L = 0.2
+tracer.ic.expression.constant.eps = 0.0001
+tracer.ic.expression.region0 =  "(0.5 + 0.5 * erf((x - (interface + amp * cos(N*3.14*y/L))) / eps))"
+
+tracer.bc.type = constant
+tracer.bc.constant.type.xlo = neumann
+tracer.bc.constant.type.xhi = neumann
+tracer.bc.constant.type.ylo = neumann
+tracer.bc.constant.type.yhi = neumann
+
+
+
+pref = 0.0
+
 
 ### ETA BC  ###
 
@@ -108,10 +138,10 @@ energy.bc.constant.type.xlo = neumann
 energy.bc.constant.type.ylo = neumann
 energy.bc.constant.type.yhi = neumann
 
-momentum.bc.constant.type.xhi = dirichlet neumann
-momentum.bc.constant.type.xlo = dirichlet neumann
-momentum.bc.constant.type.ylo = dirichlet dirichlet
-momentum.bc.constant.type.yhi = dirichlet dirichlet
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
@@ -122,7 +152,7 @@ momentum.bc.constant.val.yhi = 0.0 0.0
 eta_refinement_criterion = 10000000
 omega_refinement_criterion = 1000000
 gradu_refinement_criterion = 1000000
-rho_refinement_criterion = 0.01
+rho_refinement_criterion = 0.1
 
 #TODO
 

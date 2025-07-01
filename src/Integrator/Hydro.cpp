@@ -77,6 +77,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.select_default<BC::Constant,BC::Expression>("momentum.bc",value.momentum_bc,2);
         // Boundary condition for phase field order parameter
         pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,1);
+        // Boundary condition for tracer field
+        pp.select_default<BC::Constant,BC::Expression>("tracer.bc",value.tracer_bc,1);
 
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
@@ -102,6 +104,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true ,true, {"x","y"});
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false, true);
  
+        value.RegisterNewFab(value.tracer_mf,     value.tracer_bc, 1, nghost, "tracer",     true ,true);
+        value.RegisterNewFab(value.tracer_old_mf, value.tracer_bc, 1, nghost, "tracer_old", false);
+
         value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
@@ -140,6 +145,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("pressure.ic",value.pressure_ic,value.geom);
     // density initial condition type
     pp.select_default<IC::Constant,IC::Expression>("density.ic",value.density_ic,value.geom);
+
+    // density initial condition type
+    pp.select_default<IC::Constant,IC::Expression>("tracer.ic",value.tracer_ic,value.geom);
 
 
     // SOLID FIELDS
@@ -210,6 +218,8 @@ void Hydro::Initialize(int lev)
 
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
 
+    tracer_ic       ->Initialize(lev, tracer_old_mf, 0.0);
+    tracer_ic       ->Initialize(lev, tracer_mf, 0.0);
 
     solid.density_ic ->Initialize(lev, solid.density_mf, 0.0);
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
@@ -303,6 +313,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
+    std::swap(tracer_old_mf[lev],   tracer_mf[lev]);
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
     
     UpdateEta(lev, time);
@@ -612,6 +623,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Source = Source_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar> tracer_new = tracer_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> tracer   = tracer_old_mf.Patch(lev,mfi);
+
         Set::Scalar *dt_max_handle = &dt_max;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -624,8 +638,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
             }
 
+            Set::Vector vel(u(i,j,k,0),u(i,j,k,1));
             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
+
+            Set::Vector gradtracer        = Numeric::Gradient(tracer, i, j, k,0, DX);
+            tracer_new(i,j,k) = tracer(i,j,k) - vel.dot(gradtracer)*dt;
 
             if (dynamictimestep.on)
             {

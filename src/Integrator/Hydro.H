@@ -30,10 +30,12 @@ public:
         delete momentum_bc;
         delete energy_bc;
         delete eta_bc;
+        delete tracer_bc;
 
         delete density_ic;
         delete velocity_ic;
         delete pressure_ic;
+        delete tracer_ic;
 
         delete ic_m0;
         delete ic_u0;
@@ -81,6 +83,10 @@ private:
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
 
+
+    Set::Field<Set::Scalar> tracer_mf;
+    Set::Field<Set::Scalar> tracer_old_mf;
+
     struct {
         Set::Field<Set::Scalar> density_mf;
         Set::Field<Set::Scalar> momentum_mf;
@@ -108,10 +114,12 @@ private:
     BC::BC<Set::Scalar>* momentum_bc = nullptr;
     BC::BC<Set::Scalar>* energy_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
-
+    BC::BC<Set::Scalar>* tracer_bc = nullptr;
+ 
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* density_ic  = nullptr;
+    IC::IC<Set::Scalar>* tracer_ic  = nullptr;
 
     IC::IC<Set::Scalar>* ic_m0 = nullptr;
     IC::IC<Set::Scalar>* ic_u0 = nullptr;
