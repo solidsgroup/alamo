@@ -136,6 +136,24 @@ public:
     {
         (void)amrex::ParmParse::contains(name.c_str());
     }
+    
+    void pushPrefix(const std::string prefix)
+    {
+        if (m_prefix.length())
+            m_prefix = m_prefix + "." + prefix;
+        else
+            m_prefix = prefix;
+    }
+
+    void popPrefix()
+    {
+        size_t pos = m_prefix.rfind('.');
+        if (pos == std::string::npos)
+            m_prefix = "";
+        else
+            m_prefix = m_prefix.substr(0, pos);
+    }
+
 
     void forbid(std::string name, std::string explanation,
                 std::string file = "", std::string func = "", int line = -1)
@@ -546,16 +564,27 @@ public:
 
 
 
-    int AnyUnusedInputs()
+    int AnyUnusedInputs(bool inscopeonly = true, bool verbose = false)
     {
         int cnt = 0;
         for (auto li = m_table->begin(), End = m_table->end(); li != End; ++li)
         {
-            if (!li->second.m_count && li->first.rfind(getPrefix()+".",0) != std::string::npos)
-            {
-                Util::Warning(INFO,li->first);
-                cnt++;
-            }
+                if (!li->second.m_count)
+                {
+                    if (inscopeonly && getPrefix() != "")
+                    {
+                        if (li->first.rfind(getPrefix()+".",0) != std::string::npos)
+                        {
+                            if (verbose) Util::Warning(INFO,li->first);
+                            cnt++;
+                        }
+                    }
+                    else
+                    {
+                        if (verbose) Util::Warning(INFO,li->first);
+                        cnt++;
+                    }
+                }
         }
         return cnt;
     }
@@ -737,6 +766,71 @@ public:
             Util::Exception(INFO,type," not a valid type for ",name);
     }
 
+
+    //
+    //
+    template<typename... IC, typename... Args, typename PTRTYPE>
+    void select_enumerate (std::string a_name, std::vector<PTRTYPE*> & value, Args&&... args)
+    {
+
+        value.clear();
+
+        //
+        // If only one is present with no subscript, then read
+        // it only and return.
+        //
+        std::string name = a_name;
+        if (this->contains(name))
+        {
+            PTRTYPE *tmp;
+            this->select<IC...>(a_name, tmp, args...);
+            value.push_back(tmp);
+            return;
+        }
+
+        //
+        // Some logic to determine whether we are starting with zero
+        // (model0, model1, model2, ...)
+        // or one
+        // (model1, model2, model3, ...)
+        // since both are supported
+        //
+        int start = -1;
+        std::string name0 = a_name + std::to_string(0);
+        std::string name1 = a_name + std::to_string(1);
+        if (this->contains(name0.c_str()))
+        {
+            start = 0;
+            name = name0;
+        }
+        else if (this->contains(name1.c_str()))
+        {
+            start = 1;
+            name = name1;
+        }
+        else
+        {
+            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+        }
+
+        //
+        // Iterate over items called (model0), model1, model2, etc
+        // until no more are found then exit. 
+        //
+        for (int cntr = start; this->contains(name.c_str()); cntr++)
+        {
+            if (this->contains(name.c_str()))
+            {
+                PTRTYPE *tmp;
+                this->select<IC...>(name, tmp, args...);
+                value.push_back(tmp);
+            }
+            name = a_name + std::to_string(cntr+1);
+        }
+    }
+
+
+
     //
     // Similar to select but specialized for main functions
     //
@@ -773,19 +867,84 @@ public:
         ic_eta = new INTEGRATOR((*this));
     }
 
+    
+    //
+    // functionally simlar to other kinds of select, execpt works on
+    // template-based static dispatch.
+    //
+
+    template <typename... OBJ, typename CLASS>
+    void select(std::string name, CLASS& value)
+    {
+        pushPrefix(name);
+        static_polymorphism_parser<CLASS, 0, OBJ...>(value);
+        popPrefix();
+    }
+
+private:
+    //
+    // This function is a virtual "swtich / case" block for static
+    // dispatch. It works on a faux-virtual class "CLASS" that must 
+    // contain a tuple of "obj" with each "obj" being a derived type.
+    // Recursion is used to unroll the list, identify the correct class
+    // based on "name/type", set the "selected" index, then call the
+    // appropriate class' Parse function.
+    // 
+    // This is only for use by the "select" functions.
+    // 
+    template <typename CLASS, int N, typename... OBJ>
+    void static_polymorphism_parser(CLASS& value)
+    {
+        if constexpr (N == 0)
+        {
+            std::string type;
+            query_default("type",type,value.names[0]);
+
+            for (unsigned int i = 0; i < sizeof...(OBJ); i++)
+                if (type == value.names[i])
+                    value.selected = i;
+
+            if (value.selected < 0)
+                Util::Exception(INFO,
+                                "Error reading " + getPrefix() + 
+                                ", invalid type " + type);
+
+            
+            pushPrefix(type);
+        }
+
+        if constexpr (N < sizeof...(OBJ))
+        {
+            if (value.selected == N)
+            {
+                std::get<N>(value.obj).Parse(std::get<N>(value.obj), *this);
+                popPrefix();
+                return;
+            }
+            else 
+                return static_polymorphism_parser<CLASS, N+1, OBJ...>(value);
+        }
+        else Util::Abort(INFO);
+    }
+
+public:
 
     template <int N>
     void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
     {
         int cnt = 0;
+        std::vector<std::string> read;
         for (unsigned int n = 0; n < names.size(); n++)
         {
             if (amrex::ParmParse::contains(names[n].c_str()))
             {
+                read.push_back(names[n]);
                 cnt++;
             }
         }
-        Util::Assert(INFO, TEST(cnt == N), "incorrect number of values specified");
+        Util::AssertException(  INFO, TEST(cnt == N), "incorrect number of values specified: only ", N,
+                                " values are allowed, but received ",Util::String::Join(read));
+
 
         cnt = 0;
         for (unsigned int n = 0; n < names.size(); n++)

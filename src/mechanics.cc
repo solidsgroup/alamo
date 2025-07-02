@@ -14,6 +14,7 @@
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Finite/NeoHookean.H"
 #include "Model/Solid/Finite/NeoHookeanPredeformed.H"
+#include "Model/Solid/Linear/Transverse.H"
 #include "Model/Solid/Finite/PseudoLinear/Cubic.H"
 #include "Model/Solid/Finite/PseudoAffine/Cubic.H"
 #include "Model/Solid/Linear/Laplacian.H"
@@ -56,6 +57,8 @@ int main (int argc, char* argv[])
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookean>>(integrator);
         else if (model == "finite.neohookeanpre")
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>>(integrator);
+        else if (model == "linear.transverse")
+            pp.select_only<Integrator::Mechanics<Model::Solid::Linear::Transverse> >(integrator);
         else if (model == "finite.pseudolinear.cubic")
             pp.select_only<Integrator::Mechanics<Model::Solid::Finite::PseudoLinear::Cubic>>(integrator);
         else if (model == "finite.pseudoaffine.cubic")

@@ -82,6 +82,7 @@ tidy:
 	find src -name "*.orig" -exec rm -rf {} \;
 	rm -f Backtrace*
 	rm -f amrex.build.log
+	rm -f profile.prof*
 
 clean: tidy
 	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
