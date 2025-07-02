@@ -128,9 +128,6 @@ momentum.bc.constant.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-#r_refinement_criterion   = 0.1
-#e_refinement_criterion   = 0.1
-#m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
 
