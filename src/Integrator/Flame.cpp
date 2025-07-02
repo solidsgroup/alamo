@@ -38,49 +38,49 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("geometry.y_len","This is specified by geometry.prob_lo/hi");
     pp.forbid("amr.ghost_cells", "This should not be adjustable ");
 
-    pp.forbid("pf.gamma","implemented in regression rate law objects now"); 
+    pp.forbid("pf.gamma","use propellant.powerlaw.gamma"); 
 
-    pp.forbid("pressure.r_ap",   "use regression.powerlaw.r_ap");
-    pp.forbid("pressure.r_htpb", "use regression.powerlaw.r_htpb");
-    pp.forbid("pressure.r_comb", "use regression.powerlaw.r_comb");
-    pp.forbid("pressure.n_ap",   "use regression.powerlaw.n_ap");
-    pp.forbid("pressure.n_htpb", "use regression.powerlaw.n_htpb");
-    pp.forbid("pressure.n_comb", "use regression.powerlaw.n_comb");
+    pp.forbid("pressure.r_ap",   "use propellant.powerlaw.r_ap");
+    pp.forbid("pressure.r_htpb", "use propellant.powerlaw.r_htpb");
+    pp.forbid("pressure.r_comb", "use propellant.powerlaw.r_comb");
+    pp.forbid("pressure.n_ap",   "use propellant.powerlaw.n_ap");
+    pp.forbid("pressure.n_htpb", "use propellant.powerlaw.n_htpb");
+    pp.forbid("pressure.n_comb", "use propellant.powerlaw.n_comb");
 
     pp.forbid("thermal.bound",   "use thermal.Tref");
     pp.forbid("thermal.T_fluid",   "use thermal.Tfluid (or nothing)");
-    pp.forbid("thermal.m_ap",   "use regression.arrhenius.m_ap");
-    pp.forbid("thermal.m_htpb", "use regression.arrhenius.m_htpb");
-    pp.forbid("thermal.E_ap",   "use regression.arrhenius.E_ap");
-    pp.forbid("thermal.E_htpb", "use regression.arrhenius.E_htpb");
+    pp.forbid("thermal.m_ap",   "use propellant.fullfeedback.m_ap");
+    pp.forbid("thermal.m_htpb", "use propellant.fullfeedback.m_htpb");
+    pp.forbid("thermal.E_ap",   "use propellant.fullfeedback.E_ap");
+    pp.forbid("thermal.E_htpb", "use propellant.fullfeedback.E_htpb");
     pp.forbid("thermal.modeling_ap",   "Old debug variable. Should equal 1 "); 
     pp.forbid("thermal.modeling_htpb", "Old debug variable. Should equal 1"); 
 
-    pp.forbid("pressure.a1", "use propellant.mesoscale.a1 instead");
-    pp.forbid("pressure.a2", "use propellant.mesoscale.a2 instead");
-    pp.forbid("pressure.a3", "use propellant.mesoscale.a3 instead");
-    pp.forbid("pressure.b1", "use propellant.mesoscale.b1 instead");
-    pp.forbid("pressure.b2", "use propellant.mesoscale.b2 instead");
-    pp.forbid("pressure.b3", "use propellant.mesoscale.b3 instead");
-    pp.forbid("pressure.c1", "use propellant.mesoscale.c1 instead");
+    pp.forbid("pressure.a1", "use propellant.fullfeedback.a1 instead");
+    pp.forbid("pressure.a2", "use propellant.fullfeedback.a2 instead");
+    pp.forbid("pressure.a3", "use propellant.fullfeedback.a3 instead");
+    pp.forbid("pressure.b1", "use propellant.fullfeedback.b1 instead");
+    pp.forbid("pressure.b2", "use propellant.fullfeedback.b2 instead");
+    pp.forbid("pressure.b3", "use propellant.fullfeedback.b3 instead");
+    pp.forbid("pressure.c1", "use propellant.fullfeedback.c1 instead");
     pp.forbid("pressure.mob_ap", "no longer used"); 
-    pp.forbid("pressure.dependency", "use propellant.mesoscale.arrhenius_dependency"); 
-    pp.forbid("pressure.h1", "use propellant.mesoscale.h1 instead"); 
-    pp.forbid("pressure.h2", "use propellant.mesoscale.h2 instead"); 
-    pp.forbid("thermal.mlocal_ap", "use propellant.mesoscale.mlocal_ap");
-    pp.forbid("thermal.mlocal_comb", "use propellant.mesoscale.mlocal_comb");
+    pp.forbid("pressure.dependency", "use propellant.fullfeedback.pressure_dependency"); 
+    pp.forbid("pressure.h1", "use propellant.homogenize.h1 instead"); 
+    pp.forbid("pressure.h2", "use propellant.homogenize.h2 instead"); 
+    pp.forbid("thermal.mlocal_ap", "use propellant.homogenize.mlocal_ap");
+    pp.forbid("thermal.mlocal_comb", "use propellant.homogenize.mlocal_comb");
     pp.forbid("thermal.mlocal_htpb", "this actually did **nothing** - it was overridden by a hard code using massfraction.");
 
-    pp.forbid("thermal.disperssion1", "use propellant.mesoscale.dispersion1");
-    pp.forbid("thermal.disperssion2", "use propellant.mesoscale.dispersion2");
-    pp.forbid("thermal.disperssion3", "use propellant.mesoscale.dispersion3"); 
+    pp.forbid("thermal.disperssion1", "use propellant.homogenize.dispersion1");
+    pp.forbid("thermal.disperssion2", "use propellant.homogenize.dispersion2");
+    pp.forbid("thermal.disperssion3", "use propellant.homogenize.dispersion3"); 
 
-    pp.forbid("thermal.rho_ap", "use propellant.XX.rho_ap ");
-    pp.forbid("thermal.rho_htpb","use propellant.XX.rho_htpb ");
-    pp.forbid("thermal.k_ap",   "use propellant.XX.k_ap ");
-    pp.forbid("thermal.k_htpb", "use propellant.XX.k_htpb ");
-    pp.forbid("thermal.cp_ap", "use propellant.XX.cp_ap ");
-    pp.forbid("thermal.cp_htpb","use propellant.XX.cp_htpb "); 
+    pp.forbid("thermal.rho_ap", "use propellant.fullfeedback/homogenize.rho_ap ");
+    pp.forbid("thermal.rho_htpb","use propellant.fullfeedback/homogenize.rho_htpb ");
+    pp.forbid("thermal.k_ap",   "use propellant.fullfeedback/homogenize.k_ap ");
+    pp.forbid("thermal.k_htpb", "use propellant.fullfeedback/homogenize.k_htpb ");
+    pp.forbid("thermal.cp_ap", "use propellant.fullfeedback/homogenize.cp_ap ");
+    pp.forbid("thermal.cp_htpb","use propellant.fullfeedback/homogenize.cp_htpb "); 
 }
 
 
