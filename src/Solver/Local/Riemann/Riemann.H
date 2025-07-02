@@ -1,6 +1,7 @@
 #ifndef SOLVER_LOCAL_RIEMANN_H
 #define SOLVER_LOCAL_RIEMANN_H
 
+#include "IO/ParmParse.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
 
@@ -16,10 +17,16 @@ struct State {
     Set::Scalar M_tangent = NAN;
     Set::Scalar E = NAN;
     // Construtor for convenience
+    AMREX_GPU_HOST_DEVICE
     State() { rho = 0.0; M_normal = 0.0, M_tangent = 0.0; E = 0.0;}
+    AMREX_GPU_HOST_DEVICE
     State(Set::Scalar a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E)
         : rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E) {}
-    State(Set::Patch<const Set::Scalar> density_mf, Set::Patch<const Set::Scalar> momentum_mf, Set::Patch<const Set::Scalar> energy_mf, int i, int j, int k, int direction)
+    AMREX_GPU_HOST_DEVICE
+    State(Set::Patch<const Set::Scalar> &density_mf, 
+          Set::Patch<const Set::Scalar> &momentum_mf, 
+          Set::Patch<const Set::Scalar> &energy_mf, 
+          int i, int j, int k, int direction)
     {
         rho = density_mf(i,j,k);
         if (direction == 0)
@@ -49,38 +56,47 @@ struct State {
         // do stuf
         return os;
     }
+    AMREX_GPU_HOST_DEVICE
     void operator += (const State &a)
     {
         rho += a.rho; M_normal += a.M_normal; M_tangent += a.M_tangent; E += a.E; 
     };
+    AMREX_GPU_HOST_DEVICE
     void operator -= (const State &a)
     {
         rho -= a.rho; M_normal -= a.M_normal; M_tangent -= a.M_tangent; E -= a.E; 
     };
+    AMREX_GPU_HOST_DEVICE
     void operator *= (const Set::Scalar alpha)
     {
         rho *= alpha; M_normal *= alpha; M_tangent *= alpha; E *= alpha; 
     };
+    AMREX_GPU_HOST_DEVICE
     void operator /= (const Set::Scalar alpha)
     {
         rho /= alpha; M_normal /= alpha; M_tangent /= alpha; E /= alpha; 
     };
+    AMREX_GPU_HOST_DEVICE
     friend State operator + (const State &a, const State &b)
     {
         return State(a.rho+b.rho, a.M_normal+b.M_normal, a.M_tangent+b.M_tangent, a.E+b.E);
     }
+    AMREX_GPU_HOST_DEVICE
     friend State operator - (const State &a, const State &b)
     {
         return State(a.rho-b.rho, a.M_normal-b.M_normal, a.M_tangent-b.M_tangent, a.E-b.E);
     }
+    AMREX_GPU_HOST_DEVICE
     friend State operator * (const Set::Scalar alpha, const State &b)
     {
         return State(b.rho*alpha, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha);
     }
+    AMREX_GPU_HOST_DEVICE
     friend State operator * (const State &b, const Set::Scalar alpha)
     {
         return State(b.rho*alpha, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha);
     }
+    AMREX_GPU_HOST_DEVICE
     friend State operator / (const State &b, const Set::Scalar alpha)
     {
         return State(b.rho/alpha, b.M_normal/alpha, b.M_tangent/alpha, b.E/alpha);
@@ -92,11 +108,14 @@ struct Flux {
     Set::Scalar momentum_normal;
     Set::Scalar momentum_tangent;
     Set::Scalar energy;
+    AMREX_GPU_HOST_DEVICE
     Flux() : mass(0.0), momentum_normal(0.0), momentum_tangent(0.0), energy(0.0) {}
+    AMREX_GPU_HOST_DEVICE
     Flux(Set::Scalar a_mass, Set::Scalar a_momentum_normal, Set::Scalar a_momentum_tangent, Set::Scalar a_energy) :
         mass(a_mass), momentum_normal(a_momentum_normal),
         momentum_tangent(a_momentum_tangent), energy(a_energy) {}
 
+    AMREX_GPU_HOST_DEVICE
     Flux(State &in) :
         mass(in.rho),
         momentum_normal(in.M_normal),
@@ -112,18 +131,21 @@ struct Flux {
         // do stuff
         return os;
     }
+    AMREX_GPU_HOST_DEVICE
     void operator += (const Flux &a)
     {
         mass += a.mass;
         momentum_normal += a.momentum_normal; momentum_tangent += a.momentum_tangent; 
         energy += a.energy;
     }
+    AMREX_GPU_HOST_DEVICE
     void operator -= (const Flux &a)
     {
         mass -= a.mass;
         momentum_normal -= a.momentum_normal; momentum_tangent -= a.momentum_tangent; 
         energy -= a.energy;
     }
+    AMREX_GPU_HOST_DEVICE
     void operator *= (const Set::Scalar alpha)
     {
         mass *= alpha;
@@ -131,6 +153,7 @@ struct Flux {
         momentum_tangent *= alpha;
         energy *= alpha;
     }
+    AMREX_GPU_HOST_DEVICE
     void operator /= (const Set::Scalar alpha)
     {
         mass /= alpha;
@@ -138,26 +161,31 @@ struct Flux {
         momentum_tangent /= alpha;
         energy /= alpha;
     }
+    AMREX_GPU_HOST_DEVICE
     friend Flux operator + (const Flux &a, const Flux &b)
     {
         return Flux(a.mass+b.mass, a.momentum_normal+b.momentum_normal,
                     a.momentum_tangent+b.momentum_tangent, a.energy+b.energy);
     }
+    AMREX_GPU_HOST_DEVICE
     friend Flux operator - (const Flux &a, const Flux &b)
     {
         return Flux(a.mass-b.mass, a.momentum_normal-b.momentum_normal,
                     a.momentum_tangent-b.momentum_tangent, a.energy-b.energy);
     }
+    AMREX_GPU_HOST_DEVICE
     friend Flux operator * (const Flux &a, const Set::Scalar beta)
     {
         return Flux(a.mass*beta, a.momentum_normal*beta,
                     a.momentum_tangent*beta, a.energy*beta);
     }
+    AMREX_GPU_HOST_DEVICE
     friend Flux operator * (const Set::Scalar beta,const Flux &a)
     {
         return Flux(a.mass*beta, a.momentum_normal*beta,
                     a.momentum_tangent*beta, a.energy*beta);
     }
+    AMREX_GPU_HOST_DEVICE
     friend Flux operator / (const Flux &a, const Set::Scalar beta)
     {
         return Flux(a.mass/beta, a.momentum_normal/beta,
@@ -167,11 +195,28 @@ struct Flux {
 };
 
 
+template<typename... OBJ>
 class Riemann 
 {
+private:
+    friend IO::ParmParse;
+    std::tuple<OBJ...> obj;
+    static constexpr const char* names[] = { OBJ::name... };
+    int selected = -1;
+    
 public:
-    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) = 0;
-    virtual ~Riemann() = default;
+    template<int I = 0>
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Flux Solve(const State &lo, const State &hi, const Set::Scalar gamma, const Set::Scalar p_ref, const Set::Scalar small) const
+    {
+        if constexpr (I < sizeof...(OBJ))
+        {
+            if (selected == I) return std::get<I>(obj).Solve(lo,hi,gamma,p_ref,small);
+            else return Solve<I+1>(lo,hi,gamma,p_ref,small);
+        }
+        else Util::Abort(INFO,selected);
+    }
+    ~Riemann() = default;
 };
 
 

@@ -14,7 +14,7 @@ namespace Local
 namespace Riemann
 {
 
-class HLLE : public Riemann
+class HLLE
 {
 public:
 
@@ -41,7 +41,9 @@ public:
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) override
+    AMREX_GPU_HOST_DEVICE
+    Flux Solve(const State &lo, const State &hi, 
+               const Set::Scalar gamma, const Set::Scalar p_ref, const Set::Scalar small) const
     {
         // Grab and label the input states
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;

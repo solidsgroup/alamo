@@ -1,5 +1,6 @@
 
 #include "Hydro.H"
+#include "AMReX_CTOParallelForImpl.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
@@ -160,7 +161,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select_default<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
+    pp.select<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
 
 
 
@@ -213,6 +214,9 @@ void Hydro::Mix(int lev)
     {
         const amrex::Box& bx = mfi.growntilebox();
 
+        auto gamma = this->gamma;
+
+
         Set::Patch<const Set::Scalar> eta       = eta_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> v         = velocity_mf.Patch(lev,mfi);
@@ -228,7 +232,7 @@ void Hydro::Mix(int lev)
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
 
-        amrex::LoopConcurrentOnCpu(bx, [=] (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_HOST_DEVICE (int i, int j, int k)
         {  
             rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
@@ -296,7 +300,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
-        amrex::LoopConcurrentOnCpu(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
         });
@@ -327,7 +331,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
         
 
-            amrex::LoopConcurrentOnCpu(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {   
                 rho_new(i, j, k) = rho_old(i, j, k) + dt * rho_rhs(i,j,k);
                 M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
@@ -569,6 +573,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         const amrex::Box& bx = mfi.validbox();
         const Set::Scalar* DX = geom[lev].CellSize();
         
+        auto cutoff = this->cutoff;
+        auto dynamictimestep = this->dynamictimestep;
+        // auto cfl = this->cfl;
+        // auto cfl_v = this->cfl_v;
+        // auto small = this->small;
+
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
@@ -585,7 +595,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Scalar *dt_max_handle = &dt_max;
 
-        amrex::LoopConcurrentOnCpu(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             if (eta(i,j,k) < cutoff)
             {
@@ -598,13 +608,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
 
-            if (dynamictimestep.on)
-            {
-                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta(i,j,k) + small));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta(i,j,k) + small)));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
-            }
+            // if (dynamictimestep.on)
+            // {
+            //     *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta(i,j,k) + small));
+            //     *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta(i,j,k) + small)));
+            //     *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
+            //     *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+            // }
         });
     }
 
@@ -631,6 +641,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         const amrex::Box& bx = mfi.growntilebox();
         amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
 
+        auto small = this->small;
+        auto gamma = this->gamma;
+        auto pref = this->pref;
+
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
         Set::Patch<const Set::Scalar> M         = M_mf.array(mfi);    // momentum
         Set::Patch<const Set::Scalar> E         = E_mf.array(mfi);    // total energy (internal energy + kinetic energy) per unit volume (E/rho = e + 0.5*v^2)
@@ -642,7 +656,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
 
-        amrex::LoopConcurrentOnCpu(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
 
             Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta(i,j,k)) * rho_solid(i,j,k);
@@ -665,7 +679,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
-        
+
+        auto mu = this->mu;
+        auto lagrange = this->lagrange;
+        auto small = this->small;
+        auto pref = this->pref;
+        auto gamma = this->gamma;
+        auto &riemannsolver = this->riemannsolver;
+
         // Inputs
         Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
         Set::Patch<const Set::Scalar> E   = E_mf.array(mfi);
@@ -784,22 +805,22 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
-            try
-            {
+            //try
+            //{
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_xlo = riemannsolver.Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_ylo = riemannsolver.Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta(i,j,k);
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
-            }
-            catch(...)
-            {
-                Util::ParallelMessage(INFO,"lev=",lev);
-                Util::ParallelMessage(INFO,"i=",i,"j=",j);
-                Util::Abort(INFO);
-            }
+                flux_xhi = riemannsolver.Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta(i,j,k);
+                flux_yhi = riemannsolver.Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta(i,j,k);
+            //}
+            //catch(...)
+            //{
+            //    Util::ParallelMessage(INFO,"lev=",lev);
+            //    Util::ParallelMessage(INFO,"i=",i,"j=",j);
+            //    Util::Abort(INFO);
+            //}
 
 
             Set::Scalar drhof_dt = 
@@ -920,7 +941,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
                 Util::Exception(INFO);
             }
-
+#endif
 
 
             // todo - may need to move this for higher order schemes...
@@ -948,6 +969,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     // Eta criterion for refinement
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
+        auto eta_refinement_criterion = this->eta_refinement_criterion;
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
@@ -960,6 +982,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     // Vorticity criterion for refinement
     for (amrex::MFIter mfi(*vorticity_mf[lev], true); mfi.isValid(); ++mfi) {
+        auto omega_refinement_criterion = this->omega_refinement_criterion;
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& omega = (*vorticity_mf[lev]).array(mfi);
@@ -973,6 +996,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     // Gradu criterion for refinement
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi) {
+        auto gradu_refinement_criterion = this->gradu_refinement_criterion;
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& v = (*velocity_mf[lev]).array(mfi);
@@ -986,6 +1010,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     // Pressure criterion for refinement
     for (amrex::MFIter mfi(*pressure_mf[lev], true); mfi.isValid(); ++mfi) {
+        auto p_refinement_criterion = this->p_refinement_criterion;
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& p = (*pressure_mf[lev]).array(mfi);
@@ -999,6 +1024,7 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 
     // Density criterion for refinement
     for (amrex::MFIter mfi(*density_mf[lev], true); mfi.isValid(); ++mfi) {
+        auto rho_refinement_criterion = this->rho_refinement_criterion;
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*density_mf[lev]).array(mfi);

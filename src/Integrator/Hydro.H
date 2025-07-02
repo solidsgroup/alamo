@@ -11,6 +11,7 @@
 
 #include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
+#include "Solver/Local/Riemann/HLLE.H"
 
 #if AMREX_SPACEDIM==2
 
@@ -45,11 +46,9 @@ public:
         delete solid.momentum_ic;
         delete solid.density_ic;
         delete solid.energy_ic;
-
-        delete riemannsolver;
     }
 
-protected:
+public:
     void Initialize(int lev) override;
     void Mix(int lev);
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
@@ -59,7 +58,7 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
-private:
+public:
     
     void RHS(   int lev, Set::Scalar time, 
                 amrex::MultiFab &rho_rhs_mf, 
@@ -90,10 +89,10 @@ private:
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
 
-protected:
+
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
-private:
+
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> vorticity_mf;
@@ -136,7 +135,10 @@ private:
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
 
-    Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
+    Solver::Local::Riemann::Riemann<
+        Solver::Local::Riemann::Roe,
+        Solver::Local::Riemann::HLLE>
+    riemannsolver;
 
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4
