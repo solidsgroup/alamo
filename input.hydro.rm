@@ -39,7 +39,7 @@ amr.grid_eff = 0.8
 #amr.n_cell = 16 64 #8 32
 #
 
-amr.max_level = 3
+amr.max_level = 4
 timestep  =1e-5
 
 amr.n_cell = 64 16 #8 32
@@ -82,9 +82,9 @@ density.ic.type = expression
 density.ic.expression.constant.eps = 0.0001
 density.ic.expression.constant.xshock = -0.45
 density.ic.expression.constant.interface = -0.4
-density.ic.expression.constant.amp = 0.04
-density.ic.expression.constant.N = 9
-density.ic.expression.constant.L = 0.2
+density.ic.expression.constant.amp = 0.01
+density.ic.expression.constant.N = 2
+density.ic.expression.constant.L = 0.125
 density.ic.expression.region0 =  "(x < xshock) * 1.8611 + (x >= xshock) * (1.0 + (3.0 - 1.0) * (0.5 + 0.5 * erf((x - (interface + amp * cos(N*3.14*y/L))) / eps)))"
 
 velocity.ic.type = expression
@@ -100,9 +100,9 @@ pressure.ic.expression.region0 = "(x < xshock) * 2.4583 + (x >= xshock) * 1.0"
 
 tracer.ic.type = expression
 tracer.ic.expression.constant.interface = -0.4
-tracer.ic.expression.constant.amp = 0.04
-tracer.ic.expression.constant.N = 9
-tracer.ic.expression.constant.L = 0.2
+tracer.ic.expression.constant.amp = 0.01
+tracer.ic.expression.constant.N = 2
+tracer.ic.expression.constant.L = 0.125
 tracer.ic.expression.constant.eps = 0.0001
 tracer.ic.expression.region0 =  "(0.5 + 0.5 * erf((x - (interface + amp * cos(N*3.14*y/L))) / eps))"
 
@@ -140,8 +140,8 @@ energy.bc.constant.type.yhi = neumann
 
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.xlo = neumann neumann
-momentum.bc.constant.type.ylo = neumann neumann
-momentum.bc.constant.type.yhi = neumann neumann
+momentum.bc.constant.type.ylo = neumann dirichlet
+momentum.bc.constant.type.yhi = neumann dirichlet
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
