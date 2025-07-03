@@ -92,10 +92,8 @@ jobs:
     - name: make
       run: make
     - name: parallelism check
-      continue-on-error: true
       run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --comp=clang++ --no-backspace --mpirun-flags="--oversubscribe" --perf
     - name: regression tests
-      continue-on-error: true
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace --perf
     - name: create report
       run: python3 scripts/package_report.py
