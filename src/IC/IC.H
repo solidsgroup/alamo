@@ -57,7 +57,7 @@ public:
     }
 
     virtual void SetComp(int a_comp) final {comp = a_comp;}
-protected:
+
     amrex::Vector<amrex::Geometry> &geom;
     int comp = 0;
 };

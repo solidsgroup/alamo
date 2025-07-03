@@ -884,63 +884,63 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 ;
             
 #ifdef AMREX_DEBUG
-            if ((rho_rhs(i,j,k) != rho_rhs(i,j,k)) ||
-                (M_rhs(i,j,k,0) != M_rhs(i,j,k,0)) ||
-                (M_rhs(i,j,k,1) != M_rhs(i,j,k,1)) ||
-                (E_rhs(i,j,k) != E_rhs(i,j,k)))
-            {
-                Util::ParallelMessage(INFO,"rho_rhs=",rho_rhs(i,j,k));
-                Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,0));
-                Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,1));
-                Util::ParallelMessage(INFO,"E_rhs=",E_rhs(i,j,k));
+            // if ((rho_rhs(i,j,k) != rho_rhs(i,j,k)) ||
+            //     (M_rhs(i,j,k,0) != M_rhs(i,j,k,0)) ||
+            //     (M_rhs(i,j,k,1) != M_rhs(i,j,k,1)) ||
+            //     (E_rhs(i,j,k) != E_rhs(i,j,k)))
+            // {
+            //     Util::ParallelMessage(INFO,"rho_rhs=",rho_rhs(i,j,k));
+            //     Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,0));
+            //     Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,1));
+            //     Util::ParallelMessage(INFO,"E_rhs=",E_rhs(i,j,k));
 
-                Util::ParallelMessage(INFO,"lev=",lev);
-                Util::ParallelMessage(INFO,"i=",i," j=",j);
-                Util::ParallelMessage(INFO,"drhof_dt ",drhof_dt); // dies
-                Util::ParallelMessage(INFO,"flux_xlo.mass ",flux_xlo.mass);
-                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
-                Util::ParallelMessage(INFO,"flux_ylo.mass ",flux_ylo.mass);
-                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_yhi.mass);
-                Util::ParallelMessage(INFO,"eta ",eta(i,j,k));
-                Util::ParallelMessage(INFO,"etadot ",etadot(i,j,k));
-                Util::ParallelMessage(INFO,"Source ",Source(i,j,k,0));
-                Util::ParallelMessage(INFO,"state_x ",state_x); // <<<<
-                Util::ParallelMessage(INFO,"state_y ",state_y);
-                Util::ParallelMessage(INFO,"state_x_solid ",state_x_solid); // <<<<
-                Util::ParallelMessage(INFO,"state_y_solid ",state_y_solid);
-                Util::ParallelMessage(INFO,"state_xhi ",state_xhi); // <<<<
-                Util::ParallelMessage(INFO,"state_yhi ",state_yhi);
-                Util::ParallelMessage(INFO,"state_xhi_solid ",state_xhi_solid);
-                Util::ParallelMessage(INFO,"state_yhi_solids ",state_yhi_solid);
-                Util::ParallelMessage(INFO,"state_xlo ",state_xlo);
-                Util::ParallelMessage(INFO,"state_ylo ",state_ylo);
-                Util::ParallelMessage(INFO,"state_xlo_solid ",state_xlo_solid);
-                Util::ParallelMessage(INFO,"state_ylo_solid ",state_ylo_solid);
+            //     Util::ParallelMessage(INFO,"lev=",lev);
+            //     Util::ParallelMessage(INFO,"i=",i," j=",j);
+            //     Util::ParallelMessage(INFO,"drhof_dt ",drhof_dt); // dies
+            //     Util::ParallelMessage(INFO,"flux_xlo.mass ",flux_xlo.mass);
+            //     Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
+            //     Util::ParallelMessage(INFO,"flux_ylo.mass ",flux_ylo.mass);
+            //     Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_yhi.mass);
+            //     Util::ParallelMessage(INFO,"eta ",eta(i,j,k));
+            //     Util::ParallelMessage(INFO,"etadot ",etadot(i,j,k));
+            //     Util::ParallelMessage(INFO,"Source ",Source(i,j,k,0));
+            //     Util::ParallelMessage(INFO,"state_x ",state_x); // <<<<
+            //     Util::ParallelMessage(INFO,"state_y ",state_y);
+            //     Util::ParallelMessage(INFO,"state_x_solid ",state_x_solid); // <<<<
+            //     Util::ParallelMessage(INFO,"state_y_solid ",state_y_solid);
+            //     Util::ParallelMessage(INFO,"state_xhi ",state_xhi); // <<<<
+            //     Util::ParallelMessage(INFO,"state_yhi ",state_yhi);
+            //     Util::ParallelMessage(INFO,"state_xhi_solid ",state_xhi_solid);
+            //     Util::ParallelMessage(INFO,"state_yhi_solids ",state_yhi_solid);
+            //     Util::ParallelMessage(INFO,"state_xlo ",state_xlo);
+            //     Util::ParallelMessage(INFO,"state_ylo ",state_ylo);
+            //     Util::ParallelMessage(INFO,"state_xlo_solid ",state_xlo_solid);
+            //     Util::ParallelMessage(INFO,"state_ylo_solid ",state_ylo_solid);
 
-                Util::ParallelMessage(INFO,"Mx_solid ",M_solid(i,j,k,0));
-                Util::ParallelMessage(INFO,"My_solid ",M_solid(i,j,k,1));
-                Util::ParallelMessage(INFO,"small ",small);
-                Util::ParallelMessage(INFO,"Mx ",M(i,j,k,0));
-                Util::ParallelMessage(INFO,"My ",M(i,j,k,1));
-                Util::ParallelMessage(INFO,"dMx/dt ",dMxf_dt);
-                Util::ParallelMessage(INFO,"dMy/dt ",dMyf_dt);
+            //     Util::ParallelMessage(INFO,"Mx_solid ",M_solid(i,j,k,0));
+            //     Util::ParallelMessage(INFO,"My_solid ",M_solid(i,j,k,1));
+            //     Util::ParallelMessage(INFO,"small ",small);
+            //     Util::ParallelMessage(INFO,"Mx ",M(i,j,k,0));
+            //     Util::ParallelMessage(INFO,"My ",M(i,j,k,1));
+            //     Util::ParallelMessage(INFO,"dMx/dt ",dMxf_dt);
+            //     Util::ParallelMessage(INFO,"dMy/dt ",dMyf_dt);
 
 
-                Util::Message(INFO,flux_xlo.momentum_tangent);
-                Util::Message(INFO,flux_xhi.momentum_tangent);
-                Util::Message(INFO,DX[0]);
-                Util::Message(INFO,flux_ylo.momentum_normal);
-                Util::Message(INFO,flux_yhi.momentum_normal);
-                Util::Message(INFO,DX[1]);
-                Util::Message(INFO,div_tau);
-                Util::Message(INFO,Source(i, j, k, 2));
+            //     Util::Message(INFO,flux_xlo.momentum_tangent);
+            //     Util::Message(INFO,flux_xhi.momentum_tangent);
+            //     Util::Message(INFO,DX[0]);
+            //     Util::Message(INFO,flux_ylo.momentum_normal);
+            //     Util::Message(INFO,flux_yhi.momentum_normal);
+            //     Util::Message(INFO,DX[1]);
+            //     Util::Message(INFO,div_tau);
+            //     Util::Message(INFO,Source(i, j, k, 2));
                 
-                Util::Message(INFO,hess_eta);
-                Util::Message(INFO,velocity(i,j,k,0));
-                Util::Message(INFO,velocity(i,j,k,1));
+            //     Util::Message(INFO,hess_eta);
+            //     Util::Message(INFO,velocity(i,j,k,0));
+            //     Util::Message(INFO,velocity(i,j,k,1));
 
-                Util::Exception(INFO);
-            }
+            //     Util::Exception(INFO);
+            // }
 #endif
 
 

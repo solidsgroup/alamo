@@ -158,6 +158,7 @@ Scalar& Garbage()
 }
 
 AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
 {
     (void)k;
@@ -174,6 +175,32 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
                 geom.ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom.CellSize()[0],
                 geom.ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom.CellSize()[1],
                 geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
+    }
+    Util::Abort(INFO,"Unsupported index type");
+    return Set::Vector::Zero(); 
+}
+
+AMREX_FORCE_INLINE
+AMREX_GPU_HOST_DEVICE
+Vector Position(const int &i, const int &j, const int &k,
+                const Set::Vector &prob_lo,
+                const Set::Vector &cell_size,
+                const amrex::IndexType &ixType)
+{
+    (void)k;
+    if (ixType == amrex::IndexType::TheNodeType())
+    {
+        return Vector(AMREX_D_DECL(
+                prob_lo(0) + ((amrex::Real)(i)) * cell_size(0),
+                prob_lo(1) + ((amrex::Real)(j)) * cell_size(1),
+                prob_lo(2) + ((amrex::Real)(k)) * cell_size(2)));
+    }
+    else if (ixType == amrex::IndexType::TheCellType())
+    {
+        return Vector(AMREX_D_DECL(
+                prob_lo(0) + ((amrex::Real)(i) + 0.5) * cell_size(0),
+                prob_lo(1) + ((amrex::Real)(j) + 0.5) * cell_size(1),
+                prob_lo(2) + ((amrex::Real)(k) + 0.5) * cell_size(2)));
     }
     Util::Abort(INFO,"Unsupported index type");
     return Set::Vector::Zero(); 
