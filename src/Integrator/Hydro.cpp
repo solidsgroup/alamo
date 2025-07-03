@@ -1,6 +1,5 @@
 
 #include "Hydro.H"
-#include "AMReX_CTOParallelForImpl.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
@@ -608,13 +607,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
             omega(i, j, k) = eta(i, j, k) * (gradu(1,0) - gradu(0,1));
 
-            // if (dynamictimestep.on)
-            // {
-            //     *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta(i,j,k) + small));
-            //     *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta(i,j,k) + small)));
-            //     *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
-            //     *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
-            // }
+            if (dynamictimestep.on)
+            {
+                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta(i,j,k) + small));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta(i,j,k) + small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+            }
         });
     }
 
@@ -685,7 +684,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         auto small = this->small;
         auto pref = this->pref;
         auto gamma = this->gamma;
-        auto &riemannsolver = this->riemannsolver;
+        auto riemannsolver = this->riemannsolver;
 
         // Inputs
         Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
