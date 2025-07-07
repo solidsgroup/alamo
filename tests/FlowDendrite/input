@@ -158,3 +158,5 @@ dynamictimestep.min  = 1E-8
 hydro.cfl   = 10.0
 hydro.cfl_v   = 1.0
 #hydro.small=1E-4
+
+hydro.allow_unused=true

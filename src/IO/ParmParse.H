@@ -564,16 +564,27 @@ public:
 
 
 
-    int AnyUnusedInputs()
+    int AnyUnusedInputs(bool inscopeonly = true, bool verbose = false)
     {
         int cnt = 0;
         for (auto li = m_table->begin(), End = m_table->end(); li != End; ++li)
         {
-            if (!li->second.m_count && li->first.rfind(getPrefix()+".",0) != std::string::npos)
-            {
-                Util::Warning(INFO,li->first);
-                cnt++;
-            }
+                if (!li->second.m_count)
+                {
+                    if (inscopeonly && getPrefix() != "")
+                    {
+                        if (li->first.rfind(getPrefix()+".",0) != std::string::npos)
+                        {
+                            if (verbose) Util::Warning(INFO,li->first);
+                            cnt++;
+                        }
+                    }
+                    else
+                    {
+                        if (verbose) Util::Warning(INFO,li->first);
+                        cnt++;
+                    }
+                }
         }
         return cnt;
     }
