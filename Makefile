@@ -105,9 +105,11 @@ realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -rf Makefile.conf Makefile.amrex.conf .make
 
+py: lib
+	python3 ./scripts/make_alamo_package.py
+
 lib: lib/libalamo-$(POSTFIX).so ${AMREX}/lib/libamrex.so
 	@printf $(POSTFIX)
-
 
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
