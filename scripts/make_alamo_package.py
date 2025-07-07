@@ -43,7 +43,7 @@ class AlamoModule(types.ModuleType):
         return getattr(cppyy.gbl, name)
 
     def include(self, path):
-        cppyy.include("/home/brunnels/Research/alamo/src/" + path)
+        cppyy.include("{alamo_home}/src/" + path)
 
 # Replace current module with AlamoModule instance
 sys.modules[__name__].__class__ = AlamoModule
