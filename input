@@ -23,12 +23,12 @@ crack.refinement_threshold = 0.1
 crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
 
-crack.df.mult_Gc = 1.0
+crack.df.mult_Gc = 0.5
 crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
 
-# crack.model1.G_c = 5.e2
+crack.model1.G_c = 2.e2
 crack.model1.fracture_strength = 3.16e8
 crack.model1.E = 4.e11
 crack.model1.zeta = 2.e-4
@@ -37,7 +37,7 @@ crack.model1.gtype = wu_linear
 crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
 
-# crack.model2.G_c = 5.e2
+crack.model2.G_c = 5.e2
 crack.model2.fracture_strength = 3.16e7
 crack.model2.E = 4.e11
 crack.model2.zeta = 2.e-4
@@ -46,27 +46,38 @@ crack.model2.gtype = wu_linear
 crack.model2.wtype = wu
 crack.model2.threshold = 1.0 
 
-crack.ic.type = notch
-crack.ic.notch.center = -0.125 0
-crack.ic.notch.orientation = 1 0
-crack.ic.notch.length = 0.035
-crack.ic.notch.thickness = 2.e-3
+# No crack testing
+#crack.ic.type = constant
+#crack.ic.constant.value = 1.0
 
-crack.ic.notch.eps = 5.e-4
-crack.ic.notch.mollifier = erf
+# Compression notch testing
+#crack.ic.type = notch
+#crack.ic.notch.center = -0.1 0.01
+#crack.ic.notch.orientation = -0.5 0.5
+#crack.ic.notch.length = 0.005
+#crack.ic.notch.thickness = 2.e-3
+
+#crack.ic.notch.eps = 5.e-4
+#crack.ic.notch.mollifier = erf
+
+
+# Tension notch testing
+#crack.ic.type = constant
+#crack.ic.constant.value = 1.0
+#crack.ic.type = notch
+#crack.ic.notch.center = -0.125 0
+#crack.ic.notch.orientation = 1 0
+#crack.ic.notch.length = 0.035
+#crack.ic.notch.thickness = 2.e-3
+
+#crack.ic.notch.eps = 5.e-4
+#crack.ic.notch.mollifier = erf
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.yhi = NEUMANN
 crack.bc.type.ylo = NEUMANN
 
-crack.Gc.ic.type = constant
-crack.Gc.ic.constant.value = 5e2
-crack.Gc.bc.type = constant
-crack.Gc.bc.type.xlo = neumann
-crack.Gc.bc.type.xhi = neumann
-crack.Gc.bc.type.ylo = neumann
-crack.Gc.bc.type.yhi = neumann
 
 #material.ic.type = expression
 #material.ic.expression.constant.eps = 0.001
@@ -74,7 +85,7 @@ crack.Gc.bc.type.yhi = neumann
 #material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
 
 material.ic.type = png
-material.ic.png.filename = "test_image_hmx_1.png"
+material.ic.png.filename = "test_image_hmx_3.png"
 material.ic.png.fit = "stretch"
 material.ic.png.channel = b
 
@@ -90,6 +101,16 @@ material.model2.nu = 0.28
 
 material.refinement_threshold = 100 #1.e-1
 
+#visible_Gc.bc.type = constant
+#visible_Gc.bc.constant.type.xlo = NEUMANN
+#visible_Gc.bc.constant.type.xhi = NEUMANN
+#visible_Gc.bc.constant.type.ylo = NEUMANN
+#visible_Gc.bc.constant.type.yhi = NEUMANN
+#visible_Gc.bc.constant.val.xlo = 0.0
+#visible_Gc.bc.constant.val.xhi = 0.0
+#visible_Gc.bc.constant.val.ylo = 0.0
+#visible_Gc.bc.constant.val.yhi = 0.0
+
 ### Mode-I test
 bc.type = constant
 bc.constant.type.xloylo = disp disp
@@ -100,9 +121,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi =       0.0 8.e-5
-bc.constant.val.xloyhi =    0.0 8.e-5
-bc.constant.val.xhiyhi =    0.0 8.e-5
+bc.constant.val.yhi =       0.0 1.e-4
+bc.constant.val.xloyhi =    0.0 1.e-4
+bc.constant.val.xhiyhi =    0.0 1.e-4
 
 #
 # Solver inputs
@@ -130,4 +151,3 @@ zero_out_displacement = 0
 
 
 amrex.throw_exception = 1
-

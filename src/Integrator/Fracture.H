@@ -51,6 +51,8 @@
 #include "Model/Interface/Crack/PFCZM.H"
 #include "Model/Solid/Linear/Isotropic.H"
 
+#include "Model/Solid/Finite/NeoHookeanPredeformed.H"
+
 #include "BC/Constant.H"
 #include "IC/BMP.H"
 #include "IC/Ellipse.H"
@@ -70,6 +72,7 @@
 namespace Integrator
 {
 using brittle_model = Model::Solid::Linear::Isotropic;
+// using brittle_model = Model::Solid::Finite::NeoHookeanPredeformed;
 using pfczm_crack_type = Model::Interface::Crack::PFCZM;
 
 class Fracture : virtual public Base::Mechanics<brittle_model>
@@ -127,7 +130,13 @@ public:
         pp.query_default("crack.df.el_mult", value.crack.el_mult, 1.0);                           // unit conversion multiplier between elastic problem and crack problem
 
         // Let's figure out if there is an initial crack or void
-        pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
+        if (pp.contains("crack.ic.type")) {
+            pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
+            value.crack.is_ic = true;
+        }
+        else {
+            value.crack.is_ic = false;
+        }
 
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
@@ -150,6 +159,10 @@ public:
         // This is needed for the specific crack model we are implementing
         pp.queryclass_enumerate<pfczm_crack_type>("crack.model",value.crack.cracktype);
         Util::Assert(INFO, TEST(value.material.models.size() > 0));
+
+        //pp.select_default<BC::Constant>("visible_Gc.bc",value.bc_visible_Gc,1);
+        // value.RegisterNewFab(value.visible_Gc_mf,value.bc_visible_Gc,1,1,"visible_Gc",true);
+        value.RegisterNodalFab(value.visible_Gc_mf,1,2,"Gc",true);
     }
 
     void
@@ -160,6 +173,8 @@ public:
         crack.c_mf[lev]->setVal(1.0);
         crack.c_old_mf[lev]->setVal(1.0);
         crack.ic_Gc->Initialize(lev, crack._Gc);
+
+        visible_Gc_mf[lev]->setVal(0.0);
 
         // For now, we are setting psi field to 1. This prevents nans.
         // We will modify the psi field later.
@@ -521,7 +536,7 @@ public:
             amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[a_lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const &energy = crack.history_var_mf[a_lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[a_lev]->array(mfi);
-
+            amrex::Array4<Set::Scalar> const &visible_Gc = visible_Gc_mf[a_lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &c = crack.c_mf[a_lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &df = crack.driving_force_mf[a_lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &Gc = crack._Gc[a_lev]->array(mfi);
@@ -582,6 +597,8 @@ public:
                     if (material.num_mat > 1)
                         Gc_temp *= (1.0 - _temp_product * (1. - crack.mult_Gc) / _temp_product2);
 
+                    visible_Gc(i,j,k) = Gc;
+
                     // =====================================================================
                     // Set::Scalar en_cell = energy(i, j, k, 0); // set but not used
                     if (!crack.cracktype[0].mixed_mode())
@@ -631,17 +648,39 @@ public:
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
 
-        for (amrex::MFIter mfi(*crack.c_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            amrex::Box bx = mfi.tilebox();
-            bx.convert(amrex::IntVect::TheCellVector());
-            amrex::Array4<char> const &tags = a_tags.array(mfi);
-            amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                Set::Vector grad = Numeric::NodeGradientOnCell(c, i, j, k, DX.data());
-                if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
-                    tags(i, j, k) = amrex::TagBox::SET;
-            });
+        if (!crack.is_ic) {
+            // No initial crack
+            Set::Scalar stress_refinement_threshold = 1e7;
+            for (amrex::MFIter mfi(*stress_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.tilebox();
+                bx.convert(amrex::IntVect::TheCellVector());
+                amrex::Array4<char> const &tags = a_tags.array(mfi);
+                amrex::Array4<Set::Matrix> const &stress = stress_mf[lev]->array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    Set::Matrix s = stress(i, j, k);
+                    Set::Scalar sxx = s(0,0), syy = s(1,1), sxy = s(0,1);
+                    Set::Scalar von_mises = std::sqrt(sxx*sxx - sxx*syy + syy*syy + 3*sxy*sxy);
+                    if (von_mises > stress_refinement_threshold)
+                        tags(i,j,k) = amrex::TagBox::SET;
+                });
+            }
+        }
+
+        else {
+            // Initial crack present
+            for (amrex::MFIter mfi(*crack.c_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.tilebox();
+                bx.convert(amrex::IntVect::TheCellVector());
+                amrex::Array4<char> const &tags = a_tags.array(mfi);
+                amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    Set::Vector grad = Numeric::NodeGradientOnCell(c, i, j, k, DX.data());
+                    if (grad.lpNorm<2>() * DXnorm > crack.refinement_threshold)
+                        tags(i, j, k) = amrex::TagBox::SET;
+                });
+            }
         }
 
         for (amrex::MFIter mfi(*crack.driving_force_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -786,6 +825,9 @@ protected:
     int loadstep = 0;
 
     BC::BC<Set::Scalar> *bc_psi = nullptr;
+
+    Set::Field<Set::Scalar>visible_Gc_mf;
+    // BC::BC<Set::Scalar> *bc_visible_Gc=nullptr;
 
     using Base::Mechanics<brittle_model>::m_type;
     using Base::Mechanics<brittle_model>::finest_level;
