@@ -29,24 +29,26 @@ public:
         // Calculate mass flow rates
         Set::Scalar mdot_in = mdot;
         
-        Util::Message(INFO,"mdot_in",mdot_in);
-        Util::Message(INFO,"pressure",pressure);
-        Util::Message(INFO,"At",At);
-        Util::Message(INFO,"volume",volume);
-        Util::Message(INFO,"gamma",gamma);
-        Util::Message(INFO,"R",R);
+        // Util::Message(INFO,"mdot_in",mdot_in);
+        // Util::Message(INFO,"pressure",pressure);
+        // Util::Message(INFO,"At",At);
+        // Util::Message(INFO,"volume",volume);
+        // Util::Message(INFO,"gamma",gamma);
+        // Util::Message(INFO,"R",R);
         
         // Set::Scalar c_star
         Set::Scalar c_star = sqrt((gamma / (R * T0))*(pow(2 / (gamma + 1),(gamma + 1.0) / (2 * (gamma - 1.0)))));
         Set::Scalar mdot_out = (pressure * At * c_star);
         
-        Util::Message(INFO,"c*", c_star);
-        Util::Message(INFO,"mdot_out", mdot_out);
-        Util::Message(INFO,"mass-flow",mdot_in-mdot_out);
+        // Util::Message(INFO,"c*", c_star);
+        // Util::Message(INFO,"mdot_out", mdot_out);
+        // Util::Message(INFO,"mass-flow",mdot_in-mdot_out);
         
         // Compute dp/dt
         Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
-        Util::Message(INFO,"dp/dt", current_dpdt);
+        // Util::Message(INFO,"dp/dt", current_dpdt);
+        std::cout << "hi" << std::endl;
+
     
         // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt
         Set::Scalar new_p = pressure + current_dpdt * dt;

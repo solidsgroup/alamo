@@ -58,6 +58,5 @@ profile.prof*
 report*.html
 report.tar.gz
 alamo.egg-info
-alamo
 setup.py
-
+alamo.py
