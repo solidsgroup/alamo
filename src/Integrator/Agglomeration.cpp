@@ -1,7 +1,6 @@
 #include <cmath>
 #include <utility>
 
-#include "AMReX_MultiFabUtil.H"
 #include "Agglomeration.H"
 #include "Flame.H"
 
@@ -16,6 +15,7 @@
 #include "Numeric/Stencil.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
+#include "Util/Util.H"
 
 #include "AMReX_Array4.H"
 #include "AMReX_Box.H"
@@ -27,7 +27,6 @@
 #include "AMReX_MultiFab.H"
 #include "AMReX_MultiFabUtil.H"
 #include "AMReX_ParallelDescriptor.H"
-#include "AMReX_Print.H"
 #include "AMReX_TagBox.H"
 
 namespace Integrator
@@ -84,7 +83,7 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 void
 Agglomeration::Initialize(int lev)
 {
-    Flame::Initialize(lev);
+    // Flame::Initialize(lev);
     agglom.alpha_old[lev]->setVal(0.0);
     agglom.alpha_ic->Initialize(lev, agglom.alpha);
     agglom.free_energy_derivative[lev]->setVal(0.0);
@@ -122,29 +121,42 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(agglom.alpha_old[lev], agglom.alpha[lev]);
     const Set::Scalar *dx = geom[lev].CellSize();
 
-    int agglom_volume_fraction = agglom.V / geom[0].ProbSize();
+    Set::Scalar agglom_volume_fraction = NAN;
+    if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
+	agglom_volume_fraction = agglom.V / geom[0].ProbSize();
 
     if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn && time == 0.0 && std::isnan(agglom.V_0))
     {
         agglom.V_0 = agglom_volume_fraction;
+        Util::Message(INFO, "agglom.V_0 dynamically set to ", agglom.V_0);
     }
 
-    // Debug variables - use Gpu::DeviceScalar for reduction
+    // Debug variables - track both positive and negative extremes
     amrex::Gpu::DeviceScalar<Set::Scalar> max_alpha_d(-1e10);
     amrex::Gpu::DeviceScalar<Set::Scalar> min_alpha_d(1e10);
     amrex::Gpu::DeviceScalar<Set::Scalar> max_chem_term_d(-1e10);
+    amrex::Gpu::DeviceScalar<Set::Scalar> min_chem_term_d(1e10);
     amrex::Gpu::DeviceScalar<Set::Scalar> max_grad_term_d(-1e10);
+    amrex::Gpu::DeviceScalar<Set::Scalar> min_grad_term_d(1e10);
     amrex::Gpu::DeviceScalar<Set::Scalar> max_L_d(-1e10);
     amrex::Gpu::DeviceScalar<Set::Scalar> min_L_d(1e10);
+    amrex::Gpu::DeviceScalar<Set::Scalar> max_lagrange_term_d(-1e10);
+    amrex::Gpu::DeviceScalar<Set::Scalar> min_lagrange_term_d(1e10);
     amrex::Gpu::DeviceScalar<Set::Scalar> max_dalpha_dt_d(-1e10);
+    amrex::Gpu::DeviceScalar<Set::Scalar> min_dalpha_dt_d(1e10);
 
     Set::Scalar *p_max_alpha = max_alpha_d.dataPtr();
     Set::Scalar *p_min_alpha = min_alpha_d.dataPtr();
     Set::Scalar *p_max_chem_term = max_chem_term_d.dataPtr();
+    Set::Scalar *p_min_chem_term = min_chem_term_d.dataPtr();
     Set::Scalar *p_max_grad_term = max_grad_term_d.dataPtr();
+    Set::Scalar *p_min_grad_term = min_grad_term_d.dataPtr();
     Set::Scalar *p_max_L = max_L_d.dataPtr();
     Set::Scalar *p_min_L = min_L_d.dataPtr();
+    Set::Scalar *p_max_lagrange_term = max_lagrange_term_d.dataPtr();
+    Set::Scalar *p_min_lagrange_term = min_lagrange_term_d.dataPtr();
     Set::Scalar *p_max_dalpha_dt = max_dalpha_dt_d.dataPtr();
+    Set::Scalar *p_min_dalpha_dt = min_dalpha_dt_d.dataPtr();
 
     for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
     {
@@ -160,13 +172,17 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             // calculate the variational derivative components
             Set::Scalar chem_term = 2 * agglom.gamma / agglom.epsilon * alpha_old(i, j, k) * (1 - alpha_old(i, j, k)) * (1 - 2 * alpha_old(i, j, k));
+            // W_{C_{ii}} formulation with peak shifted to 0.15
+            // Set::Scalar chem_term = agglom.gamma / agglom.epsilon * std::pow(alpha_old(i, j, k), 5) * std::pow(1 - alpha_old(i, j, k), 33) * (6 - 40 * alpha_old(i, j, k));
             Set::Scalar grad_term = -agglom.epsilon * agglom.kappa * laplacian_alpha;
 
             free_energy_derivative(i, j, k) = chem_term + grad_term;
 
-            // Track magnitudes for debugging
-            amrex::Gpu::Atomic::Max(p_max_chem_term, std::abs(chem_term));
-            amrex::Gpu::Atomic::Max(p_max_grad_term, std::abs(grad_term));
+            // Track actual values (with direction)
+            amrex::Gpu::Atomic::Max(p_max_chem_term, chem_term);
+            amrex::Gpu::Atomic::Min(p_min_chem_term, chem_term);
+            amrex::Gpu::Atomic::Max(p_max_grad_term, grad_term);
+            amrex::Gpu::Atomic::Min(p_min_grad_term, grad_term);
         });
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -178,11 +194,13 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             amrex::Gpu::Atomic::Min(p_min_L, L);
 
             Set::Scalar dalpha_dt = 0.0;
+            Set::Scalar lagrange_term = 0.0;
 
             if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
             {
                 // constrained Allen-Cahn equation
-                dalpha_dt = -L * free_energy_derivative(i, j, k) + agglom.lambda * (agglom_volume_fraction - agglom.V_0);
+                lagrange_term = agglom.lambda * (agglom_volume_fraction - agglom.V_0);
+                dalpha_dt = -L * (free_energy_derivative(i, j, k) + lagrange_term);
                 alpha(i, j, k) = alpha_old(i, j, k) + dt * dalpha_dt;
             }
             else if (agglom.kinetics_method == AgglomerationKinetics::CahnHilliard)
@@ -195,10 +213,13 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 alpha(i, j, k) = alpha_old(i, j, k) + dt * dalpha_dt;
             }
 
-            // Track alpha range and rate of change
+            // Track alpha range and rate of change (with direction)
             amrex::Gpu::Atomic::Max(p_max_alpha, alpha(i, j, k));
             amrex::Gpu::Atomic::Min(p_min_alpha, alpha(i, j, k));
-            amrex::Gpu::Atomic::Max(p_max_dalpha_dt, std::abs(dalpha_dt));
+            amrex::Gpu::Atomic::Max(p_max_lagrange_term, lagrange_term);
+            amrex::Gpu::Atomic::Min(p_min_lagrange_term, lagrange_term);
+            amrex::Gpu::Atomic::Max(p_max_dalpha_dt, dalpha_dt);
+            amrex::Gpu::Atomic::Min(p_min_dalpha_dt, dalpha_dt);
         });
     }
 
@@ -206,40 +227,53 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     Set::Scalar max_alpha = max_alpha_d.dataValue();
     Set::Scalar min_alpha = min_alpha_d.dataValue();
     Set::Scalar max_chem_term = max_chem_term_d.dataValue();
+    Set::Scalar min_chem_term = min_chem_term_d.dataValue();
     Set::Scalar max_grad_term = max_grad_term_d.dataValue();
+    Set::Scalar min_grad_term = min_grad_term_d.dataValue();
     Set::Scalar max_L = max_L_d.dataValue();
     Set::Scalar min_L = min_L_d.dataValue();
+    Set::Scalar max_lagrange_term = max_lagrange_term_d.dataValue();
+    Set::Scalar min_lagrange_term = min_lagrange_term_d.dataValue();
     Set::Scalar max_dalpha_dt = max_dalpha_dt_d.dataValue();
+    Set::Scalar min_dalpha_dt = min_dalpha_dt_d.dataValue();
 
     // Reduce and print diagnostics
     amrex::ParallelDescriptor::ReduceRealMax(max_alpha);
     amrex::ParallelDescriptor::ReduceRealMin(min_alpha);
     amrex::ParallelDescriptor::ReduceRealMax(max_chem_term);
+    amrex::ParallelDescriptor::ReduceRealMin(min_chem_term);
     amrex::ParallelDescriptor::ReduceRealMax(max_grad_term);
+    amrex::ParallelDescriptor::ReduceRealMin(min_grad_term);
     amrex::ParallelDescriptor::ReduceRealMax(max_L);
     amrex::ParallelDescriptor::ReduceRealMin(min_L);
+    amrex::ParallelDescriptor::ReduceRealMax(max_lagrange_term);
+    amrex::ParallelDescriptor::ReduceRealMin(min_lagrange_term);
     amrex::ParallelDescriptor::ReduceRealMax(max_dalpha_dt);
+    amrex::ParallelDescriptor::ReduceRealMin(min_dalpha_dt);
 
     if (amrex::ParallelDescriptor::IOProcessor())
     {
-        amrex::Print() << "\n=== Agglomeration Debug Info at t=" << time << " ===" << std::endl;
-        amrex::Print() << "Alpha range: [" << min_alpha << ", " << max_alpha << "]" << std::endl;
-        amrex::Print() << "Max |chemical term|: " << max_chem_term << " (gamma/eps = " << agglom.gamma / agglom.epsilon << ")" << std::endl;
-        amrex::Print() << "Max |gradient term|: " << max_grad_term << " (eps*kappa = " << agglom.epsilon * agglom.kappa << ")" << std::endl;
-        amrex::Print() << "L range: [" << min_L << ", " << max_L << "] (L_0 = " << agglom.L_0 << ")" << std::endl;
-        amrex::Print() << "Max |dalpha/dt|: " << max_dalpha_dt << std::endl;
-        amrex::Print() << "dt * max|dalpha/dt|: " << dt * max_dalpha_dt << std::endl;
+        Util::Message(INFO, "=== Agglomeration Debug at t = ", time, ", level = ", lev, " ===");
+	Util::Message(INFO, "agglom_volume_fraction: ", agglom_volume_fraction);
+	Util::Message(INFO, "V_0: ", agglom.V_0);
+        Util::Message(INFO, "Δt: ", dt);
+        Util::Message(INFO, "α range: [", min_alpha, ", ", max_alpha, "]");
+        Util::Message(INFO, "chemical term range: [", min_chem_term, ", ", max_chem_term, "]");
+        Util::Message(INFO, "gradient term range: [", min_grad_term, ", ", max_grad_term, "]");
+        Util::Message(INFO, "L range: [", min_L, ", ", max_L, "]");
+        Util::Message(INFO, "lagrange term range: [", min_lagrange_term, ", ", max_lagrange_term, "]");
+        Util::Message(INFO, "∂α/∂t range: [", min_dalpha_dt, ", ", max_dalpha_dt, "]");
+        
+        // Show largest change by magnitude but with direction
+        Set::Scalar largest_change = (std::abs(max_dalpha_dt) > std::abs(min_dalpha_dt)) ? max_dalpha_dt : min_dalpha_dt;
+        Util::Message(INFO, "Largest ∂α/∂t (with direction): ", largest_change);
+        Util::Message(INFO, "Δt * largest ∂α/∂t: ", dt * largest_change);
 
         if (min_alpha < -0.1 || max_alpha > 1.1)
-        {
-            amrex::Print() << "WARNING: Alpha out of physical bounds [0,1]!" << std::endl;
-        }
-        if (dt * max_dalpha_dt > 0.1)
-        {
-            amrex::Print() << "WARNING: Large time step - alpha changing by more than 0.1 per step!" << std::endl;
-        }
-        amrex::Print() << "==================================\n"
-                       << std::endl;
+            Util::Message(INFO, "WARNING: α out of physical bounds [0,1]");
+        if (dt * std::abs(largest_change) > 0.1)
+            Util::Message(INFO, "WARNING: Large time step - α changing by more than 0.1 per step");
+        Util::Message(INFO, "");
     }
 }
 

@@ -2,26 +2,35 @@ alamo.program = agglomeration
 plot_file = tests/Agglomeration/output-allen-cahn
 
 # AMR parameters
-amr.plot_int = 100
-amr.blocking_factor = 4
-amr.base_regrid_int = 100
-amr.grid_eff = 1
+# amr.plot_int = 100
+# amr.blocking_factor = 4
+# amr.base_regrid_int = 100
+# amr.grid_eff = 1
+amr.plot_int = 1000
+amr.blocking_factor = 2
+amr.grid_eff = 0.8
 flame.amr.refinement_criterion = 0.1
 flame.amr.refinement_criterion_temp = 10.0
 flame.amr.phi_refinement_criterion = 0.5
-amr.cell.all = 1
-amr.node.all = 1
+# amr.cell.all = 1
+# amr.node.all = 1
 
 # Geometry and AMR level specification
-amr.n_cell = 8 8
-geometry.prob_lo = 0.0 0.0
-geometry.prob_hi = 5e-4 5e-4
-amr.max_level = 4
+# amr.n_cell = 8 8
+amr.n_cell = 96 64
+# geometry.prob_lo = 0.0 0.0
+# geometry.prob_hi = 5e-4 5e-4
+geometry.prob_lo = -1.5 -1.0
+geometry.prob_hi = 1.5 1.0
+# amr.max_level = 4
+amr.max_level = 2
 geometry.is_periodic = 0 0
 
 # Timestep and duration
-timestep = 1e-6
-stop_time = 0.11
+timestep = 1e-4
+stop_time = 100.0
+# timestep = 1e-6
+# stop_time = 0.11
 
 # Phase field parameters
 flame.pf.eps = 1e-6
@@ -142,24 +151,20 @@ flame.elastic.traction = 0.0
 kinetics_method = ConstrainedAllenCahn
 
 # Agglomeration parameters
-epsilon = 1e-6
-gamma = 5e-3
-kappa = 0.0
-L_0 = 1e-1
+epsilon = 0.01
+gamma = 0.01
+kappa = 0.01
+L_0 = 1.0
 n = 3.0
-lambda = 100
+lambda = 0.0
 
 # Agglomerate order parameter initial condition
-alpha.ic.type = constant
-alpha.ic.constant.value = 0.15
-# alpha.ic.type = random
-# alpha.ic.random.offset = 0.0
-# alpha.ic.random.mult = 1.0
+alpha.ic.type = random
 # alpha.ic.type = betadistribution
-# alpha.ic.betadistribution.alpha = 2.0
-# alpha.ic.betadistribution.beta = 2.0
-# alpha.ic.betadistribution.offset = 0.0
-# alpha.ic.betadistribution.mult = 1.0
+# alpha.ic.betadistribution.alpha = 12.0
+# alpha.ic.betadistribution.beta = 12.0
+# alpha.ic.betadistribution.offset = 0.1
+# alpha.ic.betadistribution.mult = 0.1
 
 # Agglomerate order parameter boundary conditions
 alpha.bc.type = constant
@@ -173,5 +178,5 @@ alpha.bc.constant.val.ylo = 0.0
 alpha.bc.constant.val.yhi = 0.0
 
 # Miscellaneous agglomeration parameters
-refinement_threshold = 0.001
+refinement_threshold = 1e-4
 small = 1e-4
