@@ -21,6 +21,7 @@ FG_LIGHTBLUE       = \033[94m
 FG_CYAN            = \033[36m
 FG_MAGENTA         = \033[35m
 
+FG_ORANGE          = \033[38;5;208m
 
 
 
@@ -47,7 +48,7 @@ LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
 
 
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     += -L${AMREX}/lib/ -lamrex -lpthread
+LIB     += ${AMREX}/lib/libamrex.a -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
@@ -104,6 +105,11 @@ realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -rf Makefile.conf Makefile.amrex.conf .make
 
+py: lib
+	python3 ./scripts/make_alamo_package.py
+
+lib: lib/libalamo-$(POSTFIX).so ${AMREX}/lib/libamrex.so
+	@printf $(POSTFIX)
 
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
@@ -120,6 +126,7 @@ bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	@printf "$(RESET)$@\n"
 	@mkdir -p bin/
 	$(QUIET)$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
+
 
 obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -223,6 +230,15 @@ cov/coverage_merged.info: $(GCDA_INFOS)
 cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
 	mkdir -p ./cov/
 	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
+
+lib/libalamo-$(POSTFIX).so: ${OBJ} 
+	@printf "$(B_ON)$(FG_ORANGE)LIBALAMO$(RESET)             $@\n" 	
+	$(QUIET)mkdir -p lib
+	$(QUIET)$(CC) -shared -fPIC -o $@ $^
+
+${AMREX}/lib/libamrex.so : ${AMREX}/lib/libamrex.a
+	@printf "$(B_ON)$(FG_ORANGE)LIBAMREX$(RESET)             $@\n" 	
+	$(QUIET)$(CC) -shared -fPIC -o $@ -Wl,--whole-archive $< -Wl,--no-whole-archive
 
 githubpages: docs cov-report
 	mkdir -p ./githubpages/

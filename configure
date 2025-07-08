@@ -276,7 +276,7 @@ if args.buildamrex and not args.amrex:
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
-    if args.debug: amrex_configure += ' --debug=yes'
+    if args.debug: amrex_configure += ' --debug=yes --enable-pic=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
     if args.fft: amrex_configure += " --enable-fft=yes"
@@ -487,9 +487,9 @@ if args.comp == 'g++':
         else:
             error("Invalid memory check tool ", args.memcheck_tool)
     if args.coverage and args.debug:
-        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage -fPIC\n")
     elif args.debug:
-        f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3  -fPIC\n")
     elif args.coverage:
         f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
     else:
@@ -499,7 +499,7 @@ if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug:
-        f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
     elif args.perf:
         f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
         f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    
