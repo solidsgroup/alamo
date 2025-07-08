@@ -147,10 +147,6 @@ public:
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
 
-        pp.select<BC::Constant>("crack.Gc.bc", value.crack.bc_Gc, 1);
-        value.RegisterNodalFab(value.crack._Gc, 1, 2, "_Gc", true);
-        pp.select<IC::Constant>("crack.Gc.ic", value.crack.ic_Gc, value.geom);
-
         // By default the psi variable will be on for fracture simulations
         value.psi_on = true;
         value.bc_psi = new BC::Constant(1, pp, "crack.bc"); // boundary conditions for crack
@@ -172,7 +168,6 @@ public:
 
         crack.c_mf[lev]->setVal(1.0);
         crack.c_old_mf[lev]->setVal(1.0);
-        crack.ic_Gc->Initialize(lev, crack._Gc);
 
         visible_Gc_mf[lev]->setVal(0.0);
 
@@ -241,10 +236,9 @@ public:
                 amrex::Box bx = mfi.growntilebox();
                 amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &Gc = crack._Gc[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     // psi(i,j,k,0) = crack.cracktype[0].g_phi(c(i,j,k,0));
-                    psi(i, j, k, 0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c, i, j, k, 0), Numeric::Interpolate::NodeToCellAverage(Gc, i, j, k, 0));
+                    psi(i, j, k, 0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c, i, j, k, 0));
                 });
             }
             psi_mf[lev]->FillBoundary();
@@ -299,7 +293,6 @@ public:
                 amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
                 amrex::Array4<Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar> const &Gc = crack._Gc[lev]->array(mfi);
                 amrex::Array4<Set::Matrix> const &stress = stress_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix> const &strain = strain_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &energy = crack.energy_pristine_mf[lev]->array(mfi);
@@ -409,7 +402,7 @@ public:
                             Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
                             Set::Scalar beta_bar = crack.cracktype[0].beta_bar();
                             Set::Scalar beta = 1.0;
-                            Set::Scalar irwing_length = crack.cracktype[0].l_w(Gc(i, j, k));
+                            Set::Scalar irwing_length = crack.cracktype[0].l_w();
                             Set::Scalar c_alpha = crack.cracktype[0].c_alpha();
 
                             // Now let's compute a candidate theta
@@ -539,7 +532,6 @@ public:
             amrex::Array4<Set::Scalar> const &visible_Gc = visible_Gc_mf[a_lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &c = crack.c_mf[a_lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &df = crack.driving_force_mf[a_lev]->array(mfi);
-            amrex::Array4<Set::Scalar> const &Gc = crack._Gc[a_lev]->array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 #if AMREX_SPACEDIM != 2
@@ -579,7 +571,7 @@ public:
                     if (std::isnan(laplacian))
                         Util::Message(INFO, "Laplacian is nan at (", i, ", ", j, ")");
 
-                    Set::Scalar Gc_temp = 0.0;
+                    Set::Scalar Gc = 0.0;
                     Set::Scalar Zeta = 0.0;
                     Set::Scalar Threshold = 0.0;
                     Set::Scalar Mobility = 0.0;
@@ -587,15 +579,15 @@ public:
 
                     for (int m = 0; m < material.num_mat; m++)
                     {
-                        Gc_temp += eta(i, j, k, m) * crack.cracktype[m].Gc(Gc(i, j, k));
-                        Zeta += eta(i, j, k, m) * crack.cracktype[m].Zeta();
-                        Threshold += eta(i, j, k, m) * crack.cracktype[m].DrivingForceThreshold();
-                        Mobility += eta(i, j, k, m) * crack.cracktype[m].Mobility();
+                        Gc += eta(i, j, k, m) * crack.cracktype[m].Gc(c_old(i, j, k, 0));
+                        Zeta += eta(i, j, k, m) * crack.cracktype[m].Zeta(c_old(i, j, k, 0));
+                        Threshold += eta(i, j, k, m) * crack.cracktype[m].DrivingForceThreshold(c_old(i, j, k, 0));
+                        Mobility += eta(i, j, k, m) * crack.cracktype[m].Mobility(c_old(i, j, k, 0));
                         _temp_product *= eta(i, j, k, m);
                         _temp_product2 *= 0.5;
                     }
                     if (material.num_mat > 1)
-                        Gc_temp *= (1.0 - _temp_product * (1. - crack.mult_Gc) / _temp_product2);
+                        Gc *= (1.0 - _temp_product * (1. - crack.mult_Gc) / _temp_product2);
 
                     visible_Gc(i,j,k) = Gc;
 
@@ -603,11 +595,11 @@ public:
                     // Set::Scalar en_cell = energy(i, j, k, 0); // set but not used
                     if (!crack.cracktype[0].mixed_mode())
                     {
-                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k), Gc(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1) * crack.el_mult / Gc_temp);
+                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)) * crack.el_mult / Gc;
                     }
                     else
                     {
-                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k), Gc(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)); // * crack.el_mult;
+                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)); // * crack.el_mult;
                     }
                     rhs += df(i, j, k, 0);
 
@@ -777,16 +769,12 @@ protected:
         Set::Field<Set::Scalar> energy_pristine_mf;
         Set::Field<Set::Scalar> history_var_mf;
         Set::Field<Set::Scalar> driving_force_mf;
-        Set::Field<Set::Scalar> _Gc;
         
         std::vector<pfczm_crack_type> cracktype;
 
         std::vector<std::string> ic_type;
         std::vector<IC::IC<Set::Scalar> *> ic;
         bool is_ic = true;
-
-        BC::BC<Set::Scalar>* bc_Gc = nullptr;
-        IC::IC<Set::Scalar>* ic_Gc = nullptr;
 
         Set::Scalar scaleModulusMax = 0.02;
         Set::Scalar refinement_threshold = NAN;
@@ -827,7 +815,6 @@ protected:
     BC::BC<Set::Scalar> *bc_psi = nullptr;
 
     Set::Field<Set::Scalar>visible_Gc_mf;
-    // BC::BC<Set::Scalar> *bc_visible_Gc=nullptr;
 
     using Base::Mechanics<brittle_model>::m_type;
     using Base::Mechanics<brittle_model>::finest_level;
