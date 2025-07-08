@@ -40,7 +40,7 @@ class Crack
         }
     }
     AMREX_FORCE_INLINE
-    virtual Set::Scalar g_phi(Set::Scalar c, Set::Scalar _Gc, Set::Scalar p=0.)
+    virtual Set::Scalar g_phi(Set::Scalar c, Set::Scalar p=0.)
     {
         switch(g_type)
         {
@@ -58,7 +58,6 @@ class Crack
                                     // for linear law with p=2, a1 = 4 * l_w / (pi * b)
                                     // a2 = -1/2, a3 = 0
                                     Set::Scalar d = 1.0-c;
-                                    Set::Scalar m_pf_czm_a0 = _m_pf_czm_a0(_Gc);
                                     return (c*c) / (c*c +   ((2.0 * m_pf_czm_a0 * d) - (m_pf_czm_a0 * d * d)));
                                     // if (c < 1.e-5) c = 1.e-5;
                                     // double phi = m_pf_czm_a0 * m_pf_czm_order* std::sqrt(w_phi(c,0.));
@@ -88,7 +87,7 @@ class Crack
         }
     }
     AMREX_FORCE_INLINE
-    virtual Set::Scalar Dg_phi(Set::Scalar c, Set::Scalar _Gc, Set::Scalar p=0.)
+    virtual Set::Scalar Dg_phi(Set::Scalar c, Set::Scalar p=0.)
     {
         switch(g_type)
         {
@@ -108,7 +107,6 @@ class Crack
                                     // Q(d) = 2 a0 d - a0 d^2
                                     // Q'(d) = 2 a0 - 2 a0 d
                                     // Q'(c) - -Q'(d) = -2 a0 + 2 a0 d
-                                    Set::Scalar m_pf_czm_a0 = _m_pf_czm_a0(_Gc);
                                     Set::Scalar d = 1.0 -c;
                                     Set::Scalar dQ_c = (-2.0*m_pf_czm_a0) + (2.0*m_pf_czm_a0*d);
                                     Set::Scalar Q_c = (2.0*m_pf_czm_a0*d) - (m_pf_czm_a0*d*d);
@@ -120,14 +118,14 @@ class Crack
     }
 
     AMREX_FORCE_INLINE
-    virtual Set::Scalar Dg2_phi(Set::Scalar c, Set::Scalar _Gc)
+    virtual Set::Scalar Dg2_phi(Set::Scalar c)
     {
         switch (g2_type)
         {
             case G2WULINEAR:  {
                                 if (c < 1.e-5) c = 1.e-5;
                                 // Set::Scalar mu = m_pf_czm_a0 * w_phi(c,0.) / (std::pow(c, 2*m_pf_czm_order));
-                                Set::Scalar Dmu = _m_pf_czm_a0(_Gc) * ( (2.*_m_pf_czm_order*w_phi(c,0.)) + (c * -1. * Dw_phi(c,0.)) ) / (std::pow(c, 1 + 2*_m_pf_czm_order));
+                                Set::Scalar Dmu = m_pf_czm_a0 * ( (2.*m_pf_czm_order*w_phi(c,0.)) + (c * -1. * Dw_phi(c,0.)) ) / (std::pow(c, 1 + 2*m_pf_czm_order));
                                 return Dmu * g_phi(c,0.) * g_phi(c,0.);
                             }
 
@@ -135,12 +133,12 @@ class Crack
         }
     }
 
-    virtual Set::Scalar Gc(Set::Scalar _Gc) = 0;
-    virtual Set::Scalar DGc() = 0;
-    virtual Set::Scalar DDGc() = 0;
-    virtual Set::Scalar Zeta() = 0;
-    virtual Set::Scalar Mobility() = 0;
-    virtual Set::Scalar DrivingForceThreshold() = 0;
+    virtual Set::Scalar Gc(Set::Scalar theta) = 0;
+    virtual Set::Scalar DGc(Set::Scalar theta) = 0;
+    virtual Set::Scalar DDGc(Set::Scalar theta) = 0;
+    virtual Set::Scalar Zeta(Set::Scalar theta) = 0;
+    virtual Set::Scalar Mobility(Set::Scalar theta) = 0;
+    virtual Set::Scalar DrivingForceThreshold(Set::Scalar theta) = 0;
 
     void ExportToFile(std::string filename, amrex::Real dTheta)
     {
@@ -174,14 +172,20 @@ class Crack
         m_d_exponent = m;
     }
 
+    void SetPFCZMConstants(const Set::Scalar a_pf_czm_order, const Set::Scalar a_pf_czm_a0)
+    {
+        m_pf_czm_order = a_pf_czm_order;
+        m_pf_czm_a0 = a_pf_czm_a0;
+    }
+
 protected:
     static constexpr Set::Scalar pi = 3.14159265359;
     GType g_type = GType::GSQUARE;
     G2Type g2_type = G2Type::G2WULINEAR;
     WType w_type = WType::WSQUARE;
     Set::Scalar m_d_exponent = 1.;
-    Set::Scalar _m_pf_czm_order = NAN;
-    virtual Set::Scalar _m_pf_czm_a0(Set::Scalar _Gc) = 0;
+    Set::Scalar m_pf_czm_order = 1.;
+    Set::Scalar m_pf_czm_a0 = 1.0;
 };
 }
 }
