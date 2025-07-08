@@ -161,9 +161,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select_default<Solver::Local::Riemann::Roe,
-                      Solver::Local::Riemann::HLLE,
-                      Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
+    pp.select_default<  Solver::Local::Riemann::Roe,
+                        Solver::Local::Riemann::HLLE,
+                        Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
 
 
