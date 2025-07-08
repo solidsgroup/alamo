@@ -47,7 +47,6 @@ public:
         // Compute dp/dt
         Set::Scalar current_dpdt = (mdot_in - mdot_out) / (volume / (R * T0));
         // Util::Message(INFO,"dp/dt", current_dpdt);
-        std::cout << "hi" << std::endl;
 
     
         // Update pressure using Euler integration: p(t+dt) = p(t) + dp/dt * dt

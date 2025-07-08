@@ -3,8 +3,9 @@ import pylab
 
 alamo.include("Model/Chamber/Ballistic.H")
 
-model = alamo.Model.Chamber.Ballistic()
+alamo.Util.Initialize()
 
+model = alamo.Model.Chamber.Ballistic()
 
 model.At = 1.0
 model.T0 = 500
@@ -19,13 +20,12 @@ mdot = 1.0
 
 t = [0.0]
 p = [model.pressure]
-volume = [0.01]
+volume = [1.0]
 
-while (t[-1] < 10.0):
+while (t[-1] < 100.0):
     t.append(t[-1]+dt)
     p.append(model.Advance(dt, mdot, volume[-1], p[-1]))
     print(p[-1])
-
 
 
 pylab.plot(t,p)
