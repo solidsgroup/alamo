@@ -12,7 +12,6 @@
 #include <eigen3/Eigen/Geometry>
 #include <eigen3/Eigen/SVD>
 #include <AMReX_REAL.H>
-#include "Util/Util.H"
 
 namespace Set
 {
@@ -135,7 +134,6 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
                 geom.ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom.CellSize()[1],
                 geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
     }
-    Util::Abort(INFO,"Unsupported index type");
     return Set::Vector::Zero(); 
 }
 
@@ -190,7 +188,6 @@ Vector Volume(const int &i, const int &j, const int &k, const amrex::Geometry &g
                 geom.ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom.CellSize()[1],
                 geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
     }
-    Util::Abort(INFO,"Unsupported index type");
     return Set::Vector::Zero(); 
 }
 
