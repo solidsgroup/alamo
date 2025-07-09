@@ -12,7 +12,6 @@
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
-#include "Util/Util.H"
 #if AMREX_SPACEDIM == 2
 
 namespace Integrator
@@ -416,7 +415,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // Calculate K1
         //
         // k1 = RHS(t, yold)
-
 
         RHS(lev,time,
             density_k1,momentum_k1,energy_k1,

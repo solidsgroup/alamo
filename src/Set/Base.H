@@ -12,7 +12,6 @@
 #include <eigen3/Eigen/Geometry>
 #include <eigen3/Eigen/SVD>
 #include <AMReX_REAL.H>
-//#include "Util/Util.H"
 
 namespace Set
 {
