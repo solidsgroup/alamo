@@ -359,14 +359,22 @@ public:
     int queryarr(   std::string name, Set::Vector & value,
                     std::string file = "", std::string func = "queryarr", int line = -1)
     {
-        std::vector<Set::Scalar> vals;
-        amrex::ParmParse::queryarr(name.c_str(), vals);
-        if (vals.size() < AMREX_SPACEDIM) 
+        try
         {
-            Util::ParmParseException(INFO,file,func,line,full(name),full(name)," requires at least ", AMREX_SPACEDIM, " arguments, got ",vals.size());
+            std::vector<Set::Scalar> vals;
+            amrex::ParmParse::queryarr(name.c_str(), vals);
+            if (vals.size() < AMREX_SPACEDIM) 
+            {
+                Util::ParmParseException(INFO,file,func,line,full(name),full(name)," requires at least ", AMREX_SPACEDIM, " arguments, got ",vals.size());
+            }
+            for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
+            return 0;
         }
-        for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
-        return 0;
+        catch(...)
+        {
+            Util::ParmParseException(INFO,file,func,line,full(name));
+        }
+        return -1;
     }
     int queryarr(   std::string name, Set::Matrix & value,
                     std::string file = "", std::string func = "queryarr", int line = -1)
@@ -427,6 +435,25 @@ public:
         return queryarr(name.c_str(),value);
     }
 
+    int queryarr_default(   std::string name, Set::Vector & value, Set::Vector defaultvalue,
+                            std::string file = "", std::string func= "", int line = -1)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(),Util::String::Join(defaultvalue));
+                value = defaultvalue;
+                return 0;
+            }
+            return queryarr(name.c_str(),value, file, func, line);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,file,func,line,full(name));
+        }
+        return -1;
+    }
     
 
     template <typename T>
@@ -564,16 +591,27 @@ public:
 
 
 
-    int AnyUnusedInputs()
+    int AnyUnusedInputs(bool inscopeonly = true, bool verbose = false)
     {
         int cnt = 0;
         for (auto li = m_table->begin(), End = m_table->end(); li != End; ++li)
         {
-            if (!li->second.m_count && li->first.rfind(getPrefix()+".",0) != std::string::npos)
-            {
-                Util::Warning(INFO,li->first);
-                cnt++;
-            }
+                if (!li->second.m_count)
+                {
+                    if (inscopeonly && getPrefix() != "")
+                    {
+                        if (li->first.rfind(getPrefix()+".",0) != std::string::npos)
+                        {
+                            if (verbose) Util::Warning(INFO,li->first);
+                            cnt++;
+                        }
+                    }
+                    else
+                    {
+                        if (verbose) Util::Warning(INFO,li->first);
+                        cnt++;
+                    }
+                }
         }
         return cnt;
     }
