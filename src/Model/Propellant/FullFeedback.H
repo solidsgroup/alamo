@@ -68,6 +68,17 @@ public:
         return mbase * qflux;
     }
 
+    AMREX_FORCE_INLINE
+    Set::Scalar get_qflux(const Set::Scalar phi) 
+    {
+
+        Set::Scalar qflux = k1 * phi +
+            k2 * (1.0 - phi) +
+            (zeta_1 / zeta) * exp(k3 * phi * (1.0 - phi));
+
+        return qflux;
+    }
+
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Set::Scalar get_K (const Set::Scalar phi)
