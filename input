@@ -5,7 +5,7 @@
 alamo.program = flame
 plot_file = output
 amr.plot_int = 10
-amr.max_level = 5
+amr.max_level = 3
 amr.blocking_factor = 4
 amr.base_regrid_int = 100
 amr.grid_eff = 1
@@ -14,19 +14,19 @@ amr.refinement_criterion = 0.05 #0.1
 amr.refinement_criterion_temp = 10.0
 #amr.refinement_restriction = 0.3
 amr.phi_refinement_criterion = 0.6
-amr.n_cell = 4 4 4
+amr.n_cell = 32 32 32
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
-geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 0.1 0.1 0.1
+geometry.prob_lo = 0.0 0.0 0.0 # [m]
+geometry.prob_hi = 0.1 0.1 0.1 # [m]
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 1.0e-5 #1.0e-4
-stop_time = 5.0 #0.3
+timestep = 1.0e-5 # [s]
+stop_time = 5.0 # [s]
 
 # Phase field parameters
-pf.eps = 0.00008 #0.00008
+pf.eps = 0.00008 # [m]
 pf.lambda = 0.001
 pf.eta.ic.type = bmp
 pf.eta.ic.bmp.filename = double_circle.bmp
@@ -61,24 +61,27 @@ pf.eta.bc.constant.val.yhi = 1.0
 #propellant.constant.L = 0
 
 propellant.type = homogenize
-propellant.homogenize.m_ap = 1450000.0 #145000.0
-propellant.homogenize.m_htpb = 0.0
-propellant.homogenize.E_ap = 9500.0
-propellant.homogenize.E_htpb = 0.0
-propellant.homogenize.rho_ap = 1450.0
-propellant.homogenize.rho_htpb = 1.0e-8
-propellant.homogenize.k_ap = 0.2743
-propellant.homogenize.k_htpb = 1.0e-8
-propellant.homogenize.cp_ap = 1858.095
-propellant.homogenize.cp_htpb = 1.0e-8
-propellant.homogenize.massfraction = 0.8
+propellant.homogenize.m_ap = 1450000.0 #[???]
+propellant.homogenize.m_htpb = 0.0 #[???]
+propellant.homogenize.E_ap = 9500.0  #[???]
+propellant.homogenize.E_htpb = 0.0 #[???]
+propellant.homogenize.rho_ap = 1450.0    # [kg/m3]
+propellant.homogenize.rho_htpb = 920.0   # [kg/m3]
+propellant.homogenize.k_ap   =  0.1      # [W/mK]
+propellant.homogenize.k_htpb =  0.283    # [W/mK]
+propellant.homogenize.cp_ap = 1531       # [J/kgK]
+propellant.homogenize.cp_htpb = 1256     # [J/kgK]
+propellant.homogenize.massfraction = 0.8 # [1]
 propellant.homogenize.dispersion1 = 0.1
 propellant.homogenize.dispersion2 = 1
 propellant.homogenize.dispersion3 = 1
-propellant.homogenize.mob_ap = 1
+propellant.homogenize.mob_ap = 1 #[???]
+propellant.homogenize.mlocal_ap = 1000.0 # [???]
+propellant.homogenize.h1 = 1.81
+propellant.homogenize.h2 = 1.34
 
 thermal.on = 1
-thermal.Tref = 500
+thermal.Tref = 500 #[K]
 thermal.temp.bc.type = constant
 thermal.temp.bc.constant.type.xlo = neumann
 thermal.temp.bc.constant.type.xhi = neumann
@@ -95,24 +98,20 @@ thermal.temp.bc.constant.val.zhi = 0.0
 
 # Temperature initial conditions
 temp.ic.type="constant"
-temp.ic.constant.value=500
+temp.ic.constant.value=500 #[K]
 
 # Laser source term
 laser.ic.type = constant
-laser.ic.constant.value = 5.0e6 #5.0e6
-thermal.hc = 1.0e7
-propellant.homogenize.mlocal_ap = 1000.0
+laser.ic.constant.value = 5.0e6 #[ Units? ]
+thermal.hc = 1.0e7 # [ ???]
 
 # Pressure
-chamber.pressure = 4.0 # [MPa]
 variable_pressure = 1
-chamber.ballistic.At = 1.0
-chamber.ballistic.T0 = 500
-chamber.ballistic.R = 0.000287
+chamber.pressure = 4.0 # [MPa?]
+chamber.ballistic.At = 1.0 # [?]
+chamber.ballistic.T0 = 500 # [?]
+chamber.ballistic.R = 0.000287 #[?]
 
-propellant.homogenize.mob_ap = 1
-propellant.homogenize.h1 = 1.81
-propellant.homogenize.h2 = 1.34
 
 # Thermoelasticity
 #elastic.on = 0
