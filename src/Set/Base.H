@@ -114,7 +114,7 @@ bool operator == (const Quaternion a, const Quaternion b)
 }
 
 
-static Scalar Garbage = NAN;
+[[maybe_unused]] static Scalar Garbage = NAN;
 
 AMREX_FORCE_INLINE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)

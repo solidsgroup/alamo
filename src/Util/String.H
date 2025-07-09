@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "AMReX_Config.H"
 #include "Set/Base.H"
 #include "Util/Util.H"
 
@@ -18,7 +19,7 @@ namespace Util
 /// \brief A collection of string operations
 namespace String
 {
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
 int ReplaceAll(std::string &str, const std::string before, const std::string after)
 {
     size_t start_pos = 0;
@@ -29,7 +30,7 @@ int ReplaceAll(std::string &str, const std::string before, const std::string aft
     return 0;
 }
 
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
 int ReplaceAll(std::string &str, const char before, const std::string after)
 {
     size_t start_pos = 0;
@@ -40,7 +41,7 @@ int ReplaceAll(std::string &str, const char before, const std::string after)
     return 0;
 }
 
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
 std::string Wrap(std::string text, unsigned per_line)
 {
     unsigned line_begin = 0;
@@ -78,7 +79,7 @@ std::string Wrap(std::string text, unsigned per_line)
     return text;
 }
 
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
 std::string Join(const std::vector<std::string> & vec, char separator = '_')
 {
     std::ostringstream oss;
@@ -91,8 +92,8 @@ std::string Join(const std::vector<std::string> & vec, char separator = '_')
     return oss.str();
 }
 
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
-std::string Join(const Set::Vector & vec, char separator = '_')
+AMREX_FORCE_INLINE
+std::string Join(const Set::Vector & vec, char separator = ' ')
 {
     std::ostringstream oss;
     for (unsigned int i = 0; i < vec.size(); ++i) {
@@ -104,7 +105,22 @@ std::string Join(const Set::Vector & vec, char separator = '_')
     return oss.str();
 }
 
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
+std::string Join(const Set::Matrix & vec, char separator = ' ')
+{
+    std::ostringstream oss;
+    for (unsigned int i = 0; i < AMREX_SPACEDIM; ++i) {
+        for (unsigned int j = 0; j < AMREX_SPACEDIM; ++j) {
+            oss << vec(i,j);
+            if (i < AMREX_SPACEDIM - 1 && j < AMREX_SPACEDIM - 1 ) { // Don't add separator after the last element
+                oss << separator;
+            }
+        }
+    }
+    return oss.str();
+}
+
+AMREX_FORCE_INLINE
 std::vector<std::string> Split(std::string &str, const char delim = ' ')
 {
     std::vector<std::string> ret;
@@ -116,7 +132,7 @@ std::vector<std::string> Split(std::string &str, const char delim = ' ')
     return ret;
 }
 
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
 bool Contains(std::string &str, const std::string find)
 {
     if (str.find(find) != std::string::npos) return true;
@@ -124,11 +140,11 @@ bool Contains(std::string &str, const std::string find)
 }
 
 template<class T>
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
 T Parse(std::string);
 
 template<>
-AMREX_ATTRIBUTE_WEAK AMREX_FORCE_INLINE
+AMREX_FORCE_INLINE
 std::complex<int> Parse(std::string input)
 {
     int re=0, im=0;
