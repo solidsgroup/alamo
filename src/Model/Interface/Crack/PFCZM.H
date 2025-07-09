@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 #include "AMReX.H"
 #include "Crack.H"
@@ -18,6 +19,8 @@ namespace Crack
 class PFCZM : public Crack
 {
 public:
+    enum FSType {WANG2023, MC};
+
     PFCZM() = default;
     virtual ~PFCZM() = default;
 
@@ -26,23 +29,27 @@ public:
     // where $\alpha$ is the geometric function defined in the code as w_phi
     // For the optimal function chosen in Wu 2024, $C_\alpha = \pi$ 
     Set::Scalar Gc (Set::Scalar /*ratio*/) { return _Gc / _c_alpha; }
-    Set::Scalar c_alpha () { return _c_alpha; }
-    Set::Scalar l_w() { return _l_w; }
+    Set::Scalar c_alpha ()      { return _c_alpha; }
+    Set::Scalar l_w()           { return _l_w; }
 
-    // added functions for mixed mode
-    Set::Scalar GcI_bar () {return _GcI_bar / _c_alpha; }
-    Set::Scalar GcII_bar () {return _GcII_bar / _c_alpha; }
-    Set::Scalar chi() { return _chi; }
-    Set::Scalar beta_bar() { return _beta_bar; }
+    // this hould check if we need to do mixed mode loading.
+    bool mixed_mode()           { return _mixed_mode; }
+    FSType failure_surface()    { return _failure_surface; }
 
-    Set::Scalar sig_t() { return _sig_t; }
-    Set::Scalar tau_s() { return _tau_s; }
+    // added functions for mixed mode - Wang 2023 surface
+    Set::Scalar GcI_bar ()      { return _GcI_bar / _c_alpha; }
+    Set::Scalar GcII_bar ()     { return _GcII_bar / _c_alpha; }
+    Set::Scalar chi()           { return _chi; }
+    Set::Scalar beta_bar()      { return _beta_bar; }
+    Set::Scalar sig_t()         { return _sig_t; }
+    Set::Scalar tau_s()         { return _tau_s; }
+
+    // added functions for mixed mode - mohr columb surface
+    Set::Scalar cohesion()      { return _cohesion; }
+    Set::Scalar friction()      { return _friction; }
 
     // For now, we are storing things like youngs modulus stuff here.
     // ideally, they should be moved to Material -> Solid -> Affine.
-    
-    bool mixed_mode() { return _mixed_mode; }
-    
     Set::Scalar DGc (Set::Scalar /*theta*/) { return 0.0; }
     Set::Scalar DDGc (Set::Scalar /*theta*/) { return 0.0; }
     Set::Scalar Zeta(Set::Scalar /*theta*/) { return zeta; }
@@ -61,17 +68,21 @@ private:
     Set::Scalar czm_order = 1.0;
     
     bool _mixed_mode = false;
+    FSType _failure_surface = FSType::WANG2023;
 
     Set::Scalar _GcI_bar = 1.e3;
     Set::Scalar _GcII_bar = 1.e3;
 
+    // Parameters specific to WANG 2023 failure surface
     Set::Scalar _chi = 1.0;
     Set::Scalar k1 = 1.0;
-    // Set::Scalar k2 = 1.0; // not used
     Set::Scalar _beta_bar = -1.0;
-
     Set::Scalar _sig_t = 1.0;
     Set::Scalar _tau_s = 1.0;
+
+    // Parameters specific to MC failure surface
+    Set::Scalar _cohesion = 1.0;
+    Set::Scalar _friction = 0.5;
 
 public:
     static void Parse(PFCZM & value, IO::ParmParse & pp)
@@ -95,50 +106,65 @@ public:
         {
             // Young's modulus
             pp.query("E", youngs);
+            
             // Poisson's ratio $\nu$
             pp.query("nu", nu);
-            // Fracture strength
-            pp.query("fracture_strength", fracture_strength);
-            // $\chi$ value
-            pp.query("chi", value._chi);
-            // Compressive strength
-            pp.query("compressive_strength", compressive_strength);
-            value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
 
-            tensile_strength = fracture_strength / value.k1;
-            shear_strength = value._chi * tensile_strength;
-            value._beta_bar = (1.0 / (value._chi * value._chi)) - (compressive_strength * compressive_strength / (4.0 * value._chi * value._chi * shear_strength * shear_strength));
-
-            
-
-            // pp.query("tensile_strength", tensile_strength);
-            // pp.query("shear_strength", shear_strength);
-            // pp.query("compressive_strength", compressive_strength);
-            // Set::Scalar chi = shear_strength/tensile_strength;
-
+            // shear modulus
             Set::Scalar mu = 0.5 * youngs / (1. + nu);
-
-            // value._chi = chi;
-            // value.k1 = ( chi < 1/std::sqrt(2) ) ? ( 2 * chi * std::sqrt(1.0 - chi*chi) ) : 1.0;
-            // value._beta_bar = (1.0 / (chi*chi)) - ((compressive_strength*compressive_strength)/(4.0*chi*chi*shear_strength*shear_strength));
             
-            value._GcI_bar = value._Gc/(value.k1*value.k1);
-            value._GcII_bar = value._GcI_bar * youngs * value._chi * value._chi / mu ;
-            fracture_strength = tensile_strength * value.k1;
+            std::string fail_surf_type = "";
+            // type of failure surface
+            pp.query_validate("failure_surface", fail_surf_type, {"wang2023", "mohr", "mc", "columb"}); // degradation function. For now, we only have linear softening
+            std::map<std::string,FSType>  fs_map;
+            fs_map["wang2023"]   = FSType::WANG2023;
+            fs_map["mohr"]       = FSType::MC;
+            fs_map["mc"]         = FSType::MC;
+            fs_map["columb"]     = FSType::MC;
+            value._failure_surface = fs_map[fail_surf_type];
 
-            Util::Message(INFO, "Chi = ", value._chi);
-            Util::Message(INFO, "mu = ", mu);
-            Util::Message(INFO, "k1 = ", value.k1);
-            Util::Message(INFO, "beta_bar = ", value._beta_bar);
-            Util::Message(INFO, "GcI_bar = ", value._GcI_bar);
-            Util::Message(INFO, "GcII_bar = ", value._GcII_bar);
-            Util::Message(INFO, "f_t = ", fracture_strength);
-            Util::Message(INFO, "f_c = ", compressive_strength);
-            Util::Message(INFO, "sig_t = ", tensile_strength);
-            Util::Message(INFO, "tau_s = ", shear_strength);
+            if (value._failure_surface == FSType::WANG2023)
+            {
+                // Fracture strength
+                pp.query("fracture_strength", fracture_strength);
+                
+                // $\chi$ value
+                pp.query("chi", value._chi);
+                
+                // Compressive strength
+                pp.query("compressive_strength", compressive_strength);
+                value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
 
-            value._sig_t = tensile_strength;
-            value._tau_s = shear_strength;
+                tensile_strength = fracture_strength / value.k1;
+                shear_strength = value._chi * tensile_strength;
+                value._beta_bar = (1.0 / (value._chi * value._chi)) - (compressive_strength * compressive_strength / (4.0 * value._chi * value._chi * shear_strength * shear_strength));
+
+                value._GcI_bar = value._Gc/(value.k1*value.k1);
+                value._GcII_bar = value._GcI_bar * youngs * value._chi * value._chi / mu ;
+                fracture_strength = tensile_strength * value.k1;
+
+                Util::Message(INFO, "Chi = ", value._chi);
+                Util::Message(INFO, "mu = ", mu);
+                Util::Message(INFO, "k1 = ", value.k1);
+                Util::Message(INFO, "beta_bar = ", value._beta_bar);
+                Util::Message(INFO, "GcI_bar = ", value._GcI_bar);
+                Util::Message(INFO, "GcII_bar = ", value._GcII_bar);
+                Util::Message(INFO, "f_t = ", fracture_strength);
+                Util::Message(INFO, "f_c = ", compressive_strength);
+                Util::Message(INFO, "sig_t = ", tensile_strength);
+                Util::Message(INFO, "tau_s = ", shear_strength);
+
+                value._sig_t = tensile_strength;
+                value._tau_s = shear_strength;
+            }
+            else if (value._failure_surface == FSType::MC)
+            {
+                pp.query("cohesion", value._cohesion);
+                pp.query("friction", value._friction);
+                
+                Set::Scalar phi = std::atan(value._friction);
+                fracture_strength = 2.0 * value._cohesion * std::cos(phi) / (1.0 + std::sin(phi));
+            }
 
         }
         else

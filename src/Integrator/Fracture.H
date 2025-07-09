@@ -54,7 +54,7 @@
 #include "BC/Constant.H"
 #include "IC/BMP.H"
 #include "IC/Ellipse.H"
-#include "IC/Ellipsoid.H"
+// #include "IC/Ellipsoid.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
 #include "IC/Laminate.H"
@@ -99,7 +99,7 @@ public:
         if (pp.contains("material.ic.type"))
         {
             // IC determining material distribution
-            pp.select<IC::Laminate, IC::Ellipsoid, IC::PerturbedInterface, IC::BMP, IC::PNG, IC::Expression>("material.ic", value.material.ic, value.geom);
+            pp.select<IC::Laminate, IC::Ellipse, IC::PerturbedInterface, IC::BMP, IC::PNG, IC::Expression>("material.ic", value.material.ic, value.geom);
             value.material.is_ic = true;
         }
         else
@@ -127,7 +127,7 @@ public:
         pp.query_default("crack.df.el_mult", value.crack.el_mult, 1.0);                           // unit conversion multiplier between elastic problem and crack problem
 
         // Let's figure out if there is an initial crack or void
-        pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
+        pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
 
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
@@ -379,92 +379,97 @@ public:
                                 vec2 = eVectors.col(0);
                             }
 
-                            // Storing useful quantities for later.
-                            Set::Scalar sig_t = crack.cracktype[0].sig_t();
-                            Set::Scalar tau_f = crack.cracktype[0].tau_s();
-                            Set::Scalar chi = crack.cracktype[0].chi();
-                            Set::Scalar mohr_center = 0.5 * (sig1 + sig2);
-                            Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
-                            Set::Scalar beta_bar = crack.cracktype[0].beta_bar();
-                            Set::Scalar beta = 1.0;
                             Set::Scalar irwing_length = crack.cracktype[0].l_w();
                             Set::Scalar c_alpha = crack.cracktype[0].c_alpha();
 
-                            // Now let's compute a candidate theta
-                            // Ideally, theta = 0 is always a valid solution and corresponds to sig_nn = sig1, tau_nm = 0
-                            // Set::Scalar theta = 0.0; // removed because: set but not used
-                            beta = sig1 < 0 ? beta_bar : 1.0;
-                            Set::Scalar f_theta = (beta * (crack.el_mult * crack.el_mult * sig1 * sig1 / (sig_t * sig_t))) - 1;
-                            // Set::Scalar r_star = sig1 - (sig_t/crack.el_mult);
+                            Set::Scalar mohr_center = 0.5 * (sig1 + sig2);
+                            Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
 
-                            // Now we check for other feasible solutions. First we check for beta = 1.
-                            Set::Scalar sig_nn1 = 0., tau_nm1 = 0.;
-                            Set::Scalar theta_candidate1 = 0.0, f_candidate1 = 0.;
-                            Set::Scalar temp = std::abs((mohr_center / mohr_radius) * (chi * chi / (1.0 - (chi * chi))));
-                            if (temp >= 0.0 && temp <= 1.0)
+                            Set::Scalar f_theta = 0.0;
+
+                            if (crack.cracktype[0].failure_surface() == Model::Interface::Crack::PFCZM::FSType::WANG2023)
                             {
-                                theta_candidate1 = 0.5 * std::acos(temp);
+                                // Storing useful quantities for later.
+                                Set::Scalar sig_t = crack.cracktype[0].sig_t();
+                                Set::Scalar tau_f = crack.cracktype[0].tau_s();
+                                Set::Scalar chi = crack.cracktype[0].chi();
+                                Set::Scalar beta_bar = crack.cracktype[0].beta_bar();
 
-                                // Now check if this actually leas to a positive sig_nn value
-                                sig_nn1 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate1));
-                                tau_nm1 = mohr_radius * std::sin(2.0 * theta_candidate1);
-
-                                if (sig_nn1 >= 0.0)
+                                Set::Scalar beta = 1.0;
+                            
+                                // Now let's compute a candidate theta
+                                // Ideally, theta = 0 is always a valid solution and corresponds to sig_nn = sig1, tau_nm = 0
+                                // Set::Scalar theta = 0.0; // removed because: set but not used
+                                beta = sig1 < 0 ? beta_bar : 1.0;
+                                f_theta = (beta * (crack.el_mult * crack.el_mult * sig1 * sig1 / (sig_t * sig_t))) - 1;
+                                
+                                // Now we check for other feasible solutions. First we check for beta = 1.
+                                Set::Scalar sig_nn1 = 0., tau_nm1 = 0.;
+                                Set::Scalar theta_candidate1 = 0.0, f_candidate1 = 0.;
+                                Set::Scalar temp = std::abs((mohr_center / mohr_radius) * (chi * chi / (1.0 - (chi * chi))));
+                                if (temp >= 0.0 && temp <= 1.0)
                                 {
-                                    f_candidate1 = (crack.el_mult * crack.el_mult * sig_nn1 * sig_nn1 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm1 * tau_nm1 / (tau_f * tau_f)) - 1.0;
+                                    theta_candidate1 = 0.5 * std::acos(temp);
 
-                                    // We only use this solution if the value of the failure surface is larger.
-                                    if (f_candidate1 > f_theta)
+                                    // Now check if this actually leas to a positive sig_nn value
+                                    sig_nn1 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate1));
+                                    tau_nm1 = mohr_radius * std::sin(2.0 * theta_candidate1);
+
+                                    if (sig_nn1 >= 0.0)
                                     {
-                                        // theta = theta_candidate1; // removed because: set but not used
-                                        f_theta = f_candidate1;
-                                        beta = 1.0;
+                                        f_candidate1 = (crack.el_mult * crack.el_mult * sig_nn1 * sig_nn1 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm1 * tau_nm1 / (tau_f * tau_f)) - 1.0;
+
+                                        // We only use this solution if the value of the failure surface is larger.
+                                        if (f_candidate1 > f_theta)
+                                        {
+                                            f_theta = f_candidate1;
+                                            beta = 1.0;
+                                        }
+                                    }
+                                }
+
+                                // Now we check for the third feasible solution for beta = beta_bar.
+                                Set::Scalar sig_nn2 = 0., tau_nm2 = 0.;
+                                Set::Scalar theta_candidate2 = 0.0, f_candidate2 = 0.;
+                                temp = std::abs((mohr_center / mohr_radius) * (beta_bar * chi * chi / (1.0 - (beta_bar * chi * chi))));
+                                if (temp >= 0.0 && temp <= 1.0)
+                                {
+                                    theta_candidate2 = 0.5 * std::acos(temp);
+
+                                    // Now check if this actually leas to a negative sig_nn value
+                                    sig_nn2 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate2));
+                                    tau_nm2 = mohr_radius * std::sin(2.0 * theta_candidate2);
+
+                                    if (sig_nn2 <= 0.0)
+                                    {
+                                        f_candidate2 = (beta_bar * crack.el_mult * crack.el_mult * sig_nn2 * sig_nn2 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm2 * tau_nm2 / (tau_f * tau_f)) - 1.0;
+
+                                        // We only use this solution if the value of the failure surface is larger.
+                                        if (f_candidate2 > f_theta)
+                                        {
+                                            f_theta = f_candidate2;
+                                            beta = beta_bar;
+                                        }
                                     }
                                 }
                             }
-
-                            // Now we check for the third feasible solution for beta = beta_bar.
-                            Set::Scalar sig_nn2 = 0., tau_nm2 = 0.;
-                            Set::Scalar theta_candidate2 = 0.0, f_candidate2 = 0.;
-                            temp = std::abs((mohr_center / mohr_radius) * (beta_bar * chi * chi / (1.0 - (beta_bar * chi * chi))));
-                            if (temp >= 0.0 && temp <= 1.0)
+                            else if (crack.cracktype[0].failure_surface() == Model::Interface::Crack::PFCZM::FSType::MC)
                             {
-                                theta_candidate2 = 0.5 * std::acos(temp);
+                                Set::Scalar cohesion = crack.cracktype[0].cohesion();
+                                Set::Scalar friction = crack.cracktype[0].friction();
+                                // In this case, the angle theta is straightforward.
+                                // theta = (pi / 4) - (\phi / 2)
+                                Set::Scalar sig_nn = 0., tau_nm = 0.;
+                                Set::Scalar theta = std::atan(1) - std::atan(friction);
 
-                                // Set::Scalar theta_min = 0.5 * std::atan2(tau_f / crack.el_mult, (0.0 - mohr_center));
+                                sig_nn = crack.el_mult * (mohr_center + (mohr_radius * std::cos(2.0 * theta)));
+                                tau_nm = crack.el_mult * (mohr_radius * std::sin(2.0 * theta));
 
-                                // Now check if this actually leas to a negative sig_nn value
-                                sig_nn2 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate2));
-                                tau_nm2 = mohr_radius * std::sin(2.0 * theta_candidate2);
+                                f_theta = (tau_nm + (friction * sig_nn)) * (tau_nm + (friction * sig_nn)) / (cohesion * cohesion);
+                                f_theta = f_theta - 1.0;
 
-                                if (sig_nn2 <= 0.0)
-                                {
-                                    f_candidate2 = (beta_bar * crack.el_mult * crack.el_mult * sig_nn2 * sig_nn2 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm2 * tau_nm2 / (tau_f * tau_f)) - 1.0;
-
-                                    // We only use this solution if the value of the failure surface is larger.
-                                    if (f_candidate2 > f_theta)
-                                    {
-                                        // theta = theta_candidate2; // removed because: set but not used
-                                        f_theta = f_candidate2;
-                                        beta = beta_bar;
-                                    }
-                                }
+                                // Util::Message(INFO, "sig1 = ", sig1, ", sig2 = ", sig2, ", f_theta = ", f_theta);
                             }
-
-                            // Set::Scalar sig_nn = 0, tau_nm = 0;
-                            // if (f_theta > 0)
-                            // {
-                            //     sig_nn = std::max(0.0, mohr_center + (mohr_radius * std::cos(2.0 * theta)));
-                            //     tau_nm = mohr_radius * std::sin(2.0 * theta);
-
-                            //     sig_nn *= crack.el_mult;
-                            //     tau_nm *= crack.el_mult;
-                            // }
-
-                            // Set::Scalar psi_1 = 0.5 * sig_nn * sig_nn / (crack.el_mult * material.models[0].DDW(Set::Matrix::Zero()).Youngs());
-                            // Set::Scalar psi_2 = 0.5 * tau_nm * tau_nm / (crack.el_mult * material.models[0].DDW(Set::Matrix::Zero()).Mu());
-                            // energy(i, j, k, 0) = psi_1 / crack.cracktype[0].GcI_bar();
-                            // energy(i, j, k, 1) = psi_2 / crack.cracktype[0].GcII_bar();
 
                             energy(i,j,k,0) = (f_theta > 0) ? (c_alpha / (2.0 * irwing_length)) * ((f_theta)) : 0.0;
                             energy(i,j,k,1) = 0.0;

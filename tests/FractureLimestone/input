@@ -35,6 +35,7 @@ crack.df.beta           = 0
 crack.df.el_mult        = 1.e11
 
 crack.model1.mixed_mode           = 1
+crack.model1.failure_surface      = wang2023
 crack.model1.E                    = 36.2e9
 crack.model1.nu                   = 0.21
 crack.model1.fracture_strength    = 10.25e6
