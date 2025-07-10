@@ -13,7 +13,7 @@ amr.base_regrid_int = 10
 amr.plot_dt = 0.01
 # amr.plot_int = 1
 amr.plot_file = output.flame-sfi
-amr.max_level = 3
+amr.max_level = 2
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
@@ -117,7 +117,7 @@ flame.elastic.type = disable
 #hydro.deltapInterface.ic.expression.region0 = "0.0"
 ### HYDRO PARAM ###
 hydro.gamma = 1.4
-hydro.mu    = 0.0001
+hydro.mu    = 0.000
 hydro.pref    = 10000
 #hydro.rho_solid = 30.0 #kg/m^3
 #hydro.rho_fluid = 20.0 #kg/m^3
@@ -176,8 +176,8 @@ hydro.eta.ic.constant.value = 1.0
 #hydro.e_refinement_criterion   = 0.1
 #hydro.m_refinement_criterion   = 0.1
 hydro.eta_refinement_criterion = 0.1
-hydro.omega_refinement_criterion = 10000000
-hydro.gradu_refinement_criterion = 100000000
+hydro.omega_refinement_criterion = 10
+hydro.gradu_refinement_criterion = 10
 
 hydro.solid.momentum.ic.constant.value = 0.0
 hydro.solid.density.ic.constant.value = 40.0
@@ -186,7 +186,8 @@ hydro.solid.energy.ic.constant.value = 0.0
 
 hydro.m0.ic.constant.value = 0.0 # 40.0
 hydro.u0.ic.type = expression
-hydro.u0.ic.expression.region0 = "-0.1*(y>0)" 
+#hydro.u0.ic.expression.region0 = "-0.1*(y>100*sin(3.14 * t / 0.1))" 
+hydro.u0.ic.expression.region0 = "-0.5 -0.5*(y>0.001*sin(0.5*t/0.001))" 
 hydro.u0.ic.expression.region1 = "0.0"
 hydro.q.ic.constant.value = 0.0
 
@@ -211,8 +212,8 @@ hydro.solver.type = hllc
 
 timestep = 1e-5
 amr.plot_dt = 0.001
-amr.base_regrid_int = 1000000000000
-amr.regrid_int = 1000000000000
+amr.base_regrid_int = 100
+#amr.regrid_int = 1000000000000
 
 #amr.max_level = 0    #1       #2      #3
 #amr.n_cell =  512 64 #256 32  #128 16 #64 8
@@ -231,4 +232,4 @@ amr.blocking_factor = 8
 hydro.small=0.01
 flame.pf.eta.ic.expression.constant.eps = 0.02
 amr.n_cell = 256 32 #128 16 #64 8
-timestep=0.25e-6
+timestep=0.25e-4

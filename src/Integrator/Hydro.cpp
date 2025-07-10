@@ -317,6 +317,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     
     UpdateEta(lev, time);
 
+    ic_u0->Initialize(lev, u0_mf,    time);
+
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
