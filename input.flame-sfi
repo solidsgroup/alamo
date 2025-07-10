@@ -184,7 +184,7 @@ hydro.solid.density.ic.constant.value = 40.0
 hydro.solid.energy.ic.constant.value = 0.0
 
 
-hydro.m0.ic.constant.value = 40.0
+hydro.m0.ic.constant.value = 0.0 # 40.0
 hydro.u0.ic.type = expression
 hydro.u0.ic.expression.region0 = "-0.1*(y>0)" 
 hydro.u0.ic.expression.region1 = "0.0"
@@ -231,4 +231,4 @@ amr.blocking_factor = 8
 hydro.small=0.01
 flame.pf.eta.ic.expression.constant.eps = 0.02
 amr.n_cell = 256 32 #128 16 #64 8
-timestep=0.25e-5
+timestep=0.25e-6
