@@ -401,60 +401,150 @@ public:
         bcmap["trac"]         = Type::Traction;
         bcmap["periodic"]     = Type::Periodic;
         
-        std::vector<std::string> str;
+        std::vector<std::string> type, val;
         
-        // TYPES
-        
-        #if AMREX_SPACEDIM==3
-        if (pp.contains("type.xloylozlo")) { pp_queryarr("type.xloylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZLO][i] = bcmap[str[i]]; } // 3D Corner
-        if (pp.contains("type.xloylozhi")) { pp_queryarr("type.xloylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZHI][i] = bcmap[str[i]]; } // 3D Corner
-        if (pp.contains("type.xloyhizlo")) { pp_queryarr("type.xloyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZLO][i] = bcmap[str[i]]; } // 3D Corner
-        if (pp.contains("type.xloyhizhi")) { pp_queryarr("type.xloyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZHI][i] = bcmap[str[i]]; } // 3D Corner
-        if (pp.contains("type.xhiylozlo")) { pp_queryarr("type.xhiylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZLO][i] = bcmap[str[i]]; } // 3D Corner
-        if (pp.contains("type.xhiylozhi")) { pp_queryarr("type.xhiylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZHI][i] = bcmap[str[i]]; } // 3D Corner
-        if (pp.contains("type.xhiyhizlo")) { pp_queryarr("type.xhiyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZLO][i] = bcmap[str[i]]; } // 3D Corner
-        if (pp.contains("type.xhiyhizhi")) { pp_queryarr("type.xhiyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZHI][i] = bcmap[str[i]]; } // 3D Corner
-        #endif
+        //
+        // Lambda to parse the type and val strings, and initialize parser.
+        // 
 
-        #if AMREX_SPACEDIM==3
-        if (pp.contains("type.ylozlo")) { pp_queryarr("type.ylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZLO][i] = bcmap[str[i]]; } // 3D Edge
-        if (pp.contains("type.ylozhi")) { pp_queryarr("type.ylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZHI][i] = bcmap[str[i]]; } // 3D Edge
-        if (pp.contains("type.yhizlo")) { pp_queryarr("type.yhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZLO][i] = bcmap[str[i]]; } // 3D Edge
-        if (pp.contains("type.yhizhi")) { pp_queryarr("type.yhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZHI][i] = bcmap[str[i]]; } // 3D Edge
-        if (pp.contains("type.zloxlo")) { pp_queryarr("type.zloxlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XLO][i] = bcmap[str[i]]; } // 3D Edge
-        if (pp.contains("type.zloxhi")) { pp_queryarr("type.zloxhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XHI][i] = bcmap[str[i]]; } // 3D Edge
-        if (pp.contains("type.zhixlo")) { pp_queryarr("type.zhixlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XLO][i] = bcmap[str[i]]; } // 3D Edge
-        if (pp.contains("type.zhixhi")) { pp_queryarr("type.zhixhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XHI][i] = bcmap[str[i]]; } // 3D Edge
-        #endif
-        if (pp.contains("type.xloylo")) { pp_queryarr("type.xloylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
-        if (pp.contains("type.xloyhi")) { pp_queryarr("type.xloyhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
-        if (pp.contains("type.xhiylo")) { pp_queryarr("type.xhiylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
-        if (pp.contains("type.xhiyhi")) { pp_queryarr("type.xhiyhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
-
-        if (pp.contains("type.xlo")) { pp_queryarr("type.xlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO][i] = bcmap[str[i]]; } // 3D Face  2D Edge
-        if (pp.contains("type.xhi")) { pp_queryarr("type.xhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI][i] = bcmap[str[i]]; } // 3D Face  2D Edge
-        if (pp.contains("type.ylo")) { pp_queryarr("type.ylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO][i] = bcmap[str[i]]; } // 3D Face  2D Edge
-        if (pp.contains("type.yhi")) { pp_queryarr("type.yhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI][i] = bcmap[str[i]]; } // 3D Face  2D Edge
-        #if AMREX_SPACEDIM==3
-        if (pp.contains("type.zlo")) { pp_queryarr("type.zlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO][i] = bcmap[str[i]]; } // 3D Face
-        if (pp.contains("type.zhi")) { pp_queryarr("type.zhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI][i] = bcmap[str[i]]; } // 3D Face
-        #endif
-
-        // VALS
-
-        for (int face = 0; face != Face::INT; face++)
+        auto set =  [&] (std::vector<std::string> type, std::vector<std::string> val, Face face)  
         {
-            std::vector<std::string> val(AMREX_SPACEDIM,"0.0");
-            val.resize(AMREX_SPACEDIM,"0.0");
-            std::string querystr = std::string("val.") + std::string(facestr[face]);
-            pp_queryarr(querystr.c_str(),val);
+            if (type.size() == 1)
+                type.resize(AMREX_SPACEDIM,type[0]);
+            else if (type.size() < AMREX_SPACEDIM)
+                Util::Abort(INFO,"Invalid number of types specified for ", facestr[face]);
+
+            if (val.size() == 1)
+                val.resize(AMREX_SPACEDIM,val[0]);
+            else if (val.size() < AMREX_SPACEDIM)
+                Util::Abort(INFO,"Invalid number of vals specified for ", facestr[face]);
+
             for (int i = 0 ; i < AMREX_SPACEDIM; i++)
             {
+                // set enums to appropriate type
+                value.m_bc_type[face][i] = bcmap[type[i]]; 
+                
+                // initialize the parser
                 value.m_bc_func_parser[face][i] = amrex::Parser(val[i].c_str());
                 value.m_bc_func_parser[face][i].registerVariables({"x","y","z","t"});
                 value.m_bc_func[face][i] = value.m_bc_func_parser[face][i].compile<4>();
             }
-        }        
+        };
+
+        pp_queryarr_default("type.xlo",type, "disp"); // 3D Face / 2D Edge type
+        pp_queryarr_default("val.xlo", val , "0.0"); // 3D Face / 2D Edge value
+        set(type,val,Face::XLO); 
+
+        pp_queryarr_default("type.xhi",type, "disp"); // 3D Face / 2D Edge  type
+        pp_queryarr_default("val.xhi" ,val , "0.0"); // 3D Face / 2D Edge value
+        set(type,val,Face::XHI); 
+
+        pp_queryarr_default("type.ylo",type, "disp"); // 3D Face / 2D Edge type
+        pp_queryarr_default("val.ylo" ,val , "0.0"); // 3D Face / 2D Edge value
+        set(type,val,Face::YLO); 
+
+        pp_queryarr_default("type.yhi",type, "disp"); // 3D Face / 2D Edge type
+        pp_queryarr_default("val.yhi", val , "0.0"); // 3D Face / 2D Edge value
+        set(type,val,Face::YHI); 
+
+#if AMREX_SPACEDIM==3
+        pp_queryarr_default("type.zlo",type, "disp"); // 3D Face type
+        pp_queryarr_default("val.zlo", val , "0.0"); // 3D Face value
+        set(type,val,Face::ZLO); 
+
+        pp_queryarr_default("type.zhi",type, "disp"); // 3D Face type
+        pp_queryarr_default("val.zhi", val , "0.0"); // 3D Face value
+        set(type,val,Face::ZHI); 
+#endif
+
+
+        pp.queryarr_default("type.xloylo",type, "disp"); // 3D Edge / 2D Corner type
+        pp.queryarr_default("val.xloylo", val , "0.0"); // 3D Edge / 2D Corner value
+        set(type,val,Face::XLO_YLO); 
+
+        pp_queryarr_default("type.xloyhi",type, "disp"); // 3D Edge / 2D Corner type
+        pp_queryarr_default("val.xloyhi", val , "0.0"); // 3D Edge / 2D Corner value
+        set(type,val,Face::XLO_YHI); 
+
+        pp_queryarr_default("type.xhiylo",type, "disp"); // 3D Edge / 2D Corner type
+        pp_queryarr_default("val.xhiylo", val , "0.0"); // 3D Edge / 2D Corner value
+        set(type,val,Face::XHI_YLO); 
+
+        pp_queryarr_default("type.xhiyhi",type, "disp"); // 3D Edge / 2D Corner type
+        pp_queryarr_default("val.xhiyhi", val , "0.0"); // 3D Edge / 2D Corner value
+        set(type,val,Face::XHI_YHI); 
+
+#if AMREX_SPACEDIM==3
+        pp_queryarr_default("type.xloylozlo",type,"disp"); // 3D Corner type
+        pp_queryarr_default("val.xloylozlo",val,"0.0"); // 3D Corner value
+        set(type,val,Face::XLO_YLO_ZLO);
+
+        pp_queryarr_default("type.xloylozhi",type, "disp");  // 3D Corner type
+        pp_queryarr_default("val.xloylozhi", val , "0.0");  // 3D Corner value
+        set(type,val,Face::XLO_YLO_ZHI); 
+
+        pp_queryarr_default("type.xloyhizlo",type, "disp"); // 3D Corner type
+        pp_queryarr_default("val.xloyhizlo", val , "0.0"); // 3D Corner value
+        set(type,val,Face::XLO_YHI_ZLO); 
+
+        pp_queryarr_default("type.xloyhizhi",type, "disp"); // 3D Corner type
+        pp_queryarr_default("val.xloyhizhi", val , "0.0"); // 3D Corner value
+        set(type,val,Face::XLO_YHI_ZHI); 
+
+        pp_queryarr_default("type.xhiylozlo",type, "disp"); // 3D Corner type
+        pp_queryarr_default("val.xhiylozlo", val , "0.0"); // 3D Corner value
+        set(type,val,Face::XHI_YLO_ZLO); 
+
+        pp_queryarr_default("type.xhiylozhi",type, "disp"); // 3D Corner type
+        pp_queryarr_default("val.xhiylozhi", val , "0.0"); // 3D Corner value
+        set(type,val,Face::XHI_YLO_ZHI); 
+
+        pp_queryarr_default("type.xhiyhizlo",type, "disp"); // 3D Corner type
+        pp_queryarr_default("val.xhiyhizlo", val , "0.0"); // 3D Corner value
+        set(type,val,Face::XHI_YHI_ZLO); 
+
+        pp_queryarr_default("type.xhiyhizhi",type, "disp"); // 3D Corner type
+        pp_queryarr_default("val.xhiyhizhi", val , "0.0"); // 3D Corner value
+        set(type,val,Face::XHI_YHI_ZHI); 
+
+        pp_queryarr_default("type.ylozlo",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.ylozlo", val , "0.0"); // 3D Edge value
+        set(type,val,Face::YLO_ZLO); 
+
+        pp_queryarr_default("type.ylozhi",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.ylozhi", val , "0.0"); // 3D Edge value
+        set(type,val,Face::YLO_ZHI); 
+
+        pp_queryarr_default("type.yhizlo",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.yhizlo", val , "0.0"); // 3D Edge value
+        set(type,val,Face::YHI_ZLO); 
+
+        pp_queryarr_default("type.yhizhi",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.yhizhi", val , "0.0"); // 3D Edge value
+        set(type,val,Face::YHI_ZHI); 
+
+        pp_queryarr_default("type.zloxlo",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.zloxlo", val , "0.0"); // 3D Edge value
+        set(type,val,Face::ZLO_XLO); 
+
+        pp_queryarr_default("type.zloxhi",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.zloxhi", val , "0.0"); // 3D Edge value
+        set(type,val,Face::ZLO_XHI); 
+
+        pp_queryarr_default("type.zhixlo",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.zhixlo", val , "0.0"); // 3D Edge value
+        set(type,val,Face::ZHI_XLO); 
+
+        pp_queryarr_default("type.zhixhi",type, "disp"); // 3D Edge type
+        pp_queryarr_default("val.zhixhi", val , "0.0"); // 3D Edge value
+        set(type,val,Face::ZHI_XHI); 
+#endif
+
+
+
+  
+
+
 
 #if AMREX_SPACEDIM==2
         // We may wish to use an input file that has 3D BC inputs

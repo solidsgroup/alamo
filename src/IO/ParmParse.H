@@ -92,7 +92,7 @@
 #include <list>
 
 #include "Util/Util.H"
-#include "Set/Set.H"
+#include "Set/Base.H"
 #include "AMReX_ParmParse.H"
 
 
@@ -455,6 +455,26 @@ public:
         return -1;
     }
     
+    int queryarr_default(   std::string name, Set::Matrix & value, Set::Matrix defaultvalue,
+                            std::string file = "", std::string func= "", int line = -1)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(),Util::String::Join(defaultvalue));
+                value = defaultvalue;
+                return 0;
+            }
+            return queryarr(name.c_str(),value, file, func, line);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,file,func,line,full(name));
+        }
+        return -1;
+    }
+
 
     template <typename T>
     int
