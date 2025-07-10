@@ -92,13 +92,28 @@ std::string Join(const std::vector<std::string> & vec, char separator = '_')
 }
 
 AMREX_FORCE_INLINE
-std::string Join(const Set::Vector & vec, char separator = '_')
+std::string Join(const Set::Vector & vec, char separator = ' ')
 {
     std::ostringstream oss;
     for (unsigned int i = 0; i < vec.size(); ++i) {
         oss << vec(i);
         if (i < vec.size() - 1) { // Don't add separator after the last element
             oss << separator;
+        }
+    }
+    return oss.str();
+}
+
+AMREX_FORCE_INLINE
+std::string Join(const Set::Matrix & vec, char separator = ' ')
+{
+    std::ostringstream oss;
+    for (unsigned int i = 0; i < AMREX_SPACEDIM; ++i) {
+        for (unsigned int j = 0; j < AMREX_SPACEDIM; ++j) {
+            oss << vec(i,j);
+            if (i < AMREX_SPACEDIM - 1 && j < AMREX_SPACEDIM - 1 ) { // Don't add separator after the last element
+                oss << separator;
+            }
         }
     }
     return oss.str();

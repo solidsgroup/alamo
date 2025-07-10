@@ -58,8 +58,8 @@ report*.html
 report.tar.gz
 alamo.egg-info
 alamo
-alamo.py
 setup.py
+alamo.py
 .DS_Store 
 # DELETEME before merge
 flame-sfi.output*/
