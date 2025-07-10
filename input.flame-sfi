@@ -1,0 +1,234 @@
+####################
+# Alamo Parameters #
+####################
+
+stop_time = 5.0
+timestep = 0.1e-5
+
+####################
+# AMReX Parameters #
+####################
+
+amr.base_regrid_int = 10
+amr.plot_dt = 0.01
+# amr.plot_int = 1
+amr.plot_file = output.flame-sfi
+amr.max_level = 3
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.grid_eff = 0.7
+amr.n_cell = 64 8
+
+geometry.prob_lo = 0.0 -0.03
+geometry.prob_hi = 0.48 0.03
+
+##################
+# SFI Parameters #
+##################
+
+alamo.program = flame
+tstart =  0.0
+invert = 1
+
+###############################
+# Flame Integrator Parameters #
+###############################
+
+flame.plot_field = 0
+flame.pf.eps = 1e-6
+flame.pf.kappa = 1.0
+flame.pf.lambda = 0.001
+flame.pf.w1 = 1.0
+flame.pf.w12 = 2.0
+flame.pf.w0 = 0.0
+
+flame.pf.eta.bc.type = constant
+flame.pf.eta.bc.constant.type.xlo = neumann
+flame.pf.eta.bc.constant.type.xhi = neumann
+flame.pf.eta.bc.constant.type.ylo = neumann
+flame.pf.eta.bc.constant.type.yhi = neumann
+
+flame.pf.eta.ic.type = expression
+flame.pf.eta.ic.expression.constant.eps = 0.001
+flame.pf.eta.ic.expression.region0 = "0.5 * (erf((x - 0.4)/eps) + 1)"
+#flame.pf.eta.ic.expression.region0 = "0.0"
+
+flame.thermal.on = 1
+flame.thermal.Tref = 300.0
+
+flame.propellant.type = fullfeedback
+flame.propellant.fullfeedback.rho_ap = 1950.0  # [kg/m^3]
+flame.propellant.fullfeedback.rho_htpb = 920.0  # [kg/m^3]
+flame.propellant.fullfeedback.k_ap = 0.4186  # [W/mK]
+flame.propellant.fullfeedback.k_htpb = 0.13  # [W/mK]
+flame.propellant.fullfeedback.cp_ap = 1297.9  # [J/(kg*K)]
+flame.propellant.fullfeedback.cp_htpb = 2418.29  # [J/(kg*K)]
+flame.propellant.fullfeedback.m_ap = 1.45e5  # [m/s]
+flame.propellant.fullfeedback.m_htpb = 14.0  # [m/s]
+flame.propellant.fullfeedback.E_ap = 11000.0
+flame.propellant.fullfeedback.E_htpb = 7500.0
+flame.propellant.fullfeedback.mlocal_ap = 1000.0
+flame.propellant.fullfeedback.mlocal_comb = 0.0
+
+flame.thermal.temp.bc.constant.type.xlo = neumann
+flame.thermal.temp.bc.constant.type.xhi = neumann
+flame.thermal.temp.bc.constant.type.ylo = neumann
+flame.thermal.temp.bc.constant.type.yhi = neumann
+
+flame.thermal.hc = 1e7
+
+flame.laser.ic.constant.value = 1e6
+
+flame.temp.ic.constant.value = 300.0
+
+flame.chamber.pressure = 4.0  # [MPa]
+flame.propellant.fullfeedback.a1 = 1.114
+flame.propellant.fullfeedback.a2 = 0.46
+flame.propellant.fullfeedback.a3 = 2.797
+flame.propellant.fullfeedback.b1 = 0.323
+flame.propellant.fullfeedback.b2 = 0.42
+flame.propellant.fullfeedback.b3 = 0.3225
+flame.propellant.fullfeedback.c1 = -0.09906
+
+flame.amr.refinement_criterion = 0.1
+flame.amr.refinement_criterion_temp = 10.0
+
+flame.phi.ic.type = laminate
+flame.phi.ic.laminate.center = 0.0 0.0
+flame.phi.ic.laminate.thickness = 1e-4
+flame.phi.ic.laminate.orientation = 0.0 1.0
+flame.phi.ic.laminate.eps = 2e-5
+flame.phi.ic.laminate.singlefab = 1
+flame.phi.ic.laminate.invert = 1
+
+flame.elastic.type = disable
+
+###############################
+# Hydro Integrator Parameters #
+###############################
+
+### ETA IC ###
+#hydro.rhoInterface.ic.type = expression
+#hydro.rhoInterface.ic.expression.region0 = "20.0"
+#hydro.vInjected.ic.type = expression
+#hydro.vInjected.ic.expression.region0 = "0.0"
+#hydro.vInjected.ic.expression.region1 = "0.0"
+#hydro.deltapInterface.ic.type = expression
+#hydro.deltapInterface.ic.expression.region0 = "0.0"
+### HYDRO PARAM ###
+hydro.gamma = 1.4
+hydro.mu    = 0.0001
+hydro.pref    = 10000
+#hydro.rho_solid = 30.0 #kg/m^3
+#hydro.rho_fluid = 20.0 #kg/m^3
+#hydro.E_solid   = 5.0
+hydro.density.ic.constant.value = 40.0
+hydro.velocity.ic.type = expression
+hydro.velocity.ic.expression.constant.eps   = 0.1
+hydro.velocity.ic.expression.constant.x0    = -2.0
+hydro.velocity.ic.expression.region0 = "0.0"
+hydro.velocity.ic.expression.region1 = "0.0"
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 5.0
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+### ETA BC  ###
+hydro.pf.eta.bc.constant.type.xlo = neumann
+hydro.pf.eta.bc.constant.type.xhi = neumann
+hydro.pf.eta.bc.constant.type.ylo = neumann
+hydro.pf.eta.bc.constant.type.yhi = neumann
+hydro.pf.eta.bc.constant.type.zlo = neumann
+hydro.pf.eta.bc.constant.type.zhi = neumann
+hydro.pf.eta.bc.constant.val.xlo = 0.0
+hydro.pf.eta.bc.constant.val.xhi = 0.0
+hydro.pf.eta.bc.constant.val.ylo = 0.0
+hydro.pf.eta.bc.constant.val.yhi = 0.0
+hydro.pf.eta.bc.constant.val.zlo = 0.0
+hydro.pf.eta.bc.constant.val.zhi = 0.0
+### HYDRO BC ###
+hydro.density.bc.constant.type.xhi = neumann
+hydro.density.bc.constant.type.xlo = neumann #dirichlet
+hydro.density.bc.constant.type.ylo = neumann
+hydro.density.bc.constant.type.yhi = neumann
+hydro.density.bc.constant.val.xhi = 0.0
+hydro.density.bc.constant.val.xlo = 0.0
+hydro.density.bc.constant.val.ylo = 0.0 
+hydro.density.bc.constant.val.yhi = 0.0
+hydro.energy.bc.constant.type.xhi = neumann
+hydro.energy.bc.constant.type.xlo = neumann #dirichlet #neumann
+hydro.energy.bc.constant.type.ylo = neumann
+hydro.energy.bc.constant.type.yhi = neumann
+hydro.energy.bc.constant.val.xhi = 0.0
+hydro.energy.bc.constant.val.xlo = 0.0 #1000.0 #0.0
+hydro.energy.bc.constant.val.ylo = 0.0 
+hydro.energy.bc.constant.val.yhi = 0.0
+hydro.momentum.bc.constant.type.xhi = neumann neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
+hydro.momentum.bc.constant.type.ylo = neumann dirichlet
+hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.momentum.bc.constant.val.xhi = 0.0 0.0
+hydro.momentum.bc.constant.val.xlo = 0.0 0.0 #10. 0.0
+hydro.momentum.bc.constant.val.ylo = 0.0 0.0
+hydro.momentum.bc.constant.val.yhi = 0.0 0.0
+hydro.eta.ic.constant.value = 1.0
+### HYDRO REFINEMENT CRITERIA ###
+#hydro.r_refinement_criterion   = 0.1
+#hydro.e_refinement_criterion   = 0.1
+#hydro.m_refinement_criterion   = 0.1
+hydro.eta_refinement_criterion = 0.1
+hydro.omega_refinement_criterion = 10000000
+hydro.gradu_refinement_criterion = 100000000
+
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.density.ic.constant.value = 40.0
+hydro.solid.energy.ic.constant.value = 0.0
+
+
+hydro.m0.ic.constant.value = 40.0
+hydro.u0.ic.type = expression
+hydro.u0.ic.expression.region0 = "-0.1*(y>0)" 
+hydro.u0.ic.expression.region1 = "0.0"
+hydro.q.ic.constant.value = 0.0
+
+hydro.small=1E-3
+hydro.cutoff=0.2
+hydro.lagrange=2000.0
+
+#hydro.Lfactor=-10
+#hydro.Pfactor=10
+hydro.cfl   = 10.0
+hydro.cfl_v   = 10.0
+
+#hydro.solver.type = roe
+#hydro.solver.roe.lowmach = 1
+#timestep = 1e-5
+
+#hydro.solver.type = hlle
+#hydro.solver.hlle.lowmach = 1
+
+hydro.solver.type = hllc
+
+
+timestep = 1e-5
+amr.plot_dt = 0.001
+amr.base_regrid_int = 1000000000000
+amr.regrid_int = 1000000000000
+
+#amr.max_level = 0    #1       #2      #3
+#amr.n_cell =  512 64 #256 32  #128 16 #64 8
+#timestep = 0.125e-5  #0.25e-5 #0.5e-5 #1.0e-5
+
+
+#dynamictimestep.on = 0
+#dynamictimestep.verbose = 1
+#dynamictimestep.max  = 1E+10
+#dynamictimestep.min  = 1E-10
+#hydro.cfl   = 1-19
+#hydro.cfl_v = 1.E2
+
+flame.phi.ic.laminate.eps = 0.1e-5
+amr.blocking_factor = 8
+hydro.small=0.01
+flame.pf.eta.ic.expression.constant.eps = 0.02
+amr.n_cell = 256 32 #128 16 #64 8
+timestep=0.25e-5

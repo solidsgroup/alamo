@@ -81,57 +81,57 @@ public:
 
         if (0.0 < S_L) // F_L region
         {
-            Flux F_L ( rho_L*u_L, 
-                       rho_L*u_L*u_L + p_L,
-                       rho_L*u_L*v_L,
-                       u_L * (E_L + p_L) );
+            Flux F_L (  rho_L*u_L, 
+                        rho_L*u_L*u_L + p_L,
+                        rho_L*u_L*v_L,
+                        u_L * (E_L + p_L) );
             return F_L;
         }
         else if (S_L <= 0.0 && 0.0 < Sstar)  // Fstar_L region
         {
-            Flux F_L ( rho_L*u_L, 
-                       rho_L*u_L*u_L + p_L,
-                       rho_L*u_L*v_L,
-                       u_L * (E_L + p_L) );
-            State U_L (rho_L,
-                       rho_L*u_L,
-                       rho_L*v_L,
-                       E_L);
+            Flux F_L (  rho_L*u_L, 
+                        rho_L*u_L*u_L + p_L,
+                        rho_L*u_L*v_L,
+                        u_L * (E_L + p_L) );
+            State U_L ( rho_L,
+                        rho_L*u_L,
+                        rho_L*v_L,
+                        E_L);
 
-            State Ustar_L (1.0,
-                           Sstar,
-                           v_L,
-                           (E_L/rho_L) + (Sstar-u_L) * (Sstar + p_L/(rho_L*(S_L-u_L))));
+            State Ustar_L ( 1.0,
+                            Sstar,
+                            v_L,
+                            (E_L/rho_L) + (Sstar-u_L) * (Sstar + p_L/(rho_L*(S_L-u_L))));
             Ustar_L *= rho_L*(S_L - u_L)/(S_L-Sstar);
 
             return F_L + S_L*(Ustar_L - U_L);
         }
         else if (Sstar <= 0.0 && 0.0 <= S_R )
         {
-            Flux F_R ( rho_R*u_R, 
-                       rho_R*u_R*u_R + p_R,
-                       rho_R*u_R*v_R,
-                       u_R * (E_R + p_R) );
-            State U_R (rho_R,
-                       rho_R*u_R,
-                       rho_R*v_R,
-                       E_R);
+            Flux F_R (  rho_R*u_R, 
+                        rho_R*u_R*u_R + p_R,
+                        rho_R*u_R*v_R,
+                        u_R * (E_R + p_R) );
+            State U_R ( rho_R,
+                        rho_R*u_R,
+                        rho_R*v_R,
+                        E_R);
 
 
-            State Ustar_R (1.0,
-                           Sstar,
-                           v_R,
-                           (E_R/rho_R) + (Sstar - u_R)*(Sstar + p_R/(rho_R*(S_R-u_R))));
+            State Ustar_R ( 1.0,
+                            Sstar,
+                            v_R,
+                            (E_R/rho_R) + (Sstar - u_R)*(Sstar + p_R/(rho_R*(S_R-u_R))));
             Ustar_R *= rho_R*(S_R-u_R)/(S_R-Sstar);
 
             return F_R + S_R*(Ustar_R - U_R);
         }
         else if (S_R < 0.0)
         {
-            Flux F_R ( rho_R*u_R, 
-                       rho_R*u_R*u_R + p_R,
-                       rho_R*u_R*v_R,
-                       u_R * (E_R + p_R) );
+            Flux F_R (  rho_R*u_R, 
+                        rho_R*u_R*u_R + p_R,
+                        rho_R*u_R*v_R,
+                        u_R * (E_R + p_R) );
             return F_R;
         }
         Util::Message(INFO,lo);
