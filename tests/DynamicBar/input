@@ -3,17 +3,17 @@
 #@ exe=mechanics
 #@ dim=2
 #@ check-file = reference/pressure-profile-2d.dat
-#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0"
-#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0"
-#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0" "0"
+#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0" "0"
+#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0" "0"
 #@
 #@ [pressure-profile-3d]
 #@ exe=mechanics
 #@ dim=3
 #@ check-file = reference/pressure-profile-3d.dat
-#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0"
-#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0"
-#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0"
+#@ args = bc.expression.val.xlo    = "1.0*(t<4)"  "0" "0"
+#@ args = bc.expression.val.xloylo = "1.0*(t<4)"  "0" "0"
+#@ args = bc.expression.val.xloyhi = "1.0*(t<4)"  "0" "0"
 #@
 #@ [flyer-plate-impact-2d]
 #@ exe=mechanics
