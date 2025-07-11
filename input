@@ -61,10 +61,10 @@ pf.eta.bc.constant.val.yhi = 1.0
 #propellant.constant.L = 0
 
 propellant.type = homogenize
-propellant.homogenize.m_ap = 1450000.0 #[???]
-propellant.homogenize.m_htpb = 0.0 #[???]
-propellant.homogenize.E_ap = 9500.0  #[???]
-propellant.homogenize.E_htpb = 0.0 #[???]
+propellant.homogenize.m_ap = 1.45e5 #[???] cm/s
+propellant.homogenize.m_htpb = 0.0 #[???] cm/s
+propellant.homogenize.E_ap = 9500.0  #[???] K (Note that this is actually E/R and that is why the unit is only K)
+propellant.homogenize.E_htpb = 0.0 #[???] K
 propellant.homogenize.rho_ap = 1450.0    # [kg/m3]
 propellant.homogenize.rho_htpb = 920.0   # [kg/m3]
 propellant.homogenize.k_ap   =  0.1      # [W/mK]
@@ -72,13 +72,13 @@ propellant.homogenize.k_htpb =  0.283    # [W/mK]
 propellant.homogenize.cp_ap = 1531       # [J/kgK]
 propellant.homogenize.cp_htpb = 1256     # [J/kgK]
 propellant.homogenize.massfraction = 0.8 # [1]
-propellant.homogenize.dispersion1 = 0.1
-propellant.homogenize.dispersion2 = 1
-propellant.homogenize.dispersion3 = 1
-propellant.homogenize.mob_ap = 1 #[???]
-propellant.homogenize.mlocal_ap = 1000.0 # [???]
-propellant.homogenize.h1 = 1.81
-propellant.homogenize.h2 = 1.34
+propellant.homogenize.dispersion1 = 0.1 # [W/mK]
+propellant.homogenize.dispersion2 = 1  # [kg/m3]
+propellant.homogenize.dispersion3 = 1 # [J/kgK]
+propellant.homogenize.mob_ap = 0 #[???] Unitless, this is actually a if, controls weather or not pressure affects the mobility or not. It does effectively change the units of m_ap if set to 1.
+propellant.homogenize.mlocal_ap = 1000.0 # [???] kg/s
+propellant.homogenize.h1 = 1.81 # W/N
+propellant.homogenize.h2 = 1.34 # W/m^2
 
 thermal.on = 1
 thermal.Tref = 500 #[K]
@@ -102,15 +102,15 @@ temp.ic.constant.value=500 #[K]
 
 # Laser source term
 laser.ic.type = constant
-laser.ic.constant.value = 5.0e6 #[ Units? ]
-thermal.hc = 1.0e7 # [ ???]
+laser.ic.constant.value = 5.0e6 #[ Units? ] kW/cm^2
+thermal.hc = 1.0e7 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
 
 # Pressure
 variable_pressure = 1
-chamber.pressure = 4.0 # [MPa?]
-chamber.ballistic.At = 1.0 # [?]
-chamber.ballistic.T0 = 500 # [?]
-chamber.ballistic.R = 0.000287 #[?]
+chamber.pressure = 4.0 # [MPa?] yes MPa
+chamber.ballistic.At = 1.0 # [?] m^2
+chamber.ballistic.T0 = 500 # [?] K 
+chamber.ballistic.R = 0.000287 #[?] J/kg/K
 
 
 # Thermoelasticity
