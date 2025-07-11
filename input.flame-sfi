@@ -117,7 +117,7 @@ flame.elastic.type = disable
 #hydro.deltapInterface.ic.expression.region0 = "0.0"
 ### HYDRO PARAM ###
 hydro.gamma = 1.4
-hydro.mu    = 0.000
+hydro.mu    = 0.01
 hydro.pref    = 10000
 #hydro.rho_solid = 30.0 #kg/m^3
 #hydro.rho_fluid = 20.0 #kg/m^3
@@ -180,14 +180,19 @@ hydro.omega_refinement_criterion = 10
 hydro.gradu_refinement_criterion = 10
 
 hydro.solid.momentum.ic.constant.value = 0.0
-hydro.solid.density.ic.constant.value = 40.0
+#hydro.solid.density.ic.constant.value = 40.0
+hydro.solid.density.ic.type = expression
+hydro.solid.density.ic.expression.region0 = "40 - 10*(0.5*(erf((y)/0.01)+1))"
 hydro.solid.energy.ic.constant.value = 0.0
 
 
-hydro.m0.ic.constant.value = 0.0 # 40.0
+hydro.m0.ic.type = expression
+
+#hydro.m0.ic.expression.region0 = "30 + 10*(y>0.001*sin(0.5*t/0.001))"  #"40.0" # 40.0
+hydro.m0.ic.expression.region0 = "40 - 10*(0.5*(erf((y)/0.01)+1))"  #"40.0" # 40.0
 hydro.u0.ic.type = expression
 #hydro.u0.ic.expression.region0 = "-0.1*(y>100*sin(3.14 * t / 0.1))" 
-hydro.u0.ic.expression.region0 = "-0.5 -0.5*(y>0.001*sin(0.5*t/0.001))" 
+hydro.u0.ic.expression.region0 = "-0.5 -0.5*(0.5*(erf((y)/0.01)+1))" 
 hydro.u0.ic.expression.region1 = "0.0"
 hydro.q.ic.constant.value = 0.0
 
@@ -232,4 +237,4 @@ amr.blocking_factor = 8
 hydro.small=0.01
 flame.pf.eta.ic.expression.constant.eps = 0.02
 amr.n_cell = 256 32 #128 16 #64 8
-timestep=0.25e-4
+timestep=0.1e-4
