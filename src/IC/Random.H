@@ -43,8 +43,8 @@ public:
             Set::Patch<Set::Scalar> field = a_field.Patch(lev, mfi);
             for (int n = 0; n < a_field[lev]->nComp(); n++)
             {
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    field(i, j, k, n) += offset + mult * Util::Random();
+                amrex::ParallelForRNG(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k, amrex::RandomEngine const &engine) {
+                    field(i, j, k, n) += offset + mult * amrex::Random(engine);
                 });
             }
         }
