@@ -19,14 +19,11 @@
 
 #include "AMReX_Array4.H"
 #include "AMReX_Box.H"
-#include "AMReX_GpuAtomic.H"
 #include "AMReX_GpuLaunchFunctsC.H"
-#include "AMReX_GpuMemory.H"
 #include "AMReX_GpuQualifiers.H"
 #include "AMReX_MFIter.H"
 #include "AMReX_MultiFab.H"
 #include "AMReX_MultiFabUtil.H"
-#include "AMReX_ParallelDescriptor.H"
 #include "AMReX_TagBox.H"
 
 namespace Integrator
@@ -62,10 +59,10 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
         pp.query("V_0", value.agglom.V_0);
     }
 
-    // Regridding criterion
-    pp.query_default("refinement_threshold", value.refinement_threshold, 1e100);
-    // Smallest non-zero value
-    pp.query_default("small", value.small, 1e-4);
+    // If the gradient of alpha is larger than this value, refine/regrid alpha
+    pp.query_default("gradient_refinement_threshold", value.agglom.gradient_refinement_threshold, 1e100);
+    // If eta is larger than this value, do not refine/regrid alpha
+    pp.query_default("eta_refinement_threshold", value.agglom.eta_refinement_threshold, 1e100);
 
     // Initial conditions for agglomerate order parameter
     pp.select_default<IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random, IC::BetaDistribution>("alpha.ic", value.agglom.alpha_ic, value.geom);
@@ -74,16 +71,17 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 
     value.RegisterNewFab(value.agglom.alpha_old, value.agglom.alpha_bc, 1, 1, "agglom.alpha_old", false);
     value.RegisterNewFab(value.agglom.alpha, value.agglom.alpha_bc, 1, 1, "agglom.alpha", true);
-    value.RegisterNewFab(value.agglom.free_energy_derivative, value.agglom.alpha_bc, 1, 1, "agglom.free_energy_derivative", true);
+    value.RegisterNewFab(value.agglom.free_energy_derivative, value.agglom.alpha_bc, 1, 1, "agglom.free_energy_derivative", false);
 
     if (value.agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
-        value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V");
+        value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V", true);
 }
 
 void
 Agglomeration::Initialize(int lev)
 {
-    // Flame::Initialize(lev);
+    Flame::Initialize(lev);
+
     agglom.alpha_old[lev]->setVal(0.0);
     agglom.alpha_ic->Initialize(lev, agglom.alpha);
     agglom.free_energy_derivative[lev]->setVal(0.0);
@@ -118,45 +116,20 @@ Agglomeration::scaleByComplement(MultiFab &dst, const MultiFab &src, int srccomp
 void
 Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
+    Flame::Advance(lev, time, dt);
+
     std::swap(agglom.alpha_old[lev], agglom.alpha[lev]);
     const Set::Scalar *dx = geom[lev].CellSize();
 
     Set::Scalar agglom_volume_fraction = NAN;
     if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
-	agglom_volume_fraction = agglom.V / geom[0].ProbSize();
+        agglom_volume_fraction = agglom.V / geom[0].ProbSize();
 
     if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn && time == 0.0 && std::isnan(agglom.V_0))
     {
         agglom.V_0 = agglom_volume_fraction;
-        Util::Message(INFO, "agglom.V_0 dynamically set to ", agglom.V_0);
+        Util::DebugMessage(INFO, "agglom.V_0 dynamically set to ", agglom.V_0);
     }
-
-    // Debug variables - track both positive and negative extremes
-    amrex::Gpu::DeviceScalar<Set::Scalar> max_alpha_d(-1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> min_alpha_d(1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> max_chem_term_d(-1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> min_chem_term_d(1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> max_grad_term_d(-1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> min_grad_term_d(1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> max_L_d(-1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> min_L_d(1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> max_lagrange_term_d(-1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> min_lagrange_term_d(1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> max_dalpha_dt_d(-1e10);
-    amrex::Gpu::DeviceScalar<Set::Scalar> min_dalpha_dt_d(1e10);
-
-    Set::Scalar *p_max_alpha = max_alpha_d.dataPtr();
-    Set::Scalar *p_min_alpha = min_alpha_d.dataPtr();
-    Set::Scalar *p_max_chem_term = max_chem_term_d.dataPtr();
-    Set::Scalar *p_min_chem_term = min_chem_term_d.dataPtr();
-    Set::Scalar *p_max_grad_term = max_grad_term_d.dataPtr();
-    Set::Scalar *p_min_grad_term = min_grad_term_d.dataPtr();
-    Set::Scalar *p_max_L = max_L_d.dataPtr();
-    Set::Scalar *p_min_L = min_L_d.dataPtr();
-    Set::Scalar *p_max_lagrange_term = max_lagrange_term_d.dataPtr();
-    Set::Scalar *p_min_lagrange_term = min_lagrange_term_d.dataPtr();
-    Set::Scalar *p_max_dalpha_dt = max_dalpha_dt_d.dataPtr();
-    Set::Scalar *p_min_dalpha_dt = min_dalpha_dt_d.dataPtr();
 
     for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
     {
@@ -172,35 +145,20 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             // calculate the variational derivative components
             Set::Scalar chem_term = 2 * agglom.gamma / agglom.epsilon * alpha_old(i, j, k) * (1 - alpha_old(i, j, k)) * (1 - 2 * alpha_old(i, j, k));
-            // W_{C_{ii}} formulation with peak shifted to 0.15
-            // Set::Scalar chem_term = agglom.gamma / agglom.epsilon * std::pow(alpha_old(i, j, k), 5) * std::pow(1 - alpha_old(i, j, k), 33) * (6 - 40 * alpha_old(i, j, k));
             Set::Scalar grad_term = -agglom.epsilon * agglom.kappa * laplacian_alpha;
 
             free_energy_derivative(i, j, k) = chem_term + grad_term;
-
-            // Track actual values (with direction)
-            amrex::Gpu::Atomic::Max(p_max_chem_term, chem_term);
-            amrex::Gpu::Atomic::Min(p_min_chem_term, chem_term);
-            amrex::Gpu::Atomic::Max(p_max_grad_term, grad_term);
-            amrex::Gpu::Atomic::Min(p_min_grad_term, grad_term);
         });
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             // calculate effective mobility L
             Set::Scalar L = agglom.L_0 * std::pow(1 - eta(i, j, k), agglom.n);
 
-            // Track L range
-            amrex::Gpu::Atomic::Max(p_max_L, L);
-            amrex::Gpu::Atomic::Min(p_min_L, L);
-
-            Set::Scalar dalpha_dt = 0.0;
-            Set::Scalar lagrange_term = 0.0;
-
             if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
             {
                 // constrained Allen-Cahn equation
-                lagrange_term = agglom.lambda * (agglom_volume_fraction - agglom.V_0);
-                dalpha_dt = -L * (free_energy_derivative(i, j, k) + lagrange_term);
+                Set::Scalar lagrange_term = agglom.lambda * (agglom_volume_fraction - agglom.V_0);
+                Set::Scalar dalpha_dt = -L * (free_energy_derivative(i, j, k) + lagrange_term);
                 alpha(i, j, k) = alpha_old(i, j, k) + dt * dalpha_dt;
             }
             else if (agglom.kinetics_method == AgglomerationKinetics::CahnHilliard)
@@ -209,78 +167,17 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 Set::Scalar free_energy_laplacian = Numeric::Laplacian(free_energy_derivative, i, j, k, 0, dx);
 
                 // Cahn-Hilliard equation
-                dalpha_dt = L * free_energy_laplacian;
+                Set::Scalar dalpha_dt = L * free_energy_laplacian;
                 alpha(i, j, k) = alpha_old(i, j, k) + dt * dalpha_dt;
             }
-
-            // Track alpha range and rate of change (with direction)
-            amrex::Gpu::Atomic::Max(p_max_alpha, alpha(i, j, k));
-            amrex::Gpu::Atomic::Min(p_min_alpha, alpha(i, j, k));
-            amrex::Gpu::Atomic::Max(p_max_lagrange_term, lagrange_term);
-            amrex::Gpu::Atomic::Min(p_min_lagrange_term, lagrange_term);
-            amrex::Gpu::Atomic::Max(p_max_dalpha_dt, dalpha_dt);
-            amrex::Gpu::Atomic::Min(p_min_dalpha_dt, dalpha_dt);
         });
-    }
-
-    // Get values from device
-    Set::Scalar max_alpha = max_alpha_d.dataValue();
-    Set::Scalar min_alpha = min_alpha_d.dataValue();
-    Set::Scalar max_chem_term = max_chem_term_d.dataValue();
-    Set::Scalar min_chem_term = min_chem_term_d.dataValue();
-    Set::Scalar max_grad_term = max_grad_term_d.dataValue();
-    Set::Scalar min_grad_term = min_grad_term_d.dataValue();
-    Set::Scalar max_L = max_L_d.dataValue();
-    Set::Scalar min_L = min_L_d.dataValue();
-    Set::Scalar max_lagrange_term = max_lagrange_term_d.dataValue();
-    Set::Scalar min_lagrange_term = min_lagrange_term_d.dataValue();
-    Set::Scalar max_dalpha_dt = max_dalpha_dt_d.dataValue();
-    Set::Scalar min_dalpha_dt = min_dalpha_dt_d.dataValue();
-
-    // Reduce and print diagnostics
-    amrex::ParallelDescriptor::ReduceRealMax(max_alpha);
-    amrex::ParallelDescriptor::ReduceRealMin(min_alpha);
-    amrex::ParallelDescriptor::ReduceRealMax(max_chem_term);
-    amrex::ParallelDescriptor::ReduceRealMin(min_chem_term);
-    amrex::ParallelDescriptor::ReduceRealMax(max_grad_term);
-    amrex::ParallelDescriptor::ReduceRealMin(min_grad_term);
-    amrex::ParallelDescriptor::ReduceRealMax(max_L);
-    amrex::ParallelDescriptor::ReduceRealMin(min_L);
-    amrex::ParallelDescriptor::ReduceRealMax(max_lagrange_term);
-    amrex::ParallelDescriptor::ReduceRealMin(min_lagrange_term);
-    amrex::ParallelDescriptor::ReduceRealMax(max_dalpha_dt);
-    amrex::ParallelDescriptor::ReduceRealMin(min_dalpha_dt);
-
-    if (amrex::ParallelDescriptor::IOProcessor())
-    {
-        Util::Message(INFO, "=== Agglomeration Debug at t = ", time, ", level = ", lev, " ===");
-	Util::Message(INFO, "agglom_volume_fraction: ", agglom_volume_fraction);
-	Util::Message(INFO, "V_0: ", agglom.V_0);
-        Util::Message(INFO, "Δt: ", dt);
-        Util::Message(INFO, "α range: [", min_alpha, ", ", max_alpha, "]");
-        Util::Message(INFO, "chemical term range: [", min_chem_term, ", ", max_chem_term, "]");
-        Util::Message(INFO, "gradient term range: [", min_grad_term, ", ", max_grad_term, "]");
-        Util::Message(INFO, "L range: [", min_L, ", ", max_L, "]");
-        Util::Message(INFO, "lagrange term range: [", min_lagrange_term, ", ", max_lagrange_term, "]");
-        Util::Message(INFO, "∂α/∂t range: [", min_dalpha_dt, ", ", max_dalpha_dt, "]");
-        
-        // Show largest change by magnitude but with direction
-        Set::Scalar largest_change = (std::abs(max_dalpha_dt) > std::abs(min_dalpha_dt)) ? max_dalpha_dt : min_dalpha_dt;
-        Util::Message(INFO, "Largest ∂α/∂t (with direction): ", largest_change);
-        Util::Message(INFO, "Δt * largest ∂α/∂t: ", dt * largest_change);
-
-        if (min_alpha < -0.1 || max_alpha > 1.1)
-            Util::Message(INFO, "WARNING: α out of physical bounds [0,1]");
-        if (dt * std::abs(largest_change) > 0.1)
-            Util::Message(INFO, "WARNING: Large time step - α changing by more than 0.1 per step");
-        Util::Message(INFO, "");
     }
 }
 
 void
 Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
 {
-    // Flame::TagCellsForRefinement(lev, a_tags, time, ngrow);
+    Flame::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Vector dx(geom[lev].CellSize());
     Set::Scalar dr = dx.lpNorm<2>();
@@ -290,11 +187,15 @@ Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::S
         const amrex::Box &bx = mfi.tilebox();
         Set::Patch<char> tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            Set::Vector grad = Numeric::Gradient(alpha, i, j, k, 0, dx.data());
-            if (grad.lpNorm<2>() * dr > refinement_threshold)
-                tags(i, j, k) = amrex::TagBox::SET;
+            if (eta(i, j, k) < agglom.eta_refinement_threshold)
+            {
+                Set::Vector grad = Numeric::Gradient(alpha, i, j, k, 0, dx.data());
+                if (grad.lpNorm<2>() * dr > agglom.gradient_refinement_threshold)
+                    tags(i, j, k) = amrex::TagBox::SET;
+            }
         });
     }
 }
@@ -302,10 +203,7 @@ Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::S
 void
 Agglomeration::Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &box)
 {
-    // Flame::Integrate(amrlev, time, step, mfi, box);
-
-    if (agglom.kinetics_method != AgglomerationKinetics::ConstrainedAllenCahn)
-        return;
+    Flame::Integrate(amrlev, time, step, mfi, box);
 
     const Set::Scalar *dx = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);

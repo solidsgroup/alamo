@@ -111,10 +111,9 @@ private:
         Set::Scalar n = NAN;
         Set::Scalar V = NAN;
         Set::Scalar V_0 = NAN;
+        Set::Scalar gradient_refinement_threshold = NAN;
+        Set::Scalar eta_refinement_threshold = NAN;
     } agglom;
-
-    Set::Scalar refinement_threshold = NAN;
-    Set::Scalar small = NAN;
 };
 }
 #endif

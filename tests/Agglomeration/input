@@ -2,10 +2,11 @@ alamo.program = agglomeration
 plot_file = tests/Agglomeration/output
 
 # AMR parameters
-amr.plot_int = 1
+amr.plot_int = 100
 amr.blocking_factor = 4
 amr.base_regrid_int = 100
 amr.grid_eff = 1
+amr.thermo.plot_int = 100
 flame.amr.refinement_criterion = 0.1
 flame.amr.refinement_criterion_temp = 10.0
 flame.amr.phi_refinement_criterion = 0.5
@@ -13,11 +14,11 @@ amr.cell.all = 1
 amr.node.all = 1
 
 # Geometry and AMR level specification
-amr.n_cell = 8 8
-geometry.prob_lo = 0.0 0.0
-geometry.prob_hi = 5e-4 5e-4
+amr.n_cell = 8 8 8
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 5e-4 5e-4 5e-4
 amr.max_level = 4
-geometry.is_periodic = 0 0
+geometry.is_periodic = 0 0 0
 
 # Timestep and duration
 timestep = 1e-6
@@ -40,10 +41,14 @@ flame.pf.eta.bc.constant.type.xlo = dirichlet
 flame.pf.eta.bc.constant.type.xhi = dirichlet
 flame.pf.eta.bc.constant.type.ylo = neumann
 flame.pf.eta.bc.constant.type.yhi = neumann
+flame.pf.eta.bc.constant.type.zlo = neumann
+flame.pf.eta.bc.constant.type.zhi = neumann
 flame.pf.eta.bc.constant.val.xlo = 0.0
 flame.pf.eta.bc.constant.val.xhi = 1.0
 flame.pf.eta.bc.constant.val.ylo = 0.0
 flame.pf.eta.bc.constant.val.yhi = 0.0
+flame.pf.eta.bc.constant.val.zlo = 0.0
+flame.pf.eta.bc.constant.val.zhi = 0.0
 
 # Phi initial condition (spheres)
 flame.phi.ic.type = psread
@@ -88,10 +93,14 @@ flame.thermal.temp.bc.constant.type.xlo = neumann
 flame.thermal.temp.bc.constant.type.xhi = neumann
 flame.thermal.temp.bc.constant.type.ylo = neumann
 flame.thermal.temp.bc.constant.type.yhi = neumann
+flame.thermal.temp.bc.constant.type.zlo = neumann
+flame.thermal.temp.bc.constant.type.zhi = neumann
 flame.thermal.temp.bc.constant.val.xlo = 0.0
 flame.thermal.temp.bc.constant.val.xhi = 0.0
 flame.thermal.temp.bc.constant.val.ylo = 0.0
 flame.thermal.temp.bc.constant.val.yhi = 0.0
+flame.thermal.temp.bc.constant.val.zlo = 0.0
+flame.thermal.temp.bc.constant.val.zhi = 0.0
 
 # Temperature initial conditions
 flame.temp.ic.type = constant
@@ -105,65 +114,37 @@ flame.thermal.hc = 1.0e7
 # Pressure
 flame.chamber.pressure = 4.0
 
-# Thermoelasticity
-flame.elastic.on = 1
-flame.elastic.interval = 100
-# Elastic model params
-flame.model_ap.mu = 140
-flame.model_ap.kappa = 150
-flame.model_ap.eps0 = 2.217e-5 0.0 0.0 0.0 2.217e-5 0.0 0.0 0.0 2.217e-5
-flame.model_htpb.mu = 8
-flame.model_htpb.kappa = 210
-flame.model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
-
-# Elastic solver information
-flame.elastic.solver.verbose = 4
-flame.elastic.solver.fixed_iter = 500
-flame.elastic.solver.nriters = 200
-flame.elastic.solver.nrtolerance = 1e-5
-flame.elastic.print_model = 1
-flame.elastic.print_residual = 1
-
-# Mechanics boundary conditions
-flame.elastic.bc.type = constant
-flame.elastic.bc.constant.type.xlo = trac trac 
-flame.elastic.bc.constant.type.ylo = trac disp 
-flame.elastic.bc.constant.type.yhi = trac disp 
-flame.elastic.bc.constant.type.xloylo = trac disp 
-flame.elastic.bc.constant.type.xloyhi = trac disp 
-
-# No traction on free surface
-flame.elastic.traction = 0.0
-
 # Agglomeration kinetics method
 kinetics_method = ConstrainedAllenCahn
 
 # Agglomeration parameters
-epsilon = 1e-7
-gamma = 1e10
-kappa = 1e-12
-L_0 = 5e-11
-n = 5.0
-lambda = 100
+epsilon = 5e-7
+gamma = 1e-3
+kappa = 5e-1
+L_0 = 1.0
+n = 3.0
+lambda = 1e6
 
 # Agglomerate order parameter initial condition
 alpha.ic.type = betadistribution
-alpha.ic.betadistribution.alpha = 12.0
-alpha.ic.betadistribution.beta = 12.0
-alpha.ic.betadistribution.offset = 0.675
-alpha.ic.betadistribution.mult = 0.15
+alpha.ic.betadistribution.alpha = 14.0
+alpha.ic.betadistribution.beta = 14.0
 
 # Agglomerate order parameter boundary conditions
 alpha.bc.type = constant
-alpha.bc.constant.type.xlo = neumann
-alpha.bc.constant.type.xhi = neumann
-alpha.bc.constant.type.ylo = neumann
-alpha.bc.constant.type.yhi = neumann
+alpha.bc.constant.type.xlo = dirichlet
+alpha.bc.constant.type.xhi = dirichlet
+alpha.bc.constant.type.ylo = dirichlet
+alpha.bc.constant.type.yhi = dirichlet
+alpha.bc.constant.type.zlo = dirichlet
+alpha.bc.constant.type.zhi = dirichlet
 alpha.bc.constant.val.xlo = 0.0
 alpha.bc.constant.val.xhi = 0.0
 alpha.bc.constant.val.ylo = 0.0
 alpha.bc.constant.val.yhi = 0.0
+alpha.bc.constant.val.zlo = 0.0
+alpha.bc.constant.val.zhi = 0.0
 
 # Miscellaneous agglomeration parameters
-refinement_threshold = 1e100
-small = 1e-4
+gradient_refinement_threshold = 1e-1
+eta_refinement_threshold = 0.9

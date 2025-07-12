@@ -16,6 +16,7 @@
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/Dendrite.H"
 #include "Integrator/Flame.H"
+#include "Integrator/Fracture.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/PFC.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
@@ -51,7 +52,7 @@ int main(int argc, char *argv[])
     else if (program == "heat")
         pp.select_only<Integrator::HeatConduction>(integrator);
     else if (program == "fracture")
-        pp.select_only<Integrator::Fracture>(integrator);    
+        pp.select_only<Integrator::Fracture>(integrator);
     else if (program == "dendrite")
         pp.select_only<Integrator::Dendrite>(integrator);
     else if (program == "allencahn")

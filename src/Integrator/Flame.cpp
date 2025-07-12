@@ -90,12 +90,12 @@ Flame::Parse(Flame &value, IO::ParmParse &pp)
     Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
-    pp.query_default("plot_field",value.plot_field,true); 
-        
+    pp.query_default("plot_field", value.plot_field, true);
+
     //
     // PHASE FIELD VARIABLES
     //
-        
+
     // Burn width thickness
     pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
     // Interface energy param
@@ -199,27 +199,30 @@ Flame::Parse(Flame &value, IO::ParmParse &pp)
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0);
 
-    // Body force
-    pp_query_default("elastic.traction", value.elastic.traction, 0.0);
-
-    // Phi refinement criteria
-    pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
-
-    pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
-
-    if (value.m_type != Type::Disable)
+    if (value.elastic.on)
     {
-        // Reference temperature for thermal expansion
-        // (temperature at which the material is strain-free)
-        pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
-        // elastic model of AP
-        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
-        // elastic model of HTPB
-        pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+        // Body force
+        pp_query_default("elastic.traction", value.elastic.traction, 0.0);
 
-        // Use our current eta field as the psi field for the solver
-        value.psi_on = false;
-        value.solver.setPsi(value.eta_mf);
+        // Phi refinement criteria
+        pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
+
+        pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
+
+        if (value.m_type != Type::Disable)
+        {
+            // Reference temperature for thermal expansion
+            // (temperature at which the material is strain-free)
+            pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
+            // elastic model of AP
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+            // elastic model of HTPB
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+
+            // Use our current eta field as the psi field for the solver
+            value.psi_on = false;
+            value.solver.setPsi(value.eta_mf);
+        }
     }
 
     bool allow_unused;
@@ -237,7 +240,8 @@ Flame::Parse(Flame &value, IO::ParmParse &pp)
 void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
-    Base::Mechanics<model_type>::Initialize(lev);
+    if (elastic.on)
+        Base::Mechanics<model_type>::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
@@ -273,7 +277,7 @@ void Flame::Initialize(int lev)
 
 void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 {
-    if (m_type == Base::Mechanics<model_type>::Type::Disable)
+    if (m_type == Base::Mechanics<model_type>::Type::Disable || !elastic.on)
         return;
 
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -337,8 +341,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
-    // UNCOMMENT WHEN DONE TESTING
-    // Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
+    if (elastic.on)
+        Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
     if (thermal.on)
     {
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -362,7 +366,8 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
-    Base::Mechanics<model_type>::Advance(lev, time, dt);
+    if (elastic.on)
+        Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar *DX = geom[lev].CellSize();
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
@@ -507,7 +512,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
 {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
-    Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+    if (elastic.on)
+        Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Scalar *DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
