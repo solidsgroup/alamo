@@ -22,10 +22,25 @@ public:
     static constexpr const char* name = "hydro";
 
     Hydro() {};
-    Hydro(IO::ParmParse& pp);
+
+    Hydro(  Set::Field<Set::Scalar> &a_eta,
+            Set::Field<Set::Scalar> &a_etaold,
+            bool a_invert) :
+        eta_mf(&a_eta), eta_old_mf(&a_etaold), invert(a_invert)
+    {
+        this->managed = true;
+    }
+
+    Hydro(IO::ParmParse& pp); 
     static void Parse(Hydro& value, IO::ParmParse& pp);
     virtual ~Hydro()
     {
+        if (!managed)
+        {
+            delete eta_mf;
+            delete eta_old_mf;
+        }
+
         delete density_bc;
         delete momentum_bc;
         delete energy_bc;
@@ -97,8 +112,8 @@ private:
     } solid;
 
 protected:
-    Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar>* eta_mf;
+    Set::Field<Set::Scalar>* eta_old_mf;
 private:
     Set::Field<Set::Scalar> etadot_mf;
 
@@ -158,6 +173,10 @@ private:
 
 
     Set::Vector g;
+
+    bool managed = false;
+    bool invert = false;
+    bool mixed = false;
 
 };
 }

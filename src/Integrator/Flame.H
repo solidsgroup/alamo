@@ -11,6 +11,7 @@
 #include "IO/ParmParse.H"
 
 #include "Base/Mechanics.H"
+#include "Hydro.H"
 
 #include "Model/Propellant/PowerLaw.H"
 #include "Model/Propellant/FullFeedback.H"
@@ -20,7 +21,8 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator,
-    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
+              virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>,
+              virtual public Hydro
 {
 
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
@@ -111,6 +113,11 @@ protected:
         Set::Scalar traction = NAN;
         int phirefinement = -1;
     } elastic;
+
+    struct {
+        int on = 0;
+        Set::Scalar tstart = NAN;
+    } hydro;
 
     // Chamber state variables (not inputs)
     struct {

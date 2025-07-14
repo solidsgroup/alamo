@@ -20,7 +20,10 @@
 namespace Integrator
 {
 
-Flame::Flame() : Base::Mechanics<model_type>() {}
+Flame::Flame() : 
+    Base::Mechanics<model_type>(), 
+    Hydro(eta_mf, eta_old_mf, true)
+{}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
 {
@@ -216,6 +219,14 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.solver.setPsi(value.eta_mf);
     }
 
+    pp.query_default("hydro.on",value.hydro.on,false);
+    if (value.hydro.on)
+    {
+        pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
+        pp.queryclass<Hydro>("hydro",value);
+    }
+
+
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
     // (Not recommended.)
@@ -232,6 +243,7 @@ void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
+    if (hydro.on) Hydro::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
@@ -333,15 +345,17 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
+    if (hydro.on && a_time >= hydro.tstart) Hydro::TimeStepBegin(a_time, a_iter);
     if (thermal.on) {
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
+void Flame::TimeStepComplete(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
+    if (hydro.on && a_time >= hydro.tstart) Hydro::TimeStepComplete(a_time,a_iter);
     if (variable_pressure) {
         //Set::Scalar x_len = geom[0].ProbDomain().length(0);
         //Set::Scalar y_len = geom[0].ProbDomain().length(1);
@@ -355,7 +369,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
+    if (hydro.on && time >= hydro.tstart) Hydro::Advance(lev,time,dt);
     const Set::Scalar* DX = geom[lev].CellSize();
+
+    Mix(lev);
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
 
@@ -510,6 +527,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
     Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+    if (hydro.on && time >= hydro.tstart) Hydro::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
@@ -574,10 +592,13 @@ void Flame::Regrid(int lev, Set::Scalar time)
     //ic_phicell->Initialize(lev, phi_mf, time);
 }
 
-void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
+void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     const amrex::MFIter& mfi, const amrex::Box& box)
 {
     BL_PROFILE("Flame::Integrate");
+    
+    if (hydro.on && time >= hydro.tstart) Hydro::Integrate(amrlev, time, step, mfi, box);
+
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);

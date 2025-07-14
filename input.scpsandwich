@@ -1,0 +1,138 @@
+#@
+#@  [serial]
+#@  dim = 2
+#@  check = false
+#@  args = stop_time=0.01
+#@  
+#@  [serial-coverage]
+#@  dim = 2
+#@  check = false
+#@  args = stop_time=0.0001
+#@  coverage = true
+#@
+#@  [parallel]
+#@  dim = 2
+#@  nprocs = 4
+#@  check = true
+#@  benchmark-waldorf = 83.9
+#@  
+
+alamo.program = flame
+
+# AMR parameters
+plot_file = output.scpsandwich
+amr.plot_dt = 0.001
+#amr.plot_int = 1
+amr.max_level = 2
+amr.n_cell = 512 64 64
+amr.blocking_factor = 16
+amr.regrid_int = 100
+amr.base_regrid_int = 20
+amr.grid_eff = 0.7
+
+# Geometry
+geometry.prob_lo = 0.0 -0.25 -0.1 # [mm]
+geometry.prob_hi = 4.0 0.25 0.1 # [mm]
+geometry.is_periodic = 0 1 1
+
+# Timestep and duration
+#timestep = 0.0000125 # [s]
+timestep = 0.0000025 # [s]
+stop_time = 0.2 # [s]
+
+# Phase field params
+pf.eps = 0.0005 # [mm]
+pf.lambda = 0.001
+pf.kappa = 1.0
+pf.w1 = 1.0
+pf.w12 = 2.0
+pf.w0 = 0.0
+
+# Propellant model parameters
+propellant.type = powerlaw
+propellant.powerlaw.gamma = 0.02726
+propellant.powerlaw.r_ap = 1.222 # [ mm / s ]
+propellant.powerlaw.n_ap = 1.042 # [ 1 ]
+propellant.powerlaw.r_htpb = 0.1 # [ mm / s]
+propellant.powerlaw.r_comb = 10.0 # [ mm / s]
+propellant.powerlaw.n_htpb = 0.0 # [ 1 ]
+propellant.powerlaw.n_comb = 0.0 # [ 1 ]
+
+# Chamber pressure (affects the propellant model)
+chamber.pressure = 0.2
+
+# Phase field initial condition
+pf.eta.ic.type = expression
+pf.eta.ic.expression.region0 = "1.0 * (x>0.2)"
+
+# Species field initial condition
+phi.ic.type = laminate
+phi.ic.laminate.number_of_inclusions = 1
+phi.ic.laminate.center  = 0.0 0.0 0.0
+phi.ic.laminate.thickness = 0.1
+phi.ic.laminate.orientation = 0 1 
+phi.ic.laminate.eps = 0.1
+phi.ic.laminate.singlefab = 1
+phi.ic.laminate.invert = 1
+
+# Boundary conditions on eta
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+
+# Deactivate thermal transport model
+thermal.on = 0
+
+# Deactivate elastic model
+elastic.type = disable
+
+
+hydro.on = 1
+hydro.tstart = 0.001
+
+hydro.gamma = 1.4
+hydro.mu    = 0.00001
+hydro.pref    = 10000
+
+hydro.cfl   = 10.0
+hydro.cfl_v   = 10.0
+
+hydro.velocity.ic.type = constant
+hydro.velocity.ic.constant.value = 0.0
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 5.0
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+hydro.density.ic.constant.value = 40.0
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.density.ic.constant.value = 40
+hydro.solid.energy.ic.constant.value = 0.0
+hydro.m0.ic.constant.value = "40" 
+hydro.u0.ic.constant.value = -0.1 0.0
+hydro.q.ic.constant.value = 0.0
+
+hydro.small=1E-3
+hydro.cutoff=0.2
+hydro.lagrange=2000.0
+
+
+hydro.momentum.bc.constant.type.xhi = neumann neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
+hydro.momentum.bc.constant.type.ylo = neumann dirichlet
+hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.energy.bc.constant.type.xhi = neumann
+hydro.energy.bc.constant.type.xlo = neumann #dirichlet #neumann
+hydro.energy.bc.constant.type.ylo = neumann
+hydro.energy.bc.constant.type.yhi = neumann
+hydro.density.bc.constant.type.xhi = neumann
+hydro.density.bc.constant.type.xlo = neumann #dirichlet
+hydro.density.bc.constant.type.ylo = neumann
+hydro.density.bc.constant.type.yhi = neumann
+
+

@@ -81,11 +81,11 @@ protected:
 
     void UpdateEta(int lev, Set::Scalar /*time*/) override
     {
-        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.growntilebox();
-            Set::Patch<Set::Scalar> eta_old          = Hydro::eta_old_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> eta_new          = Hydro::eta_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> eta_old          = Hydro::eta_old_mf->Patch(lev,mfi);
+            Set::Patch<Set::Scalar> eta_new          = Hydro::eta_mf->Patch(lev,mfi);
             Set::Patch<const Set::Scalar> pf_eta_old = PF::eta_old_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> pf_eta_new = PF::eta_mf.Patch(lev,mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -102,8 +102,8 @@ protected:
                 }
             });
         }
-        Util::RealFillBoundary(*eta_mf[lev], geom[lev]);
-        Util::RealFillBoundary(*eta_old_mf[lev], geom[lev]);
+        Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev]);
+        Util::RealFillBoundary(*(*eta_old_mf)[lev], geom[lev]);
     }
 
     int invert = false;
