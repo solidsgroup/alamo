@@ -121,6 +121,7 @@ protected:
         Set::Scalar tstart = NAN;
 
         Set::Scalar rho_ap = NAN, rho_htpb = NAN;
+        Set::Scalar u0_ap = NAN, u0_htpb = NAN;
     } hydro;
 
     // Chamber state variables (not inputs)

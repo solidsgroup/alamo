@@ -37,7 +37,7 @@ geometry.is_periodic = 0 1 1
 
 # Timestep and duration
 #timestep = 0.0000125 # [s]
-timestep = 0.000001 #0.00001 # [s]
+timestep = 0.00001 #0.00001 # [s]
 stop_time = 0.2 # [s]
 
 # Phase field params
@@ -97,15 +97,18 @@ elastic.type = disable
 
 
 hydro.rho_ap = 2.0
-hydro.rho_htpb = 1.0 # # # 0.0
+hydro.rho_htpb = 1.0
+hydro.u0_ap = 5.0
+hydro.u0_htpb = 20.0 
+
 hydro.density.ic.constant.value = 1.0
 hydro.solid.density.ic.constant.value = 1.0
 hydro.m0.ic.constant.value = "1.0" 
-hydro.u0.ic.constant.value = -10 0.0
+hydro.u0.ic.constant.value = 20 0.0
 hydro.lagrange=10.0
 hydro.lagrange_m0=1.0
 hydro.solver.type = roe
-#hydro.scheme=ssprk3
+hydro.scheme=ssprk3
 
 
 hydro.on = 1
@@ -115,7 +118,7 @@ hydro.mu    = 0.00001
 hydro.pref    = 10000
 hydro.cfl   = 10.0
 hydro.cfl_v   = 10.0
-#hydro.prescribedflowmode = relative
+hydro.prescribedflowmode = relative
 hydro.velocity.ic.type = constant
 hydro.velocity.ic.constant.value = 0.0
 hydro.pressure.ic.type = expression

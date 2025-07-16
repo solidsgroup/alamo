@@ -225,6 +225,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
         pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
         pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
+        pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
+        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
 
         pp.queryclass<Hydro>("hydro",value);
     }
@@ -361,16 +363,29 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> u0        = Hydro::u0_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> u0_patch  = Hydro::u0_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             m0(i,j,k) = hydro.rho_ap*phi(i,j,k) + hydro.rho_htpb*(1.0 - phi(i,j,k));
             solidrho(i,j,k) = m0(i,j,k);
             
-            solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
-            solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
             
+            Set::Vector u0( hydro.u0_ap*phi(i,j,k) + hydro.u0_htpb*(1.0 - phi(i,j,k)), 0.0);
+            u0_patch(i,j,k,0) = u0(0);
+            u0_patch(i,j,k,1) = u0(1);
+
+            if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
+            {
+                Set::Vector grad_eta = -Numeric::Gradient(eta, i, j, k, 0, DX);
+                Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+                Set::Vector N = grad_eta / (grad_eta_mag + small);
+                Set::Vector T(N(1), -N(0));
+                u0 = N * u0(0) + T * u0(1);
+            }
+
+            solidM(i,j,k,0) = solidrho(i,j,k)*u0(0);
+            solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
         });
     }
 }

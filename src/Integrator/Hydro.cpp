@@ -353,7 +353,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // std::swap(tracer_old_mf[lev],   tracer_mf[lev]);
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
 
-    ic_u0->Initialize(lev, u0_mf,    time);
+    //ic_u0->Initialize(lev, u0_mf,    time);
 
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
@@ -745,6 +745,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
             p(i,j,k)   = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))-pref;
+
+            if (eta < small) 
+            {
+                v(i,j,k,0) *= eta;
+                v(i,j,k,1) *= eta;
+            }
         });
     }
 
