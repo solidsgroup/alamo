@@ -76,7 +76,8 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
-private:
+    virtual void UpdateFluxes(int lev, Set::Scalar time);
+protected:
     
     void RHS(   int lev, Set::Scalar time, 
                 amrex::MultiFab &rho_rhs_mf, 
@@ -111,10 +112,8 @@ private:
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
 
-protected:
     Set::Field<Set::Scalar>* eta_mf;
     Set::Field<Set::Scalar>* eta_old_mf;
-private:
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> vorticity_mf;
@@ -158,6 +157,7 @@ private:
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
+    Set::Scalar lagrange_m0=NAN;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
@@ -176,7 +176,8 @@ private:
 
     bool managed = false;
     bool invert = false;
-    bool mixed = false;
+
+    std::vector<bool> mixed;
 
 };
 }

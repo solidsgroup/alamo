@@ -87,6 +87,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
+        pp_query_default("lagrange_m0",value.lagrange_m0,1.0); // lagrange no-penetration factor
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
@@ -246,17 +247,20 @@ void Hydro::Initialize(int lev)
 
     Source_mf[lev]   ->setVal(0.0);
 
-    //Mix(lev);
+
+    if (lev >= mixed.size()) mixed.push_back(false);
 }
 
 void Hydro::Mix(int lev)
 {
-    if (mixed) return;
+    if (mixed[lev])  return;
+
+    Util::Message(INFO,"MIXING");
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
 
-        Set::Patch<const Set::Scalar> eta       = eta_mf->Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
@@ -273,31 +277,38 @@ void Hydro::Mix(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
-            rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+
+            rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
 
-            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
-            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta(i, j, k)  +  M_solid(i, j, k, 1)*(1.0-eta(i, j, k));
+            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta  +  M_solid(i, j, k, 0)*(1.0-eta);
+            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta  +  M_solid(i, j, k, 1)*(1.0-eta);
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
             E(i, j, k) =
-                (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k) + p(i, j, k) / (gamma - 1.0)) * eta(i, j, k) 
+                (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k) + p(i, j, k) / (gamma - 1.0)) * eta 
                 + 
-                E_solid(i, j, k) * (1.0 - eta(i, j, k));
+                E_solid(i, j, k) * (1.0 - eta);
             E_old(i, j, k) = E(i, j, k);
         });
     }
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
-    mixed = true;
+    mixed[lev] = true;
 }
 
 void Hydro::UpdateEta(int lev, Set::Scalar time)
 {
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
     eta_ic->Initialize(lev, *eta_mf, time);
+}
+
+void Hydro::UpdateFluxes(int lev, Set::Scalar time)
+{
+    Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
 }
 
 void Hydro::TimeStepBegin(Set::Scalar, int /*iter*/)
@@ -332,6 +343,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         std::swap(*eta_old_mf, *eta_mf);
         UpdateEta(lev, time);
     }
+    UpdateFluxes(lev,time);
+
+    Mix(lev);
 
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
@@ -349,10 +363,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
-            if (invert) etadot(i,j,k) *= 1.0;
+            // etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
+            // if (invert) etadot(i,j,k) *= 1.0;
+            etadot(i,j,k) = 0.0;
         });
     }
+    if (!lev) Util::Warning(INFO,"zeroing out etadot for the moment");
 
 
     if (scheme == IntegrationScheme::ForwardEuler) // forward euler
@@ -802,7 +818,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
 
 
-            Set::Scalar mdot0 = -(rho(i,j,k)-m0(i,j,k)) * grad_eta_mag;
+            Set::Scalar mdot0 = -lagrange_m0 * (rho(i,j,k)-m0(i,j,k)) * grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); 
             Set::Scalar qdot0 = q0.dot(grad_eta);
 

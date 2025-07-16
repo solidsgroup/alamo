@@ -223,6 +223,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.hydro.on)
     {
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
+        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
+        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
+
         pp.queryclass<Hydro>("hydro",value);
     }
 
@@ -341,6 +344,40 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
     }
 }
 
+
+void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
+{
+    amrex::Box domain = this->geom[lev].Domain();
+    domain.convert(amrex::IntVect::TheNodeVector());
+    const Set::Scalar* DX = geom[lev].CellSize();
+
+    for (MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        amrex::Box bx = mfi.tilebox();
+        Set::Patch<const Set::Scalar> phi    = phi_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
+
+        Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> u0        = Hydro::u0_mf.Patch(lev,mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            m0(i,j,k) = hydro.rho_ap*phi(i,j,k) + hydro.rho_htpb*(1.0 - phi(i,j,k));
+            solidrho(i,j,k) = m0(i,j,k);
+            
+            solidM(i,j,k,0) = solidrho(i,j,k)*u0(i,j,k,0);
+            solidM(i,j,k,1) = solidrho(i,j,k)*u0(i,j,k,1);
+            
+        });
+    }
+}
+
+
+
+
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
@@ -369,10 +406,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
-    if (hydro.on && time >= hydro.tstart) Hydro::Advance(lev,time,dt);
+    if (hydro.on && time >= hydro.tstart) 
+    {
+        Hydro::Advance(lev,time,dt);
+    }
     const Set::Scalar* DX = geom[lev].CellSize();
-
-    Mix(lev);
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
 
