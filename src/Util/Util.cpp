@@ -158,7 +158,9 @@ void Initialize (int argc, char* argv[])
 
     IO::ParmParse pp;
     std::string length, time;
+    // Set the system length unit
     pp.query_default("system.length",length,"m");
+    // Set the system time unit
     pp.query_default("system.time",time,"s");
     try
     {
@@ -167,7 +169,7 @@ void Initialize (int argc, char* argv[])
     }
     catch (std::runtime_error &e)
     {
-        Util::Exception(INFO, "Error in setting system unites: ", e.what());
+        Util::Exception(INFO, "Error in setting system units: ", e.what());
     }
 }
 

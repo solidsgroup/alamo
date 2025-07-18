@@ -1,0 +1,144 @@
+#working input file with chamber model/variable pressure
+#input file with higher dimension;finally the mdot_out is updating now with pressure :)
+#thermo.dat issue fixed; (old flame) to see the variables in thermo.dat with just thermo on, need to comment out the lines 491-493 in flame where if(variable pressure)...; refinement issue fixed for just thermo on
+
+alamo.program = flame
+plot_file = output
+amr.plot_int = 10
+amr.max_level = 3
+amr.blocking_factor = 4
+amr.base_regrid_int = 100
+amr.grid_eff = 1
+amr.node.all = 1
+amr.refinement_criterion = 0.05 #0.1
+amr.refinement_criterion_temp = 10.0
+#amr.refinement_restriction = 0.3
+amr.phi_refinement_criterion = 0.6
+amr.n_cell = 32 32 32
+amr.thermo.plot_int = 1
+amr.thermo.int = 1
+geometry.prob_lo = 0.0 0.0 0.0 # [m]
+geometry.prob_hi = 0.1 0.1 0.1 # [m]
+geometry.is_periodic = 0 0 0
+
+# Timestep and duration
+timestep = 1.0e-5 # [s]
+stop_time = 5.0 # [s]
+
+# Phase field parameters
+pf.eps = 0.00008 # [m]
+pf.lambda = 0.001
+pf.eta.ic.type = bmp
+pf.eta.ic.bmp.filename = double_circle.bmp
+pf.eta.ic.bmp.fit = stretch
+pf.eta.ic.bmp.channel = g
+phi.ic.type = bmp
+phi.ic.bmp.filename = base_circle0.bmp
+phi.ic.bmp.fit = stretch
+phi.ic.bmp.channel = g
+pf.kappa = 1.0
+pf.w1 = 1.0
+pf.w12 = 2.0
+pf.w0 = 0.0
+small = 1E-4
+
+# Eta boundary condition
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.yhi = 1.0
+
+#propellant.type = constant
+#propellant.constant.K = 1E-8
+#propellant.constant.cp = 1
+#propellant.constant.rho = 1
+#propellant.constant.qdot = 0
+#propellant.constant.L = 0
+
+propellant.type = homogenize
+propellant.homogenize.m_ap = 1.45e5 #[???] cm/s
+propellant.homogenize.m_htpb = 0.0 #[???] cm/s
+propellant.homogenize.E_ap = 9500.0  #[???] K (Note that this is actually E/R and that is why the unit is only K)
+propellant.homogenize.E_htpb = 0.0 #[???] K
+propellant.homogenize.rho_ap = 1450.0    # [kg/m3]
+propellant.homogenize.rho_htpb = 920.0   # [kg/m3]
+propellant.homogenize.k_ap   =  0.1      # [W/mK]
+propellant.homogenize.k_htpb =  0.283    # [W/mK]
+propellant.homogenize.cp_ap = 1531       # [J/kgK]
+propellant.homogenize.cp_htpb = 1256     # [J/kgK]
+propellant.homogenize.massfraction = 0.8 # [1]
+propellant.homogenize.dispersion1 = 0.1 # [W/mK]
+propellant.homogenize.dispersion2 = 1  # [kg/m3]
+propellant.homogenize.dispersion3 = 1 # [J/kgK]
+propellant.homogenize.mob_ap = 0 #[???] Unitless, this is actually a if, controls weather or not pressure affects the mobility or not. It does effectively change the units of m_ap if set to 1.
+propellant.homogenize.mlocal_ap = 1000.0 # [???] kg/s
+propellant.homogenize.h1 = 1.81 # W/N
+propellant.homogenize.h2 = 1.34 # W/m^2
+
+thermal.on = 1
+thermal.Tref = 500 #[K]
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = neumann
+thermal.temp.bc.constant.type.xhi = neumann
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = neumann
+thermal.temp.bc.constant.type.zlo = neumann
+thermal.temp.bc.constant.type.zhi = neumann
+thermal.temp.bc.constant.val.xlo = 0.0
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0
+thermal.temp.bc.constant.val.yhi = 0.0
+thermal.temp.bc.constant.val.zlo = 0.0
+thermal.temp.bc.constant.val.zhi = 0.0
+
+# Temperature initial conditions
+temp.ic.type="constant"
+temp.ic.constant.value=500 #[K]
+
+# Laser source term
+laser.ic.type = constant
+laser.ic.constant.value = 5.0e6 #[ Units? ] kW/cm^2
+thermal.hc = 1.0e7 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
+
+# Pressure
+variable_pressure = 1
+chamber.pressure = 4.0 # [MPa?] yes MPa
+chamber.ballistic.At = 1.0 # [?] m^2
+chamber.ballistic.T0 = 500 # [?] K 
+chamber.ballistic.R = 0.000287 #[?] J/kg/K
+
+
+# Thermoelasticity
+#elastic.on = 0
+elastic.type = disable #static
+#model_ap.eps0 = 2.217e-5 0.0 0.0 0.0 2.217e-5 0.0 0.0 0.0 2.217e-5
+#model_ap.kappa = 150
+#model_ap.mu = 140
+#model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
+#model_htpb.kappa = 210
+#model_htpb.mu = 8
+#model_void.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
+#model_void.kappa = 2000
+#model_void.mu = 8
+#
+#elastic.bc.constant.type.xhi = disp disp
+#elastic.bc.constant.type.xlo = disp disp
+#elastic.bc.constant.type.xloyhi = disp disp
+#elastic.bc.constant.type.xloylo = disp disp
+#elastic.bc.constant.type.ylo = disp disp
+#elastic.bc.type = constant
+#elastic.interval = 10
+##elastic.interval = 5
+##elastic.tstart= 0.5e-4
+##elastic.phirefinement = 100
+#elastic.print_model = 1
+#elastic.solver.fixed_iter = 100
+#elastic.solver.nriters = 200
+#elastic.solver.nrtolerance = 1e-5
+#elastic.solver.verbose = 4
+#elastic.traction = 4.0

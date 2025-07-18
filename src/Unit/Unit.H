@@ -39,29 +39,39 @@ struct Unit : std::pair<double,std::array<int,7>>
     // Compound unit relationships and nomenclature
     inline static const std::map<std::string, std::pair<double,std::string>> compound = {
         // Lengths
-        {"km", {1e+3,   "m"}},
-        {"cm", {1e-2,   "m"}},
-        {"mm", {1e-3,   "m"}},
-        {"um", {1e-6,   "m"}},
-        {"nm", {1e-9,   "m"}},
-        {"ft", {0.3048, "m"}},
-        {"mi", {5280., "ft"}},
+        {"km",        {1e+3,   "m"        }},
+        {"cm",        {1e-2,   "m"        }},
+        {"mm",        {1e-3,   "m"        }},
+        {"um",        {1e-6,   "m"        }},
+        {"nm",        {1e-9,   "m"        }},
+        {"ft",        {0.3048, "m"        }},
+        {"mi",        {5280.,  "ft"       }},
+        {"furlong",   {660.0,  "ft"       }},
+        {"ly",        {9460730472580.8, "km"}},
         // Times
-        {"ms", {1e-3, "s"}},
-        {"us", {1e-6, "s"}},
-        {"ns", {1e-9, "s"}},
-        {"min", {60.0, "s"}},
-        {"hr", {60.0, "min"}},
-        // Speeds
-        {"mph", {1.0, "mi/hr"}},
+        {"ms",        {1e-3,    "s"       }},
+        {"us",        {1e-6,    "s"       }},
+        {"ns",        {1e-9,    "s"       }},
+        {"min",       {60.0,    "s"       }},
+        {"hr",        {60.0,    "min"     }},
+        {"fortnight", {1.21e+6, "s"       }},
+        // Speed
+        {"mph",       {1.0,     "mi/hr"   }},
         // Force
-        {"N",   {  1.0, "kg*m/s^2"}},
-        {"kN",  {  1e3, "N"       }},
+        {"N",         {1.0,     "kg*m/s^2"}},
+        {"kN",        {1e3,     "N"       }},
+        // Energy
+        {"J",         {1.0,     "N*m"     }},
+        {"kJ",        {1e3,     "J"       }},
+        {"eV",        {1.602176634e-19, "J" }},
+        // Power
+        {"W",         {1.0,     "J/s"     }},
+        {"kW",        {1e3,     "W"       }},
         // Pressure
-        {"Pa",  {  1.0, "N/m^2"}},
-        {"kPa", {  1e3, "N/m^2"}},
-        {"MPa", {  1e6, "N/m^2"}},
-        {"GPa", { 1e9, "N/m^2"}},
+        {"Pa",        {1.0,     "N/m^2"   }},
+        {"kPa",       {1e3,     "N/m^2"   }},
+        {"MPa",       {1e6,     "N/m^2"   }},
+        {"GPa",       {1e9,     "N/m^2"   }},
     };
 
     inline static std::array<std::pair<std::string,double>, 7> normalization = {
@@ -165,6 +175,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit Force() {return Mass()*Length() / Time()^2;}
     static Unit Energy() {return Force()*Length();}
     static Unit Pressure() {return Force()/Area();}
+    static Unit Density() {return Mass()/Volume();}
 
     static void setLengthUnit(std::string unit)
     {

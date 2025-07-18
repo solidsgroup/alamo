@@ -407,9 +407,9 @@ public:
             amrex::ParmParse::queryarr(name.c_str(), vals);
             if (vals.size() < AMREX_SPACEDIM) 
             {
-                Util::ParmParseException(INFO,full(name),full(name),
-                                         " requires at least ", AMREX_SPACEDIM, 
-                                         " arguments, got ",vals.size());
+                Util::ParmParseException(   INFO,full(name),full(name),
+                                            " requires at least ", AMREX_SPACEDIM, 
+                                            " arguments, got ",vals.size());
             }
             for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
             return 0;
