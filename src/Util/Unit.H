@@ -3,7 +3,9 @@
 
 
 #include <array>
+#include <cstdlib>
 #include <iostream>
+#include <system_error>
 #include <unordered_map>
 #include <string>
 #include <stdexcept>
@@ -15,66 +17,117 @@
 
 namespace Util
 {
-namespace Unit
+
+struct Unit : std::pair<double,std::array<int,7>>
 {
 
-static const std::map<std::string, std::pair<double,std::array<int,7>>> base_units =
-{
-    {"m", {1.0, {1,0,0,0,0,0,0}}},
-    {"s", {1.0, {0,1,0,0,0,0,0}}},
-    {"kg",{1.0, {0,0,1,0,0,0,0}}}
-};
+    //
+    // STATIC CONST DEFINITIONS, TRUE EVERYWHERE
+    // 
+    enum class Type {
+        Length=0, Time=1, Mass=2, Temperature=3, Current=4, Amount=5, Intensity=6
+    };    
+    // Fundamental units
+    inline static const std::map<std::string, std::pair<double,std::array<int,7>>> base_units =
+    {
+        {"m",  {1.0, {1,0,0,0,0,0,0}}},
+        {"s",  {1.0, {0,1,0,0,0,0,0}}},
+        {"kg", {1.0, {0,0,1,0,0,0,0}}},
+        {"K",  {1.0, {0,0,0,1,0,0,0}}},
+        {"A",  {1.0, {0,0,0,0,1,0,0}}},
+        {"mol",{1.0, {0,0,0,0,0,1,0}}},
+        {"cd", {1.0, {0,0,0,0,0,0,1}}}
+    };
+    // Compound unit relationships and nomenclature
+    inline static const std::map<std::string, std::pair<double,std::string>> compound = {
+        // Lengths
+        {"km", {1e+3,   "m"}},
+        {"cm", {1e-2,   "m"}},
+        {"mm", {1e-3,   "m"}},
+        {"um", {1e-6,   "m"}},
+        {"nm", {1e-9,   "m"}},
+        {"ft", {0.3048, "m"}},
+        {"mi", {5280., "ft"}},
+        // Times
+        {"ms", {1e-3, "s"}},
+        {"us", {1e-6, "s"}},
+        {"ns", {1e-9, "s"}},
+        {"min", {60.0, "s"}},
+        {"hr", {60.0, "min"}},
+        // Speeds
+        {"mph", {1.0, "mi/hr"}},
+        // Force
+        {"N",   {  1.0, "kg*m/s^2"}},
+        {"kN",  {  1e3, "N"       }},
+        // Pressure
+        {"Pa",  {  1.0, "N/m^2"}},
+        {"kPa", {  1e3, "N/m^2"}},
+        {"MPa", {  1e6, "N/m^2"}},
+        {"GPa", { 1e9, "N/m^2"}},
+    };
 
-static const std::map<std::string, std::pair<double,std::string>> compound = {
-    
-    {"km", {1e+3, "m"}},
-    {"cm", {1e-2, "m"}},
-    {"mm", {1e-3, "m"}},
-    {"um", {1e-6, "m"}},
-    {"nm", {1e-9, "m"}},
-
-    {"N",   {  1.0, "kg*m/s^2"}},
-    {"kN",  {  1e3, "N"       }},
-    {"Pa",  {  1.0, "N/m^2"}},
-    {"kPa", {  1e3, "N/m^2"}},
-    {"MPa", {  1e6, "N/m^2"}},
-    {"GPa", { 1e9, "N/m^2"}},
-};
-
-using UnitMap = std::map<std::string, int>;
-UnitMap ParseUnitString(const std::string& input);
-
-
-struct Type : std::pair<double,std::array<int,7>>
-{
-
-
-
-
+    inline static std::array<std::pair<std::string,double>, 7> normalization = {
+        std::pair{"m",  1.0},
+        std::pair{"s",  1.0},
+        std::pair{"kg", 1.0},
+        std::pair{"K",  1.0},
+        std::pair{"A",  1.0},
+        std::pair{"mol",1.0},
+        std::pair{"cd", 1.0}
+    };
 
     using std::pair<double, std::array<int,7>>::pair;
-    // Explicit constructor from the base pair
-    Type(const std::pair<double, std::array<int, 7>>& p) : std::pair<double, std::array<int, 7>>(p) {}
+    Unit(const std::pair<double, std::array<int, 7>>& p) : std::pair<double, std::array<int, 7>>(p) {}
+    static std::map<std::string, int> ParseUnitString(const std::string& input);
 
-
-    static Type Parse(std::string unitstring)
+    
+    static Unit Parse(double val, std::string unitstring)
     {
-        Type type = Type::Unity();
+        Unit ret = StringParse(unitstring);
+        ret.first *= val;
+        return ret;
+    }
+    static Unit Parse(std::string unit)
+    {
+        std::vector<std::string> split;
+        std::stringstream ss(unit);
+        std::string item;
+        while (std::getline(ss, item, '_')) {
+            split.push_back(item);
+        }
+        if (split.size() == 2)
+        {        
+            return Parse(std::stod(split[0]),split[1]);
+        }
+        else if (split.size() == 1)
+        {
+            return StringParse(unit);
+        }
+        else
+        {
+            throw std::runtime_error("Invalid unit string "+unit);
+        }
+    }
+
+
+    static Unit StringParse(std::string unitstring)
+    {
+        Unit type = Unit::Unity();
         double factor = 1.0;
-        UnitMap map = ParseUnitString(unitstring);
+        std::map<std::string, int> map = ParseUnitString(unitstring);
         for (auto it = map.begin(); it != map.end(); it++)
         {
             auto [str, exp] = *it;
 
-            if (base_units.find(str) != base_units.end())
+            if (Unit::base_units.find(str) != base_units.end())
             {
-                Type t = Util::Unit::base_units.at(str);
+                Unit t = Unit::base_units.at(str);
                 type = type * (t^exp);
             }
             else if (compound.find(it->first) != compound.end())
             {
                 auto [subfac, substr] = compound.at(str);
-                Type t = Parse(substr);
+                Unit t = StringParse(substr);
                 t.first *= subfac;
                 type = type * t^exp;
             }
@@ -86,50 +139,57 @@ struct Type : std::pair<double,std::array<int,7>>
         return type;
     }
 
+    static Unit Unity()  { return Unit{1.0, {0,0,0,0,0,0,0}}; }
+    static Unit Length() { return Unit{1.0, {1,0,0,0,0,0,0}}; }
+    static Unit Time()   { return Unit{1.0, {0,1,0,0,0,0,0}}; }
+    static Unit Mass()   { return Unit{1.0, {0,0,1,0,0,0,0}}; }
 
-
-    static Type Unity()  { return Type{1.0, {0,0,0,0,0,0,0}}; }
-    static Type Length() { return Type{1.0, {1,0,0,0,0,0,0}}; }
-    static Type Time()   { return Type{1.0, {0,1,0,0,0,0,0}}; }
-    static Type Mass()   { return Type{1.0, {0,0,1,0,0,0,0}}; }
-
-    static Type Area() { return Type{1.0, {2,0,0,0,0,0,0}}; }
-    static Type Volume() { return Type{1.0, {3,0,0,0,0,0,0}}; }
+    static Unit Area() { return Unit{1.0, {2,0,0,0,0,0,0}}; }
+    static Unit Volume() { return Unit{1.0, {3,0,0,0,0,0,0}}; }
     
-    static Type Velocity() {return Length() / Time();}
-    static Type Force() {return Mass()*Length() / Time()^2;}
-    static Type Energy() {return Force()*Length();}
-    static Type Pressure() {return Force()/Area();}
+    static Unit Velocity() {return Length() / Time();}
+    static Unit Force() {return Mass()*Length() / Time()^2;}
+    static Unit Energy() {return Force()*Length();}
+    static Unit Pressure() {return Force()/Area();}
 
-
-    void setLengthUnit(std::string unit)
+    static void setLengthUnit(std::string unit)
     {
-        Type parsed = Parse(unit);
-        if (parsed.second != Length().second)
-            std::cout << "not a unit of length" << std::endl;
-        normalization[0].first = unit;
-        normalization[0].second = 1.0 / parsed.first;
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Length().second) throw std::runtime_error("Not a unit of length: " + unit);
+        normalization[int(Type::Length)].first = unit;
+        normalization[int(Type::Length)].second = 1.0 / parsed.first;
+    }
+    static void setTimeUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Time().second) throw std::runtime_error("Not a unit of time: " + unit);
+        normalization[int(Type::Time)].first = unit;
+        normalization[int(Type::Time)].second = 1.0 / parsed.first;
     }
 
-
-    Type operator * (const Type &rhs)
+    bool isType(const Unit &test) const
     {
-        Type ret;
+        return this->second == test.second;
+    }
+
+    Unit operator * (const Unit &rhs)
+    {
+        Unit ret;
         ret.first = this->first * rhs.first;
         for (int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] + rhs.second[i];
         return ret;
     }
-    Type operator / (const Type &rhs)
+    Unit operator / (const Unit &rhs)
     {
-        Type ret;
+        Unit ret;
         ret.first = this->first / rhs.first;
         for (int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] - rhs.second[i];
         return ret;
     }
 
-    Type operator ^ (const int &rhs)
+    Unit operator ^ (const int &rhs)
     {
-        Type ret;
+        Unit ret;
         ret.first = std::pow(this->first,rhs);
         for (int i = 0; i < this->second.size(); i++) 
         {
@@ -138,16 +198,14 @@ struct Type : std::pair<double,std::array<int,7>>
         return ret;
     }
 
-    void print() 
+    friend std::ostream& operator<<(std::ostream &out, const Unit &a) 
     {
-        std::cout << normalized_value() << " ";
-        std::cout << normalized_unitstring() << "  [";
-        for (int i = 0; i < this->second.size(); i++) std::cout << (this->second)[i] << " ";
-        std::cout << "]";
-        std::cout << std::endl;
+        std::cout << a.normalized_value() << " ";
+        std::cout << a.normalized_unitstring();
+        return out;
     }
 
-    double normalized_value()
+    double normalized_value() const
     {
         double fac = 1.0;
         for (int i = 0 ; i < this->second.size(); i++)
@@ -156,7 +214,7 @@ struct Type : std::pair<double,std::array<int,7>>
         return this->first * fac;
     }
 
-    std::string normalized_unitstring()
+    std::string normalized_unitstring() const
     {
         // little utility to join strings with delimiter
         auto join = [] (std::vector<std::string>vec,std::string sep){
@@ -192,31 +250,16 @@ struct Type : std::pair<double,std::array<int,7>>
     }
     
 
-    inline static std::array<std::pair<std::string,double>, 7> normalization = {
-        std::pair{"m",  1.0},
-        std::pair{"s",  1.0},
-        std::pair{"kg", 1.0},
-        std::pair{"K",  1.0},
-        std::pair{"A",  1.0},
-        std::pair{"mol",1.0},
-        std::pair{"cd", 1.0}
-    };
+
+
+
 
 };
 
 
-
-
-
-
-
-
-
-
-
-
-UnitMap ParseUnitString(const std::string& input) {
-    UnitMap result;
+inline std::map<std::string, int> 
+Unit::ParseUnitString(const std::string& input) {
+    std::map<std::string, int> result;
     enum class Op { Mul = 1, Div = -1 };
     Op currentOp = Op::Mul;
     std::string token;
@@ -272,137 +315,12 @@ UnitMap ParseUnitString(const std::string& input) {
 }
 
 
-/*
-//enum Type {
-//    None,
-//    Length, Time, Mass, Temperature, Current,
-//    Velocity, Acceleration,
-//    Force, Pressure, Energy, Power,
-//    Viscosity, Density
-//};x
-
-const std::array<std::unordered_map<std::string, double>,3> map =
-{
-    // None
-    std::unordered_map<std::string, double>{
-    },
-    // Length
-    std::unordered_map<std::string, double>{
-        {"m",   1.0},
-        {"km",  1e3},
-        {"cm",  1e-2},
-        {"mm",  1e-3},
-        {"um",  1e-6},  // micron (µm)
-        {"nm",  1e-9}
-    },
-    // Time
-    std::unordered_map<std::string, double>{
-        {"s",   1.0},
-        {"ms",  1e-3},
-        {"us",  1e-6},  // microsecond
-        {"ns",  1e-9}
-    }
-};
 
 
-using Type = std::pair<double,std::string>;
-std::unordered_map<std::string, Type> relations = {
-    
-    {"km", {1e+3, "m"}},
-    {"cm", {1e-2, "m"}},
-    {"mm", {1e-3, "m"}},
-    {"um", {1e-6, "m"}},
-    {"nm", {1e-9, "m"}},
-
-    {"N",   {  1.0, "kg*m/s^2"}},
-    {"kN",  {  1e3, "N"       }},
-    {"Pa",  {  1.0, "N/m^2"}},
-    {"kPa", {  1e3, "N/m^2"}},
-    {"MPa", {  1e6, "N/m^2"}},
-    {"GPa", { 1e9, "N/m^2"}},
-};
-
-
-
-
-std::unordered_map<std::string, double> length = {
-    {"m",   1.0},
-    {"km",  1e3},
-    {"cm",  1e-2},
-    {"mm",  1e-3},
-    {"um",  1e-6},  // micron (µm)
-    {"nm",  1e-9}
-};
-inline double convert_length(double val, std::string unit)
-{
-    return 0;
-}
-
-
-std::unordered_map<std::string, std::string> compound_units = {
-    {"kph", "km/hour"},
-};
-
-inline double convert(UnitType, double val, std::string unit)
-{
-    if      (length.contains(unit)) return convert_length(val,unit);
-    else if (time.contains(unit))   return convert_time(val,unit);
-    return 0;
-}
-
-
-UnitType ParseUnitString(const std::string& input) {
-    std::string unit_expr = input;
-
-    // Expand compound units recursively
-    while (compound_units.count(unit_expr)) {
-        unit_expr = compound_units.at(unit_expr);
-    }
-
-    UnitType total = {};
-    std::regex token_re(R"(([a-zA-Z]+)(\^(-?\d+))?)");
-    std::regex div_re(R"(([^/]+)(?:/(.+))?)");
-
-    std::smatch div_match;
-    if (std::regex_match(unit_expr, div_match, div_re)) {
-        std::string numerator = div_match[1];
-        std::string denominator = div_match[2];
-
-        auto parse_side = [&](const std::string& side, int sign) {
-            std::sregex_iterator it(side.begin(), side.end(), token_re), end;
-            for (; it != end; ++it) {
-                std::string sym = (*it)[1];
-                int power = (*it)[3].matched ? std::stoi((*it)[3]) : 1;
-                UnitType u;
-
-                // Recursive expansion if needed
-                if (compound_units.count(sym)) {
-                    u = ParseUnitString(compound_units.at(sym));
-                } else if (base_units.count(sym)) {
-                    u = base_units.at(sym);
-                } else {
-                    throw std::runtime_error("Unknown unit: " + sym);
-                }
-
-                total += u * (sign * power);
-            }
-        };
-
-        parse_side(numerator, +1);
-        if (denominator != "") parse_side(denominator, -1);
-    }
-
-    return total;
-}
-
-
-template <int T>
-inline double Parse(const std::string& input);
-*/
 
 
 }
-}
+
 
 
 #endif
