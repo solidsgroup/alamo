@@ -90,9 +90,10 @@
 #include <filesystem>
 #include <exception>
 #include <list>
+#include <stdexcept>
 
 #include "Util/Util.H"
-#include "Util/Unit.H"
+#include "Unit/Unit.H"
 #include "Set/Base.H"
 #include "AMReX_ParmParse.H"
 
@@ -188,21 +189,37 @@ public:
         return false;
     }
 
-    int queryunit (std::string name, Util::Unit &value, const Util::Unit type = Util::Unit::Unity())
+    int queryunit (std::string name, Unit &value, const Unit type = Unit::Unity())
     {
-        std::string strvalue;
-        int retval = amrex::ParmParse::query(name.c_str(),strvalue);
-        value = Util::Unit::Parse(strvalue);
-        if (!value.isType(type))
-            Util::Abort(INFO,"value requiested had wrong units:", value.normalized_unitstring());
-        return retval;
+        try
+        {
+            std::string strvalue;
+            int retval = amrex::ParmParse::query(name.c_str(),strvalue);
+            value = Unit::Parse(strvalue);
+            if (!value.isType(type) && !value.isType(Unit::Unity()))
+                Util::Abort(INFO,"value requiested had wrong units:", value.normalized_unitstring());
+            return retval;
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
+        }
+        return -1;
     }
-    int queryunit (std::string name, Set::Scalar &value, const Util::Unit type = Util::Unit::Unity())
+    int queryunit (std::string name, Set::Scalar &value, const Unit type = Unit::Unity())
     {
-        Util::Unit read;
-        int retval = queryunit(name,read,type);
-        value = read.normalized_value();
-        return retval;
+        try
+        {
+            Unit read;
+            int retval = queryunit(name,read,type);
+            value = read.normalized_value();
+            return retval;
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
+        }
+        return -1;
     }
 
     template<typename T> 
@@ -216,7 +233,7 @@ public:
     }
 
     template<typename T> 
-    int query_required( std::string name, T & value, const Util::Unit type)
+    int query_required( std::string name, T & value, const Unit type)
     {
         if (!contains(name.c_str()))
         {
@@ -236,7 +253,7 @@ public:
     } 
 
     template<typename T>
-    int query_default(  std::string name, T & value, std::string defaultvalue, const Util::Unit type)
+    int query_default(  std::string name, T & value, std::string defaultvalue, const Unit type)
     {
         if (!contains(name.c_str()))
         {
@@ -768,7 +785,7 @@ public:
         }
         catch (...)
         {
-            Util::ParmParseException(INFO,getPrefix());
+            Util::ParmParseException(INFO, getPrefix());
         }
     }
 

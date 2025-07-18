@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <stdexcept>
 
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
@@ -159,8 +160,15 @@ void Initialize (int argc, char* argv[])
     std::string length, time;
     pp.query_default("system.length",length,"m");
     pp.query_default("system.time",time,"s");
-    Util::Unit::setLengthUnit(length);
-    Util::Unit::setTimeUnit(length);
+    try
+    {
+        Unit::setLengthUnit(length);
+        Unit::setTimeUnit(time);
+    }
+    catch (std::runtime_error &e)
+    {
+        Util::Exception(INFO, "Error in setting system unites: ", e.what());
+    }
 }
 
 void Finalize()

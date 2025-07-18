@@ -1,8 +1,9 @@
-#ifndef UTIL_UNIT_H
-#define UTIL_UNIT_H
+#ifndef UNIT_UNIT_H
+#define UNIT_UNIT_H
 
 
 #include <array>
+#include <charconv>
 #include <cstdlib>
 #include <iostream>
 #include <system_error>
@@ -14,9 +15,6 @@
 
 //#include "Set/Base.H"
 //#include "String.H"
-
-namespace Util
-{
 
 struct Unit : std::pair<double,std::array<int,7>>
 {
@@ -101,7 +99,24 @@ struct Unit : std::pair<double,std::array<int,7>>
         }
         else if (split.size() == 1)
         {
-            return StringParse(unit);
+            // Attempt to parse the string as if it's a unitless number
+            double value = NAN;
+            auto first = unit.data();
+            auto last = unit.data() + unit.size();
+            auto result = std::from_chars(first, last, value);
+            
+            // If it is a untless number, then return a unitless result
+            if (result.ec == std::errc() && result.ptr == last)
+            {
+                Unit ret = Unit::Unity();
+                ret.first = value;
+                return ret;
+            }
+            // Otherwise, it must be a pure unit, so return that.
+            else
+            {
+                return StringParse(unit);
+            }
         }
         else
         {
@@ -312,14 +327,6 @@ Unit::ParseUnitString(const std::string& input) {
 
     return result;
 }
-
-
-
-
-
-
-}
-
 
 
 #endif

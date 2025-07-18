@@ -99,9 +99,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     //
         
     // Burn width thickness
-    pp.query_default("pf.eps", value.pf.eps, "0.0_m", Util::Unit::Length()); 
+    pp.query_default("pf.eps", value.pf.eps, "0.0_m", Unit::Length()); 
     // Interface energy param
-    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J", Util::Unit::Energy()); 
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J", Unit::Energy()); 
     // Chemical potential multiplier
     pp.query_default("pf.lambda", value.pf.lambda, 0.0); 
     // Unburned rest energy
