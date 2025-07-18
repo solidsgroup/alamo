@@ -113,7 +113,6 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit StringParse(std::string unitstring)
     {
         Unit type = Unit::Unity();
-        double factor = 1.0;
         std::map<std::string, int> map = ParseUnitString(unitstring);
         for (auto it = map.begin(); it != map.end(); it++)
         {
@@ -176,14 +175,14 @@ struct Unit : std::pair<double,std::array<int,7>>
     {
         Unit ret;
         ret.first = this->first * rhs.first;
-        for (int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] + rhs.second[i];
+        for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] + rhs.second[i];
         return ret;
     }
     Unit operator / (const Unit &rhs)
     {
         Unit ret;
         ret.first = this->first / rhs.first;
-        for (int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] - rhs.second[i];
+        for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] - rhs.second[i];
         return ret;
     }
 
@@ -191,7 +190,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     {
         Unit ret;
         ret.first = std::pow(this->first,rhs);
-        for (int i = 0; i < this->second.size(); i++) 
+        for (unsigned int i = 0; i < this->second.size(); i++) 
         {
             ret.second[i] = (this->second)[i]*rhs;
         }
@@ -208,7 +207,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     double normalized_value() const
     {
         double fac = 1.0;
-        for (int i = 0 ; i < this->second.size(); i++)
+        for (unsigned int i = 0 ; i < this->second.size(); i++)
             fac *= std::pow(normalization[i].second, this->second[i]);
         
         return this->first * fac;
@@ -229,7 +228,7 @@ struct Unit : std::pair<double,std::array<int,7>>
         };
 
         std::vector<std::string> num, den;
-        for (int i = 0 ; i < this->second.size(); i++)
+        for (unsigned int i = 0 ; i < this->second.size(); i++)
         {
             if (this->second[i] > 1)        
                 num.push_back(normalization[i].first + "^" + std::to_string(this->second[i]));
@@ -238,7 +237,7 @@ struct Unit : std::pair<double,std::array<int,7>>
             else if (this->second[i] == -1) 
                 den.push_back(normalization[i].first);
             else if (this->second[i] < -1)  
-                den.push_back(normalization[i].first + "^" + std::to_string(abs(this->second[i])));
+                den.push_back(normalization[i].first + "^" + std::to_string(std::abs(this->second[i])));
         }
         
         std::string ret;

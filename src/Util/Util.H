@@ -246,7 +246,6 @@ void AssertException (std::string file, std::string func, int line, std::string 
 
 template<typename... Args>
 void ParmParseException (   std::string file, std::string func, int line,
-                            std::string file2, std::string /*func2*/, int line2,
                             std::string fullname,
                             Args const &... args)
 {
@@ -269,10 +268,6 @@ void ParmParseException (   std::string file, std::string func, int line,
         if (nargs) messagestream << "\n";
         if (fullname != "")
             messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
-        if (line2 >= 0)
-        {
-            messagestream << " at " << file2 << ":" << line2;
-        }
 
         std::string message = messagestream.str();
 

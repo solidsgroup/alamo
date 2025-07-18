@@ -154,6 +154,13 @@ void Initialize (int argc, char* argv[])
         file_overwrite = Util::CreateCleanDirectory(filename, false);
         IO::WriteMetaData(filename);
     }
+
+    IO::ParmParse pp;
+    std::string length, time;
+    pp.query_default("system.length",length,"m");
+    pp.query_default("system.time",time,"s");
+    Util::Unit::setLengthUnit(length);
+    Util::Unit::setTimeUnit(length);
 }
 
 void Finalize()

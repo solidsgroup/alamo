@@ -92,18 +92,24 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
-    pp_query_default("plot_field",value.plot_field,true); 
+    pp.query_default("plot_field",value.plot_field,true); 
         
     //
     // PHASE FIELD VARIABLES
     //
         
-    pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
-    pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
-    pp_query_default("pf.lambda", value.pf.lambda, 0.0); // Chemical potential multiplier
-    pp_query_default("pf.w1", value.pf.w1, 0.0); // Unburned rest energy
-    pp_query_default("pf.w12", value.pf.w12, 0.0);  // Barrier energy
-    pp_query_default("pf.w0", value.pf.w0, 0.0);    // Burned rest energy
+    // Burn width thickness
+    pp.query_default("pf.eps", value.pf.eps, "0.0_m", Util::Unit::Length()); 
+    // Interface energy param
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J", Util::Unit::Energy()); 
+    // Chemical potential multiplier
+    pp.query_default("pf.lambda", value.pf.lambda, 0.0); 
+    // Unburned rest energy
+    pp.query_default("pf.w1", value.pf.w1, 0.0); 
+    // Barrier energy
+    pp.query_default("pf.w12", value.pf.w12, 0.0);  
+    // Burned rest energy
+    pp.query_default("pf.w0", value.pf.w0, 0.0);    
 
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
