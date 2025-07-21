@@ -181,27 +181,32 @@ void Initialize (int argc, char* argv[])
     //
     {
         IO::ParmParse pp("geometry");
-        std::vector<Set::Scalar> prob_lo, prob_hi;
-        pp.queryarr_required("prob_lo", prob_lo, Unit::Length());
-        pp.queryarr_required("prob_hi", prob_hi, Unit::Length());
-        pp.remove("prob_lo");
-        pp.remove("prob_hi");
+        
+        if (pp.contains("prob_lo"))
+        {
+            std::vector<Set::Scalar> prob_lo, prob_hi;
+            // Location of the lower+left+bottom corner
+            pp.queryarr("prob_lo", prob_lo, Unit::Length());
+            // Location of the upper_right_top corner
+            pp.queryarr("prob_hi", prob_hi, Unit::Length());
+            pp.remove("prob_lo");
+            pp.remove("prob_hi");
 
-        Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
-                        "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
-        Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
-                        "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
-        #if AMREX_SPACEDIM>2
-        Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
-                        "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
-        #endif
+            Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
+                            "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
+            Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
+                            "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
+#if AMREX_SPACEDIM>2
+            Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
+                            "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
+#endif
 
-        Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
-        Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
+            Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
+            Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
 
-        pp.addarr("prob_lo",prob_lo);
-        pp.addarr("prob_hi",prob_hi);
-
+            pp.addarr("prob_lo",prob_lo);
+            pp.addarr("prob_hi",prob_hi);
+        }
     }
 }
 

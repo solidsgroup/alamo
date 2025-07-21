@@ -107,6 +107,9 @@ def extract(basefilename):
             nargs = r',*\s*([^)]*)'
 
 
+            # Skip of pp. is commented out
+            if "//" in line and line.find("//") < line.find("pp."): continue
+            if "//" in line and line.find("//") < line.find("pp_"): continue
 
 
             # Catch standard pp.query and pp.queryarr inputs

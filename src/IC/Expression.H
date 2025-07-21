@@ -152,8 +152,8 @@ public:
         else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
         else Util::Exception(INFO, "unsupported coordinates ", coordstr);
 
-        // Units of the value that is returned by the expression
         std::string unitstr;
+        // Units of the value that is returned by the expression
         pp.query_default("unit",unitstr,"");
         try
         {

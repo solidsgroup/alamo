@@ -67,6 +67,7 @@ public:
         // Default: set equal to one everywhere
         value.m_value.clear();
 
+        // Value (or values if multicomponent) to set field to 
         pp.queryarr_required("value", value.m_value, value.unit); 
     }
 private:
