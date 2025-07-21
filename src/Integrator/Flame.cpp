@@ -101,15 +101,15 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Burn width thickness
     pp.query_default("pf.eps", value.pf.eps, "0.0_m", Unit::Length()); 
     // Interface energy param
-    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J", Unit::Energy()); 
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^3", Unit::Energy()/Unit::Volume()); 
     // Chemical potential multiplier
-    pp.query_default("pf.lambda", value.pf.lambda, 0.0); 
+    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^3", Unit::Energy()/Unit::Volume()); 
     // Unburned rest energy
-    pp.query_default("pf.w1", value.pf.w1, 0.0); 
+    pp.query_default("pf.w1", value.pf.w1, "0.0",Unit::Less()); 
     // Barrier energy
-    pp.query_default("pf.w12", value.pf.w12, 0.0);  
+    pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());  
     // Burned rest energy
-    pp.query_default("pf.w0", value.pf.w0, 0.0);    
+    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());    
 
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
@@ -118,8 +118,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
-
-
 
     // Select reduced order model to capture heat feedback
     pp.select<  Model::Propellant::PowerLaw, 
