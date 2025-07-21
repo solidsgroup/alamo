@@ -261,6 +261,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     }
     static Unit Parse(std::string unit)
     {
+        if (unit.size() == 0) return Unit::Less();
         std::vector<std::string> split;
         std::stringstream ss(unit);
         std::string item;

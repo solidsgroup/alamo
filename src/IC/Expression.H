@@ -38,6 +38,7 @@
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 #include "AMReX_Parser.H"
+#include <stdexcept>
 
 namespace IC
 {
@@ -144,21 +145,27 @@ public:
 
     static void Parse(Expression& value, IO::ParmParse& pp)
     {
-
         std::string coordstr = "";
         // coordinate system to use
         pp_query_validate("coord", coordstr, {"cartesian","polar"}); 
         if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
         else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
-        else Util::Abort(INFO, "unsupported coordinates ", coordstr);
+        else Util::Exception(INFO, "unsupported coordinates ", coordstr);
 
         // Units of the value that is returned by the expression
         std::string unitstr;
         pp.query_default("unit",unitstr,"");
-        Unit unit_spec = Unit::Parse(unitstr);
-        if (!unit_spec.isType(value.unit) && !unit_spec.isType(Unit::Less()))
-            Util::Exception(INFO, "Incompatible unit specified: ", unitstr);
-        value.unitfactor = unit_spec.normalized_value();
+        try
+        {
+            Unit unit_spec = Unit::Parse(unitstr);
+            if (!unit_spec.isType(value.unit) && !unit_spec.isType(Unit::Less()))
+                Util::Exception(INFO, "Incompatible unit specified: ", unitstr);
+            value.unitfactor = unit_spec.normalized_value();
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::Exception(INFO,e.what());
+        }
 
         std::vector<std::string> expression_strs;
         // Mathematical expression in terms of x,y,z,t (if coord=cartesian)
@@ -196,10 +203,9 @@ public:
                 value.f.push_back(value.parser.back().compile<4>());
             }
         }
-
     };
 private:
-    Unit unit;
+    Unit unit = Unit::Less();
     Set::Scalar unitfactor = NAN;
 };
 }
