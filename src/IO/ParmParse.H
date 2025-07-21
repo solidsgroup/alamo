@@ -189,15 +189,19 @@ public:
         return false;
     }
 
-    int queryunit (std::string name, Unit &value, const Unit type = Unit::Unity())
+    int queryunit (std::string name, Unit &value, const Unit type = Unit::Less())
     {
         try
         {
             std::string strvalue;
             int retval = amrex::ParmParse::query(name.c_str(),strvalue);
             value = Unit::Parse(strvalue);
-            if (!value.isType(type) && !value.isType(Unit::Unity()))
-                Util::Abort(INFO,"value requiested had wrong units:", value.normalized_unitstring());
+            if (!value.isType(type) && !value.isType(Unit::Less()))
+            {
+                Util::Exception(INFO,
+                                "value requiested had wrong units:", value.normalized_unitstring(),
+                                ", units requested are of SI type ",type.normalized_unitstring());
+            }
             return retval;
         }
         catch (std::runtime_error &e)
@@ -206,7 +210,7 @@ public:
         }
         return -1;
     }
-    int queryunit (std::string name, Set::Scalar &value, const Unit type = Unit::Unity())
+    int queryunit (std::string name, Set::Scalar &value, const Unit type = Unit::Less())
     {
         try
         {
@@ -397,14 +401,53 @@ public:
     template<typename T>
     int queryarr(   std::string name, std::vector<T> & value)
     {
-        return amrex::ParmParse::queryarr(name.c_str(),value);
+        try
+        {
+            return amrex::ParmParse::queryarr(name.c_str(),value);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     }
-    int queryarr(   std::string name, Set::Vector & value)
+    int queryarr(   std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less())
+    {
+        try
+        {
+            if (unit.isType(Unit::Less()))
+            {
+                return amrex::ParmParse::queryarr(name.c_str(),value);
+            }
+            else
+            {
+                value.clear();
+                std::vector<std::string> valstrings;
+                int retval = amrex::ParmParse::queryarr(name.c_str(), valstrings);
+                for (unsigned int i = 0; i < valstrings.size(); i++)
+                {
+                    Unit unitvalue = Unit::Parse(valstrings[i]);
+                    if (!unitvalue.isType(unit) && !unitvalue.isType(Unit::Less()))
+                    {
+                        Util::Exception(INFO,"value specified had wrong units:", valstrings[i]);
+                    }
+                    value.push_back(unitvalue.normalized_value());
+                }
+                return retval;
+            }
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+    int queryarr(   std::string name, Set::Vector & value, Unit unit = Unit::Less())
     {
         try
         {
             std::vector<Set::Scalar> vals;
-            amrex::ParmParse::queryarr(name.c_str(), vals);
+            queryarr(name.c_str(), vals, unit);
             if (vals.size() < AMREX_SPACEDIM) 
             {
                 Util::ParmParseException(   INFO,full(name),full(name),
@@ -420,10 +463,10 @@ public:
         }
         return -1;
     }
-    int queryarr(   std::string name, Set::Matrix & value)
+    int queryarr(   std::string name, Set::Matrix & value, Unit unit = Unit::Less())
     {
         std::vector<Set::Scalar> vals;
-        amrex::ParmParse::queryarr(name.c_str(), vals);
+        queryarr(name.c_str(), vals,unit);
         if (vals.size() == 9)
         {
 #if AMREX_SPACEDIM==2
@@ -467,7 +510,14 @@ public:
         return queryarr<T>(name,value);
     }
 
-
+    int queryarr_required(  std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less())
+    {
+        if (!contains(name.c_str()))
+        {
+            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+        }        
+        return queryarr(name,value,unit);
+    }
     int queryarr_default(   std::string name, std::vector<std::string> & value, std::string defaultvalue)
     {
         if (!contains(name.c_str()))

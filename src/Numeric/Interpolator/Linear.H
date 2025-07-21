@@ -44,6 +44,8 @@
 #include "Numeric/Interpolator/Interpolator.H"
 #include "IO/ParmParse.H"
 
+#include "Unit/Unit.H"
+
 namespace Numeric
 {
 namespace Interpolator
@@ -59,16 +61,16 @@ public:
         interval_points.push_back(0.0);
         data_points.push_back(a_val);
     }
-    Linear(const std::string a_str)
+    Linear(const std::string a_str, Unit unit_time = Unit::Less(), Unit unit_data = Unit::Less())
     {
-        define(a_str);
+        define(a_str, unit_time, unit_data);
     }
     Linear(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points)
     {
         define(_data_points,_interval_points);
     };
     
-    void define(const std::string a_str)
+    void define(const std::string a_str, Unit a_unit_time, Unit a_unit_val)
     {
         std::string str = a_str;
         
@@ -91,9 +93,15 @@ public:
 
             for (unsigned int i = 0; i < str_time_arr.size(); i++)
             {
-                interval_points.push_back(std::stod(str_time_arr[i]));
+                Unit unit_time = Unit::Parse(str_time_arr[i]);
+                if (!unit_time.isType(a_unit_time) && !unit_time.isType(Unit::Less()))
+                    Util::Exception(INFO,"Invalid unit, ", str_time_arr[i]);
+                Unit unit_val = Unit::Parse(str_val_arr[i]);
+                if (!unit_val.isType(a_unit_val) && !unit_val.isType(Unit::Less()))
+                    Util::Exception(INFO,"Invalid unit, ", str_val_arr[i]);
+                interval_points.push_back(unit_time.normalized_value());
                 if (i > 0) if (interval_points[i] < interval_points[i-1]) Util::Abort(INFO,"Time series must monotonically increase - error while trying to parse ", str);
-                data_points.push_back(std::stod(str_val_arr[i]));
+                data_points.push_back(unit_val.normalized_value());
             }
         }
         else
@@ -149,11 +157,11 @@ public:
         return  data_points[interval_points.size()-1];
     }
 
-    static void Parse(Linear<T> & value, IO::ParmParse & pp)
+    static void Parse(Linear<T> & value, IO::ParmParse & pp, Unit unit_time = Unit::Less(), Unit unit_value = Unit::Less())
     {
         std::string in;
         pp_query("str",in); // Interpolator string used when Parsed from queryclass.
-        value.define(in);
+        value.define(in, unit_time, unit_value);
     }
 
 

@@ -76,29 +76,35 @@ public:
         // Diffusion coefficient :math:`\alpha`.
         //   *This is an example of a required input variable -
         //    - program will terminate unless it is provided.*
-        pp_query_required("heat.alpha", value.alpha);
-
+        pp.query_required("heat.alpha", value.alpha,
+                          Unit::ThermalDiffusivity());
+        
         // Criterion for mesh refinement.
         //   *This is an example of a default input variable.
         //    The default value is provided here, not in the 
         //    definition of the variable.*
-        pp_query_default("heat.refinement_threshold", value.refinement_threshold, 0.01);
+        pp.query_default("heat.refinement_threshold", value.refinement_threshold, "0.01_K", 
+                         Unit::Temperature());
 
         // Initial condition type.
-        pp.select_default<IC::Constant,IC::Sphere,IC::Expression>("ic",value.ic,value.geom);
+        pp.select_default<IC::Constant,IC::Sphere,IC::Expression>("ic",value.ic,value.geom, 
+                                                                  Unit::Temperature());
 
         // Select BC object for temperature
-        pp.select_default<BC::Constant,BC::Expression>("bc.temp",value.bc,1);
+        pp.select_default<BC::Constant,BC::Expression>("bc.temp",value.bc,1,
+                                                       Unit::Temperature());
 
         // Select between using a realspace solve or the spectral method
         pp.query_validate("method",value.method,{"realspace","spectral"});
 
         // Register the temperature and old temperature fields.
         // temp_mf and temp_old_mf are defined near the bottom of this Header file.
-        value.RegisterNewFab(value.temp_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
+        value.RegisterNewFab(value.temp_mf, value.bc, value.number_of_components, 
+                             value.number_of_ghost_cells, "Temp", true);
         if (value.method == "realspace")
         {
-            value.RegisterNewFab(value.temp_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
+            value.RegisterNewFab(value.temp_old_mf, value.bc, value.number_of_components, 
+                                 value.number_of_ghost_cells, "Temp_old", false);
         }
     }
 

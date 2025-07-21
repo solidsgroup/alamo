@@ -36,44 +36,77 @@ struct Unit : std::pair<double,std::array<int,7>>
         {"mol",{1.0, {0,0,0,0,0,1,0}}},
         {"cd", {1.0, {0,0,0,0,0,0,1}}}
     };
+    //
     // Compound unit relationships and nomenclature
+    // Any desired unit relationship can be added to this list.
+    // The unit conversion can be specified in any desired format, as long as
+    // all of the units on the right hand side are resolvable.
+    //
     inline static const std::map<std::string, std::pair<double,std::string>> compound = {
         // Lengths
-        {"km",        {1e+3,   "m"        }},
-        {"cm",        {1e-2,   "m"        }},
-        {"mm",        {1e-3,   "m"        }},
-        {"um",        {1e-6,   "m"        }},
-        {"nm",        {1e-9,   "m"        }},
-        {"ft",        {0.3048, "m"        }},
-        {"mi",        {5280.,  "ft"       }},
-        {"furlong",   {660.0,  "ft"       }},
-        {"ly",        {9460730472580.8, "km"}},
+        {"km",        {1e+3,   "m"        }},   // kilometer
+        {"cm",        {1e-2,   "m"        }},   // centimeter
+        {"mm",        {1e-3,   "m"        }},   // millimeter
+        {"um",        {1e-6,   "m"        }},   // micron
+        {"nm",        {1e-9,   "m"        }},   // nanometer
+        {"ft",        {0.3048, "m"        }},   // foot
+        {"mi",        {5280.,  "ft"       }},   // mile
+        {"furlong",   {660.0,  "ft"       }},   // furlong
+        {"ly",        {9460730472580.8, "km"}}, // lightyear
         // Times
-        {"ms",        {1e-3,    "s"       }},
-        {"us",        {1e-6,    "s"       }},
-        {"ns",        {1e-9,    "s"       }},
-        {"min",       {60.0,    "s"       }},
-        {"hr",        {60.0,    "min"     }},
-        {"fortnight", {1.21e+6, "s"       }},
+        {"ms",        {1e-3,    "s"       }},   // millisecond
+        {"us",        {1e-6,    "s"       }},  // microsecond
+        {"ns",        {1e-9,    "s"       }},  // nanosecond
+        {"min",       {60.0,    "s"       }},  // minute
+        {"hr",        {60.0,    "min"     }},  // hour
+        {"fortnight", {1.21e+6, "s"       }},  // fortnight
         // Speed
-        {"mph",       {1.0,     "mi/hr"   }},
+        {"mph",       {1.0,     "mi/hr"   }},  // mile per hour
         // Force
-        {"N",         {1.0,     "kg*m/s^2"}},
-        {"kN",        {1e3,     "N"       }},
+        {"N",         {1.0,     "kg*m/s^2"}},  // Newton
+        {"kN",        {1e3,     "N"       }},  // kilonewton
         // Energy
-        {"J",         {1.0,     "N*m"     }},
-        {"kJ",        {1e3,     "J"       }},
-        {"eV",        {1.602176634e-19, "J" }},
+        {"J",         {1.0,     "N*m"     }},  // Joule
+        {"kJ",        {1e3,     "J"       }},  // kilojoule
+        {"eV",        {1.602176634e-19, "J" }},// electron Volt
         // Power
-        {"W",         {1.0,     "J/s"     }},
-        {"kW",        {1e3,     "W"       }},
+        {"W",         {1.0,     "J/s"     }},  // Watt
+        {"kW",        {1e3,     "W"       }},  // kilowatt
         // Pressure
-        {"Pa",        {1.0,     "N/m^2"   }},
-        {"kPa",       {1e3,     "N/m^2"   }},
-        {"MPa",       {1e6,     "N/m^2"   }},
-        {"GPa",       {1e9,     "N/m^2"   }},
+        {"Pa",        {1.0,     "N/m^2"   }},  // Pascal
+        {"kPa",       {1e3,     "N/m^2"   }},  // kilopascal
+        {"MPa",       {1e6,     "N/m^2"   }},  // megapascal
+        {"GPa",       {1e9,     "N/m^2"   }},  // gigapascal
     };
 
+    //
+    // These static factory functions return unit types.
+    // They are used to check unit compliance, mainly at the parsing stage.
+    // 
+    static Unit Less()  { return Unit{1.0, {0,0,0,0,0,0,0}}; }
+    static Unit Length() { return Unit{1.0, {1,0,0,0,0,0,0}}; }
+    static Unit Time()   { return Unit{1.0, {0,1,0,0,0,0,0}}; }
+    static Unit Mass()   { return Unit{1.0, {0,0,1,0,0,0,0}}; }
+    static Unit Temperature()   { return Unit{1.0, {0,0,0,1,0,0,0}}; }
+    static Unit Area() { return Length()*Length(); }
+    static Unit Volume() { return Length()*Length()*Length(); }
+    static Unit Velocity() {return Length() / Time();}
+    static Unit Force() {return Mass()*Length() / Time()^2;}
+    static Unit Energy() {return Force()*Length();}
+    static Unit Power() {return Energy()/Time();}
+    static Unit Pressure() {return Force()/Area();}
+    static Unit Density() {return Mass()/Volume();}
+    static Unit SpecificHeatCapacity() {return Energy() / Mass() / Temperature() ;}
+    static Unit ThermalConductivity() {return Power()/Length()/Temperature();}
+    static Unit ThermalDiffusivity() {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
+
+
+    //
+    // This is where SYSTEM NORMALIZATION is stored.
+    // Should usually be set once (at the beginning of the simulation) and then
+    // left constant throughout the simulation.
+    // All normalizations are in terms of standard SI units: m,s,kg,K,A,mol,cd.
+    //
     inline static std::array<std::pair<std::string,double>, 7> normalization = {
         std::pair{"m",  1.0},
         std::pair{"s",  1.0},
@@ -118,7 +151,7 @@ struct Unit : std::pair<double,std::array<int,7>>
             // If it is a untless number, then return a unitless result
             if (result.ec == std::errc() && result.ptr == last)
             {
-                Unit ret = Unit::Unity();
+                Unit ret = Unit::Less();
                 ret.first = value;
                 return ret;
             }
@@ -137,7 +170,7 @@ struct Unit : std::pair<double,std::array<int,7>>
 
     static Unit StringParse(std::string unitstring)
     {
-        Unit type = Unit::Unity();
+        Unit type = Unit::Less();
         std::map<std::string, int> map = ParseUnitString(unitstring);
         for (auto it = map.begin(); it != map.end(); it++)
         {
@@ -163,19 +196,6 @@ struct Unit : std::pair<double,std::array<int,7>>
         return type;
     }
 
-    static Unit Unity()  { return Unit{1.0, {0,0,0,0,0,0,0}}; }
-    static Unit Length() { return Unit{1.0, {1,0,0,0,0,0,0}}; }
-    static Unit Time()   { return Unit{1.0, {0,1,0,0,0,0,0}}; }
-    static Unit Mass()   { return Unit{1.0, {0,0,1,0,0,0,0}}; }
-
-    static Unit Area() { return Unit{1.0, {2,0,0,0,0,0,0}}; }
-    static Unit Volume() { return Unit{1.0, {3,0,0,0,0,0,0}}; }
-    
-    static Unit Velocity() {return Length() / Time();}
-    static Unit Force() {return Mass()*Length() / Time()^2;}
-    static Unit Energy() {return Force()*Length();}
-    static Unit Pressure() {return Force()/Area();}
-    static Unit Density() {return Mass()/Volume();}
 
     static void setLengthUnit(std::string unit)
     {
