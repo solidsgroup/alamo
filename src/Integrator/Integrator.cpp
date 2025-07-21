@@ -32,6 +32,7 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
         pp_query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
     }
+
     {
         // This allows the user to ignore certain arguments that
         // would otherwise cause problems.
@@ -56,7 +57,7 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("regrid_int", regrid_int, 2);           // Regridding interval in step numbers
         pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
         pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
-        pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
+        pp.query_default("plot_dt", plot_dt, "-1.0", Unit::Time());                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
 
 
         // Output file: see IO::FileNameParse for wildcards and variable substitution
@@ -123,7 +124,7 @@ Integrator::Integrator() : amrex::AmrCore()
         thermo.interval = 1;                                       // Default: integrate every time.
         pp_query_default("int", thermo.interval, 1);               // Integration interval (1)
         pp_query_default("plot_int", thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
-        pp_query_default("plot_dt", thermo.plot_dt, -1.0);         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
+        pp_query_default("plot_dt", thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
     }
 
     {

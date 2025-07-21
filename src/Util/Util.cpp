@@ -171,6 +171,38 @@ void Initialize (int argc, char* argv[])
     {
         Util::Exception(INFO, "Error in setting system units: ", e.what());
     }
+
+    //
+    // This is some logic to unit-ize the geometry.prob_lo, geometry.prob_hi input variables/
+    // We also do some checking to make sure the geometry is valid.
+    //
+    // Note that here, unlike most places, we actually **replace and overwrite** the 
+    // geom.prob_* variables, since they are read deep inside amrex infrastructure.
+    //
+    {
+        IO::ParmParse pp("geometry");
+        std::vector<Set::Scalar> prob_lo, prob_hi;
+        pp.queryarr_required("prob_lo", prob_lo, Unit::Length());
+        pp.queryarr_required("prob_hi", prob_hi, Unit::Length());
+        pp.remove("prob_lo");
+        pp.remove("prob_hi");
+
+        Util::Assert(INFO,TEST(prob_lo[0] < prob_hi[0]),
+                     "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
+        Util::Assert(INFO,TEST(prob_lo[1] < prob_hi[1]),
+                     "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
+        #if AMREX_SPACEDIM>2
+        Util::Assert(INFO,TEST(prob_lo[2] < prob_hi[2]),
+                     "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
+        #endif
+
+        Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
+        Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
+
+        pp.addarr("prob_lo",prob_lo);
+        pp.addarr("prob_hi",prob_hi);
+
+    }
 }
 
 void Finalize()

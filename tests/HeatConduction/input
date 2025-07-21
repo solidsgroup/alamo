@@ -1,24 +1,21 @@
 #@
 #@ [2d-serial]
 #@ dim=2
+#@ check-file=reference/reference-2d.csv
 #@ 
-#@ [2d-serial-coverage]
+#@ [2d-serial-rescaled]
 #@ dim=2
-#@ coverage=true
-#@ args=stop_time=0.0002
-#@ check=false
-#@
+#@ check-file=reference/reference-2d-mm-ms.csv
+#@ args = system.length=mm
+#@ args = system.time=ms
+#@ 
 #@ [3d-parallel]
 #@ dim=3
 #@ nprocs=4
 #@ benchmark-beaker=7.66
 #@ benchmark-waldorf=21.17
+#@ check-file=reference/reference-3d.csv
 #@
-#@ [3d-serial-coverage]
-#@ dim=3
-#@ coverage=true
-#@ args=stop_time=0.0002
-#@ check=false
 
 alamo.program = heat
 
@@ -37,12 +34,12 @@ amr.regrid_int = 10
 amr.grid_eff = 1.0
 
 # Specify system units
-system.length = mm
-system.time   = ms
+system.length = m
+system.time   = s
 
 # Specify geometry and unrefined mesh
-geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1e3 1e3 1e3
+geometry.prob_lo = 0.0_m  0.0_m  0.0_m
+geometry.prob_hi = 1.0_m  1.0_m  1.0_m
 geometry.is_periodic= 0 0 0
 
 # Criterion for mesh refinement
@@ -51,9 +48,9 @@ heat.refinement_threshold = 0.01_K
 
 # Specify initial conditions
 ic.type = sphere
-ic.sphere.center  = 0.50_m  0.50_m  0.50_m
-ic.sphere.radius  = 0.25_m
-ic.sphere.inside  = 0.00_K
+ic.sphere.center = 0.50_m  0.50_m  0.50_m
+ic.sphere.radius = 0.25_m
+ic.sphere.inside = 0.00_K
 
 
 # Boundary conditions

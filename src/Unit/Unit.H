@@ -23,7 +23,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     // STATIC CONST DEFINITIONS, TRUE EVERYWHERE
     // 
     enum class Type {
-        Length=0, Time=1, Mass=2, Temperature=3, Current=4, Amount=5, Intensity=6
+        Length=0, Time=1, Mass=2, Temperature=3, Current=4, Amount=5, LuminousIntensity=6
     };    
     // Fundamental units
     inline static const std::map<std::string, std::pair<double,std::array<int,7>>> base_units =
@@ -44,61 +44,192 @@ struct Unit : std::pair<double,std::array<int,7>>
     //
     inline static const std::map<std::string, std::pair<double,std::string>> compound = {
         // Lengths
-        {"km",        {1e+3,   "m"        }},   // kilometer
-        {"cm",        {1e-2,   "m"        }},   // centimeter
-        {"mm",        {1e-3,   "m"        }},   // millimeter
-        {"um",        {1e-6,   "m"        }},   // micron
-        {"nm",        {1e-9,   "m"        }},   // nanometer
-        {"ft",        {0.3048, "m"        }},   // foot
-        {"mi",        {5280.,  "ft"       }},   // mile
-        {"furlong",   {660.0,  "ft"       }},   // furlong
-        {"ly",        {9460730472580.8, "km"}}, // lightyear
+        {"km",        {1e+3,    "m"        }},
+        {"hm",        {1e+2,    "m"        }},
+        {"dam",       {1e+1,    "m"        }},
+        {"dm",        {1e-1,    "m"        }},
+        {"cm",        {1e-2,    "m"        }},
+        {"mm",        {1e-3,    "m"        }},
+        {"um",        {1e-6,    "m"        }},
+        {"nm",        {1e-9,    "m"        }},
+        {"pm",        {1e-12,   "m"        }},
+        {"in",        {0.0254,  "m"        }},
+        {"ft",        {0.3048,  "m"        }},
+        {"yd",        {0.9144,  "m"        }},
+        {"mi",        {5280.0,  "ft"       }},
+        {"furlong",   {660.0,   "ft"       }},
+        {"au",        {1.495978707e11, "m" }}, // astronomical unit
+        {"ly",        {9.4607304725808e15, "m"}}, // lightyear
+        {"pc",        {3.08567758149137e16, "m"}}, // parsec
+
         // Times
-        {"ms",        {1e-3,    "s"       }},   // millisecond
-        {"us",        {1e-6,    "s"       }},  // microsecond
-        {"ns",        {1e-9,    "s"       }},  // nanosecond
-        {"min",       {60.0,    "s"       }},  // minute
-        {"hr",        {60.0,    "min"     }},  // hour
-        {"fortnight", {1.21e+6, "s"       }},  // fortnight
+        {"ms",        {1e-3,    "s"        }},
+        {"us",        {1e-6,    "s"        }},
+        {"ns",        {1e-9,    "s"        }},
+        {"ps",        {1e-12,   "s"        }},
+        {"min",       {60.0,    "s"        }},
+        {"hr",        {60.0,    "min"      }},
+        {"day",       {24.0,    "hr"       }},
+        {"week",      {7.0,     "day"      }},
+        {"fortnight", {14.0,    "day"      }},
+        {"year",      {365.25,  "day"      }},
+        {"decade",    {10.0,    "year"     }},
+
+        // Mass
+        {"g",         {1e-3,    "kg"       }},
+        {"mg",        {1e-6,    "kg"       }},
+        {"ug",        {1e-9,    "kg"       }},
+        {"tonne",     {1000.0,  "kg"       }},
+        {"lb",        {0.45359237, "kg"    }},
+        {"oz",        {0.0283495, "kg"     }},
+        {"slug",      {14.5939, "kg"       }},
+
         // Speed
-        {"mph",       {1.0,     "mi/hr"   }},  // mile per hour
+        {"mph",       {1.0,     "mi/hr"    }},
+        {"kph",       {1.0,     "km/hr"    }},
+        {"mps",       {1.0,     "m/s"      }},
+        {"fps",       {1.0,     "ft/s"     }},
+        {"knot",      {1852.0 / 3600.0, "m/s"}},
+
+        // Area
+        {"ha",        {1e4,     "m^2"      }},
+        {"acre",      {4046.85642, "m^2"   }},
+        {"sqft",      {1.0,     "ft^2"     }},
+        {"sqin",      {1.0,     "in^2"     }},
+        {"sqkm",      {1.0,     "km^2"     }},
+        {"sqmi",      {1.0,     "mi^2"     }},
+
+        // Volume
+        {"L",         {1e-3,    "m^3"      }},
+        {"mL",        {1e-6,    "m^3"      }},
+        {"cc",        {1e-6,    "m^3"      }},
+        {"gal",       {3.78541e-3, "m^3"   }},
+        {"qt",        {0.946353e-3, "m^3"  }},
+        {"pt",        {0.473176e-3, "m^3"  }},
+        {"cup",       {0.24e-3, "m^3"      }},
+        {"floz",      {29.5735e-6, "m^3"   }},
+        {"tbsp",      {14.7868e-6, "m^3"   }},
+        {"tsp",       {4.92892e-6, "m^3"   }},
+
         // Force
-        {"N",         {1.0,     "kg*m/s^2"}},  // Newton
-        {"kN",        {1e3,     "N"       }},  // kilonewton
+        {"N",         {1.0,     "kg*m/s^2" }},
+        {"kN",        {1e3,     "N"        }},
+        {"lbf",       {4.44822162, "N"     }},
+        {"dyn",       {1e-5,    "N"        }},
+
         // Energy
-        {"J",         {1.0,     "N*m"     }},  // Joule
-        {"kJ",        {1e3,     "J"       }},  // kilojoule
-        {"eV",        {1.602176634e-19, "J" }},// electron Volt
+        {"J",         {1.0,     "N*m"      }},
+        {"kJ",        {1e3,     "J"        }},
+        {"MJ",        {1e6,     "J"        }},
+        {"eV",        {1.602176634e-19, "J"}},
+        {"cal",       {4.184,   "J"        }},
+        {"kcal",      {4184.0,  "J"        }},
+        {"BTU",       {1055.06, "J"        }},
+        {"ft*lbf",    {1.35582, "J"        }},
+
         // Power
-        {"W",         {1.0,     "J/s"     }},  // Watt
-        {"kW",        {1e3,     "W"       }},  // kilowatt
+        {"W",         {1.0,     "J/s"      }},
+        {"kW",        {1e3,     "W"        }},
+        {"MW",        {1e6,     "W"        }},
+        {"hp",        {745.7,   "W"        }},
+
         // Pressure
-        {"Pa",        {1.0,     "N/m^2"   }},  // Pascal
-        {"kPa",       {1e3,     "N/m^2"   }},  // kilopascal
-        {"MPa",       {1e6,     "N/m^2"   }},  // megapascal
-        {"GPa",       {1e9,     "N/m^2"   }},  // gigapascal
+        {"Pa",        {1.0,     "N/m^2"    }},
+        {"kPa",       {1e3,     "Pa"       }},
+        {"MPa",       {1e6,     "Pa"       }},
+        {"GPa",       {1e9,     "Pa"       }},
+        {"bar",       {1e5,     "Pa"       }},
+        {"atm",       {101325.0,"Pa"       }},
+        {"psi",       {6894.76, "Pa"       }},
+        {"mmHg",      {133.322, "Pa"       }},
+        {"torr",      {133.322, "Pa"       }},
+
+        // Temperature differences (not absolute temperatures)
+        {"K",         {1.0,     "K"        }},
+        {"degR",      {5.0/9.0, "K"        }},
+
+        // Charge
+        {"C",         {1.0,     "A*s"      }},
+        {"mAh",       {3.6,     "C"        }},
+
+        // Voltage
+        {"V",         {1.0,     "J/C"      }},
+
+        // Capacitance
+        {"F",         {1.0,     "C/V"      }},
+
+        // Resistance
+        {"ohm",       {1.0,     "V/A"      }},
+        {"kOhm",      {1e3,     "ohm"      }},
+        {"MOhm",      {1e6,     "ohm"      }},
+
+        // Conductance
+        {"S",         {1.0,     "1/ohm"    }},
+
+        // Magnetic
+        {"T",         {1.0,     "kg/(A*s^2)"}},
+        {"G",         {1e-4,    "T"        }}, // gauss
+
+        // Frequency
+        {"Hz",        {1.0,     "1/s"      }},
+        {"kHz",       {1e3,     "Hz"       }},
+        {"MHz",       {1e6,     "Hz"       }},
+        {"GHz",       {1e9,     "Hz"       }},
     };
+
 
     //
     // These static factory functions return unit types.
     // They are used to check unit compliance, mainly at the parsing stage.
     // 
-    static Unit Less()  { return Unit{1.0, {0,0,0,0,0,0,0}}; }
-    static Unit Length() { return Unit{1.0, {1,0,0,0,0,0,0}}; }
-    static Unit Time()   { return Unit{1.0, {0,1,0,0,0,0,0}}; }
-    static Unit Mass()   { return Unit{1.0, {0,0,1,0,0,0,0}}; }
-    static Unit Temperature()   { return Unit{1.0, {0,0,0,1,0,0,0}}; }
+    // Primary
+    static Unit Less()              { return Unit{1.0, {0,0,0,0,0,0,0}}; } // 1
+    static Unit Length()            { return Unit{1.0, {1,0,0,0,0,0,0}}; } // m
+    static Unit Time()              { return Unit{1.0, {0,1,0,0,0,0,0}}; } // s
+    static Unit Mass()              { return Unit{1.0, {0,0,1,0,0,0,0}}; } // kg
+    static Unit Temperature()       { return Unit{1.0, {0,0,0,1,0,0,0}}; } // K
+    static Unit Current()           { return Unit{1.0, {0,0,0,0,1,0,0}}; } // A
+    static Unit Amount()            { return Unit{1.0, {0,0,0,0,0,1,0}}; } // mol
+    static Unit LuminousIntensity() { return Unit{1.0, {0,0,0,0,0,0,1}}; } // cd
+
+    // Geometry and kinematics
     static Unit Area() { return Length()*Length(); }
     static Unit Volume() { return Length()*Length()*Length(); }
     static Unit Velocity() {return Length() / Time();}
-    static Unit Force() {return Mass()*Length() / Time()^2;}
-    static Unit Energy() {return Force()*Length();}
-    static Unit Power() {return Energy()/Time();}
-    static Unit Pressure() {return Force()/Area();}
-    static Unit Density() {return Mass()/Volume();}
+    static Unit Acceleration(){ return Velocity() / Time(); }
+    // Mechanics
+    static Unit Force()       { return Mass() * Acceleration(); } // kg·m/s² = N
+    static Unit Momentum()    { return Mass() * Velocity(); }
+    static Unit Impulse()     { return Force() * Time(); }
+    static Unit Pressure()    { return Force() / Area(); }         // N/m² = Pa
+    static Unit Energy()      { return Force() * Length(); }       // N·m = J
+    static Unit Power()       { return Energy() / Time(); }        // J/s = W
+    static Unit Density()     { return Mass() / Volume(); }
+    static Unit SpecificWeight() { return Force() / Volume(); }
+    static Unit Work()        { return Energy(); }
+    // Thermodynamics
     static Unit SpecificHeatCapacity() {return Energy() / Mass() / Temperature() ;}
     static Unit ThermalConductivity() {return Power()/Length()/Temperature();}
     static Unit ThermalDiffusivity() {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
+    static Unit HeatFlux()             { return Power() / Area(); }
+    static Unit HeatTransferCoefficient() { return HeatFlux() / Temperature(); }
+    // Electromagnetism
+
+    static Unit Charge()      { return Current() * Time(); }                    // A·s = C
+    static Unit Voltage()     { return Power() / Current(); }                   // W/A = V
+    static Unit Resistance()  { return Voltage() / Current(); }                 // V/A = Ω
+    static Unit Capacitance() { return Charge() / Voltage(); }                  // C/V = F
+    static Unit Conductance() { return Less() / Resistance(); }                 // S = 1/Ω
+    static Unit MagneticFlux(){ return Voltage() * Time(); }                    // V·s = Wb
+    static Unit MagneticField(){ return MagneticFlux() / Area(); }              // Wb/m² = T
+    static Unit Inductance()  { return MagneticFlux() / Current(); }            // Wb/A = H
+    // Chemistry
+    static Unit MolarMass()   { return Mass() / Amount(); }                     // kg/mol
+    static Unit Concentration(){ return Amount() / Volume(); }                  // mol/m³
+    static Unit MolarEnergy() { return Energy() / Amount(); }                   // J/mol
+    // Optics and radiation
+    static Unit LuminousFlux()      { return LuminousIntensity(); }             // for scalar usage (lm)
+    static Unit Illuminance()       { return LuminousFlux() / Area(); }         // lux = lm/m²
 
 
     //
@@ -358,6 +489,14 @@ Unit::ParseUnitString(const std::string& input) {
 
     return result;
 }
+
+
+
+
+
+
+
+
 
 
 #endif
