@@ -276,12 +276,17 @@ struct Unit : std::pair<double,std::array<int,7>>
         {
             // Attempt to parse the string as if it's a unitless number
             double value = NAN;
-            auto first = unit.data();
-            auto last = unit.data() + unit.size();
-            auto result = std::from_chars(first, last, value);
+
+            // auto first = unit.data();
+            // auto last = unit.data() + unit.size();
+            // auto result = std::from_chars(first, last, value); // apparently this fails on mac
             
+            char *end = nullptr;
+            value = std::strtod(unit.c_str(), &end);
+
             // If it is a untless number, then return a unitless result
-            if (result.ec == std::errc() && result.ptr == last)
+            //if (result.ec == std::errc() && result.ptr == last) // fails on mac
+            if (end != unit.data() && *end == '\0')
             {
                 Unit ret = Unit::Less();
                 ret.first = value;
