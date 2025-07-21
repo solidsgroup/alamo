@@ -85,17 +85,17 @@ pf.eta.bc.constant.val.zhi = 0.0
 # Propellant model - requires thermal model
 propellant.type = fullfeedback
 # arrhenius rate law parameters
-propellant.fullfeedback.m_ap = 1.45e5 #[m/s]
-propellant.fullfeedback.m_htpb = 1.4e1 # 0.2 # [m/s]
-propellant.fullfeedback.E_ap = 11000.0   # 1050.0 # 4.0
-propellant.fullfeedback.E_htpb = 7500.0   # 1200.0
+propellant.fullfeedback.m_ap      = 1.45e5_m/s  #[m/s]
+propellant.fullfeedback.m_htpb    = 1.4e1_m/s   # 0.2 # [m/s]
+propellant.fullfeedback.E_ap      = 11000.0_K   # 1050.0 # 4.0
+propellant.fullfeedback.E_htpb    = 7500.0_K    # 1200.0
 # thermal transport parameters
-propellant.fullfeedback.rho_ap = 1950.0 # [kg/m3] 
-propellant.fullfeedback.rho_htpb = 920.0 # [kg/m3]
-propellant.fullfeedback.k_ap = 0.4186e0 # 5.5 [W/mK]
-propellant.fullfeedback.k_htpb = 0.13 # 0.283[W/mK]
-propellant.fullfeedback.cp_ap = 1297.9 #[J/kgK]
-propellant.fullfeedback.cp_htpb = 2418.29 #[J/kgK]
+propellant.fullfeedback.rho_ap    = 1950.0_kg/m^3
+propellant.fullfeedback.rho_htpb  =  920.0_kg/m^3
+propellant.fullfeedback.k_ap      = 0.4186e0_W/m/K
+propellant.fullfeedback.k_htpb    = 0.1300e0_W/m/K 
+propellant.fullfeedback.cp_ap     = 1297.90_J/kg/K 
+propellant.fullfeedback.cp_htpb   = 2418.29_J/kg/K
 propellant.fullfeedback.mlocal_ap = 1000.0
 propellant.fullfeedback.mlocal_comb = 0.0
 # Mass-to-heat flux fit parameters
@@ -110,12 +110,12 @@ propellant.fullfeedback.phi.zeta = 0.00002
 
 # Thermal transport parameters
 thermal.on = 1  
-thermal.Tfluid = 300.0
-thermal.Tref = 300.0
+#thermal.Tfluid = 300.0_K
+thermal.Tref = 300.0_K
 
 # Temperature field initial condition
 temp.ic.type = constant
-temp.ic.constant.value = 300.0
+temp.ic.constant.value = 300.0_K
 
 # Temperature field boundary conditions
 thermal.temp.bc.type = constant

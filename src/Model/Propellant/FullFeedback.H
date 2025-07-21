@@ -48,7 +48,6 @@ public:
     AMREX_FORCE_INLINE
     Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
     {
-
         Set::Scalar qflux = k1 * phi +
             k2 * (1.0 - phi) +
             (zeta_1 / zeta) * exp(k3 * phi * (1.0 - phi));
@@ -93,24 +92,24 @@ public:
     static void Parse(FullFeedback& value, IO::ParmParse& pp)
     {
         // AP/HTPB interface length
-        pp_query_default("phi.zeta", value.zeta, 1.0e-5); 
+        pp_query_default("phi.zeta", value.zeta, "10.0_um", Unit::Length()); 
         // Reference interface length for heat integration
-        pp_query_default("phi.zeta_0", value.zeta_0, 1.0e-5); 
+        pp_query_default("phi.zeta_0", value.zeta_0, "10.0_um", Unit::Length()); 
         
         // Surrogate heat flux model paramater - AP
-        pp_query_required("a1", value.a1); 
+        pp_query_required("a1", value.a1, Unit::HeatFlux() / Unit::Pressure()); 
         // Surrogate heat flux model paramater - HTPB
-        pp_query_required("a2", value.a2); 
+        pp_query_required("a2", value.a2,Unit::HeatFlux() / Unit::Pressure()); 
         // Surrogate heat flux model paramater - Total
-        pp_query_required("a3", value.a3); 
+        pp_query_required("a3", value.a3,Unit::Less() / Unit::Pressure()); 
         // Surrogate heat flux model paramater - AP
-        pp_query_required("b1", value.b1); 
+        pp_query_required("b1", value.b1, Unit::HeatFlux()); 
         // Surrogate heat flux model paramater - HTPB
-        pp_query_required("b2", value.b2); 
+        pp_query_required("b2", value.b2, Unit::HeatFlux()); 
         // Surrogate heat flux model paramater - Total
-        pp_query_required("b3", value.b3); 
+        pp_query_required("b3", value.b3,Unit::Less()); 
         // Surrogate heat flux model paramater - Total
-        pp_query_required("c1", value.c1); 
+        pp_query_required("c1", value.c1, Unit::Less() / Unit::Pressure() / Unit::Pressure()); 
 
         // Whether to use pressure to determined the reference Zeta 
         pp_query_default("pressure.dependency", value.arrhenius_dependency, true); 
@@ -124,31 +123,30 @@ public:
         value.mlocal_htpb = 685000.0 - 850e3 * massfraction; // Replicating but needs to be revised!
 
         // AP Density
-        pp_query_required("rho_ap", value.rho_ap);
+        pp_query_required("rho_ap", value.rho_ap, Unit::Density());
         // HTPB Density
-        pp_query_required("rho_htpb", value.rho_htpb);
+        pp_query_required("rho_htpb", value.rho_htpb, Unit::Density());
         // AP Thermal Conductivity
-        pp_query_required("k_ap", value.k_ap);
+        pp_query_required("k_ap", value.k_ap, Unit::ThermalConductivity());
         // HTPB Thermal Conductivity
-        pp_query_required("k_htpb", value.k_htpb);
+        pp_query_required("k_htpb", value.k_htpb, Unit::ThermalConductivity());
         // AP Specific Heat
-        pp_query_required("cp_ap", value.cp_ap);
+        pp_query_required("cp_ap", value.cp_ap,Unit::SpecificHeatCapacity());
         //HTPB Specific Heat
-        pp_query_required("cp_htpb", value.cp_htpb); 
+        pp_query_required("cp_htpb", value.cp_htpb,Unit::SpecificHeatCapacity()); 
 
         // AP Pre-exponential factor for Arrhenius Law
-        pp_query_required("m_ap", value.m_ap); 
+        pp_query_required("m_ap", value.m_ap,Unit::Velocity()); 
         // HTPB Pre-exponential factor for Arrhenius Law
-        pp_query_required("m_htpb", value.m_htpb); 
-        // AP Activation Energy for Arrhenius Law
-        pp_query_required("E_ap", value.E_ap); 
+        pp_query_required("m_htpb", value.m_htpb,Unit::Velocity()); 
+        // COMBINED AP Activation Energy, divided by Rg, for Arrhenius Law (has units of temperature)
+        pp_query_required("E_ap", value.E_ap,Unit::Temperature()); 
+        // COMBINED HTPB Activation Energy, divided by Rg, for Arrhenius Law(has units of temperature)
+        pp_query_required("E_htpb", value.E_htpb,Unit::Temperature()); 
+        // Whether to include pressure to the arrhenius law [??]n
+        pp_query_default("mob_ap", value.mob_ap,false); 
         // HTPB Activation Energy for Arrhenius Law
-        pp_query_required("E_htpb", value.E_htpb); 
-        // Whether to include pressure to the arrhenius law [??]
-        pp_query_default("mob_ap", value.mob_ap,0); 
-        // HTPB Activation Energy for Arrhenius Law
-        pp_query_default("bound", value.bound,0.0); 
-
+        pp_query_default("bound", value.bound,"0.0", Unit::Temperature()); 
     }
 
     // IO Variables

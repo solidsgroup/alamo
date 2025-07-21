@@ -195,10 +195,17 @@ public:
         {
             std::string strvalue;
             int retval = amrex::ParmParse::query(name.c_str(),strvalue);
-            value = Unit::Parse(strvalue);
+            try
+            {
+                value = Unit::Parse(strvalue);
+            }
+            catch (std::runtime_error & e)
+            {
+                Util::ParmParseException(INFO,full(name), e.what());
+            }
             if (!value.isType(type) && !value.isType(Unit::Less()))
             {
-                Util::Exception(INFO,
+                Util::ParmParseException(INFO, full(name),
                                 "value requiested had wrong units:", value.normalized_unitstring(),
                                 ", units requested are of SI type ",type.normalized_unitstring());
             }
@@ -229,128 +236,232 @@ public:
     template<typename T> 
     int query_required( std::string name, T & value)
     {
-        if (!contains(name.c_str()))
+        try
         {
-            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+            if (!contains(name.c_str()))
+            {
+                Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+            }
+            return query(name.c_str(),value);
         }
-        return query(name.c_str(),value);
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     }
 
     template<typename T> 
     int query_required( std::string name, T & value, const Unit type)
     {
-        if (!contains(name.c_str()))
+        try
         {
-            Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+            if (!contains(name.c_str()))
+            {
+                Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+            }
+            return queryunit(name.c_str(), value, type);
         }
-        return queryunit(name.c_str(), value, type);
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     }
 
     template<typename T>
     int query_default(  std::string name, T & value, T defaultvalue)
     {
-        if (!contains(name.c_str()))
+        try
         {
-            add(name.c_str(),defaultvalue);
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(),defaultvalue);
+            }
+            return query(name.c_str(),value);
         }
-        return query(name.c_str(),value);
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     } 
 
     template<typename T>
     int query_default(  std::string name, T & value, std::string defaultvalue, const Unit type)
     {
-        if (!contains(name.c_str()))
+        try
         {
-            add(name.c_str(),defaultvalue);
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(),defaultvalue);
+            }
+            return queryunit(name.c_str(),value,type);
         }
-        return queryunit(name.c_str(),value,type);
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     } 
 
     int query_validate( std::string name, int & value, std::vector<int> possibleintvals)
     {
-        // First value is accepted by default...
-
-        // set default value
-        value = possibleintvals[0];
-
-        // get the read value (if it exists)
-        int retval = query(name.c_str(),value);
-
-        // check to make sure the read value matches one of the inpus
-        bool ok = false;
-        for (unsigned int i = 0; i < possibleintvals.size(); i++)
+        try
         {
-            if (value == possibleintvals[i]) ok = true;
+            // First value is accepted by default...
+
+            // set default value
+            value = possibleintvals[0];
+
+            // get the read value (if it exists)
+            int retval = query(name.c_str(),value);
+
+            // check to make sure the read value matches one of the inpus
+            bool ok = false;
+            for (unsigned int i = 0; i < possibleintvals.size(); i++)
+            {
+                if (value == possibleintvals[i]) ok = true;
+            }
+
+            if (ok) return retval;
+
+            std::stringstream ss;
+            ss << possibleintvals[0];
+            for (unsigned int i = 1; i < possibleintvals.size(); i++)
+                ss << "," << possibleintvals[i];
+
+            Util::ParmParseException(INFO,full(name),"' expected [", ss.str(), "] but got ", value);
         }
-
-        if (ok) return retval;
-
-        std::stringstream ss;
-        ss << possibleintvals[0];
-        for (unsigned int i = 1; i < possibleintvals.size(); i++)
-            ss << "," << possibleintvals[i];
-
-        Util::ParmParseException(INFO,full(name),"' expected [", ss.str(), "] but got ", value);
-
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
         return -1;
     }
 
 
     int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals, bool firstbydefault)
     {        
-        // if not using default values, then the input must be specified
-        if (!firstbydefault)
+        try
         {
-            if (!contains(name.c_str()))
+            // if not using default values, then the input must be specified
+            if (!firstbydefault)
             {
-                Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+                if (!contains(name.c_str()))
+                {
+                    Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
+                }
             }
-        }
 
-        // set default value
-        value = std::string(possiblecharvals[0]);
+            // set default value
+            value = std::string(possiblecharvals[0]);
 
-        // get the read value (if it exists)
-        int retval = amrex::ParmParse::query(name.c_str(),value);
+            // get the read value (if it exists)
+            int retval = amrex::ParmParse::query(name.c_str(),value);
 
-        // check to make sure the read value matches one of the inpus
-        bool ok = false;
-        for (unsigned int i = 0; i < possiblecharvals.size(); i++)
-        {
-            if (value == std::string(possiblecharvals[i])) ok = true;
-        }
+            // check to make sure the read value matches one of the inpus
+            bool ok = false;
+            for (unsigned int i = 0; i < possiblecharvals.size(); i++)
+            {
+                if (value == std::string(possiblecharvals[i])) ok = true;
+            }
         
-        if (ok) return retval;
+            if (ok) return retval;
 
-        std::stringstream ss;
-        ss << possiblecharvals[0];
-        for (unsigned int i = 1; i < possiblecharvals.size(); i++)
-            ss << "," << possiblecharvals[i];
+            std::stringstream ss;
+            ss << possiblecharvals[0];
+            for (unsigned int i = 1; i < possiblecharvals.size(); i++)
+                ss << "," << possiblecharvals[i];
 
-        Util::ParmParseException(INFO,full(name),"' expected [", ss.str(), "] but got ", value);
+            Util::ParmParseException(INFO,full(name),"' expected [", ss.str(), "] but got ", value);
+        }
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
 
         return -1;
     }
 
     int query_validate( std::string name, std::string & value, std::vector<const char *> possiblecharvals)
     {
-        return query_validate(name,value,possiblecharvals,true);
+        try
+        {
+            return query_validate(name,value,possiblecharvals,true);
+        }
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     }
 
     
     // special case for strings
     int query_default(  std::string name, std::string & value, const char *defaultvalue)
     {
-        return query_default(name, value, std::string(defaultvalue));
+        try
+        {
+            return query_default(name, value, std::string(defaultvalue));
+        }
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     }
     // special case for bools
     int query_default(  std::string name, int & value, bool defaultvalue)
     {
-        int defaultint = 0;
-        if (defaultvalue) defaultint = 1;
-        return query_default(name, value, defaultint);
+        try
+        {
+            int defaultint = 0;
+            if (defaultvalue) defaultint = 1;
+            return query_default(name, value, defaultint);
+        }
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
     }
-
 
 
     // validate filenames
@@ -381,6 +492,10 @@ public:
                 }
             }
             return retval;
+        }
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
         }
         catch (...)
         {
@@ -435,6 +550,10 @@ public:
                 }
                 return retval;
             }
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
         }
         catch (...)
         {
@@ -610,7 +729,7 @@ public:
         }
         else
         {
-            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+            Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
         }
 
         //
@@ -676,7 +795,7 @@ public:
         }
         else
         {
-            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+            Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
         }
 
         //
@@ -806,6 +925,10 @@ public:
                 Util::ParmParseException(INFO,name,"The following inputs were specified but not used",ss.str());
             }
         }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
         catch (...)
         {
             m_prefix = old_prefix;
@@ -821,6 +944,10 @@ public:
         {
             T::Parse(*value, *this);
         }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,getPrefix(), e.what());
+        }
         catch (...)
         {
             Util::ParmParseException(INFO,getPrefix());
@@ -832,6 +959,10 @@ public:
         try
         {
             T::Parse(value, *this);
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,getPrefix(), e.what());
         }
         catch (...)
         {
@@ -850,24 +981,35 @@ public:
     template<typename... IC, typename... Args, typename PTRTYPE>
     void select (std::string name, PTRTYPE *& ic_eta, Args&&... args)
     {
-        // if there is only one IC arg provided, we don't need to check the type - assume that
-        // it is the default.
-        if constexpr (sizeof...(IC) == 0)
+        try
         {
-            using first_IC = std::tuple_element_t<0, std::tuple<IC...>>;
-            ic_eta = new first_IC(std::forward<Args>(args)..., (*this), name + "." + std::string(first_IC::name));
+            // if there is only one IC arg provided, we don't need to check the type - assume that
+            // it is the default.
+            if constexpr (sizeof...(IC) == 0)
+            {
+                using first_IC = std::tuple_element_t<0, std::tuple<IC...>>;
+                ic_eta = new first_IC(std::forward<Args>(args)..., (*this), name + "." + std::string(first_IC::name));
+            }
+            // otherwise, check the type.
+            else
+            {
+                std::string type = "";
+                this->query_required(name + ".type", type);
+                bool matched = ((   type == IC::name 
+                                    ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
+                                    true
+                                    : false) || ...);
+                if (!matched)
+                    Util::ParmParseException(INFO,full(name), type, " not a valid type for ", name);
+            }
         }
-        // otherwise, check the type.
-        else
+        catch (std::runtime_error &e)
         {
-            std::string type = "";
-            this->query_required(name + ".type", type);
-            bool matched = ((   type == IC::name 
-                                ? (ic_eta = new IC(std::forward<Args>(args)..., (*this), name + "." + std::string(IC::name))),
-                                true
-                                : false) || ...);
-            if (!matched)
-                Util::Exception(INFO, type, " not a valid type for ", name);
+            Util::ParmParseException(INFO,getPrefix(),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,getPrefix());
         }
     }
 
@@ -893,7 +1035,7 @@ public:
 
 
         if (!matched)
-            Util::Exception(INFO,type," not a valid type for ",name);
+            Util::ParmParseException(INFO,full(name), type," not a valid type for ",name);
     }
 
 
@@ -940,7 +1082,7 @@ public:
         }
         else
         {
-            Util::Exception(INFO,"Enumerations must begin with 0 or 1");
+            Util::ParmParseException(INFO,full(name), "Enumerations must begin with 0 or 1");
         }
 
         //
@@ -976,7 +1118,7 @@ public:
                         true
                         : false) || ...);
         if (!matched)
-            Util::Exception(INFO,type," not a valid type for ",type);
+            Util::ParmParseException(INFO,getPrefix(),type," not a valid type for ",type);
     }
 
     //
@@ -1035,7 +1177,7 @@ private:
                     value.selected = i;
 
             if (value.selected < 0)
-                Util::Exception(INFO,
+                Util::ParmParseException(INFO,getPrefix(),
                                 "Error reading " + getPrefix() + 
                                 ", invalid type " + type);
 
