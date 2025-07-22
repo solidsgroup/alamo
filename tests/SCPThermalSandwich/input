@@ -45,7 +45,7 @@ timestep = 1.0e-5_s # 0.00005 # [s]
 stop_time = 0.03_s
 
 small = 1.0e-8
-pf.eps = 0.000001_m #0.0005 # [m]
+pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001
 
 ## Eta initial condition
@@ -55,11 +55,11 @@ pf.eta.ic.constant.value = 1.0
 ## Phi field initial conditions
 phi.ic.type = laminate
 phi.ic.laminate.center = 0.0 0.0 0.0 
-phi.ic.laminate.thickness = 0.0001
+phi.ic.laminate.thickness = 100._um
 phi.ic.laminate.orientation = 0 1 
 phi.ic.laminate.singlefab = 1 
 phi.ic.laminate.invert = 1
-phi.ic.laminate.eps = 0.00002
+phi.ic.laminate.eps = 20._um
 
 # Phase field parameters
 pf.kappa = 1.0
