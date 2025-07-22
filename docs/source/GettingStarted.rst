@@ -25,5 +25,4 @@ System Install Scripts
         Install/Ubuntu
         Install/MacOS
         Install/Windows
-        Install/HPC
            

@@ -7,6 +7,7 @@
 #include "IO/FileNameParse.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
+#include "Unit/Unit.H"
 #include <numeric>
 
 
@@ -21,13 +22,17 @@ Integrator::Integrator() : amrex::AmrCore()
         // These are basic parameters that are, in 
         // general, common to all Alamo simulations.
         IO::ParmParse pp;
-        pp_query_default("max_step", max_step, 2147483647);  // Number of iterations before ending (default is maximum possible int)
-        pp_query_required("stop_time", stop_time);    // Simulation time before ending
-        pp_query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
+        // Number of iterations before ending (default is maximum possible int)
+        pp_query_default("max_step", max_step, 2147483647);  
+        // Simulation time before ending
+        pp_query_required("stop_time", stop_time, Unit::Time());    
+        // Nominal timestep on amrlev = 0
+        pp_query_required("timestep", timestep, Unit::Time());      
         pp_query("restart", restart_file_cell);       // Name of restart file to READ from
         pp_query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
         pp_query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
     }
+
     {
         // This allows the user to ignore certain arguments that
         // would otherwise cause problems.
@@ -52,7 +57,7 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("regrid_int", regrid_int, 2);           // Regridding interval in step numbers
         pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
         pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
-        pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
+        pp.query_default("plot_dt", plot_dt, "-1.0", Unit::Time());                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
 
 
         // Output file: see IO::FileNameParse for wildcards and variable substitution
@@ -119,7 +124,7 @@ Integrator::Integrator() : amrex::AmrCore()
         thermo.interval = 1;                                       // Default: integrate every time.
         pp_query_default("int", thermo.interval, 1);               // Integration interval (1)
         pp_query_default("plot_int", thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
-        pp_query_default("plot_dt", thermo.plot_dt, -1.0);         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
+        pp_query_default("plot_dt", thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
     }
 
     {
@@ -324,28 +329,28 @@ Integrator::ClearLevel(int lev)
 
 
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, true, suffix);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, new_bc, ncomp, nghost, name, writeout, evolving, suffix);
 }
 void
-Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNewFab(Set::Field<Set::Scalar>& new_fab, int ncomp, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNewFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, true, suffix);
+    AddField<Set::Scalar, Set::Hypercube::Cell>(new_fab, nullptr, ncomp, 0, name, writeout, evolving, suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, true,suffix);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, new_bc, ncomp, nghost, name, writeout, evolving,suffix);
 }
 void
-Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, std::vector<std::string> suffix)
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar>& new_fab, int ncomp, int nghost, std::string name, bool writeout, bool evolving, std::vector<std::string> suffix)
 {
     //Util::Warning(INFO, "RegisterNodalFab is depricated. Please replace with AddField");
-    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, true,suffix);
+    AddField<Set::Scalar, Set::Hypercube::Node>(new_fab, nullptr, ncomp, nghost, name, writeout, evolving,suffix);
 }
 
 
@@ -1169,9 +1174,9 @@ Integrator::TimeStep(int lev, amrex::Real time, int /*iteration*/)
     }
 
     for (int n = 0; n < cell.number_of_fabs; n++)
-        FillPatch(lev, time, *cell.fab_array[n], *(*cell.fab_array[n])[lev], *cell.physbc_array[n], 0);
+        if (cell.evolving_array[n]) FillPatch(lev, time, *cell.fab_array[n], *(*cell.fab_array[n])[lev], *cell.physbc_array[n], 0);
     for (int n = 0; n < node.number_of_fabs; n++)
-        FillPatch(lev, time, *node.fab_array[n], *(*node.fab_array[n])[lev], *node.physbc_array[n], 0);
+        if (node.evolving_array[n]) FillPatch(lev, time, *node.fab_array[n], *(*node.fab_array[n])[lev], *node.physbc_array[n], 0);
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
         if (m_basefields_cell[n]->evolving) m_basefields_cell[n]->FillPatch(lev, time);
     for (unsigned int n = 0; n < m_basefields.size(); n++)

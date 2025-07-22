@@ -23,6 +23,7 @@
 #include <AMReX_Mask.H>
 #include <AMReX_Periodicity.H>
 
+#include "Unit/Unit.H"
 
 /// \brief Collection of boundary condition (BC) objects
 namespace BC
@@ -44,7 +45,8 @@ class BC
 public:
     virtual ~BC() {};
 
-    void define(const amrex::Geometry& a_geom) { m_geom = a_geom; };
+    void define(const amrex::Geometry& a_geom) 
+    { m_geom = a_geom; };
 
     virtual void FillBoundary(amrex::BaseFab<T>& in,
         const amrex::Box& box,
@@ -127,6 +129,7 @@ protected:
     amrex::Geometry m_geom;
     //std::vector<amrex::Geometry> &geom;
     //int lev=0;
+    Unit unit;
 };
 
 namespace BCUtil

@@ -50,7 +50,9 @@ public:
         pp_query("wtype", wtype); // Type o w function to use {square, multiwell, multiwell2, 4c3}
 
         Set::Scalar ductile_exponent = 1.;
-        if(gtype == "squarepexp"|| gtype == "cubicm") pp_query("exponent",ductile_exponent);
+        if(gtype == "squarepexp"|| gtype == "cubicm") 
+            // Ductile exponent
+            pp_query("exponent",ductile_exponent);
 
         std::map<std::string,Model::Interface::Crack::Crack::GType>  g_map;
         g_map["square"] = Model::Interface::Crack::Crack::GType::GSQUARE;

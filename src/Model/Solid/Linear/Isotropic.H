@@ -95,26 +95,8 @@ public:
         out << ddw;
     }
 
-    Set::Scalar W2(const Set::Matrix & stress)
-    {
-        return ( 0.5 * stress.transpose() * (ddw_inv * stress) ).trace();
-    }
-    Set::Matrix DW2(const Set::Matrix & stress) 
-    {
-        return ddw_inv * stress;
-    }
-    Set::Scalar Wvol(const Set::Scalar eps_tr)
-    {
-        return 0.5*ddw.Lambda()*eps_tr*eps_tr;
-    }
-    Set::Scalar Wdev(const Set::Matrix eps)
-    {
-        return ddw.Mu()*std::max((eps*eps).trace(),0.0);
-    }
-
 public:
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw;
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw_inv;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:
@@ -208,6 +190,9 @@ public:
     #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
+
+
+
 }
 }
 }
@@ -244,8 +229,8 @@ void Set::Field<Model::Solid::Linear::Isotropic>::Copy(int a_lev, amrex::MultiFa
                     dst(i, j, k, a_dstcomp + 1) = src(i, j, k).ddw.Mu();
                 });
             }
-}
-}
+        }
+    }
 }
 
 #endif

@@ -2,11 +2,7 @@
 #@ exe=sfi
 #@ dim=2
 #@ args = amr.n_cell = 64 8
-#@ args = amr.prob_lo = -24.0 -3.0 0.0
-#@ args = amr.prob_hi = 24.0, 3.0 0.0
 #@ args = amr.blocking_factor = 4
-
-
 
 
 alamo.program = allencahn

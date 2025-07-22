@@ -11,6 +11,7 @@
 #include <stdlib.h>
 
 #include <string>
+#include "Util/String.H"
 
 #include "AMReX.H"
 #include <AMReX_ParallelDescriptor.H>
@@ -25,24 +26,8 @@
 #define ALAMO_SINGLE_DEFINITION AMREX_ATTRIBUTE_WEAK
 #endif
 
-
-/// \brief A collection of utility routines
 namespace Util
 {
-/// \brief A collection of string operations
-namespace String
-{
-int ReplaceAll(std::string &str, const std::string before, const std::string after);
-int ReplaceAll(std::string &str, const char before, const std::string after);
-std::string Wrap(std::string text, unsigned per_line);
-std::string Join(std::vector<std::string> & vec, char separator = '_');
-std::vector<std::string> Split(std::string &str, const char token = ' ');
-bool Contains(std::string &str, const std::string find);
-template<class T>
-T Parse(std::string);
-template<>
-std::complex<int> Parse(std::string);
-}
 
 extern std::string globalprefix;
 extern bool initialized;
@@ -84,7 +69,7 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
     using List= int[];
     (void)List{0, ( (void)(messagestream << args), 0 ) ... };
     std::string message = messagestream.str();
-    String::ReplaceAll(message,'\n',"\n"+info);
+    Util::String::ReplaceAll(message,'\n',"\n"+info);
 
     std::cout << info << message << std::endl;
 
@@ -109,7 +94,7 @@ void Abort (std::string file, std::string func, int line, Args const &... args)
         (void)List{0, ( (void)(messagestream << args), 0 ) ... };
         std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
         //std::string messageorg = message;
-        String::ReplaceAll(message,'\n',"\n"+info);
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
         std::cout << info << message << std::endl;
     }
     Abort("Fatal Error");
@@ -131,7 +116,7 @@ void ParallelAbort (std::string file, std::string func, int line, Args const &..
     (void)List{0, ( (void)(messagestream << args), 0 ) ... };
     std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
     //std::string messageorg = message;
-    String::ReplaceAll(message,'\n',"\n"+info);
+    Util::String::ReplaceAll(message,'\n',"\n"+info);
     std::cout << info << message << std::endl;
 
     Abort("Fatal Error");
@@ -154,11 +139,44 @@ void Message (std::string file, std::string func, int line, Args const &... args
         (void)List{0, ( (void)(messagestream << args), 0 ) ... };
         std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
 
-        String::ReplaceAll(message,'\n',"\n"+info);
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
 
         std::cout << info << message << std::endl;
     }
 }
+
+#ifdef AMREX_DEBUG
+template<typename... Args>
+void DebugMessage (std::string file, std::string func, int line, Args const &... args)
+{
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        std::ostringstream infostream;
+        infostream << globalprefix;
+        infostream << Color::Bold << Color::FG::Blue << "MESSAGE" << Color::Reset << ": ";
+        infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
+        infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+        std::string info = infostream.str();
+
+        std::ostringstream messagestream;
+        using List= int[];
+        (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+        std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
+
+        std::cout << info << message << std::endl;
+    }
+}
+#else
+template<typename... Args>
+void DebugMessage (std::string, std::string, int, Args const &... )
+{
+}
+#endif
+
+
+
 
 template<typename... Args>
 void ParallelMessage (std::string file, std::string func, int line, Args const &... args)
@@ -173,7 +191,7 @@ void ParallelMessage (std::string file, std::string func, int line, Args const &
     using List= int[];
     (void)List{0, ( (void)(messagestream << args), 0 ) ... };
     std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
-    String::ReplaceAll(message,'\n',"\n"+info);
+    Util::String::ReplaceAll(message,'\n',"\n"+info);
     std::cout << info << message << std::endl;
 }
 
@@ -194,7 +212,7 @@ void Warning (std::string file, std::string func, int line, Args const &... args
         (void)List{0, ( (void)(messagestream << args), 0 ) ... };
         std::string message = messagestream.str();///String::Wrap(messagestream.str(),150);
 
-        String::ReplaceAll(message,'\n',"\n"+info);
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
 
         std::cout << info << message << std::endl;
     }
@@ -249,7 +267,7 @@ void AssertException (std::string file, std::string func, int line, std::string 
         using List= int[];
         (void)List{0, ( (void)(messagestream << args), 0 ) ... };
         std::string message = messagestream.str();
-        String::ReplaceAll(message,'\n',"\n"+info);
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
 
         std::cout << info << message << std::endl;
 
@@ -261,7 +279,6 @@ void AssertException (std::string file, std::string func, int line, std::string 
 
 template<typename... Args>
 void ParmParseException (   std::string file, std::string func, int line,
-                            std::string file2, std::string /*func2*/, int line2,
                             std::string fullname,
                             Args const &... args)
 {
@@ -284,10 +301,6 @@ void ParmParseException (   std::string file, std::string func, int line,
         if (nargs) messagestream << "\n";
         if (fullname != "")
             messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
-        if (line2 >= 0)
-        {
-            messagestream << " at " << file2 << ":" << line2;
-        }
 
         std::string message = messagestream.str();
 
@@ -341,6 +354,6 @@ template <class... Ts>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void IgnoreUnused (const Ts&...) {}
 
-
 }
+
 #endif
