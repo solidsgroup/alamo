@@ -2,8 +2,8 @@
 #@ dim = 2
 #@ check = true
 #@ check-file = reference/serial.dat
-#@ args = stop_time=0.001
-#@ args = amr.plot_dt=0.001
+#@ args = stop_time=0.001_s
+#@ args = amr.plot_dt=0.001_s
 #@ 
 #@ [2d-serial-coverage]
 #@ dim = 2
@@ -36,8 +36,8 @@ amr.refinement_criterion_temp = 10.0
 
 # Geometry and base grid size
 amr.n_cell = 16 2 2
-geometry.prob_lo = 0.000_m -0.00025_m -0.00025_m # [ m ] 
-geometry.prob_hi = 0.004_m  0.00025_m  0.00025_m # [ m ]
+geometry.prob_lo =    0.0_um -250._um -250._um
+geometry.prob_hi = 4000.0_um  250._um  250._um
 geometry.is_periodic = 0 1 1
 
 ## Timestep

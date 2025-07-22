@@ -172,16 +172,16 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("variable_pressure", value.variable_pressure, false);
 
     // Refinement criterion for eta field   
-    pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
-                     Unit::Less());
+    pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
+                        Unit::Less());
 
     // Refinement criterion for temperature field    
-    pp.query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, "0.001_K",
-                     Unit::Temperature());
+    pp.query_default(   "amr.refinement_criterion_temp", value.t_refinement_criterion, "0.001_K",
+                        Unit::Temperature());
 
     // Eta value to restrict the refinament for the temperature field 
-    pp.query_default("amr.refinament_restriction", value.t_refinement_restriction, "0.1",
-                     Unit::Less());
+    pp.query_default(   "amr.refinament_restriction", value.t_refinement_restriction, "0.1",
+                        Unit::Less());
 
     // Refinement criterion for phi field [infinity]
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
