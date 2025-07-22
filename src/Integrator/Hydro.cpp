@@ -91,6 +91,64 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
+        // Species inputs
+        pp_query_default("temperature", value.temperature, 300.0); // K
+        pp_queryarr_default("species", value.species, "N2 O2");
+        pp_queryarr("species_mw", value.species_mw); // g/mol or kg/kmol
+        value.nspecies = value.species.size();
+
+        if ( pp.contains("species_massf") ) {
+            pp_queryarr("species_massf", value.species_massf); // mass fractions
+            // Get mole fractions
+            value.species_molef = value.species_massf;
+            double moles = 0.0;
+            for (int i=0; i<value.nspecies; ++i) {
+                moles += value.species_massf[i] / value.species_mw[i];
+            }
+            for (int i=0; i<value.nspecies; ++i) {
+                value.species_molef[i] = value.species_massf[i] / value.species_mw[i] / moles;
+            }
+        } else if ( pp.contains("species_molef") ) {
+            pp_queryarr("species_molef", value.species_molef); // mole fractions
+            // Get mass fractions
+            value.species_massf = value.species_molef;
+            double mass = 0.0;
+            for (int i=0; i<value.nspecies; ++i) {
+                mass += value.species_molef[i] * value.species_mw[i];
+            }
+            for (int i=0; i<value.nspecies; ++i) {
+                value.species_massf[i] = value.species_molef[i] * value.species_mw[i] / mass;
+            }
+        } else {
+            Util::Exception(INFO,"Aborting. Must specify either `species_massf` or `species_molef`.");
+        }
+        
+        pp_queryarr("species_k", value.species_k); // W/m-K, thermal conductivity
+        pp_queryarr("species_cp", value.species_cp); // J/kg-K, specific heat by mass
+        pp_queryarr("species_mu", value.species_mu); //kg/m-s, dynamic viscosity
+
+        // Mixture viscosity - Multicomponent extension of Chapman-Enskog
+        // Transport Phenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 1.4
+        value.mu = 0.0;
+        value.k = 0.0;
+        for (int i=0; i<value.nspecies; ++i)
+        {
+            double phi = 0.0;
+            for (int j=0; j<value.nspecies; ++j)
+            {
+                phi += value.species_molef[j] * 1.0/sqrt(8.0) *
+                       pow(1.0 + value.species_mw[i]/value.species_mw[j], -0.5) *
+                       pow(1.0 + sqrt(value.species_mu[i]/value.species_mu[j]) *
+                       pow(value.species_mw[j]/value.species_mw[i], 0.25), 2.0);
+            }
+            value.mu += value.species_molef[i] * value.species_mu[i] / phi;
+            value.k += value.species_molef[i] * value.species_k[i] / phi;
+        }
+        
+        Util::Message(INFO, "nspecies: ", value.nspecies);
+        Util::Message(INFO, "mu: ", value.mu);
+        Util::Message(INFO, "k: ", value.k);
+
     }
     // Register FabFields:
     {

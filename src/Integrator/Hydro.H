@@ -152,12 +152,22 @@ protected:
     Set::Scalar vy_max = 0.0;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
-    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  pref=NAN;
+    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN, k=NAN, pref=NAN;
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
     Set::Scalar lagrange_m0=NAN;
+
+    Set::Scalar nspecies=0;
+    Set::Scalar temperature=0.0;
+    std::vector<std::string> species;
+    std::vector<double> species_mw;
+    std::vector<double> species_massf;
+    std::vector<double> species_molef;
+    std::vector<double> species_mu;
+    std::vector<double> species_k;
+    std::vector<double> species_cp;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
