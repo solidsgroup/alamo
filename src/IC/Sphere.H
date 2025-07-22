@@ -1,28 +1,26 @@
 //
 // Initialize a sphere region in which the field \(\eta=1\).
 // Can be a 3D sphere (xyz) or oriented around any of the three
-// axes.
+// axes. 
 //
 // :bdg-warning:`This functionality is replaced by IC::Expression.`
-//
+// 
 
 #ifndef IC_SPHERE_H_
 #define IC_SPHERE_H_
 
 #include <cmath>
 
-#include "Set/Set.H"
-#include "Set/Base.H"
-#include "IC/IC.H"
 #include "IO/ParmParse.H"
+#include "IC/IC.H"
 
 /// Initialize a spherical inclusion
 namespace IC
 {
-class Sphere : public IC<Set::Scalar>
+class Sphere: public IC<Set::Scalar>
 {
 public:
-    static constexpr const char *name = "sphere";
+    static constexpr const char* name = "sphere";
 
     /// Sphere is also used for a cylindrical case, but switching from the default type to the desired orientation.
     /// For instance, XY refers to a cylinder with the circular faces in the XY plane.
@@ -34,28 +32,32 @@ public:
         XY
     };
 
-    Sphere(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-    Sphere(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC(_geom)
+    Sphere(amrex::Vector<amrex::Geometry>& _geom): IC(_geom) {}
+    Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp): IC(_geom)
     {
         pp_queryclass(*this);
     }
-    Sphere(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom)
+    Sphere(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name): IC(_geom)
+    {
+        pp_queryclass(name, *this);
+    }
+    Sphere(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit, IO::ParmParse& pp, std::string name): 
+        IC(_geom), unit(a_unit)
     {
         pp_queryclass(name, *this);
     }
     /// Constructor defining radius, center, dimension/orientation, and field values within and outside of the area.
-    Sphere(amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _radius, Set::Vector _center, Type _type = Type::XYZ, Set::Scalar _alpha_in = 1, Set::Scalar _alpha_out = 0)
+    Sphere(amrex::Vector<amrex::Geometry>& _geom, Set::Scalar _radius, Set::Vector _center, Type _type = Type::XYZ, Set::Scalar _alpha_in = 1, Set::Scalar _alpha_out = 0)
         : IC(_geom)
     {
         Define(_radius, _center, _type, _alpha_in, _alpha_out);
     }
 
-    void
-    Define( Set::Scalar a_radius,
-            Set::Vector a_center,
-            Type a_type,
-            Set::Scalar a_alpha_in,
-            Set::Scalar a_alpha_out)
+    void Define(Set::Scalar a_radius,
+        Set::Vector a_center,
+        Type a_type,
+        Set::Scalar a_alpha_in,
+        Set::Scalar a_alpha_out)
     {
         radius = a_radius;
         center = a_center;
@@ -64,8 +66,7 @@ public:
         alpha_out = a_alpha_out;
     }
 
-    void
-    Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
         int ncomp = a_field[0]->nComp();
@@ -88,7 +89,8 @@ public:
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                Set::Scalar AMREX_D_DECL(x = 0.0, y = 0.0, z = 0.0);
+
+                Set::Scalar AMREX_D_DECL(x, y, z);
                 if (cellcentered)
                 {
                     AMREX_D_TERM(   x = problo(0) + ((Set::Scalar)(i)+0.5) * cellsize(0);,
@@ -108,8 +110,8 @@ public:
                 {
                     // 3D Sphere
                     rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
-                                        +(y - center(1)) * (y - center(1)),
-                                        +(z - center(2)) * (z - center(2)));
+                            +(y - center(1)) * (y - center(1)),
+                            +(z - center(2)) * (z - center(2)));
                 }
                 else if (type == Type::XY)
                 {
@@ -121,15 +123,15 @@ public:
                 {
                     // Cylinder along X axis
                     rsq = AMREX_D_TERM( ,
-                                        +(y - center(1)) * (y - center(1)),
-                                        +(z - center(2)) * (z - center(2)));
+                            +(y - center(1)) * (y - center(1)),
+                            +(z - center(2)) * (z - center(2)));
                 }
                 else if (type == Type::ZX)
                 {
                     // Cylinder along Y axis
                     rsq = AMREX_D_TERM( (x - center(0)) * (x - center(0)),
-                                        ,
-                                        +(z - center(2)) * (z - center(2)));
+                            ,
+                            +(z - center(2)) * (z - center(2)));
                 }
 
                 if (rsq < radius * radius)
@@ -149,16 +151,19 @@ public:
     };
     // This is a somewhat antiquated IC that will eventually be replaced
     // with the Expression IC.
-    static void
-    Parse(Sphere &value, IO::ParmParse &pp)
+    static void Parse(Sphere& value, IO::ParmParse& pp)
     {
-        pp_query_default("radius", value.radius, 1.0);     // Radius of the sphere
-        pp_queryarr("center", value.center);               // Vector location of the sphere center
-        pp_query_default("inside", value.alpha_in, 1.0);   // Value of the field inside the sphere
-        pp_query_default("outside", value.alpha_out, 0.0); // Value of the field outside teh sphere
+        // Radius of the sphere
+        pp_query_default("radius", value.radius,"1.0", Unit::Length()); 
+        // Vector location of the sphere center
+        pp_queryarr("center", value.center, Unit::Length()); 
+        // Value of the field inside the sphere
+        pp_query_default("inside", value.alpha_in,"1.0",value.unit); 
+        // Value of the field outside teh sphere
+        pp_query_default("outside", value.alpha_out,"0.0", value.unit); 
         std::string type;
         // Type - can be cylinder oriented along the x, y, z directions or full sphere.
-        pp_query_validate("type", type, { "xyz", "yz", "zx", "xy" });
+        pp_query_validate("type", type, {"xyz","yz","zx","xy"}); 
         if (type == "yz")
             value.type = Type::YZ;
         if (type == "zx")
@@ -175,6 +180,7 @@ private:
     Set::Scalar alpha_in = NAN;
     Set::Scalar alpha_out = NAN;
     Type type = Type::XYZ;
+    Unit unit = Unit::Less();
 };
 }
 #endif

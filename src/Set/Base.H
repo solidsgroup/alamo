@@ -109,7 +109,7 @@ Quaternion operator * (const Quaternion b, const Set::Scalar alpha)
     Quaternion ret;
     ret.w() = b.w()*alpha; ret.x() = b.x()*alpha; ret.y() = b.y()*alpha; ret.z() = b.z()*alpha;
     return ret;
-}
+}    
 AMREX_FORCE_INLINE
 AMREX_GPU_HOST_DEVICE
 Quaternion operator + (const Quaternion a, const Quaternion b)
@@ -117,7 +117,7 @@ Quaternion operator + (const Quaternion a, const Quaternion b)
     Quaternion ret;
     ret.w() = a.w()+b.w(); ret.x() = a.x()+b.x(); ret.y() = a.y()+b.y(); ret.z() = a.z()+b.z();
     return ret;
-}
+}    
 
 AMREX_FORCE_INLINE
 AMREX_GPU_HOST_DEVICE
@@ -126,7 +126,7 @@ Quaternion operator - (const Quaternion a, const Quaternion b)
     Quaternion ret;
     ret.w() = a.w()-b.w(); ret.x() = a.x()-b.x(); ret.y() = a.y()-b.y(); ret.z() = a.z()-b.z();
     return ret;
-}
+}    
 
 AMREX_FORCE_INLINE
 AMREX_GPU_HOST_DEVICE

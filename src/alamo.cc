@@ -1,4 +1,3 @@
-//
 // This is the main entry point for alamo and is a general-purpose launcher for
 // many of the main integrators.
 // Check the possible values for :code:`alamo.program` below to see the possible
@@ -9,7 +8,6 @@
 #include <fstream>
 #include <iomanip>
 
-#include "AMReX_ParallelDescriptor.H"
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 #include "IO/FileNameParse.H"
@@ -66,6 +64,7 @@ int main (int argc, char* argv[])
     }
     else if (program == "flame")                pp.select_only<Integrator::Flame>(integrator);
     else if (program == "heat")                 pp.select_only<Integrator::HeatConduction>(integrator);
+    else if (program == "fracture")             pp.select_only<Integrator::Fracture>(integrator);
     else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);

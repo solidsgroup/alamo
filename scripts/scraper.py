@@ -94,32 +94,31 @@ def extract(basefilename):
             while "  " in line:
                 line = line.replace("  "," ")
 
-            # Catch standard pp.query and pp.queryarr inputs
-            match = re.findall(r'^\s*pp.(query[arr]*[_required]*[_file]*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
-            if match:
-                query = dict()
-                query["type"] = match[0][0]
-                query["string"] = match[0][1]
-                query["doc"] = match[0][2]
-                query["file"] = filename
-                query["line"] = i+1
-                
-                # Check if previous lines have simple comments. Ignores "///" comments and
-                # any comment beginning with [
-                for j in reversed(range(0,i)):
-                    match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
-                    if match: query["doc"] = match[0] + " " + query["doc"]
-                    else: break
-                rets.append(query)
-                continue
+            
 
-            # Catch standard pp.query_default and pp.queryarr_default inputs
-            match = re.findall(r'^\s*pp.(query[arr]*_default*)\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*"*([^"^,]+)"*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            pp = r'pp[._]'
+            stringmatch = r'\s*"([^"]+)"\s*'
+            variablematch = r',\s*[\w.]+\s*'
+            unitmatch = r'(?:,\s*([^,()]+(?:\([^()]*\))?))?'
+            docmatch = r'\s*;\s*(?:\/\/\s*(.*))?$'
+            defaultmatch = r',\s*([^,)\s][^,)]*)\s*'
+            templatematch = r'\s*<([^>]+)>\s*'
+            stringarraymatch = r',\s*\{(.*)\}\s*'
+            nargs = r',*\s*([^)]*)'
+
+
+            # Skip of pp. is commented out
+            if "//" in line and line.find("//") < line.find("pp."): continue
+            if "//" in line and line.find("//") < line.find("pp_"): continue
+
+
+            # Catch standard pp.query and pp.queryarr inputs
+            match = re.findall(rf'{pp}(query(?:arr)?(?:_required)?(?:_file)?)\s*\({stringmatch}{variablematch}{unitmatch}\){docmatch}',line)
             if match:
                 query = dict()
                 query["type"] = match[0][0]
                 query["string"] = match[0][1]
-                query["default"] = match[0][2]
+                query["unit"] = match[0][2]
                 query["doc"] = match[0][3]
                 query["file"] = filename
                 query["line"] = i+1
@@ -133,8 +132,29 @@ def extract(basefilename):
                 rets.append(query)
                 continue
 
+            # Catch standard pp.query_default and pp.queryarr_default inputs
+            match = re.findall(rf'{pp}(query(?:arr)?_default)\s*\({stringmatch}{variablematch}{defaultmatch}{unitmatch}\){docmatch}',line)
+            if match:
+                query = dict()
+                query["type"] = match[0][0]
+                query["string"] = match[0][1]
+                query["default"] = match[0][2]
+                query["unit"] = match[0][3]
+                query["doc"] = match[0][4]
+                query["file"] = filename
+                query["line"] = i+1
+                
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    match = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if match: query["doc"] = match[0] + " " + query["doc"]
+                    else: break
+                rets.append(query)
+                continue
+
             # Catch standard pp.query_validate
-            match = re.findall(r'^\s*pp.query_validate\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,\s*\{(.*)\}\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'^\s*{pp}query_validate\s*\({stringmatch}{variablematch}{stringarraymatch}\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 query = dict()
                 query["type"] = "query_validate"
@@ -155,7 +175,7 @@ def extract(basefilename):
                 continue
 
             # Catch standard pp.query_validate
-            match = re.findall(r'pp\s*\.\s*query_exactly\s*<\s*(\d+)\s*>\s*\(\s*\{([^}]*)\}\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?',line)
+            match = re.findall(rf'{pp}query_exactly\s*<\s*(\d+)\s*>\s*\(\s*\{{([^}}]*)\}}\s*,[^)]*\)\s*;\s*(?:\/\/\s*(.*))?',line)
             if match:
                 query = dict()
                 query["type"] = "query_exactly"
@@ -177,7 +197,7 @@ def extract(basefilename):
 
 
             # Catch pp.queryclass inputs
-            match = re.findall(r'^\s*pp.queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*,*\s*[INFO]*\s*\);\s*(?:\/\/\s*(.*)$)?',line)
+            match = re.findall(rf'^\s*{pp}queryclass(?:<(.*)>)?\s*\(\s*"([^"]*)"(?:.*static_cast\s*<\s*(.*)\s*>.*)?[^)]*\s*\);\s*(?:\/\/\s*(.*)$)?',line)
             if match:
                 queryclass = dict()
                 queryclass["type"] = "queryclass"
@@ -198,13 +218,12 @@ def extract(basefilename):
 
             # Catch definition of a select function:
 
-            match = re.findall(r'pp\.(select[_default]*)\s*<\s*([^.]+)>\s*\("([^"]+)"\s*,.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}(select[_default]*){templatematch}\({stringmatch},.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = match[0][0]
                 input["classes"] = match[0][1].replace(' ','').split(',')
                 input["string"] = match[0][2].replace(' ','')
-                input["doc"] = ""
                 input["doc"] = match[0][3]
                 input["file"] = filename
                 input["line"] = i+1
@@ -217,10 +236,32 @@ def extract(basefilename):
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
                 rets.append(input)
+                continue
 
+
+            # Catch a queryclass_enumerate
+            match = re.findall(rf'{pp}select_enumerate{templatematch}\({stringmatch}{variablematch}{nargs}\){docmatch}',line)
+            if match:
+                input = dict()
+                input["type"] = "select_enumerate"
+                input["class"] = match[0][0].replace(' ','') 
+                input["string"] = match[0][1].replace(' ','')
+                input["doc"] = match[0][2]
+                input["file"] = filename
+                input["line"] = i+1
+
+                # Check if previous lines have simple comments. Ignores "///" comments and
+                # any comment beginning with [
+                for j in reversed(range(0,i)):
+                    docmatch = re.findall(r'^\s*\/\/(?!\/)(?!\s*\[)\s*(.*)',lines[j])
+                    if docmatch:
+                        input["doc"] = docmatch[0] + " " + input["doc"]
+                    else: break
+                rets.append(input)
+                continue
 
             # Catch definition of a select_main function:
-            match = re.findall(r'pp\.select_main\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}select_main\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = "select_main"
@@ -238,9 +279,10 @@ def extract(basefilename):
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
                 rets.append(input)
+                continue
 
             # Catch definition of a select_only function:
-            match = re.findall(r'pp\.select_only\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}select_only\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = "select_only"
@@ -258,9 +300,10 @@ def extract(basefilename):
                 #         input["doc"] = docmatch[0] + " " + input["doc"]
                 #     else: break
                 rets.append(input)
+                continue
 
             # Catch definition of a queryclass function:
-            match = re.findall(r'pp\.queryclass\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}queryclass\s*<\s*([^.]+)>\s*\(.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = "queryclass"
@@ -277,10 +320,11 @@ def extract(basefilename):
                     if docmatch:
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
-                rets.append(input)                
+                rets.append(input)
+                continue
 
             # Catch a queryclass 
-            match = re.findall(r'pp\.queryclass<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}queryclass<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*\s*[INFO]*\s*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
             if match:
                 input = dict()
                 input["type"] = "queryclass"
@@ -301,7 +345,7 @@ def extract(basefilename):
                 continue
 
             # Catch a query_enumerate
-            match = re.findall(r'pp\.query_enumerate\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,*.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}query_enumerate\s*\({stringmatch}{variablematch}{nargs}\){docmatch}',line)
             if match:
                 input = dict()
                 input["type"] = "query_enumerate"
@@ -321,7 +365,7 @@ def extract(basefilename):
                 continue
 
             # Catch a queryclass_enumerate
-            match = re.findall(r'pp\.queryclass_enumerate<([^>]+)>\s*\("([^"]+)"\s*,\s*[a-z,A-Z,0-9,_,.]*\s*,.*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}queryclass_enumerate{templatematch}\({stringmatch}{variablematch}{nargs}\){docmatch}',line)
             if match:
                 input = dict()
                 input["type"] = "queryclass_enumerate"
@@ -342,7 +386,7 @@ def extract(basefilename):
                 continue
 
             # Catch a queryclass with no ID
-            match = re.findall(r'pp\.queryclass<([^\)_]+)>\s*\([^\)]*\)\s*;\s*(?:\/\/\s*(.*))?$',line)
+            match = re.findall(rf'{pp}queryclass{templatematch}\({stringmatch}{nargs}\){docmatch}$',line)
             if match:
                 input = dict()
                 input["type"] = "querysubclass"
@@ -357,6 +401,33 @@ def extract(basefilename):
                         input["doc"] = docmatch[0] + " " + input["doc"]
                     else: break
                 rets.append(input)
+                continue
+                
+
+
+            if "pp.contains" in line: continue
+            if "pp.remove" in line:   continue
+            if "pp.forbid" in line:   continue
+            if "pp_forbid" in line:   continue
+            if "pp.ignore" in line:   continue
+            if "pp.add" in line:      continue
+            if "pp.getEntries" in line:      continue
+            if "pp.getPrefix" in line:      continue
+            if "pp.prefix" in line:      continue
+            if "pp.dumpTable" in line:      continue
+            if "pp.countval" in line:      continue
+            if "pp.AllUnusedInputs" in line:      continue
+            if "pp.AnyUnusedInputs" in line:      continue
+            if "pp.m_table" in line:      continue
+            if "queryclass" in line and "*this" in line: continue
+            if "query" and "c_str" in line: continue
+            if "query" and "data()" in line: continue
+
+            line = line.split('//')[0]
+            line = line.split('#')[0]
+            if "pp." in line or "pp_" in line:
+                print("WARNING: ", line,end="")
+                print("         ", basefilename, "\n")
 
     return rets
 

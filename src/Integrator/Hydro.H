@@ -12,6 +12,7 @@
 #include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
+#include "Solver/Local/Riemann/HLLC.H"
 
 #if AMREX_SPACEDIM==2
 
@@ -137,7 +138,8 @@ public:
 
     Solver::Local::Riemann::Riemann<
         Solver::Local::Riemann::Roe,
-        Solver::Local::Riemann::HLLE>
+        Solver::Local::Riemann::HLLE,
+        Solver::Local::Riemann::HLLC>
     riemannsolver;
 
     enum IntegrationScheme {

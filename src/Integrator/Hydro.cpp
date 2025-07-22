@@ -11,6 +11,7 @@
 #include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
+#include "Solver/Local/Riemann/HLLC.H"
 #if AMREX_SPACEDIM == 2
 
 namespace Integrator
@@ -18,7 +19,7 @@ namespace Integrator
 
 Hydro::Hydro(IO::ParmParse& pp) : Hydro()
 {
-    pp.queryclass(*this);
+    pp_queryclass(*this);
 }
 
 void
@@ -160,7 +161,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select<Solver::Local::Riemann::Roe,Solver::Local::Riemann::HLLE>("solver",value.riemannsolver);
+    pp.select<  Solver::Local::Riemann::Roe,
+                Solver::Local::Riemann::HLLE,
+                Solver::Local::Riemann::HLLC  >("solver",value.riemannsolver);
 
 
 
@@ -231,7 +234,7 @@ void Hydro::Mix(int lev)
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_HOST_DEVICE (int i, int j, int k)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
             rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
@@ -376,6 +379,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // buffer to hold combs of k1
         amrex::MultiFab density_temp(ba,dm,1,ng), momentum_temp(ba,dm,2,ng), energy_temp(ba,dm,1,ng);
 
+        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
+        density_temp.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+        momentum_temp.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
+        energy_temp.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+
         // handles to new solution
         amrex::MultiFab &density_new = *density_mf[lev];
         amrex::MultiFab &momentum_new = *momentum_mf[lev];
@@ -476,6 +484,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // temporary storage
         amrex::MultiFab density_st(ba,dm,1,ng), momentum_st(ba,dm,2,ng), energy_st(ba,dm,1,ng);
             
+        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
+        density_st.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+        momentum_st.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
+        energy_st.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
+
+
         // handles to new solution
         amrex::MultiFab &density_new = *density_mf[lev];
         amrex::MultiFab &momentum_new = *momentum_mf[lev];
@@ -740,6 +754,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Vector Pdot0 = Set::Vector::Zero(); 
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
+            // sten is necessary here because sometimes corner ghost
+            // cells don't get filled
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
@@ -941,6 +957,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //     Util::Exception(INFO);
             // }
 #endif
+
 
 
             // todo - may need to move this for higher order schemes...

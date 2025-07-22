@@ -21,6 +21,7 @@ FG_LIGHTBLUE       = \033[94m
 FG_CYAN            = \033[36m
 FG_MAGENTA         = \033[35m
 
+FG_ORANGE          = \033[38;5;208m
 
 
 
@@ -38,16 +39,16 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS += -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
 
-LINKER_FLAGS ?= -Bsymbolic-functions -lstdc++fs
+LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
 
 #CXX_COMPILE_FLAGS += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 #LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 
 
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     += -L${AMREX}/lib/ -lamrex 
+LIB     += ${AMREX}/lib/libamrex.a -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
@@ -104,6 +105,11 @@ realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -rf Makefile.conf Makefile.amrex.conf .make
 
+py: lib
+	python3 ./scripts/make_alamo_package.py
+
+lib: lib/libalamo-$(POSTFIX).so ${AMREX}/lib/libamrex.so
+	@printf $(POSTFIX)
 
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
@@ -125,6 +131,7 @@ bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o
 	@printf "$(RESET)$@\n"
 	@mkdir -p bin/
 	$(QUIET)$(LINK_CMD) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
+
 
 obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -228,6 +235,15 @@ cov/coverage_merged.info: $(GCDA_INFOS)
 cov/coverage_%.info: obj/obj-%-coverage-g++/ $(GCDA)
 	mkdir -p ./cov/
 	geninfo $< -b . -o $@ --exclude "/usr/*" --exclude "ext/*"
+
+lib/libalamo-$(POSTFIX).so: ${OBJ} 
+	@printf "$(B_ON)$(FG_ORANGE)LIBALAMO$(RESET)             $@\n" 	
+	$(QUIET)mkdir -p lib
+	$(QUIET)$(CC) -shared -fPIC -o $@ $^
+
+${AMREX}/lib/libamrex.so : ${AMREX}/lib/libamrex.a
+	@printf "$(B_ON)$(FG_ORANGE)LIBAMREX$(RESET)             $@\n" 	
+	$(QUIET)$(CC) -shared -fPIC -o $@ -Wl,--whole-archive $< -Wl,--no-whole-archive
 
 githubpages: docs cov-report
 	mkdir -p ./githubpages/

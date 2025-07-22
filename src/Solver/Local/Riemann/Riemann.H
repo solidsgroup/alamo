@@ -1,7 +1,6 @@
 #ifndef SOLVER_LOCAL_RIEMANN_H
 #define SOLVER_LOCAL_RIEMANN_H
 
-#include "IO/ParmParse.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
 
@@ -116,7 +115,7 @@ struct Flux {
         momentum_tangent(a_momentum_tangent), energy(a_energy) {}
 
     AMREX_GPU_HOST_DEVICE
-    Flux(State &in) :
+    Flux(const State &in) :
         mass(in.rho),
         momentum_normal(in.M_normal),
         momentum_tangent(in.M_tangent),
