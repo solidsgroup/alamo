@@ -189,21 +189,32 @@ public:
         return false;
     }
 
-    int queryunit (std::string name, Unit &value, const Unit type = Unit::Less())
+    int queryunit (std::string name, Unit &value)
     {
         try
         {
             std::string strvalue;
             int retval = amrex::ParmParse::query(name.c_str(),strvalue);
-            try
-            {
-                value = Unit::Parse(strvalue);
-                Util::DebugMessage(INFO,full(name),": ",strvalue," ==> ",value);
-            }
-            catch (std::runtime_error & e)
-            {
-                Util::ParmParseException(INFO,full(name), e.what());
-            }
+            value = Unit::Parse(strvalue);
+            Util::DebugMessage(INFO,full(name),": ",strvalue," ==> ",value);
+            return retval;
+        }
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    int queryunit (std::string name, Unit &value, const Unit type)
+    {
+        try
+        {
+            int retval = queryunit(name,value);
             if (!value.isType(type) && !value.isType(Unit::Less()))
             {
                 Util::ParmParseException(INFO, full(name),
@@ -212,13 +223,13 @@ public:
             }
             return retval;
         }
-        catch (std::runtime_error &e)
+        catch (...)
         {
-            Util::ParmParseException(INFO,full(name), e.what());
+            Util::ParmParseException(INFO,full(name));
         }
         return -1;
     }
-    int queryunit (std::string name, Set::Scalar &value, const Unit type = Unit::Less())
+    int queryunit (std::string name, Set::Scalar &value, const Unit type)
     {
         try
         {

@@ -10,6 +10,20 @@
 // where :math:`\alpha(x,t)` is the order parameter.
 //
 
+
+
+Free energy:
+
+.. math::
+
+
+
+
+
+
+
+
+
 #ifndef INTEGRATOR_ALLENCAHN_H // Include guards
 #define INTEGRATOR_ALLENCAHN_H // 
 
@@ -36,6 +50,7 @@
 #include "IC/PSRead.H"
 #include "Numeric/Stencil.H"
 #include "IC/Random.H"
+#include "Unit/Unit.H"
 
 namespace Integrator
 {
@@ -74,20 +89,20 @@ public:
         pp_query_default("refinement_threshold", value.refinement_threshold, 0.01);
 
         // Value for :math:`L` (mobility)
-        pp_query_default("ch.L",value.ch.L, 1.0);
+        pp.query_default("ch.L",value.ch.L, "1.0", 1/ Unit::Pressure()/Unit::Time());
         // Value for :math:`\epsilon` (diffuse boundary width)
-        pp_query_default("ch.eps",value.ch.eps, 0.1);
+        pp.query_default("ch.eps",value.ch.eps, "0.1", Unit::Length());
         // Value for :math:`\kappa` (Interface energy parameter)
-        pp_query_default("ch.grad",value.ch.grad, 1.0);
+        pp.query_default("ch.grad",value.ch.grad, "1.0", Unit::Energy()/Unit::Length());
         // Value for :math:`\lambda` (Chemical potential coefficient)
-        pp_query_default("ch.chempot",value.ch.chempot, 1.0);
+        pp_query_default("ch.chempot",value.ch.chempot, "1.0", Unit::Pressure());
         // Force directional growth: 0=no growth, 1=only positive, -1=only negative
         pp_query_validate("ch.direction",value.ch.direction, {0,1,-1});
         // Time to start forcing directional growth
         pp_query_default("ch.direction_tstart",value.ch.direction_tstart, 0.0);
 
         // Set the initial condition for the alpha field
-        pp.select_default<IC::Sphere, IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
+        pp.select_default<IC::Sphere, IC::Constant, IC::Expression,IC::BMP, IC::PNG, IC::Random, IC::PSRead>("alpha.ic", value.ic, value.geom);
         
 
         // Use a constant BC object for temperature
@@ -126,13 +141,15 @@ protected:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Scalar driving_force = 0.0;
+
                 // Chemical potential
                 Set::Scalar alpha_2 = alpha(i, j, k) * alpha(i, j, k);
                 Set::Scalar alpha_3 = alpha_2 * alpha(i, j, k);
-                driving_force += (ch.chempot / ch.eps) * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
+                driving_force += ch.chempot * (2.0 * alpha(i, j, k) - 6.0 * alpha_2 + 4.0 * alpha_3);
+
                 // Gradient
                 Set::Scalar alpha_lap = Numeric::Laplacian(alpha, i, j, k, 0, DX);
-                driving_force -= ch.eps * ch.grad * alpha_lap;
+                driving_force -= ch.grad * alpha_lap;
 
                 if (time >= ch.direction_tstart)
                 {

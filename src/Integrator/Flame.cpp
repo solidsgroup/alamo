@@ -470,7 +470,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + (laser(i,j,k)/pf.eps) ) / K;
-
+                
             }
 
         });
