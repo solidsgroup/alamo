@@ -122,12 +122,15 @@ public:
         pp_query_default("Pref",value.Pref,"1_MPa",Unit::Pressure());
         
         // AP volumetric mass flux reference value 
-        pp.query_default("mlocal_ap", value.mlocal_ap, "0.0", Unit::Mass()/Unit::Volume()); 
-        // HTPB volumetric mass flux reference value 
-        pp_query_default("mlocal_comb", value.mlocal_comb, "0.0", Unit::Mass()/Unit::Volume()); 
+        pp.query_default("mlocal_ap", value.mlocal_ap, "0.0", Unit::Density()/Unit::Time()); 
+        // combined volumetric mass flux reference value 
+        pp_query_default("mlocal_comb", value.mlocal_comb, "0.0", Unit::Density()/Unit::Time()); 
+        // HTPB volumetric mass flux reference value
+        pp.query_default("mlocal_htpb",value.mlocal_htpb, "5000_kg/m^3/s", Unit::Density()/Unit::Time());
 
-        Set::Scalar massfraction = 0.8;
-        value.mlocal_htpb = 685000.0 - 850e3 * massfraction; // Replicating but needs to be revised!
+        // Set::Scalar massfraction = 0.8;
+        // value.mlocal_htpb = 685000.0 - 850e3 * massfraction; // Replicating but needs to be revised!
+        // Util::Message(INFO,value.mlocal_htpb);
 
         // AP Density
         pp_query_required("rho_ap", value.rho_ap, Unit::Density());

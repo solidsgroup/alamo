@@ -136,7 +136,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.thermal.on) {
 
         // Used to change heat flux units
-        pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Energy()/Unit::Volume());
+        pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Volume());
 
         // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
@@ -158,7 +158,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
 
         // laser initial condition
-        pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom);
+        pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Volume());
 
         // thermal initial condition
         pp.select_default<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
