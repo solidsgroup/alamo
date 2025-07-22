@@ -29,8 +29,8 @@ def warning(msg):
 def validate(path, 
              outdir,
              vars = [],
-             start = [0,0,0],
-             end = [1,1,1],
+             start = None, #[0,0,0],
+             end = None, #[1,1,1],
              axis = 2,
              intercept = 0,
              generate_ref_data = False,
@@ -43,6 +43,9 @@ def validate(path,
             
     info = readHeader(path)
             
+    if not start: start = info["geom_lo"]
+    if not end:   end = info["geom_hi"]
+
     ds = yt.load(path)
     dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
 

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <stdexcept>
 
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
@@ -153,6 +154,59 @@ void Initialize (int argc, char* argv[])
     {
         file_overwrite = Util::CreateCleanDirectory(filename, false);
         IO::WriteMetaData(filename);
+    }
+
+    IO::ParmParse pp;
+    std::string length, time;
+    // Set the system length unit
+    pp.query_default("system.length",length,"m");
+    // Set the system time unit
+    pp.query_default("system.time",time,"s");
+    try
+    {
+        Unit::setLengthUnit(length);
+        Unit::setTimeUnit(time);
+    }
+    catch (std::runtime_error &e)
+    {
+        Util::Exception(INFO, "Error in setting system units: ", e.what());
+    }
+
+    //
+    // This is some logic to unit-ize the geometry.prob_lo, geometry.prob_hi input variables/
+    // We also do some checking to make sure the geometry is valid.
+    //
+    // Note that here, unlike most places, we actually **replace and overwrite** the 
+    // geom.prob_* variables, since they are read deep inside amrex infrastructure.
+    //
+    {
+        IO::ParmParse pp("geometry");
+        
+        if (pp.contains("prob_lo"))
+        {
+            std::vector<Set::Scalar> prob_lo, prob_hi;
+            // Location of the lower+left+bottom corner
+            pp.queryarr("prob_lo", prob_lo, Unit::Length());
+            // Location of the upper_right_top corner
+            pp.queryarr("prob_hi", prob_hi, Unit::Length());
+            pp.remove("prob_lo");
+            pp.remove("prob_hi");
+
+            Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
+                            "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
+            Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
+                            "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
+#if AMREX_SPACEDIM>2
+            Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
+                            "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
+#endif
+
+            Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
+            Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
+
+            pp.addarr("prob_lo",prob_lo);
+            pp.addarr("prob_hi",prob_hi);
+        }
     }
 }
 
