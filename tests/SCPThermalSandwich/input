@@ -21,7 +21,7 @@ alamo.program = flame
 
 plot_file = tests/SCPThermalSandwich/output
 
-system.length = m
+system.length = mm
 system.time = s
 
 # AMR and output parameters
@@ -62,10 +62,10 @@ phi.ic.laminate.invert = 1
 phi.ic.laminate.eps = 20._um
 
 # Phase field parameters
-pf.kappa = 1.0_J/m^3
-pf.w1    = 1.0_1
-pf.w12   = 2.0_1
-pf.w0    = 0.0_1
+pf.kappa_area = 1.0e-6_J/m^2
+pf.w1         = 1.0_1
+pf.w12        = 2.0_1
+pf.w0         = 0.0_1
 
 # Eta boundary conditions
 pf.eta.bc.type = constant
@@ -134,11 +134,11 @@ thermal.temp.bc.constant.val.zlo = 0.0
 thermal.temp.bc.constant.val.zhi = 0.0
 
 # volumetric heat flux multiplier
-thermal.hc = 1.0e7_W/m^3
+thermal.hc = 1.0e1_W/m^2
 
 # Laser initial condition
 laser.ic.type = constant
-laser.ic.constant.value = 1.0e6_W/m^3
+laser.ic.constant.value = 1.0_W/m^2
 
 # Chamber pressure (used for regression model)
 chamber.pressure = 4.0_MPa  ## [MPa]

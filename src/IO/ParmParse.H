@@ -1208,38 +1208,54 @@ public:
     void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N],
                        std::vector<Unit> units = std::vector<Unit>())
     {
-        Util::AssertException(INFO,TEST(units.size() == 0 || units.size() == names.size()),
-                              "# of units must be 0, 1, or ", names.size(), " but got ", units.size());
-
-        int cnt = 0;
-        std::vector<std::string> read;
-        for (unsigned int n = 0; n < names.size(); n++)
+        try
         {
-            if (amrex::ParmParse::contains(names[n].c_str()))
+            Util::AssertException(INFO,TEST(units.size() == 0 || units.size() == names.size()),
+                                  "# of units must be 0, 1, or ", names.size(), " but got ", units.size());
+
+            int cnt = 0;
+            std::vector<std::string> read;
+            for (unsigned int n = 0; n < names.size(); n++)
             {
-                read.push_back(names[n]);
-                cnt++;
+                if (amrex::ParmParse::contains(names[n].c_str()))
+                {
+                    read.push_back(names[n]);
+                    cnt++;
+                }
+            }
+            Util::AssertException(  INFO, TEST(cnt == N),
+                                    " Incorrect number of values specified: only ", N,
+                                    " values are allowed, but received ",
+                                    Util::String::Join(read,", "));
+
+
+            cnt = 0;
+            for (unsigned int n = 0; n < names.size(); n++)
+            {
+                if (amrex::ParmParse::contains(names[n].c_str()))
+                {
+                    values[cnt].first = names[n];
+
+                    if (units.size() == 0)
+                        query_required(names[n],values[cnt].second);
+                    else if (units.size() == 1)
+                        query_required(names[n],values[cnt].second,units[0]);
+                    else
+                        query_required(names[n],values[cnt].second,units[n]);
+                    cnt++;
+                }
             }
         }
-        Util::AssertException(  INFO, TEST(cnt == N), "incorrect number of values specified: only ", N,
-                                " values are allowed, but received ",Util::String::Join(read));
-
-
-        cnt = 0;
-        for (unsigned int n = 0; n < names.size(); n++)
+        catch(...)
         {
-            if (amrex::ParmParse::contains(names[n].c_str()))
+            std::string names_str = "[";
+            for (unsigned int i = 0; i < names.size(); i++)
             {
-                values[cnt].first = names[n];
-
-                if (units.size() == 0)
-                    query_required(names[n],values[cnt].second);
-                else if (units.size() == 1)
-                    query_required(names[n],values[cnt].second,units[0]);
-                else
-                    query_required(names[n],values[cnt].second,units[n]);
-                cnt++;
+                names_str += full(names[i]);
+                if (i < names.size()-1) names_str += ", ";
             }
+            names_str += "]";
+            Util::ParmParseException(INFO,names_str);
         }
     }
 
