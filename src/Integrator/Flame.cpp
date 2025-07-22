@@ -136,7 +136,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.thermal.on) {
 
         // Used to change heat flux units
-        pp_query_default("thermal.hc", value.thermal.hc, 1.0);
+        pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Energy()/Unit::Volume());
 
         // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
@@ -262,7 +262,7 @@ void Flame::Initialize(int lev)
         alpha_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-        thermal.w1 = 0.2 * chamber.pressure + 0.9;
+        //thermal.w1 = 0.2 * chamber.pressure + 0.9;
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;

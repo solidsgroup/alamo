@@ -98,7 +98,7 @@ private:
     // Thermal transport variables
     struct {
         bool on = 0;
-        Set::Scalar hc = NAN, w1 = NAN;
+        Set::Scalar hc = NAN; //w1 = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;

@@ -46,7 +46,7 @@ stop_time = 0.03_s
 
 small = 1.0e-8
 pf.eps = 1.0_um #0.0005 # [m]
-pf.lambda = 0.001
+pf.lambda = 0.001_J/m^3
 
 ## Eta initial condition
 pf.eta.ic.type = constant 
@@ -62,10 +62,10 @@ phi.ic.laminate.invert = 1
 phi.ic.laminate.eps = 20._um
 
 # Phase field parameters
-pf.kappa = 1.0
-pf.w1 = 1.0
-pf.w12 = 2.0
-pf.w0 = 0.0
+pf.kappa = 1.0_J/m^3
+pf.w1    = 1.0_1
+pf.w12   = 2.0_1
+pf.w0    = 0.0_1
 
 # Eta boundary conditions
 pf.eta.bc.type = constant
@@ -99,14 +99,15 @@ propellant.fullfeedback.cp_htpb   = 2418.29_J/kg/K
 propellant.fullfeedback.mlocal_ap = 1000.0
 propellant.fullfeedback.mlocal_comb = 0.0
 # Mass-to-heat flux fit parameters
-propellant.fullfeedback.a1 = 1.114 
-propellant.fullfeedback.a2 = 0.46  
-propellant.fullfeedback.a3 = 2.797
-propellant.fullfeedback.b1 = 0.323
-propellant.fullfeedback.b2 = 0.42
-propellant.fullfeedback.b3 = 0.3225
-propellant.fullfeedback.c1 = -0.09906
-propellant.fullfeedback.phi.zeta = 0.00002
+propellant.fullfeedback.a1 = 1.114_1
+propellant.fullfeedback.a2 = 0.460_1
+propellant.fullfeedback.a3 = 2.797_1
+propellant.fullfeedback.b1 = 0.323_1
+propellant.fullfeedback.b2 = 0.420_1
+propellant.fullfeedback.b3 = 0.3225_1
+propellant.fullfeedback.c1 = -0.09906_1
+propellant.fullfeedback.phi.zeta = 20._um
+propellant.fullfeedback.Pref = 1_MPa
 
 # Thermal transport parameters
 thermal.on = 1  
@@ -133,14 +134,14 @@ thermal.temp.bc.constant.val.zlo = 0.0
 thermal.temp.bc.constant.val.zhi = 0.0
 
 # Heat flux multiplier
-thermal.hc = 1.0e7
+thermal.hc = 1.0e7_
 
 # Laser initial condition
 laser.ic.type = constant
 laser.ic.constant.value = 1.0e6
 
 # Chamber pressure (used for regression model)
-chamber.pressure = 4.0  ## [MPa]
+chamber.pressure = 4.0_MPa  ## [MPa]
 
 # Disable elasticity
 elastic.type = disable

@@ -28,6 +28,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     // Fundamental units
     inline static const std::map<std::string, std::pair<double,std::array<int,7>>> base_units =
     {
+        {"1",  {1.0, {0,0,0,0,0,0,0}}},
         {"m",  {1.0, {1,0,0,0,0,0,0}}},
         {"s",  {1.0, {0,1,0,0,0,0,0}}},
         {"kg", {1.0, {0,0,1,0,0,0,0}}},
@@ -367,6 +368,11 @@ struct Unit : std::pair<double,std::array<int,7>>
         ret.second = rhs.second;
         return ret;
     }
+    friend Unit operator / (double lhs, const Unit& rhs) {
+        Unit ret = Unit::Less() / rhs;
+        ret.first = lhs * rhs.first;
+        return ret;
+    }
     Unit operator / (const Unit &rhs)
     {
         Unit ret;
@@ -387,8 +393,8 @@ struct Unit : std::pair<double,std::array<int,7>>
 
     friend std::ostream& operator<<(std::ostream &out, const Unit &a) 
     {
-        std::cout << a.normalized_value() << " ";
-        std::cout << a.normalized_unitstring();
+        out << a.normalized_value() << "_";
+        out << a.normalized_unitstring();
         return out;
     }
 

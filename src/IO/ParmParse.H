@@ -198,6 +198,7 @@ public:
             try
             {
                 value = Unit::Parse(strvalue);
+                Util::DebugMessage(INFO,full(name),": ",strvalue," ==> ",value);
             }
             catch (std::runtime_error & e)
             {
@@ -542,6 +543,8 @@ public:
                 for (unsigned int i = 0; i < valstrings.size(); i++)
                 {
                     Unit unitvalue = Unit::Parse(valstrings[i]);
+                    Util::DebugMessage(INFO,full(name),": ",valstrings[i]," ==> ",unitvalue);
+
                     if (!unitvalue.isType(unit) && !unitvalue.isType(Unit::Less()))
                     {
                         Util::Exception(INFO,"value specified had wrong units:", valstrings[i]);
