@@ -25,7 +25,7 @@ system.length = m
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 0.001
+amr.plot_dt = 0.001_s
 amr.max_level = 7
 amr.max_grid_size = 50
 amr.blocking_factor = 2
@@ -147,7 +147,7 @@ chamber.pressure = 4.0_MPa  ## [MPa]
 elastic.type = disable
 
 # Disable plotting all extra fields
-plot_field = 0
+plot_field = 1
 
 # Disable NAN checking
 amr.abort_on_nan = 0

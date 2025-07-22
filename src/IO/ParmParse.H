@@ -1205,8 +1205,12 @@ private:
 public:
 
     template <int N>
-    void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N])
+    void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N],
+                       std::vector<Unit> units = std::vector<Unit>())
     {
+        Util::AssertException(INFO,TEST(units.size() == 0 || units.size() == names.size()),
+                              "# of units must be 0, 1, or ", names.size(), " but got ", units.size());
+
         int cnt = 0;
         std::vector<std::string> read;
         for (unsigned int n = 0; n < names.size(); n++)
@@ -1227,7 +1231,13 @@ public:
             if (amrex::ParmParse::contains(names[n].c_str()))
             {
                 values[cnt].first = names[n];
-                query_required(names[n],values[cnt].second);
+
+                if (units.size() == 0)
+                    query_required(names[n],values[cnt].second);
+                else if (units.size() == 1)
+                    query_required(names[n],values[cnt].second,units[0]);
+                else
+                    query_required(names[n],values[cnt].second,units[n]);
                 cnt++;
             }
         }

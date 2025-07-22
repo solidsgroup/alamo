@@ -106,7 +106,7 @@ public:
         // Surrogate heat flux model paramater - HTPB
         pp_query_required("a2", value.a2,Unit::Less()); 
         // Surrogate heat flux model paramater - Total
-        pp_query_required("a3", value.a3,1 / Unit::Less()); 
+        pp_query_required("a3", value.a3,Unit::Less()); 
         // Surrogate heat flux model paramater - AP
         pp_query_required("b1", value.b1, Unit::Less()); 
         // Surrogate heat flux model paramater - HTPB
