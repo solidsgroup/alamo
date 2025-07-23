@@ -60,8 +60,13 @@ public:
     static constexpr const char* name = "constant";
 
     //Constant (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
-    Constant(int a_ncomp) : m_ncomp(a_ncomp) {};
+    Constant(int a_ncomp, Unit a_unit = Unit::Less()) : m_ncomp(a_ncomp), unit(a_unit) {};
     Constant(int a_ncomp, IO::ParmParse& pp, std::string name) : m_ncomp(a_ncomp)
+    {
+        pp_queryclass(name, *this);
+    };
+    Constant(int a_ncomp, Unit a_unit, IO::ParmParse& pp, std::string name) : 
+        m_ncomp(a_ncomp), unit(a_unit)
     {
         pp_queryclass(name, *this);
     };
@@ -74,9 +79,9 @@ public:
             amrex::Vector<amrex::Real> _bc_hi_2,
             amrex::Vector<amrex::Real> _bc_hi_3));
 
-    static Constant ZeroNeumann(int ncomp = 1)
+    static Constant ZeroNeumann(int ncomp = 1, Unit unit = Unit::Less())
     {
-        Constant ret = Constant(ncomp);
+        Constant ret = Constant(ncomp, unit);
 
         for (int d = 0; d < m_nfaces; d++)
         {
@@ -91,9 +96,9 @@ public:
         return ret;
     }
 
-    static Constant ZeroDirichlet(int ncomp = 1)
+    static Constant ZeroDirichlet(int ncomp = 1, Unit unit = Unit::Less())
     {
-        Constant ret = Constant(ncomp);
+        Constant ret = Constant(ncomp, unit);
 
         for (int d = 0; d < m_nfaces; d++)
             for (int n = 0; n < ncomp; n++)
@@ -138,6 +143,7 @@ private:
 #endif
 
     unsigned int m_ncomp = 0;
+    Unit unit = Unit::Less();
 
     //int bc_lo[BL_SPACEDIM];
     //int bc_hi[BL_SPACEDIM];
@@ -232,32 +238,36 @@ public:
         std::vector<std::string> val;
         value.m_bc_val[Face::XLO].clear();
         pp_queryarr_default("val.xlo", val,"0.0");  // BC value on the lower x edge (2d) face (3d)
-        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
-        else if (val.size() == 1) value.m_bc_val[Face::XLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
-        else if (val.size() == 0) value.m_bc_val[Face::XLO].resize(value.m_ncomp, 0.0);
+        if (val.size() == value.m_ncomp) 
+            for (unsigned int i = 0; i < value.m_ncomp; i++) 
+                value.m_bc_val[Face::XLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
+        else if (val.size() == 1) 
+            value.m_bc_val[Face::XLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
+        else if (val.size() == 0) 
+            value.m_bc_val[Face::XLO].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::XHI].clear();
         pp_queryarr_default("val.xhi", val,"0.0"); // BC value on the upper x edge (2d) face (3d)
-        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
+        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::XHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::XHI].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::YLO].clear();
         pp_queryarr_default("val.ylo", val,"0.0");  // BC value on the lower y edge (2d) face (3d)
-        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
+        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::YLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::YLO].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         value.m_bc_val[Face::YHI].clear();
         pp_queryarr_default("val.yhi", val,"0.0"); // BC value on the upper y edge (2d) face (3d)
-        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
+        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::YHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::YHI].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
         pp_queryarr_default("val.zlo", val,"0.0");  // BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         value.m_bc_val[Face::ZLO].clear();
-        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
+        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::ZLO].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::ZLO].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
@@ -265,7 +275,7 @@ public:
         pp_queryarr_default("val.zhi", val,"0.0"); // BC value on the upper z face (processed but ignored in 2d to prevent unused input errors)
 #if AMREX_SPACEDIM==3
         value.m_bc_val[Face::ZHI].clear();
-        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i]));
+        if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i],Unit::Time(),value.unit));
         else if (val.size() == 1) value.m_bc_val[Face::ZHI].resize(value.m_ncomp, Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
         else if (val.size() == 0) value.m_bc_val[Face::ZHI].resize(value.m_ncomp, 0.0);
         else Util::Exception(INFO, "Incorrect number of ", pp.prefix(), " BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());
