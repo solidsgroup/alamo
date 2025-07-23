@@ -54,6 +54,10 @@ public:
     {
         pp_queryclass(name, *this);
     };
+    Expression(int a_ncomp, Unit /*a_unit*/, IO::ParmParse& pp, std::string name) : m_ncomp(a_ncomp)
+    {
+        pp_queryclass(name, *this);
+    };
 
     virtual ~Expression() {};
 

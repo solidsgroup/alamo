@@ -3,6 +3,8 @@
 
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
+#include "Util/Util.H"
+#include "Unit/Unit.H"
 
 #ifndef ALAMO_NOPNG
 #include <png.h>
@@ -46,8 +48,10 @@ public:
         else if (fit == "coord")
         {
             value.fit = Fit::Coord;
-            pp_queryarr("coord.lo", value.coord_lo); // Lower-left coordinates of image in domain
-            pp_queryarr("coord.hi", value.coord_hi); // Upper-right coordinates of image in domain
+            // Lower-left coordinates of image in domain
+            pp_queryarr("coord.lo", value.coord_lo,Unit::Length()); 
+            // Upper-right coordinates of image in domain
+            pp_queryarr("coord.hi", value.coord_hi,Unit::Length()); 
         }
         else Util::Abort(INFO);
 
@@ -121,6 +125,7 @@ public:
 
         png_destroy_read_struct(&png, &info, NULL);
 #else
+        Util::IgnoreUnused(value,pp);
         Util::Abort(INFO,"PNG is disabled");
 #endif
 
@@ -131,6 +136,8 @@ public:
         domain_lo = _lo;
         domain_hi = _hi;
         domain_defined = false;
+#else
+        Util::IgnoreUnused(_lo,_hi);
 #endif
     }
 
@@ -142,6 +149,8 @@ public:
         png_bytep px = &row_pointers[J][I * 4];
         ret = { px[0], px[1], px[2], px[3] };
         return ret;
+#else
+        Util::IgnoreUnused(I,J);
 #endif
     }
 
@@ -258,6 +267,9 @@ public:
             }
         }
         return ret;
+#else
+        Util::IgnoreUnused(x);
+        return {NAN,NAN,NAN,NAN};
 #endif
     }
 

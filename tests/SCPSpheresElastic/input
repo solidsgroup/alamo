@@ -98,6 +98,7 @@ propellant.fullfeedback.mlocal_ap = 1000.0
 propellant.fullfeedback.mlocal_comb = 0.0
 propellant.fullfeedback.phi.zeta_0 = 1.13e-5
 propellant.fullfeedback.phi.zeta = 1.13e-5 
+propellant.fullfeedback.Pref = 1.0_MPa 
 
 
 # Activate thermal transport
@@ -128,7 +129,7 @@ laser.ic.constant.value = 1.0e6
 thermal.hc = 1.0e7
 
 # Pressure
-chamber.pressure = 4.0 # [MPa]
+chamber.pressure = 4.0_MPa # [MPa]
 
 
 # Thermoelasticity
