@@ -5,6 +5,8 @@
 
 alamo.program = fracture
 
+amr.abort_on_nan = 0
+
 timestep = 5e-5
 stop_time = 0.6
 
@@ -38,8 +40,8 @@ crack.model1.fracture_strength = 3.16e8
 crack.model1.E = 4.e11
 crack.model1.zeta = 2.e-4
 crack.model1.mobility = 5.0e-2
-crack.model1.gtype = wu_linear
-crack.model1.wtype = wu
+crack.model1.gtype = square # wu_linear
+crack.model1.wtype = square # wu
 crack.model1.threshold = 1.0 
 
 crack.ic.type = notch
