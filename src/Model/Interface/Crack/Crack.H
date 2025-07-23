@@ -131,6 +131,7 @@ class Crack
 
             default:    Util::Abort(INFO, "Dissipation function type must be specified");
         }
+        return NAN;
     }
 
     virtual Set::Scalar Gc(Set::Scalar theta) = 0;

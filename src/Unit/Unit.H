@@ -28,6 +28,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     // Fundamental units
     inline static const std::map<std::string, std::pair<double,std::array<int,7>>> base_units =
     {
+        {"1",  {1.0, {0,0,0,0,0,0,0}}},
         {"m",  {1.0, {1,0,0,0,0,0,0}}},
         {"s",  {1.0, {0,1,0,0,0,0,0}}},
         {"kg", {1.0, {0,0,1,0,0,0,0}}},
@@ -193,9 +194,9 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit LuminousIntensity() { return Unit{1.0, {0,0,0,0,0,0,1}}; } // cd
 
     // Geometry and kinematics
-    static Unit Area() { return Length()*Length(); }
-    static Unit Volume() { return Length()*Length()*Length(); }
-    static Unit Velocity() {return Length() / Time();}
+    static Unit Area()        { return Length()*Length(); }
+    static Unit Volume()      { return Length()*Length()*Length(); }
+    static Unit Velocity()    { return Length() / Time();}
     static Unit Acceleration(){ return Velocity() / Time(); }
     // Mechanics
     static Unit Force()       { return Mass() * Acceleration(); } // kg·m/s² = N
@@ -208,10 +209,10 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit SpecificWeight() { return Force() / Volume(); }
     static Unit Work()        { return Energy(); }
     // Thermodynamics
-    static Unit SpecificHeatCapacity() {return Energy() / Mass() / Temperature() ;}
-    static Unit ThermalConductivity() {return Power()/Length()/Temperature();}
-    static Unit ThermalDiffusivity() {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
-    static Unit HeatFlux()             { return Power() / Area(); }
+    static Unit SpecificHeatCapacity()    {return Energy() / Mass() / Temperature() ;}
+    static Unit ThermalConductivity()     {return Power()/Length()/Temperature();}
+    static Unit ThermalDiffusivity()      {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
+    static Unit HeatFlux()                { return Power() / Area(); }
     static Unit HeatTransferCoefficient() { return HeatFlux() / Temperature(); }
     // Electromagnetism
 
@@ -361,6 +362,17 @@ struct Unit : std::pair<double,std::array<int,7>>
         for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] + rhs.second[i];
         return ret;
     }
+    friend Unit operator*(double lhs, const Unit& rhs) {
+        Unit ret;
+        ret.first = lhs * rhs.first;
+        ret.second = rhs.second;
+        return ret;
+    }
+    friend Unit operator / (double lhs, const Unit& rhs) {
+        Unit ret = Unit::Less() / rhs;
+        ret.first = lhs * rhs.first;
+        return ret;
+    }
     Unit operator / (const Unit &rhs)
     {
         Unit ret;
@@ -368,7 +380,6 @@ struct Unit : std::pair<double,std::array<int,7>>
         for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] - rhs.second[i];
         return ret;
     }
-
     Unit operator ^ (const int &rhs)
     {
         Unit ret;
@@ -382,8 +393,8 @@ struct Unit : std::pair<double,std::array<int,7>>
 
     friend std::ostream& operator<<(std::ostream &out, const Unit &a) 
     {
-        std::cout << a.normalized_value() << " ";
-        std::cout << a.normalized_unitstring();
+        out << a.normalized_value() << "_";
+        out << a.normalized_unitstring();
         return out;
     }
 
