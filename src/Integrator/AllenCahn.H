@@ -100,8 +100,8 @@ public:
         else if (ch_coeffs[0].first == "ch.sigma" && ch_coeffs[1].first == "ch.eps")
         {
             Set::Scalar sigma = ch_coeffs[0].second, eps = ch_coeffs[1].second;
-            value.ch.lambda = 24.0 * sigma / eps;
-            value.ch.kappa = 3.0 * sigma * eps;
+            value.ch.lambda = 4.0 * sigma / eps;
+            value.ch.kappa = sigma * eps / 2.0;
         }
         
 

@@ -1,13 +1,20 @@
 
 #@
-#@ [eps_0.50_sigma_0.01]
+#@ [eps_0.50_sigma_0.05]
 #@ exe=alamo
 #@ dim=2
 #@ args = ch.eps=0.50
-#@ args = ch.sigma=0.01
-#@ check-file = eps_0.50_sigma_0.01
+#@ args = ch.sigma=0.05
+#@ check-file = eps_0.50_sigma_0.05
 #@
-#@ [eps_0.05_sigma_0.01]
+#@ [eps_0.50_sigma_0.1]
+#@ exe=alamo
+#@ dim=2
+#@ args = ch.eps=0.50
+#@ args = ch.sigma=0.1
+#@ check-file = eps_0.50_sigma_0.1
+#@
+#@ [eps_0.05_sigma_0.05]
 #@ exe=alamo
 #@ dim=2
 #@ args = ch.eps=0.05
