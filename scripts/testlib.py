@@ -31,7 +31,8 @@ def readContours(path,
                  axis = 2,
                  intercept = 0,
                  coord = 'x',
-                 vars=[]):
+                 vars=[],
+                 returnAll = False):
                  
     ds = yt.load(path)
     dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
@@ -45,11 +46,13 @@ def readContours(path,
     prof = ds.ray(start,end)
     slice2d = ds.slice(axis,intercept)
 
-    print("HERE",vars)
     new_df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),*vars])
     new_df = new_df.sort_values(by=coord)
 
-    return new_df, slice2d
+    if returnAll:
+        return new_df, slice2d, ds, dim
+    else: 
+        return new_df
 
 def validate(path, 
              outdir,
@@ -71,7 +74,8 @@ def validate(path,
     if not start: start = info["geom_lo"]
     if not end:   end = info["geom_hi"]
                  
-    new_df, slice2d = readContours(path=path,start=start,end=end,axis=axis,intercept=intercept,coord=coord,vars=vars)
+    new_df, slice2d, ds, dim = readContours(path=path,start=start,end=end,axis=axis,
+                                       intercept=intercept,coord=coord,vars=vars,returnAll=True)
 
     if not reference:
         reference = "reference/reference-{}d.csv".format(dim)

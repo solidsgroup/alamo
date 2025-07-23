@@ -21,8 +21,8 @@ alamo.program = flame
 
 plot_file = tests/SCPThermalSandwich/output
 
-system.length = mm
-system.time = ms
+system.length = m
+system.time = s
 
 # AMR and output parameters
 amr.plot_dt = 0.001_s
