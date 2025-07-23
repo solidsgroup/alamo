@@ -662,6 +662,7 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
 {
     BL_PROFILE("Flame::Integrate");
     
+    Base::Mechanics<model_type>::Integrate(amrlev,time,timestep,mfi,box);
     if (hydro.on && time >= hydro.tstart) Hydro::Integrate(amrlev, time, step, mfi, box);
 
     const Set::Scalar* DX = geom[amrlev].CellSize();
