@@ -29,19 +29,31 @@ geometry.prob_hi = 0.24  0.03
 ### HYDRO PARAM ###
 gamma = 1.4
 mu    = 5.0
-pref    = 10000
+pref    = 101325
+
+temperature = 296.1
 #species = N2 O2
 #species_mw = 28.0134 31.9988
 #species_massf = 0.767, 0.233
 #species_k = 0.0240, 0.026
 #species_cp = 1040.0, 920.0
 #species_mu = 175.4E-7, 203.1E-7
-species = CO2 O2 N2
-species_mw = 44.010 32.000 28.016
-species_molef = 0.133 0.039 0.828
-species_k = 383.0E-7 612.0E-7 627.0E-7
-species_cp = 1400.0 920.0 1040.0
-species_mu = 1462.0E-7 2031.0E-7 1754.0E-7
+
+#species = CO2 O2 N2
+#species_mw = 44.010 32.000 28.016
+#species_molef = 0.133 0.039 0.828
+#species_k = 383.0E-7 612.0E-7 627.0E-7
+#species_cp = 1400.0 920.0 1040.0
+#species_mu = 1462.0E-7 2031.0E-7 1754.0E-7
+
+species = CO CO2
+species_mw = 28.01 44.01
+species_massf = 0.5 0.5
+species_k = 0.026 0.026
+species_cp = 1400.0 1200.0
+species_mu = 1462E-7 1400E-7
+species_LJdiameter = 3.590 3.996
+species_LJwelldepth = 110 190
 #hydro.rho_solid = 30.0 #kg/m^3
 #hydro.rho_fluid = 20.0 #kg/m^3
 #hydro.E_solid   = 5.0

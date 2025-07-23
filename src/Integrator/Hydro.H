@@ -14,6 +14,7 @@
 
 #if AMREX_SPACEDIM==2
 
+double collision_integral( double );
 namespace Integrator
 {
 class Hydro : virtual public Integrator
@@ -159,7 +160,7 @@ protected:
     Set::Scalar lagrange=NAN;
     Set::Scalar lagrange_m0=NAN;
 
-    Set::Scalar nspecies=0;
+    int nspecies = 0;
     Set::Scalar temperature=0.0;
     std::vector<std::string> species;
     std::vector<double> species_mw;
@@ -168,6 +169,8 @@ protected:
     std::vector<double> species_mu;
     std::vector<double> species_k;
     std::vector<double> species_cp;
+    std::vector<double> species_LJdiameter;
+    std::vector<double> species_LJwelldepth;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
