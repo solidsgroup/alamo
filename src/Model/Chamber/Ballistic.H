@@ -64,18 +64,19 @@ public:
         pp.query_default("pressure",value.pressure,4.0);
         
         // Throat area [m^2]
-        pp.query_default("At",value.At,0.1);
+        pp.query_default("At",value.At,"0.1_m^2", Unit::Area());
         
         // pp.query_default("vol",value.vol,1.0);
         
         // Specific gas constant for air [J/kg/K]
-        pp.query_default("R",value.R, 0.000287);
+        pp.query_default("R",value.R, "0.000287_J/kg/K",
+                         Unit::Energy() / Unit::Mass() / Unit::Temperature());
         
         // Initial temperature [K]
-        pp.query_default("T0",value.T0,300.0);
+        pp.query_default("T0",value.T0,"300.0_K", Unit::Temperature());
         
         // Specific heat ratio
-        pp.query_default("gamma",value.gamma,1.4);
+        pp.query_default("gamma",value.gamma,"1.4",Unit::Less());
     }
 
 

@@ -87,6 +87,8 @@ propellant.homogenize.mlocal_ap = 1000.0_kg/m^2/s # [???] kg/s
 propellant.homogenize.h1        = 1.81_W/m^2 # W/N
 propellant.homogenize.h2        = 1.34_W/m^2 # W/m^2
 
+propellant.homogenize.Pref = 1_MPa
+
 thermal.on = 1
 thermal.Tref = 500 #[K]
 thermal.temp.bc.type = constant
@@ -105,20 +107,19 @@ thermal.temp.bc.constant.val.zhi = 0.0
 
 # Temperature initial conditions
 temp.ic.type="constant"
-temp.ic.constant.value=500 #[K]
+temp.ic.constant.value=500_K #[K]
 
 # Laser source term
 laser.ic.type = constant
-laser.ic.constant.value = 5.0e6 #[ Units? ] kW/cm^2
-thermal.hc = 1.0e7 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
+laser.ic.constant.value = 5.0e6_kW/cm^2 #[ Units? ] kW/cm^2
+thermal.hc = 1.0e7_kW/m^2 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
 
 # Pressure
 variable_pressure = 1
-chamber.pressure = 4.0 # [MPa?] yes MPa
-chamber.ballistic.At = 1.0 # [?] m^2
-chamber.ballistic.T0 = 500 # [?] K 
-chamber.ballistic.R = 0.000287 #[?] J/kg/K
-
+chamber.pressure = 4.0_MPa # [MPa?] yes MPa
+chamber.ballistic.At = 1.0_m^2 # [?] m^2
+chamber.ballistic.T0 = 500_K # [?] K 
+chamber.ballistic.R = 0.000287_J/kg/K #[?] J/kg/K
 
 # Thermoelasticity
 #elastic.on = 0

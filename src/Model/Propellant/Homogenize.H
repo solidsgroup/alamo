@@ -79,13 +79,13 @@ public:
         if (L != L)
         {
             Util::Message(INFO,phi);
-            Util::Message(INFO,T);
+            Util::Message(INFO,Unit::Temperature(T));
             Util::Message(INFO,Pbar);
-            Util::Message(INFO,E_ap);
+            Util::Message(INFO,Unit::Temperature(E_ap));
             Util::Message(INFO,phi);
-            Util::Message(INFO,m_ap);
-            Util::Message(INFO,m_htpb);
-            Util::Abort(INFO,L);
+            Util::Message(INFO,Unit::Velocity(m_ap));
+            Util::Message(INFO,Unit::Velocity(m_htpb));
+            Util::Abort(INFO,L / Unit::Pressure() / Unit::Time());
         }
             
         return L;
