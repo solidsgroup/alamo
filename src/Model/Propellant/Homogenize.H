@@ -8,6 +8,7 @@
 #ifndef MODEL_PROPELLANT_HOMOGENIZE_H
 #define MODEL_PROPELLANT_HOMOGENIZE_H
 
+#include "IO/ParmParse.H"
 #include "Propellant.H"
 #include "Util/Util.H"
 
@@ -36,10 +37,10 @@ public:
         return NAN;
     }
 
-    Set::Scalar P = NAN;
+    Set::Scalar Pbar = NAN;
     void set_pressure(const Set::Scalar P) 
     {
-        this->P = P;
+        this->Pbar = P/Pref;
         k4 = h1 * P + h2;
     }
     
@@ -70,7 +71,7 @@ public:
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;
-        if (mob_ap == 1) L = m_ap * P * exp(-E_ap / T) * phi;
+        if (mob_ap == 1) L = m_ap * Pbar * exp(-E_ap / T) * phi;
         else L = m_ap * exp(-E_ap / T) * phi;
         L += m_htpb * exp(-E_htpb / T) * (1.0 - phi);
         if (T <= bound) L = 0.0;
@@ -79,7 +80,7 @@ public:
         {
             Util::Message(INFO,phi);
             Util::Message(INFO,T);
-            Util::Message(INFO,P);
+            Util::Message(INFO,Pbar);
             Util::Message(INFO,E_ap);
             Util::Message(INFO,phi);
             Util::Message(INFO,m_ap);
@@ -97,55 +98,58 @@ public:
         // K; dispersion variables are use to create an inert region for the void grain case. 
         // An inert region is one that dissipates energy fast enough to remove regression and 
         // thermal strain effects.
-        pp_query("dispersion1", value.dispersion1);
+        pp.query_required("dispersion1", value.dispersion1, Unit::ThermalConductivity());
         // rho; dispersion variables are use to create an inert region for the void grain case. 
         // An inert region is one that dissipates energy fast enough to remove regression and 
         // thermal strain effects.
-        pp_query("dispersion2", value.dispersion2);
+        pp.query_required("dispersion2", value.dispersion2, Unit::Density());
         // cp; dispersion variables are use to create an inert region for the void grain case. 
         // An inert region is one that dissipates energy fast enough to remove regression and 
         // thermal strain effects.
-        pp_query("dispersion3", value.dispersion3); 
+        pp.query_required("dispersion3", value.dispersion3, Unit::SpecificHeatCapacity()); 
 
 
         // AP Density
-        pp_query_required("rho_ap", value.rho_ap);
+        pp.query_required("rho_ap", value.rho_ap, Unit::Density());
         // HTPB Density
-        pp_query_required("rho_htpb", value.rho_htpb);
+        pp.query_required("rho_htpb", value.rho_htpb, Unit::Density());
         // AP Thermal Conductivity
-        pp_query_required("k_ap", value.k_ap);
+        pp.query_required("k_ap", value.k_ap, Unit::ThermalConductivity());
         // HTPB Thermal Conductivity
-        pp_query_required("k_htpb", value.k_htpb);
+        pp.query_required("k_htpb", value.k_htpb, Unit::ThermalConductivity());
         // AP Specific Heat
-        pp_query_required("cp_ap", value.cp_ap);
+        pp.query_required("cp_ap", value.cp_ap,Unit::SpecificHeatCapacity());
         //HTPB Specific Heat
-        pp_query_required("cp_htpb", value.cp_htpb); 
+        pp.query_required("cp_htpb", value.cp_htpb, Unit::SpecificHeatCapacity()); 
 
 
         // Surgate heat flux model paramater - Homogenized
-        pp_query_default("h1", value.h1, 1.81); 
+        pp.query_default("h1", value.h1, "1.81_J/m/K",Unit::HeatFlux()); 
         // Surgate heat flux model paramater - Homogenized
-        pp_query_default("h2", value.h2, 1.34); 
+        pp.query_default("h2", value.h2, "1.34_J/m/K",Unit::HeatFlux()); 
+        // Reference pressure
+        pp.query_default("Pref", value.Pref, "1_MPa",Unit::Pressure()); 
 
         // AP/HTPB ratio for homogenized domain
-        pp_query_default("massfraction", value.massfraction, 0.8);
+        pp.query_default("massfraction", value.massfraction, "0.8",Unit::Less());
 
         // AP mass flux reference value 
-        pp_query_default("mlocal_ap", value.mlocal_ap, 0.0); 
+        pp.query_default("mlocal_ap", value.mlocal_ap, "0.0_kg/m^2/s", 
+                         Unit::Mass()/Unit::Area()/Unit::Time()); 
         value.mlocal_htpb = 685000.0 - 850e3 * value.massfraction;
         
         // AP Pre-exponential factor for Arrhenius Law
-        pp_query_required("m_ap", value.m_ap, Unit::Velocity()); 
+        pp.query_required("m_ap", value.m_ap, Unit::Velocity()); 
         // HTPB Pre-exponential factor for Arrhenius Law
-        pp_query_required("m_htpb", value.m_htpb, Unit::Velocity()); 
+        pp.query_required("m_htpb", value.m_htpb, Unit::Velocity()); 
         // AP Activation Energy for Arrhenius Law
-        pp_query_required("E_ap", value.E_ap, Unit::Energy()); 
+        pp.query_required("E_ap", value.E_ap, Unit::Temperature()); 
         // HTPB Activation Energy for Arrhenius Law
-        pp_query_required("E_htpb", value.E_htpb, Unit::Energy()); 
+        pp.query_required("E_htpb", value.E_htpb, Unit::Temperature()); 
         // Whether to include pressure to the arrhenius law [??]
-        pp_query_default("mob_ap", value.mob_ap,false); 
+        pp.query_default("mob_ap", value.mob_ap,false); 
         // HTPB Activation Energy for Arrhenius Law
-        pp_query_default("bound", value.bound,0.0); 
+        pp.query_default("bound", value.bound,"0_K", Unit::Temperature()); 
     }
 
     // IO variables
@@ -161,6 +165,7 @@ public:
     Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
     Set::Scalar E_ap = NAN, E_htpb = NAN;
     Set::Scalar bound = NAN;
+    Set::Scalar Pref = NAN;
 
     // Calculated variables
     Set::Scalar k4 = NAN;

@@ -159,7 +159,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
-        value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
+        value.RegisterIntegratedVariable(&value.chamber.mdot, "mass_flux");
 
         // laser initial condition
         pp.select_default<  IC::Constant,
@@ -279,7 +279,6 @@ void Flame::Initialize(int lev)
         alpha_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-        thermal.w1 = 0.2 * chamber.pressure + 0.9;
         ic_laser->Initialize(lev, laser_mf);
     }
     //if (variable_pressure) chamber.pressure = 1.0;
@@ -378,10 +377,10 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure)
     {
-        Util::Message(INFO, "chamber.pressure = ", chamber.pressure);
+        Util::Message(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
         chamber.pressure = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
 
-        Util::ParallelMessage(INFO, "chamber.pressure = ", chamber.pressure);
+        Util::ParallelMessage(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
     }
 }
 
@@ -616,7 +615,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             //chamber.massflux += dm;
 
             // new - chamber model
-            chamber.massflux += mdot(i, j, k, 0) * dv; 
+            chamber.mdot += mdot(i, j, k, 0) * dv; 
             //chamber.volume += volume;
         });
     }

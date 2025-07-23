@@ -184,53 +184,51 @@ struct Unit : std::pair<double,std::array<int,7>>
     // They are used to check unit compliance, mainly at the parsing stage.
     // 
     // Primary
-    static Unit Less()              { return Unit{1.0, {0,0,0,0,0,0,0}}; } // 1
-    static Unit Length()            { return Unit{1.0, {1,0,0,0,0,0,0}}; } // m
-    static Unit Time()              { return Unit{1.0, {0,1,0,0,0,0,0}}; } // s
-    static Unit Mass()              { return Unit{1.0, {0,0,1,0,0,0,0}}; } // kg
-    static Unit Temperature()       { return Unit{1.0, {0,0,0,1,0,0,0}}; } // K
-    static Unit Current()           { return Unit{1.0, {0,0,0,0,1,0,0}}; } // A
-    static Unit Amount()            { return Unit{1.0, {0,0,0,0,0,1,0}}; } // mol
-    static Unit LuminousIntensity() { return Unit{1.0, {0,0,0,0,0,0,1}}; } // cd
-
+    static Unit Less(double val=1.0)              { return Unit{val, {0,0,0,0,0,0,0}}; } // 1
+    static Unit Length(double val=1.0)            { return Unit{val, {1,0,0,0,0,0,0}}; } // m
+    static Unit Time(double val=1.0)              { return Unit{val, {0,1,0,0,0,0,0}}; } // s
+    static Unit Mass(double val=1.0)              { return Unit{val, {0,0,1,0,0,0,0}}; } // kg
+    static Unit Temperature(double val=1.0)       { return Unit{val, {0,0,0,1,0,0,0}}; } // K
+    static Unit Current(double val=1.0)           { return Unit{val, {0,0,0,0,1,0,0}}; } // A
+    static Unit Amount(double val=1.0)            { return Unit{val, {0,0,0,0,0,1,0}}; } // mol
+    static Unit LuminousIntensity(double val=1.0) { return Unit{val, {0,0,0,0,0,0,1}}; } // cd
     // Geometry and kinematics
-    static Unit Area()        { return Length()*Length(); }
-    static Unit Volume()      { return Length()*Length()*Length(); }
-    static Unit Velocity()    { return Length() / Time();}
-    static Unit Acceleration(){ return Velocity() / Time(); }
+    static Unit Area(double val=1.0)        { return val * Length()*Length(); }
+    static Unit Volume(double val=1.0)      { return val * Length()*Length()*Length(); }
+    static Unit Velocity(double val=1.0)    { return val * Length() / Time();}
+    static Unit Acceleration(double val=1.0){ return val * Velocity() / Time(); }
     // Mechanics
-    static Unit Force()       { return Mass() * Acceleration(); } // kg·m/s² = N
-    static Unit Momentum()    { return Mass() * Velocity(); }
-    static Unit Impulse()     { return Force() * Time(); }
-    static Unit Pressure()    { return Force() / Area(); }         // N/m² = Pa
-    static Unit Energy()      { return Force() * Length(); }       // N·m = J
-    static Unit Power()       { return Energy() / Time(); }        // J/s = W
-    static Unit Density()     { return Mass() / Volume(); }
-    static Unit SpecificWeight() { return Force() / Volume(); }
-    static Unit Work()        { return Energy(); }
+    static Unit Force(double val=1.0)          { return val * Mass() * Acceleration(); }  // kg·m/s² = N
+    static Unit Momentum(double val=1.0)       { return val * Mass() * Velocity(); }
+    static Unit Impulse(double val=1.0)        { return val * Force() * Time(); }
+    static Unit Pressure(double val=1.0)       { return val * Force() / Area(); }         // N/m² = Pa
+    static Unit Energy(double val=1.0)         { return val * Force() * Length(); }       // N·m = J
+    static Unit Power(double val=1.0)          { return val * Energy() / Time(); }        // J/s = W
+    static Unit Density(double val=1.0)        { return val * Mass() / Volume(); }
+    static Unit SpecificWeight(double val=1.0) { return val * Force() / Volume(); }
+    static Unit Work(double val=1.0)           { return val * Energy(); }
     // Thermodynamics
-    static Unit SpecificHeatCapacity()    {return Energy() / Mass() / Temperature() ;}
-    static Unit ThermalConductivity()     {return Power()/Length()/Temperature();}
-    static Unit ThermalDiffusivity()      {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
-    static Unit HeatFlux()                { return Power() / Area(); }
-    static Unit HeatTransferCoefficient() { return HeatFlux() / Temperature(); }
+    static Unit SpecificHeatCapacity(double val=1.0)    { return val * Energy() / Mass() / Temperature() ;}
+    static Unit ThermalConductivity(double val=1.0)     { return val * Power()/Length()/Temperature();}
+    static Unit ThermalDiffusivity(double val=1.0)      { return val * ThermalConductivity() / Density() / SpecificHeatCapacity();}
+    static Unit HeatFlux(double val=1.0)                { return val * Power() / Area(); }
+    static Unit HeatTransferCoefficient(double val=1.0) { return val * HeatFlux() / Temperature(); }
     // Electromagnetism
-
-    static Unit Charge()      { return Current() * Time(); }                    // A·s = C
-    static Unit Voltage()     { return Power() / Current(); }                   // W/A = V
-    static Unit Resistance()  { return Voltage() / Current(); }                 // V/A = Ω
-    static Unit Capacitance() { return Charge() / Voltage(); }                  // C/V = F
-    static Unit Conductance() { return Less() / Resistance(); }                 // S = 1/Ω
-    static Unit MagneticFlux(){ return Voltage() * Time(); }                    // V·s = Wb
-    static Unit MagneticField(){ return MagneticFlux() / Area(); }              // Wb/m² = T
-    static Unit Inductance()  { return MagneticFlux() / Current(); }            // Wb/A = H
+    static Unit Charge(double val=1.0)       { return val * Current() * Time(); }           // A·s = C
+    static Unit Voltage(double val=1.0)      { return val * Power() / Current(); }          // W/A = V
+    static Unit Resistance(double val=1.0)   { return val * Voltage() / Current(); }        // V/A = Ω
+    static Unit Capacitance(double val=1.0)  { return val * Charge() / Voltage(); }         // C/V = F
+    static Unit Conductance(double val=1.0)  { return val * Less() / Resistance(); }        // S = 1/Ω
+    static Unit MagneticFlux(double val=1.0) { return val * Voltage() * Time(); }           // V·s = Wb
+    static Unit MagneticField(double val=1.0){ return val * MagneticFlux() / Area(); }      // Wb/m² = T
+    static Unit Inductance(double val=1.0)   { return val * MagneticFlux() / Current(); }   // Wb/A = H
     // Chemistry
-    static Unit MolarMass()   { return Mass() / Amount(); }                     // kg/mol
-    static Unit Concentration(){ return Amount() / Volume(); }                  // mol/m³
-    static Unit MolarEnergy() { return Energy() / Amount(); }                   // J/mol
+    static Unit MolarMass(double val=1.0)    { return val * Mass() / Amount(); }            // kg/mol
+    static Unit Concentration(double val=1.0){ return val * Amount() / Volume(); }          // mol/m³
+    static Unit MolarEnergy(double val=1.0)  { return val * Energy() / Amount(); }          // J/mol
     // Optics and radiation
-    static Unit LuminousFlux()      { return LuminousIntensity(); }             // for scalar usage (lm)
-    static Unit Illuminance()       { return LuminousFlux() / Area(); }         // lux = lm/m²
+    static Unit LuminousFlux(double val=1.0) { return val * LuminousIntensity(); }             // for scalar usage (lm)
+    static Unit Illuminance(double val=1.0)  { return val * LuminousFlux() / Area(); }         // lux = lm/m²
 
 
     //

@@ -10,24 +10,27 @@ amr.blocking_factor = 4
 amr.base_regrid_int = 100
 amr.grid_eff = 1
 amr.node.all = 1
-amr.refinement_criterion = 0.05 #0.1
-amr.refinement_criterion_temp = 10.0
+amr.refinement_criterion = 0.05 
+amr.refinement_criterion_temp = 10.0_K
 #amr.refinement_restriction = 0.3
 amr.phi_refinement_criterion = 0.6
 amr.n_cell = 32 32 32
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
-geometry.prob_lo = 0.0 0.0 0.0 # [m]
-geometry.prob_hi = 0.1 0.1 0.1 # [m]
+geometry.prob_lo = 0.0_m 0.0_m 0.0_m # [m]
+geometry.prob_hi = 0.1_m 0.1_m 0.1_m # [m]
 geometry.is_periodic = 0 0 0
 
+system.length = m
+system.time = s
+
 # Timestep and duration
-timestep = 1.0e-5 # [s]
-stop_time = 5.0 # [s]
+timestep = 1.0e-5_s # [s]
+stop_time = 5.0_s # [s]
 
 # Phase field parameters
-pf.eps = 0.00008 # [m]
-pf.lambda = 0.001
+pf.eps = 0.00008_m # [m]
+pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = bmp
 pf.eta.ic.bmp.filename = double_circle.bmp
 pf.eta.ic.bmp.fit = stretch
@@ -36,10 +39,10 @@ phi.ic.type = bmp
 phi.ic.bmp.filename = base_circle0.bmp
 phi.ic.bmp.fit = stretch
 phi.ic.bmp.channel = g
-pf.kappa = 1.0
-pf.w1 = 1.0
-pf.w12 = 2.0
-pf.w0 = 0.0
+pf.kappa = 1.0_J/m^2
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
 small = 1E-4
 
 # Eta boundary condition
@@ -61,24 +64,28 @@ pf.eta.bc.constant.val.yhi = 1.0
 #propellant.constant.L = 0
 
 propellant.type = homogenize
-propellant.homogenize.m_ap = 1.45e5 #[???] cm/s
-propellant.homogenize.m_htpb = 0.0 #[???] cm/s
-propellant.homogenize.E_ap = 9500.0  #[???] K (Note that this is actually E/R and that is why the unit is only K)
-propellant.homogenize.E_htpb = 0.0 #[???] K
-propellant.homogenize.rho_ap = 1450.0    # [kg/m3]
-propellant.homogenize.rho_htpb = 920.0   # [kg/m3]
-propellant.homogenize.k_ap   =  0.1      # [W/mK]
-propellant.homogenize.k_htpb =  0.283    # [W/mK]
-propellant.homogenize.cp_ap = 1531       # [J/kgK]
-propellant.homogenize.cp_htpb = 1256     # [J/kgK]
-propellant.homogenize.massfraction = 0.8 # [1]
-propellant.homogenize.dispersion1 = 0.1 # [W/mK]
-propellant.homogenize.dispersion2 = 1  # [kg/m3]
-propellant.homogenize.dispersion3 = 1 # [J/kgK]
-propellant.homogenize.mob_ap = 0 #[???] Unitless, this is actually a if, controls weather or not pressure affects the mobility or not. It does effectively change the units of m_ap if set to 1.
-propellant.homogenize.mlocal_ap = 1000.0 # [???] kg/s
-propellant.homogenize.h1 = 1.81 # W/N
-propellant.homogenize.h2 = 1.34 # W/m^2
+propellant.homogenize.m_ap         = 1.45e5_cm/s #[???] cm/s
+propellant.homogenize.m_htpb       = 0.0000_cm/s #[???] cm/s
+propellant.homogenize.E_ap         = 9500.0_K  # Note that this is actually E/R 
+propellant.homogenize.E_htpb       = 0.0000_K #[???] K
+propellant.homogenize.rho_ap       = 1450.0_kg/m^3    # [kg/m3]
+propellant.homogenize.rho_htpb     = 920.0_kg/m^3   # [kg/m3]
+propellant.homogenize.k_ap         =  0.1_W/m/K      # [W/mK]
+propellant.homogenize.k_htpb       =  0.283_W/m/K    # [W/mK]
+propellant.homogenize.cp_ap        = 1531_J/kg/K       # [J/kgK]
+propellant.homogenize.cp_htpb      = 1256_J/kg/K     # [J/kgK]
+propellant.homogenize.massfraction = 0.8_1 # [1]
+propellant.homogenize.dispersion1  = 0.1_W/m/K # [W/mK]
+propellant.homogenize.dispersion2  = 1.0_kg/m^3  # [kg/m3]
+propellant.homogenize.dispersion3  = 1.0_J/kg/K # [J/kgK]
+
+# Controls weather or not pressure affects the mobility or not.
+# Effectively changes the units of m_ap if set to 1.
+propellant.homogenize.mob_ap       = false 
+
+propellant.homogenize.mlocal_ap = 1000.0_kg/m^2/s # [???] kg/s
+propellant.homogenize.h1        = 1.81_W/m^2 # W/N
+propellant.homogenize.h2        = 1.34_W/m^2 # W/m^2
 
 thermal.on = 1
 thermal.Tref = 500 #[K]
