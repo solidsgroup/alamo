@@ -345,6 +345,11 @@ public:
                                 eps_n += eValues(n) * (eVectors.col(n) * eVectors.col(n).transpose());
                         }
 
+
+                        // If brittle_model is finite kinematics, use F instead of eps.
+                        if (brittle_model::kinvar == Model::Solid::F)
+                            eps_p += Set::Matrix::Identity();
+
                         for (int n = 0; n < material.num_mat; n++)
                             energy(i, j, k, 0) += eta(i, j, k, n) * material.models[n].W(eps_p);
 
