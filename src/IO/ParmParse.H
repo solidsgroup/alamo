@@ -1216,13 +1216,13 @@ private:
 public:
 
     template <int N>
-    void query_exactly(std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N],
-                       std::vector<Unit> units = std::vector<Unit>())
+    void query_exactly( std::vector<std::string> names, std::pair<std::string, Set::Scalar> values[N],
+                        std::vector<Unit> units = std::vector<Unit>())
     {
         try
         {
-            Util::AssertException(INFO,TEST(units.size() == 0 || units.size() == names.size()),
-                                  "# of units must be 0, 1, or ", names.size(), " but got ", units.size());
+            Util::AssertException(  INFO,TEST(units.size() == 0 || units.size() == names.size()),
+                                    "# of units must be 0, 1, or ", names.size(), " but got ", units.size());
 
             int cnt = 0;
             std::vector<std::string> read;

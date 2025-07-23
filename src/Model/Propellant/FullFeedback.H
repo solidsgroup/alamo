@@ -98,7 +98,9 @@ public:
         // Reference interface length for heat integration
         pp.query_default("phi.zeta_0", value.zeta_0, "10.0_um", Unit::Length()); 
         
+        // Constant offset for $\zeta$ adjustment with pressure
         pp.query_default("phi.zeta_fit_a",value.zeta_fit_a, "45.0_um", Unit::Length());
+        // Scaling factors for $\zeta$ adjustment with pressure
         pp.query_default("phi.zeta_fit_b",value.zeta_fit_b, "-6.42_um", Unit::Length());
         
         // Surrogate heat flux model paramater - AP
@@ -119,6 +121,7 @@ public:
         // Whether to use pressure to determined the reference Zeta 
         pp_query_default("pressure.dependency", value.arrhenius_dependency, true); 
 
+        // Reference pressure for pressure nondimensionalization
         pp_query_default("Pref",value.Pref,"1_MPa",Unit::Pressure());
         
         // AP volumetric mass flux reference value 

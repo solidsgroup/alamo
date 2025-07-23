@@ -101,23 +101,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Burn width thickness
     pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
     // Interface energy param
-    //pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^3", Unit::Pressure()); 
-    
-    std::pair<std::string, Set::Scalar> read_kappa[2];
-
-    // Specify bondary energy coefficient. You can specify either in energy per
-    // volume  (kappa, kappa_vol) or per area (kappa_area).
-    // kappa_area should scale better as it is divided out by epsilon.
-    pp.query_exactly<1>({"pf.kappa", "pf.kappa_vol", "pf.kappa_area"}, read_kappa,
-                        {Unit::Pressure(), Unit::Pressure(), Unit::Energy()/Unit::Area()});
-    if (read_kappa[0].first == "pf.kappa_area")
-        value.pf.kappa = read_kappa[0].second / value.pf.eps;
-    else
-        value.pf.kappa = read_kappa[0].second;
-    
-
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^2", Unit::Energy() / Unit::Area()); 
     // Chemical potential multiplier
-    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^3", Unit::Pressure()); 
+    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^2", Unit::Energy()/Unit::Area()); 
     // Unburned rest energy
     pp.query_default("pf.w1", value.pf.w1, "0.0",Unit::Less()); 
     // Barrier energy
@@ -151,7 +137,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
-        value.thermal.hc /= value.pf.eps;
 
         // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
@@ -173,12 +158,17 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
 
         // laser initial condition
-        pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Area());
+        pp.select_default<  IC::Constant,
+                            IC::Expression  >
+            ("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Area());
 
         // thermal initial condition
-        pp.select_default<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
+        pp.select_default<  IC::Constant,
+                            IC::Expression,
+                            IC::BMP,
+                            IC::PNG  >
+            ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
-
 
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
@@ -469,8 +459,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
-                heatflux(i,j,k) = ( thermal.hc*q0 + (laser(i,j,k)/pf.eps) ) / K;
-                
+                heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
+
             }
 
         });

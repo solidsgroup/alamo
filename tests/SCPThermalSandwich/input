@@ -46,15 +46,15 @@ stop_time = 0.03_s
 
 small = 1.0e-8
 pf.eps = 1.0_um #0.0005 # [m]
-pf.lambda = 0.001_J/m^3
+pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
-#pf.eta.ic.type = constant 
-#pf.eta.ic.constant.value = 1.0 
-pf.eta.ic.type = expression
-pf.eta.ic.expression.constant.eps = 1.0_um
-pf.eta.ic.expression.constant.x0 = 40.0_um
-pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
+pf.eta.ic.type = constant 
+pf.eta.ic.constant.value = 1.0 
+#pf.eta.ic.type = expression
+#pf.eta.ic.expression.constant.eps = 1.0_um
+#pf.eta.ic.expression.constant.x0 = 40.0_um
+#pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
 
 ## Phi field initial conditions
 phi.ic.type = laminate
@@ -66,7 +66,7 @@ phi.ic.laminate.invert = 1
 phi.ic.laminate.eps = 20._um
 
 # Phase field parameters
-pf.kappa_area = 1.0e-6_J/m^2
+pf.kappa      = 1.0_J/m^2
 pf.w1         = 1.0_1
 pf.w12        = 2.0_1
 pf.w0         = 0.0_1
@@ -138,11 +138,11 @@ thermal.temp.bc.constant.val.zlo = 0.0
 thermal.temp.bc.constant.val.zhi = 0.0
 
 # volumetric heat flux multiplier
-thermal.hc = 1.0e1_W/m^2
+thermal.hc = 1.0e7_W/m^2
 
 # Laser initial condition
 laser.ic.type = constant
-laser.ic.constant.value = 100.0_W/m^2
+laser.ic.constant.value = 1.0e6_W/m^2
 
 # Chamber pressure (used for regression model)
 chamber.pressure = 4.0_MPa  ## [MPa]
@@ -155,5 +155,3 @@ plot_field = 1
 
 # Disable NAN checking
 amr.abort_on_nan = 0
-
-

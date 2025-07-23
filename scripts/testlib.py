@@ -71,7 +71,7 @@ def validate(path,
     if not start: start = info["geom_lo"]
     if not end:   end = info["geom_hi"]
                  
-    new_df, slice2d = readContours(path,start,end,axis,intercept,vars=vars)
+    new_df, slice2d = readContours(path=path,start=start,end=end,axis=axis,intercept=intercept,coord=coord,vars=vars)
 
     if not reference:
         reference = "reference/reference-{}d.csv".format(dim)
