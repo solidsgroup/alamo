@@ -90,6 +90,7 @@ public:
                 field(i,j,k,0) = val[channel] * unit.normalized_value();
 
                 if (field.nComp() > 1) field(i, j, k, 1) = 1.0 - field(i, j, k, 0);
+
             });
         }
         a_field[lev]->FillBoundary();

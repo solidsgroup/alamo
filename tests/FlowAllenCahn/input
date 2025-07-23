@@ -69,6 +69,11 @@ allencahn.ch.lambda = 0.05
 allencahn.ch.direction = 0
 
 
+
+
+
+
+
 ### ETA IC ###
 #hydro.rhoInterface.ic.type = expression
 #hydro.rhoInterface.ic.expression.region0 = "20.0"

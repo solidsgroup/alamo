@@ -119,6 +119,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
 
+
+
     // Select reduced order model to capture heat feedback
     pp.select<  Model::Propellant::PowerLaw, 
                 Model::Propellant::FullFeedback,
@@ -169,6 +171,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
                             IC::PNG  >
             ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
+
 
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
@@ -267,7 +270,6 @@ void Flame::Initialize(int lev)
         alpha_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-        //thermal.w1 = 0.2 * chamber.pressure + 0.9;
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;
