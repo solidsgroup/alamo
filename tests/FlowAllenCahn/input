@@ -63,24 +63,10 @@ allencahn.alpha.ic.png.min = 255
 allencahn.refinement_threshold = 0.1
 
 
-#allencahn.alpha.ic.type = expression
-#allencahn.alpha.ic.expression.region0 = "0.5 * (1 + tanh((sqrt(x^2+y^2) - 1.0)/0.1))"
-#allencahn.alpha.ic.type = psread
-#allencahn.alpha.ic.psread.eps = 0.2
-#allencahn.alpha.ic.psread.filename = 2d.xyzr
-#allencahn.alpha.ic.psread.mult = 10.0
-#allencahn.alpha.ic.psread.x0 = -20.0 0
-#allencahn.alpha.ic.psread.invert = 1
 allencahn.ch.L = 10.0
-allencahn.ch.eps = 0.2
-allencahn.ch.grad = 0.01
-allencahn.ch.chempot = 0.01
+allencahn.ch.kappa = 0.002
+allencahn.ch.lambda = 0.05
 allencahn.ch.direction = 0
-
-
-
-
-
 
 
 ### ETA IC ###

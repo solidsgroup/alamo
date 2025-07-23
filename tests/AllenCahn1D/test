@@ -11,7 +11,7 @@ end   = [1.0, 0.0625]
 
 path = sorted(glob.glob(f"{outdir}/*cell"))[-1]
 print(path)
-ds = testlib.readContours(path, start, end, vars=['alpha'])
+ds,slice2d = testlib.readContours(path, start, end, vars=['alpha'])
 
 x = ds["x"]
 alpha_new = ds["alpha"]

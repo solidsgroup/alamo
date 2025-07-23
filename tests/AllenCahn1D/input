@@ -51,8 +51,6 @@ alpha.ic.type = expression
 alpha.ic.expression.region0 = "x>0"
 
 ch.L = 1.0_1/Pa/s
-#ch.kappa = 0.0001_J/m
-#ch.lambda = 1.0_Pa
 ch.eps = 0.100.0_m
 ch.sigma = 0.01_J/m^2
 
