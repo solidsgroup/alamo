@@ -41,12 +41,13 @@ alpha.bc.constant.val.yhi = 0.0
 alpha.ic.type = expression
 alpha.ic.expression.constant.x0 = 0_m
 alpha.ic.expression.constant.y0 = 0_m
-alpha.ic.expression.constant.R = 20_cm
+alpha.ic.expression.constant.R = 30_cm
 alpha.ic.expression.region0 = "(x-x0)^2 + (y-y0)^2 < R^2"
 
 ch.L = 1.0_1/Pa/s
+#ch.kappa = 0.0001_J/m
+#ch.lambda = 1.0_Pa
 ch.eps = 0.02_m
-ch.grad = 0.0001_J/m
-ch.chempot = 1.0_Pa
+ch.sigma = 0.04_J/m^2
 
 

@@ -1,0 +1,183 @@
+alamo.program = flame
+
+plot_file = output.scpthermalsandwich
+
+# AMR and output parameters
+amr.plot_dt = 0.0001
+amr.max_level = 2
+amr.max_grid_size = 50
+amr.blocking_factor = 2
+amr.base_regrid_int = 10
+amr.grid_eff = 0.8
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 10.0
+
+# Geometry and base grid size
+amr.n_cell = 512 64 64
+geometry.prob_lo = 0.0 -0.00025 -0.00025 # [ m ] 
+geometry.prob_hi = 0.004 0.00025 0.00025 # [ m ]
+geometry.is_periodic = 0 1 1
+
+## Timestep
+timestep = 0.05e-8 # 0.00005 # [s]
+stop_time = 0.03
+
+small = 1.0e-3
+pf.eps = 0.000001 #0.0005 # [m]
+pf.lambda = 0.001
+
+## Eta initial condition
+pf.eta.ic.type = expression
+pf.eta.ic.expression.constant.eps = 0.00005
+pf.eta.ic.expression.constant.x0 = 0.0002
+pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
+
+## Phi field initial conditions
+phi.ic.type = laminate
+phi.ic.laminate.center = 0.0 0.0 0.0 
+phi.ic.laminate.thickness = 0.0001
+phi.ic.laminate.orientation = 0 1 
+phi.ic.laminate.singlefab = 1 
+phi.ic.laminate.invert = 1
+phi.ic.laminate.eps = 0.00002
+
+# Phase field parameters
+pf.kappa = 1.0
+pf.w1 = 1.0
+pf.w12 = 2.0
+pf.w0 = 0.0
+
+# Eta boundary conditions
+pf.eta.bc.type = constant
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+#pf.eta.bc.constant.val.xlo = 0.0
+#pf.eta.bc.constant.val.xhi = 1.0
+#pf.eta.bc.constant.val.ylo = 0.0
+#pf.eta.bc.constant.val.yhi = 0.0
+#pf.eta.bc.constant.val.zlo = 0.0
+#pf.eta.bc.constant.val.zhi = 0.0
+
+# Propellant model - requires thermal model
+propellant.type = fullfeedback
+# arrhenius rate law parameters
+propellant.fullfeedback.m_ap      = 1.45e5_m/s     #[m/s]
+propellant.fullfeedback.m_htpb    = 1.40e1_m/s     # 0.2 # [m/s]
+propellant.fullfeedback.E_ap      = 11000.0_K      # 1050.0 # 4.0
+propellant.fullfeedback.E_htpb    = 7500.0_K       # 1200.0
+# thermal transport parameters
+propellant.fullfeedback.rho_ap    =  1950.0_kg/m^3 # [kg/m3] 
+propellant.fullfeedback.rho_htpb  =   920.0_kg/m^3 # [kg/m3]
+propellant.fullfeedback.k_ap      =  0.4186_W/m/K  # 5.5 [W/mK]
+propellant.fullfeedback.k_htpb    =  0.1300_W/m/K  # 0.283[W/mK]
+propellant.fullfeedback.cp_ap     = 1297.90_J/kg/K #[J/kgK]
+propellant.fullfeedback.cp_htpb   = 2418.29_J/kg/K #[J/kgK]
+propellant.fullfeedback.mlocal_ap = 1000.0
+propellant.fullfeedback.mlocal_comb = 0.0
+# Mass-to-heat flux fit parameters
+propellant.fullfeedback.a1 = 1.114_W/m^2/Pa
+propellant.fullfeedback.a2 = 0.460_W/m^2/Pa
+propellant.fullfeedback.a3 = 2.797
+propellant.fullfeedback.b1 = 0.323
+propellant.fullfeedback.b2 = 0.42
+propellant.fullfeedback.b3 = 0.3225
+propellant.fullfeedback.c1 = -0.09906
+propellant.fullfeedback.phi.zeta = 0.00002
+
+# Thermal transport parameters
+thermal.on = 1  
+thermal.Tfluid = 300.0
+thermal.Tref = 300.0
+
+# Temperature field initial condition
+temp.ic.type = constant
+temp.ic.constant.value = 300.0
+
+# Temperature field boundary conditions
+thermal.temp.bc.type = constant
+thermal.temp.bc.constant.type.xlo = neumann
+thermal.temp.bc.constant.type.xhi = neumann
+thermal.temp.bc.constant.type.ylo = neumann
+thermal.temp.bc.constant.type.yhi = neumann
+thermal.temp.bc.constant.type.zlo = neumann
+thermal.temp.bc.constant.type.zhi = neumann
+thermal.temp.bc.constant.val.xlo = 0.0
+thermal.temp.bc.constant.val.xhi = 0.0
+thermal.temp.bc.constant.val.ylo = 0.0 
+thermal.temp.bc.constant.val.yhi = 0.0
+thermal.temp.bc.constant.val.zlo = 0.0 
+thermal.temp.bc.constant.val.zhi = 0.0
+
+# Heat flux multiplier
+thermal.hc = 1.0e7
+
+# Laser initial condition
+laser.ic.type = constant
+laser.ic.constant.value = 1.0e6
+
+# Chamber pressure (used for regression model)
+chamber.pressure = 4.0  ## [MPa]
+
+# Disable elasticity
+elastic.type = disable
+
+# Disable plotting all extra fields
+plot_field = 0
+
+# Disable NAN checking
+amr.abort_on_nan = 0
+
+
+
+hydro.on = 1
+hydro.tstart = 0.00
+hydro.rho_ap = 2.0
+hydro.rho_htpb = 1.0
+hydro.u0_ap = 5.0
+hydro.u0_htpb = 20.0 
+hydro.density.ic.constant.value = 0.001
+hydro.solid.density.ic.constant.value = 0.001
+hydro.m0.ic.constant.value = "1.0" 
+hydro.u0.ic.constant.value = 0 0.0
+hydro.lagrange= 0 #10.0
+hydro.lagrange_m0= 0 #1.0
+hydro.solver.type = roe
+hydro.solver.roe.ignore_errors = 1
+#hydro.scheme=ssprk3
+hydro.gamma = 1.4
+hydro.mu    = 0.0 #0.00001
+hydro.pref    = 1000000
+hydro.cfl   = 10.0
+hydro.cfl_v   = 10.0
+hydro.prescribedflowmode = relative
+hydro.velocity.ic.type = constant
+hydro.velocity.ic.constant.value = 0.0
+hydro.pressure.ic.type = expression
+hydro.pressure.ic.expression.constant.gamma = 1.4
+hydro.pressure.ic.expression.constant.E_solid = 0.000
+hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+hydro.solid.momentum.ic.constant.value = 0.0
+hydro.solid.energy.ic.constant.value = 0.0
+hydro.q.ic.constant.value = 0.0
+hydro.small=1E-3
+hydro.cutoff=0.2
+hydro.momentum.bc.constant.type.xhi = neumann neumann
+hydro.momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
+hydro.momentum.bc.constant.type.ylo = neumann dirichlet
+hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.energy.bc.constant.type.xhi = neumann
+hydro.energy.bc.constant.type.xlo = neumann #dirichlet #neumann
+hydro.energy.bc.constant.type.ylo = neumann
+hydro.energy.bc.constant.type.yhi = neumann
+hydro.density.bc.constant.type.xhi = neumann
+hydro.density.bc.constant.type.xlo = neumann #dirichlet
+hydro.density.bc.constant.type.ylo = neumann
+hydro.density.bc.constant.type.yhi = neumann
+hydro.eta_refinement_criterion=100000
+hydro.omega_refinement_criterion=100000
+hydro.gradu_refinement_criterion=100000
+

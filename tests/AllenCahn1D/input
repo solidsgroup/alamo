@@ -1,0 +1,59 @@
+
+#@
+#@ [eps_0.50_sigma_0.01]
+#@ exe=alamo
+#@ dim=2
+#@ args = ch.eps=0.50
+#@ args = ch.sigma=0.01
+#@ check-file = eps_0.50_sigma_0.01
+#@
+#@ [eps_0.05_sigma_0.01]
+#@ exe=alamo
+#@ dim=2
+#@ args = ch.eps=0.05
+#@ args = ch.sigma=0.01
+#@ check-file = eps_0.05_sigma_0.01
+#@
+
+alamo.program = allencahn
+
+### OUTPUT ###
+
+plot_file = tests/AllenCahn1D/output
+
+### MESHING ###
+
+# Specify system units
+system.length = m
+system.time   = s
+
+amr.plot_int = 1000
+amr.max_level = 3
+amr.max_grid_size = 500000
+amr.blocking_factor = 2
+amr.grid_eff = 0.8
+amr.n_cell = 64 4 0
+
+geometry.prob_lo = -1.0_m  0.000_m 0.0_m # [ m ] 
+geometry.prob_hi =  1.0_m  0.125_m 0.0_m # [ m ]
+
+geometry.is_periodic = 0 0 0
+
+timestep  = 1.0_ms
+stop_time = 5.0_s
+
+alpha.bc.constant.type.xlo = neumann
+alpha.bc.constant.type.xhi = neumann
+alpha.bc.constant.type.ylo = neumann
+alpha.bc.constant.type.yhi = neumann
+
+alpha.ic.type = expression
+alpha.ic.expression.region0 = "x>0"
+
+ch.L = 1.0_1/Pa/s
+#ch.kappa = 0.0001_J/m
+#ch.lambda = 1.0_Pa
+ch.eps = 0.100.0_m
+ch.sigma = 0.01_J/m^2
+
+

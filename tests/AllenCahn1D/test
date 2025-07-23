@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+import sys, glob,pylab, numpy
+sys.path.insert(0,"../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+
+
+start = [-1.0, 0.0625]
+end   = [1.0, 0.0625]
+
+path = sorted(glob.glob(f"{outdir}/*cell"))[-1]
+print(path)
+ds = testlib.readContours(path, start, end, vars=['alpha'])
+
+x = ds["x"]
+alpha_new = ds["alpha"]
+
+pylab.plot(x,alpha_new)
+
+eps   = float(sys.argv[2].split('_')[1])
+sigma = float(sys.argv[2].split('_')[3])
+print(sys.argv[2])
+print(sigma,eps)
+
+kappa = 3*sigma*eps
+lamb = 24.*sigma/eps
+print(kappa,lamb)
+
+
+gamma = numpy.sqrt(2.0 * lamb / kappa)
+
+alpha_exact = 1 / (numpy.exp(-gamma*x) + 1)
+
+pylab.plot(x,alpha_exact,linestyle='--',linewidth=2)
+
+pylab.grid()
+pylab.title(sys.argv[2])
+pylab.tight_layout()
+pylab.savefig(f"{outdir}/comparison.png")
+
+
+err = ( testlib.integrate(x,abs(alpha_exact - alpha_new)) /
+        testlib.integrate(x,abs(alpha_exact + alpha_new)) )
+
+if err > 0.01:
+    raise Exception("Error in eta: %err = ", err)
+
+exit(0)
+
+
+
+
+
