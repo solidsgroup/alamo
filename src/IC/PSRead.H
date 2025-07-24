@@ -8,6 +8,7 @@
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+#include "Util/Util.H"
 using namespace std;
 #include <iostream>
 #include <vector>
@@ -33,9 +34,8 @@ public:
 
     PSRead(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
-        pp_queryclass(name, *this);
+        pp.queryclass(name, *this);
     }
-
     void Define() {
 
     };
@@ -107,13 +107,34 @@ public:
     {
         std::string filename;
         int verbose = 0;
-        pp_query("eps", value.eps); // Diffuseness of the sphere boundary
-        pp_query_file("filename", filename); // Location of .xyzr file
-        pp_query("verbose", verbose); // Verbosity (used in parser only)
-        pp_query("mult",value.mult); // Coordinate multiplier
-        pp.query("invert",value.invert); // Coordinate multiplier
+        // Diffuseness of the sphere boundary
+        pp.query_default("eps", value.eps, "0.0", Unit::Length()); 
+
+        pp.forbid("filename", "use file.name instead");
+        // Location of .xyzr file
+        pp.query_file("file.name", filename); 
+
+        // Verbosity (used in parser only)
+        pp.query_default("verbose", verbose, 0); 
+
+        // Unitless coordinate multiplier
+        pp.query_default("mult",value.mult, "1.0", Unit::Less()); 
+
+        // Whether to invert (1 outside instead of inside spheres)
+        pp.query_default("invert",value.invert,false); 
+
+        // X-offset 
+        pp.queryarr_default("x0",value.x0,"0 0 0", Unit::Length());
+
         if (pp.contains("x0"))
             pp_queryarr("x0",value.x0); // Coordinate offset
+
+        Unit unit = Unit::Length();
+        // Units of length in the file
+        pp.queryunit("file.unit",unit);
+        Util::AssertException(INFO,TEST(unit.isType(Unit::Length())), 
+                              "Unit must be of type length but got unit ",unit.normalized_unitstring());
+        
         std::ifstream datafile(filename);
         std::string line;
         if (datafile.is_open())
@@ -127,8 +148,17 @@ public:
 
                 std::string strx, stry, strz, strR;
                 in >> strx >> stry >> strz >> strR;
-                value.X.push_back(value.x0 + value.mult*Set::Vector(AMREX_D_DECL(std::stod(strx), std::stod(stry), std::stod(strz))));
-                value.R.push_back(value.mult*std::stod(strR));
+
+                Set::Scalar x = (std::stod(strx) * unit).normalized_value();
+                Set::Scalar y = (std::stod(stry) * unit).normalized_value();
+                Set::Scalar z = (std::stod(strz) * unit).normalized_value();
+                Set::Scalar r = (std::stod(strR) * unit).normalized_value();
+
+                Set::Vector X(AMREX_D_DECL(x,y,z));
+                X = value.x0 + value.mult*X;
+
+                value.X.push_back(X);
+                value.R.push_back(r);
                 if (verbose > 0)
                     Util::Message(INFO, "x=", value.X.back().transpose(), " r=", value.R.back());
             }
