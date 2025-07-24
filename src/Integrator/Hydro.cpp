@@ -97,8 +97,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
         // Species inputs
-        pp_query_default("temperature", value.temperature, 300.0); // K
-        //pp_query_default("nspecies", value.nspecies, 1);
+        pp_queryarr_default("temperature", value.temperature, 300.0);
         pp_queryarr_default("species", value.species, "N2 O2");
         pp_queryarr("species_mw", value.species_mw); // g/mol or kg/kmol
         value.nspecies = value.species.size();
@@ -135,72 +134,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_queryarr("species_LJdiameter", value.species_LJdiameter); // Angstroms, Lennard-Jones potential collision diameter
         pp_queryarr("species_LJwelldepth", value.species_LJwelldepth); // K, Lennard-Jones potential e/k (k: Boltzmann constant)
 
-        // Mixture viscosity and heat conduction coefficient
-        // Multicomponent extension of Chapman-Enskog
-        // Transport Phenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 1.4 & 9.3
-        //
-        // Binary diffusion constants
-        // Chapman-Enskog
-        // Transport PHenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 17.3
-        //
-        // Upper triangular matrix for species row and species column since D_AB = D_BA, i.e.
-        //
-        //                species A | species B | species C
-        //              ------------------------------------
-        //    species A |    D_AA   |   D_AB    |   D_AC   |
-        //              ------------------------------------
-        //    species B |           |   D_BB    |   D_BC   |
-        //              ------------------------------------
-        //    species C |           |           |   D_CC   |
-        //              ------------------------------------
-
-        value.mu = 0.0;
-        value.k = 0.0;
-        std::vector<std::vector<double>> DAB(value.nspecies, std::vector<double>(value.nspecies, 0.0));
-        double sigmaAB;
-        double epsAB;
-        double nondimT;
-        double omegaAB;
-        for (int i=0; i<value.nspecies; ++i)
-        {
-            double phi = 0.0;
-            for (int j=0; j<value.nspecies; ++j)
-            {
-                phi += value.species_molef[j] * 1.0/sqrt(8.0) *
-                       pow(1.0 + value.species_mw[i]/value.species_mw[j], -0.5) *
-                       pow(1.0 + sqrt(value.species_mu[i]/value.species_mu[j]) *
-                       pow(value.species_mw[j]/value.species_mw[i], 0.25), 2.0);
-                if ( j >= i ) 
-                {
-                    sigmaAB = 0.5*(value.species_LJdiameter[i] + value.species_LJdiameter[j]);
-                    epsAB = sqrt(value.species_LJwelldepth[i] * value.species_LJwelldepth[j]);
-                    nondimT = value.temperature/epsAB;
-                    omegaAB = collision_integral(nondimT);
-                    DAB[i][j] = 0.0018583*sqrt(pow(value.temperature, 3.0) * (1.0/value.species_mw[i] + 1.0/value.species_mw[j])) / 
-                                /*pressure*/ (value.pref/101325.0*pow(sigmaAB,2.0)*omegaAB);
-                    DAB[i][j] /= 100.0*100.0; // convert from cm^2/s to m^2/s
-                }
-            }
-            value.mu += value.species_molef[i] * value.species_mu[i] / phi;
-            value.k += value.species_molef[i] * value.species_k[i] / phi;
-        }
-        
-        Util::Message(INFO, "nspecies: ", value.nspecies);
-        Util::Message(INFO, "mu: ", value.mu);
-        Util::Message(INFO, "k: ", value.k);
-        Util::Message(INFO, "sigmaAB: ", sigmaAB);
-        Util::Message(INFO, "epsAB: ", epsAB);
-        Util::Message(INFO, "Tstar: ", nondimT);
-        Util::Message(INFO, "D_AB");
-        Util::Message(INFO, DAB[0][0], " ", DAB[0][1]);
-        Util::Message(INFO, DAB[1][0], " ", DAB[1][1]);
-        //Util::Message(INFO, DAB[2][0], " ", DAB[2][1], " ", DAB[2][2]);
-        Util::Exception(INFO, "Stop here while debugging");
-
-
-        
-
-        
     }
     // Register FabFields:
     {
@@ -1031,6 +964,63 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::Abort(INFO);
             }
 
+            // Multispecies effects
+            // Mixture viscosity and heat conduction coefficient
+            // Multicomponent extension of Chapman-Enskog
+            // Transport Phenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 1.4 & 9.3
+            //
+            // Binary diffusion constants
+            // Chapman-Enskog
+            // Transport PHenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 17.3
+            //
+            // Upper triangular matrix for species row and species column since D_AB = D_BA, i.e.
+            //
+            //                species A | species B | species C
+            //              ------------------------------------
+            //    species A |    D_AA   |   D_AB    |   D_AC   |
+            //              ------------------------------------
+            //    species B |           |   D_BB    |   D_BC   |
+            //              ------------------------------------
+            //    species C |           |           |   D_CC   |
+            //              ------------------------------------
+
+            double mu = 0.0;
+            double k = 0.0;
+            double sigmaAB = 0.0;
+            double epsAB = 0.0;
+            double nondimT = 0.0;
+            double omegaAB = 0.0;
+            double DAB = 0.0;
+            double DKM = 0.0;
+            double molecularenergy = 0.0;
+            for (int a=0; a<value.nspecies; ++a)
+            {
+                double phi = 0.0;
+                for (int b=0; b<value.nspecies; ++b)
+                {
+                    phi += value.species_molef[b] * 1.0/sqrt(8.0) *
+                           pow(1.0 + value.species_mw[a]/value.species_mw[b], -0.5) *
+                           pow(1.0 + sqrt(value.species_mu[a]/value.species_mu[b]) *
+                           pow(value.species_mw[b]/value.species_mw[a], 0.25), 2.0);
+                    if ( b != a ) 
+                    {
+                        sigmaAB = 0.5*(value.species_LJdiameter[a] + value.species_LJdiameter[b]);
+                        epsAB = sqrt(value.species_LJwelldepth[a] * value.species_LJwelldepth[b]);
+                        nondimT = value.temperature/epsAB;
+                        omegaAB = collision_integral(nondimT);
+                        DAB = 0.0018583*sqrt(pow(value.temperature, 3.0) * (1.0/value.species_mw[a] + 1.0/value.species_mw[b])) / 
+                                    /*pressure*/ (value.pref/101325.0*pow(sigmaAB,2.0)*omegaAB);
+                        DAB /= 100.0*100.0; // convert from cm^2/s to m^2/s
+                        DKM += value.species_molef[b]/DAB;
+                    }
+                    DKM = (1.0 - value.species_massf[a])/DAM;
+                    molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
+                }
+                value.mu += value.species_molef[a] * value.species_mu[a] / phi;
+                value.k += value.species_molef[a] * value.species_k[a] / phi;
+            }
+
+
 
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
@@ -1083,6 +1073,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
+                div_tau.dot(u) * eta + /* isothermal so no heat conduction, k*gradT */
+                
                 Source(i, j, k, 3);
 
             E_rhs(i,j,k) = 
