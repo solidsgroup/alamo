@@ -97,17 +97,17 @@ Flame::Parse(Flame &value, IO::ParmParse &pp)
     //
 
     // Burn width thickness
-    pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
+    pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length());
     // Interface energy param
-    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^2", Unit::Energy() / Unit::Area()); 
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^2", Unit::Energy() / Unit::Area());
     // Chemical potential multiplier
-    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^2", Unit::Energy()/Unit::Area()); 
+    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^2", Unit::Energy() / Unit::Area());
     // Unburned rest energy
-    pp.query_default("pf.w1", value.pf.w1, "0.0",Unit::Less()); 
+    pp.query_default("pf.w1", value.pf.w1, "0.0", Unit::Less());
     // Barrier energy
-    pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());  
+    pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());
     // Burned rest energy
-    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());    
+    pp.query_default("pf.w0", value.pf.w0, "0.0", Unit::Less());
 
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1);
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
@@ -126,114 +126,111 @@ Flame::Parse(Flame &value, IO::ParmParse &pp)
 
     // Reference temperature
     // Used to set all other reference temperatures by default.
-    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature()); 
-
-    if (value.thermal.on) {
+    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K", Unit::Temperature());
 
     if (value.thermal.on)
     {
-        // Used to change heat flux units
-        pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
 
-        // Effective fluid temperature
-        pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref);
-
-        //Temperature boundary condition
-        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
-            
-        value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
-        value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
-        value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
-
-        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.plot_field);
-        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
-        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
-        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-
-        value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
-        value.RegisterIntegratedVariable(&value.chamber.area, "area");
-        value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
-
-        // laser initial condition
-        pp.select_default<  IC::Constant,
-                            IC::Expression  >
-            ("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Area());
-
-        // thermal initial condition
-        pp.select_default<  IC::Constant,
-                            IC::Expression,
-                            IC::BMP,
-                            IC::PNG  >
-            ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
-    }
-
-    // Constant pressure value
-    pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
-
-    // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, false);
-
-    // Refinement criterion for eta field   
-    pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
-                        Unit::Less());
-
-    // Refinement criterion for temperature field    
-    pp.query_default(   "amr.refinement_criterion_temp", value.t_refinement_criterion, "0.001_K",
-                        Unit::Temperature());
-
-    // Eta value to restrict the refinament for the temperature field 
-    pp.query_default(   "amr.refinament_restriction", value.t_refinement_restriction, "0.1",
-                        Unit::Less());
-
-    // Refinement criterion for phi field [infinity]
-    pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
-
-    // Minimum allowable threshold for $\eta$
-    pp_query_default("small", value.small, 1.0e-8);
-
-    // Initial condition for $\phi$ field.
-    pp.select_default<IC::PSRead, IC::Laminate, IC::Expression, IC::Constant, IC::BMP, IC::PNG>("phi.ic", value.ic_phi, value.geom);
-
-    value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
-
-    // Whether to use Neo-hookean Elastic model
-    pp_query_default("elastic.on", value.elastic.on, 0);
-
-    if (value.elastic.on)
-    {
-        // Body force
-        pp_query_default("elastic.traction", value.elastic.traction, 0.0);
-
-        // Phi refinement criteria
-        pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
-
-        pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
-
-        if (value.m_type != Type::Disable)
+        if (value.thermal.on)
         {
-            // Reference temperature for thermal expansion
-            // (temperature at which the material is strain-free)
-            pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
-            // elastic model of AP
-            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
-            // elastic model of HTPB
-            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+            // Used to change heat flux units
+            pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power() / Unit::Area());
 
-            // Use our current eta field as the psi field for the solver
-            value.psi_on = false;
-            value.solver.setPsi(value.eta_mf);
+            // Effective fluid temperature
+            pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref);
+
+            // Temperature boundary condition
+            pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
+
+            value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
+            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
+            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
+
+            value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.plot_field);
+            value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
+            value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
+            value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
+
+            value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
+            value.RegisterIntegratedVariable(&value.chamber.area, "area");
+            value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
+
+            // laser initial condition
+            pp.select_default<IC::Constant,
+                              IC::Expression>("laser.ic", value.ic_laser, value.geom, Unit::Power() / Unit::Area());
+
+            // thermal initial condition
+            pp.select_default<IC::Constant,
+                              IC::Expression,
+                              IC::BMP,
+                              IC::PNG>("temp.ic", value.thermal.ic_temp, value.geom, Unit::Temperature());
         }
-    }
 
-    bool allow_unused;
-    // Set this to true to allow unused inputs without error.
-    // (Not recommended.)
-    pp.query_default("allow_unused", allow_unused, false);
-    if (!allow_unused && pp.AnyUnusedInputs())
-    {
-        Util::Warning(INFO, "The following inputs were specified but not used:");
-        pp.AllUnusedInputs();
-        Util::Exception(INFO, "Aborting. Specify 'allow_unused=True` to ignore this error.");
+        // Constant pressure value
+        pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure());
+
+        // Whether to compute the pressure evolution
+        pp_query_default("variable_pressure", value.variable_pressure, false);
+
+        // Refinement criterion for eta field
+        pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, "0.001", Unit::Less());
+
+        // Refinement criterion for temperature field
+        pp.query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, "0.001_K", Unit::Temperature());
+
+        // Eta value to restrict the refinament for the temperature field
+        pp.query_default("amr.refinament_restriction", value.t_refinement_restriction, "0.1", Unit::Less());
+
+        // Refinement criterion for phi field [infinity]
+        pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
+
+        // Minimum allowable threshold for $\eta$
+        pp_query_default("small", value.small, 1.0e-8);
+
+        // Initial condition for $\phi$ field.
+        pp.select_default<IC::PSRead, IC::Laminate, IC::Expression, IC::Constant, IC::BMP, IC::PNG>("phi.ic", value.ic_phi, value.geom);
+
+        value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
+
+        // Whether to use Neo-hookean Elastic model
+        pp_query_default("elastic.on", value.elastic.on, 0);
+
+        if (value.elastic.on)
+        {
+            // Body force
+            pp_query_default("elastic.traction", value.elastic.traction, 0.0);
+
+            // Phi refinement criteria
+            pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1);
+
+            pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
+
+            if (value.m_type != Type::Disable)
+            {
+                // Reference temperature for thermal expansion
+                // (temperature at which the material is strain-free)
+                pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
+                // elastic model of AP
+                pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
+                // elastic model of HTPB
+                pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
+
+                // Use our current eta field as the psi field for the solver
+                value.psi_on = false;
+                value.solver.setPsi(value.eta_mf);
+            }
+        }
+
+        bool allow_unused;
+        // Set this to true to allow unused inputs without error.
+        // (Not recommended.)
+        pp.query_default("allow_unused", allow_unused, false);
+        if (!allow_unused && pp.AnyUnusedInputs())
+        {
+            Util::Warning(INFO, "The following inputs were specified but not used:");
+            pp.AllUnusedInputs();
+            Util::Exception(INFO, "Aborting. Specify 'allow_unused=True` to ignore this error.");
+        }
     }
 }
 
