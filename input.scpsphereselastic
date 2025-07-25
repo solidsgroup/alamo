@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 0.001_s
+amr.plot_dt = 0.0005_s
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
@@ -20,15 +20,15 @@ amr.cell.all = 1
 
 # Geometry and base grid size
 amr.max_level = 4
-amr.n_cell = 16 16 16
+amr.n_cell = 32 32 32
 
 
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
+geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 0.1e-5_s # 0.00005 # [s]
+timestep = 0.25e-6_s # 0.00005 # [s]
 stop_time = 100.0_s
 
 small = 1.0e-8
