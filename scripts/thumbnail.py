@@ -10,9 +10,8 @@ yt.set_log_level(50)
 
 parser = argparse.ArgumentParser(description='Generate thumbnails');
 parser.add_argument('outputs', default=None, nargs='*', help='Output directories')
+parser.add_argument('--vars',default=None,nargs='*',help='Specific variables to plot')
 args = parser.parse_args()
-
-
 
 for output in args.outputs:
     try:
@@ -29,6 +28,9 @@ for output in args.outputs:
         header_time = os.path.getmtime(f"{path}/Header")
         
         for var in info['vars']:
+            if len(args.vars):
+                if var not in args.vars:
+                    continue
             if os.path.isfile(f"{output}/{var}.png"):
                 png_time = os.path.getmtime(f"{output}/{var}.png")
                 if header_time < png_time:
