@@ -368,7 +368,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
     for (MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.tilebox();
-        Set::Patch<const Set::Scalar> phi    = phi_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> phi_patch    = phi_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
 
@@ -379,11 +379,12 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            m0(i,j,k) = hydro.rho_ap*phi(i,j,k) + hydro.rho_htpb*(1.0 - phi(i,j,k));
+            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch,i,j,k,0);
+            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
             solidrho(i,j,k) = m0(i,j,k);
             
             
-            Set::Vector u0( hydro.u0_ap*phi(i,j,k) + hydro.u0_htpb*(1.0 - phi(i,j,k)), 0.0);
+            Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
             u0_patch(i,j,k,0) = u0(0);
             u0_patch(i,j,k,1) = u0(1);
 
@@ -400,6 +401,10 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
             solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
         });
     }
+    Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
+    Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
 }
 
 

@@ -8,8 +8,8 @@ system.time = s
 
 # AMR and output parameters
 amr.plot_dt = 0.001_s
-amr.max_grid_size = 50
-amr.blocking_factor = 2
+amr.max_grid_size = 64
+amr.blocking_factor = 16
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
@@ -192,4 +192,4 @@ hydro.density.bc.constant.type.ylo = neumann
 hydro.density.bc.constant.type.yhi = neumann
 hydro.eta_refinement_criterion=100000
 hydro.omega_refinement_criterion=100000
-hydro.gradu_refinement_criterion=10.0
+hydro.gradu_refinement_criterion=5.0
