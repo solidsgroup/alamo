@@ -56,7 +56,6 @@
 #include "BC/Constant.H"
 #include "IC/BMP.H"
 #include "IC/Ellipse.H"
-// #include "IC/Ellipsoid.H"
 #include "IC/Expression.H"
 #include "IC/IC.H"
 #include "IC/Laminate.H"
@@ -131,7 +130,7 @@ public:
 
         // Let's figure out if there is an initial crack or void
         if (pp.contains("crack.ic.type")) {
-            pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipsoid, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
+            pp.select_enumerate<IC::Constant,IC::Notch,IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
             value.crack.is_ic = true;
         }
         else {
@@ -156,8 +155,7 @@ public:
         pp.queryclass_enumerate<pfczm_crack_type>("crack.model",value.crack.cracktype);
         Util::Assert(INFO, TEST(value.material.models.size() > 0));
 
-        //pp.select_default<BC::Constant>("visible_Gc.bc",value.bc_visible_Gc,1);
-        // value.RegisterNewFab(value.visible_Gc_mf,value.bc_visible_Gc,1,1,"visible_Gc",true);
+        // Needed to store Gc values in a field
         value.RegisterNodalFab(value.visible_Gc_mf,1,2,"Gc",true);
     }
 
