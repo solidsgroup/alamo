@@ -15,7 +15,8 @@ args = parser.parse_args()
 
 for output in args.outputs:
     try:
-        path = sorted(glob.glob(output+"/*cell"))[-1]
+        path = sorted(glob.glob(output+"/*cell"),key = lambda i:
+                      int(i.split(r'/')[-1].replace('cell','').replace('node','')))[-1]
         info = testlib.readHeader(path)
         len_x = info["geom_hi"][0]-info["geom_lo"][0]
         len_y = info["geom_hi"][1]-info["geom_lo"][1]
@@ -23,9 +24,9 @@ for output in args.outputs:
         ds = yt.load(path)
         slice2d = ds.slice(2,0.0)
 
-        print("Plotting: ", output)
+        print("Plotting: ", path)
 
-        header_time = os.path.getmtime(f"{path}/Header")
+        header_time = os.path.getctime(f"{path}/Header")
         
         for var in info['vars']:
             if len(args.vars):
@@ -34,7 +35,7 @@ for output in args.outputs:
             if os.path.isfile(f"{output}/{var}.png"):
                 png_time = os.path.getmtime(f"{output}/{var}.png")
                 if header_time < png_time:
-                    print("     Skipping {output}/{var}.png (most current)")
+                    print(f"     [skip] {output}/{var}.png (is more recent than {path}/Header)")
                     continue
 
             data2d = slice2d.to_frb(width=len_x,height=len_y,resolution=(1000,1000*len_y/len_x))[var]
@@ -45,7 +46,7 @@ for output in args.outputs:
             pylab.colorbar(im)
             pylab.tight_layout()
             pylab.savefig(f"{output}/{var}.png")
-            print(f"     {output}/{var}.png")
+            print(f"     [plot] {output}/{var}.png")
 
 
     except Exception as e:
