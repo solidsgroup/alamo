@@ -698,6 +698,40 @@ public:
         return -1;
     }
 
+    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<double> defaultvalue)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                addarr(name.c_str(),defaultvalue);
+            }
+            return queryarr(name.c_str(),value);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
+    int queryarr_default(   std::string name, std::vector<double> & value, std::vector<std::string> defaultvalue, Unit unit)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                addarr(name.c_str(),defaultvalue);
+            }
+            return queryarr(name,value, unit);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
 
     template <typename T>
     int
