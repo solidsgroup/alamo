@@ -651,11 +651,11 @@ public:
         }        
         return queryarr(name,value,unit);
     }
-    int queryarr_default(   std::string name, std::vector<std::string> & value, std::string defaultvalue)
+    int queryarr_default(   std::string name, std::vector<std::string> & value, std::vector<std::string> defaultvalue)
     {
         if (!contains(name.c_str()))
         {
-            add(name.c_str(),defaultvalue);
+            addarr(name.c_str(),defaultvalue);
         }
         return amrex::ParmParse::queryarr(name.c_str(),value);
     }
