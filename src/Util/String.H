@@ -99,6 +99,14 @@ std::string Join(const std::vector<std::string> & vec, char separator)
 }
 
 AMREX_FORCE_INLINE
+std::string Join(const std::vector<double> & vec, std::string separator = " ")
+{
+    std::vector<std::string> strvec;
+    for (auto v : vec) strvec.push_back(std::to_string(v));
+    return Join(strvec,separator);
+}
+
+AMREX_FORCE_INLINE
 std::string Join(const Set::Vector & vec, char separator = ' ')
 {
     std::ostringstream oss;
