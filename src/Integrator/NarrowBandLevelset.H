@@ -106,8 +106,22 @@ struct LevelSetData {
         }
     }
 
+    static constexpr int RequiredReinitInterval(FluxReconstruction scheme) {
+        using FR = FluxReconstruction;
+        switch (scheme) {
+            case FR::FirstOrder:     return 1;
+            case FR::ThirdOrderENO:  return 5;
+            case FR::FifthOrderWENO: return 5;
+            default:                 return 5;  // fallback
+        }
+    }
+
     int GhostCells() const {
         return RequiredGhosts(reconstruction_method);
+    }
+
+    int GetReinitInterval() const {
+        return RequiredReinitInterval(reconstruction_method);
     }
 
     // FluxReconstruction 
@@ -144,7 +158,9 @@ struct LevelSetData {
         int material_id = 0;
         bool has_narrowband = false;
         bool reinitialize = false;
-
+        int ReinitInterval = -1;
+        bool IS_MOVING = true;
+        
         // Narrowband geometry information
         amrex::Box Tube_domain;
         amrex::BoxArray Tube_ba;
@@ -938,7 +954,7 @@ struct LevelSetData {
                 , normalYcomp
         #endif
         #if AMREX_SPACEDIM == 3
-                , normalZccomp
+                , normalZcomp
         #endif
             };
 

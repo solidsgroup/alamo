@@ -137,10 +137,10 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
 
     {// Set LSData to reflect FluxReconstruction Method
     if (value.reconstruction_method == FluxReconstruction::FirstOrder) {
-        value.LSData.reconstruction_method == LevelSetData::FluxReconstruction::FirstOrder;
+        value.LSData.reconstruction_method = LevelSetData::FluxReconstruction::FirstOrder;
     }
     if (value.reconstruction_method == FluxReconstruction::FifthOrderWENO) {
-        value.LSData.reconstruction_method == LevelSetData::FluxReconstruction::FifthOrderWENO;
+        value.LSData.reconstruction_method = LevelSetData::FluxReconstruction::FifthOrderWENO;
     }
     }
 }
@@ -187,6 +187,9 @@ void NarrowBandLevelset::Initialize(int lev){
         
         // Copy for plotting
         object.CopyGeometryToFlowFields(*NormalX_mf[lev], *NormalY_mf[lev]);
+
+        // Get the ReinitInterval
+        object.ReinitInterval = object.FlowData->GetReinitInterval();
     }
 
     // Get the proper timestep
@@ -282,6 +285,9 @@ Set::Scalar NarrowBandLevelset::GetTimeStep() {
 
 void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) 
 {
+    // Increase timestep
+    current_timestep ++;
+
     // Swap the old and new LS fields
     const int num_objs = LSData.num_objs;
     for (int obj=0; obj<num_objs; obj++) {
@@ -297,7 +303,9 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         auto& object = LSData.objects[lev][obj];
 
         // Reinitialize
-        object.ReinitializeLS(*LS_mf[lev], cflReinit);
+        if (object.reinitialize || current_timestep % object.ReinitInterval == 0) {
+            object.ReinitializeLS(*LS_mf[lev], cflReinit);
+        }
 
         // Update the Narrowband cells
         object.UpdateNarrowbandTubeandMapping(*LS_mf[lev], *LSold_mf[lev], *Tube_mf[lev], *Zero_mf[lev], *CPT_mf[lev]);

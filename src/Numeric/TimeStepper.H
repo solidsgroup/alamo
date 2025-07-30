@@ -223,7 +223,7 @@ private:
             auto const& YFlux_arr = YFlux_mf.const_array(mfi);
 #endif
 #if AMREX_SPACEDIM == 3
-            auto const& ZFlux_arr = TubeZFlux_mf.const_array(mfi);
+            auto const& ZFlux_arr = ZFlux_mf.const_array(mfi);
 #endif
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
