@@ -67,7 +67,7 @@ public:
             amrex::IndexType type = a_field[lev]->ixType();
             if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
             else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
-            else Util::Abort(INFO, "Unkonwn index type");
+            else Util::Abort(INFO, "Unknown index type");
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (unsigned int n = 0; n < f.size(); n++)

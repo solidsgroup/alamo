@@ -163,12 +163,17 @@ public:
                 "Invalid stage for EulerForward: only one stage exists.");
         }
 
+        // Define constants
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
-        const int ncomp = solver->number_of_components;
-        const int OutsideTube = solver->GetOutsideTube();
+        auto& LSData = solver->LSData;
+        const int num_obj = LSData.num_objs;
+        const int OutsideTube = NarrowBandTubeType::OUTSIDETUBE;
 
-        for (int ils = 0; ils < ncomp; ++ils) {
-            ComputeEulerUpdateForComponent(lev, ils, dt, solver, DX, OutsideTube);
+        // Loop through all levelsets
+        for (int obj = 0; obj < num_obj; ++obj) {
+            auto& object = LSData.objects[lev][obj];
+
+            ComputeEulerUpdateForComponent(object, dt, DX, OutsideTube, solver, lev);
         }
     }
 
@@ -178,219 +183,96 @@ public:
 
 private:
     void ComputeEulerUpdateForComponent(
-        int lev, int ils, Set::Scalar dt,
-        Integrator::NarrowBandLevelset* solver,
-        const Set::Scalar* DX,
-        int OutsideTube)
+        LevelSetData::ObjectMeta& object, Set::Scalar dt,
+        const Set::Scalar* DX, int OutsideTube, Integrator::NarrowBandLevelset* solver, int lev)
     {
+        // Get flow variables
+        auto& LSflow    = solver->LS_mf[lev];
+        auto& LSoldflow = solver->LSold_mf[lev];
+
         // Get narrowband variables
-        const auto& ls_data = solver->level_sets[lev][ils];
-        const auto& ba = ls_data.narrowband_ba;
-        const auto& dm = ls_data.narrowband_dm;
-        const auto& narrowband = *ls_data.Tube;
-        auto& LS  = *ls_data.Tube_ls;
-        const auto& LS_old = *ls_data.Tube_ls_old;
-
-        // Define face-centered multifabs from solver
-        amrex::IntVect face_type_x = amrex::IntVect::TheCellVector();  // All 0s: cell-centered
-        face_type_x[0] = 1;  // Set x-direction to node-centered (i.e., face-centered in x)
-
-        amrex::BoxArray xflux_ba(ba);
-        xflux_ba.convert(amrex::IndexType(face_type_x));
-        amrex::MultiFab xflux(xflux_ba, dm, 1, 1);
-        xflux.ParallelCopy(*solver->XFlux_mf[lev], ils, 0, 1, 1, 1);
-
+        auto& TubeLS = object.TubeLS_mf;
+        auto& Tube = object.TubeMask_imf;
+        const auto& XFlux_mf = *object.TubeXFlux_mf;
 #if AMREX_SPACEDIM >= 2
-        amrex::IntVect face_type_y = amrex::IntVect::TheCellVector();  // All 0s: cell-centered
-        face_type_y[1] = 1;  
-
-        amrex::BoxArray yflux_ba(ba);
-        yflux_ba.convert(amrex::IndexType(face_type_y));
-        amrex::MultiFab yflux(yflux_ba, dm, 1, 1);
-        yflux.ParallelCopy(*solver->YFlux_mf[lev], ils, 0, 1, 1, 1);
+        const auto& YFlux_mf = *object.TubeYFlux_mf;
 #endif
-
 #if AMREX_SPACEDIM == 3
-        amrex::IntVect face_type_z = amrex::IntVect::TheCellVector();  // All 0s: cell-centered
-        face_type_z[2] = 1; 
-
-        amrex::BoxArray zflux_ba(ba);
-        zflux_ba.convert(amrex::IndexType(face_type_z));
-        amrex::MultiFab zflux(zflux_ba, dm, 1, 1);
-        zflux.ParallelCopy(*solver->ZFlux_mf[lev], ils, 0, 1, 1, 1);
+        const auto& ZFlux_mf = *object.TubeZFlux_mf;
 #endif
-        /*for (amrex::MFIter mfi(LS); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.validbox();
-            const amrex::FArrayBox& ls_fab     = (LS)[mfi];
-            const amrex::FArrayBox& ls_old_fab = (LS_old)[mfi];
-    
-            if (bx.contains(amrex::IntVect(20, 49))) {
-                amrex::Print() << "Before TimeStepper:\n";
-                amrex::Print() << "LS(20,49): " << ls_fab(amrex::IntVect(20, 49), 0) << "\n";
-                amrex::Print() << "LS_OLD(20,49): " << ls_old_fab(amrex::IntVect(20, 49), 0) << "\n";
-            }
-        }*/
+        const int obj_id = object.object_id;
+        const int ls_id  = object.ls_id;
 
-        for (amrex::MFIter mfi(LS); mfi.isValid(); ++mfi) {
+        // Get (i)MultiFab components
+        const int LScomp    = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeFieldComp::LS);
+        const int LSoldcomp = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeFieldComp::LS_OLD);
+
+        const int Tubecomp  = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeIntComp::TUBE_MASK);
+        const int Zerocomp  = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeIntComp::ZERO_LS);
+        const int CPTcomp   = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeIntComp::CPT_ID);
+
+        // Loop through narrowband (i)MultiFabs
+        for (amrex::MFIter mfi(*TubeLS); mfi.isValid(); ++mfi) {
+            // Determine the overlapping region between flow_domain and Tube_domain
             const auto& bx = mfi.validbox();
-            auto const& nb_arr = narrowband.const_array(mfi);
-            auto const& ls_arr = LS.array(mfi);
-            auto const& ls_old_arr = LS_old.const_array(mfi);
-            auto const& xflux_arr = xflux.const_array(mfi);
+
+            auto const& LS_arr    = TubeLS->array(mfi);
+            auto const& Tube_arr  = Tube->array(mfi);
+            auto const& XFlux_arr = XFlux_mf.const_array(mfi);
 #if AMREX_SPACEDIM >= 2
-            auto const& yflux_arr = yflux.const_array(mfi);
+            auto const& YFlux_arr = YFlux_mf.const_array(mfi);
 #endif
 #if AMREX_SPACEDIM == 3
-            auto const& zflux_arr = zflux.const_array(mfi);
+            auto const& ZFlux_arr = TubeZFlux_mf.const_array(mfi);
 #endif
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                const amrex::IntVect coord(AMREX_D_DECL(i,j,k));
-                if (std::abs(nb_arr(i, j, k)) == OutsideTube) return;
+                // Skip non-narrowband cells
+                if (Tube_arr(i,j,k,Tubecomp) == OutsideTube) return;
 
-                Set::Scalar flux_div = (xflux_arr(i, j, k) - xflux_arr(i - 1, j, k)) / DX[0];
+                // Compute fluxes
+                Set::Scalar flux_div = (XFlux_arr(i+1,j,k) - XFlux_arr(i,j,k)) / DX[0];
                 
 #if AMREX_SPACEDIM >= 2
-                flux_div += (yflux_arr(i, j, k) - yflux_arr(i, j - 1, k)) / DX[1];
+                flux_div += (YFlux_arr(i,j+1,k) - YFlux_arr(i,j,k)) / DX[1];
 #endif
 #if AMREX_SPACEDIM == 3
-                flux_div += (zflux_arr(i, j, k) - zflux_arr(i, j, k - 1)) / DX[2];
+                flux_div += (ZFlux_arr(i,j,k+1) - ZFlux_arr(i,j,k)) / DX[2];
 #endif
-                Set::Scalar LS_old = ls_arr(coord);
-                ls_arr(coord) = LS_old - dt * flux_div;
-                if ((i==46 &&j==46)){
-                    amrex::Print() << "LS_old" << coord << ": " << LS_old << std::endl;
-                    amrex::Print() << "xflux" << coord << ": " << xflux_arr(coord) << std::endl;
-                    amrex::Print() << "xlfux" << coord << "(-1): " << xflux_arr(i-1, j, k) << std::endl;
-                    amrex::Print() << "LS" << coord << ": " << ls_arr(coord) << std::endl;
+                const Set::Scalar LSold = LS_arr(i,j,k,LSoldcomp);
+                Set::Scalar LSnew = LSold - dt * flux_div;
+                LS_arr(i,j,k,LScomp) = LSnew;
+
+                // Ensure proper zero crossing
+                if (LSnew * LSold < 0.0 && Tube_arr(i,j,k,Zerocomp) == 0) {
+                    LS_arr(i,j,k,LScomp) = LSold;
                 }
+
+                // Update cpt flag for reinitialization algorithm
+                Tube_arr(i,j,k,CPTcomp) = (LS_arr(i,j,k,LScomp) <= 0.0) ? obj_id : 0;
+
+                // Debug
+                /*if ((i==20 &&j==52)){
+                    amrex::Print() << "LS_old[" << i << ", " << j << ", " << k << "]: " << LS_old << std::endl;
+                    amrex::Print() << "XFlux[" << i << ", " << j << ", " << k << "]: " << XFlux_arr(i, j, k) << std::endl;
+                    amrex::Print() << "XFlux[" << i-1 << ", " << j << ", " << k << "]: " << XFlux_arr(i-1, j, k) << std::endl;
+                    amrex::Print() << "LS[" << i << ", " << j << ", " << k << "]: " << ls_arr(i, j, k, LScomp) << std::endl;
+                }*/
             });
         }
+
+        // Update ghosts
+        object.ApplyLSBCs();
+        object.ApplyCPTBCs();
+
+        // Parallel copy
+        LSflow->ParallelCopy(*TubeLS, LScomp, ls_id, 1);
+        LSoldflow->ParallelCopy(*TubeLS, LSoldcomp, ls_id, 1);
+
+        LSflow->FillBoundary();
+        LSoldflow->FillBoundary();
     }
 };
-
-/*template <>
-class EulerForwardScheme<Integrator::NarrowBandLevelset> : public TimeSteppingScheme<Integrator::NarrowBandLevelset> {
-public:
-    void ComputeSubStep(int lev, Set::Scalar dt, int stage, Integrator::NarrowBandLevelset* solver) override {
-        if (stage != 0) {
-            Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
-        }
-        // Define constants
-        const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
-        const int ncomp = solver->number_of_components;
-
-        // Define outside of narrowband
-        const int OutsideNarrowband = solver->GetOutsideNarrowBandPos();
-
-        // Loop through all components
-        for (int ils=0; ils < ncomp; ils++){
-            // Create all temporary multifabs here so no need to perform multiple copies
-            auto const& ls_data = solver->level_sets[ils];
-
-            // Get proper distribution mapping for narrowband
-            const amrex::BoxArray& narrowband_ba = ls_data.narrowband_ba;
-            const amrex::DistributionMapping& narrowband_dm = ls_data.narrowband_dm;
-
-            // Define cell centered multifabs from solver
-            amrex::iMultiFab narrowband(narrowband_ba, narrowband_dm, 1, 0);
-            amrex::MultiFab LS(narrowband_ba, narrowband_dm, 1, 0);
-            amrex::MultiFab LS_old(narrowband_ba, narrowband_dm, 1, 0);
-
-            // ParallelCopy
-            auto const& Tube = ls_data.Tube_imf;
-            narrowband.ParallelCopy(*Tube, 0, 0, 1, 0, 0);
-            LS.ParallelCopy(*solver->ls_mf[lev], ils, 0, 1, 0, 0);
-            LS_old.ParallelCopy(*solver->ls_old_mf[lev], ils, 0, 1, 0, 0);
-
-            // Define face-centered multifabs from solver
-            amrex::IntVect face_type_x = amrex::IntVect::TheCellVector();  // All 0s: cell-centered
-            face_type_x[0] = 1;  // Set x-direction to node-centered (i.e., face-centered in x)
-
-            amrex::BoxArray xflux_ba(narrowband_ba);
-            xflux_ba.convert(amrex::IndexType(face_type_x));
-            amrex::MultiFab xflux(xflux_ba, narrowband_dm, 1, 1);
-            xflux.ParallelCopy(*solver->XFlux_mf[lev], ils, 0, 1, 1, 1);
-
-#if AMREX_SPACEDIM >= 2
-            amrex::IntVect face_type_y = amrex::IntVect::TheCellVector();
-            face_type_y[1] = 1;
-
-            amrex::BoxArray yflux_ba(narrowband_ba);
-            yflux_ba.convert(amrex::IndexType(face_type_y));
-            amrex::MultiFab yflux(yflux_ba, narrowband_dm, 1, 1);
-            yflux.ParallelCopy(*solver->YFlux_mf[lev], ils, 0, 1, 1, 1);
-#endif
-
-#if AMREX_SPACEDIM == 3
-            amrex::IntVect face_type_z = amrex::IntVect::TheCellVector();
-            face_type_z[2] = 1;
-
-            amrex::BoxArray zflux_ba(narrowband_ba);
-            zflux_ba.convert(amrex::IndexType(face_type_z));
-            amrex::MultiFab zflux(zflux_ba, narrowband_dm, 1, 1);
-            zflux.ParallelCopy(*solver->ZFlux_mf[lev], ils, 0, 1, 1, 1);
-#endif
-
-            // Loop through all valid boxes
-            for (amrex::MFIter mfi(LS, false); mfi.isValid(); ++mfi) {
-                // Define the valid box
-                const amrex::Box& bx = mfi.validbox();  // Valid region of the box
-
-                // Define array views for cell center variables
-                auto const& nb_arr = narrowband.const_array(mfi);
-                auto const& ls_arr = LS.array(mfi);
-                auto const& ls_old_arr = LS_old.const_array(mfi);
-
-                // Get face-centered flux fields
-                auto const& xflux_arr = xflux.const_array(mfi);  // X-direction flux
-#if AMREX_SPACEDIM >= 2
-                auto const& yflux_arr = yflux.const_array(mfi);  // Y-direction flux
-#endif
-#if AMREX_SPACEDIM == 3
-                auto const& zflux_arr = zflux.const_array(mfi);  // Z-direction flux
-#endif
-
-                // Loop through individual cells
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                    const amrex::IntVect coord(AMREX_D_DECL(i, j, k));
-
-                    // Exit early if not narrowband cell
-                    Set::Scalar nb_val = nb_arr(coord);
-                    if (std::abs(nb_val) == OutsideNarrowband) return;
-
-                    // Initialize flux to 0
-                    Set::Scalar flux_div = 0.0;
-
-                    // Compute flux divergence in X-direction
-                    flux_div += (xflux_arr(coord, 0) - xflux_arr(i - 1, j, k, 0)) / DX[0];
-
-#if AMREX_SPACEDIM >= 2
-                    // Compute flux divergence in Y-direction
-                    flux_div += (yflux_arr(coord, 0) - yflux_arr(i, j - 1, k, 0)) / DX[1];
-#endif
-
-#if AMREX_SPACEDIM == 3
-                    // Compute flux divergence in Z-direction
-                    flux_div += (zflux_arr(i, j, k, 0) - zflux_arr(i, j, k - 1, 0)) / DX[2];
-#endif
-
-                    // Euler forward update for level set function
-                    //if (coord == debug) amrex::Print() << "LS: " << ls_arr(coord, ils) << std::endl;
-                    ls_arr(coord, 0) = ls_old_arr(coord, 0) - dt * flux_div;
-                });
-            }
-
-            // Parallel copy back
-            solver->ls_mf[lev]->ParallelCopy(LS, 0, ils, 1, 0, 0);
-        }
-    }
-
-    int GetNumberOfStages() const override {
-        return 1;  // Euler Forward has only one stage
-    }
-};*/
 
 // RK3 Scheme
 template <typename IntegratorDerivedClass>

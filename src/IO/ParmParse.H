@@ -350,6 +350,18 @@ public:
         for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
         return 0;
     }
+    int queryarr(   std::string name, Set::MultiVector & value)
+    {
+        std::vector<Set::Scalar> vals;
+        amrex::ParmParse::queryarr(name.c_str(), vals);
+
+        // Resize value before assigning
+        value.resize(vals.size());
+        for (int i = 0; i < static_cast<int>(vals.size()); ++i) {
+            value(i) = vals[i];
+        }
+        return 0;
+    }
     int queryarr(   std::string name, Set::Matrix & value,
                     std::string file = "", std::string func = "queryarr", int line = -1)
     {
