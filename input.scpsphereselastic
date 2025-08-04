@@ -184,7 +184,6 @@ hydro.u0.ic.constant.value = 0 0.0
 hydro.lagrange=1.0
 hydro.lagrange_m0=1.0
 hydro.solver.type = roe
-#hydro.scheme=
 hydro.gamma = 1.4
 hydro.mu    = 0.00001
 hydro.pref    = 10000
