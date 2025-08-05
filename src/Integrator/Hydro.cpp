@@ -97,9 +97,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
         // Species inputs
-        pp_queryarr_default("temperature", value.temperature, 300.0);
-        pp_queryarr_default("species", value.species, "N2 O2");
-        pp_queryarr("species_mw", value.species_mw); // g/mol or kg/kmol
+        pp_query_default("temperature", value.temperature, 300.0);
+        pp_queryarr_default("species", value.species, {"N2", "O2"});
+        pp_queryarr_default("species_mw", value.species_mw, {28.0134, 31.9988}); // g/mol or kg/kmol
         value.nspecies = value.species.size();
 
         if ( pp.contains("species_massf") ) {
@@ -125,12 +125,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                 value.species_massf[i] = value.species_molef[i] * value.species_mw[i] / mass;
             }
         } else {
+            //pp_queryarr_default("species_massf", value.species_massf, {0.767, 0.233}); // mass fractions
             Util::Exception(INFO,"Aborting. Must specify either `species_massf` or `species_molef`.");
         }
         
-        pp_queryarr("species_k", value.species_k); // W/m-K, thermal conductivity
-        pp_queryarr("species_cp", value.species_cp); // J/kg-K, specific heat by mass
-        pp_queryarr("species_mu", value.species_mu); //kg/m-s, dynamic viscosity
+        pp_queryarr_default("species_k", value.species_k, {0.0240, 0.026}); // W/m-K, thermal conductivity
+        pp_queryarr_default("species_cp", value.species_cp, {1040.0, 920.0}); // J/kg-K, specific heat by mass
+        pp_queryarr_default("species_mu", value.species_mu, {175.4E-7, 203.1E-7}); //kg/m-s, dynamic viscosity
         pp_queryarr("species_LJdiameter", value.species_LJdiameter); // Angstroms, Lennard-Jones potential collision diameter
         pp_queryarr("species_LJwelldepth", value.species_LJwelldepth); // K, Lennard-Jones potential e/k (k: Boltzmann constant)
 
@@ -984,8 +985,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //    species C |           |           |   D_CC   |
             //              ------------------------------------
 
-            double mu = 0.0;
-            double k = 0.0;
             double sigmaAB = 0.0;
             double epsAB = 0.0;
             double nondimT = 0.0;
@@ -993,32 +992,48 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             double DAB = 0.0;
             double DKM = 0.0;
             double molecularenergy = 0.0;
-            for (int a=0; a<value.nspecies; ++a)
+            double mixed_k = 0.0;
+            double mixed_mu = 0.0;
+            double mixed_cp = 0.0;
+            double mixed_mw = 0.0;
+            for (int a=0; a<nspecies; ++a)
             {
                 double phi = 0.0;
-                for (int b=0; b<value.nspecies; ++b)
+                for (int b=0; b<nspecies; ++b)
                 {
-                    phi += value.species_molef[b] * 1.0/sqrt(8.0) *
-                           pow(1.0 + value.species_mw[a]/value.species_mw[b], -0.5) *
-                           pow(1.0 + sqrt(value.species_mu[a]/value.species_mu[b]) *
-                           pow(value.species_mw[b]/value.species_mw[a], 0.25), 2.0);
+                    phi += species_molef[b] * 1.0/sqrt(8.0) *
+                           pow(1.0 + species_mw[a]/species_mw[b], -0.5) *
+                           pow(1.0 + sqrt(species_mu[a]/species_mu[b]) *
+                           pow(species_mw[b]/species_mw[a], 0.25), 2.0);
                     if ( b != a ) 
                     {
-                        sigmaAB = 0.5*(value.species_LJdiameter[a] + value.species_LJdiameter[b]);
-                        epsAB = sqrt(value.species_LJwelldepth[a] * value.species_LJwelldepth[b]);
-                        nondimT = value.temperature/epsAB;
+                        sigmaAB = 0.5*(species_LJdiameter[a] + species_LJdiameter[b]);
+                        epsAB = sqrt(species_LJwelldepth[a] * species_LJwelldepth[b]);
+                        nondimT = temperature/epsAB;
                         omegaAB = collision_integral(nondimT);
-                        DAB = 0.0018583*sqrt(pow(value.temperature, 3.0) * (1.0/value.species_mw[a] + 1.0/value.species_mw[b])) / 
-                                    /*pressure*/ (value.pref/101325.0*pow(sigmaAB,2.0)*omegaAB);
+                        DAB = 0.0018583*sqrt(pow(temperature, 3.0) * (1.0/species_mw[a] + 1.0/species_mw[b])) / 
+                                    /*pressure*/ (pref/101325.0*pow(sigmaAB,2.0)*omegaAB);
                         DAB /= 100.0*100.0; // convert from cm^2/s to m^2/s
-                        DKM += value.species_molef[b]/DAB;
+                        DKM += species_molef[b]/DAB;
                     }
-                    DKM = (1.0 - value.species_massf[a])/DAM;
-                    molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
+                    DKM = (1.0 - species_massf[a])/DKM;
+                    //molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
                 }
-                value.mu += value.species_molef[a] * value.species_mu[a] / phi;
-                value.k += value.species_molef[a] * value.species_k[a] / phi;
+                mixed_mu += species_molef[a] * species_mu[a] / phi;
+                mixed_k += species_molef[a] * species_k[a] / phi;
+                mixed_cp += species_massf[a] * species_cp[a];
+                mixed_mw += species_molef[a] * species_mw[a];
             }
+            Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1]);
+            Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1]);
+            Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1]);
+            Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1]);
+            Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1]);
+            Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
+            Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp);
+            Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
+            Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
+            Util::Exception(INFO,"Aborting.");
 
 
 
