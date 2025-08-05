@@ -23,7 +23,7 @@ crack.refinement_threshold = 0.1
 crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
 
-crack.df.mult_Gc = 0.5
+crack.df.mult_Gc = 0.3
 crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
@@ -62,14 +62,14 @@ crack.model2.threshold = 1.0
 
 
 # Tension notch testing
-crack.ic.type = notch
-crack.ic.notch.center = -0.125 0
-crack.ic.notch.orientation = 1 0
-crack.ic.notch.length = 0.035
-crack.ic.notch.thickness = 2.e-3
+#crack.ic.type = notch
+#crack.ic.notch.center = -0.125 0
+#crack.ic.notch.orientation = 1 0
+#crack.ic.notch.length = 0.035
+#crack.ic.notch.thickness = 2.e-3
 
-crack.ic.notch.eps = 5.e-4
-crack.ic.notch.mollifier = erf
+#crack.ic.notch.eps = 5.e-4
+#crack.ic.notch.mollifier = erf
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
@@ -82,7 +82,7 @@ crack.bc.type.ylo = NEUMANN
 #material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
 
 material.ic.type = png
-material.ic.png.filename = "test_image_hmx_green.png"
+material.ic.png.filename = "circles_blurred_1.png"
 material.ic.png.fit = stretch
 #material.ic.png.coord.lo = 0 0
 #material.ic.png.coord.high = 1 1
@@ -111,9 +111,9 @@ bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi =       0.0 8.e-5
-bc.constant.val.xloyhi =    0.0 8.e-5
-bc.constant.val.xhiyhi =    0.0 8.e-5
+bc.constant.val.yhi =       0.0 2.e-4
+bc.constant.val.xloyhi =    0.0 2.e-4
+bc.constant.val.xhiyhi =    0.0 2.e-4
 
 
 # Compression testing
