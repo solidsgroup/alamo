@@ -165,6 +165,7 @@ The development team gratefully acknowledges the funding sources that enable the
         GettingStarted
         Simba
         AutoDocAutoTest
+        Units
         Tests
         Inputs
         InputsSearch
