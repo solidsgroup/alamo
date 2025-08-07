@@ -31,8 +31,6 @@ gamma = 1.4
 mu    = 5.0
 pref    = 101325
 
-temperature = 296.1
-
 ##Default is Air
 #species_massf = 0.767 0.233
 
@@ -60,7 +58,7 @@ species_LJwelldepth = 190.0 113.0 99.8
 #hydro.rho_solid = 30.0 #kg/m^3
 #hydro.rho_fluid = 20.0 #kg/m^3
 #hydro.E_solid   = 5.0
-density.ic.constant.value = 40.0
+density.ic.constant.value = 1.5
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
 velocity.ic.expression.constant.x0    = -2.0

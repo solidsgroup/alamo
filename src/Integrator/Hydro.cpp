@@ -97,7 +97,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
         // Species inputs
-        pp_query_default("temperature", value.temperature, 300.0);
         pp_queryarr_default("species", value.species, {"N2", "O2"});
         pp_queryarr_default("species_mw", value.species_mw, {28.0134, 31.9988}); // g/mol or kg/kmol
         value.nspecies = value.species.size();
@@ -161,9 +160,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // value.RegisterNewFab(value.tracer_mf,     value.tracer_bc, 1, nghost, "tracer",     true ,true);
         // value.RegisterNewFab(value.tracer_old_mf, value.tracer_bc, 1, nghost, "tracer_old", false);
 
-        value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
-        value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
-        value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
+        value.RegisterNewFab(value.pressure_mf,     &value.bc_nothing, 1, nghost, "temperature",  true, false);
+        value.RegisterNewFab(value.temperature_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
+        value.RegisterNewFab(value.velocity_mf,     &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
+        value.RegisterNewFab(value.vorticity_mf,    &value.bc_nothing, 1, nghost, "vorticity", true, false);
 
         value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, 1, 0, "m0",  true, false);
         value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
@@ -824,8 +824,9 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
-        Set::Patch<Set::Scalar>       pressure  = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       omega     = vorticity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       pressure  = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>    temperature  = temperature_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
@@ -842,7 +843,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
-            pressure(i,j,k) = (gamma - 1.0) * E(i,j,k);
 
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
@@ -860,6 +860,18 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
+
+            double mixed_cp = 0.0;
+            double mixed_mw = 0.0;
+            for (int a=0; a<nspecies; ++a)
+            {
+                mixed_cp += species_massf[a] * species_cp[a];
+                mixed_mw += species_molef[a] * species_mw[a];
+            }
+            double mixed_cv = mixed_cp - 8314.45/mixed_mw;
+            double internal_energy = (E(i,j,k) - 0.5 * rho(i,j,k) * (pow(u(0), 2.0) + pow(u(1), 2.0))) / rho(i,j,k);
+            pressure(i,j,k) = (gamma - 1.0) * rho(i,j,k) * internal_energy + pref;
+            temperature(i,j,k) = internal_energy / mixed_cv;
 
 
             if (prescribedflowmode == PrescribedFlowMode::Relative)
@@ -885,6 +897,79 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             / rho(i,j,k);
                     }
 
+            // Multispecies effects
+            // Mixture viscosity and heat conduction coefficient
+            // Multicomponent extension of Chapman-Enskog
+            // Transport Phenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 1.4 & 9.3
+            //
+            // Binary diffusion constants
+            // Chapman-Enskog
+            // Transport PHenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 17.3
+            //
+            // Upper triangular matrix for species row and species column since D_AB = D_BA, i.e.
+            //
+            //                species A | species B | species C
+            //              ------------------------------------
+            //    species A |    D_AA   |   D_AB    |   D_AC   |
+            //              ------------------------------------
+            //    species B |           |   D_BB    |   D_BC   |
+            //              ------------------------------------
+            //    species C |           |           |   D_CC   |
+            //              ------------------------------------
+
+            double sigmaAB = 0.0;
+            double epsAB = 0.0;
+            double nondimT = 0.0;
+            double omegaAB = 0.0;
+            double DAB = 0.0;
+            double DKM = 0.0;
+            double molecularenergy = 0.0;
+            double mixed_k = 0.0;
+            double mixed_mu = 0.0;
+            double phi = 0.0;
+            for (int a=0; a<nspecies; ++a)
+            {
+                phi = 0.0;
+                DKM = 0.0;
+                for (int b=0; b<nspecies; ++b)
+                {
+                    phi += species_molef[b] * 1.0/sqrt(8.0) *
+                           pow(1.0 + species_mw[a]/species_mw[b], -0.5) *
+                           pow(1.0 + sqrt(species_mu[a]/species_mu[b]) *
+                           pow(species_mw[b]/species_mw[a], 0.25), 2.0);
+                    if ( b != a ) 
+                    {
+                        sigmaAB = 0.5*(species_LJdiameter[a] + species_LJdiameter[b]);
+                        epsAB = sqrt(species_LJwelldepth[a] * species_LJwelldepth[b]);
+                        nondimT = temperature(i,j,k)/epsAB;
+                        omegaAB = collision_integral(nondimT);
+                        DAB = 0.0018583*sqrt(pow(temperature(i,j,k), 3.0) * (1.0/species_mw[a] + 1.0/species_mw[b])) / 
+                                    (pressure(i,j,k)/101325.0*pow(sigmaAB,2.0)*omegaAB);
+                        DAB /= 10000.0; // convert from cm^2/s to m^2/s
+                        DKM += species_molef[b]/DAB;
+                    }
+                }
+                DKM = (1.0 - species_massf[a])/DKM;
+                //molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
+                Util::ParallelMessage(INFO,"pressure: ", pressure(i,j,k), " | pref: ", pref, " | temp: ", temperature(i,j,k));
+                Util::ParallelMessage(INFO, species[a], ": DAB: ", DAB, "; DKM: ", DKM);
+
+                mixed_mu += species_molef[a] * species_mu[a] / phi;
+                mixed_k  += species_molef[a] * species_k[a] / phi;
+            }
+            Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1], ", ", species[2]);
+            Util::ParallelMessage(INFO,"species_massf: ", species_massf[0], ", ", species_massf[1], ", ", species_massf[2]);
+            Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1], ", ", species_mw[2]);
+            Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1], ", ", species_cp[2]);
+            Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1], ", ", species_mu[2]);
+            Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1], ", ", species_k[2]);
+            Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
+            Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp);
+            Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
+            Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
+            Util::Exception(INFO,"Aborting.");
+
+
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
             for (int p = 0; p<2; p++)
@@ -893,7 +978,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         for (int s = 0; s<2; s++)
                         {
                             Set::Scalar Mpqrs = 0.0;
-                            if (p==r && q==s) Mpqrs += 0.5 * mu;
+                            if (p==r && q==s) Mpqrs += 0.5 * mixed_mu;
 
                             Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
                             div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
@@ -967,83 +1052,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::Abort(INFO);
             }
 
-            // Multispecies effects
-            // Mixture viscosity and heat conduction coefficient
-            // Multicomponent extension of Chapman-Enskog
-            // Transport Phenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 1.4 & 9.3
-            //
-            // Binary diffusion constants
-            // Chapman-Enskog
-            // Transport PHenomena, Revised 2nd Edition / Bird, Stewart, Lightfoot // Ch. 17.3
-            //
-            // Upper triangular matrix for species row and species column since D_AB = D_BA, i.e.
-            //
-            //                species A | species B | species C
-            //              ------------------------------------
-            //    species A |    D_AA   |   D_AB    |   D_AC   |
-            //              ------------------------------------
-            //    species B |           |   D_BB    |   D_BC   |
-            //              ------------------------------------
-            //    species C |           |           |   D_CC   |
-            //              ------------------------------------
-
-            double sigmaAB = 0.0;
-            double epsAB = 0.0;
-            double nondimT = 0.0;
-            double omegaAB = 0.0;
-            double DAB = 0.0;
-            double DKM = 0.0;
-            double molecularenergy = 0.0;
-            double mixed_k = 0.0;
-            double mixed_mu = 0.0;
-            double mixed_cp = 0.0;
-            double mixed_mw = 0.0;
-            double phi = 0.0;
-            for (int a=0; a<nspecies; ++a)
-            {
-                phi = 0.0;
-                DKM = 0.0;
-                for (int b=0; b<nspecies; ++b)
-                {
-                    phi += species_molef[b] * 1.0/sqrt(8.0) *
-                           pow(1.0 + species_mw[a]/species_mw[b], -0.5) *
-                           pow(1.0 + sqrt(species_mu[a]/species_mu[b]) *
-                           pow(species_mw[b]/species_mw[a], 0.25), 2.0);
-                    if ( b != a ) 
-                    {
-                        sigmaAB = 0.5*(species_LJdiameter[a] + species_LJdiameter[b]);
-                        epsAB = sqrt(species_LJwelldepth[a] * species_LJwelldepth[b]);
-                        nondimT = temperature/epsAB;
-                        omegaAB = collision_integral(nondimT);
-                        DAB = 0.0018583*sqrt(pow(temperature, 3.0) * (1.0/species_mw[a] + 1.0/species_mw[b])) / 
-                                    (/*pressure(i,j,k)*/pref/101325.0*pow(sigmaAB,2.0)*omegaAB);
-                        DAB /= 10000.0; // convert from cm^2/s to m^2/s
-                        DKM += species_molef[b]/DAB;
-                    }
-                }
-                DKM = (1.0 - species_massf[a])/DKM;
-                //molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
-                Util::ParallelMessage(INFO,"pressure: ", pressure(i,j,k), " | pref: ", pref);
-                Util::ParallelMessage(INFO, species[a], ": DAB: ", DAB, "; DKM: ", DKM);
-
-                mixed_mu += species_molef[a] * species_mu[a] / phi;
-                mixed_k += species_molef[a] * species_k[a] / phi;
-                mixed_cp += species_massf[a] * species_cp[a];
-                mixed_mw += species_molef[a] * species_mw[a];
-            }
-            Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1], ", ", species[2]);
-            Util::ParallelMessage(INFO,"species_massf: ", species_massf[0], ", ", species_massf[1], ", ", species_massf[2]);
-            Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1], ", ", species_mw[2]);
-            Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1], ", ", species_cp[2]);
-            Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1], ", ", species_mu[2]);
-            Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1], ", ", species_k[2]);
-            Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
-            Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp);
-            Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
-            Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
-            Util::Exception(INFO,"Aborting.");
-
-
 
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
@@ -1058,8 +1066,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta + small)
                 // ) * dt;
                 ;
-
-
                 
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +

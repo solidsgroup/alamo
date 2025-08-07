@@ -99,6 +99,7 @@ protected:
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
+    Set::Field<Set::Scalar> temperature_mf;
 
 
     Set::Field<Set::Scalar> tracer_mf;
@@ -161,7 +162,6 @@ protected:
     Set::Scalar lagrange_m0=NAN;
 
     int nspecies = 0;
-    Set::Scalar temperature=0.0;
     std::vector<std::string> species;
     std::vector<double> species_mw;
     std::vector<double> species_massf;
