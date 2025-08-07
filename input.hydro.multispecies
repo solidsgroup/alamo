@@ -30,6 +30,7 @@ geometry.prob_hi = 0.24  0.03
 gamma = 1.4
 mu    = 5.0
 pref    = 101325
+tref    = 300
 
 ##Default is Air
 #species_massf = 0.767 0.233

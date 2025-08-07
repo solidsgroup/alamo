@@ -66,6 +66,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("Pfactor","replaced with mu");
         //pp_query_default("Pfactor", value.Pfactor,1.0); // (to be removed) test factor for viscous source
         pp_query_default("pref", value.pref,1.0); // reference pressure for Roe solver
+        pp_query_default("tref", value.tref,1.0); // reference pressure for Roe solver
 
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
@@ -877,9 +878,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 mixed_mw += species_molef[a] * species_mw[a];
             }
             double mixed_cv = mixed_cp - 8314.45/mixed_mw;
+            gamma = mixed_cp/mixed_cv;
             double internal_energy = (E(i,j,k) - 0.5 * rho(i,j,k) * (pow(u(0), 2.0) + pow(u(1), 2.0))) / rho(i,j,k);
             pressure(i,j,k) = (gamma - 1.0) * rho(i,j,k) * internal_energy + pref;
-            temperature(i,j,k) = internal_energy / mixed_cv;
+            temperature(i,j,k) = internal_energy / mixed_cv + tref;
 
 
             if (prescribedflowmode == PrescribedFlowMode::Relative)
@@ -972,7 +974,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1], ", ", species_mu[2]);
             Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1], ", ", species_k[2]);
             Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
-            Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp);
+            Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp, " | mixed_cv: ", mixed_cv);
             Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
             Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
             Util::Exception(INFO,"Aborting.");
