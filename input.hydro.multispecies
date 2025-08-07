@@ -33,21 +33,30 @@ pref    = 101325
 
 temperature = 296.1
 
-#species = CO2 O2 N2
-#species_mw = 44.010 32.000 28.016
-#species_molef = 0.133 0.039 0.828
-#species_k = 383.0E-7 612.0E-7 627.0E-7
-#species_cp = 1400.0 920.0 1040.0
-#species_mu = 1462.0E-7 2031.0E-7 1754.0E-7
+##Default is Air
+#species_massf = 0.767 0.233
 
+## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
+## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
+species = CO2 O2 N2
+species_mw = 44.010 32.000 28.016
+species_molef = 0.133 0.039 0.828
+species_k = 1.6024E-2 2.5606E-2 2.6234E-2
+species_cp = 845.68 920.0 1040.0
+species_mu = 146.2E-7 203.1E-7 175.4E-7
+species_LJdiameter = 3.996 3.433 3.667
+species_LJwelldepth = 190.0 113.0 99.8
+
+## Transport Phenomena Ex. 17.3-1 | D_AB = 0.149 cm^2/s = 1.49E-5 m^2/s
 #species = CO CO2
 #species_mw = 28.01 44.01
-species_massf = 0.5 0.5
-#species_k = 0.026 0.026
-#species_cp = 1400.0 1200.0
-#species_mu = 1462E-7 1400E-7
-species_LJdiameter = 3.590 3.996
-species_LJwelldepth = 110 190
+#species_massf = 0.5 0.5
+#species_k = 2.5564E-2 1.6024E-2
+#species_cp = 1040.45 845.68
+#species_mu = 177.7E-7 146.2E-7
+#species_LJdiameter = 3.590 3.996
+#species_LJwelldepth = 110 190
+
 #hydro.rho_solid = 30.0 #kg/m^3
 #hydro.rho_fluid = 20.0 #kg/m^3
 #hydro.E_solid   = 5.0

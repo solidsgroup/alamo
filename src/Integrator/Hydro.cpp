@@ -129,11 +129,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
             Util::Exception(INFO,"Aborting. Must specify either `species_massf` or `species_molef`.");
         }
         
-        pp_queryarr_default("species_k", value.species_k, {0.0240, 0.026}); // W/m-K, thermal conductivity
+        pp_queryarr_default("species_k", value.species_k, {2.623368E-2, 2.560608E-2}); // W/m-K, thermal conductivity
         pp_queryarr_default("species_cp", value.species_cp, {1040.0, 920.0}); // J/kg-K, specific heat by mass
         pp_queryarr_default("species_mu", value.species_mu, {175.4E-7, 203.1E-7}); //kg/m-s, dynamic viscosity
-        pp_queryarr("species_LJdiameter", value.species_LJdiameter); // Angstroms, Lennard-Jones potential collision diameter
-        pp_queryarr("species_LJwelldepth", value.species_LJwelldepth); // K, Lennard-Jones potential e/k (k: Boltzmann constant)
+        pp_queryarr_default("species_LJdiameter", value.species_LJdiameter, {3.667, 3.433}); // Angstroms, Lennard-Jones potential collision diameter
+        pp_queryarr_default("species_LJwelldepth", value.species_LJwelldepth, {99.8, 113.0}); // K, Lennard-Jones potential e/k (k: Boltzmann constant)
 
     }
     // Register FabFields:
@@ -788,7 +788,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
-            p(i,j,k)   = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))-pref;
+            p(i,j,k) = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))-pref;
 
             if (eta < small) 
             {
@@ -824,6 +824,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar>       pressure  = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       omega     = vorticity_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
@@ -841,6 +842,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+            pressure(i,j,k) = (gamma - 1.0) * E(i,j,k);
 
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
@@ -996,9 +998,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             double mixed_mu = 0.0;
             double mixed_cp = 0.0;
             double mixed_mw = 0.0;
+            double phi = 0.0;
             for (int a=0; a<nspecies; ++a)
             {
-                double phi = 0.0;
+                phi = 0.0;
+                DKM = 0.0;
                 for (int b=0; b<nspecies; ++b)
                 {
                     phi += species_molef[b] * 1.0/sqrt(8.0) *
@@ -1012,23 +1016,27 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         nondimT = temperature/epsAB;
                         omegaAB = collision_integral(nondimT);
                         DAB = 0.0018583*sqrt(pow(temperature, 3.0) * (1.0/species_mw[a] + 1.0/species_mw[b])) / 
-                                    /*pressure*/ (pref/101325.0*pow(sigmaAB,2.0)*omegaAB);
-                        DAB /= 100.0*100.0; // convert from cm^2/s to m^2/s
+                                    (/*pressure(i,j,k)*/pref/101325.0*pow(sigmaAB,2.0)*omegaAB);
+                        DAB /= 10000.0; // convert from cm^2/s to m^2/s
                         DKM += species_molef[b]/DAB;
                     }
-                    DKM = (1.0 - species_massf[a])/DKM;
-                    //molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
                 }
+                DKM = (1.0 - species_massf[a])/DKM;
+                //molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
+                Util::ParallelMessage(INFO,"pressure: ", pressure(i,j,k), " | pref: ", pref);
+                Util::ParallelMessage(INFO, species[a], ": DAB: ", DAB, "; DKM: ", DKM);
+
                 mixed_mu += species_molef[a] * species_mu[a] / phi;
                 mixed_k += species_molef[a] * species_k[a] / phi;
                 mixed_cp += species_massf[a] * species_cp[a];
                 mixed_mw += species_molef[a] * species_mw[a];
             }
-            Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1]);
-            Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1]);
-            Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1]);
-            Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1]);
-            Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1]);
+            Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1], ", ", species[2]);
+            Util::ParallelMessage(INFO,"species_massf: ", species_massf[0], ", ", species_massf[1], ", ", species_massf[2]);
+            Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1], ", ", species_mw[2]);
+            Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1], ", ", species_cp[2]);
+            Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1], ", ", species_mu[2]);
+            Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1], ", ", species_k[2]);
             Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
             Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp);
             Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
