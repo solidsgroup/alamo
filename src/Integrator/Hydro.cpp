@@ -124,8 +124,16 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                 value.species_massf[i] = value.species_molef[i] * value.species_mw[i] / mass;
             }
         } else {
-            //pp_queryarr_default("species_massf", value.species_massf, {0.767, 0.233}); // mass fractions
-            Util::Exception(INFO,"Aborting. Must specify either `species_massf` or `species_molef`.");
+            pp_queryarr_default("species_massf", value.species_massf, {0.767, 0.233}); // mass fractions
+            // Get mole fractions
+            value.species_molef = value.species_massf;
+            double moles = 0.0;
+            for (int i=0; i<value.nspecies; ++i) {
+                moles += value.species_massf[i] / value.species_mw[i];
+            }
+            for (int i=0; i<value.nspecies; ++i) {
+                value.species_molef[i] = value.species_massf[i] / value.species_mw[i] / moles;
+            }
         }
         
         pp_queryarr_default("species_k", value.species_k, {2.623368E-2, 2.560608E-2}); // W/m-K, thermal conductivity
