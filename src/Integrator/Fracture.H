@@ -138,10 +138,10 @@ public:
         }
 
         value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
-        value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
-        value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", true);
-        value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", true);
+        value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", false);
+        value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", false);
+        value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", false);
+        value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", false);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm), "driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
@@ -149,7 +149,7 @@ public:
         // By default the psi variable will be on for fracture simulations
         value.psi_on = true;
         value.bc_psi = new BC::Constant(1, pp, "crack.bc"); // boundary conditions for crack
-        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
+        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", false);
 
         // This is needed for the specific crack model we are implementing
         pp.queryclass_enumerate<pfczm_crack_type>("crack.model",value.crack.cracktype);
@@ -252,6 +252,7 @@ public:
         {
             crack.crack_prop_iter = 0;
             elastic_do_solve_now = true;
+            increase_load_step = true;
         }
         if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > crack.max_iter)
         {
@@ -748,6 +749,12 @@ public:
         Base::Mechanics<brittle_model>::Integrate(amrlev, time, step, mfi, a_box);
     }
 
+    void Regrid(int lev, Set::Scalar time) override
+    {
+        material.ic->Initialize(lev, material.eta_mf, time);
+    }
+
+
     void
     TimeStepComplete(Set::Scalar /*time*/, int /* iter*/) override
     {
@@ -761,10 +768,14 @@ public:
             set_initial_df_once = false;
         }
 
-        if (crack.driving_force_reference / crack.driving_force_reference_prev < 0.1)
+        if (crack.driving_force_reference / (crack.driving_force_reference_prev+1E-8) < 0.1)
         {
             increase_load_step = true;
-            // crack.driving_force_reference_prev = crack.driving_force_reference;
+            crack.driving_force_reference_prev = crack.driving_force_reference;
+        }
+        else
+        {
+            Util::Message(INFO,"cur=",crack.driving_force_reference," prev=", crack.driving_force_reference_prev, " ratio=", crack.driving_force_reference / (crack.driving_force_reference_prev+1E-8));
         }
         if (set_new_reference)
         {

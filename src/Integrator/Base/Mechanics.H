@@ -417,13 +417,20 @@ protected:
             if (i == hi.x && j < boxhi.y)
             {
                 trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
-                disp_hi[0] = disp(i, j, k);
             }
             if (j == hi.y && i < boxhi.x)
             {
                 trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
+            }
+            if (i == hi.x && j == 0)
+            {
+                disp_hi[0] = disp(i, j, k);
+            }
+            if (i == 0 && j == hi.y)
+            {
                 disp_hi[1] = disp(i, j, k);
             }
+
 #elif AMREX_SPACEDIM == 3
             if (i == hi.x && (j < boxhi.y && k < boxhi.z))
             {
