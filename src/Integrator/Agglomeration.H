@@ -1,48 +1,48 @@
-//
-// This implements a phase field model for agglomeration of
+// This integrator implements a phase field model for agglomeration of
 // nanoparticles in a solid composite propellant (SCP). The chemical
-// potential :math:`W_C[\alpha]` is defined as
+// potential :math:`W_C(\alpha)` is defined as
 //
 // .. math::
-//    W_C[\alpha] = \frac{\gamma}{\epsilon}\alpha^2(1-\alpha)^2,
+//    W_C(\alpha)=\frac{\sigma}{\varepsilon}\alpha^2(1-\alpha)^2
 //
-// where :math:`\epsilon` is the diffuse interface width and
-// :math:`\gamma` is a parameter. To capture the surface tension of
-// the agglomerate phase, we define
-//
-// .. math::
-//    W_B[\alpha] = \frac{1}{2}\epsilon\kappa|\nabla\alpha|^2,
-//
-// where :math:`\kappa` is a parameter. The free energy is
+// where :math:`\sigma` is the interface energy and
+// :math:`\varepsilon` is the diffuse interface width. To capture the
+// surface tension of the agglomerate phase, we define
 //
 // .. math::
-//    F[\alpha] = \int_\Omega(W_c[\alpha]+W_B[\alpha])\mathrm{d}\boldsymbol{x}.
+//    W_B(\alpha)=\frac{1}{2}\sigma\varepsilon|\nabla\alpha|^2.
 //
-// The effective mobility :math:`L` is defined as
+// The free energy is
 //
 // .. math::
-//    L = L_0(1-\eta)^n,
+//    F[\alpha]=\int_\Omega(W_c(\alpha)+W_B(\alpha))\mathrm{d}\boldsymbol{x}.
 //
-// where :math:`L_0` is the prescribed mobility parameter, and
+// The effective mobility :math:`L` of the agglomerate phase is
+// defined as
+//
+// .. math::
+//    L=L_0(1-\eta)^n
+//
+// where :math:`L_0` is the prescribed mobility parameter and
 // :math:`n` is some constant greater than 0.
 //
-// The :math:`\alpha` phase can be evolved according to Cahn-Hilliard
+// The agglomerate phase can be evolved according to Cahn-Hilliard
 // kinetics
 //
 // .. math::
-//    \frac{\partial\alpha}{\partial t} = L\Delta\left(\frac{\delta F}{\delta\alpha}\right)
+//    \frac{\partial\alpha}{\partial t}=L\Delta\left(\frac{\delta F}{\delta\alpha}\right)
 //
 // or Allen-Cahn kinetics with a Lagrangian constraint
 //
 // .. math::
-//    \frac{\partial\alpha}{\partial t} = -L\frac{\delta F}{\delta\alpha} + \lambda\left(\int_\Omega\alpha\mathrm{d}\boldsymbol{x} - V_0\right),
+//    \frac{\partial\alpha}{\partial t}=-L\left(\frac{\partial F}{\partial\alpha}+\lambda\left(\frac{V}{V_0}-1\right)\right)
 //
-// where :math:`\lambda` is a suitably large Lagrangian multiplier to enforce the constraint up to tolerance, and :math:`\V_0` is the prescribed volume fraction of agglomerate in the domain.
+// where :math:`\lambda` is a suitably large Lagrangian multiplier to enforce the constraint up to tolerance, :math:`V` is the volume of agglomerate in the domain, and :math:`V_0` is the prescribed volume of agglomerate in the domain.
 //
 // For reference, the functional derivative of the free energy :math:`F` is
 //
 // .. math::
-//    \frac{\delta F}{\delta\alpha}=2\frac{\gamma}{\epsilon}\alpha(1-\alpha)(1-2\alpha)-\epsilon\kappa\Delta\alpha
+//    \frac{\delta F}{\delta\alpha}=2\frac{\sigma}{\varepsilon}\alpha(1-\alpha)(1-2\alpha)-\sigma\varepsilon\Delta\alpha.
 
 #ifndef INTEGRATOR_AGGLOMERATION_H
 #define INTEGRATOR_AGGLOMERATION_H
@@ -103,15 +103,15 @@ private:
         IC::IC<Set::Scalar> *alpha_ic = nullptr;
         BC::BC<Set::Scalar> *alpha_bc = nullptr;
         Set::Field<Set::Scalar> free_energy_derivative;
+        Set::Scalar sigma = NAN;
         Set::Scalar epsilon = NAN;
-        Set::Scalar gamma = NAN;
-        Set::Scalar kappa = NAN;
         Set::Scalar lambda = NAN;
         Set::Scalar L_0 = NAN;
         Set::Scalar n = NAN;
         Set::Scalar V = NAN;
+        bool calculate_initial_volume = true;
         Set::Scalar V_0 = NAN;
-        Set::Scalar gradient_refinement_threshold = NAN;
+        Set::Scalar gradient_alpha_refinement_threshold = NAN;
         Set::Scalar eta_refinement_threshold = NAN;
     } agglom;
 };

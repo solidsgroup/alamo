@@ -1,5 +1,5 @@
 alamo.program = agglomeration
-plot_file = tests/Agglomeration/output
+plot_file = tests/Agglomeration/output-3d
 
 # AMR parameters
 amr.plot_dt = 1e-5
@@ -51,7 +51,7 @@ flame.pf.eta.bc.constant.val.zhi = 0.0
 
 # Phi initial condition (spheres)
 flame.phi.ic.type = psread
-flame.phi.ic.psread.filename = tests/Agglomeration/2d.xyzr
+flame.phi.ic.psread.filename = tests/Agglomeration/3d.xyzr
 flame.phi.ic.psread.eps = 1.13e-5
 flame.phi.ic.psread.mult = 5e-7
 

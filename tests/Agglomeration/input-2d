@@ -1,5 +1,5 @@
 alamo.program = agglomeration
-plot_file = tests/Agglomeration/output
+plot_file = tests/Agglomeration/output-2d
 
 # AMR parameters
 amr.plot_dt = 1e-5
