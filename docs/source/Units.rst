@@ -8,7 +8,7 @@ Introduction
 
 Many scientific and engineering codes accept numerical inputs for physical parameters but ignore their dimensions entirely. This can lead to subtle bugs, difficult-to-interpret outputs, and significant user error, sometimes resulting in
 `massive system level failure <https://en.wikipedia.org/wiki/Mars_Climate_Orbiter>`_
-Alamo takes a unit-award approach by **explicitly tracking the physical dimensions of inputs**, which
+Alamo takes a unit-aware approach by **explicitly tracking the physical dimensions of inputs**, which
 
 - enforces dimensional consistency throughout the simulation.
 - allows inputs to be expressed in arbitrary physical units.
@@ -74,7 +74,7 @@ Units are encapsulated in the :code:`Unit` class (:code:`Unit/Unit.H`).
 This class is a standalone header that follows the Alamo convention but can be used outside of Alamo.
 
 (The unit class **is not intended to be a high performance data type**: that is, it is used to read in and convert inputs - and possibly to recombine input parameters at parse time - but not to be used in power loops.
-Unit resolution involves the use of :code:`std::map` structures, which are not inteded for performance.)
+Unit resolution involves the use of :code:`std::map` structures, which are not intended for performance.)
 
 The `Unit` class is tightly integrated with the input parser. A typical pattern for querying a parameter with a unit is:
 
@@ -98,7 +98,7 @@ The `Unit` class supports full dimensional algebra, including:
 This makes it easy to perform internal unit manipulations or validate user-specified expressions.
 
 New relationships between units can be easily added by adding additional entries to the :code:`Unit::compound` map.
-For example, the following defines force relationshipse:
+For example, the following defines force relationships:
 
 .. code-block:: c++
 
@@ -107,5 +107,5 @@ For example, the following defines force relationshipse:
    {"lbf",       {4.44822162, "N"     }}, // Pound-force in terms of Newtons
    {"dyn",       {1e-5,    "N"        }}, // dyn in terms of Newtons
 
-Relationships are resolved recursively; as long as the new unit is defind in terms of existing units, any form is acceptable.
+Relationships are resolved recursively; as long as the new unit is defined in terms of existing units, any form is acceptable.
 
