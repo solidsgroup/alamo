@@ -169,8 +169,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // value.RegisterNewFab(value.tracer_mf,     value.tracer_bc, 1, nghost, "tracer",     true ,true);
         // value.RegisterNewFab(value.tracer_old_mf, value.tracer_bc, 1, nghost, "tracer_old", false);
 
-        value.RegisterNewFab(value.pressure_mf,     &value.bc_nothing, 1, nghost, "temperature",  true, false);
-        value.RegisterNewFab(value.temperature_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
+        value.RegisterNewFab(value.pressure_mf,     &value.bc_nothing, 1, nghost, "pressure",  true, false);
+        value.RegisterNewFab(value.temperature_mf,  &value.bc_nothing, 1, nghost, "temperature",  true, false);
         value.RegisterNewFab(value.velocity_mf,     &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
         value.RegisterNewFab(value.vorticity_mf,    &value.bc_nothing, 1, nghost, "vorticity", true, false);
 
@@ -847,6 +847,22 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
+        // Need to compute temperature field in order to get gradients for next ParallelFor loop
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {   
+            double mixed_cp = 0.0;
+            double mixed_mw = 0.0;
+            for (int a=0; a<nspecies; ++a)
+            {
+                mixed_cp += species_massf[a] * species_cp[a];
+                mixed_mw += species_molef[a] * species_mw[a];
+            }
+            double mixed_cv = mixed_cp - 8314.45/mixed_mw;
+            Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
+            double internal_energy = (E(i,j,k) - 0.5 * rho(i,j,k) * (pow(u(0), 2.0) + pow(u(1), 2.0))) / rho(i,j,k);
+            temperature(i,j,k) = internal_energy / mixed_cv + tref;
+        });
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             auto sten = Numeric::GetStencil(i, j, k, domain);
@@ -867,6 +883,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Vector gradrho      = Numeric::Gradient(rho,i,j,k,0,DX);
             Set::Matrix hess_rho     = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
+            Set::Vector gradT        = Numeric::Gradient(temperature,i,j,k,0,DX);
 
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
 
@@ -977,7 +994,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp, " | mixed_cv: ", mixed_cv);
             Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
             Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
-            Util::Exception(INFO,"Aborting.");
+            //Util::Exception(INFO,"Aborting.");
 
 
             Set::Vector Ldot0 = Set::Vector::Zero();
@@ -1112,8 +1129,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
-                div_tau.dot(u) * eta + /* isothermal so no heat conduction, k*gradT */
-                
+                div_tau.dot(u) * eta + mixed_k*gradT(0) + mixed_k*gradT(1) + /*energy from species diffusion*/
+                rho(i,j,k)*g.dot(u) /*- enthalpy of formation for reactions */ +
                 Source(i, j, k, 3);
 
             E_rhs(i,j,k) = 
