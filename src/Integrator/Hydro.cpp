@@ -1129,7 +1129,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
-                div_tau.dot(u) * eta + mixed_k*gradT(0) + mixed_k*gradT(1) + /*energy from species diffusion*/
+                (div_tau.dot(u) + mixed_k*gradT(0) + mixed_k*gradT(1)) * eta + /*energy from species diffusion*/
                 rho(i,j,k)*g.dot(u) /*- enthalpy of formation for reactions */ +
                 Source(i, j, k, 3);
 
