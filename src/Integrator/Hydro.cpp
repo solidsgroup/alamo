@@ -104,10 +104,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         if ( pp.contains("species_massf") ) {
             pp_queryarr("species_massf", value.species_massf); // mass fractions
-            // Get mole fractions
+            // Normalize given values so sum = 1; Get mole fractions
             value.species_molef = value.species_massf;
+            double mass_total = std::reduce(value.species_massf.begin(), value.species_massf.end());
             double moles = 0.0;
             for (int i=0; i<value.nspecies; ++i) {
+                value.species_massf[i] /= mass_total;
                 moles += value.species_massf[i] / value.species_mw[i];
             }
             for (int i=0; i<value.nspecies; ++i) {
@@ -115,10 +117,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
             }
         } else if ( pp.contains("species_molef") ) {
             pp_queryarr("species_molef", value.species_molef); // mole fractions
-            // Get mass fractions
+            // Normalize given values so sum = 1; Get mass fractions
             value.species_massf = value.species_molef;
+            double mole_total = std::reduce(value.species_molef.begin(), value.species_molef.end());
             double mass = 0.0;
             for (int i=0; i<value.nspecies; ++i) {
+                value.species_molef[i] /= mole_total;
                 mass += value.species_molef[i] * value.species_mw[i];
             }
             for (int i=0; i<value.nspecies; ++i) {
@@ -126,10 +130,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
             }
         } else {
             pp_queryarr_default("species_massf", value.species_massf, {0.767, 0.233}); // mass fractions
-            // Get mole fractions
+            // Normalize given values so sum = 1; Get mole fractions
             value.species_molef = value.species_massf;
+            double mass_total = std::reduce(value.species_massf.begin(), value.species_massf.end());
             double moles = 0.0;
             for (int i=0; i<value.nspecies; ++i) {
+                value.species_massf[i] /= mass_total;
                 moles += value.species_massf[i] / value.species_mw[i];
             }
             for (int i=0; i<value.nspecies; ++i) {
