@@ -1097,8 +1097,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
-                div_tau(0) * eta +
-                g(0)*rho(i,j,k) +
+                eta * (div_tau(0) + g(0)*rho(i,j,k)) +
                 Source(i, j, k, 1);
 
             M_rhs(i,j,k,0) = 
@@ -1113,8 +1112,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dMyf_dt =
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
-                div_tau(1) * eta + 
-                g(1)*rho(i,j,k) +
+                eta * (div_tau(1) + g(1)*rho(i,j,k)) +
                 Source(i, j, k, 2);
                 
             M_rhs(i,j,k,1) = 
@@ -1129,8 +1127,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
-                (div_tau.dot(u) + mixed_k*gradT(0) + mixed_k*gradT(1)) * eta + /*energy from species diffusion*/
-                rho(i,j,k)*g.dot(u) /*- enthalpy of formation for reactions */ +
+                eta * (div_tau.dot(u) + mixed_k*gradT(0) + mixed_k*gradT(1) + /*energy from species diffusion*/
+                rho(i,j,k)*g.dot(u) /*- enthalpy of formation for reactions */) +
                 Source(i, j, k, 3);
 
             E_rhs(i,j,k) = 
