@@ -834,7 +834,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar>       omega     = vorticity_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar>       pressure  = pressure_mf.Patch(lev,mfi);
+        //Set::Patch<Set::Scalar>       pressure  = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>    temperature  = temperature_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
@@ -897,7 +897,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             double mixed_cv = mixed_cp - 8314.45/mixed_mw;
             gamma = mixed_cp/mixed_cv;
             double internal_energy = (E(i,j,k) - 0.5 * rho(i,j,k) * (pow(u(0), 2.0) + pow(u(1), 2.0))) / rho(i,j,k);
-            pressure(i,j,k) = (gamma - 1.0) * rho(i,j,k) * internal_energy + pref;
+            double pressure = (gamma - 1.0) * rho(i,j,k) * internal_energy + pref;
             temperature(i,j,k) = internal_energy / mixed_cv + tref;
 
 
@@ -971,29 +971,29 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         nondimT = temperature(i,j,k)/epsAB;
                         omegaAB = collision_integral(nondimT);
                         DAB = 0.0018583*sqrt(pow(temperature(i,j,k), 3.0) * (1.0/species_mw[a] + 1.0/species_mw[b])) / 
-                                    (pressure(i,j,k)/101325.0*pow(sigmaAB,2.0)*omegaAB);
+                                    (pressure/101325.0*pow(sigmaAB,2.0)*omegaAB);
                         DAB /= 10000.0; // convert from cm^2/s to m^2/s
                         DKM += species_molef[b]/DAB;
                     }
                 }
                 DKM = (1.0 - species_massf[a])/DKM;
                 //molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
-                Util::ParallelMessage(INFO,"pressure: ", pressure(i,j,k), " | pref: ", pref, " | temp: ", temperature(i,j,k));
-                Util::ParallelMessage(INFO, species[a], ": DAB: ", DAB, "; DKM: ", DKM);
+                //Util::ParallelMessage(INFO,"pressure: ", pressure(i,j,k), " | pref: ", pref, " | temp: ", temperature(i,j,k));
+                //Util::ParallelMessage(INFO, species[a], ": DAB: ", DAB, "; DKM: ", DKM);
 
                 mixed_mu += species_molef[a] * species_mu[a] / phi;
                 mixed_k  += species_molef[a] * species_k[a] / phi;
             }
-            Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1], ", ", species[2]);
-            Util::ParallelMessage(INFO,"species_massf: ", species_massf[0], ", ", species_massf[1], ", ", species_massf[2]);
-            Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1], ", ", species_mw[2]);
-            Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1], ", ", species_cp[2]);
-            Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1], ", ", species_mu[2]);
-            Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1], ", ", species_k[2]);
-            Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
-            Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp, " | mixed_cv: ", mixed_cv);
-            Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
-            Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
+            //Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1], ", ", species[2]);
+            //Util::ParallelMessage(INFO,"species_massf: ", species_massf[0], ", ", species_massf[1], ", ", species_massf[2]);
+            //Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1], ", ", species_mw[2]);
+            //Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1], ", ", species_cp[2]);
+            //Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1], ", ", species_mu[2]);
+            //Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1], ", ", species_k[2]);
+            //Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
+            //Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp, " | mixed_cv: ", mixed_cv);
+            //Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
+            //Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
             //Util::Exception(INFO,"Aborting.");
 
 
@@ -1146,6 +1146,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (M_rhs(i,j,k,1) != M_rhs(i,j,k,1)) ||
                 (E_rhs(i,j,k) != E_rhs(i,j,k)))
             {
+                Util::ParallelMessage(INFO,"i,j,k=",i, ",", j, ",", k);
                 Util::ParallelMessage(INFO,"rho_rhs=",rho_rhs(i,j,k));
                 Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,0));
                 Util::ParallelMessage(INFO,"Mx_rhs=",M_rhs(i,j,k,1));

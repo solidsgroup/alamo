@@ -29,7 +29,7 @@ geometry.prob_hi = 0.24  0.03
 ### HYDRO PARAM ###
 gamma = 1.4
 mu    = 5.0
-pref    = 101325
+pref    = 10000
 tref    = 300
 
 ##Default is Air
@@ -59,7 +59,8 @@ species_LJwelldepth = 190.0 113.0 99.8
 #hydro.rho_solid = 30.0 #kg/m^3
 #hydro.rho_fluid = 20.0 #kg/m^3
 #hydro.E_solid   = 5.0
-density.ic.constant.value = 1.5
+#density.ic.constant.value = 1.5
+density.ic.constant.value = 40.0
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
 velocity.ic.expression.constant.x0    = -2.0
@@ -68,7 +69,7 @@ velocity.ic.expression.region1 = "0.0"
 pressure.ic.type = expression
 pressure.ic.expression.constant.gamma = 1.4
 pressure.ic.expression.constant.E_solid = 5.0
-pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
+pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid / x^2"
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann
 pf.eta.bc.constant.type.xhi = neumann
