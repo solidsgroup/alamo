@@ -101,48 +101,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_queryarr_default("species", value.species, {"N2", "O2"});
         pp_queryarr_default("species_mw", value.species_mw, {28.0134, 31.9988}); // g/mol or kg/kmol
         value.nspecies = value.species.size();
+        pp.select_default<BC::Constant,BC::Expression>("massfraction.bc",value.massfraction_bc,value.nspecies);
 
-        if ( pp.contains("species_massf") ) {
-            pp_queryarr("species_massf", value.species_massf); // mass fractions
-            // Normalize given values so sum = 1; Get mole fractions
-            value.species_molef = value.species_massf;
-            double mass_total = std::reduce(value.species_massf.begin(), value.species_massf.end());
-            double moles = 0.0;
-            for (int i=0; i<value.nspecies; ++i) {
-                value.species_massf[i] /= mass_total;
-                moles += value.species_massf[i] / value.species_mw[i];
-            }
-            for (int i=0; i<value.nspecies; ++i) {
-                value.species_molef[i] = value.species_massf[i] / value.species_mw[i] / moles;
-            }
-        } else if ( pp.contains("species_molef") ) {
-            pp_queryarr("species_molef", value.species_molef); // mole fractions
-            // Normalize given values so sum = 1; Get mass fractions
-            value.species_massf = value.species_molef;
-            double mole_total = std::reduce(value.species_molef.begin(), value.species_molef.end());
-            double mass = 0.0;
-            for (int i=0; i<value.nspecies; ++i) {
-                value.species_molef[i] /= mole_total;
-                mass += value.species_molef[i] * value.species_mw[i];
-            }
-            for (int i=0; i<value.nspecies; ++i) {
-                value.species_massf[i] = value.species_molef[i] * value.species_mw[i] / mass;
-            }
-        } else {
-            pp_queryarr_default("species_massf", value.species_massf, {0.767, 0.233}); // mass fractions
-            // Normalize given values so sum = 1; Get mole fractions
-            value.species_molef = value.species_massf;
-            double mass_total = std::reduce(value.species_massf.begin(), value.species_massf.end());
-            double moles = 0.0;
-            for (int i=0; i<value.nspecies; ++i) {
-                value.species_massf[i] /= mass_total;
-                moles += value.species_massf[i] / value.species_mw[i];
-            }
-            for (int i=0; i<value.nspecies; ++i) {
-                value.species_molef[i] = value.species_massf[i] / value.species_mw[i] / moles;
-            }
-        }
-        
         pp_queryarr_default("species_k", value.species_k, {2.623368E-2, 2.560608E-2}); // W/m-K, thermal conductivity
         pp_queryarr_default("species_cp", value.species_cp, {1040.0, 920.0}); // J/kg-K, specific heat by mass
         pp_queryarr_default("species_mu", value.species_mu, {175.4E-7, 203.1E-7}); //kg/m-s, dynamic viscosity
@@ -171,6 +131,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true ,true, {"x","y"});
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false, true);
+ 
+        value.RegisterNewFab(value.massfraction_mf,     value.massfraction_bc, value.nspecies, nghost, "massfraction",     true ,true);
+        value.RegisterNewFab(value.massfraction_old_mf, value.massfraction_bc, value.nspecies, nghost, "massfraction_old", false, true);
  
         // value.RegisterNewFab(value.tracer_mf,     value.tracer_bc, 1, nghost, "tracer",     true ,true);
         // value.RegisterNewFab(value.tracer_old_mf, value.tracer_bc, 1, nghost, "tracer_old", false);
@@ -220,6 +183,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     // density initial condition type
     // pp.select_default<IC::Constant,IC::Expression>("tracer.ic",value.tracer_ic,value.geom);
+
+    // massfraction initial condition type
+    pp.select_default<IC::Constant,IC::Expression>("massfraction.ic", value.massfraction_ic,value.geom);
 
 
     // SOLID FIELDS
@@ -292,6 +258,9 @@ void Hydro::Initialize(int lev)
     density_ic       ->Initialize(lev, density_mf, 0.0);
 
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
+
+    massfraction_ic  ->Initialize(lev, massfraction_mf, 0.0);
+    massfraction_ic  ->Initialize(lev, massfraction_old_mf, 0.0);
 
     // tracer_ic       ->Initialize(lev, tracer_old_mf, 0.0);
     // tracer_ic       ->Initialize(lev, tracer_mf, 0.0);
@@ -409,6 +378,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
+    std::swap(massfraction_old_mf[lev],   massfraction_mf[lev]);
     // std::swap(tracer_old_mf[lev],   tracer_mf[lev]);
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
 
@@ -852,10 +822,29 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> _u0       = u0_mf.Patch(lev,mfi);
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& massfraction = (*massfraction_mf[lev]).array(mfi);
 
         // Need to compute temperature field in order to get gradients for next ParallelFor loop
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
+            std::vector<double> species_massf(nspecies);
+            std::vector<double> species_molef(nspecies);
+            for (int ii=0; ii<nspecies; ++ii) {
+                species_massf[ii] = massfraction(i,j,k,ii);
+            }
+            
+            // Normalize given values so sum = 1; Get mole fractions
+            double mass_total = std::reduce(species_massf.begin(), species_massf.end());
+            double moles = 0.0;
+            for (int ii=0; ii<nspecies; ++ii) {
+                species_massf[ii] /= mass_total;
+                massfraction(i,j,k,ii) = species_massf[ii];
+                moles += species_massf[ii] / species_mw[ii];
+            }
+            for (int ii=0; ii<nspecies; ++ii) {
+                species_molef[ii] = species_massf[ii] / species_mw[ii] / moles;
+            }
+        
             double mixed_cp = 0.0;
             double mixed_mw = 0.0;
             for (int a=0; a<nspecies; ++a)
@@ -893,6 +882,20 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
 
+            std::vector<double> species_massf(nspecies);
+            std::vector<double> species_molef(nspecies);
+            for (int ii=0; ii<nspecies; ++ii) {
+                species_massf[ii] = massfraction(i,j,k,ii);
+            }
+            // Get mole fractions
+            double moles = 0.0;
+            for (int ii=0; ii<nspecies; ++ii) {
+                moles += species_massf[ii] / species_mw[ii];
+            }
+            for (int ii=0; ii<nspecies; ++ii) {
+                species_molef[ii] = species_massf[ii] / species_mw[ii] / moles;
+            }
+        
             double mixed_cp = 0.0;
             double mixed_mw = 0.0;
             for (int a=0; a<nspecies; ++a)

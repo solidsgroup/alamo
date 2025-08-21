@@ -39,12 +39,26 @@ tref    = 300
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
 species = CO2 O2 N2
 species_mw = 44.010 32.000 28.016
-species_molef = 0.133 0.039 0.828
+massfraction.ic.type = expression
+massfraction.ic.expression.region0 = "2.0 * (x<-0.1) + 0.133 * (x>=-0.1)"
+massfraction.ic.expression.region1 = "0.0 * (x<-0.1) + 0.039 * (x>=-0.1)"
+massfraction.ic.expression.region2 = "0.0 * (x<-0.1) + 0.828 * (x>=-0.1)"
 species_k = 1.6024E-2 2.5606E-2 2.6234E-2
 species_cp = 845.68 920.0 1040.0
 species_mu = 146.2E-7 203.1E-7 175.4E-7
 species_LJdiameter = 3.996 3.433 3.667
 species_LJwelldepth = 190.0 113.0 99.8
+
+## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
+## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
+#species = CO2 O2 N2
+#species_mw = 44.010 32.000 28.016
+#species_molef = 0.133 0.039 0.828
+#species_k = 1.6024E-2 2.5606E-2 2.6234E-2
+#species_cp = 845.68 920.0 1040.0
+#species_mu = 146.2E-7 203.1E-7 175.4E-7
+#species_LJdiameter = 3.996 3.433 3.667
+#species_LJwelldepth = 190.0 113.0 99.8
 
 ## Transport Phenomena Ex. 17.3-1 | D_AB = 0.149 cm^2/s = 1.49E-5 m^2/s
 #species = CO CO2
@@ -108,6 +122,14 @@ momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0  0.0 #10. 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
 momentum.bc.constant.val.yhi = 0.0 0.0
+massfraction.bc.constant.type.xhi = neumann neumann neumann
+massfraction.bc.constant.type.xlo = neumann neumann neumann
+massfraction.bc.constant.type.yhi = neumann neumann neumann
+massfraction.bc.constant.type.ylo = neumann neumann neumann
+massfraction.bc.constant.val.xhi = 0.0 0.0 0.0
+massfraction.bc.constant.val.xlo = 0.0 0.0 0.0
+massfraction.bc.constant.val.yhi = 0.0 0.0 0.0
+massfraction.bc.constant.val.ylo = 0.0 0.0 0.0
 #eta.ic.constant.value = 1.0
 ### HYDRO REFINEMENT CRITERIA ###
 #hydro.r_refinement_criterion   = 0.1
