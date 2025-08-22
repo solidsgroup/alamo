@@ -194,7 +194,7 @@ eta.ic.expression.constant.eps = 0.02
 eta.ic.expression.region0 = "1 - 0.5 * (erf((x)/eps) + 1)"
 
 
-scheme = rk4
+scheme = explicit
 
 prescribedflowmode = relative
 

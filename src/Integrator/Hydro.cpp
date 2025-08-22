@@ -404,24 +404,27 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
 
         RHS(lev, time, 
-            *density_mf[lev],     *momentum_mf[lev],     *energy_mf[lev],
-            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
+            *density_mf[lev],     *momentum_mf[lev],     *energy_mf[lev],     *massfraction_mf[lev],
+            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev], *massfraction_old_mf[lev]);
 
         for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.validbox();
         
-            Set::Patch<const Set::Scalar> rho_rhs = density_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> E_rhs   = energy_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> M_rhs   = momentum_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rho_rhs  = density_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> E_rhs    = energy_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> M_rhs    = momentum_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> MF_rhs   = massfraction_mf.Patch(lev,mfi);
 
-            Set::Patch<const Set::Scalar> rho_old = density_old_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> E_old   = energy_old_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> M_old   = momentum_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> rho_old  = density_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> E_old    = energy_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> M_old    = momentum_old_mf.Patch(lev,mfi);
+            Set::Patch<const Set::Scalar> MF_old   = massfraction_old_mf.Patch(lev,mfi);
 
             Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> MF_new        = massfraction_mf.Patch(lev,mfi);
         
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -430,6 +433,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
                 M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
                 E_new(i,j,k)     = E_old(i,j,k)     + dt * E_rhs(i,j,k);
+                for (int ii=0; ii<nspecies; ++ii) {
+                    MF_new(i,j,k,ii) = MF_old(i,j,k,ii) + dt * MF_rhs(i,j,k,ii)/rho_new(i,j,k);
+                }
             });
         }
     }
@@ -738,9 +744,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 amrex::MultiFab &rho_rhs_mf, 
                 amrex::MultiFab &M_rhs_mf, 
                 amrex::MultiFab &E_rhs_mf,
+                amrex::MultiFab &MF_rhs_mf,
                 const amrex::MultiFab &rho_mf,
                 const amrex::MultiFab &M_mf,
-                const amrex::MultiFab &E_mf)
+                const amrex::MultiFab &E_mf,
+                const amrex::MultiFab &MF_mf)
 {
 
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
@@ -791,14 +799,16 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         const amrex::Box& bx = mfi.validbox();
         
         // Inputs
-        Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi);
-        Set::Patch<const Set::Scalar> E   = E_mf.array(mfi);
-        Set::Patch<const Set::Scalar> M   = M_mf.array(mfi);
+        Set::Patch<const Set::Scalar> rho  = rho_mf.array(mfi);
+        Set::Patch<const Set::Scalar> E    = E_mf.array(mfi);
+        Set::Patch<const Set::Scalar> M    = M_mf.array(mfi);
+        Set::Patch<const Set::Scalar> MF   = MF_mf.array(mfi); // mass fractions
 
         // Outputs
-        Set::Patch<Set::Scalar> rho_rhs = rho_rhs_mf.array(mfi);
-        Set::Patch<Set::Scalar> M_rhs   = M_rhs_mf.array(mfi);
-        Set::Patch<Set::Scalar> E_rhs   = E_rhs_mf.array(mfi);
+        Set::Patch<Set::Scalar> rho_rhs  = rho_rhs_mf.array(mfi);
+        Set::Patch<Set::Scalar> M_rhs    = M_rhs_mf.array(mfi);
+        Set::Patch<Set::Scalar> E_rhs    = E_rhs_mf.array(mfi);
+        Set::Patch<Set::Scalar> MF_rhs   = MF_rhs_mf.array(mfi);
 
 
         // Set::Patch<Set::Scalar>       rho_new = density_mf.Patch(lev,mfi);
@@ -822,7 +832,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> _u0       = u0_mf.Patch(lev,mfi);
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& massfraction = (*massfraction_mf[lev]).array(mfi);
+        //amrex::Array4<Set::Scalar> const& massfraction = (*massfraction_mf[lev]).array(mfi);
 
         // Need to compute temperature field in order to get gradients for next ParallelFor loop
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -830,7 +840,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             std::vector<double> species_massf(nspecies);
             std::vector<double> species_molef(nspecies);
             for (int ii=0; ii<nspecies; ++ii) {
-                species_massf[ii] = massfraction(i,j,k,ii);
+                species_massf[ii] = /*massfraction*/MF(i,j,k,ii);
             }
             
             // Normalize given values so sum = 1; Get mole fractions
@@ -838,7 +848,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             double moles = 0.0;
             for (int ii=0; ii<nspecies; ++ii) {
                 species_massf[ii] /= mass_total;
-                massfraction(i,j,k,ii) = species_massf[ii];
+                /*massfraction*/MF(i,j,k,ii) = species_massf[ii];
                 moles += species_massf[ii] / species_mw[ii];
             }
             for (int ii=0; ii<nspecies; ++ii) {
@@ -879,6 +889,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Matrix hess_rho     = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
             Set::Vector gradT        = Numeric::Gradient(temperature,i,j,k,0,DX);
+            Set::Matrix gradMF       = Numeric::Gradient(MF, i, j, k, DX);
 
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
 
@@ -1032,13 +1043,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
-            Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
-            Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X); 
-            Solver::Local::Riemann::State state_xhi(rho, M, E, i+1, j, k, X);
+            Solver::Local::Riemann::State state_xlo(rho, M, E, MF, i-1, j, k, X);
+            Solver::Local::Riemann::State state_x  (rho, M, E, MF, i  , j, k, X); 
+            Solver::Local::Riemann::State state_xhi(rho, M, E, MF, i+1, j, k, X);
 
-            Solver::Local::Riemann::State state_ylo(rho, M, E, i, j-1, k, Y);
-            Solver::Local::Riemann::State state_y  (rho, M, E, i, j  , k, Y);
-            Solver::Local::Riemann::State state_yhi(rho, M, E, i, j+1, k, Y);
+            Solver::Local::Riemann::State state_ylo(rho, M, E, MF, i, j-1, k, Y);
+            Solver::Local::Riemann::State state_y  (rho, M, E, MF, i, j  , k, Y);
+            Solver::Local::Riemann::State state_yhi(rho, M, E, MF, i, j+1, k, Y);
             
             //states of solid fields
             Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, i-1, j, k, X); 
@@ -1148,6 +1159,16 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta+small)
                 // ) * dt;
                 ;
+
+            for (int ii=0; ii<nspecies; ++ii) {
+                Set::Scalar drhoYf_dt =
+                    (flux_xlo.rhoY[ii] - flux_xhi.rhoY[ii]) / DX[0] +
+                    (flux_ylo.rhoY[ii] - flux_yhi.rhoY[ii] ) / DX[1] +
+                    eta * (rho(i,j,k) * (DKM*gradMF(ii,0) + DKM*gradMF(ii,1)));
+
+                rhoY_rhs(i,j,k,ii) = 
+                        drhoYf_dt;
+            }
             
 #ifdef AMREX_DEBUG
             if ((rho_rhs(i,j,k) != rho_rhs(i,j,k)) ||
