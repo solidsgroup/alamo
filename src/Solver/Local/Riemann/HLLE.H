@@ -41,13 +41,14 @@ public:
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) override
+    virtual Flux_Extended Solve(State_Extended lo, State_Extended hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) override
     {
         // Grab and label the input states
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
         //Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
+        std::vector<double> rhoY_L = lo.rhoY, rhoY_R = hi.rhoY;
 
         // Ensure no negative densities
         rho_L = std::max(0.0,rho_L);
@@ -77,17 +78,26 @@ public:
             S_R *= psi;
         }
 
-        Flux F_L (
+        std::vector<double> rhoYu_L(lo.rhoY.size());
+        std::vector<double> rhoYu_R(lo.rhoY.size());
+        for (size_t ii=0; ii<lo.rhoY.size(); ++ii) {
+            rhoYu_L[ii] = u_L*lo.rhoY[ii];
+            rhoYu_R[ii] = u_R*hi.rhoY[ii];
+        }
+
+        Flux_Extended F_L (
             lo.M_normal,
             lo.M_normal * u_L + p_L,
             lo.M_tangent * u_L,
-            u_L * (lo.E + p_L)
+            u_L * (lo.E + p_L),
+            rhoYu_L
             );
-        Flux F_R (
+        Flux_Extended F_R (
             hi.M_normal,
             hi.M_normal * u_R + p_R,
             hi.M_tangent * u_R,
-            u_R * (hi.E + p_R)
+            u_R * (hi.E + p_R),
+            rhoYu_R
             );
 
         if (S_L >= 0.0)
@@ -100,9 +110,9 @@ public:
         }
         else
         {
-            State dState = hi - lo;
+            State_Extended dState = hi - lo;
             Set::Scalar dS = S_R - S_L;
-            return (S_R*F_L - S_L*F_R + S_L*S_R*Flux(dState)) / dS;
+            return (S_R*F_L - S_L*F_R + S_L*S_R*Flux_Extended(dState)) / dS;
         }
     }
 };

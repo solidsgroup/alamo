@@ -12,7 +12,7 @@ timestep = 0.1e-5
 amr.base_regrid_int = 10
 amr.plot_dt = 0.0001
 # amr.plot_int = 1
-amr.plot_file = output.hydro.tempdiffusion
+amr.plot_file = output.hydro.speciesdiffusion
 amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
@@ -40,9 +40,9 @@ tref    = 300
 species = CO2 O2 N2
 species_mw = 44.010 32.000 28.016
 massfraction.ic.type = expression
-massfraction.ic.expression.region0 = "0.133"
-massfraction.ic.expression.region1 = "0.039"
-massfraction.ic.expression.region2 = "0.828"
+massfraction.ic.expression.region0 = "1.0 * (x<=0)"
+massfraction.ic.expression.region1 = "1.0 * (x>0)"
+massfraction.ic.expression.region2 = "0.0"
 species_k = 1.6024E-2 2.5606E-2 2.6234E-2
 species_cp = 845.68 920.0 1040.0
 species_mu = 146.2E-7 203.1E-7 175.4E-7
@@ -83,7 +83,7 @@ velocity.ic.expression.region1 = "0.0"
 pressure.ic.type = expression
 pressure.ic.expression.constant.gamma = 1.4
 pressure.ic.expression.constant.E_solid = 5.0
-pressure.ic.expression.region0 = "1 * (x<=0) + 5e6 * (x>0)"
+pressure.ic.expression.region0 = "10" # * (x<=0) + 5e6 * (x>0)"
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann
 pf.eta.bc.constant.type.xhi = neumann
@@ -194,7 +194,7 @@ eta.ic.expression.constant.eps = 0.02
 eta.ic.expression.region0 = "1"
 
 
-scheme = rk4
+scheme = forwardeuler
 
 prescribedflowmode = relative
 

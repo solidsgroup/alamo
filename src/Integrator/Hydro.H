@@ -10,7 +10,7 @@
 #include "IC/IC.H"
 
 #include "Set/Base.H"
-#include "Solver/Local/Riemann/Roe.H"
+#include "Solver/Local/Riemann/Riemann.H"
 
 #if AMREX_SPACEDIM==2
 
@@ -89,6 +89,16 @@ protected:
                 const amrex::MultiFab &rho_mf,
                 const amrex::MultiFab &M_mf,
                 const amrex::MultiFab &E_mf);
+
+    void RHS(   int lev, Set::Scalar time, 
+                amrex::MultiFab &rho_rhs_mf, 
+                amrex::MultiFab &M_rhs_mf, 
+                amrex::MultiFab &E_rhs_mf,
+                amrex::MultiFab &massfraction_rhs_mf,
+                const amrex::MultiFab &rho_mf,
+                const amrex::MultiFab &M_mf,
+                const amrex::MultiFab &E_mf,
+                amrex::MultiFab &massfraction_mf);
 
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> density_old_mf;
