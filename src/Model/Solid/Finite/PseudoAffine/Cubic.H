@@ -146,7 +146,7 @@ template<>
 ALAMO_SINGLE_DEFINITION
 int Set::Field<Model::Solid::Finite::PseudoAffine::Cubic>::NComp() const
 {
-    return 4;
+    return 5;
 }
 
 template<>
@@ -157,6 +157,7 @@ std::string Set::Field<Model::Solid::Finite::PseudoAffine::Cubic>::Name(int i) c
     if (i == 1) return name + "_F0xy";
     if (i == 2) return name + "_F0yx";
     if (i == 3) return name + "_F0yy";
+    if (i == 4) return name + "_C0000";
     return name;
 }
 
@@ -177,6 +178,7 @@ void Set::Field<Model::Solid::Finite::PseudoAffine::Cubic>::Copy(int a_lev, amre
                 dst(i, j, k, a_dstcomp + 1) = src(i, j, k).F0(0, 1);
                 dst(i, j, k, a_dstcomp + 2) = src(i, j, k).F0(1, 0);
                 dst(i, j, k, a_dstcomp + 3) = src(i, j, k).F0(1, 1);
+                dst(i, j, k, a_dstcomp + 4) = src(i, j, k).q.x();
             });
         }
     }

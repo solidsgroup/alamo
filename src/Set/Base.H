@@ -16,10 +16,10 @@
 namespace Set
 {
 using Scalar   = amrex::Real;
-using Vector   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,1>;
-using Vector3d = Eigen::Vector3d;
+using Vector   = AMREX_D_PICK(Scalar, Eigen::Vector2d, Eigen::Vector3d);
+using Vector3d = Eigen::Vector3d; 
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
-using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
+using Matrix   = AMREX_D_PICK(Scalar, Eigen::Matrix2d, Eigen::Matrix3d);
 using Matrix3d = Eigen::Matrix3d;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 

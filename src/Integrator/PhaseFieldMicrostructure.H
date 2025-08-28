@@ -59,14 +59,18 @@ public:
         
         // Number of grain fields (may be more if using different IC)
         pp_query_default("pf.number_of_grains", value.number_of_grains,2);     
-        pp_query_required("pf.M", value.pf.M);                         // Mobility
-        pp_query_required("pf.gamma", value.pf.gamma);                 // Phase field :math:`\gamma`
-        pp_query_required("pf.sigma0", value.pf.sigma0);               // Initial GB energy if not using  anisotropy
-        pp_query_required("pf.l_gb", value.pf.l_gb);                   // Mobility
-        pp_query_default("pf.elastic_df",value.pf.elastic_df,false);   // Determine whether to use elastic driving force
-        pp_query_default("pf.elastic_mult",value.pf.elastic_mult,1.0); // Multiplier of elastic energy
+        pp_query_required("pf.M",      value.pf.M,      Unit::Velocity()/Unit::Pressure());  // Mobility
 
-        pp_query_default("pf.threshold.value",value.pf.threshold.value,0.0);          // Value used for thresholding kinetic relation
+        Util::Abort(INFO);
+
+        pp_query_required("pf.gamma",  value.pf.gamma,  Unit::Less());                     // Phase field :math:`\gamma`
+        pp_query_required("pf.sigma0", value.pf.sigma0, Unit::Energy()/Unit::Area());      // Initial GB energy if not using  anisotropy
+        pp_query_required("pf.l_gb",   value.pf.l_gb,   Unit::Length());                   // Mobility
+
+        pp_query_default("pf.elastic_df",value.pf.elastic_df,false);                       // Determine whether to use elastic driving force
+        pp_query_default("pf.elastic_mult",value.pf.elastic_mult,1.0);                     // Multiplier of elastic energy
+
+        pp_query_default("pf.threshold.value",value.pf.threshold.value, "0.0", Unit::Pressure()); // Value used for thresholding kinetic relation
         pp_query_default("pf.threshold.chempot",value.pf.threshold.chempot,false);    // Whether to include chemical potential in threshold
         pp_query_default("pf.threshold.boundary",value.pf.threshold.boundary,false);  // Whether to include boundary energy in threshold
         pp_query_default("pf.threshold.corner",value.pf.threshold.corner,false);      // Whether to include corner regularization in threshold
@@ -216,14 +220,37 @@ public:
                 {
                     std::string name    = "shearcouple.Fgb."+std::to_string(i)+"."+std::to_string(j);
                     std::string namerev = "shearcouple.Fgb."+std::to_string(j)+"."+std::to_string(i);
-                    if ( i==j && pp.contains(name.data())) 
+                    if ( i==j && pp.contains(name)) 
                         Util::Abort(INFO,"Cannot specify self FGB ", name);
-                    if (pp.contains(name.data()) && pp.contains(namerev.data())) 
-                        Util::Abort(INFO,"Cannot specify both ",name," and ",namerev);
-                    if (pp.contains(name.data())) 
+                    if (pp.contains(name) && pp.contains(namerev)) 
+                        Util::Abort(INFO,"Cannot specify both ",name," and ",namerev);                    
+                    if (pp.contains(name)) 
                     {
-                        pp.queryarr(name.data(),value.shearcouple.Fgb[i*value.number_of_grains + j]);
-                        value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
+                        if (pp.contains(name + ".beta"))
+                        {
+                            pp.forbid(name,"Cannot prescribe beta and also form for Fgb");
+
+                            Set::Scalar beta = NAN;
+                            pp.query_required(name+".beta",beta,Unit::Less());
+                            Set::Matrix Fgb = Set::Matrix::Zero();
+                            Fgb(0,1) = beta;
+
+                            Set::Scalar theta = NAN; // todo: add optional rotations about other axes
+                            pp.query_default(name + ".theta", theta, "0_rad", Unit::Angle());
+                            Set::Matrix R;
+                            if (AMREX_SPACEDIM==2)
+                            {
+                                R(0,0) =  cos(theta); R(0,1) = sin(theta);
+                                R(1,0) = -sin(theta); R(1,1) = cos(theta); 
+                            }
+                            value.shearcouple.Fgb[i*value.number_of_grains + j] =
+                                R.transpose() * Fgb * R;
+                        }
+                        else 
+                        {
+                            pp.queryarr(name,value.shearcouple.Fgb[i*value.number_of_grains + j]);
+                            value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
+                        }
                     }
                 }
         }

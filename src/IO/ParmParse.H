@@ -159,34 +159,69 @@ public:
 
     void forbid(std::string name, std::string explanation)
     {
-        if (amrex::ParmParse::contains(full(name).c_str()))
-        {
-            Util::ParmParseException(INFO,full(name),full(name)," forbidden: ", explanation);
-        }
-        std::set<std::string> subs = amrex::ParmParse::getEntries(full(name));
-        if (subs.size())
+        if (contains(full(name).c_str(),true))
         {
             Util::ParmParseException(INFO,full(name),full(name)," forbidden: ", explanation);
         }
     }
 
-    bool contains(std::string name)
+    void forbid(std::vector<std::string> names, std::string explanation)
     {
-        if (amrex::ParmParse::contains(name.c_str()))
-            return true;
-        if (amrex::ParmParse::contains(full(name).c_str()))
-            return true;
+        for (auto name : names)
         {
-            std::set<std::string> subs = amrex::ParmParse::getEntries(name.c_str());
-            if (subs.size())
-                return true;
+            forbid(name,explanation);
         }
+    }
+
+    // exact_only = false: 
+    //     => "name" matches
+    //     => "name.sub" matches
+    // exact_only = true: 
+    //     => "name" matches
+    //     => "name.sub" does not match
+    int contains(std::string name,bool exact_only=false)
+    {
+        if (!exact_only)
         {
-            std::set<std::string> subs = amrex::ParmParse::getEntries(full(name).c_str());
-            if (subs.size())
+            {
+                std::set<std::string> subs = amrex::ParmParse::getEntries(name.c_str());
+                if (subs.size())
+                    return subs.size();
+            }
+            {
+                std::set<std::string> subs = amrex::ParmParse::getEntries(full(name).c_str());
+                if (subs.size())
+                    return subs.size();
+            }
+        }
+        if (amrex::ParmParse::contains(name.c_str()))
+            return 1;
+        if (amrex::ParmParse::contains(full(name).c_str()))
+            return 1;
+        return 0;
+    }
+    
+    bool contains_any(std::vector<std::string> names)
+    {
+        for (auto name : names)
+        {
+            if (amrex::ParmParse::contains(name.c_str()))
+                return true;
+            if (amrex::ParmParse::contains(full(name).c_str()))
                 return true;
         }
         return false;
+    }
+
+    bool contains_all(std::vector<std::string> names)
+    {
+        for (auto name : names)
+        {
+            if (!amrex::ParmParse::contains(name.c_str()) &&
+                !amrex::ParmParse::contains(full(name).c_str()))
+                return false;
+        }
+        return true;
     }
 
     int queryunit (std::string name, Unit &value)
@@ -575,19 +610,18 @@ public:
         }
         return -1;
     }
-    int queryarr(   std::string name, Set::Vector & value, Unit unit = Unit::Less())
+    int queryarr(   std::string name, Eigen::Vector2d & value, Unit unit = Unit::Less())
     {
         try
         {
             std::vector<Set::Scalar> vals;
             queryarr(name.c_str(), vals, unit);
-            if (vals.size() < AMREX_SPACEDIM) 
+            if (vals.size() < 2) 
             {
                 Util::ParmParseException(   INFO,full(name),full(name),
-                                            " requires at least ", AMREX_SPACEDIM, 
-                                            " arguments, got ",vals.size());
+                                            " requires at least 2 arguments, got ",vals.size());
             }
-            for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
+            for (int i = 0; i < 2; i++) value(i) = vals[i];
             return 0;
         }
         catch(...)
@@ -596,6 +630,27 @@ public:
         }
         return -1;
     }
+    int queryarr(   std::string name, Eigen::Vector3d & value, Unit unit = Unit::Less())
+    {
+        try
+        {
+            std::vector<Set::Scalar> vals;
+            queryarr(name.c_str(), vals, unit);
+            if (vals.size() < 3) 
+            {
+                Util::ParmParseException(   INFO,full(name),full(name),
+                                            " requires at least 3 arguments, got ",vals.size());
+            }
+            for (int i = 0; i < 3; i++) value(i) = vals[i];
+            return 0;
+        }
+        catch(...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
     int queryarr(   std::string name, Set::Matrix & value, Unit unit = Unit::Less())
     {
         std::vector<Set::Scalar> vals;
@@ -651,6 +706,7 @@ public:
         }        
         return queryarr(name,value,unit);
     }
+
     int queryarr_default(   std::string name, std::vector<std::string> & value, std::vector<std::string> defaultvalue)
     {
         if (!contains(name.c_str()))

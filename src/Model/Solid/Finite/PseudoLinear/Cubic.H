@@ -3,6 +3,7 @@
 
 #include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
+#include "Set/Base.H"
 
 namespace Model
 {
@@ -105,18 +106,16 @@ public:
         ret.C12 = C12;
         ret.C44 = C44;
         ret.q = Set::Quaternion::UnitRandom();
-        //Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random();
-        //Set::Scalar Phi  =     Set::Constant::Pi * Util::Random();
-        //Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
-        //ret.CC = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,phi1,Phi,phi2);
-        //if (ret.CC.contains_nan()) Util::Abort(INFO);
         return ret;
     }
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
-        pp_query_default("C11",value.C11, 1.68); // Elastic constant
-        pp_query_default("C12",value.C12, 1.21); // Elastic constant
-        pp_query_default("C44",value.C44, 0.75); // Elastic constant
+        // Elastic constant $C_{11}$
+        pp.query_default("C11",value.C11, "1.68", Unit::Pressure()); 
+        // Elastic constant $C_{12}$
+        pp.query_default("C12",value.C12, "1.21", Unit::Pressure()); 
+        // Elastic constant $C_{44}$
+        pp.query_default("C44",value.C44, "0.75", Unit::Pressure()); 
 
         if (pp.contains("random"))
         {
@@ -124,15 +123,48 @@ public:
             return;
         }
 
-        Set::Scalar phi1 = 0.0, Phi = 0.0, phi2 = 0.0;
-        pp_query_default("phi1",phi1,0.0);  // Bunge Euler angle :math:`\phi_1`
-        pp_query_default("Phi",Phi,0.0);    // Bunge Euler angle :math:`\Phi`
-        pp_query_default("phi2",phi2,0.0);  // Bunge Euler angle :math:`\phi_2`
-        Eigen::Matrix3d R;
-        R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
-            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
-        value.q = Set::Quaternion(R);
+        if (pp.contains_any({"phi1","Phi","phi2"}))
+        {
+            Set::Scalar phi1 = 0.0, Phi = 0.0, phi2 = 0.0;
+            // Bunge Euler angle :math:`\phi_1`
+            pp.query_default("phi1",phi1,"0.0_rad", Unit::Angle());  
+            // Bunge Euler angle :math:`\Phi`
+            pp.query_default("Phi",Phi,"0.0_rad", Unit::Angle());    
+            // Bunge Euler angle :math:`\phi_2`
+            pp.query_default("phi2",phi2,"0.0_rad", Unit::Angle());  
+            Eigen::Matrix3d R;
+            R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+                Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+            value.q = Set::Quaternion(R);
+            pp.forbid({"X","Y","Z"},"Cannot specify both euler angles and crystallographic axes");
+        }
+        else if (pp.contains_any({"X","Y","Z"}))
+        {
+            if (pp.contains_all({"X","Y","Z"}))
+            {
+                Util::Warning(INFO,"We are not checking to make sure your axes are orthogonal");
+            }
+            else if (pp.contains_all({"X","Y"}))
+            {
+                Eigen::Vector3d X, Y;
+                pp.queryarr("X",X,Unit::Less());
+                pp.queryarr("Y",Y,Unit::Less());
+                X.normalize();
+                Y.normalize();
+                Util::Assert(INFO, TEST(X.dot(Y) < 1E-8), "X and Y must be orthogonal");
+                Eigen::Vector3d Z = X.cross(Y);
+                
+                Eigen::Matrix3d R;
+                R.col(0) = X; R.col(1) = Y; R.col(2) = Z;
+                
+                value.q = Set::Quaternion(R);
+            }
+            else
+            {
+                Util::Message(INFO,"Haven't implemented this yet; for now just use X and Y");
+            }
+        }
     }
 
 #define OP_CLASS Cubic
