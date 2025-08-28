@@ -135,6 +135,7 @@ struct Unit : std::pair<double,std::array<int,7>>
 
         // Power
         {"W",         {1.0,     "J/s"      }},
+        {"mW",        {1e-3,    "W"        }},
         {"kW",        {1e3,     "W"        }},
         {"MW",        {1e6,     "W"        }},
         {"hp",        {745.7,   "W"        }},
@@ -261,13 +262,13 @@ struct Unit : std::pair<double,std::array<int,7>>
     static std::map<std::string, int> ParseUnitString(const std::string& input);
 
     
-    static Unit Parse(double val, std::string unitstring)
+    static Unit Parse(double val, std::string unitstring, bool verbose = false)
     {
-        Unit ret = StringParse(unitstring);
+        Unit ret = StringParse(unitstring, verbose);
         ret.first *= val;
         return ret;
     }
-    static Unit Parse(std::string unit)
+    static Unit Parse(std::string unit, bool verbose = false)
     {
         if (unit.size() == 0) return Unit::Less();
         std::vector<std::string> split;
@@ -278,7 +279,7 @@ struct Unit : std::pair<double,std::array<int,7>>
         }
         if (split.size() == 2)
         {        
-            return Parse(std::stod(split[0]),split[1]);
+            return Parse(std::stod(split[0]),split[1], verbose);
         }
         else if (split.size() == 1)
         {
@@ -313,12 +314,19 @@ struct Unit : std::pair<double,std::array<int,7>>
     }
 
 
-    static Unit StringParse(std::string unitstring)
+    static Unit StringParse(std::string unitstring, bool verbose = false)
     {
         Unit type = Unit::Less();
 
         // Get the map of base tokens with signed exponents from ParseUnitString
         std::map<std::string,int> parsed_units = ParseUnitString(unitstring);
+        if (verbose)
+        {
+            for (auto parsed_unit : parsed_units)
+            {
+                std::cout << parsed_unit.first << " " << parsed_unit.second << std::endl;
+            }
+        }
 
         for (auto &p : parsed_units)
         {
@@ -460,12 +468,6 @@ struct Unit : std::pair<double,std::array<int,7>>
         
         return ret;
     }
-    
-
-
-
-
-
 };
 
 
@@ -477,7 +479,6 @@ Unit::ParseUnitString(const std::string& input) {
     std::string token;
     size_t i = 0;
     auto parse_unit = [&](const std::string& t, Op op) {
-        std::cout << t << " " << int(op) << std::endl;
         if (t.empty()) return;
 
         size_t caret = t.find('^');
