@@ -1,10 +1,10 @@
 alamo.program = fracture
 
-timestep = 5e-6
+timestep = 5e-5
 stop_time = 1
 
 plot_file = output_fracture
-amr.plot_int = 100
+amr.plot_int = 50
 amr.max_level = 5
 amr.n_cell = 128 128
 amr.blocking_factor = 32
@@ -62,14 +62,14 @@ crack.model2.threshold = 1.0
 
 
 # Tension notch testing
-#crack.ic.type = notch
-#crack.ic.notch.center = -0.125 0
-#crack.ic.notch.orientation = 1 0
-#crack.ic.notch.length = 0.035
-#crack.ic.notch.thickness = 2.e-3
+crack.ic.type = notch
+crack.ic.notch.center = -0.125 0
+crack.ic.notch.orientation = 1 0
+crack.ic.notch.length = 0.035
+crack.ic.notch.thickness = 2.e-3
 
-#crack.ic.notch.eps = 5.e-4
-#crack.ic.notch.mollifier = erf
+crack.ic.notch.eps = 5.e-4
+crack.ic.notch.mollifier = erf
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
@@ -82,10 +82,8 @@ crack.bc.type.ylo = NEUMANN
 #material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
 
 material.ic.type = png
-material.ic.png.filename = "circles_blurred_1.png"
+material.ic.png.filename = "test_image_hmx_3.png"
 material.ic.png.fit = stretch
-#material.ic.png.coord.lo = 0 0
-#material.ic.png.coord.high = 1 1
 material.ic.png.channel = b
 
 #material.model1.type = isotropic
@@ -102,18 +100,18 @@ material.refinement_threshold = 100 #1.e-1
 
 ### Mode-I test
 # Tension testing
-bc.type = constant
-bc.constant.type.xloylo = disp disp
-bc.constant.type.xlo    = disp trac
-bc.constant.type.xloyhi = disp disp
-bc.constant.type.ylo    = disp disp
-bc.constant.type.yhi    = disp disp
-bc.constant.type.xhi    = disp trac
-bc.constant.type.xhiylo = disp disp
-bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi =       0.0 2.e-4
-bc.constant.val.xloyhi =    0.0 2.e-4
-bc.constant.val.xhiyhi =    0.0 2.e-4
+bc.type = expression
+bc.expression.type.xloylo = disp disp
+bc.expression.type.xlo    = disp trac
+bc.expression.type.xloyhi = disp disp
+bc.expression.type.ylo    = disp disp
+bc.expression.type.yhi    = disp disp
+bc.expression.type.xhi    = disp trac
+bc.expression.type.xhiylo = disp disp
+bc.expression.type.xhiyhi = disp disp
+bc.expression.val.yhi =       0.0 "if(t < 5e-2, 3.2e-2 * t, 1e-4)"
+bc.expression.val.xloyhi =    0.0 "if(t < 5e-2, 3.2e-2 * t, 1e-4)"
+bc.expression.val.xhiyhi =    0.0 "if(t < 5e-2, 3.2e-2 * t, 1e-4)"
 
 
 # Compression testing
