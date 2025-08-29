@@ -402,7 +402,7 @@ elif "mvapich2" in mpidiststr.lower():
     mpidist = "mvapich2"
 elif "mvapich" in mpidiststr.lower():
     mpidist = "mvapich"
-elif "openmpi" in mpidiststr.lower():
+elif "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
     mpidist = "openmpi"
 message("mpi implementation", mpidist)
 
