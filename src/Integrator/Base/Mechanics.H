@@ -135,7 +135,7 @@ public:
         pp_query_default("zero_out_displacement", value.m_zero_out_displacement,false);
 
         // Time to start doing the elastic solve (by default, start immediately)
-        pp_query_default("tstart", value.tstart,-1.0);
+        pp.query_default("tstart", value.tstart,-1.0,Unit::Time());
     }
 
 protected:

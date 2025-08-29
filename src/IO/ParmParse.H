@@ -368,6 +368,27 @@ public:
         return -1;
     } 
 
+    int query_default(  std::string name, Set::Scalar & value, Set::Scalar defaultvalue, const Unit type)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(),defaultvalue);
+            }
+            return queryunit(name.c_str(),value,type);
+        }
+        catch (std::runtime_error & e)
+        {
+            Util::ParmParseException(INFO,full(name),e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    } 
+
     int query_validate( std::string name, int & value, std::vector<int> possibleintvals)
     {
         try
@@ -560,19 +581,6 @@ public:
     }
 
 
-    template<typename T>
-    int queryarr(   std::string name, std::vector<T> & value)
-    {
-        try
-        {
-            return amrex::ParmParse::queryarr(name.c_str(),value);
-        }
-        catch (...)
-        {
-            Util::ParmParseException(INFO,full(name));
-        }
-        return -1;
-    }
     int queryarr(   std::string name, std::vector<Set::Scalar> & value, Unit unit = Unit::Less())
     {
         try
@@ -687,6 +695,21 @@ public:
         }    
         return 0;
     }
+
+    template<typename T>
+    int queryarr(   std::string name, std::vector<T> & value)
+    {
+        try
+        {
+            return amrex::ParmParse::queryarr(name.c_str(),value);
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
+
 
     template<typename T>
     int queryarr_required(  std::string name, std::vector<T> & value)

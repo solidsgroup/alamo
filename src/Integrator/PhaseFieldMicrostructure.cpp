@@ -49,6 +49,8 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         Set::Patch<Set::Scalar> etanew = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta    = eta_old_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar> df = mechanics.elasticdf_mf.Patch(lev,mfi);
+
         Set::Scalar *df_max_handle = &df_max;
 
         Set::Patch<const Set::Matrix> sigma = stress_mf.Patch(lev,mfi); 
@@ -173,6 +175,9 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                             }
 
                             elastic_df_m += (sig.transpose() * Fgbn).trace() * dgn;
+
+                            df(i,j,k,n) = elastic_df_m;
+
                         }
                     }
                     else

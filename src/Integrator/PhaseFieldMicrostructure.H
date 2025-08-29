@@ -60,9 +60,6 @@ public:
         // Number of grain fields (may be more if using different IC)
         pp_query_default("pf.number_of_grains", value.number_of_grains,2);     
         pp_query_required("pf.M",      value.pf.M,      Unit::Velocity()/Unit::Pressure());  // Mobility
-
-        Util::Abort(INFO);
-
         pp_query_required("pf.gamma",  value.pf.gamma,  Unit::Less());                     // Phase field :math:`\gamma`
         pp_query_required("pf.sigma0", value.pf.sigma0, Unit::Energy()/Unit::Area());      // Initial GB energy if not using  anisotropy
         pp_query_required("pf.l_gb",   value.pf.l_gb,   Unit::Length());                   // Mobility
@@ -134,14 +131,14 @@ public:
         if(value.sdf.on)
         {
             std::vector<std::string> vals;
-            pp_queryarr("sdf.val",vals);  // value of SDF for each grain
+            pp.queryarr("sdf.val",vals);  // value of SDF for each grain
             int nvals = static_cast<int>(vals.size());
             if (nvals == 1)
                 for (int i = 0; i < value.number_of_grains; i++)
-                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0]));
+                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0],Unit::Time(),Unit::Energy()/Unit::Volume()));
             else if (nvals == value.number_of_grains)
                 for (int i = 0; i < value.number_of_grains; i++)
-                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[i]));
+                    value.sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[i],Unit::Time(),Unit::Energy()/Unit::Volume()));
             else
                 Util::Abort(INFO,"sdf.val received ", vals.size(), " but requires 1 or ", value.number_of_grains);
 
@@ -249,8 +246,9 @@ public:
                         else 
                         {
                             pp.queryarr(name,value.shearcouple.Fgb[i*value.number_of_grains + j]);
-                            value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
                         }
+
+                        value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
                     }
                 }
         }
@@ -283,7 +281,7 @@ public:
 
         value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
         value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "EtaOld",false);
-        //value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",false);
+        value.RegisterNewFab(value.mechanics.elasticdf_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",true);
         // if (value.pf.threshold.on)
         //     value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",false);
         // if (value.disconnection.on)
@@ -439,6 +437,7 @@ private:
         std::vector<model_type> model;
         int model_mix_order;
         bool model_neumann_boundary = false;
+        Set::Field<Set::Scalar> elasticdf_mf;
     } mechanics;
     
     using Base::Mechanics<model_type>::model_mf;
