@@ -135,8 +135,8 @@ int main (int argc, char* argv[])
     {
         int subfailed = 0;
         subfailed += Util::Test::SubMessage("Equivalence", UnitTest::Equivalence(1));
+        failed += subfailed;
     }
-
 
 
     Util::globalprefix = "";
