@@ -63,6 +63,10 @@ struct Unit : std::pair<double,std::array<int,7>>
         {"ly",        {9.4607304725808e15, "m"}}, // lightyear
         {"pc",        {3.08567758149137e16, "m"}}, // parsec
 
+        // Angles
+        {"rad",       {1.0,     "1"}},
+        {"deg",       {0.01745329251, "rad" }},
+
         // Times
         {"ms",        {1e-3,    "s"        }},
         {"us",        {1e-6,    "s"        }},
@@ -120,6 +124,7 @@ struct Unit : std::pair<double,std::array<int,7>>
 
         // Energy
         {"J",         {1.0,     "N*m"      }},
+        {"mJ",        {1e-3,    "J"        }},
         {"kJ",        {1e3,     "J"        }},
         {"MJ",        {1e6,     "J"        }},
         {"eV",        {1.602176634e-19, "J"}},
@@ -130,6 +135,7 @@ struct Unit : std::pair<double,std::array<int,7>>
 
         // Power
         {"W",         {1.0,     "J/s"      }},
+        {"mW",        {1e-3,    "W"        }},
         {"kW",        {1e3,     "W"        }},
         {"MW",        {1e6,     "W"        }},
         {"hp",        {745.7,   "W"        }},
@@ -193,6 +199,8 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit Amount()            { return Unit{1.0, {0,0,0,0,0,1,0}}; } // mol
     static Unit LuminousIntensity() { return Unit{1.0, {0,0,0,0,0,0,1}}; } // cd
 
+    static Unit Angle() {return Unit::Less();}
+
     // Geometry and kinematics
     static Unit Area()        { return Length()*Length(); }
     static Unit Volume()      { return Length()*Length()*Length(); }
@@ -254,13 +262,13 @@ struct Unit : std::pair<double,std::array<int,7>>
     static std::map<std::string, int> ParseUnitString(const std::string& input);
 
     
-    static Unit Parse(double val, std::string unitstring)
+    static Unit Parse(double val, std::string unitstring, bool verbose = false)
     {
-        Unit ret = StringParse(unitstring);
+        Unit ret = StringParse(unitstring, verbose);
         ret.first *= val;
         return ret;
     }
-    static Unit Parse(std::string unit)
+    static Unit Parse(std::string unit, bool verbose = false)
     {
         if (unit.size() == 0) return Unit::Less();
         std::vector<std::string> split;
@@ -271,7 +279,7 @@ struct Unit : std::pair<double,std::array<int,7>>
         }
         if (split.size() == 2)
         {        
-            return Parse(std::stod(split[0]),split[1]);
+            return Parse(std::stod(split[0]),split[1], verbose);
         }
         else if (split.size() == 1)
         {
@@ -306,31 +314,50 @@ struct Unit : std::pair<double,std::array<int,7>>
     }
 
 
-    static Unit StringParse(std::string unitstring)
+    static Unit StringParse(std::string unitstring, bool verbose = false)
     {
         Unit type = Unit::Less();
-        std::map<std::string, int> map = ParseUnitString(unitstring);
-        for (auto it = map.begin(); it != map.end(); it++)
-        {
-            auto [str, exp] = *it;
 
-            if (Unit::base_units.find(str) != base_units.end())
+        // Get the map of base tokens with signed exponents from ParseUnitString
+        std::map<std::string,int> parsed_units = ParseUnitString(unitstring);
+        if (verbose)
+        {
+            for (auto parsed_unit : parsed_units)
             {
-                Unit t = Unit::base_units.at(str);
-                type = type * (t^exp);
+                std::cout << parsed_unit.first << " " << parsed_unit.second << std::endl;
             }
-            else if (compound.find(it->first) != compound.end())
+        }
+
+        for (auto &p : parsed_units)
+        {
+            const std::string &token = p.first;
+            int exp = p.second;
+
+            if (Unit::base_units.find(token) != base_units.end())
             {
-                auto [subfac, substr] = compound.at(str);
-                Unit t = StringParse(substr);
-                t.first *= subfac;
-                type = type * t^exp;
+                // Base unit: apply exponent
+                Unit t = Unit(Unit::base_units.at(token)) ^ exp;
+                type = type * t;
+            }
+            else if (compound.find(token) != compound.end())
+            {
+                // Compound unit: expand recursively
+                auto pair = compound.at(token);
+                double factor = pair.first;
+                const std::string &subunit_str = pair.second;
+
+                Unit t = StringParse(subunit_str);  // recursive expansion
+                t = t ^ exp;                         // apply exponent to both factor and dimension
+                t.first *= std::pow(factor, exp);    // scale numeric factor correctly
+
+                type = type * t;
             }
             else
             {
-                throw std::runtime_error("Unknown unit: " + unitstring);
+                throw std::runtime_error("Unknown unit token: " + token);
             }
         }
+
         return type;
     }
 
@@ -441,12 +468,6 @@ struct Unit : std::pair<double,std::array<int,7>>
         
         return ret;
     }
-    
-
-
-
-
-
 };
 
 
