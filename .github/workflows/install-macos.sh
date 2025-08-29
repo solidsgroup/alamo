@@ -6,22 +6,11 @@ set -eu -o pipefail
 #
 
 #
-# Use Mac OS HomeBrew system to install mpich and eigen
+# Use the Homebrew package manager for macOS to install dependencies
 # [ you should only need to do this once ]
 #
 brew update
-brew install --overwrite --force gcc || true
-brew install --overwrite --force mpich || true
-brew install --overwrite --force eigen || true
-brew install --overwrite --force libpng || true
-
-
-#
-# If your system is unable to find gfortran (for instance, if you are
-# a github action), you can try creating an alias using the following
-# command:
-#
-# ln -s /opt/homebrew/bin/gfortran-14 /opt/homebrew/bin/gfortran
+brew reinstall --force --binaries gcc openmpi eigen libpng
 
 #
 # CONFIGURATION
@@ -34,14 +23,26 @@ brew install --overwrite --force libpng || true
 #
 # [ you need to do this in every new shell OR add to your shell config file (like .bashrc) ]
 #
-export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/include
+export CPLUS_INCLUDE_PATH="$(brew --prefix)/include/c++:$(brew --prefix eigen)/include:$(brew --prefix libpng)/include"
+
+#
+# Create version-agnostic executables
+#
+(cd /opt/homebrew/bin && for tool in gcc g++ gfortran; do latest=$(ls -1 ${tool}-[0-9]* 2>/dev/null | sort -V | tail -n 1); [ -n "$latest" ] && ln -sf "$latest" "$tool"; done)
+
+#
+# Configure OpenMPI to use the correct compiler executables
+#
+export OMPI_CC=gcc
+export OMPI_CXX=g++ 
+export OMPI_FC=gfortran
 
 #
 # In the alamo directory, run this command with any additional arguments. 
 #
 # [ you need to include these arguments every time you configure ]
 #
-./configure --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
+./configure --link "$(brew --prefix libpng)/lib" "$(dirname $(mpifort -print-file-name=libgfortran.dylib))" "$(dirname $(mpicxx -print-libgcc-file-name))"
 
 #
 # Compile the code by running make
@@ -49,30 +50,7 @@ export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/inclu
 make
 
 #
-# Executables should now be available under ./bin
-#
-ls ./bin/
-
-#
 # Run the unit test suite
 #
 ./bin/test-3d-g++
-
-
-#
-# PYTHON [OPTIONAL]
-# =================
-#
-# These are not required tu run alamo, but are needed to use alamo scripts such as
-# the regression test script.
-# The following commands work on the Github VM, but your configuration may vary.
-#
-# (If you already have another way of installing python packages, use it - the
-# "break-system-packages" is kind of dangerous and is only needed for this CI script)
-#
-
-#
-# Install packages needed for regression test script
-#
-pip3 install sympy yt matplotlib numpy pandas --break-system-packages --user
 
