@@ -1,2 +1,0 @@
-set -e
-./bin/test

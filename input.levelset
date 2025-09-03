@@ -1,13 +1,12 @@
 ## Simulation output
-plot_file = output_levelset_disk_100X100_(1_0)_150steps
-
+plot_file = output_levelset_circle_Test_100X100_Circle1WENOPrint1e-3Left
 # Simulation length
-timestep = 1.00
-stop_time = 1.000
-max_step = 150
+timestep = 0.01
+stop_time = 1.00
+max_step = 100
 
 # AMR parameters
-amr.plot_int = 5
+amr.plot_int = 10
 amr.max_level = 0
 amr.n_cell = 100 100 100
 amr.blocking_factor = 1
@@ -16,62 +15,93 @@ amr.grid_eff = 1.0
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 0.85 1 1
+geometry.prob_hi = 1 1 1
 geometry.is_periodic = 0 0 0
 
-#cflNumber
-cflNumber = 0.5
+#FluxReconstruction
+FluxReconstruction = FifthOrderWENO
+
+#FluxMethod
+FluxScheme = NarrowbandFluxComputation
 
 #TimeSteppingScheme
 TimeSteppingScheme = ForwardEuler
 
-#FluxMethod
-FluxScheme = LocalLaxFriedrichs
+#cflNumber
+cflNumber = 0.5
 
-#FluxReconstruction
-FluxReconstruction = FirstOrder
+# Get info on number of levelsets
+levelset.number_of_levelsets = 1
+levelset.ReinitOrd           = 1
 
-# Initial conditions for levelset
-ic.ls.type = zalesak
-#ic.ls.sphere.radius = 0.25
-#ic.ls.sphere.center = 0.5 0.5 0.5
-#ic.ls.sphere.type   = "xy"
+# Initial conditions for levelset field
+ls.ic.type = expression
+# Circle/Sphere
+ls.ic.expression.constant.r0 = 0.15   # Disk radius
+ls.ic.expression.constant.xC0 = 0.25 # Disk center x
+ls.ic.expression.constant.yC0 = 0.50  # Disk center y
 
-ic.ls.zalesak.radius        = 0.25
-ic.ls.zalesak.center        = 0.5 0.5 0.5
-ic.ls.zalesak.slot_center   = 0.5 0.75 0.5
-ic.ls.zalesak.slot_size     = 0.1 0.2 0.0
-ic.ls.zalesak.fillet_radius = 0.005
-ic.ls.zalesak.type          = "xy"
+#ls.ic.expression.constant.r1 = 0.1   # Disk radius
+#ls.ic.expression.constant.xC1 = 0.25  # Disk center x
+#ls.ic.expression.constant.yC1 = 0.25  # Disk center y
 
-# Initial velocity field (constant)
-ic.velocity.value = 1.0 0.0 #0.0
+#ls.ic.expression.constant.r2 = 0.1   # Disk radius
+#ls.ic.expression.constant.xC2 = 0.75  # Disk center x
+#ls.ic.expression.constant.yC2 = 0.25  # Disk center y
 
-# Boundary conditions for levelset field
-bc.ls.type.xhi = neumann
-bc.ls.type.xlo = neumann
-bc.ls.type.yhi = neumann
-bc.ls.type.ylo = neumann
-bc.ls.type.zhi = neumann
-bc.ls.type.zlo = neumann
-bc.ls.val.xhi  = 0.0
-bc.ls.val.xlo  = 0.0
-bc.ls.val.yhi  = 0.0
-bc.ls.val.ylo  = 0.0
-bc.ls.val.zhi  = 0.0
-bc.ls.val.zlo  = 0.0
+#ls.ic.expression.region0 = "if(x <= 0.5, -0.01, 0.01)"
+ls.ic.expression.region0 = "sqrt((x - xC0)^2 + (y - yC0)^2) - r0"
+#ls.ic.expression.region1 = "sqrt((x - xC1)^2 + (y - yC1)^2) - r1"
+#ls.ic.expression.region2 = "sqrt((x - xC2)^2 + (y - yC2)^2) - r2"
 
-# Boundary conditions for velocity [UVel, VVel, WVel]
-bc.velocity.type.xhi = neumann neumann #neumann 
-bc.velocity.type.xlo = neumann neumann #neumann
-bc.velocity.type.yhi = neumann neumann #neumann
-bc.velocity.type.ylo = neumann neumann #neumann
-bc.velocity.type.zhi = neumann neumann #neumann
-bc.velocity.type.zlo = neumann neumann #neumann
+ls.ic.expression.levelset_id = 0
 
-bc.velocity.val.xhi = 0.0 0.0 #0.0
-bc.velocity.val.xlo = 0.0 0.0 #0.0
-bc.velocity.val.yhi = 0.0 0.0 #0.0
-bc.velocity.val.ylo = 0.0 0.0 #0.0
-bc.velocity.val.zhi = 0.0 0.0 #0.0
-bc.velocity.val.zlo = 0.0 0.0 #0.0 
+# Zalesak disk
+#ls.ic.expression.constant.xD = 0.50  # Slot center x
+#ls.ic.expression.constant.yD = 0.725 # Slot center y
+#ls.ic.expression.constant.wD = 0.05  # Slot width (full)
+#ls.ic.expression.constant.hD = 0.25  # Slot height (full)
+#ls.ic.expression.region0 = "max(sqrt((x - xC0)^2 + (y - yC0)^2) - r0, -(max(abs(x - xD) - wD/2, abs(y - yD) - hD/2)))"
+
+# Boundary conditions for levelset field (Always Neumann)
+ls.bc.constant.type.xhi = neumann 
+ls.bc.constant.type.xlo = neumann 
+ls.bc.constant.type.yhi = neumann 
+ls.bc.constant.type.ylo = neumann 
+ls.bc.constant.type.zhi = neumann 
+ls.bc.constant.type.zlo = neumann 
+
+ls.bc.constant.val.xhi = 0.0 
+ls.bc.constant.val.xlo = 0.0 
+ls.bc.constant.val.yhi = 0.0 
+ls.bc.constant.val.ylo = 0.0 
+ls.bc.constant.val.zhi = 0.0  
+ls.bc.constant.val.zlo = 0.0 
+
+# Velocity field method
+velocity.method = "constant"
+
+# Initial velocity field 
+velocity.ic.type = expression  
+#velocity.ic.expression.constant.pi = "4.0 * atan(1)"
+velocity.ic.expression.region0 = "1.0"
+velocity.ic.expression.region1 = "0.0"
+#velocity.ic.expression.region0 = "if(x <= 0.5, 1.0, -1.0)"
+#velocity.ic.expression.region1 = "if(y <= 0.5, 1.0, -1.0)"
+#velocity.ic.expression.region0 = "2.0 * pi * (0.5 - y)"
+#velocity.ic.expression.region1 = "2.0 * pi * (x - 0.5)"
+
+# Boundary conditions for velocity [UVel, VVel]
+velocity.bc.constant.type.xhi = neumann neumann  
+velocity.bc.constant.type.xlo = neumann neumann 
+velocity.bc.constant.type.yhi = neumann neumann 
+velocity.bc.constant.type.ylo = neumann neumann 
+velocity.bc.constant.type.zhi = neumann neumann 
+velocity.bc.constant.type.zlo = neumann neumann 
+
+velocity.bc.constant.val.xhi = 0.0 0.0 
+velocity.bc.constant.val.xlo = 0.0 0.0
+velocity.bc.constant.val.yhi = 0.0 0.0 
+velocity.bc.constant.val.ylo = 0.0 0.0 
+velocity.bc.constant.val.zhi = 0.0 0.0 
+velocity.bc.constant.val.zlo = 0.0 0.0 

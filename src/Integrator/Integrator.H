@@ -244,6 +244,13 @@ protected:
     void RegisterFaceFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout, [[maybe_unused]] std::vector<std::string> suffix = {}) {
         static_assert(Direction >= 0 && Direction <= 2, "Invalid face direction: must be 0 (X), 1 (Y), or 2 (Z)");
     
+        // Add a runtime check as well
+        if (Direction >= AMREX_SPACEDIM) {
+            Util::Warning(INFO, "Not registering face in direction " + std::to_string(Direction) + 
+                    " as it exceeds available dimensions (" + std::to_string(AMREX_SPACEDIM) + ")");
+            return;  // Don't register faces in dimensions beyond the current configuration
+        }
+
         int nlevs_max = maxLevel() + 1;  // Maximum number of AMR levels
     
         // **Resize the Field to hold MultiFabs for all levels**
@@ -258,9 +265,26 @@ protected:
             // Define MultiFab for this level with face-centered BoxArray
             new_fab.Define(lev, face_ba, dmap[lev], ncomp, nghost);
         }
+   
+
+        // Store the current size of fab_array before calling AddField
+        std::size_t currentSize = face.fab_array.size();
     
-        // Add the face-centered field with the provided BC object
-        AddField<Set::Scalar, Set::Hypercube::Face>(new_fab, new_bc, ncomp, nghost, name, writeout, true,{});
+        // Call AddField which will handle everything except the direction
+        AddField<Set::Scalar, Set::Hypercube::Face>(new_fab, new_bc, ncomp, nghost, name, writeout, true, {});
+    
+        // Now check if a new fab was added
+        if (face.fab_array.size() > currentSize) {
+            // Add the direction explicitly
+            face.direction_array.push_back(Direction);
+    
+            Util::Message(INFO, "Added face direction " + std::to_string(Direction) + 
+                        " for field '" + name + "'. direction_array size: " + 
+                        std::to_string(face.direction_array.size()));
+        } else {
+            Util::Warning(INFO, "AddField did not add an entry to fab_array. No direction added for '" + name + "'");
+        }
+    
     }
 
     template<class T>
@@ -478,6 +502,7 @@ protected:
         std::vector<std::string> name_array;
         std::vector<BC::BC<Set::Scalar>*> physbc_array;
         std::vector<bool> writeout_array;
+        std::vector<int> direction_array;
         bool any = true;
         bool all = false;
     } face;
@@ -620,6 +645,7 @@ void Integrator::AddField<Set::Scalar,static_cast<int>(Set::Hypercube::Face)>(Se
     face.name_array.push_back(name);
     face.writeout_array.push_back(writeout);
     face.number_of_fabs++;
+
 }
 
 template<class T, int d>

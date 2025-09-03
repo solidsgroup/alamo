@@ -22,9 +22,9 @@ import os, subprocess
 import sys
 sys.path.append(os.path.abspath('.'))
 import Inputs
-Inputs.scrapeInputs(writeAPI=True)
 import Tests
 import Builder
+import InputIndex
 # -- Project information ----------------------------------------------------
 
 
@@ -58,9 +58,6 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
     'sphinx.ext.autosectionlabel',
-#    'breathe',
-    'linuxdoc.rstFlatTable',
-#    'm2r'
     'sphinx_design',
     'sphinx_copybutton',
     'sphinxcontrib.bibtex'

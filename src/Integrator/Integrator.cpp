@@ -53,7 +53,10 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
         pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
         pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
-        pp_query_default("plot_file", plot_file, "output");             // Output file
+
+
+        // Output file: see IO::FileNameParse for wildcards and variable substitution
+        pp_query_default("plot_file", plot_file, "output");
 
         pp_query_default("cell.all", cell.all, false);                // Turn on to write all output in cell fabs (default: off)
         pp_query_default("cell.any", cell.any, true);                // Turn off to prevent any cell based output (default: on)
@@ -234,19 +237,19 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
         const int ncomp = (*face.fab_array[n])[lev - 1]->nComp();
         const int nghost = (*face.fab_array[n])[lev - 1]->nGrow();
 
-        for (int dir = 0; dir < AMREX_SPACEDIM; dir++) {
-            amrex::BoxArray face_ba = cgrids;
-            amrex::IntVect face_type = amrex::IntVect::TheZeroVector();  // `{0, 0, 0}` (cell-centered)
-            face_type[dir] = 1;  // Set `1` for the `dir`-th dimension (X, Y, or Z)
-            face_ba.convert(face_type);  // Convert to face-centered in direction `dir`
+        int face_dir = face.direction_array[n];
 
-            // Create face-centered MultiFab and set initial values
-            (*face.fab_array[n])[lev].reset(new amrex::MultiFab(face_ba, dm, ncomp, nghost));
-            (*face.fab_array[n])[lev]->setVal(0.0);  // Initialize to zero
+        amrex::BoxArray face_ba = cgrids;
+        amrex::IntVect face_type = amrex::IntVect::TheZeroVector();  // `{0, 0, 0}` (cell-centered)
+        face_type[face_dir] = 1;  // Set `1` for the `dir`-th dimension (X, Y, or Z)
+        face_ba.convert(face_type);  // Convert to face-centered in direction `dir`
 
-            // Fill coarse patch (interpolation from coarse to fine level)
-            FillCoarsePatch(lev, time, *face.fab_array[n], *face.physbc_array[n], 0, ncomp);
-        }
+        // Create face-centered MultiFab and set initial values
+        (*face.fab_array[n])[lev].reset(new amrex::MultiFab(face_ba, dm, ncomp, nghost));
+        (*face.fab_array[n])[lev]->setVal(0.0);  // Initialize to zero
+
+        // Fill coarse patch (interpolation from coarse to fine level)
+        FillCoarsePatch(lev, time, *face.fab_array[n], *face.physbc_array[n], 0, ncomp);
     }
 
     for (unsigned int n = 0; n < m_basefields.size(); n++)
@@ -268,10 +271,11 @@ Integrator::MakeNewLevelFromCoarse(int lev, amrex::Real time, const amrex::BoxAr
 /// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 ///
 void
-Integrator::RemakeLevel(int lev,       ///<[in] AMR Level
-    amrex::Real time,     ///<[in] Simulation time
-    const amrex::BoxArray& cgrids,
-    const amrex::DistributionMapping& dm)
+Integrator::RemakeLevel(int lev,                             ///<[in] AMR Level
+                        amrex::Real time,                    ///<[in] Simulation time
+                        const amrex::BoxArray &cgrids,       ///<[in] Coarse grids
+                        const amrex::DistributionMapping &dm ///[in] Distribution mapping
+    )
 {
     BL_PROFILE("Integrator::RemakeLevel");
     for (int n = 0; n < cell.number_of_fabs; n++)
@@ -306,19 +310,23 @@ Integrator::RemakeLevel(int lev,       ///<[in] AMR Level
         const int ncomp = (*face.fab_array[n])[lev]->nComp();
         const int nghost = (*face.fab_array[n])[lev]->nGrow();
 
-        for (int dir = 0; dir < AMREX_SPACEDIM; dir++) {
-            amrex::BoxArray face_ba = cgrids;
-            amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
-            face_type[dir] = 1;  // Convert to face-centered in direction `dir`
-            face_ba.convert(face_type);
+        //Determine which direction this face-centered MultiFab is aligned with
+        int face_dir = face.direction_array[n];
 
-            amrex::MultiFab new_state(face_ba, dm, ncomp, nghost);
-            new_state.setVal(0.0);  // Initialize to zero
+        //Create box array with the correct face centering
+        amrex::BoxArray face_ba = cgrids;
+        amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
+        face_type[face_dir] = 1;  // Convert to face-centered in direction `dir`
+        face_ba.convert(face_type);
 
-            // Fill the new MultiFab with interpolated/coarse values
-            FillPatch(lev, time, *face.fab_array[n], new_state, *face.physbc_array[n], 0);
-            std::swap(new_state, *(*face.fab_array[n])[lev]);
-        }
+        // Create new state with matching index type
+        amrex::MultiFab new_state(face_ba, dm, ncomp, nghost);
+        new_state.setVal(0.0);  // Initialize to zero
+
+        // Fill the new MultiFab with interpolated/coarse values
+        FillPatch(lev, time, *face.fab_array[n], new_state, *face.physbc_array[n], 0);
+        // Swap the original MultiFab    
+        std::swap(new_state, *(*face.fab_array[n])[lev]);
     }
 
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
@@ -414,19 +422,16 @@ Integrator::CountCells(int lev)
     return cnt;
 }
 
-
 bool Integrator::isFaceCentered(const amrex::IndexType& ixType, int dir) {
-    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-        if (d == dir) {
-            if (ixType.ixType(d) != amrex::IndexType::NODE) return false;
-        } else {
-            if (ixType.ixType(d) != amrex::IndexType::CELL) return false;
-        }
+    if (dir >= AMREX_SPACEDIM) return false;
+    
+    // A face-centered type in direction 'dir' has only that direction as NODE type
+    for (int d = 0; d < AMREX_SPACEDIM; d++) {
+        bool isNode = (ixType.ixType(d) == amrex::IndexType::NODE);
+        if (isNode != (d == dir)) return false;
     }
+    
     return true;
-    /*return ixType.ixType(dir) == amrex::IndexType::NODE &&
-            ixType.ixType((dir + 1) % AMREX_SPACEDIM) == amrex::IndexType::CELL &&
-            ixType.ixType((dir + 2) % AMREX_SPACEDIM) == amrex::IndexType::CELL;*/
 }
 
 void  // CUSTOM METHOD - CHANGEABLE
@@ -436,6 +441,10 @@ Integrator::FillPatch(int lev, amrex::Real time,
     BC::BC<Set::Scalar>& physbc, int icomp)
 {
     BL_PROFILE("Integrator::FillPatch");
+
+    // Common for all setups      
+    physbc.define(geom[lev]);
+
     if (lev == 0)
     {
 
@@ -444,7 +453,6 @@ Integrator::FillPatch(int lev, amrex::Real time,
         amrex::Vector<amrex::Real> stime;
         stime.push_back(time);
 
-        physbc.define(geom[lev]);
         amrex::FillPatchSingleLevel(destination_mf,     // Multifab
             time,                         // time
             smf,                // Vector<MultiFab*> &smf (CONST)
@@ -455,38 +463,63 @@ Integrator::FillPatch(int lev, amrex::Real time,
             geom[lev],          // Geometry (CONST)
             physbc,
             0);         // BC
-    }
-    else
-    {
-        amrex::Vector<amrex::MultiFab*> cmf, fmf;
-        cmf.push_back(source_mf[lev - 1].get());
-        fmf.push_back(source_mf[lev].get());
-        amrex::Vector<amrex::Real> ctime, ftime;
-        ctime.push_back(time);
-        ftime.push_back(time);
 
-        physbc.define(geom[lev]);
+        return;
+    }
+
+    // For level > 0, we need different handling based on data centering
+    // Standard handling for cell-centered and node-centered data
+    amrex::Vector<amrex::MultiFab*> cmf, fmf;
+    cmf.push_back(source_mf[lev - 1].get());
+    fmf.push_back(source_mf[lev].get());
+    amrex::Vector<amrex::Real> ctime, ftime;
+    ctime.push_back(time);
+    ftime.push_back(time);
+
+    // Identify data centering type
+    const auto ixType = destination_mf.boxArray().ixType();
+    int face_dir = -1;
+    for (int dir = 0; dir < AMREX_SPACEDIM; dir++) {
+        if (isFaceCentered(ixType, dir)) {
+            face_dir = dir;
+            break;
+        }    
+    }
+
+    if (face_dir >= 0) {
+
+        // Handle face-centered data
+
+        // Define a lambda that matches the expected signature for call_interp_hook
+        //auto null_hook = [](amrex::MultiFab& /* mf */, const amrex::Box& /* box */, int /* icomp */, int /* ncomp */) {};
+        // Use AMReX's built-in NullInterpHook instead of custom lambda
+        amrex::NullInterpHook<typename amrex::MultiFab::FABType::value_type> null_hook;
+
+        //Use appropriate face interpolator
+        amrex::Interpolater* mapper = &amrex::face_cons_linear_interp;
+
+        amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec());
+
+        //Call array-based FillPatchTwoLevels
+        amrex::FillPatchTwoLevels(destination_mf, destination_mf.nGrowVect(), time,
+                                cmf, ctime, fmf, ftime,
+                                0, icomp, destination_mf.nComp(),
+                                geom[lev-1], geom[lev],
+                                physbc, 0,
+                                physbc, 0,
+                                refRatio(lev-1), mapper, bcs, 0,
+                                null_hook, null_hook);
+    }
+    else {
+
 
         amrex::Interpolater* mapper;
-
-        // **Refactored checks for face-centered MultiFabs**
-        const auto ixType = destination_mf.boxArray().ixType();
-        if (isFaceCentered(ixType, 0) ||  // X-face-centered
-            isFaceCentered(ixType, 1) ||  // Y-face-centered
-            isFaceCentered(ixType, 2)) {  // Z-face-centered
-            mapper = &amrex::node_bilinear_interp;  // Face-centered or node-centered
-        }
-        else if (ixType == amrex::IndexType::TheNodeType()) {
+        if (ixType == amrex::IndexType::TheNodeType()) {
             mapper = &amrex::node_bilinear_interp;  // Fully node-centered
         }
         else {
             mapper = &amrex::cell_cons_interp;  // Cell-centered
         }
-
-        /*if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
-            mapper = &amrex::node_bilinear_interp;
-        else
-            mapper = &amrex::cell_cons_interp;*/
 
         amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
         amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
@@ -512,40 +545,67 @@ Integrator::FillCoarsePatch(int lev, ///<[in] AMR level
 {
     BL_PROFILE("Integrator::FillCoarsePatch");
     AMREX_ASSERT(lev > 0);
-    amrex::Vector<amrex::MultiFab*> cmf;
-    cmf.push_back(mf[lev - 1].get());
-    amrex::Vector<amrex::Real> ctime;
-    ctime.push_back(time);
 
+    // Common setup
     physbc.define(geom[lev]);
 
-    amrex::Interpolater* mapper;
 
-    // **Refactored checks for face-centered MultiFabs**
+    amrex::Vector<amrex::MultiFab*> cmf;
+    cmf.push_back(mf[lev - 1].get());
+
+    // Identify data centering type
     const auto ixType = mf[lev]->boxArray().ixType();
-    if (isFaceCentered(ixType, 0) ||  // X-face-centered
-        isFaceCentered(ixType, 1) ||  // Y-face-centered
-        isFaceCentered(ixType, 2)) {  // Z-face-centered
-        mapper = &amrex::node_bilinear_interp;  // For face-centered fields
-    }
-    else if (ixType == amrex::IndexType::TheNodeType()) {
-        mapper = &amrex::node_bilinear_interp;  // Fully node-centered
-    }
-    else {
-        mapper = &amrex::cell_cons_interp;  // Cell-centered (conserved variables)
+
+    int face_dir = -1;
+    for (int dir = 0; dir < AMREX_SPACEDIM; dir++) {
+        if (isFaceCentered(ixType, dir)) {
+            face_dir = dir;
+            break;
+        }    
     }
 
-    /*if (mf[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
-        mapper = &amrex::node_bilinear_interp;
-    else
-        mapper = &amrex::cell_cons_interp;*/
+    if (face_dir >= 0) {
+        //Handle face-centered data
+ 
+        // Define a lambda that matches the expected signature for call_interp_hook
+        //auto null_hook = [](amrex::MultiFab& /* mf */, const amrex::Box& /* box */, int /* icomp */, int /* ncomp */) {};
+        // Use AMReX's built-in NullInterpHook instead of custom lambda
+        amrex::NullInterpHook<typename amrex::MultiFab::FABType::value_type> null_hook;
 
-    amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
-    amrex::InterpFromCoarseLevel(*mf[lev], time, *cmf[0], 0, icomp, ncomp, geom[lev - 1], geom[lev],
-        physbc, 0,
-        physbc, 0,
-        refRatio(lev - 1),
-        mapper, bcs, 0);
+        // Use appropriate face interpolator
+        amrex::Interpolater* mapper = &amrex::face_cons_linear_interp;
+
+        amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
+
+
+        // Use the face-centered version of InterpFromCoarseLevel
+        amrex::InterpFromCoarseLevel(*mf[lev], amrex::IntVect(0), time,
+                                *cmf[0], 0, icomp, ncomp, 
+                                geom[lev-1], geom[lev],
+                                physbc, 0,
+                                physbc, 0,
+                                refRatio(lev-1), mapper, bcs, 0,
+                                null_hook, null_hook);
+    }
+    else {  
+
+        
+        amrex::Interpolater* mapper;
+    
+        if (ixType == amrex::IndexType::TheNodeType()) {
+            mapper = &amrex::node_bilinear_interp;  // Fully node-centered
+        }
+        else {
+            mapper = &amrex::cell_cons_interp;  // Cell-centered (conserved variables)
+        }
+        
+        amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
+        amrex::InterpFromCoarseLevel(*mf[lev], time, *cmf[0], 0, icomp, ncomp, geom[lev - 1], geom[lev],
+            physbc, 0,
+            physbc, 0,
+            refRatio(lev - 1),
+            mapper, bcs, 0);
+    }     
 }
 
 
@@ -785,15 +845,24 @@ Integrator::MakeNewLevelFromScratch(int lev, amrex::Real t, const amrex::BoxArra
     }
     // **Initialize face-centered MultiFabs (fluxes in X, Y, Z directions)**
     for (int n = 0; n < face.number_of_fabs; n++) {
-        for (int dir = 0; dir < AMREX_SPACEDIM; dir++) {
+         
+            int face_dir = face.direction_array[n];
+
+            // Check for valid direction at runtime
+            if (face_dir < 0 || face_dir >= AMREX_SPACEDIM) {
+                // Either skip this iteration or use a valid direction
+                Util::Warning(INFO, "Skipping face initialization for invalid direction: " +
+                            std::to_string(face_dir) + " (max: " + std::to_string(AMREX_SPACEDIM-1) + ")");
+                continue;
+            }
+        
             amrex::BoxArray face_ba = cgrids;
             amrex::IntVect face_type = amrex::IntVect::TheZeroVector();
-            face_type[dir] = 1;  // Face-centered in direction `dir`
+            face_type[face_dir] = 1;  // Face-centered in direction `dir`
             face_ba.convert(face_type);
 
             (*face.fab_array[n])[lev].reset(new amrex::MultiFab(face_ba, dm, face.ncomp_array[n], face.nghost_array[n]));
             (*face.fab_array[n])[lev]->setVal(0.0);  // Initialize to 0.0
-        }
     }
     for (unsigned int n = 0; n < m_basefields_cell.size(); n++)
     {
@@ -920,19 +989,21 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             cplotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
 
             int n = 0;
+            int cnames_cnt = 0;
             for (int i = 0; i < cell.number_of_fabs; i++)
             {
                 if (!cell.writeout_array[i]) continue;
                 if ((*cell.fab_array[i])[ilev]->contains_nan())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains nan (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[i], " contains nan (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains nan (i=", i, ")");
                 }
                 if ((*cell.fab_array[i])[ilev]->contains_inf())
                 {
-                    if (abort_on_nan) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
-                    else              Util::Warning(INFO, cnames[i], " contains inf (i=", i, ")");
+                    if (abort_on_nan) Util::Abort(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
+                    else              Util::Warning(INFO, cnames[cnames_cnt], " contains inf (i=", i, ")");
                 }
+                cnames_cnt++;
                 amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
                 n += cell.ncomp_array[i];
             }
@@ -947,15 +1018,24 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
 
             if (cell.all)
             {
+                int nnames_cnt = 0;
                 for (int i = 0; i < node.number_of_fabs; i++)
                 {
                     if (!node.writeout_array[i]) continue;
-                    if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO, nnames[i], " contains nan (i=", i, ")");
-                    if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO, nnames[i], " contains inf (i=", i, ")");
+                    if ((*node.fab_array[i])[ilev]->contains_nan())
+                    {
+                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
+                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains nan (i=", i, ")");
+                    }
+                    if ((*node.fab_array[i])[ilev]->contains_inf())
+                    {
+                        if (abort_on_nan) Util::Abort(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
+                        else              Util::Warning(INFO, nnames[nnames_cnt], " contains inf (i=", i, ")");
+                    }
+                    nnames_cnt++;
                     amrex::average_node_to_cellcenter(cplotmf[ilev], n, *(*node.fab_array[i])[ilev], 0, node.ncomp_array[i], 0);
                     n += node.ncomp_array[i];
                 }
-
                 if (bfcomponents > 0)
                 {
                     amrex::BoxArray ngrids = grids[ilev];

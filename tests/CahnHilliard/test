@@ -2,10 +2,14 @@
 import sys
 sys.path.insert(0,"../../scripts")
 import testlib
+import glob
 
 outdir = sys.argv[1]
 reference = sys.argv[2]
-testlib.validate(path="{}/10000cell/".format(outdir),
+
+path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+
+testlib.validate(path=path,
                  outdir=outdir,
                  start=[-0.5,0,0],
                  end=[0.5,0,1],
