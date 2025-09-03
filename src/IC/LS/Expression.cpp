@@ -244,18 +244,30 @@ void Expression::Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scal
 
     // Update LSData.objs
     for (int n = 0; n < ncomp; ++n) {
+        bool has_edge = true;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+            if (min_iv[n][d] > max_iv[n][d]) {
+                has_edge = false;  // no EDGEPOINT found
+                break;
+            }
+        }
+
         auto& obj = LSData->objects[lev][n];
         // Define obj meta
         obj.FlowData = LSData;
         obj.object_id = n + 1;
         obj.ls_id = static_cast<int>(levelset_id[n]);
-        obj.has_narrowband = (min_iv[n] <= max_iv[n]);
+        obj.has_narrowband = true; //(min_iv[n] <= max_iv[n]);
 
-        // Define obj geometry
-        amrex::Box Tube_domain(min_iv[n], max_iv[n]);
-        // Clip to physical domain
-        Tube_domain = Tube_domain & physical_domain;
-        obj.Tube_domain = Tube_domain;
+        if (!has_edge) {
+            // No EDGEPOINTs: fallback to full domain or skip allocation
+            obj.Tube_domain = physical_domain;  // optional: or skip AllocateFabs
+        } else {
+            // Define obj geometry
+            amrex::Box Tube_domain(min_iv[n], max_iv[n]);
+            // Clip to physical domain
+            obj.Tube_domain = Tube_domain & physical_domain;
+        }
 
         // Allocate and initialize fields
         obj.AllocateFabs(tmpTube_imf, n);

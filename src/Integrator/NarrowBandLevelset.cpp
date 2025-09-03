@@ -58,6 +58,9 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     // Get number of ghosts
     value.number_of_ghost_cells = value.LSData.GhostCells();
 
+    // Get Reinitalization Order
+    pp.query_validate("levelset.ReinitOrd", value.ReinitOrder, {1, 2});
+
     {// Define initial conditions for levelset field
     // Define the initial condition for the levelset
     pp.select_default<IC::LS::Sphere,IC::LS::Zalesak,IC::LS::Expression>("ls.ic",value.ic_ls,value.geom);
@@ -67,13 +70,14 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
 
     // Define levelset multifab objects - only old and new domain levelset fields
     value.RegisterNewFab(value.LS_mf, value.bc_ls, value.number_of_levelsets, value.number_of_ghost_cells, "LS", true);
-    value.RegisterNewFab(value.LSold_mf, value.bc_ls, value.number_of_levelsets, value.number_of_ghost_cells, "LSold", false);
+    value.RegisterNewFab(value.LSold_mf, value.bc_ls, value.number_of_levelsets, value.number_of_ghost_cells, "LSold", true);
     }
 
     {// Store narrowband Tube properties in mask multifab
     value.RegisterNewFab(value.Tube_mf, value.bc_ls, value.number_of_levelsets, value.number_of_ghost_cells, "Tube", true);
     value.RegisterNewFab(value.Zero_mf, &value.bc_nothing, value.number_of_levelsets, value.number_of_ghost_cells, "Zerols", true);
     value.RegisterNewFab(value.CPT_mf, value.bc_ls, value.number_of_levelsets, value.number_of_ghost_cells, "CPT", true);
+    value.RegisterNewFab(value.SignLS_mf, &value.bc_nothing, value.number_of_levelsets, value.number_of_ghost_cells, "SignPhi", true);
     }
 
     {// Define Geometry MultiFabs
@@ -135,12 +139,33 @@ void NarrowBandLevelset::Parse(NarrowBandLevelset& value, IO::ParmParse& pp){
     }
     }
 
-    {// Set LSData to reflect FluxReconstruction Method
-    if (value.reconstruction_method == FluxReconstruction::FirstOrder) {
-        value.LSData.reconstruction_method = LevelSetData::FluxReconstruction::FirstOrder;
+    {// Set LSData to reflect FluxReconstruction, FluxMethod, and Temporal schemes
+    // Reconstruction
+    switch (value.reconstruction_method) {
+        using FR = FluxReconstruction;
+        case FR::FirstOrder:
+            value.LSData.reconstruction_method = LevelSetData::FluxReconstruction::FirstOrder;
+            value.fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<NarrowBandLevelset>>());
+            break;
+
+        case FR::ThirdOrderENO:
+            Util::Abort(__FILE__, __func__, __LINE__, "ThirdOrderENO is not implemented yet.");
+            break;
+
+        case FR::FifthOrderWENO:
+            value.LSData.reconstruction_method = LevelSetData::FluxReconstruction::FifthOrderWENO;
+            value.fluxHandler->SetReconstruction(std::make_shared<Numeric::FifthOrderWENOReconstruction<NarrowBandLevelset>>());
+            break;
     }
-    if (value.reconstruction_method == FluxReconstruction::FifthOrderWENO) {
-        value.LSData.reconstruction_method = LevelSetData::FluxReconstruction::FifthOrderWENO;
+
+    // FluxMethod
+    value.fluxHandler->SetFluxMethod(std::make_shared<Numeric::NarrowbandFluxComputation<NarrowBandLevelset>>());
+
+    // Temporal
+    if (value.temporal_scheme == TimeSteppingScheme::ForwardEuler) {
+        value.timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<NarrowBandLevelset>>());
+    } else {
+        Util::Abort(__FILE__, __func__, __LINE__, "RK3 Timestepper not implemented yet.");
     }
     }
 }
@@ -167,6 +192,9 @@ void NarrowBandLevelset::Initialize(int lev){
     // Define velocity_mf containing velocity vector
     ic_velocity->Initialize(lev, LSvel_mf);
 
+    // Initialize sign to -2
+    SignLS_mf[lev]->setVal(-2, 0, number_of_levelsets, number_of_ghost_cells);
+
     // Finish initializing levelset map, geometry, and velocity information
     const int num_objects = LSData.num_objs;
     const int ngrow = LSData.GhostCells();
@@ -182,14 +210,21 @@ void NarrowBandLevelset::Initialize(int lev){
         // Populate the ls_id → object index map
         LSData.levelset_object_map[lev][object.ls_id].push_back(obj);
 
-        // Get geometries
+        /*// Get geometries
         object.ComputeGeometryQuantities();
         
         // Copy for plotting
+#if AMREX_SPACEDIM == 1
+        object.CopyGeometryToFlowFields(*NormalX_mf[lev]);
+#elif AMREX_SPACEDIM == 2
         object.CopyGeometryToFlowFields(*NormalX_mf[lev], *NormalY_mf[lev]);
+#else
+        object.CopyGeometryToFlowFields(*NormalX_mf[lev], *NormalY_mf[lev], *NormalZ_mf[lev]);
+#endif*/
 
-        // Get the ReinitInterval
+        // Get the ReinitInterval & Order
         object.ReinitInterval = object.FlowData->GetReinitInterval();
+        object.ReinitOrder = ReinitOrder;
     }
 
     // Get the proper timestep
@@ -288,33 +323,45 @@ void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Increase timestep
     current_timestep ++;
 
-    // Swap the old and new LS fields
+    // Copy the old LS field to have LS values
     const int num_objs = LSData.num_objs;
     for (int obj=0; obj<num_objs; obj++) {
         auto& object = LSData.objects[lev][obj];
-        object.SwapLSandLSold();
+        object.CopyLSToLSOld();
     }
 
     // Advect
     Advect(lev, time, dt);
+
+    SignLS_mf[lev]->setVal(-2.0);
 
     // Update Tube/geometries
     for (int obj=0; obj<num_objs; obj++) {
         auto& object = LSData.objects[lev][obj];
 
         // Reinitialize
-        if (object.reinitialize || current_timestep % object.ReinitInterval == 0) {
-            object.ReinitializeLS(*LS_mf[lev], cflReinit);
+        if (object.Reinitialize || current_timestep % object.ReinitInterval == 0) {
+            if (object.ReinitOrder == 1) {
+                object.ReinitializeLSFirstOrder(*LS_mf[lev], *SignLS_mf[lev]);
+            } else {
+                object.ReinitializeLSSecondOrder(*LS_mf[lev], *SignLS_mf[lev]);
+            }
         }
 
         // Update the Narrowband cells
         object.UpdateNarrowbandTubeandMapping(*LS_mf[lev], *LSold_mf[lev], *Tube_mf[lev], *Zero_mf[lev], *CPT_mf[lev]);
 
-        // Perform narrowband property computations
+        /*// Perform narrowband property computations
         object.ComputeGeometryQuantities();
 
         // Copy back for plotting
+#if AMREX_SPACEDIM == 1
+        object.CopyGeometryToFlowFields(*NormalX_mf[lev]);
+#elif AMREX_SPACEDIM == 2
         object.CopyGeometryToFlowFields(*NormalX_mf[lev], *NormalY_mf[lev]);
+#else
+        object.CopyGeometryToFlowFields(*NormalX_mf[lev], *NormalY_mf[lev], *NormalZ_mf[lev]);
+#endif*/
     }
 }
 
@@ -322,22 +369,9 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt){
     // Update the interface velocity
     UpdateInterfaceVelocity(lev);
 
-    // Get the flux reconstruction method
-    if (reconstruction_method == FluxReconstruction::FirstOrder) {
-        fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<NarrowBandLevelset>>());
-    }
-    if (reconstruction_method == FluxReconstruction::FifthOrderWENO) {
-        fluxHandler->SetReconstruction(std::make_shared<Numeric::FifthOrderWENOReconstruction<NarrowBandLevelset>>());
-    }
-
-    // Set FluxMethod
-    fluxHandler->SetFluxMethod(std::make_shared<Numeric::NarrowbandFluxComputation<NarrowBandLevelset>>());
-
     // Compute the flux
     switch (temporal_scheme) {
         case TimeSteppingScheme::ForwardEuler: {
-            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<NarrowBandLevelset>>());
-
             int numStages = timeStepper->GetNumberOfStages();
             // One-stage loop for Forward Euler
             for (int stage = 0; stage < numStages; ++stage) {
@@ -351,6 +385,14 @@ void NarrowBandLevelset::Advect(int lev, Set::Scalar time, Set::Scalar dt){
             break;
         }
     } 
+
+    // Ensure proper LS update and update CPT flags for reinitialization
+    const int num_objs = LSData.num_objs;
+    for (int obj=0; obj<num_objs; obj++) {
+        auto& object = LSData.objects[lev][obj];
+        object.CheckZeroCrossings(*LS_mf[lev], *LSold_mf[lev]);
+        object.UpdateCPTFlagAfterAdvection();
+    }
 }
 
 void NarrowBandLevelset::UpdateInterfaceVelocity(int lev){

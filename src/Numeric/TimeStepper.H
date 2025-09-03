@@ -173,7 +173,7 @@ public:
         for (int obj = 0; obj < num_obj; ++obj) {
             auto& object = LSData.objects[lev][obj];
 
-            ComputeEulerUpdateForComponent(object, dt, DX, OutsideTube, solver, lev);
+            ComputeEulerUpdateForComponent(object, dt, DX, OutsideTube);
         }
     }
 
@@ -184,32 +184,20 @@ public:
 private:
     void ComputeEulerUpdateForComponent(
         LevelSetData::ObjectMeta& object, Set::Scalar dt,
-        const Set::Scalar* DX, int OutsideTube, Integrator::NarrowBandLevelset* solver, int lev)
+        const Set::Scalar* DX, int OutsideTube)
     {
-        // Get flow variables
-        auto& LSflow    = solver->LS_mf[lev];
-        auto& LSoldflow = solver->LSold_mf[lev];
-
         // Get narrowband variables
         auto& TubeLS = object.TubeLS_mf;
         auto& Tube = object.TubeMask_imf;
-        const auto& XFlux_mf = *object.TubeXFlux_mf;
-#if AMREX_SPACEDIM >= 2
-        const auto& YFlux_mf = *object.TubeYFlux_mf;
-#endif
-#if AMREX_SPACEDIM == 3
-        const auto& ZFlux_mf = *object.TubeZFlux_mf;
-#endif
-        const int obj_id = object.object_id;
-        const int ls_id  = object.ls_id;
+        const auto& Flux = *object.TubeFlux_mf;
 
         // Get (i)MultiFab components
         const int LScomp    = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeFieldComp::LS);
         const int LSoldcomp = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeFieldComp::LS_OLD);
 
         const int Tubecomp  = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeIntComp::TUBE_MASK);
-        const int Zerocomp  = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeIntComp::ZERO_LS);
-        const int CPTcomp   = LevelSetData::ObjectMeta::Comp(LevelSetData::ObjectMeta::TubeIntComp::CPT_ID);
+
+        const amrex::IntVect debug(AMREX_D_DECL(60,64,0));
 
         // Loop through narrowband (i)MultiFabs
         for (amrex::MFIter mfi(*TubeLS); mfi.isValid(); ++mfi) {
@@ -218,59 +206,25 @@ private:
 
             auto const& LS_arr    = TubeLS->array(mfi);
             auto const& Tube_arr  = Tube->array(mfi);
-            auto const& XFlux_arr = XFlux_mf.const_array(mfi);
-#if AMREX_SPACEDIM >= 2
-            auto const& YFlux_arr = YFlux_mf.const_array(mfi);
-#endif
-#if AMREX_SPACEDIM == 3
-            auto const& ZFlux_arr = ZFlux_mf.const_array(mfi);
-#endif
+            auto const& Flux_arr = Flux.const_array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 // Skip non-narrowband cells
                 if (Tube_arr(i,j,k,Tubecomp) == OutsideTube) return;
 
-                // Compute fluxes
-                Set::Scalar flux_div = (XFlux_arr(i+1,j,k) - XFlux_arr(i,j,k)) / DX[0];
-                
-#if AMREX_SPACEDIM >= 2
-                flux_div += (YFlux_arr(i,j+1,k) - YFlux_arr(i,j,k)) / DX[1];
-#endif
-#if AMREX_SPACEDIM == 3
-                flux_div += (ZFlux_arr(i,j,k+1) - ZFlux_arr(i,j,k)) / DX[2];
-#endif
-                const Set::Scalar LSold = LS_arr(i,j,k,LSoldcomp);
-                Set::Scalar LSnew = LSold - dt * flux_div;
-                LS_arr(i,j,k,LScomp) = LSnew;
+                // Initialize flux to 0.0
+                Set::Scalar flux_div = 0.0;
 
-                // Ensure proper zero crossing
-                if (LSnew * LSold < 0.0 && Tube_arr(i,j,k,Zerocomp) == 0) {
-                    LS_arr(i,j,k,LScomp) = LSold;
+                // Loop through dimensions
+                for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+                    // Compute fluxes
+                    flux_div += Flux_arr(i,j,k,d);
                 }
 
-                // Update cpt flag for reinitialization algorithm
-                Tube_arr(i,j,k,CPTcomp) = (LS_arr(i,j,k,LScomp) <= 0.0) ? obj_id : 0;
-
-                // Debug
-                /*if ((i==20 &&j==52)){
-                    amrex::Print() << "LS_old[" << i << ", " << j << ", " << k << "]: " << LS_old << std::endl;
-                    amrex::Print() << "XFlux[" << i << ", " << j << ", " << k << "]: " << XFlux_arr(i, j, k) << std::endl;
-                    amrex::Print() << "XFlux[" << i-1 << ", " << j << ", " << k << "]: " << XFlux_arr(i-1, j, k) << std::endl;
-                    amrex::Print() << "LS[" << i << ", " << j << ", " << k << "]: " << ls_arr(i, j, k, LScomp) << std::endl;
-                }*/
+                const Set::Scalar LSold = LS_arr(i,j,k,LSoldcomp);
+                LS_arr(i,j,k,LScomp) = LSold - dt * flux_div;
             });
         }
-
-        // Update ghosts
-        object.ApplyLSBCs();
-        object.ApplyCPTBCs();
-
-        // Parallel copy
-        LSflow->ParallelCopy(*TubeLS, LScomp, ls_id, 1);
-        LSoldflow->ParallelCopy(*TubeLS, LSoldcomp, ls_id, 1);
-
-        LSflow->FillBoundary();
-        LSoldflow->FillBoundary();
     }
 };
 
