@@ -103,6 +103,7 @@ public:
 #if (AMREX_SPACEDIM == 3)
             auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
 #endif
+            auto const& sourceTerm_arr = solver->SourceTermVec.Patch(lev, mfi);  // Source-term derivatives from Viscous stress
 
             // Parallel loop over cells in the valid box
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
@@ -127,7 +128,7 @@ public:
 
                     // Update conserved variable using Euler Forward step
                     Set::Scalar q_old = q_old_arr(i, j, k, n);
-                    q_arr(i, j, k, n) = q_old - dt * flux_div;
+                    q_arr(i, j, k, n) = q_old - dt * (flux_div - sourceTerm_arr(i, j, k, n));
 
                     //Debug output
                     /* debug.DebugEulerForwardStep(i, j, k, xflux_arr(i,j,k,n), xflux_arr(i-1,j,k,n),
@@ -173,6 +174,7 @@ public:
 #if (AMREX_SPACEDIM == 3)
             auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
 #endif
+            auto const& sourceTerm_arr = solver->SourceTermVec.Patch(lev, mfi);  // Source-term derivatives from Viscous stress
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 for (int n = 0; n < solver->number_of_components; ++n) {
@@ -204,7 +206,7 @@ public:
                     // **Runge-Kutta 3rd order update formula**
                     q_arr(i, j, k, n) = RK3Constants::a[stage] * q_old_arr(i, j, k, n) +
                                         RK3Constants::b[stage] * q_arr(i, j, k, n) -
-                                        RK3Constants::c[stage] * dt * flux_div;
+                                        RK3Constants::c[stage] * dt * (flux_div - sourceTerm_arr(i, j, k, n));
                 }
             });
         }

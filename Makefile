@@ -31,7 +31,7 @@ METADATA_GITHASH  = $(shell git describe --always --dirty)
 METADATA_USER     = $(shell whoami)
 METADATA_PLATFORM = $(shell hostname)
 METADATA_COMPILER = $(COMP)
-METADATA_DATE     = $(shell date +%x)
+METADATA_DATE     = $(shell date +%Y-%m-%d)
 METADATA_TIME     = $(shell date +%H:%M:%S)
 BUILD_DIR         = ${shell pwd}
 

@@ -12,6 +12,7 @@
 #include "Numeric/SolverCapabilities.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/FluxHandler.H"
+#include "Numeric/SourceTerm.H"
 #include "Numeric/WENOReconstruction.H"
 #include "Numeric/TimeStepper.H"
 #include "Util/Util.H"
@@ -30,10 +31,13 @@ ScimitarX::ScimitarX() : Integrator()
     number_of_components = 0;
     number_of_ghost_cells = 4;
     cflNumber = 0.5; // Set a reasonable default
+    fourierNumber = 0.5; // Set a reasonable default
+    mu = 0.0; // Set a reasonable default
     refinement_threshold = 0.01; // Default threshold
     
     // Initialize handlers with nullptr (will be set up later)
     fluxHandler = nullptr;
+    sourceTermHandler = nullptr;
     timeStepper = nullptr;
     variable_accessor = nullptr;
     solverCapabilities = nullptr;
@@ -54,6 +58,7 @@ ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 {
 
     fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
+    sourceTermHandler = std::make_shared<Numeric::SourceTerm<ScimitarX>>();
     timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
 
     pp.queryclass(*this);
@@ -115,11 +120,14 @@ void ScimitarX::SetupNumericComponents()
     if (!fluxHandler) {
         fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
     }
+
+    if (!sourceTermHandler) {
+        sourceTermHandler = std::make_shared<Numeric::SourceTerm<ScimitarX>>();
+    }
     
     if (!timeStepper) {
         timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
     }
-    
 
     // Create variable accessor based on current solver type
     switch(solverType){   
@@ -401,6 +409,8 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
 #endif
         value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true, {}); 
         value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true, {});
+
+        value.RegisterNewFab(value.SourceTermVec, &value.bc_nothing, 5, value.number_of_ghost_cells, "SourceTermVec", true, {});
     }
     
     // Initial Conditions
@@ -445,7 +455,7 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         Util::Abort(__FILE__, __func__, __LINE__, 
             "Invalid FluxScheme parameter: " + flux_str + "\n" + e.what());
     }
-   
+  
     std::string time_str = "ForwardEuler";  // Default
     pp.query("TimeSteppingScheme", time_str); // Read time stepping scheme
     try {
@@ -475,9 +485,15 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         Util::Abort(__FILE__, __func__, __LINE__, 
             "Invalid WenoVariant parameter: " + weno_str + "\n" + e.what());
     }
-      
+   
+    pp.query_default("timestep", value.timestep, 1.0e-13); // Constant time stepping
+     
+    pp.query_default("adjustableTimeStep", value.adjustableTimeStep, 1.0); // whether uses CFL based timeStepping or not
+  
     pp.query_required("cflNumber", value.cflNumber); // Read CFL number
-
+    pp.query_default("fourierNumber", value.fourierNumber, 0.5); // Read Fourier Number (Default set to 0.5)
+    pp.query_default("mu", value.mu, 0.0); // Read dynamic viscosity (Default set to 0 i.e. inviscid)
+    
     // Add these to your Parse method
     pp.query_default("enable_density_refinement", value.enable_density_refinement, true); // enable density refinement
     pp.query_default("density_refinement_criterion", value.density_refinement_criterion, 0.2); // density refinement criterion
@@ -660,10 +676,13 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
 
                 //ApplyBoundaryConditions(lev, time);
                 
-                // 3. Compute sub-step using the chosen time-stepping scheme
+                // 3. Compute Viscous Terms and Source Term for viscous fluxes
+                sourceTermHandler->ComputeSourceTerm(lev, this);
+
+                // 4. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
 
-                // 4. Update solution from conservative to primitive variables
+                // 5. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
 
 
@@ -684,10 +703,13 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                // 3. Compute sub-step using the chosen time-stepping scheme
+                // 3. Compute Viscous Terms and Source Term for viscous fluxes
+                sourceTermHandler->ComputeSourceTerm(lev, this);
+                
+                // 4. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
 
-                // 4. Update solution from conservative to primitive variables
+                // 5. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
 
                 ApplyBoundaryConditions(lev, time);
@@ -718,6 +740,7 @@ void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
 #endif
 */
 }
+
 
 void ScimitarX::ComputeAndSetNewTimeStep() {
     // Compute the minimum time step over the entire domain using GetTimeStep
@@ -776,14 +799,27 @@ Set::Scalar ScimitarX::GetTimeStep() {
 #endif
 
                 // Compute local timestep for this cell
-                Set::Scalar dtLocal = dx[0] / maxSpeed;
+                //
+                Set::Scalar SMALL = 1.0e-14;
+                Set::Scalar CFL = ScimitarX::cflNumber;                
+                Set::Scalar Fo = ScimitarX::fourierNumber;
+                Set::Scalar mu = ScimitarX::mu;                
+
+                Set::Scalar dtLocal = CFL*dx[0] / maxSpeed; // since viscous effect doesn't exist in 1D flows
 #if (AMREX_SPACEDIM >= 2)
-                dtLocal = std::min(dtLocal, dx[1] / maxSpeed);
+                dtLocal = std::min(dtLocal, CFL*dx[1] / maxSpeed);
+                if (mu > SMALL){
+                    dtLocal = std::min(dtLocal, Fo*rho*dx[0]*dx[0] / mu);
+                    dtLocal = std::min(dtLocal, Fo*rho*dx[1]*dx[1] / mu);
+                }
 #endif
 #if (AMREX_SPACEDIM == 3)
-                dtLocal = std::min(dtLocal, dx[2] / maxSpeed);
+                dtLocal = std::min(dtLocal, CFL*dx[2] / maxSpeed);
+                if (mu > SMALL){
+                    dtLocal = std::min(dtLocal, Fo*rho*dx[2]*dx[2] / mu);
+                }
 #endif
-
+                
                 // Track the local minimum
                 if (dtLocal < minDt_local) {
                     minDt_local = dtLocal;
@@ -797,7 +833,9 @@ Set::Scalar ScimitarX::GetTimeStep() {
 
     // Reduce across processes to find the global minimum timestep
     amrex::ParallelDescriptor::ReduceRealMin(minDt);
-    return ScimitarX::cflNumber * minDt;  // Return CFL-adjusted time step for the finest level
+
+    Set::Scalar B = ScimitarX::adjustableTimeStep;
+    return B*minDt + (1.0-B)*ScimitarX::timestep;  // Return CFL-adjusted time step for the finest level
 }
 
 

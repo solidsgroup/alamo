@@ -201,7 +201,31 @@ public:
                 }
             }
         }
-            
+           /* 
+        static void DebugPVecAndShearStress(int i, int j, int k,
+                                Set::Scalar xflux_right, Set::Scalar xflux_left,
+                                Set::Scalar yflux_top, Set::Scalar yflux_bottom,
+                                Set::Scalar zflux_front, Set::Scalar zflux_back,
+                                Set::Scalar q_old, Set::Scalar dt,
+                                const std::string& context, bool abort_if_nan = true, bool enableDebug = false) {
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+
+            // Compute the flux divergence
+            Set::Scalar flux_div_x = (xflux_right - xflux_left);
+            Set::Scalar flux_div_y = (yflux_top - yflux_bottom);
+            Set::Scalar flux_div_z = (AMREX_SPACEDIM == 3) ? (zflux_front - zflux_back) : 0.0;
+        
+            Set::Scalar total_flux_div = flux_div_x + flux_div_y + flux_div_z;
+        
+            // Compute the new value
+            Set::Scalar new_value = q_old - dt * total_flux_div;
+        
+            // Print the debug message
+            Util::Message(INFO, "EulerForward Debug - Context: '" + context + "'");
+            Util::Message(INFO, "Index: (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + ")");
+            Util::Message(INFO, "  xflux_right = " + std::to_string(xflux_right) + ", xflux_left = " + std::to_string(xflux_left));
+            }  */
+
         static void DebugLocalLaxFriedrichsFlux(int i, int j, int k, Set::Scalar number_of_components,
                                                 Set::Scalar rho_L, Set::Scalar u_L, Set::Scalar v_L, Set::Scalar w_L, Set::Scalar e_L, Set::Scalar pressure_L,
                                                 Set::Scalar rho_R, Set::Scalar u_R, Set::Scalar v_R, Set::Scalar w_R, Set::Scalar e_R, Set::Scalar pressure_R,
@@ -257,6 +281,49 @@ public:
                 }
             }
         }
+
+
+        static void DebugAUSMupFlux(int i, int j, int k,
+                                                Set::Scalar rho_L, Set::Scalar u_L, Set::Scalar v_L, Set::Scalar w_L, Set::Scalar e_L, Set::Scalar pressure_L,
+                                                Set::Scalar rho_R, Set::Scalar u_R, Set::Scalar v_R, Set::Scalar w_R, Set::Scalar e_R, Set::Scalar pressure_R,
+                                                Set::Scalar c_L, Set::Scalar c_R, Set::Scalar c_interface, Set::Scalar fa, Set::Scalar M_L, 
+                                                Set::Scalar M_R, Set::Scalar M_inf, Set::Scalar M_pressureDiff, Set::Scalar P_veldiff,
+                                                Set::Scalar M4plus_L, Set::Scalar M4minus_R, Set::Scalar P5plus_L, Set::Scalar P5minus_R,
+                                                Set::Scalar M_interface, Set::Scalar massFlux, Set::Scalar pressureFlux, bool enableDebug = false){
+                                                
+            if (!enableDebug || !IsTargetLocation(i, j, k)) return;
+
+            Util::Message(INFO, "Index: (" + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + ")");
+
+            Util::Message(INFO, "  Left State (QL):");
+            Util::Message(INFO, "    rho_L = " + std::to_string(rho_L) + ", u_L = " + std::to_string(u_L) + ", v_L = " + std::to_string(v_L) +
+                                    ", w_L = " + std::to_string(w_L) + ", e_L = " + std::to_string(e_L) +
+                                    ", pressure_L = " + std::to_string(pressure_L));
+            Util::Message(INFO, "  Right State (QR):");
+            Util::Message(INFO, "    rho_R = " + std::to_string(rho_R) + ", u_R = " + std::to_string(u_R) + ", v_R = " + std::to_string(v_R) +
+                                    ", w_R = " + std::to_string(w_R) + ", e_R = " + std::to_string(e_R) +
+                                    ", pressure_R = " + std::to_string(pressure_R));
+            Util::Message(INFO, "  Wave Speeds:");
+            Util::Message(INFO, "    c_L = " + std::to_string(c_L) + ", c_R = " + std::to_string(c_R));
+
+            Util::Message(INFO, "    c_interface = " + std::to_string(c_interface) + ", fa = " + std::to_string(fa));
+
+            Util::Message(INFO, "  Mach numbers:");
+            Util::Message(INFO, "    M_L = " + std::to_string(M_L) + ", M_R = " + std::to_string(M_R) + 
+                                    ", M_freestream = " + std::to_string(M_inf) + ", M_interface = " + std::to_string(M_interface));
+
+            Util::Message(INFO, "    M_pressureDiff = " + std::to_string(M_pressureDiff) + ", P_veldiff = " + std::to_string(P_veldiff));
+
+            Util::Message(INFO, "    Polynomials: ");
+            Util::Message(INFO, "    M4plus_L = " + std::to_string(M4plus_L) + ", M4minus_R = " + std::to_string(M4minus_R));
+            Util::Message(INFO, "    P5plus_L = " + std::to_string(P5plus_L) + ", P5minus_R = " + std::to_string(P5minus_R));
+
+            Util::Message(INFO, "  Fluxes:");
+            Util::Message(INFO, "    Massflux = " + std::to_string(massFlux) + ", Pressure flux = " + std::to_string(pressureFlux));
+
+            }
+
+
 
         static void DebugGhostCellsAndBoundary(const amrex::MultiFab& mf, const amrex::Geometry& geom, int /*lev*/, 
                                             const std::string& field_name, const std::string& context, 

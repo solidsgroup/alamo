@@ -29,7 +29,8 @@ cflNumber = 0.8
 TimeSteppingScheme = RK3
 
 #FluxMethod
-FluxScheme = HLLC #LocalLaxFriedrichs #HLLC
+FluxScheme = AUSMup #LocalLaxFriedrichs #HLLC
+freeStreamMachNumber = 3.1234567891011121314151617
 
 #FluxReconstruction
 FluxReconstruction = WENO

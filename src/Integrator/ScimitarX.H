@@ -27,6 +27,7 @@
 #include "Numeric/SolverCapabilities.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/FluxHandler.H"
+#include "Numeric/SourceTerm.H"
 #include "Numeric/WENOReconstruction.H"
 #include "Numeric/TimeStepper.H"
 
@@ -279,11 +280,11 @@ public:
     static void Parse(ScimitarX& value, IO::ParmParse& pp);
     virtual ~ScimitarX()
     {
-        delete bc_PVec;
-        delete bc_Pressure;
+	    delete bc_PVec;
+	    delete bc_Pressure;
 
-        delete ic_PVec;
-        delete ic_Pressure;
+	    delete ic_PVec;
+	    delete ic_Pressure;
 
     }
 
@@ -305,147 +306,153 @@ protected:
 
     // Template methods for solver-type specific operations
     template <SolverType solverType>
-    void ComputeConservedVariables(int lev){
+	    void ComputeConservedVariables(int lev){
 
-    //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx_with_ghosts = mfi.growntilebox();
-        auto const& p_arr = PVec_mf.Patch(lev, mfi);
-        auto const& q_arr = QVec_mf.Patch(lev, mfi);
+		    //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+		    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+			    const amrex::Box& bx_with_ghosts = mfi.growntilebox();
+			    auto const& p_arr = PVec_mf.Patch(lev, mfi);
+			    auto const& q_arr = QVec_mf.Patch(lev, mfi);
 
-        amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-            Set::Scalar rho = p_arr(i, j, k, variableIndex.DENS);
-            Set::Scalar uvel = p_arr(i, j, k, variableIndex.UVEL);
-            Set::Scalar vvel = p_arr(i, j, k, variableIndex.VVEL);
+			    amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+					    Set::Scalar rho = p_arr(i, j, k, variableIndex.DENS);
+					    Set::Scalar uvel = p_arr(i, j, k, variableIndex.UVEL);
+					    Set::Scalar vvel = p_arr(i, j, k, variableIndex.VVEL);
 #if (AMREX_SPACEDIM == 3)
-            Set::Scalar wvel = p_arr(i, j, k, variableIndex.WVEL);
+					    Set::Scalar wvel = p_arr(i, j, k, variableIndex.WVEL);
 #endif
-            Set::Scalar internal_energy = p_arr(i, j, k, variableIndex.IE);
+					    Set::Scalar internal_energy = p_arr(i, j, k, variableIndex.IE);
 
-            // Total internal energy
-            Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
+					    // Total internal energy
+					    Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
 #if (AMREX_SPACEDIM == 3)
-                                            + wvel * wvel
+						    + wvel * wvel
 #endif
-                                            );
-            Set::Scalar total_internal_energy = internal_energy + kinetic_energy;
+						    );
+					    Set::Scalar total_internal_energy = internal_energy + kinetic_energy;
 
-            // Set Q vector components (solver-type-specific handling can go here)
-            q_arr(i, j, k, variableIndex.DENS) = rho;
-            q_arr(i, j, k, variableIndex.UVEL) = rho * uvel;
-            q_arr(i, j, k, variableIndex.VVEL) = rho * vvel;
+					    // Set Q vector components (solver-type-specific handling can go here)
+					    q_arr(i, j, k, variableIndex.DENS) = rho;
+					    q_arr(i, j, k, variableIndex.UVEL) = rho * uvel;
+					    q_arr(i, j, k, variableIndex.VVEL) = rho * vvel;
 #if (AMREX_SPACEDIM == 3)
-            q_arr(i, j, k, variableIndex.WVEL) = rho * wvel;
+					    q_arr(i, j, k, variableIndex.WVEL) = rho * wvel;
 #endif
-            q_arr(i, j, k, variableIndex.IE) = rho * total_internal_energy;
+					    q_arr(i, j, k, variableIndex.IE) = rho * total_internal_energy;
 
-        });
-        
-    }
+			    });
 
-}
+		    }
 
-    // Template function for updating conservative variables to primitive variables
-    template <SolverType solverType>
-    void UpdateSolutions(int lev) {
-    //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = mfi.validbox();
+	    }
 
-            auto const& q_arr = QVec_mf.Patch(lev, mfi);  // Conservative variables array (QVec)
-            auto const& p_arr = PVec_mf.Patch(lev, mfi);  // Primitive variables array (PVec)
-            auto const& pressure_arr = Pressure_mf.Patch(lev, mfi);  // Pressure array
+	    // Template function for updating conservative variables to primitive variables
+	    template <SolverType solverType>
+		    void UpdateSolutions(int lev) {
+			    //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+			    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+				    const amrex::Box& bx = mfi.validbox();
 
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                // Extract conservative variables from QVec
-                Set::Scalar rho = q_arr(i, j, k, variableIndex.DENS);      // Density
+				    auto const& q_arr = QVec_mf.Patch(lev, mfi);  // Conservative variables array (QVec)
+				    auto const& p_arr = PVec_mf.Patch(lev, mfi);  // Primitive variables array (PVec)
+				    auto const& pressure_arr = Pressure_mf.Patch(lev, mfi);  // Pressure array
 
 
-                Set::Scalar uvel = q_arr(i, j, k, variableIndex.UVEL) / rho;  // Velocity in x-direction
-                Set::Scalar vvel = q_arr(i, j, k, variableIndex.VVEL) / rho;  // Velocity in y-direction
+				    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+						    // Extract conservative variables from QVec
+						    Set::Scalar rho = q_arr(i, j, k, variableIndex.DENS);      // Density
+
+
+						    Set::Scalar uvel = q_arr(i, j, k, variableIndex.UVEL) / rho;  // Velocity in x-direction
+						    Set::Scalar vvel = q_arr(i, j, k, variableIndex.VVEL) / rho;  // Velocity in y-direction
 #if (AMREX_SPACEDIM == 3)
-                Set::Scalar wvel = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
+						    Set::Scalar wvel = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
 #endif
 
 
-                Set::Scalar total_internal_energy = q_arr(i, j, k, variableIndex.IE) / rho;  // Total specific energy
+						    Set::Scalar total_internal_energy = q_arr(i, j, k, variableIndex.IE) / rho;  // Total specific energy
 
-                // Compute kinetic energy
-                Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
+						    // Compute kinetic energy
+						    Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
 #if (AMREX_SPACEDIM == 3)
-                                                + wvel * wvel
+							    + wvel * wvel
 #endif
-                                                );
+							    );
 
-                // Compute internal energy
-                Set::Scalar internal_energy = (total_internal_energy - kinetic_energy);
+						    // Compute internal energy
+						    Set::Scalar internal_energy = (total_internal_energy - kinetic_energy);
 
-                // Assume ideal gas law: p = (gamma - 1) * rho * internal_energy
-                const Set::Scalar gamma = 1.4;  // Ideal gas constant for air (can be adjusted)
-                Set::Scalar pressure = (gamma - 1.0) * rho * internal_energy;
+						    // Assume ideal gas law: p = (gamma - 1) * rho * internal_energy
+						    const Set::Scalar gamma = 1.4;  // Ideal gas constant for air (can be adjusted)
+						    Set::Scalar pressure = (gamma - 1.0) * rho * internal_energy;
 
-                // Update the primitive variables array (PVec)
-                p_arr(i, j, k, variableIndex.DENS) = rho;
-                p_arr(i, j, k, variableIndex.UVEL) = uvel;
-                p_arr(i, j, k, variableIndex.VVEL) = vvel;
+						    // Update the primitive variables array (PVec)
+						    p_arr(i, j, k, variableIndex.DENS) = rho;
+						    p_arr(i, j, k, variableIndex.UVEL) = uvel;
+						    p_arr(i, j, k, variableIndex.VVEL) = vvel;
 #if (AMREX_SPACEDIM == 3)
-                p_arr(i, j, k, variableIndex.WVEL) = wvel;
+						    p_arr(i, j, k, variableIndex.WVEL) = wvel;
 #endif
-                // Also update internal energy
-                p_arr(i, j, k, variableIndex.IE) = internal_energy;
+						    // Also update internal energy
+						    p_arr(i, j, k, variableIndex.IE) = internal_energy;
 
-                pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
+						    pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
 
 
-            });
+				    });
 
-        }
-    }
+			    }
+		    }
 
-    // Method to get solver capabilities (centralized)
-    std::shared_ptr<Numeric::SolverCapabilities> GetSolverCapabilities() const;
+		    // Method to get solver capabilities (centralized)
+		    std::shared_ptr<Numeric::SolverCapabilities> GetSolverCapabilities() const;
 
-protected:
-    // Field data structures
-    Set::Field<Set::Scalar> QVec_mf;          // Conservative variables (current timestep)
-    Set::Field<Set::Scalar> QVec_old_mf;      // Conservative variables (previous timestep)
-    Set::Field<Set::Scalar> XFlux_mf;         // X-dir Flux Vector
-    Set::Field<Set::Scalar> YFlux_mf;         // Y-dir Flux Vector
-    Set::Field<Set::Scalar> ZFlux_mf;         // Z-dir Flux Vector
-    Set::Field<Set::Scalar> PVec_mf;          // Primitive variables
-    Set::Field<Set::Scalar> Pressure_mf;      // Pressure variable
+			    protected:
+		    // Field data structures
+		    Set::Field<Set::Scalar> QVec_mf;          // Conservative variables (current timestep)
+		    Set::Field<Set::Scalar> QVec_old_mf;      // Conservative variables (previous timestep)
+		    Set::Field<Set::Scalar> XFlux_mf;         // X-dir Flux Vector
+		    Set::Field<Set::Scalar> YFlux_mf;         // Y-dir Flux Vector
+		    Set::Field<Set::Scalar> ZFlux_mf;         // Z-dir Flux Vector
+		    Set::Field<Set::Scalar> PVec_mf;          // Primitive variables
+		    Set::Field<Set::Scalar> Pressure_mf;      // Pressure variable
+		    Set::Field<Set::Scalar> SourceTermVec;    // Source Term Vector
 
-    // Core solver parameters
-    int number_of_components;                 // Number of components
-    int number_of_ghost_cells;            // Number of ghost cells
-    SolverType solverType;                    // Current solver type
-    Set::Scalar cflNumber;                    // CFL number (read from input)
+		    // Core solver parameters
+		    int number_of_components;                 // Number of components
+		    int number_of_ghost_cells;                // Number of ghost cells
+		    SolverType solverType;                    // Current solver type
+		    Set::Scalar cflNumber;                    // CFL number (read from input)
+		    Set::Scalar mu;                           // dynamic viscosity (read from input)
+		    Set::Scalar fourierNumber;                // Fourier number (read from input)
+		    Set::Scalar adjustableTimeStep;           // flag for CFL based timestep (from input)
+		    Set::Scalar timestep;
 
-    Set::Scalar refinement_threshold;         // Threshold for AMR refinement
+		    Set::Scalar refinement_threshold;         // Threshold for AMR refinement
 
-    // Refinement threshold values
-    Set::Scalar density_refinement_criterion = 0.01;
-    Set::Scalar velocity_refinement_criterion = 0.01;
-    Set::Scalar pressure_refinement_criterion = 0.01;
-    Set::Scalar vorticity_refinement_criterion = 0.01;
-    
-    // Enable/disable flags for each refinement criterion
-    bool enable_density_refinement = false;
-    bool enable_velocity_refinement = false;
-    bool enable_pressure_refinement = false;
-    bool enable_vorticity_refinement = false;
-    
-    // Numeric handlers (using shared_ptr for better lifetime management)
-    std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
-    std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
-    std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
-    std::shared_ptr<Numeric::SolverCapabilities> solverCapabilities;
+		    // Refinement threshold values
+		    Set::Scalar density_refinement_criterion = 0.01;
+		    Set::Scalar velocity_refinement_criterion = 0.01;
+		    Set::Scalar pressure_refinement_criterion = 0.01;
+		    Set::Scalar vorticity_refinement_criterion = 0.01;
 
-    // Initial and boundary conditions
-    IC::IC<Set::Scalar>* ic_PVec = nullptr;            // Object used to initialize Primitive Vector
-    IC::IC<Set::Scalar>* ic_Pressure = nullptr;        // Object used to initialize Pressure
-    BC::BC<Set::Scalar>* bc_PVec = nullptr;            // Boundary Condition for Primitive Vector
+		    // Enable/disable flags for each refinement criterion
+		    bool enable_density_refinement = false;
+		    bool enable_velocity_refinement = false;
+		    bool enable_pressure_refinement = false;
+		    bool enable_vorticity_refinement = false;
+
+		    // Numeric handlers (using shared_ptr for better lifetime management)
+		    std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
+		    std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
+		    std::shared_ptr<Numeric::SourceTerm<ScimitarX>> sourceTermHandler;
+		    std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
+		    std::shared_ptr<Numeric::SolverCapabilities> solverCapabilities;
+
+		    // Initial and boundary conditions
+		    IC::IC<Set::Scalar>* ic_PVec = nullptr;            // Object used to initialize Primitive Vector
+		    IC::IC<Set::Scalar>* ic_Pressure = nullptr;        // Object used to initialize Pressure
+		    BC::BC<Set::Scalar>* bc_PVec = nullptr;            // Boundary Condition for Primitive Vector
     BC::BC<Set::Scalar>* bc_Pressure = nullptr;        // Boundary Condition for Pressure
     BC::Nothing bc_nothing;                            // Default "do-nothing" boundary condition
 
@@ -500,6 +507,9 @@ private:
     friend class Numeric::CompressibleEuler::CompressibleEulerVariableAccessor;
             
     
+    template <typename IntegratorDerivedClass>
+    friend class Numeric::SourceTerm;
+
 }; //ScimitarX Class
 
 // Static member initialization for string to solver type mapping

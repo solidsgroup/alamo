@@ -852,6 +852,7 @@ void ReconstructVariables(
 
         auto const& Var_arr = VariableBuffer.const_array(mfi);
         auto const& LeftStates_arr = LeftStates.array(mfi);
+        auto const& RightStates_arr = RightStates.array(mfi);
 
         // Get average state array if available
         amrex::Array4<const Set::Scalar> Avg_arr;
@@ -938,55 +939,48 @@ void ReconstructVariables(
                 LeftStates_arr(index[0], index[1], index[2], n) = leftvalue_reconstructed(n);
             }
 
-        });
-    }
+            // ********** CHANGE - BEGIN **************
 
-    // Synchronize to ensure all left states are computed
-    LeftStates.FillBoundary();
-
-    // Second pass: Set right states by shifting left states
-    for (amrex::MFIter mfi(RightStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
-
-        auto const& LeftStates_arr = LeftStates.const_array(mfi);
-        auto const& RightStates_arr = RightStates.array(mfi);
-
-        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-            // Construct index arrays
-            int index[3];
-            int next_index[3];
-            int lower_bounds[3];
-            int upper_bounds[3];
-
-            // Set up indices
-            index[0] = iface; index[1] = jface; index[2] = kface;
-            next_index[0] = iface; next_index[1] = jface; next_index[2] = kface;
-            next_index[direction]++;  // Next index in the direction
-
-            // Define bounds including ghost cells
-            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-            lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
-            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
-            upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
-
-            // Clamp the indices
-            ClampIndices(index, lower_bounds, upper_bounds);
-            ClampIndices(next_index, lower_bounds, upper_bounds);
-
-            // Set right state at current interface to left state at next interface
-            for (int n = 0; n < num_components; ++n) {
-                RightStates_arr(index[0], index[1], index[2], n) = 
-                    LeftStates_arr(next_index[0], next_index[1], next_index[2], n);
+            //  Compute Right State (q_R) at face 'iface' 
+            Set::MultiMatrix stencil_R_matrix(Traits::TotalPoints, num_components);
+            for (int s = 0; s < Traits::TotalPoints; ++s) {
+                int stencil_idx[3] = {iface, jface, kface};
+                // Stencil for right state at face 'iface' is {i-1, i, i+1, i+2, i+3} where i = iface
+                int offset = s - 1; 
+                stencil_idx[direction] += offset;
+                ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                for (int n = 0; n < num_components; ++n) {
+                    stencil_R_matrix(s, n) = Var_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                }
             }
+
+            // To compute the right state with a left-biased policy, we reverse the stencil data.
+            Set::MultiMatrix input_stencil_R = stencil_R_matrix.colwise().reverse();
+
+            if (useCharacteristic) {
+                // The transform should be on the original, non-reversed stencil data for physical correctness.
+                Set::MultiMatrix temp_transform_stencil = stencil_R_matrix;
+                input_stencil_R = variable_accessor->TransformStencilToCharacteristic(index[0], index[1], index[2], temp_transform_stencil, direction, avg_state);
+                input_stencil_R.colwise().reverseInPlace();
+            }
+
+            Set::MultiVector right_reconstructed = Policy::ReconstructValue(input_stencil_R, index[0], index[1], index[2], direction, enableDebug);
+            if (useCharacteristic) {
+                right_reconstructed = variable_accessor->TransformFromCharacteristic(right_reconstructed, direction, avg_state);
+            }
+            for (int n = 0; n < num_components; ++n) {
+                RightStates_arr(index[0], index[1], index[2], n) = right_reconstructed(n);
+            }
+
         });
     }
 
+
+    LeftStates.FillBoundary();
     RightStates.FillBoundary();
 }
 
-};
+};          // ********** CHANGE - END ************
 
 //==============================================================================
 // Convenience type aliases for common WENO variants
