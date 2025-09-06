@@ -1,0 +1,101 @@
+# Simulation output
+plot_file = output_lidDrivencavity_Re400
+
+# Simulation length
+timestep = 1.0e-8
+stop_time = 2.0
+max_step = 2000000
+
+# AMR parameters
+amr.plot_int = 1000
+amr.max_level = 0
+amr.n_cell = 400 400 1  # 128 cells in x, minimal 4 cells in y, and 1 in z
+amr.blocking_factor = 1
+amr.regrid_int = -1  # No regridding for uniform grid
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 0.02 0.02 1  # Set height proportionally to match reduced y-cells
+geometry.is_periodic = 0 0 0  # periodic in x, y, z
+
+#SolverType
+SolverType = SolveCompressibleEuler
+
+#cflNumber
+cflNumber = 0.5
+adjustableTimeStep = 1.0
+
+#TimeSteppingScheme
+TimeSteppingScheme = RK3
+
+#FluxMethod
+FluxScheme = HLLC
+freeStreamMachNumber = 0.3
+Mp_cut = 0.3
+Ku = 0.9
+Kp = 0.3
+
+#FluxReconstruction
+FluxReconstruction = WENO
+
+#WenoVariant
+WenoVariant = WENOZ5
+
+#Reconstruction Mode
+ReconstructionMode = Characteristic
+
+#ViscousFlux
+mu = 1.0e-05
+fourierNumber = 0.4
+
+# Shock configuration
+ic.shock.count = 1
+ic.shock.positions = 0.01 
+ic.shock.direction = xdir
+
+# Enable expression-based initialization
+ic.shock.use_expressions = 1
+
+# Add constants for the expressions
+ic.shock.expressions.constant.pi = 3.14159265358979
+
+# Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
+ic.pvec.type = shock
+
+# Define expression arrays for each zone (bottom, middle, top)
+ic.shock.expressions.pvec.density = "1.0" "1.0"
+ic.shock.expressions.pvec.uvel = "0.0" "0.0" 
+ic.shock.expressions.pvec.vvel = "0.0" "0.0"
+
+# Pressure
+ic.pressure.type      = shock
+ic.shock.expressions.pressure = "1.0" "1.0"
+
+bc.pvec.type.xhi = neumann dirichlet dirichlet neumann
+bc.pvec.type.xlo = neumann dirichlet dirichlet neumann
+bc.pvec.type.yhi = neumann dirichlet dirichlet neumann
+bc.pvec.type.ylo = neumann dirichlet dirichlet neumann
+bc.pvec.type.zhi = neumann neumann neumann neumann
+bc.pvec.type.zlo = neumann neumann neumann neumann
+
+bc.pvec.val.xhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.xlo = 0.0 0.0 0.0 0.0
+bc.pvec.val.yhi = 0.0 0.2 0.0 0.0
+bc.pvec.val.ylo = 0.0 0.0 0.0 0.0
+bc.pvec.val.zhi = 0.0 0.0 0.0 0.0
+bc.pvec.val.zlo = 0.0 0.0 0.0 0.0
+
+bc.pressure.type.xhi = neumann
+bc.pressure.type.xlo = neumann
+bc.pressure.type.yhi = neumann
+bc.pressure.type.ylo = neumann
+bc.pressure.type.zhi = neumann
+bc.pressure.type.zlo = neumann
+
+bc.pressure.val.xhi = 0.0
+bc.pressure.val.xlo = 0.0
+bc.pressure.val.yhi = 0.0
+bc.pressure.val.ylo = 0.0
+bc.pressure.val.zhi = 0.0
+bc.pressure.val.zlo = 0.0
