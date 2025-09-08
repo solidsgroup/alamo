@@ -36,7 +36,7 @@ public:
         
         zeta_2 = zeta_fit_a + Pbar * zeta_fit_b;
 
-        if (arrhenius_dependency == 1) zeta_1 = zeta_2;
+        if (arrhenius_dependency == 1) zeta_1 = zeta_2; // Reaction rate equation (Arrhenius Eqn)
         else zeta_1 = zeta_0;
 
         // Pressure-dependent post calculation variables

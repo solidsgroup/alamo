@@ -194,8 +194,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     if (prescribedflowmode_str == "absolute") value.prescribedflowmode = PrescribedFlowMode::Absolute;
     else if (prescribedflowmode_str == "relative") value.prescribedflowmode = PrescribedFlowMode::Relative;
 
-
-
     Util::Message(INFO);
     pp.queryarr_default("g",value.g,Set::Vector::Zero());
     Util::Message(INFO);
@@ -935,8 +933,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta + small)
                 // ) * dt;
                 ;
-
-
                 
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +

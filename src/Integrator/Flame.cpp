@@ -100,7 +100,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     //
     // PHASE FIELD VARIABLES
     //
-        
+
     // Burn width thickness
     pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
     // Interface energy param
@@ -122,8 +122,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_flow_old_mf, value.bc_eta, 1, 2, "etaflow_old", false);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
-
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom);
 
 
     // Select reduced order model to capture heat feedback
@@ -177,12 +176,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
 
-
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
 
     // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, false);
+    pp_query_default("variable_pressure", value.variable_pressure, true);
 
     // Refinement criterion for eta field   
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -238,13 +236,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.hydro.on)
     {
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
-        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
-        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
-        pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
-        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
-        pp.query_default("hydro.eta_exp",value.hydro.eta_exp,3);
+        pp.query_default("hydro.rho_ap", value.hydro.rho_ap, 1.0);
+        pp.query_default("hydro.rho_htpb", value.hydro.rho_htpb, 1.0);
+        pp.query_default("hydro.u0_ap", value.hydro.u0_ap, 0.0);
+        pp.query_default("hydro.u0_htpb", value.hydro.u0_htpb, 0.0);
+        pp.query_default("hydro.eta_exp", value.hydro.eta_exp, 3);
 
-        pp.queryclass<Hydro>("hydro",value);
+        pp.queryclass<Hydro>("hydro", value);
     }
 
 
@@ -384,11 +382,13 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch,i,j,k,0);
+            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+            // Study 1: https://pubs.rsc.org/en/content/articlepdf/1969/qr/qr9692300430, page 434, reaction 8
+
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
             solidrho(i,j,k) = m0(i,j,k);
             
-            
+            // Set::Vector u0(hydro.)
             Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
             u0_patch(i,j,k,0) = u0(0);
             u0_patch(i,j,k,1) = u0(1);
@@ -411,9 +411,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
     Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
     Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
 }
-
-
-
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
@@ -455,17 +452,16 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //
     // Chamber pressure update
     //
-    if (variable_pressure) {
-        chamber.pressure = exp(0.00075 * chamber.massflux);
-        if (chamber.pressure > 10.0) {
-            chamber.pressure = 10.0;
-        }
-        else if (chamber.pressure <= 0.99) {
-            chamber.pressure = 0.99;
-        }
-        elastic.traction = chamber.pressure;
-    }
-
+    // if (variable_pressure) {
+    //     chamber.pressure = exp(0.00075 * chamber.massflux);
+    //     if (chamber.pressure > 10.0) {
+    //         chamber.pressure = 10.0;
+    //     }
+    //     else if (chamber.pressure <= 0.99) {
+    //         chamber.pressure = 0.99;
+    //     }
+    //     elastic.traction = chamber.pressure;
+    // }
 
     //
     // Multi-well chemical potential
