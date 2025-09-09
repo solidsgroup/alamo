@@ -45,14 +45,12 @@ public:
         delete density_bc;
         delete momentum_bc;
         delete energy_bc;
-        delete massfraction_bc;
         delete eta_bc;
         delete tracer_bc;
 
         delete density_ic;
         delete velocity_ic;
         delete pressure_ic;
-        delete massfraction_ic;
         delete tracer_ic;
 
         delete ic_m0;
@@ -90,16 +88,6 @@ protected:
                 const amrex::MultiFab &M_mf,
                 const amrex::MultiFab &E_mf);
 
-    void RHS(   int lev, Set::Scalar time, 
-                amrex::MultiFab &rho_rhs_mf, 
-                amrex::MultiFab &M_rhs_mf, 
-                amrex::MultiFab &E_rhs_mf,
-                amrex::MultiFab &massfraction_rhs_mf,
-                const amrex::MultiFab &rho_mf,
-                const amrex::MultiFab &M_mf,
-                const amrex::MultiFab &E_mf,
-                amrex::MultiFab &massfraction_mf);
-
     Set::Field<Set::Scalar> density_mf;
     Set::Field<Set::Scalar> density_old_mf;
 
@@ -109,13 +97,9 @@ protected:
     Set::Field<Set::Scalar> momentum_mf;
     Set::Field<Set::Scalar> momentum_old_mf;
 
-    Set::Field<Set::Scalar> massfraction_mf;
-    Set::Field<Set::Scalar> massfraction_old_mf;
-
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
     Set::Field<Set::Scalar> temperature_mf;
-
 
     Set::Field<Set::Scalar> tracer_mf;
     Set::Field<Set::Scalar> tracer_old_mf;
@@ -144,14 +128,12 @@ protected:
     BC::BC<Set::Scalar>* density_bc = nullptr;
     BC::BC<Set::Scalar>* momentum_bc = nullptr;
     BC::BC<Set::Scalar>* energy_bc = nullptr;
-    BC::BC<Set::Scalar>* massfraction_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
     BC::BC<Set::Scalar>* tracer_bc = nullptr;
  
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* density_ic  = nullptr;
-    IC::IC<Set::Scalar>* massfraction_ic = nullptr;
     IC::IC<Set::Scalar>* tracer_ic  = nullptr;
 
     IC::IC<Set::Scalar>* ic_m0 = nullptr;

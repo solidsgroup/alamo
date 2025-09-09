@@ -48,6 +48,7 @@ public:
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
         //Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
+        int nspecies = lo.nspecies;
         std::vector<double> rhoY_L = lo.rhoY, rhoY_R = hi.rhoY;
 
         // Ensure no negative densities
@@ -80,7 +81,7 @@ public:
 
         std::vector<double> rhoYu_L(lo.rhoY.size());
         std::vector<double> rhoYu_R(lo.rhoY.size());
-        for (size_t ii=0; ii<lo.rhoY.size(); ++ii) {
+        for (int ii=0; ii<nspecies; ++ii) {
             rhoYu_L[ii] = u_L*lo.rhoY[ii];
             rhoYu_R[ii] = u_R*hi.rhoY[ii];
         }
@@ -90,6 +91,7 @@ public:
             lo.M_normal * u_L + p_L,
             lo.M_tangent * u_L,
             u_L * (lo.E + p_L),
+            nspecies,
             rhoYu_L
             );
         Flux_Extended F_R (
@@ -97,21 +99,35 @@ public:
             hi.M_normal * u_R + p_R,
             hi.M_tangent * u_R,
             u_R * (hi.E + p_R),
+            nspecies,
             rhoYu_R
             );
 
         if (S_L >= 0.0)
         {
+            std::cout << "Flux lower: " << std::endl;
+            for (size_t ii=0; ii<lo.rhoY.size(); ++ii) {
+                std::cout << "Flux lower: " << F_L.rhoY[ii] << std::endl;
+            }
             return F_L;
+
         }
         else if (S_R <= 0.0)
         {
+            std::cout << "Flux upper: " << std::endl;
+            for (size_t ii=0; ii<lo.rhoY.size(); ++ii) {
+                std::cout << "Flux upper: " << F_R.rhoY[ii] << std::endl;
+            }
             return F_R;
         }
         else
         {
+            std::cout << "Flux diff: " << lo.rhoY.size() << std::endl;
             State_Extended dState = hi - lo;
             Set::Scalar dS = S_R - S_L;
+            for (size_t ii=0; ii<lo.rhoY.size(); ++ii) {
+                std::cout << "Flux diff: " << dState.rhoY[ii] << std::endl;
+            }
             return (S_R*F_L - S_L*F_R + S_L*S_R*Flux_Extended(dState)) / dS;
         }
     }
