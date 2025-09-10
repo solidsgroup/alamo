@@ -158,6 +158,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
+        value.RegisterNewFab(value.htpb_rho_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field);
+        value.RegisterNewFab(value.AP_rho_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field);
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -383,7 +385,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            // Study 1: https://pubs.rsc.org/en/content/articlepdf/1969/qr/qr9692300430, page 434, reaction 8
+            
+            // Put pressure/density code here
 
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
             solidrho(i,j,k) = m0(i,j,k);
