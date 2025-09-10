@@ -377,6 +377,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> rho_AP = rho_AP_mf.Patch(lev,mfi); // Set scalar value for density of AP
+        Set::Patch<Set::Scalar> temp = temp_mf.Patch(lev,mfi); // Call the temperature value
+        Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
@@ -388,8 +390,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
             Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
             
             // Put pressure/density code here
-
-            rho_AP(i,j,k) = 1*DX[0];
+            Real M = 27.645; // Molar mass of mixture after AP undergos pyrolysis (g/mol)
+            Real R = 8.314; // Ideal gas constant (J/mol-k)
+            rho_AP(i,j,k) = pressure(i,j,k)*M/(R*temp(i,j,k)); // Density of AP products assuming ideal gas
 
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
