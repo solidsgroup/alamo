@@ -64,8 +64,8 @@ protected:
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;
 
-    Set::Field<Set::Scalar> htpb_rho_mf; // Density field of Hydroxyl-terminated polybutadiene (HTPB)
-    Set::Field<Set::Scalar> AP_rho_mf; // Density field of Ammonium perchlorate (AP)
+    Set::Field<Set::Scalar> rho_htpb_mf; // Density field of Hydroxyl-terminated polybutadiene (HTPB)
+    Set::Field<Set::Scalar> rho_AP_mf; // Density field of Ammonium perchlorate (AP)
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;

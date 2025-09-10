@@ -158,8 +158,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-        value.RegisterNewFab(value.htpb_rho_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field);
-        value.RegisterNewFab(value.AP_rho_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field);
+        value.RegisterNewFab(value.rho_htpb_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field); // Density of Hydroxyl-terminated polybutadiene (HTPB)
+        value.RegisterNewFab(value.rho_AP_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field); // Density of Ammonium perchlorate (AP)
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -376,6 +376,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<const Set::Scalar> phi_patch    = phi_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> rho_AP = rho_AP_mf.Patch(lev,mfi); // Set scalar value for density of AP
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
@@ -388,12 +389,14 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
             
             // Put pressure/density code here
 
-            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
+            rho_AP(i,j,k) = 1*DX[0];
+
+            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
             
             // Set::Vector u0(hydro.)
             Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
-            u0_patch(i,j,k,0) = u0(0);
+            u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
             u0_patch(i,j,k,1) = u0(1);
 
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
