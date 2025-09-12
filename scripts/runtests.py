@@ -288,7 +288,7 @@ def test(testdir):
                 env["CPUPROFILE"] = "profile.prof"
 
             # If not running in serial, specify mpirun command
-            if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
+            if nprocs > 1: command += f"mpirun {args.mpirun_flags} --use-hwthread-cpus --oversubscribe -n {nprocs} "
             # Specify alamo command.
             
             exestr = "./bin/{}-{}d".format(exe,dim)
