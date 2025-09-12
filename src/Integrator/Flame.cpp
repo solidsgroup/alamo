@@ -158,8 +158,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-        value.RegisterNewFab(value.rho_htpb_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field); // Density of Hydroxyl-terminated polybutadiene (HTPB)
-        value.RegisterNewFab(value.rho_AP_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field); // Density of Ammonium perchlorate (AP)
+        value.RegisterNewFab(value.rho_htpb_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
+        value.RegisterNewFab(value.rho_AP_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
+        value.RegisterNewFab(value.rho_tot_mf, value.bc_temp, 1, 0, "rho_tot", value.plot_field); // Density of total gaseous field
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -377,8 +378,15 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> rho_AP = rho_AP_mf.Patch(lev,mfi); // Set scalar value for density of AP
-        Set::Patch<Set::Scalar> temp = temp_mf.Patch(lev,mfi); // Call the temperature value
+        Set::Patch<Set::Scalar> rho_HTPB = rho_htpb_mf.Patch(lev,mfi); // Set scalar value for density of HTPB
+        Set::Patch<Set::Scalar> rho_tot = rho_tot_mf.Patch(lev,mfi); // Set scalar value for total density of the gaseous phase
         Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
+
+        Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
+        Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
+        Real R = 8314; // Ideal gas constant (J/kmol-k)
+        Real Pref = Hydro::pref; // Find the reference temperature from Hydro
+        Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
@@ -388,11 +396,10 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            
-            // Put pressure/density code here
-            Real M = 27.645; // Molar mass of mixture after AP undergos pyrolysis (g/mol)
-            Real R = 8.314; // Ideal gas constant (J/mol-k)
-            rho_AP(i,j,k) = pressure(i,j,k)*M/(R*temp(i,j,k)); // Density of AP products assuming ideal gas
+            pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
+            rho_AP(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
+            rho_HTPB(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
+            rho_tot(i,j,k) = rho_AP(i,j,k)*phi + rho_HTPB(i,j,k)*(1.0 - phi);
 
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
