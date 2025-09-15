@@ -10,17 +10,17 @@ timestep = 0.1e-5
 ####################
 
 amr.base_regrid_int = 10
-amr.plot_dt = 0.0001
-# amr.plot_int = 1
+#amr.plot_dt = 0.01
+amr.plot_int = 1
 amr.plot_file = output.hydro.speciesdiffusion
 amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
 
-amr.n_cell = 256 8
-geometry.prob_lo = -1.0 -0.10
-geometry.prob_hi = 1.0  0.10
+amr.n_cell = 64 8
+geometry.prob_lo = -0.24 -0.03
+geometry.prob_hi = 0.24  0.03
 
 ###############################
 # Hydro Integrator Parameters #
@@ -39,10 +39,11 @@ tref    = 300
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
 species = CO2 O2 N2
 species_mw = 44.010 32.000 28.016
-massfraction.ic.type = expression
-massfraction.ic.expression.region0 = "1.0 * (x<=0)"
-massfraction.ic.expression.region1 = "1.0 * (x>0)"
-massfraction.ic.expression.region2 = "0.0"
+density.ic.type = expression
+density.ic.expression.constant.rho = 40.0
+density.ic.expression.region0 = "rho * (1.0 * (x<=0.0))"
+density.ic.expression.region1 = "rho * (1.0 * (x>0.0))"
+density.ic.expression.region2 = "rho * 0.0"
 species_k = 1.6024E-2 2.5606E-2 2.6234E-2
 species_cp = 845.68 920.0 1040.0
 species_mu = 146.2E-7 203.1E-7 175.4E-7
@@ -74,7 +75,6 @@ species_LJwelldepth = 190.0 113.0 99.8
 #hydro.rho_fluid = 20.0 #kg/m^3
 #hydro.E_solid   = 5.0
 #density.ic.constant.value = 1.5
-density.ic.constant.value = 40.0
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
 velocity.ic.expression.constant.x0    = -2.0
@@ -83,7 +83,7 @@ velocity.ic.expression.region1 = "0.0"
 pressure.ic.type = expression
 pressure.ic.expression.constant.gamma = 1.4
 pressure.ic.expression.constant.E_solid = 5.0
-pressure.ic.expression.region0 = "10" # * (x<=0) + 5e6 * (x>0)"
+pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid / x^2"
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann
 pf.eta.bc.constant.type.xhi = neumann
@@ -98,14 +98,14 @@ pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 ### HYDRO BC ###
-density.bc.constant.type.xhi = neumann
-density.bc.constant.type.xlo = neumann #dirichlet
-density.bc.constant.type.ylo = neumann
-density.bc.constant.type.yhi = neumann
-density.bc.constant.val.xhi = 0.0
-density.bc.constant.val.xlo = 0.0
-density.bc.constant.val.ylo = 0.0 
-density.bc.constant.val.yhi = 0.0
+density.bc.constant.type.xhi = neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann
+density.bc.constant.type.yhi = neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0
 energy.bc.constant.type.xhi = neumann
 energy.bc.constant.type.xlo = neumann #dirichlet #neumann
 energy.bc.constant.type.ylo = neumann
@@ -122,14 +122,6 @@ momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0  0.0 #10. 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
 momentum.bc.constant.val.yhi = 0.0 0.0
-massfraction.bc.constant.type.xhi = neumann neumann neumann
-massfraction.bc.constant.type.xlo = neumann neumann neumann
-massfraction.bc.constant.type.yhi = neumann neumann neumann
-massfraction.bc.constant.type.ylo = neumann neumann neumann
-massfraction.bc.constant.val.xhi = 0.0 0.0 0.0
-massfraction.bc.constant.val.xlo = 0.0 0.0 0.0
-massfraction.bc.constant.val.yhi = 0.0 0.0 0.0
-massfraction.bc.constant.val.ylo = 0.0 0.0 0.0
 #eta.ic.constant.value = 1.0
 ### HYDRO REFINEMENT CRITERIA ###
 #hydro.r_refinement_criterion   = 0.1
@@ -139,13 +131,13 @@ eta_refinement_criterion = 0.1
 omega_refinement_criterion = 10000000
 gradu_refinement_criterion = 100000000
 
-solid.momentum.ic.constant.value = 0.0
-solid.density.ic.constant.value = 40.0
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.density.ic.constant.value = 40.0 40.0 40.0
 solid.energy.ic.constant.value = 0.0
 
-m0.ic.constant.value = 0 #40.0
-u0.ic.constant.value = 0.0 0.0
-q.ic.constant.value = 0.0
+m0.ic.constant.value = 0.0 0.0 0.0 #40.0
+u0.ic.constant.value = 0.1 0.0
+q.ic.constant.value = 0.0 0.0
 
 small=1E-3
 cutoff=0.2
@@ -191,7 +183,7 @@ amr.max_level = 1
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.02
-eta.ic.expression.region0 = "1"
+eta.ic.expression.region0 = "1" # - 0.5 * (erf((x)/eps) + 1)"
 
 
 scheme = forwardeuler
