@@ -83,7 +83,7 @@ public:
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;
-        if (mob_ap == 1) L = m_ap * Pbar * exp(-E_ap / T) * phi;
+        if (mob_ap) L = m_ap * Pbar * exp(-E_ap / T) * phi;
         else L = m_ap * exp(-E_ap / T) * phi;
         L += m_htpb * exp(-E_htpb / T) * (1.0 - phi);
         if (T <= bound) L = 0.0;
@@ -177,7 +177,7 @@ public:
     Set::Scalar cp_ap = NAN, cp_htpb = NAN;
 
     // Regression variables
-    int mob_ap = -1;
+    bool mob_ap = false;
     Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
     Set::Scalar E_ap = NAN, E_htpb = NAN;
     Set::Scalar bound = NAN;
