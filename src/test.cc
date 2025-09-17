@@ -25,6 +25,8 @@
 
 #include "Solver/Local/Riemann/Roe.H"
 
+#include "Unit/Test.H"
+
 int main (int argc, char* argv[])
 {
     Util::Initialize(argc, argv);
@@ -128,6 +130,14 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
         failed += Util::Test::SubFinalMessage(subfailed);
     }
+
+    Util::Test::Message("Unit test");
+    {
+        int subfailed = 0;
+        subfailed += Util::Test::SubMessage("Equivalence", UnitTest::Equivalence(1));
+        failed += subfailed;
+    }
+
 
     Util::globalprefix = "";
     Util::Message(INFO,failed," tests failed");
