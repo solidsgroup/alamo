@@ -359,7 +359,8 @@ struct Flux {
 class Riemann 
 {
 public:
-    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) = 0;
+//    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) = 0;
+    virtual Flux Solve(State lo, State hi, Set::Scalar p_ref, Set::Scalar small, std::vector<double> &species_mw, std::vector<double> &species_cp) = 0;
     virtual ~Riemann() = default;
 };
 

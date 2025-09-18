@@ -41,7 +41,7 @@ public:
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) override
+    virtual Flux Solve(State lo, State hi, Set::Scalar p_ref, Set::Scalar small, std::vector<double> &species_mw, std::vector<double> &species_cp) override
     {
         size_t nspecies = lo.rho.size();
         // Grab and label the input states
@@ -59,15 +59,28 @@ public:
             rho_sum_L += rho_L[n];
             rho_sum_R += rho_R[n];
         }
-
+        double cp_L = 0.0;
+        double cv_L = 0.0;
+        double gamma_L = 0.0;
+        double cp_R = 0.0;
+        double cv_R = 0.0;
+        double gamma_R = 0.0;
+        for (size_t n=0; n<nspecies; ++n) {
+            cp_L += rho_L[n]/rho_sum_L * species_cp[n];
+            cv_L += rho_L[n]/rho_sum_L * (species_cp[n] - 8314.46/species_mw[n]);
+            cp_R += rho_R[n]/rho_sum_R * species_cp[n];
+            cv_R += rho_R[n]/rho_sum_R * (species_cp[n] - 8314.46/species_mw[n]);
+        }
+        gamma_L = cp_L/cv_L;
+        gamma_R = cp_R/cv_R;
 
         // Calculate primitives
         Set::Scalar u_L   = Mn_L/(rho_sum_L+small),  u_R   = Mn_R/(rho_sum_R+small);
         Set::Scalar v_L   = Mn_L/(rho_sum_L+small),  v_R   = Mn_R/(rho_sum_R+small);
-        Set::Scalar p_L  = (gamma - 1.0) * ( E_L - 0.5*rho_sum_L*(u_L*u_L + v_L*v_L) ) + p_ref;
-        Set::Scalar p_R  = (gamma - 1.0) * ( E_R - 0.5*rho_sum_R*(u_R*u_R + v_R*v_R) ) + p_ref;
-        Set::Scalar c_L = std::sqrt(gamma * p_L / (rho_sum_L + small));
-        Set::Scalar c_R = std::sqrt(gamma * p_R / (rho_sum_R + small));
+        Set::Scalar p_L  = (gamma_L - 1.0) * ( E_L - 0.5*rho_sum_L*(u_L*u_L + v_L*v_L) ) + p_ref;
+        Set::Scalar p_R  = (gamma_R - 1.0) * ( E_R - 0.5*rho_sum_R*(u_R*u_R + v_R*v_R) ) + p_ref;
+        Set::Scalar c_L = std::sqrt(gamma_L * p_L / (rho_sum_L + small));
+        Set::Scalar c_R = std::sqrt(gamma_R * p_R / (rho_sum_R + small));
 
         // Max wave speeds
         Set::Scalar S_L = std::min(u_L-c_L, u_R - c_R);
@@ -106,29 +119,17 @@ public:
 
         if (S_L >= 0.0)
         {
-            std::cout << "Flux lower: " << std::endl;
-            for (size_t n=0; n<nspecies; ++n) {
-                std::cout << "Flux lower: " << F_L.mass[n] << std::endl;
-            }
             return F_L;
 
         }
         else if (S_R <= 0.0)
         {
-            std::cout << "Flux upper: " << std::endl;
-            for (size_t n=0; n<nspecies; ++n) {
-                std::cout << "Flux upper: " << F_R.mass[n] << std::endl;
-            }
             return F_R;
         }
         else
         {
-            std::cout << "Flux diff: " << nspecies << std::endl;
             State dState = hi - lo;
             Set::Scalar dS = S_R - S_L;
-            for (size_t n=0; n<nspecies; ++n) {
-                std::cout << "Flux diff: " << n << " : " << dState.rho[n] << std::endl;
-            }
             return (S_R*F_L - S_L*F_R + S_L*S_R*Flux(dState)) / dS;
         }
     }

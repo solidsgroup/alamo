@@ -10,8 +10,8 @@ timestep = 0.1e-5
 ####################
 
 amr.base_regrid_int = 10
-#amr.plot_dt = 0.01
-amr.plot_int = 1
+amr.plot_dt = 0.01
+#amr.plot_int = 1
 amr.plot_file = output.hydro.species2diffusion
 amr.max_level = 3
 amr.max_grid_size = 500000

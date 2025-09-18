@@ -1085,7 +1085,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             for (int n=0; n<nspecies; ++n) { 
                 Source(i,j, k, n) = mdot0[n];
             }
-            std::cout << "nspecies: " << nspecies << std::endl;
             Source(i,j, k, nspecies+0) = Pdot0(0) - Ldot0(0);
             Source(i,j, k, nspecies+1) = Pdot0(1) - Ldot0(1);
             Source(i,j, k, nspecies+2) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
@@ -1139,12 +1138,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta;
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta;
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, pref, small, species_mw, species_cp) * eta;
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, pref, small, species_mw, species_cp) * eta;
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta;
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta;
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, pref, small, species_mw, species_cp) * eta;
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, pref, small, species_mw, species_cp) * eta;
             }
             catch(...)
             {
@@ -1174,13 +1173,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         etadot(i,j,k) * (rho(i,j,k,n) - rho_solid(i,j,k,n)) / (eta + small)
                     // ) * dt;
                     ;
-                Util::ParallelMessage(INFO,"flux_xlo.mass: ", flux_xlo.mass[n]);
-                Util::ParallelMessage(INFO,"drhoYf_dt: ", drhof_dt);
-                Util::ParallelMessage(INFO,"flux_xlo.mass: ", flux_xlo.mass[n]);
-                Util::ParallelMessage(INFO,"flux_xhi.mass: ", flux_xhi.mass[n]);
-                Util::ParallelMessage(INFO,"flux_ylo.mass: ", flux_ylo.mass[n]);
-                Util::ParallelMessage(INFO,"flux_yhi.mass: ", flux_yhi.mass[n]);
-                //Util::Exception(INFO,"Aborting.");
             }
                     
             Set::Scalar dMxf_dt =
@@ -1213,10 +1205,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 // )*dt;
                 ;
 
-            std::cout << "lapT: " << lapT << std::endl;
-            std::cout << "gradT: " << gradT(0) << " " << gradT(1) << std::endl;
-            std::cout << "i,j: " << i << " " << j << std::endl;
-            std::cout << "T [(i,j),(i-1,j),(i+1,j),(i,j-1),(i,j+1)]: " << temperature(i,j,k) << " " << temperature(i-1,j,k) << " " << temperature(i+1,j,k) << " " << temperature(i,j-1,k) << " " << temperature(i,j+1,k) << std::endl;
             Set::Scalar dEf_dt =
                 (flux_xlo.energy - flux_xhi.energy) / DX[0] +
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
