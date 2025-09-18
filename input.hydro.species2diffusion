@@ -18,10 +18,11 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
 
-#amr.n_cell = 64 8
-amr.n_cell = 256 8
+amr.n_cell = 64 8
+#amr.n_cell = 256 8
 geometry.prob_lo = -0.24 -0.03
 geometry.prob_hi = 0.24  0.03
+geometry.is_periodic = 0 1 0
 
 ###############################
 # Hydro Integrator Parameters #
@@ -30,28 +31,31 @@ geometry.prob_hi = 0.24  0.03
 ### HYDRO PARAM ###
 gamma = 1.4
 mu    = 5.0
-pref    = 10000
-tref    = 300
+pref    = 0
+tref    = 0
 
 ##Default is Air
 #species_massf = 0.767 0.233
 
 ## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
-species = CO2 O2 #N2
-species_mw = 44.010 32.000 #28.016
+species = CO2 O2 N2
+species_mw = 44.010 32.000 28.016
 density.ic.type = expression
-density.ic.expression.constant.rho = 40.0
+density.ic.expression.constant.P = 101325.0
+density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R_CO2 = 188.92
 density.ic.expression.constant.R_O2 = 259.83
-density.ic.expression.region0 = "rho * (1.0 * (x<=0.0))"
-density.ic.expression.region1 = "rho*R_CO2/R_O2 * (1.0 * (x>0.0))"
-#density.ic.expression.region2 = "rho * 0.0"
-species_k = 1.6024E-2 2.5606E-2 #2.6234E-2
-species_cp = 845.68 920.0 #1040.0
-species_mu = 146.2E-7 203.1E-7 #175.4E-7
-species_LJdiameter = 3.996 3.433 #3.667
-species_LJwelldepth = 190.0 113.0 #99.8
+density.ic.expression.constant.cv_CO2 = 656.76
+density.ic.expression.constant.cv_O2 = 660.17
+density.ic.expression.region0 = "P/R_CO2/T * (1.0 * (x<=0.0))"
+density.ic.expression.region1 = "P/R_O2/T * (1.0 * (x>0.0))"
+density.ic.expression.region2 = "0.0"
+species_k = 1.6024E-2 2.5606E-2 2.6234E-2
+species_cp = 845.68 920.0 1040.0
+species_mu = 146.2E-7 203.1E-7 175.4E-7
+species_LJdiameter = 3.996 3.433 3.667
+species_LJwelldepth = 190.0 113.0 99.8
 
 ## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
@@ -86,7 +90,7 @@ velocity.ic.expression.region1 = "0.0"
 pressure.ic.type = expression
 pressure.ic.expression.constant.gamma = 1.4
 pressure.ic.expression.constant.E_solid = 5.0
-pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid" # / x^2"
+pressure.ic.expression.region0 = "101325.0" #"(gamma - 1.0) * E_solid" # / x^2"
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann
 pf.eta.bc.constant.type.xhi = neumann
@@ -101,26 +105,26 @@ pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 ### HYDRO BC ###
-density.bc.constant.type.xhi = neumann neumann #neumann
-density.bc.constant.type.xlo = neumann neumann #neumann
-density.bc.constant.type.yhi = neumann neumann #neumann
-density.bc.constant.type.ylo = neumann neumann #neumann
-density.bc.constant.val.xhi = 0.0 0.0 #0.0
-density.bc.constant.val.xlo = 0.0 0.0 #0.0
-density.bc.constant.val.yhi = 0.0 0.0 #0.0
-density.bc.constant.val.ylo = 0.0 0.0 #0.0
+density.bc.constant.type.xhi = neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann
+density.bc.constant.type.yhi = periodic periodic periodic
+density.bc.constant.type.ylo = periodic periodic periodic
+density.bc.constant.val.xhi = 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0
 energy.bc.constant.type.xhi = neumann
 energy.bc.constant.type.xlo = neumann #dirichlet #neumann
-energy.bc.constant.type.ylo = neumann
-energy.bc.constant.type.yhi = neumann
+energy.bc.constant.type.ylo = periodic
+energy.bc.constant.type.yhi = periodic
 energy.bc.constant.val.xhi = 0.0
 energy.bc.constant.val.xlo = 0.0 #1000.0 #0.0
 energy.bc.constant.val.ylo = 0.0 
 energy.bc.constant.val.yhi = 0.0
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
-momentum.bc.constant.type.ylo = neumann dirichlet
-momentum.bc.constant.type.yhi = neumann dirichlet
+momentum.bc.constant.type.ylo = periodic periodic
+momentum.bc.constant.type.yhi = periodic periodic
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0  0.0 #10. 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
@@ -135,14 +139,14 @@ omega_refinement_criterion = 10000000
 gradu_refinement_criterion = 100000000
 
 solid.momentum.ic.constant.value = 0.0 0.0
-solid.density.ic.constant.value = 40.0 40.0 #40.0
+solid.density.ic.constant.value = 40.0 40.0 40.0
 solid.energy.ic.constant.value = 0.0
 
-m0.ic.constant.value = 0.0 0.0 #0.0 #40.0
-u0.ic.constant.value = 0.1 0.0
+m0.ic.constant.value = 0.0 0.0 0.0 #40.0
+u0.ic.constant.value = 0.0 0.0
 q.ic.constant.value = 0.0 0.0
 
-small=1E-3
+small=1E-6
 cutoff=0.2
 lagrange=2000.0
 

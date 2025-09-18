@@ -305,19 +305,19 @@ void Hydro::Mix(int lev)
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
             double rho_sum = 0.0;
 
-            if (nspecies <= 1)
-            {
-                rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
-                rho_old(i, j, k) = rho(i, j, k);
-                rho_sum = rho(i,j,k);
-            } else {
-                rho_sum = 0.0;
-                for (int n=0; n<nspecies; ++n) {
-                    rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
-                    rho_old(i, j, k, n) = rho(i, j, k, n);
-                    rho_sum += rho(i,j,k,n);
-                }
+            rho_sum = 0.0;
+            for (int n=0; n<nspecies; ++n) {
+                rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
+                rho_old(i, j, k, n) = rho(i, j, k, n);
+                rho_sum += rho(i,j,k,n);
             }
+            double cp_mix = 0.0;
+            double cv_mix = 0.0;
+            for (int n=0; n<nspecies; ++n) {
+                cp_mix += rho(i,j,k,n)/rho_sum * species_cp[n];
+                cv_mix += rho(i,j,k,n)/rho_sum * (species_cp[n] - 8314.45/species_mw[n]);
+            }
+            gamma = cp_mix/cv_mix;
 
             M(i, j, k, 0) = (rho_sum*v(i, j, k, 0))*eta  +  M_solid(i, j, k, 0)*(1.0-eta);
             M(i, j, k, 1) = (rho_sum*v(i, j, k, 1))*eta  +  M_solid(i, j, k, 1)*(1.0-eta);
@@ -782,6 +782,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 rho_sum += rho(i,j,k,n);
                 rho_solid_sum += rho_solid(i,j,k,n);
             }
+            double cp_mix = 0.0;
+            double cv_mix = 0.0;
+            for (int n=0; n<nspecies; ++n) {
+                cp_mix += rho(i,j,k,n)/rho_sum * species_cp[n];
+                cv_mix += rho(i,j,k,n)/rho_sum * (species_cp[n] - 8314.45/species_mw[n]);
+            }
+            gamma = cp_mix/cv_mix;
+
             etarho_fluid += rho_sum - (1.-eta) * rho_solid_sum;
             Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta) * E_solid(i,j,k);
 
@@ -890,6 +898,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 mixed_mw += species_molef[n] * species_mw[n];
             }
             double mixed_cv = mixed_cp - 8314.45/mixed_mw;
+            gamma = mixed_cp/mixed_cv;
             Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
             double internal_energy = (E(i,j,k) - 0.5 * rhoijk_sum * (pow(u(0), 2.0) + pow(u(1), 2.0))) / rhoijk_sum;
             double pressure = (gamma - 1.0) * rho_sum(i,j,k) * internal_energy + pref;
