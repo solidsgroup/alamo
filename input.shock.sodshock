@@ -4,7 +4,7 @@ plot_file = output_LLF_Conservative_WENOZ5_RK3
 # Simulation length
 timestep = 0.001
 stop_time = 0.25
-max_step = 3
+max_step = 1000
 
 # AMR parameters
 amr.plot_int = 10

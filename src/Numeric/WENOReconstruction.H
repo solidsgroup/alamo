@@ -715,11 +715,14 @@ public:
             amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                 // Construct index arrays with correct number of components
                 int index[3];
+                int next_index[3];
                 int lower_bounds[3];
                 int upper_bounds[3];
 
                 // Set up indices and bounds
                 index[0] = iface; index[1] = jface; index[2] = kface;
+                next_index[0] = iface; next_index[1] = jface; next_index[2] = kface;
+                next_index[direction]++;
 
                 // Define bounds including ghost cells
                 lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
@@ -757,20 +760,25 @@ public:
                 //Fill stencil matrix with state vectors from each stencil point 
                 for (int s = 0; s < Traits::TotalPoints; ++s) {
                     // Calculate stencil point index with proper offset
-                    int stencil_idx[3] = {index[0], index[1], index[2]};
+                    int left_stencil_idx[3] = {index[0], index[1], index[2]};
+                    int right_stencil_idx[3] = {index[0], index[1], index[2]};
 
                     // Apply offset in the reconstruction direction
                     // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
-                    int offset = s - Traits::TotalPoints/2;
-                    stencil_idx[direction] += offset;
+                    int left_offset = s - Traits::TotalPoints/2;
+                    int right_offset = (Traits::TotalPoints/2 + 1) - s;
+
+                    left_stencil_idx[direction] += left_offset;
+                    right_stencil_idx[direction] += right_offset;
 
                     // Clamp indices to ensure they're within bounds
-                    ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                    ClampIndices(left_stencil_idx, lower_bounds, upper_bounds);
+                    ClampIndices(right_stencil_idx, lower_bounds, upper_bounds);
 
                     for (int n = 0; n < num_components; ++n) {
                     // Extract data value for this stencil point
-                    stencilneg_matrix(s, n) = FluxNeg_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
-                    stencilpos_matrix(s, n) = FluxPos_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                    stencilpos_matrix(s, n) = FluxPos_arr(left_stencil_idx[0], left_stencil_idx[1], left_stencil_idx[2], n);
+                    stencilneg_matrix(s, n) = FluxNeg_arr(right_stencil_idx[0], right_stencil_idx[1], right_stencil_idx[2], n);
 
                     }
                 }
@@ -785,12 +793,12 @@ public:
                     stencilneg = variable_accessor->TransformStencilToCharacteristic(    
                         index[0], index[1], index[2], stencilneg_matrix, direction, avg_state);
                     stencilpos = variable_accessor->TransformStencilToCharacteristic(    
-                        index[0], index[1], index[2], stencilpos_matrix, direction, avg_state);
+                        next_index[0], next_index[1], next_index[2], stencilpos_matrix, direction, avg_state);
                 }
 
                 // Reconstruct Flux Positive and Negative at interface using WENO
                 Fpos_reconstructed = Policy::ReconstructValue(stencilpos, index[0], index[1], index[2], direction, enableDebug);
-                Fneg_reconstructed = Policy::ReconstructValue(stencilneg, index[0], index[1], index[2], direction, enableDebug);
+                Fneg_reconstructed = Policy::ReconstructValue(stencilneg, next_index[0], next_index[1], next_index[2], direction, enableDebug);
 
                 // Compute final summed flux at face center
                 for (int n = 0; n < solver->number_of_components; ++n) {
