@@ -135,10 +135,16 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 //
                 if (sdf.on && time > sdf.tstart)
                 {
+                    Set::Scalar sum_of_squares = 1E-10;
+                    for (int n = 0; n < number_of_grains; n++) sum_of_squares += eta(i,j,k,n);
+                    
+                    Set::Scalar dg  = 2.0*eta(i,j,k,m)/sum_of_squares;
+                    dg             -= 2.0*eta(i,j,k,m)*eta(i,j,k,m)*eta(i,j,k,m) / sum_of_squares / sum_of_squares;
+                    
                     if (pf.threshold.sdf)
-                        driving_force_threshold += sdf.val[m](time);
+                        driving_force_threshold += sdf.val[m](time) * dg;
                     else
-                        driving_force += sdf.val[m](time);
+                        driving_force += sdf.val[m](time) * dg;
                 }
 
               
@@ -338,7 +344,7 @@ template<class model_type>
 void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /*a_time*/)
 {
     BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
-    if (a_step % this->m_interval) return;
+    //if (a_step % this->m_interval) return;
 
     for (int lev = 0; lev <= this->finest_level; ++lev)
     {
