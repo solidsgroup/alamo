@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
-import argparse
-import os
-import re
-import subprocess
-import textwrap
-import sys
-import shutil
-#import ctypes.util
-import glob
-import json
-from pathlib import Path
+
+try:
+    import argparse
+    import os
+    import re
+    import subprocess
+    import textwrap
+    import sys
+    import shutil
+    import glob
+    import json
+    from pathlib import Path
+except ImportError as e:
+    sys.stderr.write(
+        f"\nError: Missing required Python module: {e.name}\n"
+        "Please install it and rerun configure.\n\n"
+    )
+    sys.exit(1)    
 
 #
 # Configuration parameters, mainly to specify default values:
