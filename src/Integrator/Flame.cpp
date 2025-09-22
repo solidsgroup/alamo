@@ -22,7 +22,7 @@ namespace Integrator
 
 Flame::Flame() : 
     Base::Mechanics<model_type>(), 
-    Hydro(eta_flow_mf, eta_flow_old_mf, true)
+    Hydro(eta_mf, eta_old_mf, true)
 {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
@@ -118,8 +118,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
-    value.RegisterNewFab(value.eta_flow_mf, value.bc_eta, 1, 2, "etaflow", true);
-    value.RegisterNewFab(value.eta_flow_old_mf, value.bc_eta, 1, 2, "etaflow_old", false);
 
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom);
@@ -242,11 +240,18 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.hydro.on)
     {
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
+<<<<<<< HEAD
         pp.query_default("hydro.rho_ap", value.hydro.rho_ap, 1.0);
         pp.query_default("hydro.rho_htpb", value.hydro.rho_htpb, 1.0);
         pp.query_default("hydro.u0_ap", value.hydro.u0_ap, 0.0);
         pp.query_default("hydro.u0_htpb", value.hydro.u0_htpb, 0.0);
         pp.query_default("hydro.eta_exp", value.hydro.eta_exp, 3);
+=======
+        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
+        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
+        pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
+        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
+>>>>>>> parent of 9a8819735 (Merge branch 'investigation/integrate-flame-hydro' of github.com:solidsgroup/alamo into investigation/integrate-flame-hydro)
 
         pp.queryclass<Hydro>("hydro", value);
     }
@@ -272,8 +277,6 @@ void Flame::Initialize(int lev)
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
-    ic_eta->Initialize(lev, eta_flow_mf);
-    ic_eta->Initialize(lev, eta_flow_old_mf);
     ic_phi->Initialize(lev, phi_mf);
     //ic_phicell->Initialize(lev, phicell_mf);
 
@@ -480,7 +483,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     const Set::Scalar* DX = geom[lev].CellSize();
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
-    std::swap(eta_flow_old_mf[lev], eta_flow_mf[lev]);
 
     //
     // Chamber pressure update
@@ -513,11 +515,10 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         const amrex::Box& bx = mfi.tilebox();
         // Phase fields
         Set::Patch<Set::Scalar> etanew    = eta_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> etaflow = eta_flow_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta = eta_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
         // Heat transfer fields
-        Set::Patch<const Set::Scalar> temp  = temp_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       alpha = alpha_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       laser = laser_mf.Patch(lev,mfi);
         // Diagnostic fields
@@ -543,12 +544,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
-            
-            if (eta(i,j,k) < 0.25)
-            {
-                L = std::max(L,0.01);
-            }
-
 
             // 
             // EVOLVE PHASE FIELD (ETA)
@@ -557,11 +552,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
-
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
-
-            etaflow(i,j,k) = 1.0;
-            for (int exp = 0; exp < hydro.eta_exp; exp++) etaflow(i,j,k) *= etanew(i,j,k);
 
             if (thermal.on)
             {

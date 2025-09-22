@@ -70,8 +70,6 @@ protected:
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
-    Set::Field<Set::Scalar> eta_flow_mf;
-    Set::Field<Set::Scalar> eta_flow_old_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
@@ -132,9 +130,6 @@ protected:
 
         Set::Scalar rho_ap = NAN, rho_htpb = NAN;
         Set::Scalar u0_ap = NAN, u0_htpb = NAN;
-
-        int eta_exp = -1;
-
     } hydro;
 
     // Chamber state variables (not inputs)
