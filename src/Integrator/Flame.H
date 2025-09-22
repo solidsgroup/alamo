@@ -76,9 +76,6 @@ protected:
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
     Set::Field<Set::Scalar> heatflux_mf;
-    
-    Set::Scalar mdot_l2_global = 0.0; // Used for debugging
-    Set::Scalar mgrad_l2_global = 0.0; // Used for debugging
 
     Set::Field<Set::Scalar> laser_mf;
 
@@ -120,7 +117,6 @@ protected:
         Set::Scalar Telastic = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
-        Set::Scalar pressure_mult = NAN;
         int phirefinement = -1;
     } elastic;
 

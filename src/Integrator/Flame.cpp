@@ -22,7 +22,7 @@ namespace Integrator
 
 Flame::Flame() : 
     Base::Mechanics<model_type>(), 
-    Hydro(eta_mf, eta_old_mf, true)
+    Hydro(eta_flow_mf, eta_flow_old_mf, true)
 {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
@@ -100,7 +100,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     //
     // PHASE FIELD VARIABLES
     //
-        
+
     // Burn width thickness
     pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
     // Interface energy param
@@ -118,10 +118,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+    value.RegisterNewFab(value.eta_flow_mf, value.bc_eta, 1, 2, "etaflow", true);
+    value.RegisterNewFab(value.eta_flow_old_mf, value.bc_eta, 1, 2, "etaflow_old", false);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
-
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom);
 
 
     // Select reduced order model to capture heat feedback
@@ -157,6 +158,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
+        value.RegisterNewFab(value.rho_htpb_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
+        value.RegisterNewFab(value.rho_AP_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
+        value.RegisterNewFab(value.rho_tot_mf, value.bc_temp, 1, 0, "rho_tot", value.plot_field); // Density of total gaseous field
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -175,12 +179,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
 
-
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
 
     // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, false);
+    pp_query_default("variable_pressure", value.variable_pressure, true);
 
     // Refinement criterion for eta field   
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -236,12 +239,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.hydro.on)
     {
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
-        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
-        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
-        pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
-        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
+        pp.query_default("hydro.rho_ap", value.hydro.rho_ap, 1.0);
+        pp.query_default("hydro.rho_htpb", value.hydro.rho_htpb, 1.0);
+        pp.query_default("hydro.u0_ap", value.hydro.u0_ap, 0.0);
+        pp.query_default("hydro.u0_htpb", value.hydro.u0_htpb, 0.0);
+        pp.query_default("hydro.eta_exp", value.hydro.eta_exp, 3);
 
-        pp.queryclass<Hydro>("hydro",value);
+        pp.queryclass<Hydro>("hydro", value);
     }
 
 
@@ -265,6 +269,8 @@ void Flame::Initialize(int lev)
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
+    ic_eta->Initialize(lev, eta_flow_mf);
+    ic_eta->Initialize(lev, eta_flow_old_mf);
     ic_phi->Initialize(lev, phi_mf);
     //ic_phicell->Initialize(lev, phicell_mf);
 
@@ -371,6 +377,16 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<const Set::Scalar> phi_patch    = phi_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> rho_AP = rho_AP_mf.Patch(lev,mfi); // Set scalar value for density of AP
+        Set::Patch<Set::Scalar> rho_HTPB = rho_htpb_mf.Patch(lev,mfi); // Set scalar value for density of HTPB
+        Set::Patch<Set::Scalar> rho_tot = rho_tot_mf.Patch(lev,mfi); // Set scalar value for total density of the gaseous phase
+        Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
+
+        Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
+        Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
+        Real R = 8314; // Ideal gas constant (J/kmol-k)
+        Real Pref = Hydro::pref; // Find the reference temperature from Hydro
+        Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
@@ -379,13 +395,18 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch,i,j,k,0);
-            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
+            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+            pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
+            rho_AP(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
+            rho_HTPB(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
+            rho_tot(i,j,k) = rho_AP(i,j,k)*phi + rho_HTPB(i,j,k)*(1.0 - phi);
+
+            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
             
-            
+            // Set::Vector u0(hydro.)
             Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
-            u0_patch(i,j,k,0) = u0(0);
+            u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
             u0_patch(i,j,k,1) = u0(1);
 
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
@@ -406,9 +427,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
     Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
     Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
 }
-
-
-
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
@@ -445,21 +463,21 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     const Set::Scalar* DX = geom[lev].CellSize();
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
+    std::swap(eta_flow_old_mf[lev], eta_flow_mf[lev]);
 
     //
     // Chamber pressure update
     //
-    if (variable_pressure) {
-        chamber.pressure = exp(0.00075 * chamber.massflux);
-        if (chamber.pressure > 10.0) {
-            chamber.pressure = 10.0;
-        }
-        else if (chamber.pressure <= 0.99) {
-            chamber.pressure = 0.99;
-        }
-        elastic.traction = chamber.pressure;
-    }
-
+    // if (variable_pressure) {
+    //     chamber.pressure = exp(0.00075 * chamber.massflux);
+    //     if (chamber.pressure > 10.0) {
+    //         chamber.pressure = 10.0;
+    //     }
+    //     else if (chamber.pressure <= 0.99) {
+    //         chamber.pressure = 0.99;
+    //     }
+    //     elastic.traction = chamber.pressure;
+    // }
 
     //
     // Multi-well chemical potential
@@ -478,10 +496,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         const amrex::Box& bx = mfi.tilebox();
         // Phase fields
         Set::Patch<Set::Scalar> etanew    = eta_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> etaflow = eta_flow_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta = eta_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev,mfi);
         // Heat transfer fields
-        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp  = temp_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       alpha = alpha_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       laser = laser_mf.Patch(lev,mfi);
         // Diagnostic fields
@@ -507,6 +526,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
+            
+            if (eta(i,j,k) < 0.25)
+            {
+                L = std::max(L,0.01);
+            }
+
 
             // 
             // EVOLVE PHASE FIELD (ETA)
@@ -515,7 +540,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
+
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+
+            etaflow(i,j,k) = 1.0;
+            for (int exp = 0; exp < hydro.eta_exp; exp++) etaflow(i,j,k) *= etanew(i,j,k);
 
             if (thermal.on)
             {
