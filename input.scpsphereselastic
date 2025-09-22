@@ -7,14 +7,14 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 0.0005_s
+amr.plot_dt = 0.0001_s
 amr.max_grid_size = 64
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 20.0_K
-amr.phi_refinement_criterion = 0.5
+#amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 #amr.node.all = 1
 
@@ -163,7 +163,7 @@ model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
 # Elastic solver information
 elastic.solver.verbose = 4
 elastic.solver.fixed_iter = 500
-elastic.solver.nriters = 200
+elastic.solver.nriters = 1
 elastic.solver.nrtolerance = 1E-5
 elastic.print_model = 1
 elastic.print_residual = 1

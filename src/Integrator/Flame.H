@@ -115,6 +115,7 @@ protected:
     struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
+        Set::Scalar pressure_mult = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
