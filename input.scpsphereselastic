@@ -180,9 +180,9 @@ elastic.traction = 0.0
 
 hydro.on = 1
 hydro.tstart = 0.001
-hydro.rho_ap = 0.5
-hydro.rho_htpb = 0.25
-hydro.u0_ap = 40.0
+hydro.rho_ap = 2.0
+hydro.rho_htpb = 1.0
+hydro.u0_ap = 5.0
 hydro.u0_htpb = 20.0 # 20.0 
 hydro.density.ic.constant.value = 1.0
 hydro.solid.density.ic.constant.value = 1.0

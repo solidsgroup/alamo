@@ -478,17 +478,17 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     //
     // Chamber pressure update
-    //
-    // if (variable_pressure) {
-    //     chamber.pressure = exp(0.00075 * chamber.massflux);
-    //     if (chamber.pressure > 10.0) {
-    //         chamber.pressure = 10.0;
-    //     }
-    //     else if (chamber.pressure <= 0.99) {
-    //         chamber.pressure = 0.99;
-    //     }
-    //     elastic.traction = chamber.pressure;
-    // }
+    
+    if (variable_pressure) {
+        chamber.pressure = exp(0.00075 * chamber.massflux);
+        if (chamber.pressure > 10.0) {
+            chamber.pressure = 10.0;
+        }
+        else if (chamber.pressure <= 0.99) {
+            chamber.pressure = 0.99;
+        }
+        elastic.traction = chamber.pressure;
+    }
 
     //
     // Multi-well chemical potential
