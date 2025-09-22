@@ -100,7 +100,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     //
     // PHASE FIELD VARIABLES
     //
-
+        
     // Burn width thickness
     pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
     // Interface energy param
@@ -120,7 +120,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom);
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
+
 
 
     // Select reduced order model to capture heat feedback
@@ -156,9 +157,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-        value.RegisterNewFab(value.rho_htpb_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
-        value.RegisterNewFab(value.rho_AP_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
-        value.RegisterNewFab(value.rho_tot_mf, value.bc_temp, 1, 0, "rho_tot", value.plot_field); // Density of total gaseous field
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -177,11 +175,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
 
+
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
 
     // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, true);
+    pp_query_default("variable_pressure", value.variable_pressure, false);
 
     // Refinement criterion for eta field   
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -211,10 +210,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("elastic.on", value.elastic.on, 0); 
 
     // Body force
-    pp_query_default("elastic.traction", value.elastic.traction, 0.0);
-
-    pp.query_default("elastic.pressure_mult", value.elastic.pressure_mult, 1.0);
-    
+    pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
 
     // Phi refinement criteria 
     pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
@@ -240,13 +236,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.hydro.on)
     {
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
-        pp.query_default("hydro.rho_ap", value.hydro.rho_ap, 1.0);
-        pp.query_default("hydro.rho_htpb", value.hydro.rho_htpb, 1.0);
-        pp.query_default("hydro.u0_ap", value.hydro.u0_ap, 0.0);
-        pp.query_default("hydro.u0_htpb", value.hydro.u0_htpb, 0.0);
-        pp.query_default("hydro.eta_exp", value.hydro.eta_exp, 3);
+        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
+        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
+        pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
+        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
 
-        pp.queryclass<Hydro>("hydro", value);
+        pp.queryclass<Hydro>("hydro",value);
     }
 
 
@@ -319,29 +314,14 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as boundary condition
 
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX); // Update this line
-                    Set::Vector grad_pres = Numeric::CellGradientOnNode(pressure, i, j, k, 0, DX);
-                    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                    // rhs(i, j, k) = (elastic.traction) * grad_eta;
-                    Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
-                    Set::Scalar pres_reg_mag = pres_reg.lpNorm<2>();
-
-                    // while (pres_reg_mag > 10) {
-
-                    //     pres_reg = pres_reg*0.1;
-                    //     pres_reg_mag = pres_reg.lpNorm<2>();
-
-                    // } // Add a while loop to prevent the rhs from getting too large which causes the simulation to fail
-
-                    rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
-                    // rhs(i, j, k) = (elastic.traction) * grad_eta - elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+                    rhs(i, j, k) = elastic.traction * grad_eta;
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -391,16 +371,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<const Set::Scalar> phi_patch    = phi_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> rho_AP = rho_AP_mf.Patch(lev,mfi); // Set scalar value for density of AP
-        Set::Patch<Set::Scalar> rho_HTPB = rho_htpb_mf.Patch(lev,mfi); // Set scalar value for density of HTPB
-        Set::Patch<Set::Scalar> rho_tot = rho_tot_mf.Patch(lev,mfi); // Set scalar value for total density of the gaseous phase
-        Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
-
-        Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
-        Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
-        Real R = 8314; // Ideal gas constant (J/kmol-k)
-        Real Pref = Hydro::pref; // Find the reference temperature from Hydro
-        Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation (K)
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
@@ -409,24 +379,20 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
-            rho_AP(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
-            rho_HTPB(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
-            rho_tot(i,j,k) = rho_AP(i,j,k)*phi + rho_HTPB(i,j,k)*(1.0 - phi); // Find the average density of the fluid based on the solid species
-
-            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
+            Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch,i,j,k,0);
+            m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi);
             solidrho(i,j,k) = m0(i,j,k);
             
+            
             Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
-            u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
+            u0_patch(i,j,k,0) = u0(0);
             u0_patch(i,j,k,1) = u0(1);
 
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
             {
                 Set::Vector grad_eta = -Numeric::Gradient(eta, i, j, k, 0, DX);
                 Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                Set::Vector N = grad_eta / (grad_eta_mag + small); // Example of finding the normal vector
+                Set::Vector N = grad_eta / (grad_eta_mag + small);
                 Set::Vector T(N(1), -N(0));
                 u0 = N * u0(0) + T * u0(1);
             }
@@ -440,6 +406,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
     Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
     Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
 }
+
+
+
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
@@ -480,16 +449,17 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //
     // Chamber pressure update
     //
-    // if (variable_pressure) {
-    //     chamber.pressure = exp(0.00075 * chamber.massflux);
-    //     if (chamber.pressure > 10.0) {
-    //         chamber.pressure = 10.0;
-    //     }
-    //     else if (chamber.pressure <= 0.99) {
-    //         chamber.pressure = 0.99;
-    //     }
-    //     elastic.traction = chamber.pressure;
-    // }
+    if (variable_pressure) {
+        chamber.pressure = exp(0.00075 * chamber.massflux);
+        if (chamber.pressure > 10.0) {
+            chamber.pressure = 10.0;
+        }
+        else if (chamber.pressure <= 0.99) {
+            chamber.pressure = 0.99;
+        }
+        elastic.traction = chamber.pressure;
+    }
+
 
     //
     // Multi-well chemical potential
@@ -704,7 +674,6 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
-
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -713,14 +682,13 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
             chamber.area += da;
-            
+
             Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
             Set::Scalar mnormgrad = mgrad.lpNorm<2>();
             Set::Scalar dm = mnormgrad * dv;
             chamber.massflux += dm;
+
         });
-
-
     }
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -735,3 +703,5 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
+
+
