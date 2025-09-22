@@ -240,18 +240,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     if (value.hydro.on)
     {
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
-<<<<<<< HEAD
         pp.query_default("hydro.rho_ap", value.hydro.rho_ap, 1.0);
         pp.query_default("hydro.rho_htpb", value.hydro.rho_htpb, 1.0);
         pp.query_default("hydro.u0_ap", value.hydro.u0_ap, 0.0);
         pp.query_default("hydro.u0_htpb", value.hydro.u0_htpb, 0.0);
         pp.query_default("hydro.eta_exp", value.hydro.eta_exp, 3);
-=======
-        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
-        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
-        pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
-        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
->>>>>>> parent of 9a8819735 (Merge branch 'investigation/integrate-flame-hydro' of github.com:solidsgroup/alamo into investigation/integrate-flame-hydro)
 
         pp.queryclass<Hydro>("hydro", value);
     }
