@@ -94,7 +94,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = 1;
+        int nghost = 2; // Try changing to 2 to see if it helps hydro (Claude suggestion)
 
         if (!value.managed)
         {

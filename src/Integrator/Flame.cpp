@@ -181,7 +181,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
 
     // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, true);
+    pp_query_default("variable_pressure", value.variable_pressure, false);
 
     // Refinement criterion for eta field   
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -330,17 +330,10 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     // rhs(i, j, k) = (elastic.traction) * grad_eta;
                     Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
-                    Set::Scalar pres_reg_mag = pres_reg.lpNorm<2>();
-
-                    // while (pres_reg_mag > 10) {
-
-                    //     pres_reg = pres_reg*0.1;
-                    //     pres_reg_mag = pres_reg.lpNorm<2>();
-
-                    // } // Add a while loop to prevent the rhs from getting too large which causes the simulation to fail
-
                     rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
-                    // rhs(i, j, k) = (elastic.traction) * grad_eta - elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+
+
+                    // rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -434,6 +427,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
             solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
         });
     }
+
     Util::RealFillBoundary(*solid.density_mf[lev],geom[lev]);
     Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
     Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
@@ -479,16 +473,16 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //
     // Chamber pressure update
     
-    if (variable_pressure) {
-        chamber.pressure = exp(0.00075 * chamber.massflux);
-        if (chamber.pressure > 10.0) {
-            chamber.pressure = 10.0;
-        }
-        else if (chamber.pressure <= 0.99) {
-            chamber.pressure = 0.99;
-        }
-        elastic.traction = chamber.pressure;
-    }
+    // if (variable_pressure) {
+    //     chamber.pressure = exp(0.00075 * chamber.massflux);
+    //     if (chamber.pressure > 10.0) {
+    //         chamber.pressure = 10.0;
+    //     }
+    //     else if (chamber.pressure <= 0.99) {
+    //         chamber.pressure = 0.99;
+    //     }
+    //     elastic.traction = chamber.pressure;
+    // }
 
     //
     // Multi-well chemical potential
