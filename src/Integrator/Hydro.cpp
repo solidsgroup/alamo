@@ -953,6 +953,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         DAB = 0.0018583*sqrt(pow(temperature(i,j,k), 3.0) * (1.0/species_mw[a] + 1.0/species_mw[b])) / 
                                     (pressure/101325.0*pow(sigmaAB,2.0)*omegaAB);
                         DAB /= 10000.0; // convert from cm^2/s to m^2/s
+                        //std::cout << "DAB: " << DAB << std::endl;
                         DKM(i,j,k,a) += species_molef[b]/DAB;
                     }
                 }
@@ -1157,12 +1158,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
                     (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
                     Source(i, j, k, n);
+                //std::cout << "mass flux: " << (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] << " " << (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] << " " << Source(i, j, k, n) << std::endl;
                 if (nspecies > 1)
                 {
                     grad_DKM  = Numeric::Gradient(DKM, i, j, k, n, DX);
                     grad_rhoY = Numeric::Gradient(rho, i, j, k, n, DX);
                     lap_rhoY  = Numeric::Laplacian(rho, i, j, k, n, DX);
-                    drhof_dt += eta * (DKM(i,j,k)*lap_rhoY + grad_DKM.dot(grad_rhoY));
+                    drhof_dt += eta * (DKM(i,j,k,n)*lap_rhoY + grad_DKM.dot(grad_rhoY));
                 }
 
                 rho_rhs(i,j,k,n) = 
@@ -1217,7 +1219,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     grad_DKM = Numeric::Gradient(DKM, i, j, k, n, DX);
                     grad_rhoY = Numeric::Gradient(rho, i, j, k, n, DX);
                     lap_rhoY = Numeric::Laplacian(rho, i, j, k, n, DX);
-                    dEf_dt += eta * (mixed_H(i,j,k)*DKM(i,j,k)*lap_rhoY + mixed_H(i,j,k)*grad_DKM.dot(grad_rhoY) + DKM(i,j,k)*grad_mixedH.dot(grad_rhoY)) /* - enthalpy of formation for reactions*/;
+                    dEf_dt += 0.0; //eta * (mixed_H(i,j,k)*DKM(i,j,k,n)*lap_rhoY + mixed_H(i,j,k)*grad_DKM.dot(grad_rhoY) + DKM(i,j,k,n)*grad_mixedH.dot(grad_rhoY)) /* - enthalpy of formation for reactions*/;
                 }
             }
 
