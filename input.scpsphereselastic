@@ -174,13 +174,13 @@ elastic.bc.constant.type.ylo = trac disp
 elastic.bc.constant.type.yhi = trac disp 
 elastic.bc.constant.type.xloylo = trac disp 
 elastic.bc.constant.type.xloyhi = trac disp
-elastic.pressure_mult = 0.05
+elastic.pressure_mult = 1
 # No traction on free surface
 elastic.traction = 0.0
 #elastic.elastic_ref_threshold = 0.0005
 
 hydro.on = 1
-hydro.tstart = 0.0005
+hydro.tstart = 0.05 # Was 0.0005
 hydro.rho_ap = 2.0
 hydro.rho_htpb = 1.0
 hydro.u0_ap = 5.0

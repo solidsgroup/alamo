@@ -329,7 +329,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Vector grad_pres = Numeric::CellGradientOnNode(pressure, i, j, k, 0, DX);
                     // Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     // rhs(i, j, k) = (elastic.traction) * grad_eta;
-                    Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    // Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    Set::Vector pres_reg = elastic.pressure_mult* 1 * grad_eta ; // Test making pressure a constant over the entire domain
                     rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
 
                     // rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
