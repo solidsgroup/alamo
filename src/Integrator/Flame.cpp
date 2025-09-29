@@ -319,19 +319,21 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as boundary condition
+            Set::Patch<Set::Scalar> source = Hydro::Source_mf.Patch(lev,mfi); // Take the source term from hydro
 
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
+                {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX); // Update this line
                     Set::Vector grad_pres = Numeric::CellGradientOnNode(pressure, i, j, k, 0, DX);
-                    // Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                    // rhs(i, j, k) = (elastic.traction) * grad_eta;
-                    // Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
-                    Set::Vector pres_reg = elastic.pressure_mult* 1 * grad_eta ; // Test making pressure a constant over the entire domain
+                    Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    rhs(i, j, k) = 0.0*grad_eta;
+                    // rhs(i, j, k)(0) = source(i, j, k, 1);
+                    // rhs(i, j, k)(1) = source(i, j, j, 2);
                     rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
+                    // rhs(i,j,k)(0);// Call the zeroth term of rhs
 
                     // rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
                 });

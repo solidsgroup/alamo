@@ -14,12 +14,12 @@ amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 20.0_K
-amr.phi_refinement_criterion = 0.5
+#amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 4
+amr.max_level = 3
 
 
 # Full size
@@ -174,13 +174,14 @@ elastic.bc.constant.type.ylo = trac disp
 elastic.bc.constant.type.yhi = trac disp 
 elastic.bc.constant.type.xloylo = trac disp 
 elastic.bc.constant.type.xloyhi = trac disp
-elastic.pressure_mult = 1
+elastic.pressure_mult = 0.01
 # No traction on free surface
 elastic.traction = 0.0
 #elastic.elastic_ref_threshold = 0.0005
+elastic.zero_out_displacement = true # Zero out the displacement before each elastic solver iternation
 
 hydro.on = 1
-hydro.tstart = 0.05 # Was 0.0005
+hydro.tstart = 0.0005 # Was 0.0005
 hydro.rho_ap = 2.0
 hydro.rho_htpb = 1.0
 hydro.u0_ap = 5.0
