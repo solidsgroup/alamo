@@ -62,9 +62,30 @@ public:
             (zeta_1 / zeta) * exp(k3 * phi * (1.0 - phi));
         Set::Scalar mlocal = (mlocal_ap) * phi + (mlocal_htpb) * (1.0 - phi) + mlocal_comb * phi * (1.0 - phi);
         Set::Scalar mdota = fabs(mdot);
-        Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
+        Set::Scalar mbase = tanh(4.0 * mdota / (mlocal + 1.e-20));
 
-        return mbase * qflux;
+        if (mbase != mbase) { // Check for NaN
+            Util::Message(INFO, "mdota = ", mdota);
+            Util::Message(INFO, "mlocal = ", mlocal);
+            Util::Message(INFO, "mdot = ", mdot);
+            Util::Message(INFO, "mlocal_ap = ", mlocal_ap);
+            Util::Message(INFO, "mlocal_htpb = ", mlocal_htpb);
+            Util::Message(INFO, "mlocal_comb = ", mlocal_comb);
+            Util::Abort(INFO,"NaN detected in mbase");
+        }
+
+        Set::Scalar qdot = mbase * qflux;
+
+        if (qdot != qdot) { // Check for NaN
+            Util::Message(INFO, "mdot = ", mdot);
+            Util::Message(INFO, "phi = ", phi);
+            Util::Message(INFO, "qflux = ", qflux);
+            Util::Message(INFO, "mlocal = ", mlocal);
+            Util::Message(INFO, "mbase = ", mbase);
+            Util::Abort(INFO,"NaN detected in qdot");
+        }
+
+        return qdot;
     }
 
     AMREX_FORCE_INLINE

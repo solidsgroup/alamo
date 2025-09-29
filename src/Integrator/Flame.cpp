@@ -438,6 +438,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
+            if (L != L) {
+                Util::Message(INFO, "phi = ", phi_avg);
+                Util::Message(INFO, "T = ", T);
+                Util::Message(INFO, "L = ", L);
+                Util::Abort(INFO,"NaN detected in mobility");
+            }
 
             // 
             // EVOLVE PHASE FIELD (ETA)
@@ -447,6 +453,14 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
+
+            if (etanew(i, j, k) != etanew(i, j, k)) { // Check for NaN
+                Util::Message(INFO, "L = ", L);
+                Util::Message(INFO, "df_deta = ", df_deta);
+                Util::Message(INFO, "eta = ", eta(i,j,k));
+                Util::Abort(INFO,"NaN detected in etanew");
+                }
+
 
             if (thermal.on)
             {
@@ -460,7 +474,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // CALCULATE MASS FLUX BASED ON EVOLVING ETA
                 //
             
-                mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; 
+                mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt;
+
+        
 
                 //
                 // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
@@ -468,6 +484,13 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
+                if (heatflux(i,j,k) != heatflux(i,j,k)) { // Check for NaN
+                    Util::Message(INFO, "hc = ", thermal.hc);
+                    Util::Message(INFO, "q0 = ", q0);
+                    Util::Message(INFO, "K = ", K);
+                    Util::Message(INFO, "laser = ", laser(i,j,k));
+                    Util::Abort(INFO,"NaN detected in heatflux");
+                }
 
             }
 
@@ -514,9 +537,30 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 dTdt += eta(i, j, k) * alpha(i, j, k) * lap_temp;
                 dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
 
+                if (dTdt != dTdt) { // Check for NaN
+                    Util::Message(INFO, "grad_eta = ", grad_eta);
+                    Util::Message(INFO, "grad_temp = ", grad_temp);
+                    Util::Message(INFO, "lap_temp = ", lap_temp);
+                    Util::Message(INFO, "grad_alpha = ", grad_alpha);
+                    Util::Message(INFO, "alpha = ", alpha(i,j,k));
+                    Util::Message(INFO, "heatflux = ", heatflux(i,j,k));
+                    Util::Message(INFO, "eta = ", eta(i,j,k));
+                    Util::Abort(INFO,"NaN detected in dTdt");
+                }
+
+
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
                 temps(i, j, k) = temps(i, j, k) + dt * Tsolid;
                 tempnew(i, j, k) = etanew(i, j, k) * temps(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
+
+                if (tempnew(i, j, k) != tempnew(i, j, k)) { // Check for NaN
+                    Util::Message(INFO, "dTdt = ", dTdt);
+                    Util::Message(INFO, "Tsolid = ", Tsolid);
+                    Util::Message(INFO, "temps = ", temps(i,j,k));
+                    Util::Message(INFO, "temp = ", temp(i,j,k));
+                    Util::Abort(INFO,"NaN detected in tempnew");
+                }
+
             });
         }
     }
