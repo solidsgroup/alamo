@@ -817,11 +817,16 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     const amrex::BoxArray &ba = energy_mf[lev]->boxArray();
     const amrex::DistributionMapping &dm = energy_mf[lev]->DistributionMap();
     amrex::MultiFab density_sum_mf(ba,dm,1,nghost); // sum_k[rhoY_k]
-    amrex::MultiFab mixed_k_mf(ba,dm,1,nghost);     // mixture averaged thermal conductivity
+    amrex::MultiFab mixed_k_mf(ba,dm,1,nghost);     // mixture averaged thermal conductivity coefficient
+    amrex::MultiFab mixed_kT_mf(ba,dm,2,nghost);     // mixture averaged thermal conductivity
     amrex::MultiFab mixed_mu_mf(ba,dm,1,nghost);    // mixture averaged dynamic viscosity
     amrex::MultiFab mixed_H_mf(ba,dm,1,nghost);     // Perfect gas mixture enthalpy, H=cp_mix*T
     amrex::MultiFab DKM_mf(ba,dm,nspecies,nghost);  // Diffusion coefficent for species k into mixture
     amrex::MultiFab MF_mf(ba,dm,nspecies,nghost);   // mass fraction
+    amrex::MultiFab rhoHDYx_mf(ba,dm,nspecies,nghost);   // species enthalpy diffusion, rho*H*D*dY/dx
+    amrex::MultiFab rhoHDYy_mf(ba,dm,nspecies,nghost);   // species enthalpy diffusion, rho*H*D*dY/dy
+    amrex::MultiFab rhoDYx_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dx
+    amrex::MultiFab rhoDYy_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dy
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
@@ -852,10 +857,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>    temperature  = temperature_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>        rho_sum  = density_sum_mf.array(mfi);
         Set::Patch<Set::Scalar>        mixed_k  = mixed_k_mf.array(mfi);
+        Set::Patch<Set::Scalar>       mixed_kT  = mixed_kT_mf.array(mfi);
         Set::Patch<Set::Scalar>       mixed_mu  = mixed_mu_mf.array(mfi);
         Set::Patch<Set::Scalar>        mixed_H  = mixed_H_mf.array(mfi);
         Set::Patch<Set::Scalar>            DKM  = DKM_mf.array(mfi);
         Set::Patch<Set::Scalar>             MF  = MF_mf.array(mfi);
+        Set::Patch<Set::Scalar>        rhoHDYx  = rhoHDYx_mf.array(mfi);
+        Set::Patch<Set::Scalar>        rhoHDYy  = rhoHDYy_mf.array(mfi);
+        Set::Patch<Set::Scalar>         rhoDYx  = rhoDYx_mf.array(mfi);
+        Set::Patch<Set::Scalar>         rhoDYy  = rhoDYy_mf.array(mfi);
 
         Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
@@ -955,31 +965,60 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         DAB = 0.0018583*sqrt(pow(temperature(i,j,k), 3.0) * (1.0/species_mw[a] + 1.0/species_mw[b])) / 
                                     (pressure/101325.0*pow(sigmaAB,2.0)*omegaAB);
                         DAB /= 10000.0; // convert from cm^2/s to m^2/s
-                        //std::cout << "DAB: " << DAB << std::endl;
                         DKM(i,j,k,a) += species_molef[b]/DAB;
                     }
                 }
                 DKM(i,j,k,a) = (1.0 - species_molef[a])/DKM(i,j,k,a);
                 MF(i,j,k,a) = species_massf[a];
                 if ( DKM(i,j,k,a) != DKM(i,j,k,a) ) {DKM(i,j,k,a) = 0.0;} // Set to zero if nan or inf (pure species locally)
-                //molecularenergy += rho(i,j,k) * enthalpy * DKM * gradY[i,j,k,a]; // need to define enthalpy and gradY
-                //Util::ParallelMessage(INFO,"pressure: ", pressure, " | pref: ", pref, " | temp: ", temperature(i,j,k));
-                //Util::ParallelMessage(INFO, species[a], ": DAB: ", DAB, "; DKM: ", DKM[a]);
 
                 mixed_mu(i,j,k) += species_molef[a] * species_mu[a] / phi;
                 mixed_k(i,j,k)  += species_molef[a] * species_k[a] / phi;
             }
-            //Util::ParallelMessage(INFO,"species: ", species[0], ", ", species[1], ", ", species[2]);
-            //Util::ParallelMessage(INFO,"species_massf: ", species_massf[0], ", ", species_massf[1], ", ", species_massf[2]);
-            //Util::ParallelMessage(INFO,"species_mw: ", species_mw[0], ", ", species_mw[1], ", ", species_mw[2]);
-            //Util::ParallelMessage(INFO,"species_cp: ", species_cp[0], ", ", species_cp[1], ", ", species_cp[2]);
-            //Util::ParallelMessage(INFO,"species_mu: ", species_mu[0], ", ", species_mu[1], ", ", species_mu[2]);
-            //Util::ParallelMessage(INFO,"species_k: ", species_k[0], ", ", species_k[1], ", ", species_k[2]);
-            //Util::ParallelMessage(INFO,"mixed_mw: ", mixed_mw);
-            //Util::ParallelMessage(INFO,"mixed_cp: ", mixed_cp, " | mixed_cv: ", mixed_cv);
-            //Util::ParallelMessage(INFO,"mixed_mu: ", mixed_mu);
-            //Util::ParallelMessage(INFO,"mixed_k: ", mixed_k);
-            //Util::Exception(INFO,"Aborting.");
+        });
+        amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {   
+            for (int n=0; n<nspecies; ++n) 
+            {
+                Set::Vector grad_MF = Numeric::Gradient(MF,i,j,k,n,DX);
+                if (i == bx_ghost.smallEnd(0)) {
+                    grad_MF(0) = (MF(i+1,j,k,n) - MF(i,j,k,n))/DX[0];
+                } else if (i == bx_ghost.bigEnd(0)) {
+                    grad_MF(0) = (MF(i,j,k,n) - MF(i-1,j,k,n))/DX[0];
+                }
+                if (j == bx_ghost.smallEnd(1)) {
+                    grad_MF(1) = (MF(i,j+1,k,n) - MF(i,j,k,n))/DX[1];
+                } else if (j == bx_ghost.bigEnd(1)) {
+                    grad_MF(1) = (MF(i,j,k,n) - MF(i,j-1,k,n))/DX[1];
+                }
+                rhoHDYx(i,j,k,n)    = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_MF(0);
+                rhoHDYy(i,j,k,n)    = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_MF(1);
+                rhoDYx(i,j,k,n)     = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_MF(0);
+                rhoDYy(i,j,k,n)     = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_MF(1);
+            }
+            Set::Vector gradT       = Numeric::Gradient(temperature,i,j,k,0,DX);
+            if (i == bx_ghost.smallEnd(0)) {
+                gradT(0) = (temperature(i+1,j,k) - temperature(i,j,k))/DX[0];
+            } else if (i == bx_ghost.bigEnd(0)) {
+                gradT(0) = (temperature(i,j,k) - temperature(i-1,j,k))/DX[0];
+            }
+            if (j == bx_ghost.smallEnd(1)) {
+                gradT(1) = (temperature(i,j+1,k) - temperature(i,j,k))/DX[1];
+            } else if (j == bx_ghost.bigEnd(1)) {
+                gradT(1) = (temperature(i,j,k) - temperature(i,j-1,k))/DX[1];
+            }
+            mixed_kT(i,j,k,0)       = mixed_k(i,j,k)*gradT(0);
+            mixed_kT(i,j,k,1)       = mixed_k(i,j,k)*gradT(1);
+            //Util::ParallelMessage(INFO,"\nijk: ", i, " ", j, " ", k, " DX: ", DX[0]);
+            //Util::ParallelMessage(INFO,"bx_ghost: ", bx_ghost, " ", bx_ghost.smallEnd(0));
+            //Util::ParallelMessage(INFO,"mixed_kT: ", mixed_kT(i,j,k,0), " ", mixed_kT(i,j,k,1), " mixed_k: ", mixed_k(i,j,k), " gradT: ", gradT(0), " ", gradT(1));
+            //Util::ParallelMessage(INFO,"temperature [i-1,i,i+1,j-1,j+1]: ", temperature(i-1,j,k), ",", temperature(i,j,k), ",", temperature(i+1,j,k), ",", temperature(i,j-1,k), ",", temperature(i,j+1,k));
+            //for (int n=0; n<nspecies; ++n) {
+            //    Util::ParallelMessage(INFO,"rhoHDYx[", n, "]: ", rhoHDYx(i,j,k,n));
+            //    Util::ParallelMessage(INFO,"rhoDYx[", n, "]: ", rhoDYx(i,j,k,n));
+            //    Util::ParallelMessage(INFO,"rhoHDYy[", n, "]: ", rhoHDYy(i,j,k,n));
+            //    Util::ParallelMessage(INFO,"rhoDYy[", n, "]: ", rhoDYy(i,j,k,n));
+            //}
         });
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1000,21 +1039,17 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho      = Numeric::Gradient(rho_sum,i,j,k,0,DX);
-            Set::Scalar laprho       = Numeric::Laplacian(rho_sum,i,j,k,0,DX);
             Set::Matrix hess_rho     = Numeric::Hessian(rho_sum,i,j,k,0,DX);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho_sum(i,j,k);
 
-            Set::Vector gradT        = Numeric::Gradient(temperature,i,j,k,0,DX);
-            Set::Scalar lapT         = Numeric::Laplacian(temperature,i,j,k,0,DX);
-            Set::Vector grad_mixedk  = Numeric::Gradient(mixed_k,i,j,k,0,DX);
-            Set::Vector grad_mixedH  = Numeric::Gradient(mixed_H,i,j,k,0,DX);
+            Set::Vector grad_mixed_kTx  = Numeric::Gradient(mixed_kT,i,j,k,0,DX);
+            Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX);
 
             // These need to be recalculated for each species
-            Set::Vector grad_DKM     = Numeric::Gradient(DKM,i,j,k,0,DX);
-            Set::Vector grad_rhoY    = Numeric::Gradient(rho,i,j,k,0,DX);
-            Set::Scalar lap_rhoY     = Numeric::Laplacian(rho,i,j,k,0,DX);
-            Set::Vector grad_MF       = Numeric::Gradient(MF,i,j,k,0,DX);
-            Set::Scalar lap_MF        = Numeric::Laplacian(MF,i,j,k,0,DX);
+            Set::Vector grad_rhoHDYx    = Numeric::Gradient(rhoHDYx,i,j,k,0,DX);
+            Set::Vector grad_rhoHDYy    = Numeric::Gradient(rhoHDYy,i,j,k,0,DX);
+            Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,0,DX);
+            Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,0,DX);
             // End
 
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
@@ -1142,11 +1177,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
-            std::cout << "ijk: " << i << " " << j << " " << k << " dx: " << DX[0] << std::endl;
-            std::cout << "xlo: " << state_xlo_fluid << std::endl;
-            std::cout << "x: " << state_x_fluid << std::endl;
-            std::cout << "xhi: " << state_xhi_fluid << std::endl;
-
             try
             {
                 //lo interface fluxes
@@ -1166,18 +1196,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             for (int n=0; n<nspecies; ++n) {
                 Set::Scalar drhof_dt = 
-                    //(flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
-                    //(flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
+                    (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
+                    (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
                     Source(i, j, k, n);
-                std::cout << "mass flux: " << (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] << " " << (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] << " " << Source(i, j, k, n) << std::endl;
                 if (nspecies > 1)
                 {
-                    grad_DKM  = Numeric::Gradient(DKM, i, j, k, n, DX);
-                    grad_rhoY = Numeric::Gradient(rho, i, j, k, n, DX);
-                    lap_rhoY  = Numeric::Laplacian(rho, i, j, k, n, DX);
-                    grad_MF   = Numeric::Gradient(MF, i, j, k, n, DX);
-                    lap_MF    = Numeric::Laplacian(MF, i, j, k, n, DX);
-                    drhof_dt += eta * (DKM(i,j,k,n)*(lap_rhoY - MF(i,j,k,n)*laprho - grad_MF.dot(gradrho)) + grad_DKM.dot(grad_rhoY - MF(i,j,k,n)*gradrho));
+                    // species diffusion term, d/dx_i(rho*DKM*Y,i)
+                    Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX);
+                    Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX);
+                    drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
                 }
 
                 rho_rhs(i,j,k,n) = 
@@ -1191,8 +1218,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
                     
             Set::Scalar dMxf_dt =
-                //(flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
-                //(flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
+                (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
+                (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
                 eta * (div_tau(0) + g(0)*rho_sum(i,j,k)) +
                 Source(i, j, k, nspecies+0);
 
@@ -1210,8 +1237,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
                 eta * (div_tau(1) + g(1)*rho_sum(i,j,k)) +
                 Source(i, j, k, nspecies+1);
-            
-            std::cout << "momentum flux: " << (flux_xlo.momentum_normal - flux_xhi.momentum_normal) / DX[0] << " " << (flux_ylo.momentum_normal - flux_yhi.momentum_normal) / DX[1] << " " << Source(i, j, k, nspecies) << std::endl;
                 
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
@@ -1223,26 +1248,18 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 ;
 
             Set::Scalar dEf_dt =
-                //(flux_xlo.energy - flux_xhi.energy) / DX[0] +
-                //(flux_ylo.energy - flux_yhi.energy) / DX[1] +
-                eta * (div_tau.dot(u) + mixed_k(i,j,k)*lapT + grad_mixedk.dot(gradT) + rho_sum(i,j,k)*g.dot(u)) +
+                (flux_xlo.energy - flux_xhi.energy) / DX[0] +
+                (flux_ylo.energy - flux_yhi.energy) / DX[1] +
+                eta * (div_tau.dot(u) + (grad_mixed_kTx[0] + grad_mixed_kTy[1]) + rho_sum(i,j,k)*g.dot(u)) +
                 Source(i, j, k, nspecies+2);
 
             if (nspecies > 1)
             {
                 for (int n=0; n<nspecies; ++n) {
-                    grad_DKM = Numeric::Gradient(DKM, i, j, k, n, DX);
-                    grad_rhoY = Numeric::Gradient(rho, i, j, k, n, DX);
-                    lap_rhoY = Numeric::Laplacian(rho, i, j, k, n, DX);
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
-                    dEf_dt += 0.0*eta * (
-                                  rho_sum(i,j,k)*(
-                                      mixed_H(i,j,k)*(DKM(i,j,k,n)*lap_MF + grad_DKM.dot(grad_MF)) + 
-                                      DKM(i,j,k,n)*grad_mixedH.dot(grad_MF)
-                                  ) + 
-                                  mixed_H(i,j,k)*DKM(i,j,k,n)*gradrho.dot(grad_MF)
-                                  // - enthalpy of formation for reactions
-                              );
+                    Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
+                    Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
+                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]);
                               
                 }
             }
@@ -1255,7 +1272,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta+small)
                 // ) * dt;
                 ;
-            std::cout << "energy flux: " << (flux_xlo.energy - flux_xhi.energy) / DX[0] << " " << (flux_ylo.energy - flux_yhi.energy) / DX[1] << " " << Source(i, j, k, nspecies + 2) << std::endl;
 
             
 #ifdef AMREX_DEBUG

@@ -60,7 +60,6 @@ public:
         }
         gamma_L = cp_L/cv_L;
         gamma_R = cp_R/cv_R;
-        std::cout << "gamma: " << gamma_L << " " << gamma_R << std::endl;
             // density ratio
         /*Set::Scalar Rrho = std::sqrt(rho_R / rho_L);*/
 

@@ -3,7 +3,7 @@
 ####################
 
 stop_time = 0.5
-timestep = 1e-5
+timestep = 1e-6
 
 ####################
 # AMReX Parameters #
@@ -18,8 +18,8 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
 
-amr.n_cell = 64 8
-#amr.n_cell = 256 8
+#amr.n_cell = 64 8
+amr.n_cell = 256 8
 geometry.prob_lo = 0.0 -0.3
 geometry.prob_hi = 1.0  0.3
 geometry.is_periodic = 0 1 0
@@ -76,7 +76,7 @@ density.ic.type = expression
 density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
-density.ic.expression.constant.eps = 0.2
+density.ic.expression.constant.eps = 0.01
 density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-1/2)/eps))"
 density.ic.expression.region1 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
 #density.ic.expression.region0 = "P/R/T * (x<=0.5)"
@@ -163,7 +163,7 @@ cfl_v   = 10.0
 #hydro.solver.type = roe
 #hydro.solver.roe.lowmach = 1
 
-solver.type = hlle
+solver.type = hllc
 
 #dynamictimestep.on = 0
 #dynamictimestep.verbose = 1
