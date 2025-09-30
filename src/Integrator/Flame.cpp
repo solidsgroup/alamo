@@ -214,7 +214,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("elastic.traction", value.elastic.traction, 0.0);
 
     pp.query_default("elastic.pressure_mult", value.elastic.pressure_mult, 1.0);
-    
 
     // Phi refinement criteria 
     pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
@@ -333,9 +332,10 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     // rhs(i, j, k)(0) = source(i, j, k, 1);
                     // rhs(i, j, k)(1) = source(i, j, j, 2);
                     rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
-                    // rhs(i,j,k)(0);// Call the zeroth term of rhs
-
-                    // rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
+                    
+                    if (eta(i,j,k) < 1e-6){
+                        rhs(i, j, k) = grad_eta*0.0;
+                    }
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
