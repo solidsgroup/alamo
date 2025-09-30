@@ -12,7 +12,7 @@
 #include <typeinfo>
 //#include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
-//#include "Solver/Local/Riemann/HLLC.H"
+#include "Solver/Local/Riemann/HLLC.H"
 #if AMREX_SPACEDIM == 2
 
 namespace Integrator
@@ -209,8 +209,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     // Riemann solver
     pp.select_default</*Solver::Local::Riemann::Roe,*/
-                      Solver::Local::Riemann::HLLE/*,
-                      Solver::Local::Riemann::HLLC*/>("solver",value.riemannsolver);
+                      Solver::Local::Riemann::HLLE,
+                      Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
 
     std::string prescribedflowmode_str;
@@ -800,7 +800,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
-            p(i,j,k) = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))-pref;
+            p(i,j,k) = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))+pref;
 
             if (eta < small) 
             {
@@ -1166,8 +1166,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             for (int n=0; n<nspecies; ++n) {
                 Set::Scalar drhof_dt = 
-                    (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
-                    (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
+                    //(flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
+                    //(flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
                     Source(i, j, k, n);
                 std::cout << "mass flux: " << (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] << " " << (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] << " " << Source(i, j, k, n) << std::endl;
                 if (nspecies > 1)
@@ -1191,8 +1191,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
                     
             Set::Scalar dMxf_dt =
-                (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
-                (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
+                //(flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
+                //(flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
                 eta * (div_tau(0) + g(0)*rho_sum(i,j,k)) +
                 Source(i, j, k, nspecies+0);
 
@@ -1223,8 +1223,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 ;
 
             Set::Scalar dEf_dt =
-                (flux_xlo.energy - flux_xhi.energy) / DX[0] +
-                (flux_ylo.energy - flux_yhi.energy) / DX[1] +
+                //(flux_xlo.energy - flux_xhi.energy) / DX[0] +
+                //(flux_ylo.energy - flux_yhi.energy) / DX[1] +
                 eta * (div_tau.dot(u) + mixed_k(i,j,k)*lapT + grad_mixedk.dot(gradT) + rho_sum(i,j,k)*g.dot(u)) +
                 Source(i, j, k, nspecies+2);
 
@@ -1235,7 +1235,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     grad_rhoY = Numeric::Gradient(rho, i, j, k, n, DX);
                     lap_rhoY = Numeric::Laplacian(rho, i, j, k, n, DX);
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
-                    dEf_dt += eta * (
+                    dEf_dt += 0.0*eta * (
                                   rho_sum(i,j,k)*(
                                       mixed_H(i,j,k)*(DKM(i,j,k,n)*lap_MF + grad_DKM.dot(grad_MF)) + 
                                       DKM(i,j,k,n)*grad_mixedH.dot(grad_MF)
