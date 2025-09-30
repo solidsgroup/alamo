@@ -76,8 +76,11 @@ density.ic.type = expression
 density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
-density.ic.expression.region0 = "P/R/T * (x<=0.5)"
-density.ic.expression.region1 = "P/R/T * (x>0.5)"
+density.ic.expression.constant.eps = 0.2
+density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-1/2)/eps))"
+density.ic.expression.region1 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
+#density.ic.expression.region0 = "P/R/T * (x<=0.5)"
+#density.ic.expression.region1 = "P/R/T * (x>0.5)"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
@@ -109,13 +112,13 @@ density.bc.constant.type.xhi = dirichlet dirichlet
 density.bc.constant.type.xlo = dirichlet dirichlet
 density.bc.constant.type.yhi = periodic periodic
 density.bc.constant.type.ylo = periodic periodic
-density.bc.constant.val.xhi = 0.0 1.3
-density.bc.constant.val.xlo = 1.3 0.0
+density.bc.constant.val.xhi = 0.0 1.299887089
+density.bc.constant.val.xlo = 1.299887089 0.0
 density.bc.constant.val.yhi = 0.0 0.0
 density.bc.constant.val.ylo = 0.0 0.0
 
-momentum.bc.constant.type.xhi = neumann neumann
-momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.xhi = dirichlet dirichlet
+momentum.bc.constant.type.xlo = dirichlet dirichlet
 momentum.bc.constant.type.ylo = periodic periodic
 momentum.bc.constant.type.yhi = periodic periodic
 momentum.bc.constant.val.xhi = 0.0 0.0

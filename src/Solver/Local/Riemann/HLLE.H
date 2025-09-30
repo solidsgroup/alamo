@@ -129,8 +129,13 @@ public:
         else
         {
             State dState = hi - lo;
+            std::cout << "F_L: " << F_L << std::endl;
+            std::cout << "F_R: " << F_R << std::endl;
+            std::cout << "dState: " << dState << std::endl;
+            std::cout << "S: " << S_R << " " << S_L << " " << S_R - S_L << std::endl;
             Set::Scalar dS = S_R - S_L;
-            return (S_R*F_L - S_L*F_R + S_L*S_R*Flux(dState)) / dS;
+            //return (S_R*F_L - S_L*F_R + S_L*S_R*Flux(dState)) / dS;
+            return (S_R*F_L - S_L*F_R + S_L*S_R*dState) / dS;
         }
     }
 };
