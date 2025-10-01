@@ -109,6 +109,7 @@ Flame::Parse(Flame &value, IO::ParmParse &pp)
     // Burned rest energy
     pp.query_default("pf.w0", value.pf.w0, "0.0", Unit::Less());
 
+    // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1);
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
@@ -418,18 +419,20 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE PHI-AVERAGED QUANTITIES
             //
             Set::Scalar phi_avg = Numeric::Interpolate::NodeToCellAverage(phi, i, j, k, 0);
+            Model::Propellant::PhiArray<2> phi_array{ phi_avg };
+
             Set::Scalar T = thermal.on ? temp(i, j, k) : NAN;
 
-            Set::Scalar K = propellant.get_K(phi_avg);
+            Set::Scalar K = propellant.get_K<2>(phi_array);
 
-            Set::Scalar rho = propellant.get_rho(phi_avg);
+            Set::Scalar rho = propellant.get_rho<2>(phi_array);
 
-            Set::Scalar cp = propellant.get_cp(phi_avg);
+            Set::Scalar cp = propellant.get_cp<2>(phi_array);
 
             //
             // CALCULATE MOBILITY
             //
-            Set::Scalar L = propellant.get_L(phi_avg, T);
+            Set::Scalar L = propellant.get_L<2>(phi_array, T);
 
             //
             // EVOLVE PHASE FIELD (ETA)
@@ -455,7 +458,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 //
                 // CALCULATE HEAT FLUX BASED ON THE CALCULATED MASS FLUX
                 //
-                Set::Scalar q0 = propellant.get_qdot(mdot(i, j, k), phi_avg);
+                Set::Scalar q0 = propellant.get_qdot<2>(mdot(i, j, k), phi_array);
                 heatflux(i, j, k) = (thermal.hc * q0 + laser(i, j, k)) / K;
             }
         });

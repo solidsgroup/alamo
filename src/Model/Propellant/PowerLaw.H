@@ -4,16 +4,24 @@
 // .. bibliography::
 //    :list: none
 //    :filter: False
-// 
+//
 //    kanagarajan2022diffuse
 //
 // This method imitates inheritance :code:`Propellant::Propellant` using static polymorphism
-// 
+//
 
 #ifndef MODEL_PROPELLANT_POWERLAW_H
 #define MODEL_PROPELLANT_POWERLAW_H
 
-#include "Propellant.H"
+#include "AMReX_Extension.H"
+#include "AMReX_GpuQualifiers.H"
+#include "IO/ParmParse.H"
+#include "Model/Propellant/Propellant.H"
+#include "Set/Base.H"
+
+#include <cmath>
+#include <cstddef>
+#include <string>
 
 namespace Model
 {
@@ -22,22 +30,21 @@ namespace Propellant
 class PowerLaw
 {
 public:
-    static constexpr const char* name = "powerlaw";
-    
+    static constexpr const char *name = "powerlaw";
+    static constexpr std::size_t n_species = 2;
+
     PowerLaw() = default;
-    PowerLaw(IO::ParmParse &pp, std::string name) 
+    PowerLaw(IO::ParmParse &pp, std::string name)
     {
-        pp_queryclass(name,*this);
+        pp_queryclass(name, *this);
     }
 
-
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    void set_pressure(const Set::Scalar P) 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void set_pressure(const Set::Scalar P)
     {
         // for the pressure power law option
-        fmod_ap = r_ap * pow(P, n_ap);
-        fmod_htpb = r_htpb * pow(P, n_htpb);
-        fmod_comb = r_comb * pow(P, n_comb);
+        fmod_ap = r_ap * std::pow(P, n_ap);
+        fmod_htpb = r_htpb * std::pow(P, n_htpb);
+        fmod_comb = r_comb * std::pow(P, n_comb);
 
         // a_fit = -1.16582 * sin(P) - 0.681788 * cos(P) + 3.3563;
         // b_fit = -0.708225 * sin(P) + 0.548067 * cos(P) + 1.55985;
@@ -45,16 +52,21 @@ public:
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_K (const Set::Scalar /*phi*/) {return NAN;}
+        Set::Scalar
+        get_K(const Model::Propellant::PhiArray<n_species> & /*phi*/) { return NAN; }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_rho (const Set::Scalar /*phi*/) {return NAN;}
+        Set::Scalar
+        get_rho(const Model::Propellant::PhiArray<n_species> & /*phi*/) { return NAN; }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_cp (const Set::Scalar /*phi*/) {return NAN;}
+        Set::Scalar
+        get_cp(const Model::Propellant::PhiArray<n_species> & /*phi*/) { return NAN; }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_qdot (const Set::Scalar /*mdot*/, const Set::Scalar /*phi*/) {return NAN;}
+        Set::Scalar
+        get_qdot(const Set::Scalar /*mdot*/, const Model::Propellant::PhiArray<n_species> & /*phi*/) { return NAN; }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    Set::Scalar get_L (Set::Scalar phi, Set::Scalar /*T*/) 
+        Set::Scalar
+        get_L(const Model::Propellant::PhiArray<n_species> &phi, Set::Scalar /*T*/)
     {
         Set::Scalar L = NAN;
         // if (homogeneousSystem == 1) {
@@ -65,22 +77,22 @@ public:
         //     if (angle > 270) angle = angle - 270.0;
         //     L = pressure.power.a_fit + pressure.power.b_fit * exp(-pressure.power.c_fit * angle);
         // }
-        // else 
+        // else
         {
-            Set::Scalar fs_actual = fmod_ap * phi
-                + fmod_htpb * (1.0 - phi)
-                + 4.0 * fmod_comb * phi * (1.0 - phi);
+            Set::Scalar fs_actual = fmod_ap * phi[0]
+                                    + fmod_htpb * (1.0 - phi[0])
+                                    + 4.0 * fmod_comb * phi[0] * (1.0 - phi[0]);
             L = fs_actual / gamma / deltaw /*(pf.w1 - pf.w0)*/;
         }
 
         return L;
     }
 
-    static void Parse(PowerLaw& value, IO::ParmParse& pp)
+    static void Parse(PowerLaw &value, IO::ParmParse &pp)
     {
-        Util::Message(INFO,pp.getPrefix());
+        Util::Message(INFO, pp.getPrefix());
         // Scaling factor for mobility
-        pp_query_required("gamma", value.gamma);   
+        pp_query_required("gamma", value.gamma);
         // AP power pressure law parameter (r*P^n)
         pp_query_required("r_ap", value.r_ap);
         // HTPB power pressure law parameter (r*P^n)
@@ -92,9 +104,9 @@ public:
         // HTPB power pressure law parameter (r*P^n)
         pp_query_required("n_htpb", value.n_htpb);
         // AP/HTPB power pressure law parameter (r*P^n)
-        pp_query_required("n_comb", value.n_comb); 
+        pp_query_required("n_comb", value.n_comb);
         // jump in chemical potential
-        pp_query_default("deltaw", value.deltaw, 1.0); 
+        pp_query_default("deltaw", value.deltaw, 1.0);
     }
 
     Set::Scalar gamma = NAN;
