@@ -46,9 +46,6 @@ export PATH="$LLVM_PREFIX/bin:$PATH"
 #
 make
 
-# TODO: remove this line before merge
-otool -l bin/alamo-3d-clang++
-
 #
 # Run the unit test suite
 #
