@@ -2,7 +2,7 @@ name: Install
 
 on:
   push:
-    branches: ["development", "master","candidate","candidate-install", "bug/fix-macos-ci"]
+    branches: ["development", "master","candidate","candidate-install"]
   pull_request:
     branches:
     - development
