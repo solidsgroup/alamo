@@ -383,6 +383,7 @@ f.write("LIB += -lpng \n")
 if args.link:
     for l in args.link:
         f.write("LIB += -L" + l + "\n")
+        f.write("LINKER_FLAGS += -Wl,-rpath," + l + "\n")
     
 #
 # CHECK COMPILER AND SET OPTIONS
