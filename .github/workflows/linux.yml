@@ -4,6 +4,9 @@ on:
   push:
     branches-ignore: []
 
+permissions:
+  contents: read
+
 jobs:
   style-check:
     runs-on: ubuntu-24.04
