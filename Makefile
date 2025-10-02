@@ -28,15 +28,16 @@ FG_ORANGE          = \033[38;5;208m
 QUIET ?= @
 
 
-METADATA_GITHASH  = $(shell git describe --always --dirty)
-METADATA_USER     = $(shell whoami)
-METADATA_PLATFORM = $(shell hostname)
-METADATA_COMPILER = $(COMP)
-METADATA_DATE     = $(shell date +%x)
-METADATA_TIME     = $(shell date +%H:%M:%S)
-BUILD_DIR         = ${shell pwd}
+METADATA_GITHASH             = $(shell git describe --dirty --long --always)
+METADATA_DEVELOPMENT_GITHASH = $(shell git merge-base origin/development HEAD)
+METADATA_USER                = $(shell whoami)
+METADATA_PLATFORM            = $(shell hostname)
+METADATA_COMPILER            = $(COMP)
+METADATA_DATE                = $(shell date +%x)
+METADATA_TIME                = $(shell date +%H:%M:%S)
+BUILD_DIR                    = ${shell pwd}
 
-METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
+METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_DEVELOPMENT_GITHASH=\"$(METADATA_DEVELOPMENT_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
 CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
