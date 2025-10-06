@@ -19,7 +19,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 3
+amr.max_level = 4
 
 
 # Full size
