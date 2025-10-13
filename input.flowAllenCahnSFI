@@ -7,13 +7,13 @@
 
 alamo.program = allencahn
 plot_file = ./output.allencahn
-amr.plot_dt = 0.1
+amr.plot_dt = 1e-8
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 3
-timestep  = 1e-2
+timestep  = 1e-8
 amr.n_cell = 64 8
 geometry.prob_lo = -24.0 -3
 geometry.prob_hi =  24.0  3
@@ -22,8 +22,8 @@ stop_time = 100
 
 
 allencahn.ch.direction = 1
-allencahn.ch.direction_tstart = 10.0
-tstart = 10.0
+allencahn.ch.direction_tstart = 1e-7
+tstart = 1e-7
 
 #alamo.program = allencahn
 
@@ -145,6 +145,7 @@ hydro.eta.ic.constant.value = 1.0
 hydro.eta_refinement_criterion = 0.1
 hydro.omega_refinement_criterion = 10000000
 hydro.gradu_refinement_criterion = 10000000
+hydro.scheme = ssprk3
 
 hydro.solid.momentum.ic.constant.value = 0.0
 hydro.solid.density.ic.constant.value = 40.0
