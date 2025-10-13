@@ -7,13 +7,13 @@
 
 alamo.program = allencahn
 plot_file = ./output.allencahn
-amr.plot_dt = 1e-8
+amr.plot_dt = 0.01
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.max_level = 3
-timestep  = 1e-8
+timestep  = 0.01
 amr.n_cell = 64 8
 geometry.prob_lo = -24.0 -3
 geometry.prob_hi =  24.0  3
@@ -22,8 +22,8 @@ stop_time = 100
 
 
 allencahn.ch.direction = 1
-allencahn.ch.direction_tstart = 1e-7
-tstart = 1e-7
+allencahn.ch.direction_tstart = 5
+tstart = 5
 
 #alamo.program = allencahn
 
@@ -169,8 +169,8 @@ amr.abort_on_nan = 0
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
 dynamictimestep.max  = 0.01
-dynamictimestep.min  = 1E-4
+dynamictimestep.min  = 1E-6
 #dynamictimestep.cfl = 0.005
-hydro.cfl   = 10.0
-hydro.cfl_v   = 10.0
+hydro.cfl   = 1.0
+hydro.cfl_v   = 1.0
 #hydro.small=1E-4
