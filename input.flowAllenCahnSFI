@@ -55,14 +55,13 @@ allencahn.alpha.bc.constant.val.yhi = 0.0
 allencahn.alpha.ic.type = png
 allencahn.alpha.ic.png.filename = tests/AllenCahn/bordernoise.png
 allencahn.alpha.ic.png.fit = coord
-allencahn.alpha.ic.png.coord.lo = -38 -38
-allencahn.alpha.ic.png.coord.hi = 38 38
+# allencahn.alpha.ic.png.coord.lo = -38 -38 # Original
+# allencahn.alpha.ic.png.coord.hi = 38 38 # Original
+allencahn.alpha.ic.png.coord.lo = -15 -15 # Make domain smaller for debugging
+allencahn.alpha.ic.png.coord.hi = 15 15
 allencahn.alpha.ic.png.max = 0
 allencahn.alpha.ic.png.min = 255
-
 allencahn.refinement_threshold = 0.1
-
-
 allencahn.ch.L = 10.0
 allencahn.ch.kappa = 0.002
 allencahn.ch.lambda = 0.05
@@ -145,7 +144,7 @@ hydro.eta.ic.constant.value = 1.0
 hydro.eta_refinement_criterion = 0.1
 hydro.omega_refinement_criterion = 10000000
 hydro.gradu_refinement_criterion = 10000000
-hydro.scheme = ssprk3
+#hydro.scheme = ssprk3
 
 hydro.solid.momentum.ic.constant.value = 0.0
 hydro.solid.density.ic.constant.value = 40.0
