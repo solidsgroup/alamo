@@ -5,13 +5,21 @@
 #ifndef IC_RANDOM_H_
 #define IC_RANDOM_H_
 
+#include <string>
+
+#include "AMReX_Box.H"
+#include "AMReX_Geometry.H"
+#include "AMReX_GpuQualifiers.H"
+#include "AMReX_IndexType.H"
+#include "AMReX_MFIter.H"
+#include "AMReX_Random.H"
+#include "AMReX_RandomEngine.H"
+#include "AMReX_Vector.H"
+
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
-
-#include "AMReX_GpuQualifiers.H"
-#include "AMReX_Vector.H"
 
 namespace IC
 {
@@ -21,7 +29,9 @@ class Random : public IC<Set::Scalar>
 public:
     static constexpr const char *name = "random";
 
-    Random(amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult) : IC(_geom), mult(a_mult) {}
+    Random(amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult) : IC(_geom), mult(a_mult)
+    {
+    }
     Random(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom)
     {
         pp.queryclass(name, *this);
@@ -29,6 +39,9 @@ public:
 
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
+        auto mult = this->mult;
+        auto offset = this->offset;
+
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
@@ -60,7 +73,7 @@ public:
         pp.query_default("mult", value.mult, 1.0);
     }
 
-protected:
+private:
     Set::Scalar mult = NAN;
     Set::Scalar offset = NAN;
 };
