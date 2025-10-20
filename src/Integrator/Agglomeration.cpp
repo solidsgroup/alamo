@@ -6,7 +6,6 @@
 
 #include "BC/Constant.H"
 #include "IC/BMP.H"
-#include "IC/BetaDistribution.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/PNG.H"
@@ -71,7 +70,7 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     pp.query_default("eta_refinement_threshold", value.agglom.eta_refinement_threshold, "1e100", Unit::Less());
 
     // Initial conditions for agglomerate order parameter
-    pp.select_default<IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random, IC::BetaDistribution>("alpha.ic", value.agglom.alpha_ic, value.geom);
+    pp.select_default<IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random>("alpha.ic", value.agglom.alpha_ic, value.geom);
     // Boundary conditions for agglomerate order parameter
     pp.select_default<BC::Constant>("alpha.bc", value.agglom.alpha_bc, 1);
 
