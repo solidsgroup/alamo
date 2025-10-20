@@ -94,7 +94,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = 2; // Change to 2 to improve hydro stability (Claude suggestion)
+        int nghost = 1; // Change to 2 to improve hydro stability (Claude suggestion)
 
         if (!value.managed)
         {
