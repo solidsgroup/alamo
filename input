@@ -6,7 +6,7 @@ alamo.program = flame
 plot_file = output
 amr.plot_dt = 0.005
 #amr.plot_int = 1
-amr.max_level = 4
+amr.max_level = 5
 amr.blocking_factor = 4
 amr.base_regrid_int = 100
 amr.grid_eff = 1
@@ -27,10 +27,10 @@ system.time = s
 
 # Timestep and duration
 timestep = 1.0e-5_s # [s]
-stop_time = 5.5_s # [s]
+stop_time = 5.0_s # [s]
 
 # Phase field parameters
-pf.eps = 0.00008_m # [m]
+pf.eps = 0.00016_m # [m]
 pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = png
 pf.eta.ic.png.filename = circle.png
@@ -94,7 +94,7 @@ pf.eta.bc.constant.val.yhi = 1.0
 propellant.type = fullfeedback
 propellant.fullfeedback.a1 = 0.42
 propellant.fullfeedback.a2 = 0.323
-propellant.fullfeedback.a3 = 299.996 #299.996 #-0.3715
+propellant.fullfeedback.a3 = 1.2285 #299.996 #-0.3715
 propellant.fullfeedback.b1 = 0.46
 propellant.fullfeedback.b2 = 1.114
 propellant.fullfeedback.b3 = 2.01
