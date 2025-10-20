@@ -46,6 +46,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         else if (scheme_str == "ssprk3") value.scheme = IntegrationScheme::SSPRK3;
         else if (scheme_str == "rk4") value.scheme = IntegrationScheme::RK4;
 
+        if (pp.contains("restart")) value.restart_found = true;
+        std::cout << "restart " << value.restart_found << std::endl;
 
         // eta-based refinement
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
@@ -278,6 +280,10 @@ void Hydro::Initialize(int lev)
 
 void Hydro::Mix(int lev)
 {
+    if (restart_found) {
+        if (lev >= (int)mixed.size()) mixed.push_back(true);
+        else mixed[lev] = true;
+    }
     if (mixed[lev])  return;
 
     Util::Message(INFO,"MIXING");
@@ -800,7 +806,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
-            p(i,j,k) = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))+pref;
+            p(i,j,k) = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))+pref;
 
             if (eta < small) 
             {
@@ -1046,10 +1052,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX);
 
             // These need to be recalculated for each species
-            Set::Vector grad_rhoHDYx    = Numeric::Gradient(rhoHDYx,i,j,k,0,DX);
-            Set::Vector grad_rhoHDYy    = Numeric::Gradient(rhoHDYy,i,j,k,0,DX);
-            Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,0,DX);
-            Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,0,DX);
+            //Set::Vector grad_rhoHDYx    = Numeric::Gradient(rhoHDYx,i,j,k,0,DX);
+            //Set::Vector grad_rhoHDYy    = Numeric::Gradient(rhoHDYy,i,j,k,0,DX);
+            //Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,0,DX);
+            //Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,0,DX);
             // End
 
             Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));

@@ -187,6 +187,7 @@ protected:
 
     bool managed = false;
     bool invert = false;
+    bool restart_found = false;
 
     std::vector<bool> mixed;
 
