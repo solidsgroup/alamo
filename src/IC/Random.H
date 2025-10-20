@@ -12,6 +12,8 @@
 #include "AMReX_GpuQualifiers.H"
 #include "AMReX_IndexType.H"
 #include "AMReX_MFIter.H"
+#include "AMReX_Random.H"
+#include "AMReX_RandomEngine.H"
 #include "AMReX_Vector.H"
 
 #include "IC/IC.H"
@@ -39,8 +41,6 @@ public:
     {
         auto mult = this->mult;
         auto offset = this->offset;
-
-        // amrex::RandomEngine engine;
 
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
