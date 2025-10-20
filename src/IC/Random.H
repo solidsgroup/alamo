@@ -5,6 +5,13 @@
 #ifndef IC_RANDOM_H_
 #define IC_RANDOM_H_
 
+#include <string>
+
+#include "AMReX_Box.H"
+#include "AMReX_Geometry.H"
+#include "AMReX_GpuQualifiers.H"
+#include "AMReX_IndexType.H"
+#include "AMReX_MFIter.H"
 #include "AMReX_Vector.H"
 
 #include "IC/IC.H"
