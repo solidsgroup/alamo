@@ -59,7 +59,7 @@ Communication between patches and levels is then handled through ghost cells, in
 This data structure is extremely efficient and scalable, while also being highly amenable to efficient code prototyping.
 Importantly, BSAMR also acts as a seamless extension to geometric multigrid, making naturally efficient at performing global mechanical equilibrium solves.
 The AMReX framework [@zhang2019amrex] provides a powerful platform for development of BSAMR codes.
-However, the use of AMReX (and BSAMR in general) has been limited in PF and solid mechanics, due to the inherent challenges of solving the mechanical equilibrium equations on a patch-based mesh.
+However, the use of AMReX has been limited in PF (with only a few exceptions, [@kumar20243d;@kumar2023ferrox]) and solid mechanics, due to the inherent challenges of solving the mechanical equilibrium equations on a patch-based mesh.
 
 The Alamo multiphysics solver leverages the power of BSAMR for phase-field problems.
 Alamo provides a unique, strong-form finite-deformation, matrix-free mechanics solver, enabling the efficient solution of the solid mechanics calculations.
@@ -96,7 +96,7 @@ The flexibility of this framework is exemplified through Alamo's library of soli
 
 Because the mechanical solver is coupled to problems defined with diffuse boundaries, often involving "void" regions in which there is no mechanical strength, additional steps are necessary to avoid convergence issues.
 Alamo contains methods for accounting for diffuse boundary conditions, and uses a joint cell/node based interpolation scheme to ensure good convergence even when the operator is near-singular.
-Details on the near-singular solver capability, as well as the model vector space implementation, have been documented in [@agrawal2023robust].
+Details on the near-singular solver capability, the model vector space implementation, and the methods for applying boundary conditions in the diffuse boundary framework, have been documented in [@agrawal2023robust].
 
 ## Multiple inheritance polymorphic integrators 
 
@@ -158,13 +158,13 @@ Continuous integration is used to require that all inputs be adequately document
 Then, the documentation is automatically generated and posted online with every addition to the main development branches.
 This ensures that all documentation is kept current with the source code, without requiring anything of the developer beyond a single comment string for each input.
 
-## Automatic regression testing system
+## Automatic regression and benchmark testing system
 
 Regression tests are essential to ensure reliability of a continuously developed code.
 Alamo has a self-contained regression test system designed to run with a single line of code added to an input file stored in the repository.
 It also contains a suite of python helper functions that use the YT library to automatically extract data for comparison and to determine whether runs have completed accurately [@turk2010yt].
 The regression test system is automated using the Github Actions CI system, and different variants of tests are executed automatically in different stages of code development.
-For example, full-scale tests are run on a self-hosted runner in each of the main development branches; lightweight suite of tests are run upon every feature branch commit.
+For example, full-scale benchmark tests are run on a self-hosted runner in each of the main development branches; lightweight suite of tests are run upon every feature branch commit.
 Selections of the tests are used to check code coverage using gcov, and memory safety using ASan and MSan.
 
 Regression tests are beneficial also for providing starting points for new users and developers of the code.
