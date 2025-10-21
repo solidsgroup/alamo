@@ -37,49 +37,49 @@ Flame::Forbids(IO::ParmParse& pp)
     pp.forbid("geometry.y_len","This is specified by geometry.prob_lo/hi");
     pp.forbid("amr.ghost_cells", "This should not be adjustable ");
 
-    pp.forbid("pf.gamma","implemented in regression rate law objects now"); 
+    pp.forbid("pf.gamma","use propellant.powerlaw.gamma"); 
 
-    pp.forbid("pressure.r_ap",   "use regression.powerlaw.r_ap");
-    pp.forbid("pressure.r_htpb", "use regression.powerlaw.r_htpb");
-    pp.forbid("pressure.r_comb", "use regression.powerlaw.r_comb");
-    pp.forbid("pressure.n_ap",   "use regression.powerlaw.n_ap");
-    pp.forbid("pressure.n_htpb", "use regression.powerlaw.n_htpb");
-    pp.forbid("pressure.n_comb", "use regression.powerlaw.n_comb");
+    pp.forbid("pressure.r_ap",   "use propellant.powerlaw.r_ap");
+    pp.forbid("pressure.r_htpb", "use propellant.powerlaw.r_htpb");
+    pp.forbid("pressure.r_comb", "use propellant.powerlaw.r_comb");
+    pp.forbid("pressure.n_ap",   "use propellant.powerlaw.n_ap");
+    pp.forbid("pressure.n_htpb", "use propellant.powerlaw.n_htpb");
+    pp.forbid("pressure.n_comb", "use propellant.powerlaw.n_comb");
 
     pp.forbid("thermal.bound",   "use thermal.Tref");
     pp.forbid("thermal.T_fluid",   "use thermal.Tfluid (or nothing)");
-    pp.forbid("thermal.m_ap",   "use regression.arrhenius.m_ap");
-    pp.forbid("thermal.m_htpb", "use regression.arrhenius.m_htpb");
-    pp.forbid("thermal.E_ap",   "use regression.arrhenius.E_ap");
-    pp.forbid("thermal.E_htpb", "use regression.arrhenius.E_htpb");
+    pp.forbid("thermal.m_ap",   "use propellant.fullfeedback.m_ap");
+    pp.forbid("thermal.m_htpb", "use propellant.fullfeedback.m_htpb");
+    pp.forbid("thermal.E_ap",   "use propellant.fullfeedback.E_ap");
+    pp.forbid("thermal.E_htpb", "use propellant.fullfeedback.E_htpb");
     pp.forbid("thermal.modeling_ap",   "Old debug variable. Should equal 1 "); 
     pp.forbid("thermal.modeling_htpb", "Old debug variable. Should equal 1"); 
 
-    pp.forbid("pressure.a1", "use propellant.mesoscale.a1 instead");
-    pp.forbid("pressure.a2", "use propellant.mesoscale.a2 instead");
-    pp.forbid("pressure.a3", "use propellant.mesoscale.a3 instead");
-    pp.forbid("pressure.b1", "use propellant.mesoscale.b1 instead");
-    pp.forbid("pressure.b2", "use propellant.mesoscale.b2 instead");
-    pp.forbid("pressure.b3", "use propellant.mesoscale.b3 instead");
-    pp.forbid("pressure.c1", "use propellant.mesoscale.c1 instead");
+    pp.forbid("pressure.a1", "use propellant.fullfeedback.a1 instead");
+    pp.forbid("pressure.a2", "use propellant.fullfeedback.a2 instead");
+    pp.forbid("pressure.a3", "use propellant.fullfeedback.a3 instead");
+    pp.forbid("pressure.b1", "use propellant.fullfeedback.b1 instead");
+    pp.forbid("pressure.b2", "use propellant.fullfeedback.b2 instead");
+    pp.forbid("pressure.b3", "use propellant.fullfeedback.b3 instead");
+    pp.forbid("pressure.c1", "use propellant.fullfeedback.c1 instead");
     pp.forbid("pressure.mob_ap", "no longer used"); 
-    pp.forbid("pressure.dependency", "use propellant.mesoscale.arrhenius_dependency"); 
-    pp.forbid("pressure.h1", "use propellant.mesoscale.h1 instead"); 
-    pp.forbid("pressure.h2", "use propellant.mesoscale.h2 instead"); 
-    pp.forbid("thermal.mlocal_ap", "use propellant.mesoscale.mlocal_ap");
-    pp.forbid("thermal.mlocal_comb", "use propellant.mesoscale.mlocal_comb");
+    pp.forbid("pressure.dependency", "use propellant.fullfeedback.pressure_dependency"); 
+    pp.forbid("pressure.h1", "use propellant.homogenize.h1 instead"); 
+    pp.forbid("pressure.h2", "use propellant.homogenize.h2 instead"); 
+    pp.forbid("thermal.mlocal_ap", "use propellant.homogenize.mlocal_ap");
+    pp.forbid("thermal.mlocal_comb", "use propellant.homogenize.mlocal_comb");
     pp.forbid("thermal.mlocal_htpb", "this actually did **nothing** - it was overridden by a hard code using massfraction.");
 
-    pp.forbid("thermal.disperssion1", "use propellant.mesoscale.dispersion1");
-    pp.forbid("thermal.disperssion2", "use propellant.mesoscale.dispersion2");
-    pp.forbid("thermal.disperssion3", "use propellant.mesoscale.dispersion3"); 
+    pp.forbid("thermal.disperssion1", "use propellant.homogenize.dispersion1");
+    pp.forbid("thermal.disperssion2", "use propellant.homogenize.dispersion2");
+    pp.forbid("thermal.disperssion3", "use propellant.homogenize.dispersion3"); 
 
-    pp.forbid("thermal.rho_ap", "use propellant.XX.rho_ap ");
-    pp.forbid("thermal.rho_htpb","use propellant.XX.rho_htpb ");
-    pp.forbid("thermal.k_ap",   "use propellant.XX.k_ap ");
-    pp.forbid("thermal.k_htpb", "use propellant.XX.k_htpb ");
-    pp.forbid("thermal.cp_ap", "use propellant.XX.cp_ap ");
-    pp.forbid("thermal.cp_htpb","use propellant.XX.cp_htpb "); 
+    pp.forbid("thermal.rho_ap", "use propellant.fullfeedback/homogenize.rho_ap ");
+    pp.forbid("thermal.rho_htpb","use propellant.fullfeedback/homogenize.rho_htpb ");
+    pp.forbid("thermal.k_ap",   "use propellant.fullfeedback/homogenize.k_ap ");
+    pp.forbid("thermal.k_htpb", "use propellant.fullfeedback/homogenize.k_htpb ");
+    pp.forbid("thermal.cp_ap", "use propellant.fullfeedback/homogenize.cp_ap ");
+    pp.forbid("thermal.cp_htpb","use propellant.fullfeedback/homogenize.cp_htpb "); 
 }
 
 
@@ -92,18 +92,24 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
-    pp_query_default("plot_field",value.plot_field,true); 
+    pp.query_default("plot_field",value.plot_field,true); 
         
     //
     // PHASE FIELD VARIABLES
     //
         
-    pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
-    pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
-    pp_query_default("pf.lambda", value.pf.lambda, 0.0); // Chemical potential multiplier
-    pp_query_default("pf.w1", value.pf.w1, 0.0); // Unburned rest energy
-    pp_query_default("pf.w12", value.pf.w12, 0.0);  // Barrier energy
-    pp_query_default("pf.w0", value.pf.w0, 0.0);    // Burned rest energy
+    // Burn width thickness
+    pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
+    // Interface energy param
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^2", Unit::Energy() / Unit::Area()); 
+    // Chemical potential multiplier
+    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^2", Unit::Energy()/Unit::Area()); 
+    // Unburned rest energy
+    pp.query_default("pf.w1", value.pf.w1, "0.0",Unit::Less()); 
+    // Barrier energy
+    pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());  
+    // Burned rest energy
+    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());    
 
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
@@ -127,58 +133,63 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Reference temperature
     // Used to set all other reference temperatures by default.
-    pp_query_default("thermal.Tref", value.thermal.Tref, 300.0); 
+    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature()); 
 
     if (value.thermal.on) {
 
         // Used to change heat flux units
-        pp_query_default("thermal.hc", value.thermal.hc, 1.0);
-        // System AP mass fraction
-        //pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
+        pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
 
         // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
 
         //Temperature boundary condition
-        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1);
+        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
             
         value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
-        value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 3, "temps", false);
-        value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 3, "temps_old", false);
+        value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 0, "temps", false);
 
-        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 3, "mdot", value.plot_field);
-        value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 3, "mob", value.plot_field);
-        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 3, "alpha", value.plot_field);
-        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 3, "heatflux", value.plot_field);
-        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 3, "laser", value.plot_field);
+        value.RegisterNewFab(value.mdot_mf, value.bc_temp, 1, 0, "mdot", value.plot_field);
+        value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
+        value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
+        value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
 
         // laser initial condition
-        pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom);
+        pp.select_default<  IC::Constant,
+                            IC::Expression  >
+            ("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Area());
 
         // thermal initial condition
-        pp.select_default<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom);
+        pp.select_default<  IC::Constant,
+                            IC::Expression,
+                            IC::BMP,
+                            IC::PNG  >
+            ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
 
 
     // Constant pressure value
-    pp_query_default("chamber.pressure", value.chamber.pressure, 1.0); 
+    pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
 
     // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, 0);
+    pp_query_default("variable_pressure", value.variable_pressure, false);
 
     // Refinement criterion for eta field   
-    pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);
+    pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
+                        Unit::Less());
 
     // Refinement criterion for temperature field    
-    pp_query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, 0.001);
+    pp.query_default(   "amr.refinement_criterion_temp", value.t_refinement_criterion, "0.001_K",
+                        Unit::Temperature());
 
     // Eta value to restrict the refinament for the temperature field 
-    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0.1);
+    pp.query_default(   "amr.refinament_restriction", value.t_refinement_restriction, "0.1",
+                        Unit::Less());
 
     // Refinement criterion for phi field [infinity]
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
@@ -190,7 +201,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>
         ("phi.ic",value.ic_phi,value.geom);
 
-    value.RegisterNodalFab(value.phi_mf, 1, 3, "phi", true);
+    value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
@@ -213,9 +224,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // elastic model of HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
-        value.bc_psi = new BC::Nothing();
-        value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", value.plot_psi);
-        value.psi_on = true;
+        // Use our current eta field as the psi field for the solver
+        value.psi_on = false;
+        value.solver.setPsi(value.eta_mf);
     }
 
     bool allow_unused;
@@ -241,7 +252,6 @@ void Flame::Initialize(int lev)
     //ic_phicell->Initialize(lev, phicell_mf);
 
     if (elastic.on) {
-        psi_mf[lev]->setVal(1.0);
         rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
     if (thermal.on) {
@@ -250,20 +260,16 @@ void Flame::Initialize(int lev)
             thermal.ic_temp->Initialize(lev,temp_mf);
             thermal.ic_temp->Initialize(lev,temp_old_mf);
             thermal.ic_temp->Initialize(lev,temps_mf);
-            thermal.ic_temp->Initialize(lev,temps_old_mf);
         }
         else
         {
             temp_mf[lev]->setVal(thermal.Tref);
             temp_old_mf[lev]->setVal(thermal.Tref);
             temps_mf[lev]->setVal(thermal.Tref);
-            temps_old_mf[lev]->setVal(thermal.Tref);
         }
         alpha_mf[lev]->setVal(0.0);
-        mob_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-        thermal.w1 = 0.2 * chamber.pressure + 0.9;
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;
@@ -332,8 +338,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
         }
         Util::RealFillBoundary(*model_mf[lev], geom[lev]);
 
-        psi_mf[lev]->setVal(1.0);
-        amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]->nGrow());
     }
 }
 
@@ -472,17 +476,18 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     if (thermal.on)
     {
         std::swap(temp_old_mf[lev], temp_mf[lev]);
-        std::swap(temps_old_mf[lev], temps_mf[lev]);
 
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& bx = mfi.tilebox();
 
             Set::Patch<Set::Scalar>       tempnew = temp_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar>       tempsnew = temps_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> temp = temp_old_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> alpha = alpha_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> temps = temps_old_mf.Patch(lev,mfi);
+
+            Set::Patch<Set::Scalar>       temps = temps_mf.Patch(lev,mfi);
+
+
             // Phase field
             Set::Patch<Set::Scalar>       etanew = (*eta_mf[lev]).array(mfi);
             Set::Patch<const Set::Scalar> eta = (*eta_old_mf[lev]).array(mfi);
@@ -504,9 +509,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 dTdt += alpha(i, j, k) * heatflux(i, j, k) * grad_eta_mag;
 
                 Set::Scalar Tsolid = dTdt + temps(i, j, k) * (etanew(i, j, k) - eta(i, j, k)) / dt;
-                tempsnew(i, j, k) = temps(i, j, k) + dt * Tsolid;
-                tempnew(i, j, k) = etanew(i, j, k) * tempsnew(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
-
+                temps(i, j, k) = temps(i, j, k) + dt * Tsolid;
+                tempnew(i, j, k) = etanew(i, j, k) * temps(i, j, k) + (1.0 - etanew(i, j, k)) * thermal.Tfluid;
             });
         }
     }

@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-import argparse
-import os
-import re
-import subprocess
-import textwrap
-import sys
-import shutil
-#import ctypes.util
-import glob
-import json
-from pathlib import Path
+
+try:
+    import argparse
+    import os
+    import re
+    import subprocess
+    import textwrap
+    import sys
+    import shutil
+    import glob
+    import json
+    from pathlib import Path
+except ImportError as e:
+    sys.stderr.write(
+        f"\nError: Missing required Python module: {e.name}\n"
+        "Please install it and rerun configure.\n\n"
+    )
+    sys.exit(1)    
 
 #
 # Configuration parameters, mainly to specify default values:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.04"
+amrex_current_version = "25.07"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -276,7 +283,7 @@ if args.buildamrex and not args.amrex:
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
-    if args.debug: amrex_configure += ' --debug=yes'
+    if args.debug: amrex_configure += ' --debug=yes --enable-pic=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
     if args.fft: amrex_configure += " --enable-fft=yes"
@@ -402,7 +409,7 @@ elif "mvapich2" in mpidiststr.lower():
     mpidist = "mvapich2"
 elif "mvapich" in mpidiststr.lower():
     mpidist = "mvapich"
-elif "openmpi" in mpidiststr.lower():
+elif "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
     mpidist = "openmpi"
 message("mpi implementation", mpidist)
 
@@ -487,9 +494,9 @@ if args.comp == 'g++':
         else:
             error("Invalid memory check tool ", args.memcheck_tool)
     if args.coverage and args.debug:
-        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage -fPIC\n")
     elif args.debug:
-        f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3  -fPIC\n")
     elif args.coverage:
         f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
     else:
@@ -499,7 +506,7 @@ if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug:
-        f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
     elif args.perf:
         f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
         f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    

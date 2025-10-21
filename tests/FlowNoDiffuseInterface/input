@@ -4,7 +4,7 @@
 #@ dim    = 2
 #@ nprocs = 1
 
-alamo.program = hydro
+#alamo.program = hydro
 
 ### OUTPUT ###
 
@@ -34,14 +34,11 @@ stop_time = 2.5
 
 ### ETA IC ###
 
-Ldot_0 = 0.0
 
 q.ic.type = expression
 q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
-deltapInterface.ic.type = expression
-deltapInterface.ic.expression.region0 = "0.0"
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.2
@@ -56,8 +53,6 @@ cfl   = 0.6
 mu    = 0.0
 pref = 0.0
 
-rho_solid = 1.0 #kg/m^3
-rho_fluid = 1.0 #kg/m^3
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"
@@ -71,8 +66,6 @@ density.ic.type = constant
 density.ic.constant.value=1.0
 
 
-solid.velocity.ic.type=constant
-solid.velocity.constant.value=1.0
 solid.momentum.ic.constant.value=1.0
 solid.energy.ic.constant.value=1.0
 solid.density.ic.constant.value=1.0
@@ -126,10 +119,6 @@ momentum.bc.constant.val.yhi = 0.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-r_refinement_criterion   = 0.1
-e_refinement_criterion   = 0.1
-m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 
 #TODO
-v_solid = 0.0

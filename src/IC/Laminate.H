@@ -88,7 +88,7 @@ public:
 
         amrex::Vector<Set::Scalar> a_center;
         // (x,y,[z]) values for the center point of the laminate
-        if (pp.contains("center")) pp_queryarr("center", a_center);
+        if (pp.contains("center")) pp.queryarr("center", a_center, Unit::Length());
 
         if (a_center.size() != value.number_of_inclusions * AMREX_SPACEDIM) value.center.push_back(Set::Vector::Zero());
         else
@@ -99,7 +99,7 @@ public:
 
         amrex::Vector<Set::Scalar> a_thickness;
         // thickness of the laminate
-        if (pp.contains("thickness")) pp_queryarr("thickness", a_thickness);
+        if (pp.contains("thickness")) pp_queryarr("thickness", a_thickness,Unit::Length());
 
         if (a_thickness.size() != value.number_of_inclusions && a_thickness.size() != 1)
             Util::Abort(INFO, "Thickness of each inclusion must be specified");
@@ -160,7 +160,7 @@ public:
 
         amrex::Vector<Set::Scalar> a_eps;
         // Diffuse thickness
-        pp_queryarr("eps", a_eps);
+        pp.queryarr("eps", a_eps, Unit::Length());
 
         if (a_eps.size() < 1)
             for (int i = 0; i < value.number_of_inclusions; i++)
@@ -182,7 +182,8 @@ public:
         }
 
         std::string mollifier;
-        pp_query("mollifier", mollifier); // Type of mollifer to use (options: dirac, [gaussian])
+        // Type of mollifer to use (options: dirac, [gaussian])
+        pp.query_validate("mollifier", mollifier, {"dirac","gaussian"}); 
         if (mollifier == "Dirac" || mollifier == "dirac")
             value.moll = Mollifier::Dirac;
         else

@@ -21,7 +21,7 @@
 #include <iomanip>
 
 #include "Util/Util.H"
-
+#include "Unit/Unit.H"
 #include "Set/Base.H"
 /// \brief A collection of data types and symmetry-reduced data structures
 
@@ -285,7 +285,8 @@ namespace Constant
 // Pi
 static const Set::Scalar Pi = 3.14159265359;
 // Gas constant
-static const Set::Scalar Rg = 8.31446261815;
+static const Unit Rg = Unit::Parse("8.31446261815_J/mol/K");
+
 }
 }
 

@@ -60,11 +60,9 @@ private:
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;
-    Set::Field<Set::Scalar> temps_old_mf;
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
-    Set::Field<Set::Scalar> mob_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
@@ -100,7 +98,7 @@ private:
     // Thermal transport variables
     struct {
         bool on = 0;
-        Set::Scalar hc = NAN, w1 = NAN;
+        Set::Scalar hc = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
@@ -125,7 +123,6 @@ private:
         Set::Scalar pressure = NAN;
     } chamber;
 
-    BC::BC<Set::Scalar>* bc_psi = nullptr;
 
     // Propellant model
     Model::Propellant::Propellant<

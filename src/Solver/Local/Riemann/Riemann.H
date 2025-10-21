@@ -1,6 +1,8 @@
 #ifndef SOLVER_LOCAL_RIEMANN_H
 #define SOLVER_LOCAL_RIEMANN_H
 
+#include "Set/Base.H"
+#include "Set/Set.H"
 
 namespace Solver
 {
@@ -94,6 +96,13 @@ struct Flux {
     Flux(Set::Scalar a_mass, Set::Scalar a_momentum_normal, Set::Scalar a_momentum_tangent, Set::Scalar a_energy) :
         mass(a_mass), momentum_normal(a_momentum_normal),
         momentum_tangent(a_momentum_tangent), energy(a_energy) {}
+
+    Flux(const State &in) :
+        mass(in.rho),
+        momentum_normal(in.M_normal),
+        momentum_tangent(in.M_tangent),
+        energy(in.E) {}
+
     friend std::ostream &operator<<(std::ostream &os, const Flux &flux) 
     {
         os << "mass=" << flux.mass << ", "; 
@@ -157,6 +166,13 @@ struct Flux {
 
 };
 
+
+class Riemann 
+{
+public:
+    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) = 0;
+    virtual ~Riemann() = default;
+};
 
 
 }
