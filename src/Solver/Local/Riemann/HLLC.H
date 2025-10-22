@@ -72,7 +72,8 @@ public:
         /*Set::Scalar ubar = (u_L + u_R*Rrho) / (1.0 + Rrho);*/
 
         // label the energies
-        Set::Scalar E_L = lo.E, E_R = hi.E;
+        Set::Scalar E_L = std::max(lo.E, small);
+        Set::Scalar E_R = std::max(hi.E, small);
 
         // primitive pressures
         Set::Scalar p_L = (gamma_L-1.0) * (E_L - 0.5*rho_sum_L*(u_L*u_L + v_L*v_L)) + p_ref;

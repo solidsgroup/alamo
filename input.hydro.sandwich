@@ -2,15 +2,15 @@
 # Alamo Parameters #
 ####################
 
-stop_time = 2
-timestep = 1e-7
+stop_time = 5e-3
+timestep = 2e-7
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 10
-amr.plot_dt = 1e-4
+amr.plot_dt = 1e-5
 #amr.plot_int = 1
 amr.plot_file = output.hydro.sandwich
 amr.max_level = 3
@@ -18,10 +18,10 @@ amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
 
-amr.n_cell = 64 16
+amr.n_cell = 64 64
 #amr.n_cell = 256 8
 geometry.prob_lo = -0.15 -0.03
-geometry.prob_hi = 0.15  0.03
+geometry.prob_hi = 0.15  0.27
 geometry.is_periodic = 0 0 0
 
 eta.ic.type = expression
@@ -158,8 +158,8 @@ m0.ic.expression.constant.R_CO2 = 188.92
 m0.ic.expression.constant.R_O2 = 259.83
 m0.ic.expression.constant.cv_CO2 = 656.76
 m0.ic.expression.constant.cv_O2 = 660.17
-m0.ic.expression.region0 = "500.0 * P/R_CO2/T * ((x<-0.05) + (x>0.05))"
-m0.ic.expression.region1 = "500.0 * P/R_O2/T * (abs(x) <= 0.05)"
+m0.ic.expression.region0 = "10.0 * P/R_CO2/T * ((x<-0.05) + (x>0.05))"
+m0.ic.expression.region1 = "5.0 * P/R_O2/T * (abs(x) <= 0.05)"
 m0.ic.expression.region2 = "0.0"
 
 u0.ic.type = expression
