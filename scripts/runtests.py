@@ -18,6 +18,8 @@ import signal
 
 from sympy import capture
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
 class color:
     reset = "\033[0m"
     red   = "\033[31m"
@@ -111,6 +113,7 @@ parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_t
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
+parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -154,6 +157,7 @@ def test(testdir):
     fasters = 0
     slowers = 0
     timeouts = 0
+    post_fails = 0
     records = []
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
@@ -608,6 +612,7 @@ def test(testdir):
         # Scan metadata file for insteresting things to include in the record
         #
         if args.post:
+            print("  │      Posting result..........................................",end="")
             try:
                 metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
                 metadata = readMetadata(metadatafile)
@@ -617,17 +622,23 @@ def test(testdir):
                 record['test-section'] = record['testdir'] + '/' + record['section']
                 p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
                 record['git_commit_date'] = p.stdout.decode('utf-8').replace('\n','')
+
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(post.updateDatabase, postdata,[record])
+                    future.result(timeout=int(args.post_timeout));
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
+            except TimeoutError as e:
+                post_fails += 1
+                print("[{}TIME{}]".format(color.lightgray,color.reset))
             except Exception as e:
+                post_fails += 1
+                print("[{}FAIL{}]".format(color.red,color.reset))
+                for line in str(e).split('\n'):
+                    print("  │      {}{}{}".format(color.red,line,color.reset))
                 if not args.permissive:
-                    print("Problem getting metadata, here it is:")
-                    print(record)
                     raise Exception()
                 True # permissive
 
-            try:
-                post.updateDatabase(postdata,[record])
-            except Exception as e:
-                print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
         records.append(record)
         append_html(record)
 
@@ -660,6 +671,7 @@ def test(testdir):
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.lightgray,timeouts,color.reset))
+    if post_fails: sums.append("{}{} tests failed to post{}".format(color.lightgray,post_fails,color.reset))
     print(summary + ", ".join(sums))
     return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
