@@ -94,7 +94,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = 1; // Change to 2 to improve hydro stability (Claude suggestion)
+        int nghost = 1;
 
         if (!value.managed)
         {
@@ -728,6 +728,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
 
+        // Set::Patch<Set::Scalar> u0_patch  = Flame::u0_mf.Patch(lev,mfi);
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
@@ -803,8 +805,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             if (invert) grad_eta *= -1.0;
             if (invert) hess_eta *= -1.0;
 
-            Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
-            Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
+            Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1)); // Velocity
+            Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1)); // Velocity
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho      = Numeric::Gradient(rho,i,j,k,0,DX);
@@ -823,7 +825,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
 
             Set::Scalar mdot0 = -lagrange_m0 * (rho(i,j,k)-m0(i,j,k)) * grad_eta_mag;
-            Set::Vector Pdot0 = Set::Vector::Zero(); 
+            Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
@@ -857,10 +859,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             // Lagrange terms to enforce no-penetration
-            Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0); // Causing trobule with lagrange constraints
-            Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1); // Causing trobule with lagrange constraints
-
-            double val = Source(i,j,k,1);
+            Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
+            Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
             
             //Godunov flux
             //states of total fields

@@ -156,9 +156,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-        value.RegisterNewFab(value.rho_htpb_mf, value.bc_temp, 1, 0, "rho_HTPB", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
-        value.RegisterNewFab(value.rho_AP_mf, value.bc_temp, 1, 0, "rho_AP", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
-        value.RegisterNewFab(value.rho_tot_mf, value.bc_temp, 1, 0, "rho_tot", value.plot_field); // Density of total gaseous field
+        value.RegisterNewFab(value.rho_htpb_gas_mf, value.bc_temp, 1, 0, "rho_HTPB_gas", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
+        value.RegisterNewFab(value.rho_AP_gas_mf, value.bc_temp, 1, 0, "rho_AP_gas", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
+        value.RegisterNewFab(value.rho_tot_gas_mf, value.bc_temp, 1, 0, "rho_tot_gas", value.plot_field); // Density of total gaseous field
+
+        // value.RegisterNewFab(value.rho_htpb_solid_mf, value.bc_temp, 1, 0, "rho_HTPB_solid", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
+        // value.RegisterNewFab(value.rho_AP_solid_mf, value.bc_temp, 1, 0, "rho_AP_solid", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
+        // value.RegisterNewFab(value.rho_tot_solid_mf, value.bc_temp, 1, 0, "rho_tot_solid", value.plot_field); // Density of total gaseous field
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -318,22 +322,19 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as boundary condition
-            Set::Patch<Set::Scalar> source = Hydro::Source_mf.Patch(lev,mfi); // Take the source term from hydro
 
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {   
-                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX); // Update this line
+                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     Set::Vector grad_pres = Numeric::CellGradientOnNode(pressure, i, j, k, 0, DX);
                     Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
                     rhs(i, j, k) = 0.0*grad_eta;
-                    // rhs(i, j, k)(0) = source(i, j, k, 1);
-                    // rhs(i, j, k)(1) = source(i, j, j, 2);
                     rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
                     
-                    if (eta(i,j,k) < 1e-6){
+                    if (eta(i,j,k) < 1e-3){
                         rhs(i, j, k) = grad_eta*0.0;
                     }
                 });
@@ -372,7 +373,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
     }
 }
 
-
 void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
 {
     amrex::Box domain = this->geom[lev].Domain();
@@ -385,9 +385,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<const Set::Scalar> phi_patch    = phi_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> eta    = eta_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etaold = eta_old_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> rho_AP = rho_AP_mf.Patch(lev,mfi); // Set scalar value for density of AP
-        Set::Patch<Set::Scalar> rho_HTPB = rho_htpb_mf.Patch(lev,mfi); // Set scalar value for density of HTPB
-        Set::Patch<Set::Scalar> rho_tot = rho_tot_mf.Patch(lev,mfi); // Set scalar value for total density of the gaseous phase
+        Set::Patch<Set::Scalar> rho_AP_gas = rho_AP_gas_mf.Patch(lev,mfi); // Set scalar value for density of AP
+        Set::Patch<Set::Scalar> rho_HTPB_gas = rho_htpb_gas_mf.Patch(lev,mfi); // Set scalar value for density of HTPB
+        Set::Patch<Set::Scalar> rho_tot_gas = rho_tot_gas_mf.Patch(lev,mfi); // Set scalar value for total density of the gaseous phase
         Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
 
         Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
@@ -395,6 +395,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Real R = 8314; // Ideal gas constant (J/kmol-k)
         Real Pref = Hydro::pref; // Find the reference temperature from Hydro
         Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation (K)
+
+        Real rho_AP_solid = 1950; // kg/m^3 https://en.wikipedia.org/wiki/Ammonium_perchlorate
+        Real rho_HTPB_solid = 920; // kg/m^3 https://www.researchgate.net/publication/279252447_Pocket_Model_for_Aluminum_Agglomeration_Based_on_Propellant_Microstructure
 
         Set::Patch<Set::Scalar> solidrho  = Hydro::solid.density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
@@ -404,23 +407,28 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
+            Set::Vector grad_eta = -Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+            Set::Vector N = grad_eta / (grad_eta_mag + small); // Example of finding the normal vector
             pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
-            rho_AP(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
-            rho_HTPB(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
-            rho_tot(i,j,k) = rho_AP(i,j,k)*phi + rho_HTPB(i,j,k)*(1.0 - phi); // Find the average density of the fluid based on the solid species
+            rho_AP_gas(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
+            rho_HTPB_gas(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
+            rho_tot_gas(i,j,k) = rho_AP_gas(i,j,k)*phi + rho_HTPB_gas(i,j,k)*(1.0 - phi); // Find the average density of the fluid based on the solid species
 
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
             
-            Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
+            // Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
+            Set::Scalar deta_dt = (eta(i,j,k) - etaold(i,j,k))/0.00005; // time derivate approximation of eta
+            Set::Vector u0 = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N/rho_tot_gas(i,j,k);
             u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
             u0_patch(i,j,k,1) = u0(1);
 
+            // u0_patch(i,j,k,0) += deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0);
+            // u0_patch(i,j,k,1) += deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1);
+
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
             {
-                Set::Vector grad_eta = -Numeric::Gradient(eta, i, j, k, 0, DX);
-                Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                Set::Vector N = grad_eta / (grad_eta_mag + small); // Example of finding the normal vector
                 Set::Vector T(N(1), -N(0));
                 u0 = N * u0(0) + T * u0(1);
             }
