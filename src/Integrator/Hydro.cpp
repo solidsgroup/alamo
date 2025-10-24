@@ -833,6 +833,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     amrex::MultiFab rhoHDYy_mf(ba,dm,nspecies,nghost);   // species enthalpy diffusion, rho*H*D*dY/dy
     amrex::MultiFab rhoDYx_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dx
     amrex::MultiFab rhoDYy_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dy
+    amrex::MultiFab omega(ba,dm, nspecies,nghost);  // mass generation/destruction (reaction rate, kg/m^3/s)
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
@@ -980,6 +981,31 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
                 mixed_mu(i,j,k) += species_molef[a] * species_mu[a] / phi;
                 mixed_k(i,j,k)  += species_molef[a] * species_k[a] / phi;
+            }
+            // Calculate reaction rates using 3-body, modified arrhenius
+            // A + B + M <-> C + M
+            // k = a*T^b*exp(-E/R0/T)
+            for (int a=0; a<nspecies; ++a)
+            {
+                omega(i,j,k,a) = 0.0;
+                for (int b=0; b<nreactions; ++b)
+                {
+                    double nu_diff = rxn[b].products[a] - rxn[b].reactants[a];
+                    double arrhenius = rxn[b].factor*pow(temperature(i,j,k), rxn[b].exponent)*exp(rxn[b].energy/Ru/temperature(i,j,k));
+                    double C_react = 1.0;
+                    double third_body = 0.0;
+                    for (int c=0; c<nspecies; ++c)
+                    {
+                        C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn[b].reactants[c]);
+                        if (rxn[b].three_body) {
+                            third_body += rxn[b].efficiency[c] * species_molef[c]*pressure/Ru/temperature(i,j,k);
+                        }
+                    }
+                    if (not rxn[b].three_body) third_body = 1.0;
+                    C_react *= third_body;
+                    omega(i,j,k,a) += nu_diff * arrhenius * C_react;
+                }
+                omega(i,j,k,a) *= species_mw(a);
             }
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
