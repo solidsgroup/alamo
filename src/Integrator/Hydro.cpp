@@ -982,30 +982,68 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 mixed_mu(i,j,k) += species_molef[a] * species_mu[a] / phi;
                 mixed_k(i,j,k)  += species_molef[a] * species_k[a] / phi;
             }
-            // Calculate reaction rates using 3-body, modified arrhenius
-            // A + B + M <-> C + M
-            // k = a*T^b*exp(-E/R0/T)
+            // Calculate reaction rates using modified arrhenius (3-body optional)
+            // Per Cantera documentation and source code, cantera.org
+            //
+            // Arrhenius: aA + bB <-> cC + dD
+            // R = kf * ( [A]^a * [B]^b - 1/Kc * [C]^c * [D]^d )
+            // kf = a*T^b*exp(-E/R0/T)
+            // Kc = Kp * (Pref/Ru/T)^(dnu), Kp = exp(-G0/Ru/T), G0 = Sum(nu_j * (H0_j - T*S0_j))
+            //
+            // Third-Body: A + B + M <-> C + D + M
+            // R = kf * [M] * ([A]*[B] - 1/Kc * [C]*[D])
+            // [M] = Sum_j( e_j*[C_j] )
+            //
+            // Get mass net generation rate from reaction rate
+            // omega_k = MW_k * Sum_i( (nu''_k - nu'_k) * R_i )
             for (int a=0; a<nspecies; ++a)
             {
                 omega(i,j,k,a) = 0.0;
                 for (int b=0; b<nreactions; ++b)
                 {
                     double nu_diff = rxn[b].products[a] - rxn[b].reactants[a];
-                    double arrhenius = rxn[b].factor*pow(temperature(i,j,k), rxn[b].exponent)*exp(rxn[b].energy/Ru/temperature(i,j,k));
+                    double kf = rxn[b].factor * pow( temperature(i,j,k), rxn[b].exponent ) * exp( rxn[b].energy/Ru/temperature(i,j,k) );
                     double C_react = 1.0;
+                    double C_prod = 1.0;
                     double third_body = 0.0;
+                    double Kc = 1.0;
                     for (int c=0; c<nspecies; ++c)
                     {
-                        C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn[b].reactants[c]);
-                        if (rxn[b].three_body) {
+                        if (rxn[b].type == "arrhenius")
+                        // Elementary reaction with modified arrhenius rate
+                        {
+                            C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn[b].reactants[c]);
+                            if (rxn[b].reverse) {
+                                C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn[b].products[c]);
+                            }
+                            third_body = 1.0; // third_body of unity removes impact of third_body which is nonexistent in this case
+                        }
+                        else if (rxn[b].type == "third-body")
+                        {
+                            // Need to figure out how to determine if species[c] is in list of rxn.reactants
+                            if (species[c] in rxn[b].reactants) {
+                                C_react *= species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            }
+                            // Need to figure out how to determine if species[c] is in list of rxn.products
+                            if ((rxn[b].reverse) and (species[c] in rxn[b].products)) {
+                                C_prod *= species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            }
                             third_body += rxn[b].efficiency[c] * species_molef[c]*pressure/Ru/temperature(i,j,k);
                         }
+                        else
+                        {
+                            Util::ParallelMessage(INFO,"Reaction type is invalid or unspecified.");
+                            Util::Abort(INFO);
+                        }
                     }
-                    if (not rxn[b].three_body) third_body = 1.0;
-                    C_react *= third_body;
-                    omega(i,j,k,a) += nu_diff * arrhenius * C_react;
+                    if (rxn[b].reverse) {
+                        // TODO: calculate Kc for reverse rate
+                        Util::ParallelMessage(INFO,"Reverse reactions not yet fully implemented.");
+                        Util::Abort(INFO);
+                    }
+                    omega(i,j,k,a) += nu_diff * kf * third_body * (C_react - rxn[b].reverse*C_prod/Kc);
                 }
-                omega(i,j,k,a) *= species_mw(a);
+                omega(i,j,k,a) *= species_mw(a); // Convert molar concentration to mass concentration (i.e. density)
             }
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
