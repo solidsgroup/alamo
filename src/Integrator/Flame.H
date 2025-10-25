@@ -58,7 +58,7 @@ protected:
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
 
-    virtual void UpdateFluxes(int lev, Set::Scalar time) override;
+    virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt) override;
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;

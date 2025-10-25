@@ -76,7 +76,7 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
-    virtual void UpdateFluxes(int lev, Set::Scalar time);
+    virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
     
     void RHS(   int lev, Set::Scalar time, 

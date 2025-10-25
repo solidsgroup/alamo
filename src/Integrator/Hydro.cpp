@@ -304,7 +304,7 @@ void Hydro::UpdateEta(int lev, Set::Scalar time)
     eta_ic->Initialize(lev, *eta_mf, time);
 }
 
-void Hydro::UpdateFluxes(int lev, Set::Scalar time)
+void Hydro::UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt)
 {
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
 }
@@ -341,7 +341,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         std::swap(*eta_old_mf, *eta_mf);
         UpdateEta(lev, time);
     }
-    UpdateFluxes(lev,time);
+    UpdateFluxes(lev, time, dt);
 
     Mix(lev);
 

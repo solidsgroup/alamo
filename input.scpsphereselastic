@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 0.00005_s
+amr.plot_dt = 0.001_s
 amr.max_grid_size = 64
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
@@ -59,7 +59,7 @@ phi.ic.psread.file.name = 2d.xyzr
 phi.ic.psread.eps = 10._um
 
 # Phase field parameters
-pf.kappa      = 1.0_J/m^2
+pf.kappa      = 5.0_J/m^2
 pf.w1         = 1.0_1
 pf.w12        = 2.0_1
 pf.w0         = 0.0_1

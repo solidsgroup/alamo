@@ -373,7 +373,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
     }
 }
 
-void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
+void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 {
     amrex::Box domain = this->geom[lev].Domain();
     domain.convert(amrex::IntVect::TheNodeVector());
@@ -390,6 +390,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
         Set::Patch<Set::Scalar> rho_tot_gas = rho_tot_gas_mf.Patch(lev,mfi); // Set scalar value for total density of the gaseous phase
         Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
         Set::Patch<Set::Scalar> u0 = Hydro::u0_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
 
         Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
         Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
@@ -423,9 +424,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
             u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
             u0_patch(i,j,k,1) = u0(1);
 
-            Set::Scalar deta_dt = (eta(i,j,k) - etaold(i,j,k))/0.00005; // time derivate approximation of eta
-            // source(i,j,k,0) += deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0);
-            // source(i,j,k,1) += deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1);
+            Set::Scalar deta_dt = (eta(i,j,k) - etaold(i,j,k))/dt; // time derivate approximation of eta
 
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
             {
@@ -436,8 +435,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time)
             solidM(i,j,k,0) = solidrho(i,j,k)*u0(0);
             solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
 
-            u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0);
-            u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1);
+            u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)/rho_tot_gas(i,j,k); // Update the velocity source term based on conservation of mass
+            u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)/rho_tot_gas(i,j,k);
         });
     }
 
