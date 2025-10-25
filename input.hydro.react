@@ -1,0 +1,180 @@
+####################
+# Alamo Parameters #
+####################
+
+stop_time = 0.5
+timestep = 1e-6
+
+####################
+# AMReX Parameters #
+####################
+
+amr.base_regrid_int = 10
+amr.plot_dt = 0.01
+#amr.plot_int = 1
+amr.plot_file = output.hydro.react
+amr.max_level = 3
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.grid_eff = 0.7
+
+#amr.n_cell = 64 8
+amr.n_cell = 256 8
+geometry.prob_lo = 0.0 -0.3
+geometry.prob_hi = 1.0  0.3
+geometry.is_periodic = 0 1 0
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps = 0.02
+eta.ic.expression.region0 = "1" # - 0.5 * (erf((x)/eps) + 1)"
+
+yamlfile = h2o2.yaml
+
+###############################
+# Hydro Integrator Parameters #
+###############################
+
+### HYDRO PARAM ###
+gamma = 1.4
+mu    = 5.0
+pref    = 0
+tref    = 0
+
+##Default is Air
+#species_massf = 0.767 0.233
+
+## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
+## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
+species = A B
+species_mw = 32.0 32.0
+species_k = 1.5e-2 1.5e-2
+species_cp = 1000.0 1000.0
+species_mu = 150.0e-7 150.0e-7
+species_LJdiameter = 3.5e-2 3.5e-2
+species_LJwelldepth = 100.0 100.0
+
+## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
+## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
+#species = CO2 O2 N2
+#species_mw = 44.010 32.000 28.016
+#species_molef = 0.133 0.039 0.828
+#species_k = 1.6024E-2 2.5606E-2 2.6234E-2
+#species_cp = 845.68 920.0 1040.0
+#species_mu = 146.2E-7 203.1E-7 175.4E-7
+#species_LJdiameter = 3.996 3.433 3.667
+#species_LJwelldepth = 190.0 113.0 99.8
+
+## Transport Phenomena Ex. 17.3-1 | D_AB = 0.149 cm^2/s = 1.49E-5 m^2/s
+#species = CO CO2
+#species_mw = 28.01 44.01
+#species_massf = 0.5 0.5
+#species_k = 2.5564E-2 1.6024E-2
+#species_cp = 1040.45 845.68
+#species_mu = 177.7E-7 146.2E-7
+#species_LJdiameter = 3.590 3.996
+#species_LJwelldepth = 110 190
+
+density.ic.type = expression
+density.ic.expression.constant.P = 101325.0
+density.ic.expression.constant.T = 300.0
+density.ic.expression.constant.R = 259.83
+density.ic.expression.constant.eps = 0.01
+density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-1/2)/eps))"
+density.ic.expression.region1 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
+#density.ic.expression.region0 = "P/R/T * (x<=0.5)"
+#density.ic.expression.region1 = "P/R/T * (x>0.5)"
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.eps   = 0.1
+velocity.ic.expression.constant.x0    = -2.0
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.constant.gamma = 1.4
+pressure.ic.expression.constant.E_solid = 5.0
+pressure.ic.expression.region0 = "101325.0" #"(gamma - 1.0) * E_solid" # / x^2"
+
+### ETA BC  ###
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+density.bc.constant.type.xhi = dirichlet dirichlet
+density.bc.constant.type.xlo = dirichlet dirichlet
+density.bc.constant.type.yhi = periodic periodic
+density.bc.constant.type.ylo = periodic periodic
+density.bc.constant.val.xhi = 0.0 1.299887089
+density.bc.constant.val.xlo = 1.299887089 0.0
+density.bc.constant.val.yhi = 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0
+
+momentum.bc.constant.type.xhi = dirichlet dirichlet
+momentum.bc.constant.type.xlo = dirichlet dirichlet
+momentum.bc.constant.type.ylo = periodic periodic
+momentum.bc.constant.type.yhi = periodic periodic
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.constant.type.xhi = dirichlet
+energy.bc.constant.type.xlo = dirichlet
+energy.bc.constant.type.ylo = periodic
+energy.bc.constant.type.yhi = periodic
+energy.bc.constant.val.xhi = 288646.20678914
+energy.bc.constant.val.xlo = 288646.20678914
+energy.bc.constant.val.ylo = 0.0 
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+#hydro.r_refinement_criterion   = 0.1
+#hydro.e_refinement_criterion   = 0.1
+#hydro.m_refinement_criterion   = 0.1
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion = 100000000
+
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.density.ic.constant.value = 40.0 40.0
+solid.energy.ic.constant.value = 0.0
+
+m0.ic.constant.value = 0.0 0.0
+u0.ic.constant.value = 0.0 0.0
+q.ic.constant.value = 0.0 0.0
+
+small=1E-6
+cutoff=0.2
+lagrange=2000.0
+
+#hydro.Lfactor=-10
+#hydro.Pfactor=10
+cfl   = 10.0
+cfl_v   = 10.0
+
+#hydro.solver.type = roe
+#hydro.solver.roe.lowmach = 1
+
+solver.type = hllc
+
+#dynamictimestep.on = 0
+#dynamictimestep.verbose = 1
+#dynamictimestep.max  = 1E+10
+#dynamictimestep.min  = 1E-10
+#hydro.cfl   = 1-19
+#hydro.cfl_v = 1.E2
+
+scheme = forwardeuler
+
+prescribedflowmode = relative
+

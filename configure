@@ -369,6 +369,7 @@ if args.macos:
 # LINK LIBPNG
 #
 f.write("LIB += -lpng \n")
+f.write("LIB += -lyaml-cpp \n")
 
 #
 # ADD ADDITIONAL LINK LIBRARIES
@@ -475,6 +476,7 @@ if args.perf:
 if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    f.write("CXX_COMPILE_FLAGS += -I/usr/include/yaml-cpp\n")
     if args.coverage:
         f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
@@ -498,6 +500,7 @@ if args.comp == 'g++':
 if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    f.write("CXX_COMPILE_FLAGS += -I/usr/include/yaml-cpp\n")
     if args.debug:
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
     elif args.perf:
@@ -508,6 +511,7 @@ if args.comp == 'clang++':
         f.write("LINKER_FLAGS += -flto \n")    
 if args.comp == 'icc':
     f.write("MPI_LIB += -lifcore\n")
+    f.write("CXX_COMPILE_FLAGS += -I/usr/include/yaml-cpp\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 

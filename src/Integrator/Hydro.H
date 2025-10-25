@@ -3,6 +3,7 @@
 
 #include "Integrator/Integrator.H"
 #include "IO/ParmParse.H"
+#include "IO/YamlParse.H"
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
@@ -190,6 +191,9 @@ protected:
     bool restart_found = false;
 
     std::vector<bool> mixed;
+
+    std::string yamlfile;
+    CanteraYAML::CanteraKinetics kinetics;
 
 };
 }
