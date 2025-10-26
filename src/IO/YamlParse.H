@@ -2,13 +2,14 @@
 #define IO_YAMLPARSE
 
 #include "Util/Util.H"
-#include <yaml-cpp/yaml.h>
 #include <string>
 #include <vector>
 #include <map>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <regex>
+#include <yaml-cpp/yaml.h>
 
 namespace CanteraYAML {
 
@@ -38,11 +39,26 @@ struct Reaction {
     std::string type = "arrhenius";
     bool third_body = false;
     bool reversible = false;
+    bool falloff = false;
     std::map<std::string, double> reactants;
     std::map<std::string, double> products;
+    // Arrhenius constants (high values if falloff)
     double A = 0.0;
     double b = 0.0;
-    double Ea = 0.0;
+    double E = 0.0;
+    // Arrhenius constants for low if falloff
+    double A2 = 0.0;
+    double b2 = 0.0;
+    double E2 = 0.0;
+    double F = 1.0;
+    std::map<std::string, double> efficiencies;
+    std::map<std::string, double> Troe;
+};
+
+struct CanteraKinetics {
+    std::vector<Phase> phase;
+    std::vector<Species> species;
+    std::vector<Reaction> reaction;
 };
 
 // ---------------------------
@@ -96,18 +112,49 @@ inline std::string trim(const std::string& s) {
 }
 
 // Helper: split string by delimiter
-inline std::vector<std::string> split(const std::string& s, char delim) {
+inline std::vector<std::string> split(const std::string& s, const std::string& delim) {
     std::vector<std::string> elems;
-    std::stringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) elems.push_back(trim(item));
+    if (delim.empty()) {  // handle degenerate case
+        elems.push_back(trim(s));
+        return elems;
+    }
+
+    size_t start = 0;
+    size_t end = 0;
+
+    while ((end = s.find(delim, start)) != std::string::npos) {
+        std::string token = s.substr(start, end - start);
+        elems.push_back(trim(token));
+        start = end + delim.length();
+    }
+
+    // Add final segment
+    if (start < s.size())
+        elems.push_back(trim(s.substr(start)));
+    else if (!s.empty() && s.rfind(delim) == s.size() - delim.size())
+        elems.push_back("");  // optional: preserve trailing empty element
     return elems;
+}
+
+// Replace all occurrences of "(+Species)" with " + +Species"
+inline std::string replaceThirdBody(const std::string& eq) {
+    // Regex explanation:
+    //   \(           : literal '('
+    //   \s*\+        : optional whitespace, then a literal '+'
+    //   ([A-Za-z0-9_]+) : capture species name (letters, digits, underscore)
+    //   \s*\)        : optional whitespace, then ')'
+    //
+    // Example matches: "(+M)", "( +Ar )", "(+CO2)", "(+X_123)"
+    static const std::regex pattern(R"(\(\s*\+([A-Za-z0-9_]+)\s*\))");
+
+    // Replace with "+ +\1" where \1 is the captured species name
+    return std::regex_replace(eq, pattern, "+ +$1");
 }
 
 // Parse string to get number of species
 auto parseSide = [](const std::string& side) -> std::map<std::string, double> {
     std::map<std::string, double> species;
-    auto terms = split(side, '+');
+    auto terms = split(side, " + ");
     for (auto& term : terms) {
         if (term.empty()) continue;
         std::stringstream ss(term);
@@ -152,6 +199,7 @@ public:
         }
     }
     // Extract units
+    // TODO: convert provided units to SI
     std::map<std::string, std::string> getUnits() const {
         std::map<std::string, std::string> result;
         if (!root["units"]) return result;
@@ -211,38 +259,53 @@ public:
                 const auto& rc = node["rate-constant"];
                 r.A = asDoubleSafe(rc["A"]);
                 r.b = asDoubleSafe(rc["b"]);
-                r.Ea = asDoubleSafe(rc["Ea"]);
+                r.E = asDoubleSafe(rc["Ea"]);
+            }
+            if (node["high-P-rate-constant"]) {
+                const auto& rc = node["high-P-rate-constant"];
+                r.A = asDoubleSafe(rc["A"]);
+                r.b = asDoubleSafe(rc["b"]);
+                r.E = asDoubleSafe(rc["Ea"]);
+            }
+            if (node["low-P-rate-constant"]) {
+                const auto& rc = node["low-P-rate-constant"];
+                r.A2 = asDoubleSafe(rc["A"]);
+                r.b2 = asDoubleSafe(rc["b"]);
+                r.E2 = asDoubleSafe(rc["Ea"]);
             }
             if (node["type"]) r.type = asStringSafe(node["type"]);
             if (r.type == "three-body") r.third_body = true;
-            size_t found_forward = r.equation.find("=>");
-            size_t found_reversible = r.equation.find("<=>");
+            else if (r.type == "falloff") {
+                r.falloff = true;
+                r.third_body = true;
+            }
             std::string lhs, rhs;
-            if (found_reversible != r.equation.npos) {
+            std::string eq_mod = replaceThirdBody(r.equation);
+            size_t found_forward = eq_mod.find("=>");
+            size_t found_reversible = eq_mod.find("<=>");
+            if (found_reversible != std::string::npos) {
                 r.reversible = true;
-                lhs = r.equation.substr(0, found_reversible);
-                rhs = r.equation.substr(found_reversible + 3);
-            } else if (found_forward != r.equation.npos) {
-                lhs = r.equation.substr(0, found_forward);
-                rhs = r.equation.substr(found_forward + 2);
+                lhs = eq_mod.substr(0, found_reversible);
+                rhs = eq_mod.substr(found_reversible + 3);
+            } else if (found_forward != std::string::npos) {
+                lhs = eq_mod.substr(0, found_forward);
+                rhs = eq_mod.substr(found_forward + 2);
             } else {
                 Util::Message(INFO, "No valid arrow (=> or <=>) found in reaction.");
                 Util::Abort(INFO);
             }
             r.reactants = parseSide(lhs);
             r.products = parseSide(rhs);
+            if (node["efficiencies"]) r.efficiencies = parseMap(node["efficiencies"]);
+            if (node["Troe"]) {
+                r.Troe = parseMap(node["Troe"]);
+                r.F = 5.0; // TODO: update this based on Troe Fcent
+            }
+                  
             result.push_back(r);
         }
         return result;
     }
-};
-
-class CanteraKinetics
-{
-public:
-    std::vector<Phase> phase;
-    std::vector<Species> species;
-    std::vector<Reaction> reaction;
 };
 
 CanteraKinetics ParseYaml(std::string &filename);

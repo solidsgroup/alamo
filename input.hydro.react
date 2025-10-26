@@ -3,15 +3,15 @@
 ####################
 
 stop_time = 0.5
-timestep = 1e-6
+timestep = 1e-10
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 10
-amr.plot_dt = 0.01
-#amr.plot_int = 1
+#amr.plot_dt = 0.01
+amr.plot_int = 1
 amr.plot_file = output.hydro.react
 amr.max_level = 3
 amr.max_grid_size = 500000
@@ -45,13 +45,15 @@ tref    = 0
 
 ## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
-species = A B
-species_mw = 32.0 32.0
-species_k = 1.5e-2 1.5e-2
-species_cp = 1000.0 1000.0
-species_mu = 150.0e-7 150.0e-7
-species_LJdiameter = 3.5e-2 3.5e-2
-species_LJwelldepth = 100.0 100.0
+species = H2 H O O2 OH H2O HO2 H2O2 AR N2
+species_mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.95 28.014
+species_k = 0.18692308313058376 0.29397455762547026 0.050743730582464515 0.026570734809079212 0.05909990738807511 0.02626794470764762 0.029390866369235085 0.0361346334633821 0.018059726632678255 0.026463112933806793
+species_cp = 14310.905255369767 20621.18704970528 1368.8549802484818 918.43462505419 1756.8040342682864 1864.9154285171269 1058.2922391213083 1248.260799090108 520.3042940020803 1037.8911357957468
+species_mu = 9.000297497350422e-06 9.50498709679967e-06 2.48574213354167e-05 2.0654335611112864e-05 2.5628519006356415e-05 1.0327783369401388e-05 2.0977139204768138e-05 2.129505010315616e-05 2.3142358895013927e-05 1.808570419229132e-05
+species_LJdiameter = 2.92e-2 2.05e-2 2.7500000000000003e-2 3.4580000000000004e-2 2.7500000000000003e-2 2.6050000000000003e-2 3.4580000000000004e-2 3.4580000000000004e-2 3.3300000000000004e-2 3.621e-2
+species_LJwelldepth = 38.0 145.0 80.0 107.4 80.0 572.4 107.4 107.4 136.5 97.53
+#species_H0 = -7612612.705405556 211820579.14264458 242162264.29844806 -8814682.296280382 30090633.670754425 -251841157.2195853 2486917.8822530303 -147151905.746433 -6176606.417460589 -8460801.485411735
+species_H0 = -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0
 
 ## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
@@ -80,7 +82,15 @@ density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
 density.ic.expression.constant.eps = 0.01
 density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-1/2)/eps))"
-density.ic.expression.region1 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "0.0"
+density.ic.expression.region6 = "0.0"
+density.ic.expression.region7 = "0.0"
+density.ic.expression.region8 = "0.0"
+density.ic.expression.region9 = "0.0"
 #density.ic.expression.region0 = "P/R/T * (x<=0.5)"
 #density.ic.expression.region1 = "P/R/T * (x>0.5)"
 
@@ -110,14 +120,14 @@ pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
 ### HYDRO BC ###
-density.bc.constant.type.xhi = dirichlet dirichlet
-density.bc.constant.type.xlo = dirichlet dirichlet
-density.bc.constant.type.yhi = periodic periodic
-density.bc.constant.type.ylo = periodic periodic
-density.bc.constant.val.xhi = 0.0 1.299887089
-density.bc.constant.val.xlo = 1.299887089 0.0
-density.bc.constant.val.yhi = 0.0 0.0
-density.bc.constant.val.ylo = 0.0 0.0
+density.bc.constant.type.xhi = dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet
+density.bc.constant.type.xlo = dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet dirichlet
+density.bc.constant.type.yhi = periodic periodic periodic periodic periodic periodic periodic periodic periodic periodic
+density.bc.constant.type.ylo = periodic periodic periodic periodic periodic periodic periodic periodic periodic periodic
+density.bc.constant.val.xhi = 0.0 0.0 0.0 1.299887089 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 1.299887089 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 
 momentum.bc.constant.type.xhi = dirichlet dirichlet
 momentum.bc.constant.type.xlo = dirichlet dirichlet
@@ -146,10 +156,10 @@ omega_refinement_criterion = 10000000
 gradu_refinement_criterion = 100000000
 
 solid.momentum.ic.constant.value = 0.0 0.0
-solid.density.ic.constant.value = 40.0 40.0
+solid.density.ic.constant.value = 40.0 40.0 40.0 40.0 40.0 40.0 40.0 40.0 40.0 40.0
 solid.energy.ic.constant.value = 0.0
 
-m0.ic.constant.value = 0.0 0.0
+m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 u0.ic.constant.value = 0.0 0.0
 q.ic.constant.value = 0.0 0.0
 

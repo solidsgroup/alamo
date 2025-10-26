@@ -1,6 +1,7 @@
+#include <iostream>
+#include <map>
 #include "IO/YamlParse.H"
 #include "Util/Util.H"
-#include <iostream>
 
 CanteraYAML::CanteraKinetics CanteraYAML::ParseYaml(std::string &filename) {
     CanteraYAML::CanteraKinetics kinetics;
@@ -56,18 +57,25 @@ CanteraYAML::CanteraKinetics CanteraYAML::ParseYaml(std::string &filename) {
 #ifdef AMREX_DEBUG
     std::cout << "Reactions: " << reactions.size() << "\n";
     for (size_t n=0; n<reactions.size(); ++n) {
-        std::cout << n << " - " << reactions[n].equation
-                  << "  [A=" << reactions[n].A
+        std::cout << n << " - " << reactions[n].equation << "\n";
+        std::cout << "  [A=" << reactions[n].A
                   << ", b=" << reactions[n].b
-                  << ", Ea=" << reactions[n].Ea << "]\n";
+                  << ", Ea=" << reactions[n].E << "]\n";
         std::cout << "\t Type: " << reactions[n].type << "\n";
         std::cout << "\t Third Body: " << reactions[n].third_body << "\n";
         std::cout << "\t reversible: " << reactions[n].reversible << "\n";
+        std::cout << "\t falloff: " << reactions[n].falloff << "\n";
         for (const auto& pair : reactions[n].reactants) {
             std::cout << "\t Reactants: " << pair.first << " " << pair.second << "\n";
         }
         for (const auto& pair : reactions[n].products) {
             std::cout << "\t Products: " << pair.first << " " << pair.second << "\n";
+        }
+        for (const auto& pair : reactions[n].efficiencies) {
+            std::cout << "\t Efficiencies: " << pair.first << " " << pair.second << "\n";
+        }
+        for (const auto& pair : reactions[n].Troe) {
+            std::cout << "\t Troe: " << pair.first << " " << pair.second << "\n";
         }
     }
 #endif

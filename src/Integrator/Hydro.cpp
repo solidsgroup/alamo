@@ -88,6 +88,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_queryarr_default("species_mu", value.species_mu, {175.4E-7, 203.1E-7}); //kg/m-s, dynamic viscosity
         pp_queryarr_default("species_LJdiameter", value.species_LJdiameter, {3.667, 3.433}); // Angstroms, Lennard-Jones potential collision diameter
         pp_queryarr_default("species_LJwelldepth", value.species_LJwelldepth, {99.8, 113.0}); // K, Lennard-Jones potential e/k (k: Boltzmann constant)
+        pp_queryarr_default("species_H0", value.species_H0, {99.8, 113.0}); // J/kg/K, Heat of formation at Tref
 
         // Boundary condition for density
         pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc,value.nspecies);
@@ -836,7 +837,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     amrex::MultiFab rhoHDYy_mf(ba,dm,nspecies,nghost);   // species enthalpy diffusion, rho*H*D*dY/dy
     amrex::MultiFab rhoDYx_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dx
     amrex::MultiFab rhoDYy_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dy
-    amrex::MultiFab omega(ba,dm, nspecies,nghost);  // mass generation/destruction (reaction rate, kg/m^3/s)
+    amrex::MultiFab w_mf(ba,dm, nspecies,nghost);  // mass generation/destruction (reaction rate, kg/m^3/s)
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
@@ -876,6 +877,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>        rhoHDYy  = rhoHDYy_mf.array(mfi);
         Set::Patch<Set::Scalar>         rhoDYx  = rhoDYx_mf.array(mfi);
         Set::Patch<Set::Scalar>         rhoDYy  = rhoDYy_mf.array(mfi);
+        Set::Patch<Set::Scalar>              w  = w_mf.array(mfi);
 
         Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
@@ -985,69 +987,96 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 mixed_mu(i,j,k) += species_molef[a] * species_mu[a] / phi;
                 mixed_k(i,j,k)  += species_molef[a] * species_k[a] / phi;
             }
-            // Calculate reaction rates using modified arrhenius (3-body optional)
+            // Calculate reaction rates using modified arrhenius, 3-body, or falloff (Troe optional)
             // Per Cantera documentation and source code, cantera.org
             //
-            // Arrhenius: aA + bB <-> cC + dD
+            // Arrhenius: aA + bB <=> cC + dD
             // R = kf * ( [A]^a * [B]^b - 1/Kc * [C]^c * [D]^d )
             // kf = a*T^b*exp(-E/R0/T)
             // Kc = Kp * (Pref/Ru/T)^(dnu), Kp = exp(-G0/Ru/T), G0 = Sum(nu_j * (H0_j - T*S0_j))
             //
-            // Third-Body: A + B + M <-> C + D + M
+            // Third-Body: A + B + M <=> C + D + M
             // R = kf * [M] * ([A]*[B] - 1/Kc * [C]*[D])
             // [M] = Sum_j( e_j*[C_j] )
             //
+            // Falloff: A + B (+M) <=> C (+M)
+            // Pr = k0[M]/k_inf
+            // kf = k_inf * Pr / (1 + Pr) * F, F=1
+            // 
+            // Troe: same as Falloff
+            // log10F = log10F_cent / (1 + f^2) | This is handled in the YAML parser
+            //
             // Get mass net generation rate from reaction rate
             // omega_k = MW_k * Sum_i( (nu''_k - nu'_k) * R_i )
-            //for (int a=0; a<nspecies; ++a)
-            //{
-            //    omega(i,j,k,a) = 0.0;
-            //    for (int b=0; b<nreactions; ++b)
-            //    {
-            //        double nu_diff = rxn[b].products[a] - rxn[b].reactants[a];
-            //        double kf = rxn[b].factor * pow( temperature(i,j,k), rxn[b].exponent ) * exp( rxn[b].energy/Ru/temperature(i,j,k) );
-            //        double C_react = 1.0;
-            //        double C_prod = 1.0;
-            //        double third_body = 0.0;
-            //        double Kc = 1.0;
-            //        for (int c=0; c<nspecies; ++c)
-            //        {
-            //            if (rxn[b].type == "arrhenius")
-            //            // Elementary reaction with modified arrhenius rate
-            //            {
-            //                C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn[b].reactants[c]);
-            //                if (rxn[b].reverse) {
-            //                    C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn[b].products[c]);
-            //                }
-            //                third_body = 1.0; // third_body of unity removes impact of third_body which is nonexistent in this case
-            //            }
-            //            else if (rxn[b].type == "third-body")
-            //            {
-            //                // Need to figure out how to determine if species[c] is in list of rxn.reactants
-            //                if (species[c] in rxn[b].reactants) {
-            //                    C_react *= species_molef[c]*pressure/Ru/temperature(i,j,k);
-            //                }
-            //                // Need to figure out how to determine if species[c] is in list of rxn.products
-            //                if ((rxn[b].reverse) and (species[c] in rxn[b].products)) {
-            //                    C_prod *= species_molef[c]*pressure/Ru/temperature(i,j,k);
-            //                }
-            //                third_body += rxn[b].efficiency[c] * species_molef[c]*pressure/Ru/temperature(i,j,k);
-            //            }
-            //            else
-            //            {
-            //                Util::ParallelMessage(INFO,"Reaction type is invalid or unspecified.");
-            //                Util::Abort(INFO);
-            //            }
-            //        }
-            //        if (rxn[b].reverse) {
-            //            // TODO: calculate Kc for reverse rate
-            //            Util::ParallelMessage(INFO,"Reverse reactions not yet fully implemented.");
-            //            Util::Abort(INFO);
-            //        }
-            //        omega(i,j,k,a) += nu_diff * kf * third_body * (C_react - rxn[b].reverse*C_prod/Kc);
-            //    }
-            //    omega(i,j,k,a) *= species_mw(a); // Convert molar concentration to mass concentration (i.e. density)
-            //}
+
+            double Ru = 8314.45; // Universal gas constant, kg/mol-K
+            for (int a=0; a<nspecies; ++a)
+            {
+                std::string sp_a = kinetics.species[a].name;
+                w(i,j,k,a) = 0.0;
+                for (size_t b=0; b<kinetics.reaction.size(); ++b)
+                {
+                    CanteraYAML::Reaction rxn = kinetics.reaction[b];
+
+                    // nu_k'' - nu_k'
+                    double nu_diff = 0.0;
+                    if (rxn.products[sp_a] and rxn.reactants[sp_a])  nu_diff = rxn.products[sp_a] - rxn.reactants[sp_a];
+                    else if (rxn.products[sp_a] and (not rxn.reactants[sp_a])) nu_diff = rxn.products[sp_a];
+                    else if ((not rxn.products[sp_a]) and rxn.reactants[sp_a]) nu_diff = -rxn.reactants[sp_a];
+                    else nu_diff = 0.0;
+
+                    // Calc kf (forward reaction rate constant)
+                    double kf = 0.0;
+                    if (rxn.falloff) {
+                        double k_inf = rxn.A * pow( temperature(i,j,k), rxn.b ) * exp( rxn.E/Ru/temperature(i,j,k) );
+                        double k0 = rxn.A2 * pow( temperature(i,j,k), rxn.b2 ) * exp( rxn.E2/Ru/temperature(i,j,k) );
+                        double M_concentration = 0.0;
+                        for (int c=0; c<nspecies; ++c) {
+                            std::string sp = kinetics.species[c].name;
+                            if ( rxn.efficiencies[sp] ) {
+                                M_concentration += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            } else {
+                                M_concentration += species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            }
+                        }
+                        double Pr = k0*M_concentration/k_inf;
+                        kf = k_inf * Pr / (1.0 + Pr) * rxn.F;
+                    } else {
+                        kf = rxn.A * pow( temperature(i,j,k), rxn.b ) * exp( rxn.E/Ru/temperature(i,j,k) );
+                    }
+
+                    // TODO: Calc kb = kf/Kc (backward reaction rate constant)
+                    double Kc = 1.0;
+                    if (rxn.reversible) {
+                        double DG = -5e4; // this is currently just made up.  Need to be calculated from DH and DS thermo tables
+                        Kc = exp(-DG/Ru/temperature(i,j,k));
+                    }
+
+                    // Calc R, rate of progress
+                    double C_react = 1.0;
+                    double C_prod = 1.0;
+                    double third_body = 0.0;
+                    for (int c=0; c<nspecies; ++c) {
+                        std::string sp = kinetics.species[c].name;
+                        if (rxn.type == "arrhenius") {
+                        // Elementary reaction with modified arrhenius rate
+                            if (rxn.reactants[sp]) C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.reactants[sp]);
+                            if (rxn.reversible and rxn.products[sp]) C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.products[sp]);
+                            third_body = 1.0; // third_body of unity removes impact of third_body which is nonexistent in this case
+                        } else if (rxn.third_body) {
+                            if (rxn.reactants[sp]) C_react *= species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            if (rxn.reversible and rxn.products[sp]) C_prod *= species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            if (rxn.efficiencies[sp]) third_body += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            else third_body += species_molef[c]*pressure/Ru/temperature(i,j,k);
+                        } else {
+                            Util::ParallelMessage(INFO,"Reaction type is invalid or unspecified.");
+                            Util::Abort(INFO);
+                        }
+                    }
+                    w(i,j,k,a) += nu_diff * kf * third_body * (C_react - rxn.reversible*C_prod/Kc); // if rxn.reversible == false, then backward rates = 0;
+                }
+                w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
+            }
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -1277,7 +1306,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
                     Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX);
                     Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX);
-                    drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
+                    drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1] + w(i,j,k,n));
                 }
 
                 rho_rhs(i,j,k,n) = 
@@ -1332,7 +1361,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                     Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
                     Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
-                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]);
+                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1] - 2.0*species_H0[n]*w(i,j,k,n));
                               
                 }
             }

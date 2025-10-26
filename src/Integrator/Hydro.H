@@ -170,6 +170,7 @@ protected:
     std::vector<double> species_cp;
     std::vector<double> species_LJdiameter;
     std::vector<double> species_LJwelldepth;
+    std::vector<double> species_H0;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
