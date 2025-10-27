@@ -3,7 +3,7 @@
 ####################
 
 stop_time = 0.5
-timestep = 1e-6
+timestep = 1e-8
 
 ####################
 # AMReX Parameters #
@@ -12,16 +12,16 @@ timestep = 1e-6
 amr.base_regrid_int = 10
 #amr.plot_dt = 0.01
 amr.plot_int = 1
-amr.plot_file = output.hydro.react
-amr.max_level = 3
+amr.plot_file = output.hydro.react_1D
+amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
 
 #amr.n_cell = 64 8
-amr.n_cell = 256 8
-geometry.prob_lo = 0.0 -0.3
-geometry.prob_hi = 1.0  0.3
+amr.n_cell = 4 4
+geometry.prob_lo = -0.5 -0.5
+geometry.prob_hi = 0.5  0.5
 geometry.is_periodic = 0 1 0
 
 eta.ic.type = expression
@@ -86,11 +86,11 @@ density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
 density.ic.expression.constant.eps = 0.01
-density.ic.expression.region0 = "0.07930*(x>0.1) + 0.02166905*(x<=0.1)"
-density.ic.expression.region1 = "0.28772*(x>0.1) + 0.07861829*(x<=0.1)"
+density.ic.expression.region0 = "0.02166905"
+density.ic.expression.region1 = "0.07861829"
 density.ic.expression.region2 = "0.0"
 density.ic.expression.region3 = "0.0"
-density.ic.expression.region4 = "0.94756*(x>0.1) + 0.25879967*(x<=0.1)"
+density.ic.expression.region4 = "0.25879967"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1

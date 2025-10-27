@@ -992,7 +992,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //
             // Arrhenius: aA + bB <=> cC + dD
             // R = kf * ( [A]^a * [B]^b - 1/Kc * [C]^c * [D]^d )
-            // kf = a*T^b*exp(-E/R0/T)
+            // kf = A*T^b*exp(-E/R0/T)
             // Kc = Kp * (Pref/Ru/T)^(dnu), Kp = exp(-G0/Ru/T), G0 = Sum(nu_j * (H0_j - T*S0_j))
             //
             // Third-Body: A + B + M <=> C + D + M
@@ -1009,7 +1009,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             // Get mass net generation rate from reaction rate
             // omega_k = MW_k * Sum_i( (nu''_k - nu'_k) * R_i )
 
-            double Ru = 8314.45; // Universal gas constant, kg/mol-K
+            double Ru = 8314.46; // Universal gas constant, kg/mol-K
             for (int a=0; a<nspecies; ++a)
             {
                 std::string sp_a = kinetics.species[a].name;
@@ -1041,14 +1041,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         }
                         double Pr = k0*M_concentration/k_inf;
                         kf = k_inf * Pr / (1.0 + Pr) * rxn.F;
-                    } else {
-                        kf = rxn.A * pow( temperature(i,j,k), rxn.b ) * exp( rxn.E/Ru/temperature(i,j,k) );
-                    }
+                    } else kf = rxn.A * pow( temperature(i,j,k), rxn.b ) * exp( -rxn.E/Ru/temperature(i,j,k) );
 
                     // TODO: Calc kb = kf/Kc (backward reaction rate constant)
                     double Kc = 1.0;
                     if (rxn.reversible) {
-                        double DG = -5e4; // this is currently just made up.  Need to be calculated from DH and DS thermo tables
+                        double DG = 0.0; // this is currently just made up.  Need to be calculated from DH and DS thermo tables
                         Kc = exp(-DG/Ru/temperature(i,j,k));
                     }
 
@@ -1060,7 +1058,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         std::string sp = kinetics.species[c].name;
                         if (rxn.type == "arrhenius") {
                         // Elementary reaction with modified arrhenius rate
-                            if (rxn.reactants[sp]) C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.reactants[sp]);
+                            if (rxn.reactants[sp]) {
+                                if (rxn.orders[sp]) C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.orders[sp]);
+                                else C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.reactants[sp]);
+                            }
                             if (rxn.reversible and rxn.products[sp]) C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.products[sp]);
                             third_body = 1.0; // third_body of unity removes impact of third_body which is nonexistent in this case
                         } else if (rxn.third_body) {
@@ -1073,9 +1074,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             Util::Abort(INFO);
                         }
                     }
-                    w(i,j,k,a) += nu_diff * kf * third_body * (C_react - rxn.reversible*C_prod/Kc); // if rxn.reversible == false, then backward rates = 0;
+                    w(i,j,k,a) += nu_diff * kf * third_body * (C_react - 0.0*rxn.reversible*C_prod/Kc); // if rxn.reversible == false, then backward rates = 0;
+                    std::cout << "Net production rate - " << sp_a << ": " << w(i,j,k,a) << " kmol/m^3/s\n";
                 }
                 w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
+                if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells
             }
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)

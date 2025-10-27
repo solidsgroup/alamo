@@ -42,6 +42,7 @@ struct Reaction {
     bool falloff = false;
     std::map<std::string, double> reactants;
     std::map<std::string, double> products;
+    std::map<std::string, double> orders;
     // Arrhenius constants (high values if falloff)
     double A = 0.0;
     double b = 0.0;
@@ -226,6 +227,7 @@ public:
 
     // Extract species
     std::vector<Species> getSpecies() const {
+        auto units = getUnits();
         std::vector<Species> result;
         if (!root["species"]) return result;
         for (const auto& node : root["species"]) {
@@ -240,7 +242,11 @@ public:
                 }
             }
             if (node["transport"]) {
-                s.transportLJdepth = asDoubleSafe(node["transport"]["well-depth"]);
+                //boltzmann = 1.380649e-23;
+                // We want well-depth in E/boltzmann = T (units Kelvin)
+                // diameter in Angstroms
+                // These are the required units for the mixture models in Hydro
+                s.transportLJdepth = asDoubleSafe(node["transport"]["well-depth"]);///boltzmann;
                 s.transportLJdiameter = asDoubleSafe(node["transport"]["diameter"]);
             }
             result.push_back(s);
@@ -250,6 +256,7 @@ public:
 
     // Extract reactions
     std::vector<Reaction> getReactions() const {
+        auto units = getUnits();
         std::vector<Reaction> result;
         if (!root["reactions"]) return result;
         for (const auto& node : root["reactions"]) {
@@ -296,10 +303,36 @@ public:
             }
             r.reactants = parseSide(lhs);
             r.products = parseSide(rhs);
+            if (node["orders"]) r.orders = parseMap(node["orders"]);
             if (node["efficiencies"]) r.efficiencies = parseMap(node["efficiencies"]);
             if (node["Troe"]) {
                 r.Troe = parseMap(node["Troe"]);
-                r.F = 5.0; // TODO: update this based on Troe Fcent
+                r.F = 1.0; // TODO: update this based on Troe Fcent
+            }
+
+            // Convert to proper units
+            double order = 0.0;
+            for (const auto& pair : r.reactants) {
+                if (node["orders"] and r.orders[pair.first]) order += r.orders[pair.first]; 
+                else order += pair.second;
+            }
+            order = (order - 1.0);
+
+            if (units["activation-energy"] == "cal/mol") {
+                r.E *= 4184.0; // convert to J/kmol
+                r.E2 *= 4184.0; // convert to J/kmol
+            }
+
+            if (units["length"] == "cm") {
+                // cm^3 to m^3
+                r.A *= pow(1e-2, 3*order);
+                r.A2 *= pow(1e-2, 3*order);
+
+            }
+            if (units["quantity"] == "mol") {
+                // 1/mol to 1/kmo1
+                r.A *= pow(1.0e3, order);
+                r.A2 *= pow(1.0e3, order);
             }
                   
             result.push_back(r);
