@@ -557,9 +557,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {   
                 for (int n=0; n<nspecies; ++n) {
-                    std::cout << "rhoY: " << species[n] << ": " << rho_old(i,j,k,n) << "\n";
                     rho_new(i,j,k,n) = rho_old(i,j,k,n) + dt * rho_rhs(i,j,k,n);
-                    std::cout << "rhoYnew: " << species[n] << ": " << rho_new(i,j,k,n) << "\n";
                 }
                 M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
                 M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
@@ -932,28 +930,27 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             p(i,j,k) = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))+pref;
 
             // thermally perfect
-            Set::Scalar e_fluid = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) / (etarho_fluid + small);
+            Set::Scalar e_fluid = (etarho_fluid*etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1))) / (etarho_fluid*etarho_fluid + small);
             double T = 0.0;
             double Tmin = 100.0;
             double Tmax = 3500.0;
             bool convergedT = false;
             int counter = 0;
+            double h=0.0, e=0.0;
             while (convergedT == false) {
                 counter += 1;
                 T = (Tmin + Tmax)/2.0;
                 ComputeThermo(rhoY, T);
-                double h = 0.0;
+                h = 0.0;
                 for (int n=0; n<nspecies; ++n) h += species_h[n]*species_Y[n];
-                double e = h - R*T;
-                double atol = 1e-10, rtol = 1e-8;
-                //std::cout << "T: " << T << "\n";
+                e = h - R*T;
+                double atol = 1e-15, rtol = 1e-15;
                 if ( (abs(e - e_fluid)/e_fluid <= rtol) or (abs(e - e_fluid) < atol) ) {
-                   // std::cout << "Tconverged: " << T << "\n";
                     convergedT = true;
                 }
                 else if ( e < e_fluid ) Tmin = T;
                 else Tmax = T;
-                if (counter > 100) {
+                if (counter > 1000) {
                     Util::Message(INFO, "No temperature convergence after 100 iterations.");
                     Util::Abort(INFO);
                 }
@@ -1089,7 +1086,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //double h0 = 0.0;
             //double s = 0.0;
             for (int n=0; n<nspecies; ++n) {
-                h += species_Y[n]*species_h[n];
+                h += species_Y[n]*(species_h[n] - species_h0[n]);
                 //h0 += species_Y[n]*species_h0[n];
                 //s += species_Y[n]*species_s[n];
             }
@@ -1097,7 +1094,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             // calorically perfect
             mixed_H(i,j,k) = mixed_cp*temperature(i,j,k);
             // thermally perfect
-            mixed_H(i,j,k) = h; // - h0;
+            mixed_H(i,j,k) = h;
 
             // Multispecies effects
             // Mixture viscosity and heat conduction coefficient
@@ -1178,7 +1175,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             // Get mass net generation rate from reaction rate
             // omega_k = MW_k * Sum_i( (nu''_k - nu'_k) * R_i )
 
-            double Ru = 8314.46; // Universal gas constant, kg/mol-K
             for (int a=0; a<nspecies; ++a)
             {
                 std::string sp_a = kinetics.species[a].name;
@@ -1260,15 +1256,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 }
                 w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
                 if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells
-                else if (rho(i,j,k,a) + w(i,j,k,a)*1e-9 < 0.0) {
-                    amrex::IntVect lo_corner = bx_ghost.smallEnd();
-                    amrex::IntVect hi_corner = bx_ghost.bigEnd();
-                    amrex::IntVect bx_size = bx_ghost.size();
-                    if ( i>=0 and j>=0 and k>=0 and i<hi_corner[0] and j<hi_corner[1] and k<hi_corner[2] ) {
-                        Util::Message(INFO, "ijk: ", i, j, k, a, " w: ", w(i,j,k,a));
-                        //Util::Abort(INFO);
-                    }
-                }
+                //else if (rho(i,j,k,a) + w(i,j,k,a)*1e-9 < 0.0) {
+                //    amrex::IntVect lo_corner = bx_ghost.smallEnd();
+                //    amrex::IntVect hi_corner = bx_ghost.bigEnd();
+                //    amrex::IntVect bx_size = bx_ghost.size();
+                //    if ( i>=0 and j>=0 and k>=0 and i<hi_corner[0] and j<hi_corner[1] and k<hi_corner[2] ) {
+                //        Util::Message(INFO, "ijk: ", i, j, k, a, " w: ", w(i,j,k,a));
+                //        //Util::Abort(INFO);
+                //    }
+                //}
             }
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -1339,6 +1335,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector grad_mixed_kTx  = Numeric::Gradient(mixed_kT,i,j,k,0,DX);
             Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX);
+            Set::Vector grad_mu         = Numeric::Gradient(mixed_mu,i,j,k,0,DX);
 
             // These need to be recalculated for each species
             //Set::Vector grad_rhoHDYx    = Numeric::Gradient(rhoHDYx,i,j,k,0,DX);
@@ -1407,16 +1404,68 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
-            for (int p = 0; p<2; p++)
-                for (int q = 0; q<2; q++)
-                    for (int r = 0; r<2; r++)
-                        for (int s = 0; s<2; s++)
-                        {
-                            Set::Scalar Mpqrs = 0.0;
-                            if (p==r && q==s) Mpqrs += 0.5 * mixed_mu(i,j,k);
+            //for (int p = 0; p<2; p++)
+            //    for (int q = 0; q<2; q++)
+            //        for (int r = 0; r<2; r++)
+            //            for (int s = 0; s<2; s++)
+            //            {
+            //                Set::Scalar Mpqrs = 0.0;
+            //                if (p==r && q==s) Mpqrs += 0.5 * mixed_mu(i,j,k);
 
-                            Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
+            //                Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+            //                div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
+            //            }
+
+            // Update for more complete stress tensor (assume Stokes' Hypothesis)
+            const double mu = mixed_mu(i,j,k);
+            const double lambda  = -2.0/3.0 * mu;  // Stokes hypothesis
+
+            // --- 4th-order isotropic tensor with Stokes correction ---
+            auto M_eta = [&](int p,int q,int r,int s) {
+                double delta_pr = (p==r);
+                double delta_ps = (p==s);
+                double delta_qs = (q==s);
+                double delta_qr = (q==r);
+                double delta_pq = (p==q);
+                double delta_rs = (r==s);
+                return mu * (delta_pr*delta_qs + delta_ps*delta_qr)
+                     + lambda * delta_pq * delta_rs;
+            };
+            
+            // --- Main contraction loops (using symmetry to cut redundant work) ---
+            for (int p = 0; p < 2; ++p)
+                for (int q = 0; q < 2; ++q)
+                    for (int r = 0; r < 2; ++r)
+                        for (int s = q; s < 2; ++s)  // exploit symmetry q↔s
+                        {
+                            const double Mpqrs = M_eta(p,q,r,s);
+                            const double d2u_rqs = hess_u(r,s,q);
+                            const double d2u_rsq = hess_u(r,q,s);
+            
+                            // Symmetrize ∂q∂s u_r if not guaranteed symmetric numerically
+                            const double d2u_sym = 0.5*(d2u_rqs + d2u_rsq);
+            
+                            // (1) Divergence of stress tensor, variable mu
+                            // τ_pq = η_pqrs D_rs, so ∂qτ_pq = η_pqrs ∂q D_rs + (∂qη_pqrs)D_rs
+                            // The ∂qμ term gives (grad_mu · ...) correction:
+                            const double d_mu_q = grad_mu(q);
+                            const double d_mu_s = grad_mu(s);
+            
+                            // Derivative of eta wrt coordinate q: (∂η/∂μ)*(∂μ/∂x_q)
+                            // Only mu varies spatially, lambda depends linearly on mu
+                            const double deta_dmu = (Mpqrs / mu); // since both terms ∝ μ
+                            const double d_eta_q = deta_dmu * d_mu_q;
+                            const double d_eta_s = deta_dmu * d_mu_s;
+            
+                            // div_tau_p ← η_pqrs ∂qD_rs + (∂qη_pqrs)D_rs
+                            // ∂qD_rs = 0.5*(∂q∂r u_s + ∂q∂s u_r)
+                            const double d_qD_rs = 0.5*(hess_u(s,q,r) + hess_u(r,q,s));
+            
+                            div_tau(p) += Mpqrs * d_qD_rs
+                                        + d_eta_q * 0.5*(hess_u(r,r,q) + hess_u(s,s,q))
+                                        + d_eta_s * 0.5*(hess_u(r,r,s) + hess_u(s,s,s));
+            
+                            Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q,s);
                         }
            
             for (int n=0; n<nspecies; ++n) { 
@@ -1554,8 +1603,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                     Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
                     Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
-                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1] - 2.0*species_h0[n]*w(i,j,k,n));
-                              
+                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1] - species_h[n]*w(i,j,k,n));
                 }
             }
 
