@@ -50,7 +50,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         else if (scheme_str == "rk4") value.scheme = IntegrationScheme::RK4;
 
         if (pp.contains("restart")) value.restart_found = true;
-        std::cout << "restart " << value.restart_found << std::endl;
 
         // eta-based refinement
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
@@ -259,10 +258,10 @@ void Hydro::ComputeThermoBase()
         std::vector<double> c;
         if (Tref >= kinetics.species[n].thermoTemp[0] and Tref < kinetics.species[n].thermoTemp[1]) {
             // Low T range polynomial
-            c = kinetics.species[n].thermoData[1];
+            c = kinetics.species[n].thermoData[0];
         } else if (Tref >= kinetics.species[n].thermoTemp[1] and Tref <= kinetics.species[n].thermoTemp[2]) {
             // High T range polynomial
-            c = kinetics.species[n].thermoData[0];
+            c = kinetics.species[n].thermoData[1];
         } else {
             Util::Message(INFO, "Tref outside of temperature range. ", Tref);
             Util::Abort(INFO);
@@ -305,9 +304,9 @@ void Hydro::ComputeThermo(std::vector<double>& rhoY, double T)
         denom += species_Y[n]/ species_mw[n];
         std::vector<double> c;
         if (T >= kinetics.species[n].thermoTemp[0] and T < kinetics.species[n].thermoTemp[1]) {
-            c = kinetics.species[n].thermoData[1];
-        } else if (T >= kinetics.species[n].thermoTemp[1] and T <= kinetics.species[n].thermoTemp[2]) {
             c = kinetics.species[n].thermoData[0];
+        } else if (T >= kinetics.species[n].thermoTemp[1] and T <= kinetics.species[n].thermoTemp[2]) {
+            c = kinetics.species[n].thermoData[1];
         } else if (T < kinetics.species[n].thermoTemp[0]) {
             Util::Message(INFO, "T below temperature range. Proceed with caution.", T);
             c = kinetics.species[n].thermoData[1];
@@ -360,6 +359,25 @@ void Hydro::Initialize(int lev)
     for (int n=0; n<nspecies; ++n) std::cout << kinetics.species[n].name << " ";
 
     if (lev >= (int)mixed.size()) mixed.push_back(false);
+
+    for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox();
+        Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       rho       = density_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       temp      = temperature_mf.Patch(lev,mfi);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {  
+            double rho_sum = 0.0;
+            for (int n=0; n<nspecies; ++n) {
+                rho_sum += rho(i,j,k,n);
+            }
+            std::vector<double> rhoY(nspecies, 0.0);
+            for (int n=0; n<nspecies; ++n) rhoY[n] = rho(i,j,k,n);
+            ComputeR(rhoY);
+            temp(i,j,k) = p(i,j,k)/rho_sum/R;
+        });
+    }
 }
 
 void Hydro::Mix(int lev)
@@ -539,7 +557,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {   
                 for (int n=0; n<nspecies; ++n) {
+                    std::cout << "rhoY: " << species[n] << ": " << rho_old(i,j,k,n) << "\n";
                     rho_new(i,j,k,n) = rho_old(i,j,k,n) + dt * rho_rhs(i,j,k,n);
+                    std::cout << "rhoYnew: " << species[n] << ": " << rho_new(i,j,k,n) << "\n";
                 }
                 M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
                 M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
@@ -912,6 +932,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             p(i,j,k) = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))+pref;
 
             // thermally perfect
+            Set::Scalar e_fluid = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) / (etarho_fluid + small);
             double T = 0.0;
             double Tmin = 100.0;
             double Tmax = 3500.0;
@@ -924,12 +945,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 double h = 0.0;
                 for (int n=0; n<nspecies; ++n) h += species_h[n]*species_Y[n];
                 double e = h - R*T;
-                double etaE = eta * rho_sum * (0.5 * (v(i,j,k,0)*v(i,j,k,0) + v(i,j,k,1)*v(i,j,k,1)) + e);
-                if ( abs(etaE - etaE_fluid)/etaE_fluid <= 1e-12 ) {
+                double atol = 1e-10, rtol = 1e-8;
+                //std::cout << "T: " << T << "\n";
+                if ( (abs(e - e_fluid)/e_fluid <= rtol) or (abs(e - e_fluid) < atol) ) {
                    // std::cout << "Tconverged: " << T << "\n";
                     convergedT = true;
                 }
-                else if ( etaE < etaE_fluid ) Tmin = T;
+                else if ( e < e_fluid ) Tmin = T;
                 else Tmax = T;
                 if (counter > 100) {
                     Util::Message(INFO, "No temperature convergence after 100 iterations.");
@@ -1064,19 +1086,18 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             // thermally perfect
             ComputeThermo(rhoY, temperature(i,j,k));
             double h = 0.0;
-            double h0 = 0.0;
-            double s = 0.0;
+            //double h0 = 0.0;
+            //double s = 0.0;
             for (int n=0; n<nspecies; ++n) {
                 h += species_Y[n]*species_h[n];
-                h0 += species_Y[n]*species_h0[n];
-                s += species_Y[n]*species_s[n];
+                //h0 += species_Y[n]*species_h0[n];
+                //s += species_Y[n]*species_s[n];
             }
 
             // calorically perfect
             mixed_H(i,j,k) = mixed_cp*temperature(i,j,k);
             // thermally perfect
-            mixed_H(i,j,k) = h - h0;
-
+            mixed_H(i,j,k) = h; // - h0;
 
             // Multispecies effects
             // Mixture viscosity and heat conduction coefficient
@@ -1237,7 +1258,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     w(i,j,k,a) += nu_diff * kf * third_body * C_react;
                     if (rxn.reversible) w(i,j,k,a) -= nu_diff * kf/Kc * third_body * C_prod;
                 }
-                std::cout << "Net production rate - " << sp_a << ": " << w(i,j,k,a) << " kmol/m^3/s\n";
                 w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
                 if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells
                 else if (rho(i,j,k,a) + w(i,j,k,a)*1e-9 < 0.0) {
@@ -1534,7 +1554,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                     Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
                     Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
-                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1] - 2.0*species_H0[n]*w(i,j,k,n));
+                    dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1] - 2.0*species_h0[n]*w(i,j,k,n));
                               
                 }
             }

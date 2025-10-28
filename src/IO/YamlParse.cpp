@@ -77,6 +77,9 @@ CanteraYAML::CanteraKinetics CanteraYAML::ParseYaml(std::string &filename) {
         for (const auto& pair : reactions[n].Troe) {
             std::cout << "\t Troe: " << pair.first << " " << pair.second << "\n";
         }
+        for (const auto& pair : reactions[n].orders) {
+            std::cout << "\t Orders: " << pair.first << " " << pair.second << "\n";
+        }
     }
 #endif
 
