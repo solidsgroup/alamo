@@ -2,16 +2,16 @@
 # Alamo Parameters #
 ####################
 
-stop_time = 0.5
-timestep = 1e-8
+stop_time = 1e-3
+timestep = 1e-9
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 10
-amr.plot_dt = 1e-5
-#amr.plot_int = 1
+amr.plot_dt = 1e-6
+#amr.plot_int = 1000
 amr.plot_file = output.hydro.react_1D
 amr.max_level = 0
 amr.max_grid_size = 500000
@@ -22,7 +22,7 @@ amr.grid_eff = 0.7
 amr.n_cell = 4 4
 geometry.prob_lo = -0.5 -0.5
 geometry.prob_hi = 0.5  0.5
-geometry.is_periodic = 0 1 0
+geometry.is_periodic = 0 0 0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.02
@@ -120,8 +120,8 @@ pf.eta.bc.constant.val.zhi = 0.0
 ### HYDRO BC ###
 density.bc.constant.type.xhi = neumann neumann neumann neumann neumann
 density.bc.constant.type.xlo = neumann neumann neumann neumann neumann
-density.bc.constant.type.yhi = periodic periodic periodic periodic periodic
-density.bc.constant.type.ylo = periodic periodic periodic periodic periodic
+density.bc.constant.type.yhi = neumann neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann neumann neumann
 density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0
 density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0
 density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0
@@ -129,8 +129,8 @@ density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0
 
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.xlo = neumann neumann
-momentum.bc.constant.type.ylo = periodic periodic
-momentum.bc.constant.type.yhi = periodic periodic
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
@@ -138,8 +138,8 @@ momentum.bc.constant.val.yhi = 0.0 0.0
 
 energy.bc.constant.type.xhi = neumann
 energy.bc.constant.type.xlo = neumann
-energy.bc.constant.type.ylo = periodic
-energy.bc.constant.type.yhi = periodic
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
 energy.bc.constant.val.xhi = 0.0
 energy.bc.constant.val.xlo = 0.0
 energy.bc.constant.val.ylo = 0.0 

@@ -2,16 +2,16 @@
 # Alamo Parameters #
 ####################
 
-stop_time = 0.5
-timestep = 1e-9
+stop_time = 1e-6
+timestep = 1e-12
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 10
-amr.plot_dt = 1e-9
-#amr.plot_int = 1
+#amr.plot_dt = 1e-9
+amr.plot_int = 1
 amr.plot_file = output.hydro.react
 amr.max_level = 0
 amr.max_grid_size = 500000
@@ -19,7 +19,7 @@ amr.blocking_factor = 4
 amr.grid_eff = 0.7
 
 #amr.n_cell = 64 8
-amr.n_cell = 8 8
+amr.n_cell = 256 8
 geometry.prob_lo = 0.0 -0.3
 geometry.prob_hi = 1.0  0.3
 geometry.is_periodic = 0 1 0
@@ -60,12 +60,12 @@ density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
 density.ic.expression.constant.eps = 0.01
-#density.ic.expression.region0 = "0.055*(x>0.1) + 0.0328*(x<=0.1)"
-density.ic.expression.region0 = "0.0164"
+density.ic.expression.region0 = "0.0468*(x>0.1) + 0.0468*(x<=0.01) + 0.01638*(x<=0.1)*(x>0.01)"
+#density.ic.expression.region0 = "0.0164"
 density.ic.expression.region1 = "0.0"
 density.ic.expression.region2 = "0.0"
-#density.ic.expression.region3 = "0.433*(x>0.1) + 0.260*(x<=0.1)"
-density.ic.expression.region3 = "0.1230"
+density.ic.expression.region3 = "0.3714*(x>0.1) + 0.3714*(x<=0.01) + 0.12998*(x<=0.1)*(x>0.01)"
+#density.ic.expression.region3 = "0.1230"
 density.ic.expression.region4 = "0.0"
 density.ic.expression.region5 = "0.0"
 density.ic.expression.region6 = "0.0"
@@ -101,8 +101,8 @@ pf.eta.bc.constant.val.zhi = 0.0
 ### HYDRO BC ###
 density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
 density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
-density.bc.constant.type.yhi = periodic periodic periodic periodic periodic periodic periodic periodic periodic periodic
-density.bc.constant.type.ylo = periodic periodic periodic periodic periodic periodic periodic periodic periodic periodic
+density.bc.constant.type.yhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
 density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
@@ -110,8 +110,8 @@ density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.xlo = neumann neumann
-momentum.bc.constant.type.ylo = periodic periodic
-momentum.bc.constant.type.yhi = periodic periodic
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
@@ -119,8 +119,8 @@ momentum.bc.constant.val.yhi = 0.0 0.0
 
 energy.bc.constant.type.xhi = neumann
 energy.bc.constant.type.xlo = neumann
-energy.bc.constant.type.ylo = periodic
-energy.bc.constant.type.yhi = periodic
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
 energy.bc.constant.val.xhi = 0.0
 energy.bc.constant.val.xlo = 0.0
 energy.bc.constant.val.ylo = 0.0 

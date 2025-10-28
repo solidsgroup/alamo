@@ -308,11 +308,11 @@ void Hydro::ComputeThermo(std::vector<double>& rhoY, double T)
         } else if (T >= kinetics.species[n].thermoTemp[1] and T <= kinetics.species[n].thermoTemp[2]) {
             c = kinetics.species[n].thermoData[1];
         } else if (T < kinetics.species[n].thermoTemp[0]) {
-            Util::Message(INFO, "T below temperature range. Proceed with caution.", T);
-            c = kinetics.species[n].thermoData[1];
+            Util::Message(INFO, "T below temperature range. Proceed with caution. ", T);
+            c = kinetics.species[n].thermoData[0];
         } else if (T > kinetics.species[n].thermoTemp[2]) {
             //Util::Message(INFO, "T above temperature range. Proceed with caution.", T);
-            c = kinetics.species[n].thermoData[0];
+            c = kinetics.species[n].thermoData[1];
         }
         species_cp[n] = Ru/species_mw[n] * (c[0] + c[1]*T + c[2]*pow(T,2) + c[3]*pow(T,3) + c[4]*pow(T,4));
         species_h[n] = Ru*T/species_mw[n] * (c[0] + c[1]/2.0*T + c[2]/3.0*pow(T,2) + c[3]/4.0*pow(T,3) + c[4]/5.0*pow(T,4) + c[5]/T);
@@ -931,30 +931,59 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             // thermally perfect
             Set::Scalar e_fluid = (etarho_fluid*etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1))) / (etarho_fluid*etarho_fluid + small);
-            double T = 0.0;
-            double Tmin = 100.0;
-            double Tmax = 3500.0;
+
+            // Bisect method
+            //double T = 0.0;
+            //double Tmin = 100.0;
+            //double Tmax = 3500.0;
+            //bool convergedT = false;
+            //int counter = 0;
+            //double h=0.0, e=0.0;
+            //while (convergedT == false) {
+            //    counter += 1;
+            //    T = (Tmin + Tmax)/2.0;
+            //    ComputeThermo(rhoY, T);
+            //    h = 0.0;
+            //    for (int n=0; n<nspecies; ++n) h += species_h[n]*species_Y[n];
+            //    e = h - R*T;
+            //    double atol = 1e-15, rtol = 1e-15;
+            //    if ( (abs(e - e_fluid)/e_fluid <= rtol) or (abs(e - e_fluid) < atol) ) {
+            //        convergedT = true;
+            //    }
+            //    else if ( e < e_fluid ) Tmin = T;
+            //    else Tmax = T;
+            //    if (counter > 1000) {
+            //        Util::Message(INFO, "No temperature convergence after 100 iterations.");
+            //        Util::Abort(INFO);
+            //    }
+            //}
+
+            // Newton-Raphson Method
+            double T = temp(i,j,k);
             bool convergedT = false;
-            int counter = 0;
+            double rtol = 1e-12;
             double h=0.0, e=0.0;
+            double counter = 0;
             while (convergedT == false) {
                 counter += 1;
-                T = (Tmin + Tmax)/2.0;
+                double T_old = T;
                 ComputeThermo(rhoY, T);
                 h = 0.0;
-                for (int n=0; n<nspecies; ++n) h += species_h[n]*species_Y[n];
-                e = h - R*T;
-                double atol = 1e-15, rtol = 1e-15;
-                if ( (abs(e - e_fluid)/e_fluid <= rtol) or (abs(e - e_fluid) < atol) ) {
-                    convergedT = true;
+                double cv_mix = 0.0;
+                for (int n=0; n<nspecies; ++n) {
+                    h += species_h[n]*species_Y[n];
+                    cv_mix += species_Y[n]*(species_cp[n] - Ru/species_mw[n]);
                 }
-                else if ( e < e_fluid ) Tmin = T;
-                else Tmax = T;
-                if (counter > 1000) {
-                    Util::Message(INFO, "No temperature convergence after 100 iterations.");
-                    Util::Abort(INFO);
+                e = h - R*T;
+                T = T_old - (e - e_fluid)/cv_mix;
+                if ( abs(T-T_old)/T < rtol ) convergedT = true;
+                if ( counter >= 100 ) {
+                    Util::Message(INFO, "Temperature didn't converge after ",counter," iterations.");
+                    convergedT = true;
+                    //Util::Abort(INFO);
                 }
             }
+
             temp(i,j,k) = T;
             p(i,j,k) = rho_sum * R * T;
 
