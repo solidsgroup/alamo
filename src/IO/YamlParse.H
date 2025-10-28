@@ -17,6 +17,12 @@ namespace CanteraYAML {
 // Data structures
 // ---------------------------
 
+struct Phase {
+    std::string name;
+    std::string thermoModel;
+    std::vector<std::string> species;
+};
+
 struct Species {
     std::string name;
     std::map<std::string, double> composition;
@@ -26,12 +32,6 @@ struct Species {
     std::vector<std::vector<double>> thermoData;
     double transportLJdepth = 0.0;
     double transportLJdiameter = 0.0;
-};
-
-struct Phase {
-    std::string name;
-    std::string thermoModel;
-    std::vector<std::string> species;
 };
 
 struct Reaction {

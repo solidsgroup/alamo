@@ -10,8 +10,8 @@ timestep = 1e-8
 ####################
 
 amr.base_regrid_int = 10
-#amr.plot_dt = 0.01
-amr.plot_int = 1
+amr.plot_dt = 1e-5
+#amr.plot_int = 1
 amr.plot_file = output.hydro.react_1D
 amr.max_level = 0
 amr.max_grid_size = 500000
@@ -39,7 +39,7 @@ yamlfile = 1s_propane.yaml
 gamma = 1.4
 mu    = 5.0
 pref    = 0
-tref    = 0
+Tref    = 300.0
 
 ##Default is Air
 #species_massf = 0.767 0.233

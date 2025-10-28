@@ -3,23 +3,23 @@
 ####################
 
 stop_time = 0.5
-timestep = 1e-6
+timestep = 1e-9
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 10
-#amr.plot_dt = 0.01
-amr.plot_int = 1
+amr.plot_dt = 1e-9
+#amr.plot_int = 1
 amr.plot_file = output.hydro.react
-amr.max_level = 3
+amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
 amr.grid_eff = 0.7
 
 #amr.n_cell = 64 8
-amr.n_cell = 256 8
+amr.n_cell = 8 8
 geometry.prob_lo = 0.0 -0.3
 geometry.prob_hi = 1.0  0.3
 geometry.is_periodic = 0 1 0
@@ -28,8 +28,8 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.02
 eta.ic.expression.region0 = "1" # - 0.5 * (erf((x)/eps) + 1)"
 
-#yamlfile = h2o2.yaml
-yamlfile = 1s_propane.yaml
+yamlfile = h2o2.yaml
+#yamlfile = 1s_propane.yaml
 
 ###############################
 # Hydro Integrator Parameters #
@@ -39,58 +39,39 @@ yamlfile = 1s_propane.yaml
 gamma = 1.4
 mu    = 5.0
 pref    = 0
-tref    = 0
+Tref    = 300
 
 ##Default is Air
 #species_massf = 0.767 0.233
 
 ## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
-#species = H2 H O O2 OH H2O HO2 H2O2 AR N2
-#species_mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.95 28.014
-#species_k = 0.18692308313058376 0.29397455762547026 0.050743730582464515 0.026570734809079212 0.05909990738807511 0.02626794470764762 0.029390866369235085 0.0361346334633821 0.018059726632678255 0.026463112933806793
-#species_cp = 14310.905255369767 20621.18704970528 1368.8549802484818 918.43462505419 1756.8040342682864 1864.9154285171269 1058.2922391213083 1248.260799090108 520.3042940020803 1037.8911357957468
-#species_mu = 9.000297497350422e-06 9.50498709679967e-06 2.48574213354167e-05 2.0654335611112864e-05 2.5628519006356415e-05 1.0327783369401388e-05 2.0977139204768138e-05 2.129505010315616e-05 2.3142358895013927e-05 1.808570419229132e-05
-#species_LJdiameter = 2.92 2.05 2.7500000000000003 3.4580000000000004 2.7500000000000003 2.6050000000000003 3.4580000000000004 3.4580000000000004 3.3300000000000004 3.621
-#species_LJwelldepth = 38.0 145.0 80.0 107.4 80.0 572.4 107.4 107.4 136.5 97.53
-#species_H0 = 0.0 1.3e9 1.56e7 0.0 -2.17e6 -1.34e7 4.61e5 -5.5e3 0.0 0.0
-#
-#density.ic.type = expression
-#density.ic.expression.constant.P = 101325.0
-#density.ic.expression.constant.T = 300.0
-#density.ic.expression.constant.R = 259.83
-#density.ic.expression.constant.eps = 0.01
-#density.ic.expression.region0 = "0.09 * 0.5 * (1.0 - erf((x-1/2)/eps))"
-#density.ic.expression.region1 = "0.0"
-#density.ic.expression.region2 = "0.0"
-#density.ic.expression.region3 = "1.43 * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
-#density.ic.expression.region4 = "0.0"
-#density.ic.expression.region5 = "0.0"
-#density.ic.expression.region6 = "0.0"
-#density.ic.expression.region7 = "0.0"
-#density.ic.expression.region8 = "0.0"
-#density.ic.expression.region9 = "0.0"
+species = H2 H O O2 OH H2O HO2 H2O2 AR N2
+species_mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.95 28.014
+species_k = 0.18692308313058376 0.29397455762547026 0.050743730582464515 0.026570734809079212 0.05909990738807511 0.02626794470764762 0.029390866369235085 0.0361346334633821 0.018059726632678255 0.026463112933806793
+species_cp = 14310.905255369767 20621.18704970528 1368.8549802484818 918.43462505419 1756.8040342682864 1864.9154285171269 1058.2922391213083 1248.260799090108 520.3042940020803 1037.8911357957468
+species_mu = 9.000297497350422e-06 9.50498709679967e-06 2.48574213354167e-05 2.0654335611112864e-05 2.5628519006356415e-05 1.0327783369401388e-05 2.0977139204768138e-05 2.129505010315616e-05 2.3142358895013927e-05 1.808570419229132e-05
+species_LJdiameter = 2.92 2.05 2.7500000000000003 3.4580000000000004 2.7500000000000003 2.6050000000000003 3.4580000000000004 3.4580000000000004 3.3300000000000004 3.621
+species_LJwelldepth = 38.0 145.0 80.0 107.4 80.0 572.4 107.4 107.4 136.5 97.53
+species_H0 = 0.0 1.3e9 1.56e7 0.0 -2.17e6 -1.34e7 4.61e5 -5.5e3 0.0 0.0
 
-species = C3H8 O2 CO2 H2O N2
-species_mw = 44.1 31.998 44.01 18.015 28.014
-species_k = 0.0156 0.026570734809079212 0.015 0.02626794470764762 0.026463112933806793
-species_cp = 1680.0 918.43462505419 849.0 1864.9154285171269 1037.8911357957468
-species_mu = 2.979e-6 2.0654335611112864e-05 1.37e-5 1.0327783369401388e-05 1.808570419229132e-05
-species_LJdiameter = 4.98 3.4580000000000004 3.76 2.6050000000000003 3.621
-species_LJwelldepth = 266.8 107.4 244.0 572.4 97.53
-species_H0 = -2.37e6 0.0 -8.9e6 -1.34e7 0.0
-
-# partial pressures at STP for equivalence ratio of 1 (C3H8 in air)
 density.ic.type = expression
 density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
 density.ic.expression.constant.eps = 0.01
-density.ic.expression.region0 = "0.07930*(x>0.1) + 0.02166905*(x<=0.1)"
-density.ic.expression.region1 = "0.28772*(x>0.1) + 0.07861829*(x<=0.1)"
+#density.ic.expression.region0 = "0.055*(x>0.1) + 0.0328*(x<=0.1)"
+density.ic.expression.region0 = "0.0164"
+density.ic.expression.region1 = "0.0"
 density.ic.expression.region2 = "0.0"
-density.ic.expression.region3 = "0.0"
-density.ic.expression.region4 = "0.94756*(x>0.1) + 0.25879967*(x<=0.1)"
+#density.ic.expression.region3 = "0.433*(x>0.1) + 0.260*(x<=0.1)"
+density.ic.expression.region3 = "0.1230"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "0.0"
+density.ic.expression.region6 = "0.0"
+density.ic.expression.region7 = "0.0"
+density.ic.expression.region8 = "0.0"
+density.ic.expression.region9 = "0.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
@@ -118,14 +99,14 @@ pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
 ### HYDRO BC ###
-density.bc.constant.type.xhi = neumann neumann neumann neumann neumann
-density.bc.constant.type.xlo = neumann neumann neumann neumann neumann
-density.bc.constant.type.yhi = periodic periodic periodic periodic periodic
-density.bc.constant.type.ylo = periodic periodic periodic periodic periodic
-density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.yhi = periodic periodic periodic periodic periodic periodic periodic periodic periodic periodic
+density.bc.constant.type.ylo = periodic periodic periodic periodic periodic periodic periodic periodic periodic periodic
+density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.xlo = neumann neumann
@@ -154,10 +135,10 @@ omega_refinement_criterion = 10000000
 gradu_refinement_criterion = 100000000
 
 solid.momentum.ic.constant.value = 0.0 0.0
-solid.density.ic.constant.value = 40.0 40.0 40.0 40.0 40.0
+solid.density.ic.constant.value = 40.0 40.0 40.0 40.0 40.0 40.0 40.0 40.0 40.0 40.0
 solid.energy.ic.constant.value = 0.0
 
-m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0
+m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 u0.ic.constant.value = 0.0 0.0
 q.ic.constant.value = 0.0 0.0
 

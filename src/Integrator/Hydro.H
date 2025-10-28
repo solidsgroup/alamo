@@ -77,6 +77,10 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
 
+    void ComputeThermoBase();
+    void ComputeR(std::vector<double>& rhoY);
+    void ComputeThermo(std::vector<double>& rhoY, double T);
+
     virtual void UpdateEta(int lev, Set::Scalar time);
     virtual void UpdateFluxes(int lev, Set::Scalar time);
 protected:
@@ -155,7 +159,7 @@ protected:
     Set::Scalar vy_max = 0.0;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
-    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN, k=NAN, pref=NAN, tref=NAN;
+    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN, k=NAN, pref=NAN, Tref=NAN;
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
@@ -171,6 +175,13 @@ protected:
     std::vector<double> species_LJdiameter;
     std::vector<double> species_LJwelldepth;
     std::vector<double> species_H0;
+    std::vector<double> species_h0;
+    std::vector<double> species_s0;
+    std::vector<double> species_h;
+    std::vector<double> species_s;
+    std::vector<double> species_Y;
+    double R = 0.0;
+    double MW = 0.0;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
