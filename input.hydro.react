@@ -2,27 +2,28 @@
 # Alamo Parameters #
 ####################
 
-stop_time = 1e-6
-timestep = 1e-12
+stop_time = 1e-3
+timestep = 1e-10
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 10
-#amr.plot_dt = 1e-9
-amr.plot_int = 1
+amr.plot_dt = 1e-6
+#amr.plot_int = 1
 amr.plot_file = output.hydro.react
 amr.max_level = 0
 amr.max_grid_size = 500000
-amr.blocking_factor = 4
+amr.blocking_factor = 1 #8
 amr.grid_eff = 0.7
 
 #amr.n_cell = 64 8
-amr.n_cell = 256 8
+#amr.n_cell = 256 8
+amr.n_cell = 1 1
 geometry.prob_lo = 0.0 -0.3
 geometry.prob_hi = 1.0  0.3
-geometry.is_periodic = 0 1 0
+geometry.is_periodic = 0 0 0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.02
@@ -60,18 +61,18 @@ density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
 density.ic.expression.constant.eps = 0.01
-density.ic.expression.region0 = "0.0468*(x>0.1) + 0.0468*(x<=0.01) + 0.01638*(x<=0.1)*(x>0.01)"
-#density.ic.expression.region0 = "0.0164"
+#density.ic.expression.region0 = "0.0468*(x>0.1) + 0.0468*(x<=0.01) + 0.01638*(x<=0.1)*(x>0.01)"
+density.ic.expression.region0 = "0.00726869"
 density.ic.expression.region1 = "0.0"
 density.ic.expression.region2 = "0.0"
-density.ic.expression.region3 = "0.3714*(x>0.1) + 0.3714*(x<=0.01) + 0.12998*(x<=0.1)*(x>0.01)"
-#density.ic.expression.region3 = "0.1230"
+#density.ic.expression.region3 = "0.3714*(x>0.1) + 0.3714*(x<=0.01) + 0.12998*(x<=0.1)*(x>0.01)"
+density.ic.expression.region3 = "0.05768442"
 density.ic.expression.region4 = "0.0"
 density.ic.expression.region5 = "0.0"
 density.ic.expression.region6 = "0.0"
 density.ic.expression.region7 = "0.0"
 density.ic.expression.region8 = "0.0"
-density.ic.expression.region9 = "0.0"
+density.ic.expression.region9 = "0.18988852"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1

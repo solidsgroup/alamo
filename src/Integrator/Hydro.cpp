@@ -262,15 +262,17 @@ void Hydro::ComputeThermoBase()
         } else if (Tref >= kinetics.species[n].thermoTemp[1] and Tref <= kinetics.species[n].thermoTemp[2]) {
             // High T range polynomial
             c = kinetics.species[n].thermoData[1];
-        } else {
-            Util::Message(INFO, "Tref outside of temperature range. ", Tref);
-            Util::Abort(INFO);
+        } else if (Tref < kinetics.species[n].thermoTemp[0]) {
+            Util::Message(INFO, "Tref below temperature range. Proceed with caution. ", Tref);
+            c = kinetics.species[n].thermoData[0];
+        } else if (Tref > kinetics.species[n].thermoTemp[2]) {
+            Util::Message(INFO, "Tref above temperature range. Proceed with caution.", Tref);
+            c = kinetics.species[n].thermoData[1];
         }
         species_h0[n] = Ru*Tref/species_mw[n] * (c[0] + c[1]/2.0*Tref + c[2]/3.0*pow(Tref,2) + c[3]/4.0*pow(Tref,3) + c[4]/5.0*pow(Tref,4) + c[5]/Tref);
         species_s0[n] = Ru/species_mw[n] * (c[0]*log(Tref) + c[1]*Tref + c[2]/2.0*pow(Tref,2) + c[3]/3.0*pow(Tref,3) + c[4]/4.0*pow(Tref,4) + c[6]);
     }
 }
-
 
 void Hydro::ComputeR(std::vector<double>& rhoY)
 // Only use this within an MFiter block.  rhoY points to the parial densities at point i,j,k
@@ -311,7 +313,7 @@ void Hydro::ComputeThermo(std::vector<double>& rhoY, double T)
             Util::Message(INFO, "T below temperature range. Proceed with caution. ", T);
             c = kinetics.species[n].thermoData[0];
         } else if (T > kinetics.species[n].thermoTemp[2]) {
-            //Util::Message(INFO, "T above temperature range. Proceed with caution.", T);
+            Util::Message(INFO, "T above temperature range. Proceed with caution.", T);
             c = kinetics.species[n].thermoData[1];
         }
         species_cp[n] = Ru/species_mw[n] * (c[0] + c[1]*T + c[2]*pow(T,2) + c[3]*pow(T,3) + c[4]*pow(T,4));
@@ -1239,21 +1241,25 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
                     // TODO: Calc kb = kf/Kc (backward reaction rate constant)
                     double Dnu = 0.0;
-                    double DG0 = 0.0;
+                    double DH0 = 0.0;
+                    double DS0 = 0.0;
                     double Kc = 1.0;
                     if (rxn.reversible) {
                         for (int n=0; n<nspecies; ++n) {
                             if (rxn.products[species[n]]) {
                                 Dnu += rxn.products[species[n]];
-                                DG0 += rxn.products[species[n]]*(species_h[n] - temperature(i,j,k)*species_s[n]);
+                                DH0 += rxn.products[species[n]]*species_mw[n]*species_h[n];
+                                DS0 += rxn.products[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
                             }
                             if (rxn.reactants[species[n]]) {
                                 Dnu -= rxn.reactants[species[n]];
-                                DG0 -= rxn.reactants[species[n]]*(species_h[n] - temperature(i,j,k)*species_s[n]);
+                                DH0 -= rxn.reactants[species[n]]*species_mw[n]*species_h[n];
+                                DS0 -= rxn.reactants[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
                             }
                         }
+                        double DG0 = DH0 - temperature(i,j,k)*DS0;
                         double Kp = exp(-DG0/Ru/temperature(i,j,k));                   
-                        Kc = Kp/pow(Ru*temperature(i,j,k), Dnu);
+                        Kc = Kp*pow(101325.0/Ru/temperature(i,j,k), Dnu);
                     }
 
                     // Calc R, rate of progress
@@ -1270,7 +1276,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             }
                             if (rxn.reversible and rxn.products[sp]) C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.products[sp]);
                             third_body = 1.0; // third_body of unity removes impact of third_body which is nonexistent in this case
-                        } else if (rxn.third_body) {
+                        } else if (rxn.third_body) { // This captures third-body and Troe reactions
                             if (rxn.reactants[sp]) C_react *= species_molef[c]*pressure/Ru/temperature(i,j,k);
                             if (rxn.reversible and rxn.products[sp]) C_prod *= species_molef[c]*pressure/Ru/temperature(i,j,k);
                             if (rxn.efficiencies[sp]) third_body += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);

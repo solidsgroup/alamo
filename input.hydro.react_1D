@@ -3,23 +3,23 @@
 ####################
 
 stop_time = 1e-3
-timestep = 1e-9
+timestep = 1e-12
 
 ####################
 # AMReX Parameters #
 ####################
 
 amr.base_regrid_int = 10
-amr.plot_dt = 1e-6
+amr.plot_dt = 1e-5
 #amr.plot_int = 1000
 amr.plot_file = output.hydro.react_1D
 amr.max_level = 0
 amr.max_grid_size = 500000
-amr.blocking_factor = 4
+amr.blocking_factor = 1
 amr.grid_eff = 0.7
 
 #amr.n_cell = 64 8
-amr.n_cell = 4 4
+amr.n_cell = 1 1
 geometry.prob_lo = -0.5 -0.5
 geometry.prob_hi = 0.5  0.5
 geometry.is_periodic = 0 0 0
@@ -80,7 +80,7 @@ species_LJdiameter = 4.98 3.4580000000000004 3.76 2.6050000000000003 3.621
 species_LJwelldepth = 266.8 107.4 244.0 572.4 97.53
 species_H0 = -2.37e6 0.0 -8.9e6 -1.34e7 0.0
 
-# partial pressures at STP for equivalence ratio of 1 (C3H8 in air)
+# partial pressures at 1 atm, 1000 K for equivalence ratio of 1 (C3H8 in air)
 density.ic.type = expression
 density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
