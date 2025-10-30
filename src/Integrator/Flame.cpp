@@ -391,12 +391,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
         Set::Patch<Set::Scalar> u0 = Hydro::u0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
-
-        Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
-        Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
-        Real R = 8314; // Ideal gas constant (J/kmol-k)
-        Real Pref = Hydro::pref; // Find the reference temperature from Hydro
-        Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation (K)
+        Set::Patch<Set::Scalar> density = Hydro::density_mf.Patch(lev,mfi);
 
         Real rho_AP_solid = 1950; // kg/m^3 https://en.wikipedia.org/wiki/Ammonium_perchlorate
         Real rho_HTPB_solid = 920; // kg/m^3 https://www.researchgate.net/publication/279252447_Pocket_Model_for_Aluminum_Agglomeration_Based_on_Propellant_Microstructure
@@ -405,6 +400,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u0_patch  = Hydro::u0_mf.Patch(lev,mfi);
+        int nspecies = Hydro::nspecies;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -412,11 +408,14 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Vector grad_eta = -Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
             Set::Vector N = grad_eta / (grad_eta_mag + small); // Example of finding the normal vector
-            pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
-            rho_AP_gas(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
-            rho_HTPB_gas(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
-            rho_tot_gas(i,j,k) = rho_AP_gas(i,j,k)*phi + rho_HTPB_gas(i,j,k)*(1.0 - phi); // Find the average density of the fluid based on the solid species
 
+            double rhoijk_sum = 0.0;
+            for (int n=0; n<nspecies; ++n) {
+                rhoijk_sum += density(i,j,k,n);
+            }
+            rho_tot_gas(i,j,k) = rhoijk_sum;
+            
+            
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
             

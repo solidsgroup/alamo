@@ -203,7 +203,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     // solid density initial condition
     pp.select_default<IC::Constant,IC::Expression>("solid.density.ic",value.solid.density_ic,value.geom);
     // solid energy initial condition
-    pp.select_default<IC::Constant,IC::Expression>("solid.energy.ic",value.solid.energy_ic,value.geom);
+    pp.select_default<IC::Constant,IC::Expression>("solid.energy.ic",value.solid.energy_ic,value.geom); 
 
 
     // DIFFUSE BOUNDARY SOURCES
