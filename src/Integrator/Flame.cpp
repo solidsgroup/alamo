@@ -424,7 +424,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
             u0_patch(i,j,k,1) = u0(1);
 
-            Set::Scalar deta_dt = (eta(i,j,k) - etaold(i,j,k))/dt; // time derivate approximation of eta
+            Set::Scalar deta_dt = (eta(i,j,k) - etaold(i,j,k))/(dt); // time derivate approximation of eta
 
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
             {
@@ -435,8 +435,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             solidM(i,j,k,0) = solidrho(i,j,k)*u0(0);
             solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
 
-            u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)/rho_tot_gas(i,j,k); // Update the velocity source term based on conservation of mass
-            u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)/rho_tot_gas(i,j,k);
+            u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)/1000; // Update the velocity source term based on conservation of mass
+            u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)/1000;
         });
     }
 
