@@ -41,26 +41,46 @@ public:
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) override
+    virtual Flux Solve(State lo, State hi, Set::Scalar p_ref, Set::Scalar small, std::vector<double> &species_mw, std::vector<double> &species_cp) override
     {
+        size_t nspecies = lo.rho.size();
         // Grab and label the input states
-        Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
-        Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
-        //Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
-        Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
+        std::vector<double> rho_L = lo.rho       ,  rho_R = hi.rho;
+        Set::Scalar Mn_L          = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
+        //Set::Scalar Mt_L          = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
+        Set::Scalar E_L           = lo.E         ,  E_R   = hi.E         ;
 
         // Ensure no negative densities
-        rho_L = std::max(0.0,rho_L);
-        rho_R = std::max(0.0,rho_R);
-
+        double rho_sum_L = 0.0;
+        double rho_sum_R = 0.0;
+        for (size_t n=0; n<nspecies; ++n) {
+            rho_L[n] = std::max(0.0,rho_L[n]);
+            rho_R[n] = std::max(0.0,rho_R[n]);
+            rho_sum_L += rho_L[n];
+            rho_sum_R += rho_R[n];
+        }
+        double cp_L = 0.0;
+        double cv_L = 0.0;
+        double gamma_L = 0.0;
+        double cp_R = 0.0;
+        double cv_R = 0.0;
+        double gamma_R = 0.0;
+        for (size_t n=0; n<nspecies; ++n) {
+            cp_L += rho_L[n]/rho_sum_L * species_cp[n];
+            cv_L += rho_L[n]/rho_sum_L * (species_cp[n] - 8314.46/species_mw[n]);
+            cp_R += rho_R[n]/rho_sum_R * species_cp[n];
+            cv_R += rho_R[n]/rho_sum_R * (species_cp[n] - 8314.46/species_mw[n]);
+        }
+        gamma_L = cp_L/cv_L;
+        gamma_R = cp_R/cv_R;
 
         // Calculate primitives
-        Set::Scalar u_L   = Mn_L/(rho_L+small),  u_R   = Mn_R/(rho_R+small);
-        Set::Scalar v_L   = Mn_L/(rho_L+small),  v_R   = Mn_R/(rho_R+small);
-        Set::Scalar p_L  = (gamma - 1.0) * ( E_L - 0.5*rho_L*(u_L*u_L + v_L*v_L) ) + p_ref;
-        Set::Scalar p_R  = (gamma - 1.0) * ( E_R - 0.5*rho_R*(u_R*u_R + v_R*v_R) ) + p_ref;
-        Set::Scalar c_L = std::sqrt(gamma * p_L / (rho_L + small));
-        Set::Scalar c_R = std::sqrt(gamma * p_R / (rho_R + small));
+        Set::Scalar u_L   = Mn_L/(rho_sum_L+small),  u_R   = Mn_R/(rho_sum_R+small);
+        Set::Scalar v_L   = Mn_L/(rho_sum_L+small),  v_R   = Mn_R/(rho_sum_R+small);
+        Set::Scalar p_L  = (gamma_L - 1.0) * ( E_L - 0.5*rho_sum_L*(u_L*u_L + v_L*v_L) ) + p_ref;
+        Set::Scalar p_R  = (gamma_R - 1.0) * ( E_R - 0.5*rho_sum_R*(u_R*u_R + v_R*v_R) ) + p_ref;
+        Set::Scalar c_L = std::sqrt(gamma_L * p_L / (rho_sum_L + small));
+        Set::Scalar c_R = std::sqrt(gamma_R * p_R / (rho_sum_R + small));
 
         // Max wave speeds
         Set::Scalar S_L = std::min(u_L-c_L, u_R - c_R);
@@ -77,14 +97,21 @@ public:
             S_R *= psi;
         }
 
+        std::vector<double> rhoYu_L(nspecies);
+        std::vector<double> rhoYu_R(nspecies);
+        for (size_t n=0; n<nspecies; ++n) {
+            rhoYu_L[n] = u_L*lo.rho[n];
+            rhoYu_R[n] = u_R*hi.rho[n];
+        }
+
         Flux F_L (
-            lo.M_normal,
+            rhoYu_L,
             lo.M_normal * u_L + p_L,
             lo.M_tangent * u_L,
             u_L * (lo.E + p_L)
             );
         Flux F_R (
-            hi.M_normal,
+            rhoYu_R,
             hi.M_normal * u_R + p_R,
             hi.M_tangent * u_R,
             u_R * (hi.E + p_R)
@@ -93,6 +120,7 @@ public:
         if (S_L >= 0.0)
         {
             return F_L;
+
         }
         else if (S_R <= 0.0)
         {
@@ -102,7 +130,8 @@ public:
         {
             State dState = hi - lo;
             Set::Scalar dS = S_R - S_L;
-            return (S_R*F_L - S_L*F_R + S_L*S_R*Flux(dState)) / dS;
+            //return (S_R*F_L - S_L*F_R + S_L*S_R*Flux(dState)) / dS;
+            return (S_R*F_L - S_L*F_R + S_L*S_R*dState) / dS;
         }
     }
 };

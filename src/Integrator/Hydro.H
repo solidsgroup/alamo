@@ -3,6 +3,7 @@
 
 #include "Integrator/Integrator.H"
 #include "IO/ParmParse.H"
+#include "IO/YamlParse.H"
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
@@ -10,10 +11,11 @@
 #include "IC/IC.H"
 
 #include "Set/Base.H"
-#include "Solver/Local/Riemann/Roe.H"
+#include "Solver/Local/Riemann/Riemann.H"
 
 #if AMREX_SPACEDIM==2
 
+double collision_integral( double );
 namespace Integrator
 {
 class Hydro : virtual public Integrator
@@ -75,6 +77,10 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
 
+    void ComputeThermoBase();
+    void ComputeR(std::vector<double>& rhoY);
+    void ComputeThermo(std::vector<double>& rhoY, double T);
+
     virtual void UpdateEta(int lev, Set::Scalar time);
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
@@ -98,7 +104,7 @@ protected:
 
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
-
+    Set::Field<Set::Scalar> temperature_mf;
 
     Set::Field<Set::Scalar> tracer_mf;
     Set::Field<Set::Scalar> tracer_old_mf;
@@ -146,18 +152,36 @@ protected:
 
     BC::Constant neumann_bc_1 = BC::Constant::ZeroNeumann(1);
     BC::Constant neumann_bc_D = BC::Constant::ZeroNeumann(AMREX_SPACEDIM);
+    BC::Constant* neumann_bc_N = nullptr;
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
-    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  pref=NAN;
+    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN, k=NAN, pref=NAN, Tref=NAN;
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
     Set::Scalar lagrange_m0=NAN;
+
+    int nspecies = 0;
+    std::vector<std::string> species;
+    std::vector<double> species_mw;
+    std::vector<double> species_mu;
+    std::vector<double> species_k;
+    std::vector<double> species_cp;
+    std::vector<double> species_LJdiameter;
+    std::vector<double> species_LJwelldepth;
+    std::vector<double> species_H0;
+    std::vector<double> species_h0;
+    std::vector<double> species_s0;
+    std::vector<double> species_h;
+    std::vector<double> species_s;
+    std::vector<double> species_Y;
+    double R = 0.0;
+    double MW = 0.0;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
@@ -176,8 +200,12 @@ protected:
 
     bool managed = false;
     bool invert = false;
+    bool restart_found = false;
 
     std::vector<bool> mixed;
+
+    std::string yamlfile;
+    CanteraYAML::CanteraKinetics kinetics;
 
 };
 }
