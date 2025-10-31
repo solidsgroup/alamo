@@ -1,5 +1,5 @@
 
-#include "Hydro.H"
+#include "Integrator/Hydro.H"
 #include "IO/ParmParse.H"
 #include "IO/YamlParse.H"
 #include "BC/Constant.H"
@@ -15,6 +15,13 @@
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
 #if AMREX_SPACEDIM == 2
+
+#include <cvode/cvode.h>
+#include <nvector/nvector_serial.h>
+#include <sundials/sundials_types.h>
+#include <sundials/sundials_context.h>
+
+#include "Integrator/Hydro_CVODE.H"
 
 namespace Integrator
 {
@@ -44,10 +51,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         std::string scheme_str;
         // time integration scheme to use
-        pp.query_validate("scheme",scheme_str, {"forwardeuler","ssprk3","rk4"});
+        pp.query_validate("scheme",scheme_str, {"forwardeuler","ssprk3","rk4","backwardeuler"});
         if (scheme_str == "forwardeuler") value.scheme = IntegrationScheme::ForwardEuler;
         else if (scheme_str == "ssprk3") value.scheme = IntegrationScheme::SSPRK3;
         else if (scheme_str == "rk4") value.scheme = IntegrationScheme::RK4;
+        else if (scheme_str == "backwardeuler") value.scheme = IntegrationScheme::BackwardEuler;
 
         if (pp.contains("restart")) value.restart_found = true;
 
@@ -568,6 +576,29 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         }
     }
 
+    else if (scheme == IntegrationScheme::BackwardEuler) // backward euler
+    {
+        hydro_cvode::CVODEConfig cfg;
+        cfg.rel_tol = 1e-10;
+        cfg.abs_tol = 1e-12;
+        cfg.max_steps = 10000;
+
+        int flag = hydro_cvode::AdvanceImplicit(
+            this,
+            *density_mf[lev],
+            *momentum_mf[lev],
+            *energy_mf[lev],
+            lev,
+            static_cast<double>(time),
+            static_cast<double>(dt),
+            cfg
+        );
+
+        if (flag != 0) {
+            amrex::Print() << "CVODE implicit solver failed, flag=" << flag << "\n";
+            amrex::Abort("Implicit advance failed");
+        }
+    }
 
 //    else if (scheme == IntegrationScheme::SSPRK3)
 //    {
@@ -978,7 +1009,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 }
                 e = h - R*T;
                 T = T_old - (e - e_fluid)/cv_mix;
-                if ( abs(T-T_old)/T < rtol ) convergedT = true;
+                if ( std::fabs(T-T_old)/T < rtol ) convergedT = true;
                 if ( counter >= 100 ) {
                     Util::Message(INFO, "Temperature didn't converge after ",counter," iterations.");
                     convergedT = true;
@@ -1125,7 +1156,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             // calorically perfect
             mixed_H(i,j,k) = mixed_cp*temperature(i,j,k);
             // thermally perfect
-            mixed_H(i,j,k) = h;
+            mixed_H(i,j,k) = h; // Sensible enthalpy
 
             // Multispecies effects
             // Mixture viscosity and heat conduction coefficient
@@ -1239,29 +1270,27 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         kf = k_inf * Pr / (1.0 + Pr) * rxn.F;
                     } else kf = rxn.A * pow( temperature(i,j,k), rxn.b ) * exp( -rxn.E/Ru/temperature(i,j,k) );
 
-                    // TODO: Calc kb = kf/Kc (backward reaction rate constant)
+                    // Calc kb = kf/Kc (backward reaction rate constant)
                     double Dnu = 0.0;
                     double DH0 = 0.0;
                     double DS0 = 0.0;
                     double Kc = 1.0;
-                    if (rxn.reversible) {
-                        for (int n=0; n<nspecies; ++n) {
-                            if (rxn.products[species[n]]) {
-                                Dnu += rxn.products[species[n]];
-                                DH0 += rxn.products[species[n]]*species_mw[n]*species_h[n];
-                                DS0 += rxn.products[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
-                            }
-                            if (rxn.reactants[species[n]]) {
-                                Dnu -= rxn.reactants[species[n]];
-                                DH0 -= rxn.reactants[species[n]]*species_mw[n]*species_h[n];
-                                DS0 -= rxn.reactants[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
-                            }
+                    for (int n=0; n<nspecies; ++n) {
+                        if (rxn.products[species[n]]) {
+                            Dnu += rxn.products[species[n]];
+                            DH0 += rxn.products[species[n]]*species_mw[n]*species_h[n];
+                            DS0 += rxn.products[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
                         }
-                        double DG0 = DH0 - temperature(i,j,k)*DS0;
-                        double Kp = exp(-DG0/Ru/temperature(i,j,k));                   
-                        Kc = Kp*pow(101325.0/Ru/temperature(i,j,k), Dnu);
+                        if (rxn.reactants[species[n]]) {
+                            Dnu -= rxn.reactants[species[n]];
+                            DH0 -= rxn.reactants[species[n]]*species_mw[n]*species_h[n];
+                            DS0 -= rxn.reactants[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
+                        }
                     }
-
+                    double DG0 = DH0 - temperature(i,j,k)*DS0;
+                    double Kp = exp(-DG0/Ru/temperature(i,j,k));                   
+                    Kc = Kp*pow(101325.0/Ru/temperature(i,j,k), Dnu);
+                    
                     // Calc R, rate of progress
                     double C_react = 1.0;
                     double C_prod = 1.0;

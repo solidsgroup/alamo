@@ -68,6 +68,17 @@ public:
         delete riemannsolver;
     }
 
+    void RHSPublic(int lev, Set::Scalar time,
+                   amrex::MultiFab &rho_rhs,
+                   amrex::MultiFab &M_rhs,
+                   amrex::MultiFab &E_rhs,
+                   const amrex::MultiFab &rho,
+                   const amrex::MultiFab &M,
+                   const amrex::MultiFab &E)
+    {
+        RHS(lev, time, rho_rhs, M_rhs, E_rhs, rho, M, E);
+    }
+
 protected:
     void Initialize(int lev) override;
     void Mix(int lev);
@@ -186,7 +197,7 @@ protected:
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
     enum IntegrationScheme {
-        ForwardEuler, SSPRK3, RK4
+        ForwardEuler, SSPRK3, RK4, BackwardEuler
     };
     IntegrationScheme scheme;
 
