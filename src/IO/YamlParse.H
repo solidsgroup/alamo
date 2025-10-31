@@ -307,7 +307,7 @@ public:
             if (node["efficiencies"]) r.efficiencies = parseMap(node["efficiencies"]);
             if (node["Troe"]) {
                 r.Troe = parseMap(node["Troe"]);
-                r.F = 1.0; // TODO: update this based on Troe Fcent
+                r.F = 1e-3; // TODO: update this based on Troe Fcent
             }
 
             // Convert to proper units

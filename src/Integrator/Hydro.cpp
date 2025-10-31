@@ -365,6 +365,30 @@ void Hydro::Initialize(int lev)
     Source_mf[lev]   ->setVal(0.0);
 
     kinetics = CanteraYAML::ParseYaml(yamlfile);
+    // catch three body reactions that aren't explicitly defined
+    for (size_t n=0; n<kinetics.reaction.size(); ++n) {
+        auto& rxn = kinetics.reaction[n];
+        if (not rxn.third_body) {
+            std::string body;
+            for (int s=0; s<nspecies; ++s) {
+                std::string sp = species[s];
+                if (rxn.reactants.count(sp) and rxn.products.count(sp)) {
+                    std::cout << "third body found: " << sp << "\n";
+                    std::cout << "Reaction[" << n << "]: " << rxn.equation << "\n";
+                    body = sp;
+                    rxn.third_body = true;
+                    rxn.reactants[sp] -= 1;
+                    rxn.products[sp] -= 1;
+                }
+            }
+            for (int s=0; s<nspecies; ++s) {
+                std::string sp = species[s];
+                if (sp == body) rxn.efficiencies[sp] = 1.0;
+                else rxn.efficiencies[sp] = 0.0;
+            }
+        }
+    }
+
     ComputeThermoBase();
     for (int n=0; n<nspecies; ++n) std::cout << kinetics.species[n].name << " ";
 
@@ -1247,9 +1271,9 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
                     // nu_k'' - nu_k'
                     double nu_diff = 0.0;
-                    if (rxn.products[sp_a] and rxn.reactants[sp_a])  nu_diff = rxn.products[sp_a] - rxn.reactants[sp_a];
-                    else if (rxn.products[sp_a] and (not rxn.reactants[sp_a])) nu_diff = rxn.products[sp_a];
-                    else if ((not rxn.products[sp_a]) and rxn.reactants[sp_a]) nu_diff = -rxn.reactants[sp_a];
+                    if (rxn.products.count(sp_a) and rxn.reactants.count(sp_a))  nu_diff = rxn.products[sp_a] - rxn.reactants[sp_a];
+                    else if (rxn.products.count(sp_a) and (not rxn.reactants.count(sp_a))) nu_diff = rxn.products[sp_a];
+                    else if ((not rxn.products.count(sp_a)) and rxn.reactants.count(sp_a)) nu_diff = -rxn.reactants[sp_a];
                     else nu_diff = 0.0;
 
                     // Calc kf (forward reaction rate constant)
@@ -1260,7 +1284,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         double M_concentration = 0.0;
                         for (int c=0; c<nspecies; ++c) {
                             std::string sp = kinetics.species[c].name;
-                            if ( rxn.efficiencies[sp] ) {
+                            if ( rxn.efficiencies.count(sp) ) {
                                 M_concentration += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);
                             } else {
                                 M_concentration += species_molef[c]*pressure/Ru/temperature(i,j,k);
@@ -1276,12 +1300,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     double DS0 = 0.0;
                     double Kc = 1.0;
                     for (int n=0; n<nspecies; ++n) {
-                        if (rxn.products[species[n]]) {
+                        if (rxn.products.count(species[n])) {
                             Dnu += rxn.products[species[n]];
                             DH0 += rxn.products[species[n]]*species_mw[n]*species_h[n];
                             DS0 += rxn.products[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
                         }
-                        if (rxn.reactants[species[n]]) {
+                        if (rxn.reactants.count(species[n])) {
                             Dnu -= rxn.reactants[species[n]];
                             DH0 -= rxn.reactants[species[n]]*species_mw[n]*species_h[n];
                             DS0 -= rxn.reactants[species[n]]*species_mw[n]*(species_s[n] - Ru*log(pressure/101325.0));
@@ -1297,27 +1321,35 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     double third_body = 0.0;
                     for (int c=0; c<nspecies; ++c) {
                         std::string sp = kinetics.species[c].name;
-                        if (rxn.type == "arrhenius") {
+                        if (rxn.type == "arrhenius" and not rxn.third_body) {
                         // Elementary reaction with modified arrhenius rate
-                            if (rxn.reactants[sp]) {
-                                if (rxn.orders[sp]) C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.orders[sp]);
+                            if (rxn.reactants.count(sp)) {
+                                if (rxn.orders.count(sp)) C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.orders[sp]);
                                 else C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.reactants[sp]);
                             }
-                            if (rxn.reversible and rxn.products[sp]) C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.products[sp]);
+                            if (rxn.reversible and rxn.products.count(sp)) C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.products[sp]);
                             third_body = 1.0; // third_body of unity removes impact of third_body which is nonexistent in this case
                         } else if (rxn.third_body) { // This captures third-body and Troe reactions
-                            if (rxn.reactants[sp]) C_react *= species_molef[c]*pressure/Ru/temperature(i,j,k);
-                            if (rxn.reversible and rxn.products[sp]) C_prod *= species_molef[c]*pressure/Ru/temperature(i,j,k);
-                            if (rxn.efficiencies[sp]) third_body += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            if (rxn.reactants.count(sp)) C_react *= species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            if (rxn.reversible and rxn.products.count(sp)) C_prod *= species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            if (rxn.efficiencies.count(sp)) third_body += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);
                             else third_body += species_molef[c]*pressure/Ru/temperature(i,j,k);
                         } else {
-                            Util::ParallelMessage(INFO,"Reaction type is invalid or unspecified.");
+                            Util::Message(INFO, "Unknown reaction type ", rxn.type);
                             Util::Abort(INFO);
                         }
                     }
+                    if (rxn.falloff) third_body = 1.0;
+                    double ropf = kf*third_body*C_react;
+                    double ropr = kf/Kc*third_body*C_prod;
+                    double rop = ropf - ropr;
+                    //std::cout << rxn.equation << "\n";
+                    //std::cout << "ropf: " << ropf << "\tropr: " << ropr << "\trop: " << rop << "\n";
                     w(i,j,k,a) += nu_diff * kf * third_body * C_react;
                     if (rxn.reversible) w(i,j,k,a) -= nu_diff * kf/Kc * third_body * C_prod;
                 }
+                //Util::Abort(INFO);
+                //std::cout << "Net production rates: " << species[a] << ": " << w(i,j,k,a) << " kmol/m^3/s\n";
                 w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
                 if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells
                 //else if (rho(i,j,k,a) + w(i,j,k,a)*1e-9 < 0.0) {
@@ -1330,6 +1362,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 //    }
                 //}
             }
+            //Util::Abort(INFO);
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -1663,12 +1696,17 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             if (nspecies > 1)
             {
+                double dh = 0.0;
                 for (int n=0; n<nspecies; ++n) {
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                     Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
                     Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
                     dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1] - species_h[n]*w(i,j,k,n));
+                    dh += species_h[n]*w(i,j,k,n);
+                    //std::cout << "dh " << species[n] << ": " << species_h[n]*w(i,j,k,n) << "\n";
                 }
+                //std::cout << "dh_total: " << dh << "\n";
+                //Util::Abort(INFO);
             }
 
             E_rhs(i,j,k) = 
