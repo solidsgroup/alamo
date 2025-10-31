@@ -3,7 +3,7 @@
 ####################
 
 stop_time = 1e-3
-timestep = 1e-12
+timestep = 1e-5
 
 ####################
 # AMReX Parameters #

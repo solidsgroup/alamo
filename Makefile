@@ -48,7 +48,7 @@ LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
 
 
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     += ${AMREX}/lib/libamrex.a -lpthread
+LIB     += ${AMREX}/lib/libamrex.a -lpthread -lyaml-cpp
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
@@ -56,6 +56,8 @@ HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
+SRC_MAIN := $(filter-out src/sfi.cc,$(SRC_MAIN))
+SRC := $(filter-out src/sfi.cc,$(SRC))
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX))) 
 OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))
