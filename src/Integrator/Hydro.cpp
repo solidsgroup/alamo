@@ -1291,6 +1291,16 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             }
                         }
                         double Pr = k0*M_concentration/k_inf;
+                        std::cout << "k0: " << k0 << "\tkinf: " << k_inf << "\n";
+                        if (rxn.Troe.count("A")) {
+                            double Fcent = (1.0-rxn.Troe["A"])*exp(-temperature(i,j,k)/rxn.Troe["T3"]) + rxn.Troe["A"]*exp(-temperature(i,j,k)/rxn.Troe["T1"]);
+                            if (rxn.Troe.count("T2")) Fcent += exp(-rxn.Troe["T2"]/temperature(i,j,k));
+                            double C = -0.4 - 0.67*log10(Fcent);
+                            double N = 0.75 - 1.27*log10(Fcent);
+                            double f1 = (log10(Pr) + C) / (N - 0.14*(log10(Pr) + C));
+                            double log10F = log10(Fcent) / (1.0 + f1*f1);
+                            rxn.F = pow(10.0, log10F);
+                        }
                         kf = k_inf * Pr / (1.0 + Pr) * rxn.F;
                     } else kf = rxn.A * pow( temperature(i,j,k), rxn.b ) * exp( -rxn.E/Ru/temperature(i,j,k) );
 
@@ -1343,12 +1353,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     double ropf = kf*third_body*C_react;
                     double ropr = kf/Kc*third_body*C_prod;
                     double rop = ropf - ropr;
-                    //std::cout << rxn.equation << "\n";
+                    std::cout << rxn.equation << "\n";
                     //std::cout << "ropf: " << ropf << "\tropr: " << ropr << "\trop: " << rop << "\n";
+                    std::cout << "\tkf: " << kf << "\tkr: " << kf/Kc << "\n";
                     w(i,j,k,a) += nu_diff * kf * third_body * C_react;
                     if (rxn.reversible) w(i,j,k,a) -= nu_diff * kf/Kc * third_body * C_prod;
                 }
-                //Util::Abort(INFO);
+                Util::Abort(INFO);
                 //std::cout << "Net production rates: " << species[a] << ": " << w(i,j,k,a) << " kmol/m^3/s\n";
                 w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
                 if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells

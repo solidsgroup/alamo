@@ -307,7 +307,7 @@ public:
             if (node["efficiencies"]) r.efficiencies = parseMap(node["efficiencies"]);
             if (node["Troe"]) {
                 r.Troe = parseMap(node["Troe"]);
-                r.F = 1e-3; // TODO: update this based on Troe Fcent
+                r.F = 1.0; // F is temperature dependent and needs to be updated at runtime
             }
 
             // Convert to proper units
@@ -325,13 +325,15 @@ public:
 
             if (units["length"] == "cm") {
                 // cm^3 to m^3
-                r.A *= pow(1e-2, 3*order);
+                if (r.falloff) r.A *= pow(1e-2, 3*(order-1));
+                else r.A *= pow(1e-2, 3*order);
                 r.A2 *= pow(1e-2, 3*order);
 
             }
             if (units["quantity"] == "mol") {
                 // 1/mol to 1/kmo1
-                r.A *= pow(1.0e3, order);
+                if (r.falloff) r.A *= pow(1.0e3, order-1);
+                else r.A *= pow(1.0e3, order);
                 r.A2 *= pow(1.0e3, order);
             }
                   
