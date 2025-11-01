@@ -1291,7 +1291,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             }
                         }
                         double Pr = k0*M_concentration/k_inf;
-                        std::cout << "k0: " << k0 << "\tkinf: " << k_inf << "\n";
                         if (rxn.Troe.count("A")) {
                             double Fcent = (1.0-rxn.Troe["A"])*exp(-temperature(i,j,k)/rxn.Troe["T3"]) + rxn.Troe["A"]*exp(-temperature(i,j,k)/rxn.Troe["T1"]);
                             if (rxn.Troe.count("T2")) Fcent += exp(-rxn.Troe["T2"]/temperature(i,j,k));
@@ -1340,10 +1339,16 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             if (rxn.reversible and rxn.products.count(sp)) C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.products[sp]);
                             third_body = 1.0; // third_body of unity removes impact of third_body which is nonexistent in this case
                         } else if (rxn.third_body) { // This captures third-body and Troe reactions
-                            if (rxn.reactants.count(sp)) C_react *= species_molef[c]*pressure/Ru/temperature(i,j,k);
-                            if (rxn.reversible and rxn.products.count(sp)) C_prod *= species_molef[c]*pressure/Ru/temperature(i,j,k);
-                            if (rxn.efficiencies.count(sp)) third_body += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);
-                            else third_body += species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            if (rxn.reactants.count(sp)) C_react *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.reactants[sp]);
+                            if (rxn.reversible and rxn.products.count(sp)) C_prod *= pow(species_molef[c]*pressure/Ru/temperature(i,j,k), rxn.products[sp]);
+                            if (rxn.efficiencies.count(sp)) {
+                                //std::cout << "Efficiency " << sp << ": " << rxn.efficiencies[sp] << "\n";
+                                third_body += rxn.efficiencies[sp] * species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            } else {
+                                //std::cout << "Default efficiency: " << sp << "\n";
+                                third_body += species_molef[c]*pressure/Ru/temperature(i,j,k);
+                            }
+                            //std::cout << "[" << sp << "]: " << species_molef[c]*pressure/Ru/temperature(i,j,k) << "\n";
                         } else {
                             Util::Message(INFO, "Unknown reaction type ", rxn.type);
                             Util::Abort(INFO);
@@ -1353,13 +1358,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     double ropf = kf*third_body*C_react;
                     double ropr = kf/Kc*third_body*C_prod;
                     double rop = ropf - ropr;
-                    std::cout << rxn.equation << "\n";
-                    //std::cout << "ropf: " << ropf << "\tropr: " << ropr << "\trop: " << rop << "\n";
-                    std::cout << "\tkf: " << kf << "\tkr: " << kf/Kc << "\n";
+                    //std::cout << rxn.equation << "\n";
+                    //std::cout << "\tropf: " << ropf << "\tropr: " << ropr << "\trop: " << rop << "\n";
+                    //std::cout << "\tkf: " << kf << "\tkr: " << kf/Kc << "\n";
                     w(i,j,k,a) += nu_diff * kf * third_body * C_react;
                     if (rxn.reversible) w(i,j,k,a) -= nu_diff * kf/Kc * third_body * C_prod;
                 }
-                Util::Abort(INFO);
                 //std::cout << "Net production rates: " << species[a] << ": " << w(i,j,k,a) << " kmol/m^3/s\n";
                 w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
                 if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells
@@ -1373,7 +1377,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 //    }
                 //}
             }
-            //Util::Abort(INFO);
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -1717,7 +1720,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     //std::cout << "dh " << species[n] << ": " << species_h[n]*w(i,j,k,n) << "\n";
                 }
                 //std::cout << "dh_total: " << dh << "\n";
-                //Util::Abort(INFO);
             }
 
             E_rhs(i,j,k) = 
