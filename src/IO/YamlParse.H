@@ -60,6 +60,10 @@ struct CanteraKinetics {
     std::vector<Phase> phase;
     std::vector<Species> species;
     std::vector<Reaction> reaction;
+
+    CanteraKinetics() = default;
+    CanteraKinetics (std::vector<Phase> p, std::vector<Species> s, std::vector<Reaction> r) :
+        phase(p), species(s), reaction(r) {}
 };
 
 // ---------------------------

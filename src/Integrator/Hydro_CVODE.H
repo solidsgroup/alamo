@@ -17,6 +17,7 @@ struct CVODEUserData {
     amrex::MultiFab *rho_mf;
     amrex::MultiFab *M_mf;
     amrex::MultiFab *E_mf;
+    void *cvode_mem;
 };
 
 // Packing MultiFabs into a contiguous array (N_Vector)

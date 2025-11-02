@@ -185,9 +185,8 @@ protected:
     std::vector<double> species_cp;
     std::vector<double> species_LJdiameter;
     std::vector<double> species_LJwelldepth;
-    std::vector<double> species_H0;
-    std::vector<double> species_h0;
-    std::vector<double> species_s0;
+    //std::vector<double> species_h0;
+    //std::vector<double> species_s0;
     std::vector<double> species_h;
     std::vector<double> species_s;
     std::vector<double> species_Y;
@@ -212,6 +211,7 @@ protected:
     bool managed = false;
     bool invert = false;
     bool restart_found = false;
+    bool rocfire = false;
 
     std::vector<bool> mixed;
 

@@ -159,57 +159,67 @@ int AdvanceImplicit(Integrator::Hydro *hydro,
         std::cerr << "CVodeInit failed with flag=" << flag << "\n";
         return flag;
     }
-    CVodeSetInitStep(cvode_mem, 1e-15);
-    CVodeSetMaxStep(cvode_mem, 0.1*dt);
+    CVodeSetInitStep(cvode_mem, 1e-18);
+    CVodeSetMaxStep(cvode_mem, 1e-8);
+    CVodeSetMaxNumSteps(cvode_mem, 1e6);
     flag = CVodeSStolerances(cvode_mem, cfg.rel_tol, cfg.abs_tol);
     if (flag != CV_SUCCESS) {
         amrex::Abort("CVodeSStolerances failed!");
     }
 
+    // Dense solver (good for n <~ 1000)
+    //////////////////////////////////////////////////////////////////////////
+
     SUNMatrix A = SUNDenseMatrix(N_local, N_local, sunctx);
     if (A == nullptr) amrex::Abort("SUNDenseMatrix creation failed");
-    //SUNLinearSolver LS = SUNLinSol_Dense(y, A, sunctx);
-    //if (LS == nullptr) amrex::Abort("SUNLinSol_Dense creation failed");
-    int pretype = PREC_LEFT;
-    int maxl = 50;
-    SUNLinearSolver LS = SUNLinSol_SPGMR(y, PREC_LEFT, maxl, sunctx);
-    if (LS == nullptr) amrex::Abort("SUNLinSol_SPGMR creation failed");
-    
+    SUNLinearSolver LS = SUNLinSol_Dense(y, A, sunctx);
+    if (LS == nullptr) amrex::Abort("SUNLinSol_Dense creation failed");
     // Attach the linear solver to CVODE
-    //flag = CVodeSetLinearSolver(cvode_mem, LS, A);
-    //if (flag != CV_SUCCESS) {
-    //    amrex::Abort("CVodeSetLinearSolver failed");
-    //}
-    flag = CVodeSetLinearSolver(cvode_mem, LS, nullptr);
+    flag = CVodeSetLinearSolver(cvode_mem, LS, A);
+    if (flag != CV_SUCCESS) {
+        amrex::Abort("CVodeSetLinearSolver failed");
+    }
+    flag = CVodeSetLinearSolver(cvode_mem, LS, A);
     if (flag != CV_SUCCESS) {
         amrex::Abort("CVodeSetLinearSolver failed");
     }
 
-    // Attach the Jacobian-times-vector function
-    flag = CVodeSetJacTimes(cvode_mem, nullptr, CVodeJtv);
-    if (flag != CV_SUCCESS) amrex::Abort("CVodeSetJacTimes failed");
-    
-    // (Optional) Preconditioner interface stubs
-    // If you set PREC_LEFT or PREC_RIGHT above, define these:
-    auto prec_setup = [](realtype t, N_Vector y, N_Vector fy,
-                         booleantype jok, booleantype *jcurPtr,
-                         realtype gamma, void *user_data) {
-        *jcurPtr = SUNFALSE;
-        return 0; // success
-    };
-    auto prec_solve = [](realtype t, N_Vector y, N_Vector fy,
-                         N_Vector r, N_Vector z,
-                         realtype gamma, realtype delta,
-                         int lr, void *user_data) {
-        N_VScale(1.0, r, z);
-        return 0; // identity preconditioner
-    };
-    
-    // If using PREC_LEFT or PREC_RIGHT, enable:
-    if (pretype != PREC_NONE) {
-        flag = CVodeSetPreconditioner(cvode_mem, prec_setup, prec_solve);
-        if (flag != CV_SUCCESS) amrex::Abort("CVodeSetPreconditioner failed");
-    }
+    // SPGMR (if 1000 < n < 10000)
+    //////////////////////////////////////////////////////////////////////////
+
+    //int pretype = PREC_LEFT;
+    //int maxl = 50;
+    //SUNLinearSolver LS = SUNLinSol_SPGMR(y, PREC_LEFT, maxl, sunctx);
+    //if (LS == nullptr) amrex::Abort("SUNLinSol_SPGMR creation failed");
+    //flag = CVodeSetLinearSolver(cvode_mem, LS, nullptr);
+    //if (flag != CV_SUCCESS) {
+    //    amrex::Abort("CVodeSetLinearSolver failed");
+    //}
+    //// Attach the Jacobian-times-vector function
+    //flag = CVodeSetJacTimes(cvode_mem, nullptr, CVodeJtv);
+    //if (flag != CV_SUCCESS) amrex::Abort("CVodeSetJacTimes failed");
+    //
+    //// (Optional) Preconditioner interface stubs
+    //// If you set PREC_LEFT or PREC_RIGHT above, define these:
+    //auto prec_setup = [](realtype t, N_Vector y, N_Vector fy,
+    //                     booleantype jok, booleantype *jcurPtr,
+    //                     realtype gamma, void *user_data) {
+    //    *jcurPtr = SUNFALSE;
+    //    return 0; // success
+    //};
+    //auto prec_solve = [](realtype t, N_Vector y, N_Vector fy,
+    //                     N_Vector r, N_Vector z,
+    //                     realtype gamma, realtype delta,
+    //                     int lr, void *user_data) {
+    //    N_VScale(1.0, r, z);
+    //    return 0; // identity preconditioner
+    //};
+    //
+    //// If using PREC_LEFT or PREC_RIGHT, enable:
+    //if (pretype != PREC_NONE) {
+    //    flag = CVodeSetPreconditioner(cvode_mem, prec_setup, prec_solve);
+    //    if (flag != CV_SUCCESS) amrex::Abort("CVodeSetPreconditioner failed");
+    //}
 
     // Set user data
     CVODEUserData ud;
@@ -217,8 +227,9 @@ int AdvanceImplicit(Integrator::Hydro *hydro,
     ud.rho_mf = &rho_mf;
     ud.M_mf = &M_mf;
     ud.E_mf = &E_mf;
+    ud.cvode_mem = cvode_mem;
     CVodeSetUserData(cvode_mem, &ud);
-    
+
     // Integrate one timestep
     double t_out = t0 + dt;
     flag = CVode(cvode_mem, t_out, y, &t_out, CV_NORMAL);
