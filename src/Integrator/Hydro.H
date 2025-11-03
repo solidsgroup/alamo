@@ -212,11 +212,13 @@ protected:
     bool invert = false;
     bool restart_found = false;
     bool rocfire = false;
+    bool reacting_flow = false;
 
     std::vector<bool> mixed;
 
     std::string yamlfile;
     CanteraYAML::CanteraKinetics kinetics;
+    Set::Scalar cvode_init_step=NAN, cvode_max_step=NAN, cvode_max_num_steps=NAN;
 
 };
 }

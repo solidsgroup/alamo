@@ -40,6 +40,9 @@ struct CVODEConfig {
     int max_steps;
     double rel_tol;
     double abs_tol;
+    double init_step;
+    double max_step;
+    double max_num_steps;
 };
 
 // Advance function

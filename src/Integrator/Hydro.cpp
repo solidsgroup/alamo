@@ -126,6 +126,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
         pp_query("yamlfile", value.yamlfile);
+
+        pp_query_default("cvode_init_step",     value.cvode_init_step,     1e-15);
+        pp_query_default("cvode_max_step",      value.cvode_max_step,      1e-8);
+        pp_query_default("cvode_max_num_steps", value.cvode_max_num_steps, 1e5);
+        pp_query_default("reacting_flow", value.reacting_flow, false);
+
     }
     // Register FabFields:
     {
@@ -650,6 +656,9 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         cfg.rel_tol = 1e-15;
         cfg.abs_tol = 1e-22;
         cfg.max_steps = 10000;
+        cfg.init_step = cvode_init_step;
+        cfg.max_step = cvode_max_step;
+        cfg.max_num_steps = cvode_max_num_steps;
 
         int flag = hydro_cvode::AdvanceImplicit(
             this,
@@ -1677,22 +1686,22 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
-            Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
-            Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X); 
-            Solver::Local::Riemann::State state_xhi(rho, M, E, i+1, j, k, X);
+            Solver::Local::Riemann::State state_xlo(rho, M, E, temperature, i-1, j, k, X);
+            Solver::Local::Riemann::State state_x  (rho, M, E, temperature, i  , j, k, X); 
+            Solver::Local::Riemann::State state_xhi(rho, M, E, temperature, i+1, j, k, X);
 
-            Solver::Local::Riemann::State state_ylo(rho, M, E, i, j-1, k, Y);
-            Solver::Local::Riemann::State state_y  (rho, M, E, i, j  , k, Y);
-            Solver::Local::Riemann::State state_yhi(rho, M, E, i, j+1, k, Y);
+            Solver::Local::Riemann::State state_ylo(rho, M, E, temperature, i, j-1, k, Y);
+            Solver::Local::Riemann::State state_y  (rho, M, E, temperature, i, j  , k, Y);
+            Solver::Local::Riemann::State state_yhi(rho, M, E, temperature, i, j+1, k, Y);
             
             //states of solid fields
-            Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, i-1, j, k, X); 
-            Solver::Local::Riemann::State state_x_solid  (rho_solid, M_solid, E_solid, i  , j, k, X); 
-            Solver::Local::Riemann::State state_xhi_solid(rho_solid, M_solid, E_solid, i+1, j, k, X); 
+            Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, temperature, i-1, j, k, X); 
+            Solver::Local::Riemann::State state_x_solid  (rho_solid, M_solid, E_solid, temperature, i  , j, k, X); 
+            Solver::Local::Riemann::State state_xhi_solid(rho_solid, M_solid, E_solid, temperature, i+1, j, k, X); 
 
-            Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, i, j-1, k, Y); 
-            Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
-            Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
+            Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, temperature, i, j-1, k, Y); 
+            Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, temperature, i, j  , k, Y); 
+            Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, temperature, i, j+1, k, Y); 
 
 
             Solver::Local::Riemann::State state_xlo_fluid = invert ? 
@@ -1743,7 +1752,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
                     Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX);
                     Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX);
-                    drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1] + w(i,j,k,n));
+                    drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
+                    if (reacting_flow) drhof_dt += eta * w(i,j,k,n);
                 }
 
                 rho_rhs(i,j,k,n) = 
@@ -1795,8 +1805,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             if (nspecies > 1)
             {
                 if (rocfire) {
-                    for (size_t n=0; n<kinetics.reaction.size(); ++n) {
-                        dEf_dt += Q(i,j,k,n);
+                    if (reacting_flow) {
+                        for (size_t n=0; n<kinetics.reaction.size(); ++n) {
+                            dEf_dt += Q(i,j,k,n);
+                        }
                     }
                 } else {
                     double dh = 0.0;
@@ -1804,7 +1816,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                         Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
                         Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
-                        dEf_dt += eta * (/*grad_rhoHDYx[0] + grad_rhoHDYy[1]*/ - species_h[n]*w(i,j,k,n));
+                        dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]);
+                        if (reacting_flow) dEf_dt -= eta * species_h[n]*w(i,j,k,n);
                         dh += species_h[n]*w(i,j,k,n);
                         //std::cout << "dh " << species[n] << ": " << species_h[n]*w(i,j,k,n) << "\n";
                     }

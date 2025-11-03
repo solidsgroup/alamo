@@ -159,9 +159,9 @@ int AdvanceImplicit(Integrator::Hydro *hydro,
         std::cerr << "CVodeInit failed with flag=" << flag << "\n";
         return flag;
     }
-    CVodeSetInitStep(cvode_mem, 1e-18);
-    CVodeSetMaxStep(cvode_mem, 1e-8);
-    CVodeSetMaxNumSteps(cvode_mem, 1e6);
+    CVodeSetInitStep(cvode_mem, cfg.init_step);
+    CVodeSetMaxStep(cvode_mem, cfg.max_step);
+    CVodeSetMaxNumSteps(cvode_mem, cfg.max_num_steps);
     flag = CVodeSStolerances(cvode_mem, cfg.rel_tol, cfg.abs_tol);
     if (flag != CV_SUCCESS) {
         amrex::Abort("CVodeSStolerances failed!");
