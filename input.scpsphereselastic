@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 5e-4_s # was 0.001
+amr.plot_dt = 5e-4_s
 amr.max_grid_size = 64
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
@@ -19,18 +19,17 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 3
-
+amr.max_level = 4
 
 # Full size
-# amr.n_cell = 64 64 64 #32 32 32
-# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-# geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
+amr.n_cell = 64 64 64 #32 32 32
+geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
 
 # # Quarter size
-amr.n_cell = 16 16 16
-geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
+# amr.n_cell = 16 16 16
+# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+# geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0
 
