@@ -275,7 +275,7 @@ void Hydro::Mix(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
@@ -667,7 +667,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             if (eta < cutoff)
             {
@@ -732,7 +732,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta) * rho_solid(i,j,k);
             Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta) * E_solid(i,j,k);
@@ -796,7 +796,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         {   
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             //Diffuse Sources
             Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
