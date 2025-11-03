@@ -153,7 +153,7 @@ inline std::string replaceThirdBody(const std::string& eq) {
 }
 
 // Parse string to get number of species
-auto parseSide = [](const std::string& side) -> std::map<std::string, double> {
+static auto parseSide = [](const std::string& side) -> std::map<std::string, double> {
     std::map<std::string, double> species;
     auto terms = split(side, " + ");
     for (auto& term : terms) {

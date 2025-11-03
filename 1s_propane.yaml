@@ -116,5 +116,5 @@ species:
 
 reactions:
 - equation: ' C3H8 + 5 O2 =>  3 CO2 + 4 H2O '  # Reaction 1
-  rate-constant: {A: 3.291653e+10, b: 0.0, Ea: 3.11258e+04}
+  rate-constant: {A: 3.291653e+10, b: 0.0, Ea: 3.11258e+04} # A = 3.291653e+10
   orders: {C3H8: 0.856, O2: 0.503}

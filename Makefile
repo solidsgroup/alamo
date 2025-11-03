@@ -48,7 +48,7 @@ LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
 
 
 ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     += ${AMREX}/lib/libamrex.a -lpthread -lyaml-cpp
+LIB     += ${AMREX}/lib/libamrex.a -lpthread -lyaml-cpp -lsundials_cvode -lsundials_nvecserial -lsundials_sunlinsolspgmr -lsundials_sunmatrixdense
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
