@@ -407,11 +407,14 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> u0_patch  = Hydro::u0_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
+        {   
+            Set::Scalar eta_hydro = 1 - eta(i,j,k) * eta(i,j,k);
+            Set::Scalar etaold_hydro = 1 - etaold(i,j,k) * etaold(i,j,k);
             Set::Scalar phi = Numeric::Interpolate::NodeToCellAverage(phi_patch, i, j, k, 0);
-            Set::Vector grad_eta = -Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Vector grad_eta_hydro = -2.0 * eta(i,j,k) * grad_eta;
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-            Set::Vector N = grad_eta / (grad_eta_mag + small); // Example of finding the normal vector
+            Set::Vector N = grad_eta_hydro / (grad_eta_mag + small); // Example of finding the normal vector
             pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
             rho_AP_gas(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
             rho_HTPB_gas(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
@@ -424,7 +427,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
             u0_patch(i,j,k,1) = u0(1);
 
-            Set::Scalar deta_dt = (eta(i,j,k) - etaold(i,j,k))/(dt); // time derivate approximation of eta
+            Set::Scalar deta_dt = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
 
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
             {
