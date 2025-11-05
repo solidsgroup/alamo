@@ -22,6 +22,7 @@
 #include <sundials/sundials_context.h>
 
 #include "Integrator/Hydro_CVODE.H"
+#include <eigen3/Eigen/Dense>
 
 namespace Integrator
 {
@@ -93,6 +94,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.nspecies = value.species.size();
         pp_query_default("rocfire", value.rocfire, false);
         if (value.rocfire) value.nspecies = 6;
+        std::cout << "nspecies: " << value.nspecies << "\n";
 
         pp_queryarr_default("species_k", value.species_k, {2.623368E-2, 2.560608E-2}); // W/m-K, thermal conductivity
         pp_queryarr_default("species_mu", value.species_mu, {175.4E-7, 203.1E-7}); //kg/m-s, dynamic viscosity
@@ -311,18 +313,20 @@ void Hydro::ComputeThermo(std::vector<double>& rhoY, double T)
         for (int n=0; n<nspecies; ++n) {
             species_Y[n] = rhoY[n]/rho_sum;
             denom += species_Y[n]/ species_mw[n];
-            std::vector<double> c;
+            int hilo;
             if (T >= kinetics.species[n].thermoTemp[0] and T < kinetics.species[n].thermoTemp[1]) {
-                c = kinetics.species[n].thermoData[0];
+                hilo = 0;
             } else if (T >= kinetics.species[n].thermoTemp[1] and T <= kinetics.species[n].thermoTemp[2]) {
-                c = kinetics.species[n].thermoData[1];
+                hilo = 1;
             } else if (T < kinetics.species[n].thermoTemp[0]) {
                 //Util::Message(INFO, "T below temperature range. Proceed with caution. ", T);
-                c = kinetics.species[n].thermoData[0];
+                hilo = 0;
             } else if (T > kinetics.species[n].thermoTemp[2]) {
                 //Util::Message(INFO, "T above temperature range. Proceed with caution.", T);
-                c = kinetics.species[n].thermoData[1];
+                hilo = 1;
             }
+            std::vector<double> c(7, 0.0);
+            for (size_t nc=0; nc<c.size(); ++nc) c[nc] = kinetics.species[n].thermoData[hilo][nc];
             species_cp[n] = Ru/species_mw[n] * (c[0] + c[1]*T + c[2]*pow(T,2) + c[3]*pow(T,3) + c[4]*pow(T,4));
             species_h[n] = Ru*T/species_mw[n] * (c[0] + c[1]/2.0*T + c[2]/3.0*pow(T,2) + c[3]/4.0*pow(T,3) + c[4]/5.0*pow(T,4) + c[5]/T);
             species_s[n] = Ru/species_mw[n] * (c[0]*log(T) + c[1]*T + c[2]/2.0*pow(T,2) + c[3]/3.0*pow(T,3) + c[4]/4.0*pow(T,4) + c[6]);
@@ -331,6 +335,157 @@ void Hydro::ComputeThermo(std::vector<double>& rhoY, double T)
         R = Ru/MW;
     }
 }
+
+using VecD = std::vector<double>;
+using MatD = std::vector<VecD>;
+void Hydro::Equilibrate_UV(
+    const MatD& nu,
+    const VecD& n0,
+    double T0,
+    double P0,
+    VecD& n_eq,
+    VecD& xi_eq,
+    double& T_eq,
+    double eq_tol,
+    int eq_max_iter
+) {
+    size_t N = nu.size();
+    size_t M = nu[0].size();
+
+    // --- Initial setup ---
+    VecD n = n0;
+    double n_tot0 = 0.0;
+    for(double ni : n0) {
+        n_tot0 += ni;
+    }
+    double V = n_tot0 * Ru * T0 / P0;
+
+    VecD rhoY(N, 0.0);
+    for(size_t i=0; i<N; ++i) {
+        rhoY[i] = n0[i]/V * species_mw[i];
+    }
+    ComputeThermo(rhoY, T0);
+
+    auto u_i = [&](double T, int i){ return Ru*T*(species_h[i]*species_mw[i]/Ru/T - 1.0); };
+
+    double U0 = 0.0;
+    for(size_t i=0;i<N;++i) U0 += n0[i]*u_i(T0,i);
+
+    double T = T0;
+    VecD xi(M, 0.0);
+
+    for(int it=0; it<eq_max_iter; ++it){
+        // Update species moles
+        n = n0;
+        for(size_t i=0;i<N;++i) {
+            for(size_t k=0;k<M;++k) {
+                n[i] += nu[i][k]*xi[k];
+            }
+        }
+
+        for(size_t i=0; i<N; ++i) {
+            rhoY[i] = n[i]/V * species_mw[i];
+        }
+        ComputeThermo(rhoY, T);
+
+        for(size_t i=0; i<N; ++i)
+            if(n[i] <= small) n[i] = small; //throw runtime_error("Negative mole number.");
+
+        VecD p_i(N);
+        double P = 0.0;
+        for(size_t i=0;i<N;++i) p_i[i] = n[i]*Ru*T/V;
+
+        // Thermodynamic properties
+        VecD h_RT(N), s_R(N), cp_R(N), g_R(N);
+        for(size_t i=0;i<N;++i){
+            h_RT[i] = species_h[i]*species_mw[i]/Ru/T;
+            s_R[i]  = species_s[i]*species_mw[i]/Ru;
+            cp_R[i] = species_cp[i]*species_mw[i]/Ru;
+            g_R[i]  = h_RT[i]-s_R[i];
+        }
+
+        // Residuals
+        VecD F_rxn(M,0.0);
+        for(size_t j=0;j<M;++j) {
+            for(size_t i=0;i<N;++i) {
+                F_rxn[j] += nu[i][j]*(log(p_i[i])+g_R[i]);
+            }
+        }
+
+        double F_E = 0.0;
+        for(size_t i=0;i<N;++i) F_E += n[i]*Ru*T*(h_RT[i]-1.0);
+        F_E -= U0;
+
+        Eigen::VectorXd F(M+1);
+        for(size_t j=0;j<M;++j) F[j]=F_rxn[j];
+        F[M]=F_E;
+
+        double normF = F.norm();
+        //std::cout << "Iter " << std::setw(3) << it
+        //     << ": T = " << std::setw(10) << std::fixed << std::setprecision(3) << T
+        //     << " K, ||F|| = " << std::scientific << normF << std::endl;
+
+        if(normF<eq_tol){
+            //std::cout << "✅ Converged\n";
+            T_eq=T;
+            n_eq=n;
+            xi_eq=xi;
+            return;
+        }
+
+        // Jacobian
+        Eigen::MatrixXd J(M+1,M+1); J.setZero();
+
+        // ∂F_j/∂ξ_k
+        for(size_t j=0;j<M;++j)
+            for(size_t k=0;k<M;++k)
+                for(size_t i=0;i<N;++i) {
+                    if (n[i] <= small) n[i] = small;
+                    J(j,k) += nu[i][j]*nu[i][k]/n[i];
+                }
+
+        // ∂F_j/∂T
+        for(size_t j=0;j<M;++j){
+            double sum=0.0;
+            for(size_t i=0;i<N;++i) sum += nu[i][j]*(1.0-h_RT[i]);
+            J(j,M)=sum/T;
+        }
+
+        // ∂F_E/∂ξ_k
+        for(size_t k=0;k<M;++k)
+            for(size_t i=0;i<N;++i)
+                J(M,k) += Ru*T*nu[i][k]*(h_RT[i]-1.0);
+
+        // ∂F_E/∂T
+        for(size_t i=0;i<N;++i) J(M,M) += Ru*n[i]*(cp_R[i]-1.0);
+
+        // Solve linear system
+        Eigen::VectorXd delta = J.partialPivLu().solve(-F);
+
+        // Damping
+        double alpha=1.0;
+        while(true){
+            VecD xi_new(M);
+            for(size_t k=0;k<M;++k) xi_new[k]=xi[k]+alpha*delta[k];
+
+            VecD n_new=n0;
+            for(size_t i=0;i<N;++i)
+                for(size_t k=0;k<M;++k) n_new[i] += nu[i][k]*xi_new[k];
+
+            bool positive=true;
+            for(double ni:n_new) if(ni<=0.0) positive=false;
+            if(positive) break;
+            alpha*=0.5;
+            if(alpha<1e-6) throw std::runtime_error("Damping failed");
+        }
+
+        for(size_t k=0;k<M;++k) xi[k]+=alpha*delta[k];
+        T += alpha*delta[M];
+    }
+
+    throw std::runtime_error("❌ Newton iteration did not converge.");
+}
+
 
 void Hydro::Initialize(int lev)
 {
@@ -438,6 +593,7 @@ void Hydro::Initialize(int lev)
     } else {
         kinetics = CanteraYAML::ParseYaml(yamlfile);
         for (int n=0; n<nspecies; ++n) std::cout << kinetics.species[n].name << " ";
+        std::cout << "\n";
         // catch three body reactions that aren't explicitly defined
         for (size_t n=0; n<kinetics.reaction.size(); ++n) {
             auto& rxn = kinetics.reaction[n];
@@ -637,15 +793,57 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+
+            Set::Patch<Set::Scalar> pressure      = pressure_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> temperature   = temperature_mf.Patch(lev,mfi);
         
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {   
+                double rho_sum = 0.0;
+                std::vector<double> rhoY(nspecies, 0.0);
                 for (int n=0; n<nspecies; ++n) {
                     rho_new(i,j,k,n) = rho_old(i,j,k,n) + dt * rho_rhs(i,j,k,n);
+                    rho_sum += rho_new(i,j,k,n);
+                    rhoY[n] = rho_new(i,j,k,n);
                 }
                 M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
                 M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
                 E_new(i,j,k)     = E_old(i,j,k)     + dt * E_rhs(i,j,k);
+
+                double u = M_new(i,j,k,0)/rho_sum;
+                double v = M_new(i,j,k,1)/rho_sum;
+                double e_int = E_new(i,j,k)/rho_sum - 0.5*(u*u + v*v);
+
+                // Newton-Raphson Method
+                double T = temperature(i,j,k);
+                bool convergedT = false;
+                double rtol = 1e-12;
+                double h=0.0, e=0.0;
+                double counter = 0;
+                while (convergedT == false) {
+                    counter += 1;
+                    double T_old = T;
+                    ComputeThermo(rhoY, T);
+                    h = 0.0;
+                    double cv_mix = 0.0;
+                    rho_sum = 0.0;
+                    for (int n=0; n<nspecies; ++n) {
+                        rho_sum += rho_new(i,j,k,n);
+                        h += species_h[n]*species_Y[n];
+                        cv_mix += species_Y[n]*(species_cp[n] - Ru/species_mw[n]);
+                    }
+                    e = h - R*T;
+                    T = T_old - (e - e_int)/cv_mix;
+                    if ( std::fabs(T-T_old)/T < rtol ) convergedT = true;
+                    if ( counter >= 100 ) {
+                        Util::Message(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
+                        convergedT = true;
+                        //Util::Abort(INFO);
+                    }
+                }
+
+                temperature(i,j,k) = T;
+                pressure(i,j,k) = rho_sum * R * T;
             });
         }
     }
@@ -674,6 +872,62 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         if (flag != 0) {
             amrex::Print() << "CVODE implicit solver failed, flag=" << flag << "\n";
             amrex::Abort("Implicit advance failed");
+        }
+        for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+        
+            Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+
+            Set::Patch<Set::Scalar> pressure      = pressure_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar> temperature   = temperature_mf.Patch(lev,mfi);
+        
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {   
+                double rho_sum = 0.0;
+                std::vector<double> rhoY(nspecies, 0.0);
+                for (int n=0; n<nspecies; ++n) {
+                    rho_sum += rho_new(i,j,k,n);
+                    rhoY[n] = rho_new(i,j,k,n);
+                }
+
+                double u = M_new(i,j,k,0)/rho_sum;
+                double v = M_new(i,j,k,1)/rho_sum;
+                double e_int = E_new(i,j,k)/rho_sum - 0.5*(u*u + v*v);
+
+                // Newton-Raphson Method
+                double T = temperature(i,j,k);
+                bool convergedT = false;
+                double rtol = 1e-12;
+                double h=0.0, e=0.0;
+                double counter = 0;
+                while (convergedT == false) {
+                    counter += 1;
+                    double T_old = T;
+                    ComputeThermo(rhoY, T);
+                    h = 0.0;
+                    double cv_mix = 0.0;
+                    rho_sum = 0.0;
+                    for (int n=0; n<nspecies; ++n) {
+                        rho_sum += rho_new(i,j,k,n);
+                        h += species_h[n]*species_Y[n];
+                        cv_mix += species_Y[n]*(species_cp[n] - Ru/species_mw[n]);
+                    }
+                    e = h - R*T;
+                    T = T_old - (e - e_int)/cv_mix;
+                    if ( std::fabs(T-T_old)/T < rtol ) convergedT = true;
+                    if ( counter >= 100 ) {
+                        Util::Message(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
+                        convergedT = true;
+                        //Util::Abort(INFO);
+                    }
+                }
+
+                temperature(i,j,k) = T;
+                pressure(i,j,k) = rho_sum * R * T;
+            });
         }
     }
 
@@ -1126,7 +1380,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     amrex::MultiFab rhoDYx_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dx
     amrex::MultiFab rhoDYy_mf(ba,dm,nspecies,nghost);   // Fickian diffusion, rho*D*dY/dy
     amrex::MultiFab w_mf(ba,dm, nspecies,nghost);  // mass generation/destruction (reaction rate, kg/m^3/s)
-    amrex::MultiFab Q_mf(ba, dm, 4, nghost); // Rocfire heat generation term
+    amrex::MultiFab Q_mf(ba, dm, kinetics.reaction.size(), nghost); // Rocfire heat generation term
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
@@ -1322,10 +1576,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         for (int c=0; c<nspecies; ++c) {
                             if (rxn.reactants.count(species[c])) Yreact *= rho(i,j,k,c);
                         }
-                        if (b == 0) Q(i,j,k,b) = Qgas[b] * kf * Yreact;
-                        else if (b == 1) Q(i,j,k,b) = Qgas[b] * kf * Yreact;
-                        else if (b == 2) Q(i,j,k,b) = Qgas[b] * kf * Yreact;
-                        else if (b == 3) Q(i,j,k,b) = Qgas[b] * kf * Yreact;
+                        if (b==0) Q(i,j,k,b) = (Qgas[b] + Qsolid[0]) * -1.0 * kf * Yreact;
+                        if (b==1) Q(i,j,k,b) = (Qgas[b] + Qsolid[1]) * -1.0 * kf * Yreact;
+                        if (b==2) Q(i,j,k,b) = (Qgas[b] + 7.974*Qsolid[0] + Qsolid[1]) * -8.974 * kf * Yreact;
+                        if (b==3) Q(i,j,k,b) = Qgas[b] * -4.19 * kf * Yreact;
                         w(i,j,k,a) += dnu * kf * Yreact;
                     }    
                     if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0;
@@ -1470,6 +1724,41 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     //}
                 }
             }
+            int nrxn = kinetics.reaction.size();
+            MatD nu(nspecies, VecD(nrxn, 0.0)); // = { { -1.0 }, { -5.0 }, { 3.0 }, { 4.0 }, { 0.0 } };
+            for (int n=0; n<nspecies; ++n) {
+                std::string sp = species[n];
+                VecD nui(nrxn, 0.0);
+                for (int nr=0; nr<nrxn; ++nr) {
+                    CanteraYAML::Reaction rxn = kinetics.reaction[nr];
+                    if (rxn.reactants[sp]) nui[nr] = -rxn.reactants[sp];
+                    if (rxn.products[sp]) nui[nr] = rxn.products[sp];
+                }
+                nu[n] = nui;
+            }
+            
+            VecD n0(nspecies, 0.0);
+            for (int c=0; c<nspecies; ++c) {
+                n0[c] = rhoY[c]/species_mw[c];
+            }
+            VecD n_eq, xi_eq;
+            double T_eq;
+            Equilibrate_UV(nu,n0,temperature(i,j,k),pressure,n_eq,xi_eq,T_eq);
+            //std::cout << "\n--- Equilibrium ---\n";
+            //std::cout << "T_eq = " << T_eq << " K\n";
+            //std::cout << "n_eq = ";
+            //for(double ni:n_eq) std::cout << ni << " ";
+            //std::cout << "\nxi_eq = ";
+            //for(double x:xi_eq) std::cout << x << " ";
+            //std::cout << std::endl;
+            
+
+            VecD dn(nspecies, 0.0);
+            double rho_sum = 0.0;
+            for (int c=0; c<nspecies; ++c) {
+                w(i,j,k,c) = (n_eq[c] - n0[c])*species_mw[c]/timestep;
+            }
+            //Util::Abort(INFO);
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -1742,7 +2031,9 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::Abort(INFO);
             }
 
+            rho_sum(i,j,k) = 0.0;
             for (int n=0; n<nspecies; ++n) {
+                rho_sum(i,j,k) += rho(i,j,k,n);
                 Set::Scalar drhof_dt = 
                     (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
                     (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
@@ -1807,7 +2098,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 if (rocfire) {
                     if (reacting_flow) {
                         for (size_t n=0; n<kinetics.reaction.size(); ++n) {
-                            dEf_dt += Q(i,j,k,n);
+                            dEf_dt -= Q(i,j,k,n);
                         }
                     }
                 } else {
@@ -1817,7 +2108,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
                         Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
                         dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]);
-                        if (reacting_flow) dEf_dt -= eta * species_h[n]*w(i,j,k,n);
+                        if (reacting_flow) dEf_dt -= eta * rho(i,j,k,n)/rho_sum(i,j,k)*species_h[n]*w(i,j,k,n);
                         dh += species_h[n]*w(i,j,k,n);
                         //std::cout << "dh " << species[n] << ": " << species_h[n]*w(i,j,k,n) << "\n";
                     }

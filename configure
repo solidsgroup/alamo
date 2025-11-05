@@ -124,6 +124,7 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
+parser.add_argument('--sundials',default=False,action='store_true',help="Compile with sundials")
 parser.set_defaults(debug=False)
 
 #
@@ -370,7 +371,6 @@ if args.macos:
 #
 f.write("LIB += -lpng \n")
 f.write("LIB += -lyaml-cpp \n")
-f.write("LIB += -lsundials_cvode -lsundials_nvecserial -lsundials_sunlinsolspgmr\n")
 
 #
 # ADD ADDITIONAL LINK LIBRARIES
@@ -378,6 +378,8 @@ f.write("LIB += -lsundials_cvode -lsundials_nvecserial -lsundials_sunlinsolspgmr
 if args.link:
     for l in args.link:
         f.write("LIB += -L" + l + "\n")
+if args.sundials:
+    f.write("LIB += -lsundials_cvode -lsundials_nvecserial -lsundials_sunlinsolspgmr -lsundials_sunlinsoldense -lsundials_sunmatrixdense\n")
     
 #
 # CHECK COMPILER AND SET OPTIONS
@@ -478,8 +480,9 @@ if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     f.write("CXX_COMPILE_FLAGS += -I/usr/include/yaml-cpp\n")
-    f.write("CXX_COMPILE_FLAGS += -I/usr/include/sundials\n")
-    f.write("CXX_COMPILE_FLAGS += -I/usr/include/sunlinsol\n")
+    if args.sundials:
+        f.write("CXX_COMPILE_FLAGS += -I/usr/include/sundials\n")
+        f.write("CXX_COMPILE_FLAGS += -I/usr/include/sunlinsol\n")
     if args.coverage:
         f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
@@ -504,8 +507,9 @@ if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     f.write("CXX_COMPILE_FLAGS += -I/usr/include/yaml-cpp\n")
-    f.write("CXX_COMPILE_FLAGS += -I/usr/include/sundials\n")
-    f.write("CXX_COMPILE_FLAGS += -I/usr/include/sunlinsol\n")
+    if args.sundials:
+        f.write("CXX_COMPILE_FLAGS += -I/usr/include/sundials\n")
+        f.write("CXX_COMPILE_FLAGS += -I/usr/include/sunlinsol\n")
     if args.debug:
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
     elif args.perf:
@@ -517,8 +521,9 @@ if args.comp == 'clang++':
 if args.comp == 'icc':
     f.write("MPI_LIB += -lifcore\n")
     f.write("CXX_COMPILE_FLAGS += -I/usr/include/yaml-cpp\n")
-    f.write("CXX_COMPILE_FLAGS += -I/usr/include/sundials\n")
-    f.write("CXX_COMPILE_FLAGS += -I/usr/include/sunlinsol\n")
+    if args.sundials:
+        f.write("CXX_COMPILE_FLAGS += -I/usr/include/sundials\n")
+        f.write("CXX_COMPILE_FLAGS += -I/usr/include/sunlinsol\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
 

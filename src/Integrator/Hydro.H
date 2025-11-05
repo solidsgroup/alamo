@@ -220,6 +220,23 @@ protected:
     CanteraYAML::CanteraKinetics kinetics;
     Set::Scalar cvode_init_step=NAN, cvode_max_step=NAN, cvode_max_num_steps=NAN;
 
+    using VecD = std::vector<double>;
+    using MatD = std::vector<VecD>;
+
+    void Equilibrate_UV(
+        const MatD& nu,
+        const VecD& n0,
+        double T0,
+        double P0,
+        VecD& n_eq,
+        VecD& xi_eq,
+        double& T_eq,
+        double tol = 1e-8,
+        int max_iter = 1000
+    );
+
+
+
 };
 }
 

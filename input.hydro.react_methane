@@ -12,7 +12,7 @@ timestep = 1e-6
 amr.base_regrid_int = 10
 amr.plot_dt = 1e-6
 #amr.plot_int = 1000
-amr.plot_file = output.hydro.react_1D
+amr.plot_file = output.hydro.react_methane
 amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 1
@@ -29,7 +29,7 @@ eta.ic.expression.constant.eps = 0.02
 eta.ic.expression.region0 = "1" # - 0.5 * (erf((x)/eps) + 1)"
 
 #yamlfile = h2o2.yaml
-yamlfile = 1s_propane.yaml
+yamlfile = 2s_methane.yaml
 
 ###############################
 # Hydro Integrator Parameters #
@@ -71,8 +71,8 @@ Tref    = 300.0
 #density.ic.expression.region8 = "0.0"
 #density.ic.expression.region9 = "0.0"
 
-species = C3H8 O2 CO2 H2O N2
-species_mw = 44.1 31.998 44.01 18.015 28.014
+species = O2 H2O CH4 CO CO2 N2
+species_mw = 31.998 18.015 16.04 28.01 44.01 28.014
 species_k = 0.0156 0.026570734809079212 0.015 0.02626794470764762 0.026463112933806793
 species_cp = 1680.0 918.43462505419 849.0 1864.9154285171269 1037.8911357957468
 species_mu = 2.979e-6 2.0654335611112864e-05 1.37e-5 1.0327783369401388e-05 1.808570419229132e-05
@@ -82,11 +82,12 @@ species_LJwelldepth = 266.8 107.4 244.0 572.4 97.53
 # partial pressures at 1 atm, 1000 K for equivalence ratio of 1 (C3H8 in air)
 # but then integrate with cantera to t=0.00046 and get values from there
 density.ic.type = expression
-density.ic.expression.region0 = "0.01543898"
-density.ic.expression.region1 = "0.05601476"
-density.ic.expression.region2 = "0.01865289"
-density.ic.expression.region3 = "0.0101807"
-density.ic.expression.region4 = "0.25879967"
+density.ic.expression.region0 = "0.07413436"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.01858456"
+density.ic.expression.region3 = "0.0"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "0.24403923"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
@@ -95,7 +96,7 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "177553.38044992616"
+pressure.ic.expression.region0 = "101325.0"
 
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann
@@ -112,14 +113,14 @@ pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
 ### HYDRO BC ###
-density.bc.constant.type.xhi = neumann neumann neumann neumann neumann
-density.bc.constant.type.xlo = neumann neumann neumann neumann neumann
-density.bc.constant.type.yhi = neumann neumann neumann neumann neumann
-density.bc.constant.type.ylo = neumann neumann neumann neumann neumann
-density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.yhi = neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0
 
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.xlo = neumann neumann
@@ -148,10 +149,10 @@ omega_refinement_criterion = 10000000
 gradu_refinement_criterion = 100000000
 
 solid.momentum.ic.constant.value = 0.0 0.0
-solid.density.ic.constant.value = 40.0 40.0 40.0 40.0 40.0
+solid.density.ic.constant.value = 40.0 40.0 40.0 40.0 40.0 40.0
 solid.energy.ic.constant.value = 0.0
 
-m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0
+m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0
 u0.ic.constant.value = 0.0 0.0
 q.ic.constant.value = 0.0 0.0
 

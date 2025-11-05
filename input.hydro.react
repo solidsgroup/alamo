@@ -54,25 +54,34 @@ species_cp = 14310.905255369767 20621.18704970528 1368.8549802484818 918.4346250
 species_mu = 9.000297497350422e-06 9.50498709679967e-06 2.48574213354167e-05 2.0654335611112864e-05 2.5628519006356415e-05 1.0327783369401388e-05 2.0977139204768138e-05 2.129505010315616e-05 2.3142358895013927e-05 1.808570419229132e-05
 species_LJdiameter = 2.92 2.05 2.7500000000000003 3.4580000000000004 2.7500000000000003 2.6050000000000003 3.4580000000000004 3.4580000000000004 3.3300000000000004 3.621
 species_LJwelldepth = 38.0 145.0 80.0 107.4 80.0 572.4 107.4 107.4 136.5 97.53
-species_H0 = 0.0 1.3e9 1.56e7 0.0 -2.17e6 -1.34e7 4.61e5 -5.5e3 0.0 0.0
 
 density.ic.type = expression
 density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
 density.ic.expression.constant.eps = 0.01
-#density.ic.expression.region0 = "0.0468*(x>0.1) + 0.0468*(x<=0.01) + 0.01638*(x<=0.1)*(x>0.01)"
-density.ic.expression.region0 = "8.18848293e-03"
-density.ic.expression.region1 = "1.22839528e-08"
-density.ic.expression.region2 = "1.94971191e-08"
-#density.ic.expression.region3 = "0.3714*(x>0.1) + 0.3714*(x<=0.01) + 0.12998*(x<=0.1)*(x>0.01)"
-density.ic.expression.region3 = "6.50033952e-02"
-density.ic.expression.region4 = "2.07255144e-06"
+##density.ic.expression.region0 = "0.0468*(x>0.1) + 0.0468*(x<=0.01) + 0.01638*(x<=0.1)*(x>0.01)"
+#density.ic.expression.region0 = "8.18848293e-03"
+#density.ic.expression.region1 = "1.22839528e-08"
+#density.ic.expression.region2 = "1.94971191e-08"
+##density.ic.expression.region3 = "0.3714*(x>0.1) + 0.3714*(x<=0.01) + 0.12998*(x<=0.1)*(x>0.01)"
+#density.ic.expression.region3 = "6.50033952e-02"
+#density.ic.expression.region4 = "2.07255144e-06"
+#density.ic.expression.region5 = "0.0"
+#density.ic.expression.region6 = "0.0"
+#density.ic.expression.region7 = "0.0"
+#density.ic.expression.region8 = "0.0"
+#density.ic.expression.region9 = "1.70695761e-01"
+density.ic.expression.region0 = "0.00726869"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "0.05768442"
+density.ic.expression.region4 = "0.0"
 density.ic.expression.region5 = "0.0"
 density.ic.expression.region6 = "0.0"
 density.ic.expression.region7 = "0.0"
 density.ic.expression.region8 = "0.0"
-density.ic.expression.region9 = "1.70695761e-01"
+density.ic.expression.region9 = "0.18988852"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
