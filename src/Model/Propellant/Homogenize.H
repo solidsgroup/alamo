@@ -99,18 +99,12 @@ public:
         pp.query_required("dispersion3", value.dispersion3, Unit::SpecificHeatCapacity()); 
 
 
-        // AP Density
-        pp.query_required("rho_ap", value.rho_ap, Unit::Density());
-        // HTPB Density
-        pp.query_required("rho_htpb", value.rho_htpb, Unit::Density());
-        // AP Thermal Conductivity
-        pp.query_required("k_ap", value.k_ap, Unit::ThermalConductivity());
-        // HTPB Thermal Conductivity
-        pp.query_required("k_htpb", value.k_htpb, Unit::ThermalConductivity());
-        // AP Specific Heat
-        pp.query_required("cp_ap", value.cp_ap,Unit::SpecificHeatCapacity());
-        //HTPB Specific Heat
-        pp.query_required("cp_htpb", value.cp_htpb, Unit::SpecificHeatCapacity()); 
+        // Prop Density
+        pp.query_required("rho_prop", value.rho_prop, Unit::Density());
+        // Prop Thermal Conductivity
+        pp.query_required("k_prop", value.k_prop, Unit::ThermalConductivity());
+        // Prop Specific Heat
+        pp.query_required("cp_prop", value.cp_prop,Unit::SpecificHeatCapacity());
 
 
         // Surgate heat flux model paramater - Homogenized
@@ -124,20 +118,16 @@ public:
         pp.query_default("massfraction", value.massfraction, "0.8",Unit::Less());
 
         // AP mass flux reference value 
-        pp.query_default("mlocal_ap", value.mlocal_ap, "0.0_kg/m^2/s", 
+        pp.query_default("mlocal", value.mlocal, "0.0_kg/m^2/s", 
                          Unit::Mass()/Unit::Area()/Unit::Time()); 
         value.mlocal_htpb = 685000.0 - 850e3 * value.massfraction;
         
-        // AP Pre-exponential factor for Arrhenius Law
-        pp.query_required("m_ap", value.m_ap, Unit::Velocity()); 
-        // HTPB Pre-exponential factor for Arrhenius Law
-        pp.query_required("m_htpb", value.m_htpb, Unit::Velocity()); 
-        // AP Activation Energy for Arrhenius Law
-        pp.query_required("E_ap", value.E_ap, Unit::Temperature()); 
-        // HTPB Activation Energy for Arrhenius Law
-        pp.query_required("E_htpb", value.E_htpb, Unit::Temperature()); 
+        // Prop Pre-exponential factor for Arrhenius Law
+        pp.query_required("m_prop", value.m_prop, Unit::Velocity()); 
+        // Prop Activation Energy for Arrhenius Law
+        pp.query_required("E_prop", value.E_prop, Unit::Temperature()); 
         // Whether to include pressure to the arrhenius law [??]
-        pp.query_default("mob_ap", value.mob_ap,false); 
+        pp.query_default("mob_prop", value.mob_prop,false); 
         // HTPB Activation Energy for Arrhenius Law
         pp.query_default("bound", value.bound,"0_K", Unit::Temperature()); 
     }
