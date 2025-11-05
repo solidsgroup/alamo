@@ -29,13 +29,6 @@ public:
 
     template<int I = 0>
     AMREX_GPU_HOST
-    Set::Scalar get (std::string property)
-    {
-        if (property == "massfraction")
-            return massfraction;
-        Util::Abort(INFO);
-        return NAN;
-    }
 
     Set::Scalar Pbar = NAN;
     void set_pressure(const Set::Scalar P) 
@@ -47,33 +40,31 @@ public:
     virtual Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
     {
         Set::Scalar qflux = k4 * phi;
-        Set::Scalar mlocal = (mlocal_ap) * massfraction + (mlocal_htpb) * (1.0 - massfraction);
         Set::Scalar mdota = fabs(mdot);
-        Set::Scalar mbase = tanh(4.0 * mdota / (mlocal));
+        Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
         return  mbase * qflux;
     }
 
     Set::Scalar get_K (const Set::Scalar phi)
     {
-        return (k_ap * massfraction + k_htpb * (1.0 - massfraction)) * phi + dispersion1 * (1. - phi);
+        return k_prop * phi + dispersion1 * (1. - phi);
     }
 
     Set::Scalar get_rho (const Set::Scalar phi)
     {
-        return (rho_ap * massfraction + rho_htpb * (1.0 - massfraction)) * phi + dispersion2 * (1. - phi); 
+        return rho_prop * phi + dispersion2 * (1. - phi); 
     }
 
     Set::Scalar get_cp (const Set::Scalar phi)
     {
-        return (cp_ap * massfraction + cp_htpb * (1.0 - massfraction)) * phi + dispersion3 * (1. - phi);
+        return cp_prop * phi + dispersion3 * (1. - phi);
     }
 
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;
-        if (mob_ap == 1) L = m_ap * Pbar * exp(-E_ap / T) * phi;
-        else L = m_ap * exp(-E_ap / T) * phi;
-        L += m_htpb * exp(-E_htpb / T) * (1.0 - phi);
+        if (mob_prop == 1) L = m_prop * Pbar * exp(-E_prop / T) * phi;
+        else L = m_prop * exp(-E_prop / T) * phi;
         if (T <= bound) L = 0.0;
         
         if (L != L)
@@ -81,10 +72,9 @@ public:
             Util::Message(INFO,phi);
             Util::Message(INFO,Unit::Temperature(T));
             Util::Message(INFO,Pbar);
-            Util::Message(INFO,Unit::Temperature(E_ap));
+            Util::Message(INFO,Unit::Temperature(E_prop));
             Util::Message(INFO,phi);
-            Util::Message(INFO,Unit::Velocity(m_ap));
-            Util::Message(INFO,Unit::Velocity(m_htpb));
+            Util::Message(INFO,Unit::Velocity(m_prop));
             Util::Abort(INFO,L / Unit::Pressure() / Unit::Time());
         }
             
@@ -155,15 +145,15 @@ public:
     // IO variables
     Set::Scalar massfraction = NAN;
     Set::Scalar dispersion1 = NAN, dispersion2 = NAN, dispersion3 = NAN;
-    Set::Scalar k_ap = NAN, k_htpb = NAN;
-    Set::Scalar rho_ap = NAN, rho_htpb = NAN;
-    Set::Scalar cp_ap = NAN, cp_htpb = NAN;
+    Set::Scalar k_prop = NAN;
+    Set::Scalar rho_prop = NAN;
+    Set::Scalar cp_prop = NAN;
     Set::Scalar h1 = NAN, h2=NAN;
-    Set::Scalar mlocal_ap = NAN;
+    Set::Scalar mlocal = NAN;
     // Regression variables
-    bool mob_ap = -1;
-    Set::Scalar m_ap = NAN, m_htpb = NAN, m_comb = NAN;
-    Set::Scalar E_ap = NAN, E_htpb = NAN;
+    bool mob_prop = -1;
+    Set::Scalar m_prop = NAN;
+    Set::Scalar E_prop = NAN;
     Set::Scalar bound = NAN;
     Set::Scalar Pref = NAN;
 
