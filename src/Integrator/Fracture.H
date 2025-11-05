@@ -751,7 +751,8 @@ public:
 
     void Regrid(int lev, Set::Scalar time) override
     {
-        material.ic->Initialize(lev, material.eta_mf, time);
+        if (material.is_ic)
+            material.ic->Initialize(lev, material.eta_mf, time);
     }
 
 
