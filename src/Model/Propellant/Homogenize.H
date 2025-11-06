@@ -27,9 +27,6 @@ public:
         pp_queryclass(name,*this);
     }
 
-    template<int I = 0>
-    AMREX_GPU_HOST
-
     Set::Scalar Pbar = NAN;
     void set_pressure(const Set::Scalar P) 
     {
@@ -39,10 +36,24 @@ public:
     
     virtual Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
     {
+        Set::Scalar qdot = NAN;
+
         Set::Scalar qflux = k4 * phi;
         Set::Scalar mdota = fabs(mdot);
-        Set::Scalar mbase = tanh(4.0 * mdota / mlocal);
-        return  mbase * qflux;
+        Set::Scalar mbase = tanh(4.0 * mdota / mlocal_prop);
+
+        qdot = mbase * qflux;
+
+        if (qdot != qdot)
+        {
+            Util::Message(INFO, "mdot = ", mdot);
+            Util::Message(INFO, "phi = ", phi);
+            Util::Message(INFO, "k4 = ", k4);
+            Util::Message(INFO, "mdota = ", mdota);
+            Util::Message(INFO, "mlocal = ", mlocal);
+        }
+
+        return qdot;
     }
 
     Set::Scalar get_K (const Set::Scalar phi)
@@ -114,13 +125,10 @@ public:
         // Reference pressure
         pp.query_default("Pref", value.Pref, "1_MPa",Unit::Pressure()); 
 
-        // AP/HTPB ratio for homogenized domain
-        pp.query_default("massfraction", value.massfraction, "0.8",Unit::Less());
-
         // AP mass flux reference value 
-        pp.query_default("mlocal", value.mlocal, "0.0_kg/m^2/s", 
+        pp.query_default("mlocal_prop", value.mlocal, "0.0_kg/m^2/s", 
                          Unit::Mass()/Unit::Area()/Unit::Time()); 
-        value.mlocal_htpb = 685000.0 - 850e3 * value.massfraction;
+        value.mlocal_prop = 685000.0 - 850e3;
         
         // Prop Pre-exponential factor for Arrhenius Law
         pp.query_required("m_prop", value.m_prop, Unit::Velocity()); 
@@ -149,7 +157,7 @@ public:
 
     // Calculated variables
     Set::Scalar k4 = NAN;
-    Set::Scalar mlocal_htpb = NAN;
+    Set::Scalar mlocal_prop = NAN;
 };
 
 }
