@@ -3,7 +3,7 @@
 ####################
 
 stop_time = 5e-3
-timestep = 2e-7
+timestep = 1e-10
 
 ####################
 # AMReX Parameters #
@@ -28,7 +28,8 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.005
 eta.ic.expression.region0 = "0.5 * (erf((y+0.01)/eps) + 1)"
 
-yamlfile = 2s_methane.yaml
+yamlfile = 1s_propane.yaml
+reacting_flow = true
 
 ###############################
 # Hydro Integrator Parameters #
@@ -43,15 +44,13 @@ Tref    = 0
 ##Default is Air
 #species_massf = 0.767 0.233
 
-## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
-## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
-species = O2 H2O CH4 CO CO2 N2
-species_mw = 31.998 18.015 16.04 28.01 44.01 28.014
-species_cp = 845.68 920.0 1040.0
-species_k  = 0.026 0.15 0.1767 0.024 0.0166 0.024
-species_mu = 3.0e-5 1.418e-5 1.03e-5 3.86e-5 1.37e-5 1.75e-5
-species_LJdiameter = 3.46 2.6 3.75 3.65 3.62
-species_LJwelldepth = 107.4 572.4 141.4 98.1 97.53
+species = C3H8 O2 CO2 H2O N2
+species_mw = 44.1 31.998 44.01 18.015 28.014
+species_k = 0.0156 0.026570734809079212 0.015 0.02626794470764762 0.026463112933806793
+species_cp = 1680.0 918.43462505419 849.0 1864.9154285171269 1037.8911357957468
+species_mu = 2.979e-6 2.0654335611112864e-05 1.37e-5 1.0327783369401388e-05 1.808570419229132e-05
+species_LJdiameter = 4.98 3.4580000000000004 3.76 2.6050000000000003 3.621
+species_LJwelldepth = 266.8 107.4 244.0 572.4 97.53
 
 ## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
 ## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
@@ -76,24 +75,24 @@ species_LJwelldepth = 107.4 572.4 141.4 98.1 97.53
 
 density.ic.type = expression
 density.ic.expression.constant.P = 101325.0
-density.ic.expression.constant.T = 300.0
-density.ic.expression.constant.R_CO2 = 188.92
+density.ic.expression.constant.T = 1000.0
+density.ic.expression.constant.R_C3H8 = 188.56
 density.ic.expression.constant.R_O2 = 259.83
-density.ic.expression.constant.cv_CO2 = 656.76
-density.ic.expression.constant.cv_O2 = 660.17
 density.ic.expression.constant.R_N2 = 297.0
-density.ic.expression.region0 = "0.0" # * ((x<-0.05) + (x>0.05))"
-density.ic.expression.region1 = "0.0" #"P/R_O2/T * (abs(x) <= 0.05)"
-density.ic.expression.region2 = "0.0"
-density.ic.expression.region3 = "0.0"
-density.ic.expression.region4 = "0.0"
-density.ic.expression.region5 = "P/R_N2/T"
+#density.ic.expression.region0 = "0.1 + P/R_C3H8/T * ((x<-0.05) + (x>0.05))"
+#density.ic.expression.region1 = "0.1 + P/R_O2/T * (abs(x) <= 0.05)"
+#density.ic.expression.region2 = "0.1"
+#density.ic.expression.region3 = "0.1"
+#density.ic.expression.region4 = "0.1"
+density.ic.expression.region0 = "0.01543898"
+density.ic.expression.region1 = "0.05601476"
+density.ic.expression.region2 = "0.01865289"
+density.ic.expression.region3 = "0.0101807"
+density.ic.expression.region4 = "0.25879967"
 
 velocity.ic.type = expression
-velocity.ic.expression.constant.eps   = 0.1
-velocity.ic.expression.constant.x0    = -2.0
 velocity.ic.expression.region0 = "0.0"
-velocity.ic.expression.region1 = "0.0"
+velocity.ic.expression.region1 = "50.0"
 
 pressure.ic.type = expression
 pressure.ic.expression.constant.gamma = 1.4
@@ -115,14 +114,14 @@ pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
 ### HYDRO BC ###
-density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann
-density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann
-density.bc.constant.type.yhi = neumann neumann neumann neumann neumann neumann
-density.bc.constant.type.ylo = neumann neumann neumann neumann neumann neumann
-density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0
-density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.type.xhi = neumann neumann neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann neumann neumann
+density.bc.constant.type.yhi = neumann neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0
 
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.xlo = neumann neumann
@@ -151,40 +150,31 @@ omega_refinement_criterion = 10000000
 gradu_refinement_criterion = 0.5
 
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "20.0 * ((x<-0.05) + (x>0.05))"
-solid.density.ic.expression.region1 = "0.0"
-solid.density.ic.expression.region2 = "5.0 * (abs(x) <= 0.05)"
-solid.density.ic.expression.region3 = "0.0"
-solid.density.ic.expression.region4 = "0.0"
-solid.density.ic.expression.region5 = "0.0"
+solid.density.ic.expression.region0 = "50.0 * ((x<-0.05) + (x>0.05))"
+solid.density.ic.expression.region1 = "5.0 * (abs(x) <= 0.05)"
+solid.density.ic.expression.region2 = "1.0"
+solid.density.ic.expression.region3 = "1.0"
+solid.density.ic.expression.region4 = "1.0"
 solid.momentum.ic.constant.value = 0.0 0.0
 solid.energy.ic.constant.value = 0.0
 
 m0.ic.type = expression
-m0.ic.expression.constant.P = 101325.0e2
-m0.ic.expression.constant.T = 800.0
-m0.ic.expression.constant.R_CO2 = 188.92
+m0.ic.expression.constant.P = 101325.0
+m0.ic.expression.constant.T = 1000.0
+m0.ic.expression.constant.R_C3H8 = 188.56
 m0.ic.expression.constant.R_O2 = 259.83
-m0.ic.expression.constant.R_CH4 = 518.28
-m0.ic.expression.constant.cv_CO2 = 656.76
-m0.ic.expression.constant.cv_O2 = 660.17
-m0.ic.expression.region0 = "P/R_O2/T * (abs(x) <= 0.05)"
-m0.ic.expression.region1 = "0.0"
-m0.ic.expression.region2 = "P/R_CH4/T * ((x<-0.05) + (x>0.05))"
+m0.ic.expression.constant.R_N2 = 297.0
+m0.ic.expression.constant.R_O2 = 259.83
+m0.ic.expression.constant.R_C3H8 = 518.28
+m0.ic.expression.region0 = "0.0" #"P/R_C3H8/T * ((x<-0.05) + (x>0.05))"
+m0.ic.expression.region1 = "0.0" #"P/R_O2/T * (abs(x) <= 0.05)"
+m0.ic.expression.region2 = "0.0"
 m0.ic.expression.region3 = "0.0"
 m0.ic.expression.region4 = "0.0"
-m0.ic.expression.region5 = "0.0"
 
 u0.ic.type = expression
-u0.ic.expression.constant.P = 101325.0e2
-u0.ic.expression.constant.T = 300.0
-u0.ic.expression.constant.R_CO2 = 188.92
-u0.ic.expression.constant.R_O2 = 259.83
-u0.ic.expression.constant.R_CH4 = 518.28
-u0.ic.expression.constant.cv_CO2 = 656.76
-u0.ic.expression.constant.cv_O2 = 660.17
 u0.ic.expression.region0 = "0.0"
-u0.ic.expression.region1 = "2000.0 * (P/R_CH4/T * ((x<-0.05) + (x>0.05))) + 2000.0 * (P/R_O2/T * (abs(x) <= 0.05))"
+u0.ic.expression.region1 = "0.0" #"50.0"
 
 q.ic.type = expression
 q.ic.expression.constant.P = 101325.0
@@ -195,7 +185,7 @@ q.ic.expression.constant.R_CH4 = 518.28
 q.ic.expression.constant.cv_CO2 = 656.76
 q.ic.expression.constant.cv_O2 = 660.17
 q.ic.expression.region0 = "0.0"
-q.ic.expression.region1 = "2.0e7 * (P/R_CH4/T * ((x<-0.05) + (x>0.05))) + 2.0e7 * (P/R_O2/T * (abs(x) <= 0.05))"
+q.ic.expression.region1 = "0.0"
 
 small=1E-6
 cutoff=0.2
@@ -209,7 +199,7 @@ cfl_v   = 10.0
 #hydro.solver.type = roe
 #hydro.solver.roe.lowmach = 1
 
-solver.type = hlle
+solver.type = hllc
 
 #dynamictimestep.on = 0
 #dynamictimestep.verbose = 1

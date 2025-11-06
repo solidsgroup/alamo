@@ -97,12 +97,11 @@ struct State {
     Set::Scalar T = NAN;
     // Construtor for convenience
     State() { rho = std::vector<double>(0); M_normal = 0.0, M_tangent = 0.0; E = 0.0; T = 0.0;}
-    State(std::vector<double> a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E, Set::Scalar a_T )
-        : rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E), T(a_T) {}
+    State(std::vector<double> a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E )
+        : rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E) {}
     State(Set::Patch<const Set::Scalar>& density_mf,
           Set::Patch<const Set::Scalar> momentum_mf,
           Set::Patch<const Set::Scalar> energy_mf,
-          Set::Patch<const Set::Scalar> temperature_mf,
           int i, int j, int k, int direction)
     {
         size_t nspecies = density_mf.nComp();
@@ -122,7 +121,6 @@ struct State {
             Util::Abort(INFO, "Not supported yet");
         }
         E = energy_mf(i,j,k);
-        T = temperature_mf(i,j,k);
     }
 
     friend std::ostream &operator<<(std::ostream &os, const State &state) 
@@ -134,59 +132,58 @@ struct State {
         os << "Mn=" << state.M_normal << ", ";
         os << "Mt=" << state.M_tangent << ", ";
         os << "E=" << state.E << ", ";
-        os << "T=" << state.T << ", ";
         // do stuf
         return os;
     }
     void operator += (const State &a)
     {
-        M_normal += a.M_normal; M_tangent += a.M_tangent; E += a.E; T;
+        M_normal += a.M_normal; M_tangent += a.M_tangent; E += a.E;
         for (size_t n=0; n<rho.size(); ++n) { rho[n] += a.rho[n]; }
     };
     void operator -= (const State &a)
     {
-        M_normal -= a.M_normal; M_tangent -= a.M_tangent; E -= a.E; T;
+        M_normal -= a.M_normal; M_tangent -= a.M_tangent; E -= a.E;
         for (size_t n=0; n<rho.size(); ++n) { rho[n] -= a.rho[n]; }
     };
     void operator *= (const Set::Scalar alpha)
     {
-        M_normal *= alpha; M_tangent *= alpha; E *= alpha; T;
+        M_normal *= alpha; M_tangent *= alpha; E *= alpha;
         for (size_t n=0; n<rho.size(); ++n) { rho[n] *= alpha; }
     };
     void operator /= (const Set::Scalar alpha)
     {
-        M_normal /= alpha; M_tangent /= alpha; E /= alpha; T;
+        M_normal /= alpha; M_tangent /= alpha; E /= alpha;
         for (size_t n=0; n<rho.size(); ++n) { rho[n] /= alpha; }
     };
     friend State operator + (const State &a, const State &b)
     {
         std::vector<double> rho_sum(a.rho.size());
         std::transform(a.rho.begin(), a.rho.end(), b.rho.begin(), rho_sum.begin(), std::plus<double>());
-        return State(rho_sum, a.M_normal+b.M_normal, a.M_tangent+b.M_tangent, a.E+b.E, a.T);
+        return State(rho_sum, a.M_normal+b.M_normal, a.M_tangent+b.M_tangent, a.E+b.E);
     }
     friend State operator - (const State &a, const State &b)
     {
         std::vector<double> rho_diff(a.rho.size());
         std::transform(a.rho.begin(), a.rho.end(), b.rho.begin(), rho_diff.begin(), std::minus<double>());
-        return State(rho_diff, a.M_normal-b.M_normal, a.M_tangent-b.M_tangent, a.E-b.E, a.T);
+        return State(rho_diff, a.M_normal-b.M_normal, a.M_tangent-b.M_tangent, a.E-b.E);
     }
     friend State operator * (const Set::Scalar alpha, const State &b)
     {
         std::vector<double> rho_prod(b.rho.size());
         std::transform(b.rho.begin(), b.rho.end(), rho_prod.begin(), [alpha](double val){ return val*alpha; });
-        return State(rho_prod, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha, b.T);
+        return State(rho_prod, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha);
     }
     friend State operator * (const State &b, const Set::Scalar alpha)
     {
         std::vector<double> rho_prod(b.rho.size());
         std::transform(b.rho.begin(), b.rho.end(), rho_prod.begin(), [alpha](double val){ return val*alpha; });
-        return State(rho_prod, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha, b.T);
+        return State(rho_prod, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha);
     }
     friend State operator / (const State &b, const Set::Scalar alpha)
     {
         std::vector<double> rho_quot(b.rho.size());
         std::transform(b.rho.begin(), b.rho.end(), rho_quot.begin(), [alpha](double val){ return val/alpha; });
-        return State(rho_quot, b.M_normal/alpha, b.M_tangent/alpha, b.E/alpha, b.T);
+        return State(rho_quot, b.M_normal/alpha, b.M_tangent/alpha, b.E/alpha);
     }
 };
 

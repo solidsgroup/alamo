@@ -79,13 +79,13 @@ public:
         // CPG
         Set::Scalar p_L = (gamma_L-1.0) * (E_L - 0.5*rho_sum_L*(u_L*u_L + v_L*v_L)) + p_ref;
         Set::Scalar p_R = (gamma_R-1.0) * (E_R - 0.5*rho_sum_R*(u_R*u_R + v_R*v_R)) + p_ref;
-        // TPG
-        Set::Scalar R_L = cp_L - cv_L;
-        Set::Scalar R_R = cp_R - cv_R;
-        Set::Scalar T_L = lo.T;
-        Set::Scalar T_R = hi.T;
-        p_L = rho_sum_L * R_L * T_L;
-        p_R = rho_sum_R * R_R * T_R;
+        //// TPG
+        //Set::Scalar R_L = cp_L - cv_L;
+        //Set::Scalar R_R = cp_R - cv_R;
+        //Set::Scalar T_L = lo.T;
+        //Set::Scalar T_R = hi.T;
+        //p_L = rho_sum_L * R_L * T_L;
+        //p_R = rho_sum_R * R_R * T_R;
         
         // sound speeds
         Set::Scalar a_L = std::sqrt(gamma_L*p_L / rho_sum_L);
@@ -143,14 +143,12 @@ public:
             State U_L ( rho_L,
                         rho_sum_L*u_L,
                         rho_sum_L*v_L,
-                        E_L,
-                        T_L);
+                        E_L);
 
             State Ustar_L ( rhostar_L,
                             rho_sum_L * factor_L * Sstar,
                             rho_sum_L * factor_L * v_L,
-                            ((S_L - u_L)*E_L - p_L*u_L + pstar*Sstar + (pstar - p_L)*S_L)/(S_L - Sstar),
-                            T_L);
+                            ((S_L - u_L)*E_L - p_L*u_L + pstar*Sstar + (pstar - p_L)*S_L)/(S_L - Sstar) );
 
             return F_L + S_L*(Ustar_L - U_L);
         }
@@ -163,15 +161,13 @@ public:
             State U_R ( rho_R,
                         rho_sum_R*u_R,
                         rho_sum_R*v_R,
-                        E_R,
-                        T_R);
+                        E_R);
 
 
             State Ustar_R ( rhostar_R,
                             rho_sum_R * factor_R * Sstar,
                             rho_sum_R * factor_R * v_R,
-                            ((S_R - u_R)*E_R - p_R*u_R + pstar*Sstar + (pstar - p_R)*S_R)/(S_R - Sstar),
-                            T_R );
+                            ((S_R - u_R)*E_R - p_R*u_R + pstar*Sstar + (pstar - p_R)*S_R)/(S_R - Sstar) );
 
             return F_R + S_R*(Ustar_R - U_R);
         }

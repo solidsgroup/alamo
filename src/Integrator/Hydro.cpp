@@ -127,7 +127,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
-        pp_query("yamlfile", value.yamlfile);
+        pp_query_default("yamlfile", value.yamlfile, "");
 
         pp_query_default("cvode_init_step",     value.cvode_init_step,     1e-15);
         pp_query_default("cvode_max_step",      value.cvode_max_step,      1e-8);
@@ -314,7 +314,7 @@ void Hydro::ComputeThermo(std::vector<double>& rhoY, double T)
         for (int n=0; n<nspecies; ++n) {
             species_Y[n] = rhoY[n]/rho_sum;
             denom += species_Y[n]/ species_mw[n];
-            int hilo;
+            int hilo = 0;
             if (T >= kinetics.species[n].thermoTemp[0] and T < kinetics.species[n].thermoTemp[1]) {
                 hilo = 0;
             } else if (T >= kinetics.species[n].thermoTemp[1] and T <= kinetics.species[n].thermoTemp[2]) {
@@ -545,6 +545,7 @@ void Hydro::Initialize(int lev)
         
     }
 
+    if (reacting_flow) {
     if (rocfire) {
         std::vector<CanteraYAML::Phase> CYphase;
         species = {"AP", "Binder", "Mono", "Premixed", "Primary", "Final"};
@@ -618,6 +619,7 @@ void Hydro::Initialize(int lev)
             }
         }
     }
+    }
 }
 
 void Hydro::Mix(int lev)
@@ -679,19 +681,21 @@ void Hydro::Mix(int lev)
                 E_solid(i, j, k) * (1.0 - eta);
 
             // Thermally perfect, p=rhoRT, e = Int(cv*dT), E = rho*(e + 0.5*u^2)
-            std::vector<double> rhoY(nspecies, 0.0);
-            for (int n=0; n<nspecies; ++n) rhoY[n] = rho(i,j,k,n);
-            ComputeR(rhoY);
-            double T = p(i,j,k)/rho_sum/R;
-            ComputeThermo(rhoY, T);
-            double h = 0.0;
-            for (int n=0; n<nspecies; ++n) h += species_Y[n]*species_h[n];
-            double e = h - R*T;
-            E(i,j,k) = rho_sum * (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))+ e)
-                + 
-                E_solid(i, j, k) * (1.0 - eta);
+            if (reacting_flow) {
+                std::vector<double> rhoY(nspecies, 0.0);
+                for (int n=0; n<nspecies; ++n) rhoY[n] = rho(i,j,k,n);
+                ComputeR(rhoY);
+                double T = p(i,j,k)/rho_sum/R;
+                ComputeThermo(rhoY, T);
+                double h = 0.0;
+                for (int n=0; n<nspecies; ++n) h += species_Y[n]*species_h[n];
+                double e = h - R*T;
+                E(i,j,k) = rho_sum * (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1))+ e)
+                    + 
+                    E_solid(i, j, k) * (1.0 - eta);
 
-            E_old(i, j, k) = E(i, j, k);
+                E_old(i, j, k) = E(i, j, k);
+            }
         });
     }
     c_max = 0.0;
@@ -810,40 +814,42 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
                 E_new(i,j,k)     = E_old(i,j,k)     + dt * E_rhs(i,j,k);
 
-                double u = M_new(i,j,k,0)/rho_sum;
-                double v = M_new(i,j,k,1)/rho_sum;
-                double e_int = E_new(i,j,k)/rho_sum - 0.5*(u*u + v*v);
+                if (reacting_flow) {
+                    double u = M_new(i,j,k,0)/rho_sum;
+                    double v = M_new(i,j,k,1)/rho_sum;
+                    double e_int = E_new(i,j,k)/rho_sum - 0.5*(u*u + v*v);
 
-                // Newton-Raphson Method
-                double T = temperature(i,j,k);
-                bool convergedT = false;
-                double rtol = 1e-12;
-                double h=0.0, e=0.0;
-                double counter = 0;
-                while (convergedT == false) {
-                    counter += 1;
-                    double T_old = T;
-                    ComputeThermo(rhoY, T);
-                    h = 0.0;
-                    double cv_mix = 0.0;
-                    rho_sum = 0.0;
-                    for (int n=0; n<nspecies; ++n) {
-                        rho_sum += rho_new(i,j,k,n);
-                        h += species_h[n]*species_Y[n];
-                        cv_mix += species_Y[n]*(species_cp[n] - Ru/species_mw[n]);
+                    // Newton-Raphson Method
+                    double T = temperature(i,j,k);
+                    bool convergedT = false;
+                    double rtol = 1e-12;
+                    double h=0.0, e=0.0;
+                    double counter = 0;
+                    while (convergedT == false) {
+                        counter += 1;
+                        double T_old = T;
+                        ComputeThermo(rhoY, T);
+                        h = 0.0;
+                        double cv_mix = 0.0;
+                        rho_sum = 0.0;
+                        for (int n=0; n<nspecies; ++n) {
+                            rho_sum += rho_new(i,j,k,n);
+                            h += species_h[n]*species_Y[n];
+                            cv_mix += species_Y[n]*(species_cp[n] - Ru/species_mw[n]);
+                        }
+                        e = h - R*T;
+                        T = T_old - (e - e_int)/cv_mix;
+                        if ( std::fabs(T-T_old)/T < rtol ) convergedT = true;
+                        if ( counter >= 100 ) {
+                            Util::Message(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
+                            convergedT = true;
+                            //Util::Abort(INFO);
+                        }
                     }
-                    e = h - R*T;
-                    T = T_old - (e - e_int)/cv_mix;
-                    if ( std::fabs(T-T_old)/T < rtol ) convergedT = true;
-                    if ( counter >= 100 ) {
-                        Util::Message(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
-                        convergedT = true;
-                        //Util::Abort(INFO);
-                    }
+
+                    temperature(i,j,k) = T;
+                    pressure(i,j,k) = rho_sum * R * T;
                 }
-
-                temperature(i,j,k) = T;
-                pressure(i,j,k) = rho_sum * R * T;
             });
         }
     }
@@ -1292,67 +1298,44 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
   
             // calorically perfect
             p(i,j,k) = (etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))+pref;
+            temp(i,j,k) = p(i,j,k)/rho_sum/(Ru/(cp_mix-cv_mix));
 
             // thermally perfect
-            Set::Scalar e_fluid = (etarho_fluid*etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1))) / (etarho_fluid*etarho_fluid + small);
+            if (reacting_flow) {
+                Set::Scalar e_fluid = (etarho_fluid*etaE_fluid - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1))) / (etarho_fluid*etarho_fluid + small);
 
-            // Bisect method
-            //double T = 0.0;
-            //double Tmin = 100.0;
-            //double Tmax = 3500.0;
-            //bool convergedT = false;
-            //int counter = 0;
-            //double h=0.0, e=0.0;
-            //while (convergedT == false) {
-            //    counter += 1;
-            //    T = (Tmin + Tmax)/2.0;
-            //    ComputeThermo(rhoY, T);
-            //    h = 0.0;
-            //    for (int n=0; n<nspecies; ++n) h += species_h[n]*species_Y[n];
-            //    e = h - R*T;
-            //    double atol = 1e-15, rtol = 1e-15;
-            //    if ( (abs(e - e_fluid)/e_fluid <= rtol) or (abs(e - e_fluid) < atol) ) {
-            //        convergedT = true;
-            //    }
-            //    else if ( e < e_fluid ) Tmin = T;
-            //    else Tmax = T;
-            //    if (counter > 1000) {
-            //        Util::Message(INFO, "No temperature convergence after 100 iterations.");
-            //        Util::Abort(INFO);
-            //    }
-            //}
+                // Newton-Raphson Method
+                double T = temp(i,j,k);
+                bool convergedT = false;
+                double rtol = 1e-12;
+                double h=0.0, e=0.0;
+                double counter = 0;
+                while (convergedT == false) {
+                    std::cout << T << "\n";
+                    counter += 1;
+                    double T_old = T;
+                    ComputeThermo(rhoY, T);
+                    h = 0.0;
+                    double cv_mix = 0.0;
+                    rho_sum = 0.0;
+                    for (int n=0; n<nspecies; ++n) {
+                        rho_sum += rho(i,j,k,n);
+                        h += species_h[n]*species_Y[n];
+                        cv_mix += species_Y[n]*(species_cp[n] - Ru/species_mw[n]);
+                    }
+                    e = h - R*T;
+                    T = T_old - (e - e_fluid)/cv_mix;
+                    if ( std::fabs(T-T_old)/T < rtol ) convergedT = true;
+                    if ( counter >= 100 ) {
+                        Util::Message(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
+                        convergedT = true;
+                        //Util::Abort(INFO);
+                    }
+                }
 
-            // Newton-Raphson Method
-            double T = temp(i,j,k);
-            bool convergedT = false;
-            double rtol = 1e-12;
-            double h=0.0, e=0.0;
-            double counter = 0;
-            while (convergedT == false) {
-                counter += 1;
-                double T_old = T;
-                ComputeThermo(rhoY, T);
-                h = 0.0;
-                double cv_mix = 0.0;
-                rho_sum = 0.0;
-                for (int n=0; n<nspecies; ++n) {
-                    rho_sum += rho(i,j,k,n);
-                    h += species_h[n]*species_Y[n];
-                    cv_mix += species_Y[n]*(species_cp[n] - Ru/species_mw[n]);
-                }
-                e = h - R*T;
-                T = T_old - (e - e_fluid)/cv_mix;
-                if ( std::fabs(T-T_old)/T < rtol ) convergedT = true;
-                if ( counter >= 100 ) {
-                    Util::Message(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
-                    convergedT = true;
-                    //Util::Abort(INFO);
-                }
+                temp(i,j,k) = T;
+                p(i,j,k) = rho_sum * R * T;
             }
-
-            temp(i,j,k) = T;
-            p(i,j,k) = rho_sum * R * T;
-
 
             if (eta < small) 
             {
@@ -1477,25 +1460,21 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
             
             // calorically perfect
-            //double internal_energy = (E(i,j,k) - 0.5 * rhoijk_sum * (pow(u(0), 2.0) + pow(u(1), 2.0))) / rhoijk_sum;
-            //double pressure = (gamma - 1.0) * rho_sum(i,j,k) * internal_energy + pref;
-            //temperature(i,j,k) = internal_energy / mixed_cv + Tref;
-
-            // thermally perfect
-            ComputeThermo(rhoY, temperature(i,j,k));
-            double h = 0.0;
-            //double h0 = 0.0;
-            //double s = 0.0;
-            for (int n=0; n<nspecies; ++n) {
-                h += species_Y[n]*species_h[n];
-                //h0 += species_Y[n]*species_h0[n];
-                //s += species_Y[n]*species_s[n];
-            }
-
-            // calorically perfect
             mixed_H(i,j,k) = mixed_cp*temperature(i,j,k);
+
             // thermally perfect
-            mixed_H(i,j,k) = h; // Sensible enthalpy
+            if (reacting_flow) {
+                ComputeThermo(rhoY, temperature(i,j,k));
+                double h = 0.0;
+                //double h0 = 0.0;
+                //double s = 0.0;
+                for (int n=0; n<nspecies; ++n) {
+                    h += species_Y[n]*species_h[n];
+                    //h0 += species_Y[n]*species_h0[n];
+                    //s += species_Y[n]*species_s[n];
+                }
+                mixed_H(i,j,k) = h; // Sensible enthalpy
+            }
 
             // Multispecies effects
             // Mixture viscosity and heat conduction coefficient
@@ -1554,6 +1533,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 mixed_mu(i,j,k) += species_molef[a] * species_mu[a] / phi;
                 mixed_k(i,j,k)  += species_molef[a] * species_k[a] / phi;
             }
+            if (reacting_flow) {
             if (rocfire) {
                 mixed_k(i,j,k) = 2.13037e-7*temperature(i,j,k) + 5.32743e-6;
                 mixed_k(i,j,k) *= 4.184 * 100.0; //convert to W/m-k
@@ -1760,6 +1740,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     w(i,j,k,c) = (n_eq[c] - n0[c])*species_mw[c]/timestep;
                 }
             }
+            } // reacting_flow
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -1976,22 +1957,22 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
-            Solver::Local::Riemann::State state_xlo(rho, M, E, temperature, i-1, j, k, X);
-            Solver::Local::Riemann::State state_x  (rho, M, E, temperature, i  , j, k, X); 
-            Solver::Local::Riemann::State state_xhi(rho, M, E, temperature, i+1, j, k, X);
+            Solver::Local::Riemann::State state_xlo(rho, M, E, i-1, j, k, X);
+            Solver::Local::Riemann::State state_x  (rho, M, E, i  , j, k, X); 
+            Solver::Local::Riemann::State state_xhi(rho, M, E, i+1, j, k, X);
 
-            Solver::Local::Riemann::State state_ylo(rho, M, E, temperature, i, j-1, k, Y);
-            Solver::Local::Riemann::State state_y  (rho, M, E, temperature, i, j  , k, Y);
-            Solver::Local::Riemann::State state_yhi(rho, M, E, temperature, i, j+1, k, Y);
+            Solver::Local::Riemann::State state_ylo(rho, M, E, i, j-1, k, Y);
+            Solver::Local::Riemann::State state_y  (rho, M, E, i, j  , k, Y);
+            Solver::Local::Riemann::State state_yhi(rho, M, E, i, j+1, k, Y);
             
             //states of solid fields
-            Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, temperature, i-1, j, k, X); 
-            Solver::Local::Riemann::State state_x_solid  (rho_solid, M_solid, E_solid, temperature, i  , j, k, X); 
-            Solver::Local::Riemann::State state_xhi_solid(rho_solid, M_solid, E_solid, temperature, i+1, j, k, X); 
+            Solver::Local::Riemann::State state_xlo_solid(rho_solid, M_solid, E_solid, i-1, j, k, X); 
+            Solver::Local::Riemann::State state_x_solid  (rho_solid, M_solid, E_solid, i  , j, k, X); 
+            Solver::Local::Riemann::State state_xhi_solid(rho_solid, M_solid, E_solid, i+1, j, k, X); 
 
-            Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, temperature, i, j-1, k, Y); 
-            Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, temperature, i, j  , k, Y); 
-            Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, temperature, i, j+1, k, Y); 
+            Solver::Local::Riemann::State state_ylo_solid(rho_solid, M_solid, E_solid, i, j-1, k, Y); 
+            Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
+            Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
 
 
             Solver::Local::Riemann::State state_xlo_fluid = invert ? 
