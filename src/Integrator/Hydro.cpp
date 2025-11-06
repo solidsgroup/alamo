@@ -133,6 +133,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("cvode_max_step",      value.cvode_max_step,      1e-8);
         pp_query_default("cvode_max_num_steps", value.cvode_max_num_steps, 1e5);
         pp_query_default("reacting_flow", value.reacting_flow, false);
+        pp_query_default("equilibrium", value.equilibrium, false);
 
     }
     // Register FabFields:
@@ -325,8 +326,7 @@ void Hydro::ComputeThermo(std::vector<double>& rhoY, double T)
                 //Util::Message(INFO, "T above temperature range. Proceed with caution.", T);
                 hilo = 1;
             }
-            std::vector<double> c(7, 0.0);
-            for (size_t nc=0; nc<c.size(); ++nc) c[nc] = kinetics.species[n].thermoData[hilo][nc];
+            std::vector<double> &c = kinetics.species[n].thermoData[hilo];
             species_cp[n] = Ru/species_mw[n] * (c[0] + c[1]*T + c[2]*pow(T,2) + c[3]*pow(T,3) + c[4]*pow(T,4));
             species_h[n] = Ru*T/species_mw[n] * (c[0] + c[1]/2.0*T + c[2]/3.0*pow(T,2) + c[3]/4.0*pow(T,3) + c[4]/5.0*pow(T,4) + c[5]/T);
             species_s[n] = Ru/species_mw[n] * (c[0]*log(T) + c[1]*T + c[2]/2.0*pow(T,2) + c[3]/3.0*pow(T,3) + c[4]/4.0*pow(T,4) + c[6]);
@@ -1275,7 +1275,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             for (int n=0; n<nspecies; ++n) {
                 cp_mix += rho(i,j,k,n)/rho_sum * species_cp[n];
                 cv_mix += rho(i,j,k,n)/rho_sum * (species_cp[n] - 8314.45/species_mw[n]);
-                rhoY[n] = rho(i,j,k,n)/rho_sum;
+                rhoY[n] = rho(i,j,k,n);
             }
             gamma = cp_mix/cv_mix;
 
@@ -1574,7 +1574,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         else dnu = 0.0;
                         double Yreact = 1.0;
                         for (int c=0; c<nspecies; ++c) {
-                            if (rxn.reactants.count(species[c])) Yreact *= rho(i,j,k,c);
+                            if (rxn.reactants.count(species[c])) Yreact *= rho(i,j,k,c)/rho_sum(i,j,k);
                         }
                         if (b==0) Q(i,j,k,b) = (Qgas[b] + Qsolid[0]) * -1.0 * kf * Yreact;
                         if (b==1) Q(i,j,k,b) = (Qgas[b] + Qsolid[1]) * -1.0 * kf * Yreact;
@@ -1712,7 +1712,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     }
                     //std::cout << "Net production rates: " << species[a] << ": " << w(i,j,k,a) << " kmol/m^3/s\n";
                     w(i,j,k,a) *= species_mw[a]; // Convert molar concentration to mass concentration (i.e. density)
-                    if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells
+                    //if (w(i,j,k,a) != w(i,j,k,a)) w(i,j,k,a) = 0.0; // Get rid of nan in ghost cells
                     //else if (rho(i,j,k,a) + w(i,j,k,a)*1e-9 < 0.0) {
                     //    amrex::IntVect lo_corner = bx_ghost.smallEnd();
                     //    amrex::IntVect hi_corner = bx_ghost.bigEnd();
@@ -1724,41 +1724,42 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     //}
                 }
             }
-            int nrxn = kinetics.reaction.size();
-            MatD nu(nspecies, VecD(nrxn, 0.0)); // = { { -1.0 }, { -5.0 }, { 3.0 }, { 4.0 }, { 0.0 } };
-            for (int n=0; n<nspecies; ++n) {
-                std::string sp = species[n];
-                VecD nui(nrxn, 0.0);
-                for (int nr=0; nr<nrxn; ++nr) {
-                    CanteraYAML::Reaction rxn = kinetics.reaction[nr];
-                    if (rxn.reactants[sp]) nui[nr] = -rxn.reactants[sp];
-                    if (rxn.products[sp]) nui[nr] = rxn.products[sp];
+            if (equilibrium) {
+                int nrxn = kinetics.reaction.size();
+                MatD nu(nspecies, VecD(nrxn, 0.0)); // = { { -1.0 }, { -5.0 }, { 3.0 }, { 4.0 }, { 0.0 } };
+                for (int n=0; n<nspecies; ++n) {
+                    std::string sp = species[n];
+                    VecD nui(nrxn, 0.0);
+                    for (int nr=0; nr<nrxn; ++nr) {
+                        CanteraYAML::Reaction rxn = kinetics.reaction[nr];
+                        if (rxn.reactants[sp]) nui[nr] = -rxn.reactants[sp];
+                        if (rxn.products[sp]) nui[nr] = rxn.products[sp];
+                    }
+                    nu[n] = nui;
                 }
-                nu[n] = nui;
-            }
-            
-            VecD n0(nspecies, 0.0);
-            for (int c=0; c<nspecies; ++c) {
-                n0[c] = rhoY[c]/species_mw[c];
-            }
-            VecD n_eq, xi_eq;
-            double T_eq;
-            Equilibrate_UV(nu,n0,temperature(i,j,k),pressure,n_eq,xi_eq,T_eq);
-            //std::cout << "\n--- Equilibrium ---\n";
-            //std::cout << "T_eq = " << T_eq << " K\n";
-            //std::cout << "n_eq = ";
-            //for(double ni:n_eq) std::cout << ni << " ";
-            //std::cout << "\nxi_eq = ";
-            //for(double x:xi_eq) std::cout << x << " ";
-            //std::cout << std::endl;
-            
+                
+                VecD n0(nspecies, 0.0);
+                for (int c=0; c<nspecies; ++c) {
+                    n0[c] = rhoY[c]/species_mw[c];
+                }
+                VecD n_eq, xi_eq;
+                double T_eq;
+                Equilibrate_UV(nu,n0,temperature(i,j,k),pressure,n_eq,xi_eq,T_eq);
+                //std::cout << "\n--- Equilibrium ---\n";
+                //std::cout << "T_eq = " << T_eq << " K\n";
+                //std::cout << "n_eq = ";
+                //for(double ni:n_eq) std::cout << ni << " ";
+                //std::cout << "\nxi_eq = ";
+                //for(double x:xi_eq) std::cout << x << " ";
+                //std::cout << std::endl;
+                
 
-            VecD dn(nspecies, 0.0);
-            double rho_sum = 0.0;
-            for (int c=0; c<nspecies; ++c) {
-                w(i,j,k,c) = (n_eq[c] - n0[c])*species_mw[c]/timestep;
+                VecD dn(nspecies, 0.0);
+                double rho_sum = 0.0;
+                for (int c=0; c<nspecies; ++c) {
+                    w(i,j,k,c) = (n_eq[c] - n0[c])*species_mw[c]/timestep;
+                }
             }
-            //Util::Abort(INFO);
         });
         amrex::ParallelFor(bx_ghost, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   

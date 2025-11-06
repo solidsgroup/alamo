@@ -213,6 +213,7 @@ protected:
     bool restart_found = false;
     bool rocfire = false;
     bool reacting_flow = false;
+    bool equilibrium = false;
 
     std::vector<bool> mixed;
 

@@ -2,8 +2,8 @@
 # Alamo Parameters #
 ####################
 
-stop_time = 1e-3
-timestep = 1e-8
+stop_time = 1e-4
+timestep = 1e-10
 
 ####################
 # AMReX Parameters #
@@ -55,33 +55,19 @@ species_mu = 9.000297497350422e-06 9.50498709679967e-06 2.48574213354167e-05 2.0
 species_LJdiameter = 2.92 2.05 2.7500000000000003 3.4580000000000004 2.7500000000000003 2.6050000000000003 3.4580000000000004 3.4580000000000004 3.3300000000000004 3.621
 species_LJwelldepth = 38.0 145.0 80.0 107.4 80.0 572.4 107.4 107.4 136.5 97.53
 
+# Start with stoichiometric h2 and air at 1000K and 1 atm.
+# Advance in Cantera until t=0.0003 (skipping the long ignition delay time)
 density.ic.type = expression
-density.ic.expression.constant.P = 101325.0
-density.ic.expression.constant.T = 300.0
-density.ic.expression.constant.R = 259.83
-density.ic.expression.constant.eps = 0.01
-##density.ic.expression.region0 = "0.0468*(x>0.1) + 0.0468*(x<=0.01) + 0.01638*(x<=0.1)*(x>0.01)"
-#density.ic.expression.region0 = "8.18848293e-03"
-#density.ic.expression.region1 = "1.22839528e-08"
-#density.ic.expression.region2 = "1.94971191e-08"
-##density.ic.expression.region3 = "0.3714*(x>0.1) + 0.3714*(x<=0.01) + 0.12998*(x<=0.1)*(x>0.01)"
-#density.ic.expression.region3 = "6.50033952e-02"
-#density.ic.expression.region4 = "2.07255144e-06"
-#density.ic.expression.region5 = "0.0"
-#density.ic.expression.region6 = "0.0"
-#density.ic.expression.region7 = "0.0"
-#density.ic.expression.region8 = "0.0"
-#density.ic.expression.region9 = "1.70695761e-01"
-density.ic.expression.region0 = "0.00726869"
-density.ic.expression.region1 = "0.0"
-density.ic.expression.region2 = "0.0"
-density.ic.expression.region3 = "0.05768442"
-density.ic.expression.region4 = "0.0"
-density.ic.expression.region5 = "0.0"
-density.ic.expression.region6 = "0.0"
-density.ic.expression.region7 = "0.0"
-density.ic.expression.region8 = "0.0"
-density.ic.expression.region9 = "0.18988852"
+density.ic.expression.region0 = "6.49558770e-03"
+density.ic.expression.region1 = "1.22352328e-04"
+density.ic.expression.region2 = "2.39595115e-04"
+density.ic.expression.region3 = "5.21736742e-02"
+density.ic.expression.region4 = "1.65352515e-04"
+density.ic.expression.region5 = "5.71628848e-03"
+density.ic.expression.region6 = "3.92073928e-05"
+density.ic.expression.region7 = "1.05874446e-06"
+density.ic.expression.region8 = "0.00000000e+00"
+density.ic.expression.region9 = "1.89888516e-01"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps   = 0.1
@@ -90,9 +76,7 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.constant.gamma = 1.4
-pressure.ic.expression.constant.E_solid = 5.0
-pressure.ic.expression.region0 = "101325.0" #"(gamma - 1.0) * E_solid" # / x^2"
+pressure.ic.expression.region0 = "116428.66997654075"
 
 ### ETA BC  ###
 pf.eta.bc.constant.type.xlo = neumann
@@ -175,6 +159,7 @@ solver.type = hllc
 
 #scheme = forwardeuler
 scheme = backwardeuler
+reacting_flow = true
 
 prescribedflowmode = relative
 
