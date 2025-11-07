@@ -394,12 +394,10 @@ public:
         std::array<Set::Scalar, Traits::NumCandidateStencils> alphas;
 
         for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
-            // Safe indicator value to prevent division by zero
-            Set::Scalar safe_indicator = std::max(indicators[r], 1.0e-15);
 
             // WENO-JS weight computation: α₍ᵣ₎ = d₍ᵣ₎/(ε + β₍ᵣ₎)ᵖ
             alphas[r] = optimalWeights(r) / 
-                std::pow(safe_indicator + Traits::Epsilon, Traits::Power);
+                std::pow(indicators[r] + Traits::Epsilon, Traits::Power);
             alpha_sum += alphas[r];
         }
 
@@ -537,12 +535,9 @@ public:
         std::array<Set::Scalar, Traits::NumCandidateStencils> alphas;
 
         for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
-            // Safe indicator value to prevent numerical issues
-            Set::Scalar safe_indicator = std::max(indicators[r], 1.0e-15);
 
             // WENO-Z weight computation: α₍ᵣ₎ = d₍ᵣ₎(1 + τ/(β₍ᵣ₎ + ε))^p
-            alphas[r] = optimalWeights(r) * 
-                std::pow(1.0 + tau / (safe_indicator + Traits::Epsilon), Traits::Power);
+	    alphas[r] = optimalWeights(r) * (1.0 + std::pow(tau / (indicators[r] + Traits::Epsilon), Traits::Power)); //I added this
 
             alpha_sum += alphas[r];
         }
@@ -766,7 +761,7 @@ public:
                     // Apply offset in the reconstruction direction
                     // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
                     int left_offset = s - Traits::TotalPoints/2;
-                    int right_offset = (Traits::TotalPoints/2 + 1) - s;
+                    int right_offset = (Traits::TotalPoints/2 + 0) - s; //Changed from 1 to 0
 
                     left_stencil_idx[direction] += left_offset;
                     right_stencil_idx[direction] += right_offset;

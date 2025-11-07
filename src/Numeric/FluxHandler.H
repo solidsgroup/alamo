@@ -404,15 +404,15 @@ public:
                 // Shift and clamp for left and right indices
                 int left_offset[3] = {0, 0, 0};
                 int right_offset[3] = {0, 0, 0};
-                left_offset[direction] = 0;  // Shift left
-                right_offset[direction] = 1;  // Shift right
+                left_offset[direction] = 0;  // Shift left.
+                right_offset[direction] = 0;  // Shift right. I changed it from 1 to 0
 
                 ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                 ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
 
                 for (int n = 0; n < num_components; ++n) {
-                    const Set::Scalar FL = FluxNeg_arr(left_index[0], left_index[1], left_index[2], n);
-                    const Set::Scalar FR = FluxPos_arr(right_index[0], right_index[1], right_index[2], n);  
+                    const Set::Scalar FL = FluxPos_arr(left_index[0], left_index[1], left_index[2], n); //changed it from FluxNeg to FluxPos
+                    const Set::Scalar FR = FluxNeg_arr(right_index[0], right_index[1], right_index[2], n);  //changed from FluxPos to Neg
                     // Assign values to the stencil arrays
                     TotalFlux_arr(index[0], index[1], index[2], n) = FL + FR;
                 }
@@ -528,6 +528,7 @@ public:
                 solver->variableIndex.WVEL   // Z-direction -> WVEL
             };
 
+
         amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
 
 
@@ -547,7 +548,7 @@ public:
             lower_bounds[0] = bx_with_ghosts.smallEnd(0); 
             lower_bounds[1] = bx_with_ghosts.smallEnd(1); 
             lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.smallEnd(2) : 0;
-            upper_bounds[0] = bx_with_ghosts.bigEnd(0);
+            upper_bounds[0] = bx_with_ghosts.bigEnd(0); 
             upper_bounds[1] = bx_with_ghosts.bigEnd(1);
             upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.bigEnd(2) : 0;
 
@@ -557,9 +558,9 @@ public:
             // Shift and clamp for left and right indices
             int left_offset[3] = {0, 0, 0};
             int right_offset[3] = {0, 0, 0};
-            left_offset[direction] = 0;  // Shift left
-            right_offset[direction] = 1;  // Shift right
-
+            left_offset[direction] = 0;  // Shift left.
+            right_offset[direction] = 1;  // Shift right. 
+              
             ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
             ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
 
@@ -582,8 +583,10 @@ public:
             Set::Scalar c_R = std::sqrt(gamma * std::max(pressure_R, 1e-8) / std::max(rho_R, 1e-8));
 
             // **Maximum wave speed (lambda_max)**
-            Set::Scalar lambda_max = std::max(std::abs(vel_L[normal]) + c_L, std::abs(vel_R[normal]) + c_R);
+           // Set::Scalar lambda_max = std::max(std::abs(vel_L[normal]) + c_L, std::abs(vel_R[normal]) + c_R);
 
+	    Set::Scalar lambda_maxL = std::abs(vel_L[normal]) + c_L;
+	    Set::Scalar lambda_maxR = std::abs(vel_R[normal]) + c_R;
             // **Flux arrays**
             int num_components = solver->number_of_components;
             std::vector<Set::Scalar> FL(num_components, 0.0);
@@ -638,8 +641,8 @@ public:
 
             // **Local Lax-Friedrichs flux calculation**
             for (int n = 0; n < num_components; ++n) {
-            FluxPos_arr(index[0], index[1], index[2], n) =  0.5 * FL[n] + 0.5 * lambda_max * QL_cons[n];
-            FluxNeg_arr(index[0], index[1], index[2], n) =  0.5 * FR[n] - 0.5 * lambda_max * QR_cons[n];
+            FluxPos_arr(index[0], index[1], index[2], n) =  0.5 * FL[n] + 0.5 * lambda_maxL * QL_cons[n];
+            FluxNeg_arr(index[0], index[1], index[2], n) =  0.5 * FR[n] - 0.5 * lambda_maxR * QR_cons[n];
             }
 
         });

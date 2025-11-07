@@ -23,7 +23,7 @@ geometry.is_periodic = 0 0 0
 SolverType = SolveCompressibleEuler
 
 #cflNumber
-cflNumber = 0.6
+cflNumber = 0.5
 
 #TimeSteppingScheme
 TimeSteppingScheme = RK3
