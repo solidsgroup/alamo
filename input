@@ -82,7 +82,7 @@ crack.bc.type.ylo = NEUMANN
 #material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
 
 material.ic.type = png
-material.ic.png.filename = "test_image_hmx_3.png"
+material.ic.png.filename = "hmx.png"
 material.ic.png.fit = stretch
 material.ic.png.channel = b
 
@@ -100,18 +100,18 @@ material.refinement_threshold = 100 #1.e-1
 
 ### Mode-I test
 # Tension testing
-bc.type = expression
-bc.expression.type.xloylo = disp disp
-bc.expression.type.xlo    = disp trac
-bc.expression.type.xloyhi = disp disp
-bc.expression.type.ylo    = disp disp
-bc.expression.type.yhi    = disp disp
-bc.expression.type.xhi    = disp trac
-bc.expression.type.xhiylo = disp disp
-bc.expression.type.xhiyhi = disp disp
-bc.expression.val.yhi =       0.0 "if(t < 5e-2, 3.2e-2 * t, 1e-4)"
-bc.expression.val.xloyhi =    0.0 "if(t < 5e-2, 3.2e-2 * t, 1e-4)"
-bc.expression.val.xhiyhi =    0.0 "if(t < 5e-2, 3.2e-2 * t, 1e-4)"
+bc.type = constant
+bc.constant.type.xloylo = disp disp
+bc.constant.type.xlo    = disp trac
+bc.constant.type.xloyhi = disp disp
+bc.constant.type.ylo    = disp disp
+bc.constant.type.yhi    = disp disp
+bc.constant.type.xhi    = disp trac
+bc.constant.type.xhiylo = disp disp
+bc.constant.type.xhiyhi = disp disp
+bc.constant.val.yhi =       0.0 8e-5 
+bc.constant.val.xloyhi =    0.0 8e-5 
+bc.constant.val.xhiyhi =    0.0 8e-5
 
 
 # Compression testing
