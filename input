@@ -4,9 +4,9 @@
 
 alamo.program = flame
 plot_file = output
-amr.plot_dt = 0.005
+amr.plot_dt = 0.01
 #amr.plot_int = 1
-amr.max_level = 5
+amr.max_level = 3
 amr.blocking_factor = 4
 amr.base_regrid_int = 100
 amr.grid_eff = 1
@@ -15,31 +15,27 @@ amr.refinement_criterion = 0.05
 amr.refinement_criterion_temp = 10.0_K
 #amr.refinement_restriction = 0.3
 amr.phi_refinement_criterion = 0.6
-amr.n_cell = 32 32 32
+amr.n_cell = 32 4 32
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
 geometry.prob_lo = 0.0_m 0.0_m 0.0_m # [m]
-geometry.prob_hi = 0.1754_m 0.1754_m 0.1754_m # [m]
-geometry.is_periodic = 0 0 0
+geometry.prob_hi = 0.08_m 0.01_m 0.1_m # [m]
+geometry.is_periodic = 0 1 0
 
 system.length = m
 system.time = s
 
 # Timestep and duration
-timestep = 1.0e-5_s # [s]
+timestep = 5.0e-5_s # [s]
 stop_time = 5.0_s # [s]
 
 # Phase field parameters
-pf.eps = 0.00016_m # [m]
+pf.eps = 0.0005_m # [m]
 pf.lambda = 0.001_J/m^2
-pf.eta.ic.type = png
-pf.eta.ic.png.filename = circle.png
-pf.eta.ic.png.fit = stretch
-pf.eta.ic.png.channel = g
-phi.ic.type = png
-phi.ic.png.filename = base_circle0.png
-phi.ic.png.fit = stretch
-phi.ic.png.channel = g
+pf.eta.ic.type = expression
+pf.eta.ic.expression.region0 = "1.0 * (x > 0.02)"
+phi.ic.type = expression
+phi.ic.expression.region0 = "1.0"
 pf.kappa = 1.0_J/m^2
 pf.w1 = 1.0_1
 pf.w12 = 2.0_1
@@ -48,14 +44,12 @@ small = 1E-4
 
 # Eta boundary condition
 pf.eta.bc.type = constant
-pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xlo = neumann
 pf.eta.bc.constant.type.xhi = dirichlet
-pf.eta.bc.constant.type.ylo = dirichlet
-pf.eta.bc.constant.type.yhi = dirichlet
-pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.type.ylo = periodic
+pf.eta.bc.constant.type.yhi = periodic
+pf.eta.bc.constant.val.xlo = 0.0
 pf.eta.bc.constant.val.xhi = 1.0
-pf.eta.bc.constant.val.ylo = 1.0
-pf.eta.bc.constant.val.yhi = 1.0
 
 #propellant.type = constant
 #propellant.constant.K = 1E-8
@@ -86,35 +80,53 @@ pf.eta.bc.constant.val.yhi = 1.0
 #propellant.homogenize.mob_ap       = false 
 
 #propellant.homogenize.mlocal_ap = 1000.0_kg/m^2/s # [???] kg/s
-#propellant.homogenize.h1        = 1.81_W/m^2 # W/N
-#propellant.homogenize.h2        = 1.34_W/m^2 # W/m^2
+
 
 #propellant.homogenize.Pref = 1_MPa
 
-propellant.type = fullfeedback
-propellant.fullfeedback.a1 = 0.42
-propellant.fullfeedback.a2 = 0.323
-propellant.fullfeedback.a3 = 1.2285 #299.996 #-0.3715
-propellant.fullfeedback.b1 = 0.46
-propellant.fullfeedback.b2 = 1.114
-propellant.fullfeedback.b3 = 2.01
-propellant.fullfeedback.c1 = -0.09906
+propellant.type = homogenize
 
-propellant.fullfeedback.m_ap = 1.0e5 # Was 1.45e5
-propellant.fullfeedback.rho_ap = 1957.0
-propellant.fullfeedback.k_ap = 0.4186
-propellant.fullfeedback.cp_ap = 1297.9
-propellant.fullfeedback.E_ap = 11000.0
+propellant.homogenize.dispersion1 = 0.1_W/m/K # K
+propellant.homogenize.dispersion2 = 1.0_kg/m^3 # rho
+propellant.homogenize.dispersion3 = 1.0_J/kg/K # cp
 
-propellant.fullfeedback.m_htpb = 1.04e3
-propellant.fullfeedback.rho_htpb = 920.0
-propellant.fullfeedback.k_htpb = 0.1463
-propellant.fullfeedback.cp_htpb = 2418.29
-propellant.fullfeedback.E_htpb = 7500.0
+propellant.homogenize.h1        = 1.81_W/m^2 # W/N
+propellant.homogenize.h2        = 1.34_W/m^2 # W/m^2
+
+propellant.homogenize.rho_prop = 1344.0_kg/m^3 # density
+propellant.homogenize.k_prop = 0.1366_W/m/K # thermal conductivity
+propellant.homogenize.cp_prop = 1476.0_J/kg/K # specific heat
+propellant.homogenize.m_prop = 1.16e5_cm/s # pre-exponential factor for Arrhenius Law
+propellant.homogenize.E_prop = 7600.0_K # activation energy for Arrhenius Law
+propellant.homogenize.mob_prop = false # bool - whether to include pressure in arrhenius law
+
+propellant.homogenize.Pref = 7_MPa
+
+
+
+#propellant.fullfeedback.a1 = 0.42
+#propellant.fullfeedback.a2 = 0.323
+#propellant.fullfeedback.a3 = 1.2285 #299.996 #-0.3715
+#propellant.fullfeedback.b1 = 0.46
+#propellant.fullfeedback.b2 = 1.114
+#propellant.fullfeedback.b3 = 2.01
+#propellant.fullfeedback.c1 = -0.09906
+
+#propellant.fullfeedback.m_ap = 1.0e5 # Was 1.45e5
+#propellant.fullfeedback.rho_ap = 1957.0
+#propellant.fullfeedback.k_ap = 0.4186
+#propellant.fullfeedback.cp_ap = 1297.9
+#propellant.fullfeedback.E_ap = 11000.0
+
+#propellant.fullfeedback.m_htpb = 1.04e3
+#propellant.fullfeedback.rho_htpb = 920.0
+#propellant.fullfeedback.k_htpb = 0.1463
+#propellant.fullfeedback.cp_htpb = 2418.29
+#propellant.fullfeedback.E_htpb = 7500.0
 
 # Homogenize Pressure
-propellant.fullfeedback.pressure.dependency = true
-propellant.fullfeedback.Pref = 7.2_MPa
+#propellant.fullfeedback.pressure.dependency = true
+#propellant.fullfeedback.Pref = 7.2_MPa
 
 
 
@@ -140,8 +152,8 @@ temp.ic.constant.value=500_K #[K]
 
 # Laser source term
 laser.ic.type = constant
-laser.ic.constant.value = 1.0e1_kW/cm^2
-thermal.hc = 0.5e1_kW/m^2 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
+laser.ic.constant.value = 5e-1_kW/cm^2
+thermal.hc = 5e-1_kW/m^2 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
 
 
 
