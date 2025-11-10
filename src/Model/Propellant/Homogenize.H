@@ -40,7 +40,7 @@ public:
 
         Set::Scalar qflux = k4 * phi;
         Set::Scalar mdota = fabs(mdot);
-        Set::Scalar mbase = tanh(4.0 * mdota / mlocal_prop);
+        Set::Scalar mbase = tanh(1250 * mdota);
 
         qdot = mbase * qflux;
 
@@ -128,7 +128,6 @@ public:
         // AP mass flux reference value 
         pp.query_default("mlocal_prop", value.mlocal, "0.0_kg/m^2/s", 
                          Unit::Mass()/Unit::Area()/Unit::Time()); 
-        value.mlocal_prop = 685000.0 - 850e3;
         
         // Prop Pre-exponential factor for Arrhenius Law
         pp.query_required("m_prop", value.m_prop, Unit::Velocity()); 
