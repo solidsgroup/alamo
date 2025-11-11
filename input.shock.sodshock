@@ -29,7 +29,7 @@ cflNumber = 0.5
 TimeSteppingScheme = RK3
 
 #FluxMethod
-FluxScheme = LocalLaxFriedrichs #HLLC
+FluxScheme = HLLC #LocalLaxFriedrichs #HLLC
 
 #FluxReconstruction
 FluxReconstruction = WENO
@@ -38,7 +38,7 @@ FluxReconstruction = WENO
 WenoVariant = WENOZ5
 
 #Reconstruction Mode
-ReconstructionMode = Conservative
+ReconstructionMode = Characteristic #Conservative
 
 # Shock configuration
 ic.shock.count = 1

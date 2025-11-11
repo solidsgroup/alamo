@@ -849,12 +849,13 @@ void ReconstructVariables(
         Util::Message(INFO, "ReconstructFluxes using WENO variant: " + GetVariantName());
     }
 
-    // First pass: Compute left states using WENO reconstruction
-    for (amrex::MFIter mfi(VariableBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    // Compute states using WENO reconstruction
+    for (amrex::MFIter mfi(LeftStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
 
         auto const& Var_arr = VariableBuffer.const_array(mfi);
         auto const& LeftStates_arr = LeftStates.array(mfi);
+	auto const& RightStates_arr = RightStates.array(mfi);
 
         // Get average state array if available
         amrex::Array4<const Set::Scalar> Avg_arr;
@@ -865,11 +866,14 @@ void ReconstructVariables(
         amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
             // Construct index arrays
             int index[3];
+	    int next_index[3];
             int lower_bounds[3];
             int upper_bounds[3];
 
             // Set up indices
             index[0] = iface; index[1] = jface; index[2] = kface;
+	    next_index[0] = iface; next_index[1] = jface; next_index[2] = kface;
+	    next_index[direction]++;
 
             // Define bounds including ghost cells
             lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
@@ -886,106 +890,84 @@ void ReconstructVariables(
             Set::MultiVector avg_state(num_components);
             avg_state.setZero();
 
-            //Store left face reconstructed values in an array
+            //Store face reconstructed values in an array
             Set::MultiVector leftvalue_reconstructed(num_components);
+	    Set::MultiVector rightvalue_reconstructed(num_components);
             leftvalue_reconstructed.setZero();
+	    rightvalue_reconstructed.setZero();
 
             if (useCharacteristic) {
                 avg_state = Numeric::FieldToMultiVector(Avg_arr, index[0], index[1], index[2], num_components);    
             }   
 
             // Create Stencil Matrix Where each row represents a full state vector
-            Set::MultiMatrix stencil_matrix(Traits::TotalPoints, num_components);
+            Set::MultiMatrix left_stencil_matrix(Traits::TotalPoints, num_components);
+	    Set::MultiMatrix right_stencil_matrix(Traits::TotalPoints, num_components);
+	    left_stencil_matrix.setZero();
+	    right_stencil_matrix.setZero();
 
             //Fill stencil matrix with state vectors from each stencil point 
             for (int s = 0; s < Traits::TotalPoints; ++s) {
                     // Calculate stencil point index with proper offset
-                    int stencil_idx[3] = {index[0], index[1], index[2]};
+                    int left_stencil_idx[3] = {index[0], index[1], index[2]};
+		    int right_stencil_idx[3] = {index[0], index[1], index[2]};
 
                     // Apply offset in the reconstruction direction
                     // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
-                    int offset = s - Traits::TotalPoints/2;
-                    stencil_idx[direction] += offset;
+                    int left_offset = s - Traits::TotalPoints/2;
+		    int right_offset = (Traits::TotalPoints/2 + 1) - s;
+
+                    left_stencil_idx[direction] += left_offset;
+		    right_stencil_idx[direction] += right_offset;
 
                     // Clamp indices to ensure they're within bounds
-                    ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                    ClampIndices(left_stencil_idx, lower_bounds, upper_bounds);
+		    ClampIndices(right_stencil_idx, lower_bounds, upper_bounds);
 
                     for (int n = 0; n < num_components; ++n) {
                     // Extract data value for this stencil point
-                    stencil_matrix(s, n) = Var_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                    left_stencil_matrix(s, n) = Var_arr(left_stencil_idx[0], left_stencil_idx[1], left_stencil_idx[2], n);
+		    right_stencil_matrix(s, n) = Var_arr(right_stencil_idx[0], right_stencil_idx[1], right_stencil_idx[2], n);
 
                     }
             }
 
             // Prepare stencil data for reconstruction
             // Create a copy regardless of whether we're using characteristic variables
-            Set::MultiMatrix input_stencil = stencil_matrix;
+            Set::MultiMatrix left_input_stencil = left_stencil_matrix;
+	    Set::MultiMatrix right_input_stencil = right_stencil_matrix;
 
             // Conditionally transform to characteristic space (branch happens once for all threads)
             if (useCharacteristic && variable_accessor) {
-                input_stencil = variable_accessor->TransformStencilToCharacteristic(
-                index[0], index[1], index[2], stencil_matrix, direction, avg_state);
+                left_input_stencil = variable_accessor->TransformStencilToCharacteristic(
+                index[0], index[1], index[2], left_stencil_matrix, direction, avg_state);
+		right_input_stencil = variable_accessor->TransformStencilToCharacteristic(
+                next_index[0], next_index[1], next_index[2], right_stencil_matrix, direction, avg_state);
             }
 
-            leftvalue_reconstructed = Policy::ReconstructValue(input_stencil, index[0], index[1], index[2], direction, enableDebug);
+            leftvalue_reconstructed = Policy::ReconstructValue(left_input_stencil, index[0], index[1], index[2], direction, enableDebug);
+	    rightvalue_reconstructed = Policy::ReconstructValue(right_input_stencil, next_index[0], next_index[1], next_index[2], direction, enableDebug);
 
             // Conditionally transform back to physical space (branch happens once for all threads)
             if (useCharacteristic && variable_accessor) {
                         leftvalue_reconstructed = variable_accessor->TransformFromCharacteristic(
                         leftvalue_reconstructed, direction, avg_state);
+			rightvalue_reconstructed = variable_accessor->TransformFromCharacteristic(
+                        rightvalue_reconstructed, direction, avg_state);
             }
 
             // Process each component
             for (int n = 0; n < num_components; ++n) {                
-                // Store reconstructed left state
+                // Store reconstructed states
                 LeftStates_arr(index[0], index[1], index[2], n) = leftvalue_reconstructed(n);
+		RightStates_arr(index[0], index[1], index[2], n) = rightvalue_reconstructed(n); 
             }
 
         });
     }
 
-    // Synchronize to ensure all left states are computed
+    // Synchronize to ensure all states are computed
     LeftStates.FillBoundary();
-
-    // Second pass: Set right states by shifting left states
-    for (amrex::MFIter mfi(RightStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
-
-        auto const& LeftStates_arr = LeftStates.const_array(mfi);
-        auto const& RightStates_arr = RightStates.array(mfi);
-
-        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-            // Construct index arrays
-            int index[3];
-            int next_index[3];
-            int lower_bounds[3];
-            int upper_bounds[3];
-
-            // Set up indices
-            index[0] = iface; index[1] = jface; index[2] = kface;
-            next_index[0] = iface; next_index[1] = jface; next_index[2] = kface;
-            next_index[direction]++;  // Next index in the direction
-
-            // Define bounds including ghost cells
-            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-            lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
-            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
-            upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
-
-            // Clamp the indices
-            ClampIndices(index, lower_bounds, upper_bounds);
-            ClampIndices(next_index, lower_bounds, upper_bounds);
-
-            // Set right state at current interface to left state at next interface
-            for (int n = 0; n < num_components; ++n) {
-                RightStates_arr(index[0], index[1], index[2], n) = 
-                    LeftStates_arr(next_index[0], next_index[1], next_index[2], n);
-            }
-        });
-    }
-
     RightStates.FillBoundary();
 }
 
