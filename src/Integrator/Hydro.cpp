@@ -15,6 +15,7 @@
 #if AMREX_SPACEDIM == 2
 
 #include "Model/Gas/Species.H"
+#include "Model/Gas/EOS.H"
 
 namespace Integrator
 {

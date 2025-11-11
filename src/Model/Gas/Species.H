@@ -19,38 +19,38 @@ struct ThermoNASA7
     amrex::GpuArray<double, 3> Trange;   // [T_low, T_mid, T_high]
     amrex::GpuArray<double, 14> coeffs;  // 2 x 7 coefficients (flattened)
 
-    // Host-side constructor
-    ThermoNASA7(const amrex::Array1D<double,0,2>& Trange_in,
-                const amrex::Array2D<double,0,1,0,6>& coeffs_in)
+    AMREX_GPU_HOST_DEVICE
+    ThermoNASA7(const double Trange_in[3],
+                const double coeffs_in[2][7])
     {
-        for (int i=0; i<3; ++i) Trange[i] = Trange_in(i);
+        for (int i=0; i<3; ++i) Trange[i] = Trange_in[i];
         for (int i=0; i<2; ++i)
             for (int j=0; j<7; ++j)
-                coeffs[i*7 + j] = coeffs_in(i,j);
+                coeffs[i*7 + j] = coeffs_in[i][j];
     }
 
     AMREX_GPU_HOST_DEVICE
-    double cp_R(double Tval) const noexcept {
-        int hilo = (Tval <= Trange[1]) ? 0 : 1;
+    double cp_R(double T) const noexcept {
+        int hilo = (T <= Trange[1]) ? 0 : 1;
         const double* a = coeffs.data() + 7*hilo;
-        return a[0] + a[1]*Tval + a[2]*pow(Tval,2.0)
-             + a[3]*pow(Tval,3.0) + a[4]*pow(Tval,4.0);
+        return a[0] + a[1]*T + a[2]*pow(T,2.0)
+             + a[3]*pow(T,3.0) + a[4]*pow(T,4.0);
     }
 
     AMREX_GPU_HOST_DEVICE
-    double h_RT(double Tval) const noexcept {
-        int hilo = (Tval <= Trange[1]) ? 0 : 1;
+    double h_RT(double T) const noexcept {
+        int hilo = (T <= Trange[1]) ? 0 : 1;
         const double* a = coeffs.data() + 7*hilo;
-        return a[0] + 0.5*a[1]*Tval + (1.0/3.0)*a[2]*pow(Tval,2.0)
-             + 0.25*a[3]*pow(Tval,3.0) + 0.2*a[4]*pow(Tval,4.0) + a[5]/Tval;
+        return a[0] + 0.5*a[1]*T + (1.0/3.0)*a[2]*pow(T,2.0)
+             + 0.25*a[3]*pow(T,3.0) + 0.2*a[4]*pow(T,4.0) + a[5]/T;
     }
 
     AMREX_GPU_HOST_DEVICE
-    double s_R(double Tval) const noexcept {
-        int hilo = (Tval <= Trange[1]) ? 0 : 1;
+    double s_R(double T) const noexcept {
+        int hilo = (T <= Trange[1]) ? 0 : 1;
         const double* a = coeffs.data() + 7*hilo;
-        return a[0]*log(Tval) + a[1]*Tval + 0.5*a[2]*pow(Tval,2.0)
-             + (1.0/3.0)*a[3]*pow(Tval,3.0) + 0.25*a[4]*pow(Tval,4.0) + a[6];
+        return a[0]*log(T) + a[1]*T + 0.5*a[2]*pow(T,2.0)
+             + (1.0/3.0)*a[3]*pow(T,3.0) + 0.25*a[4]*pow(T,4.0) + a[6];
     }
 };
 
@@ -88,85 +88,135 @@ struct ThermoConst
 // 3. Main templated Species struct
 // ===================================================================================
 template <typename ThermoModel>
-struct Species
+struct Composition
 {
     amrex::GpuArray<char, 12> species;  // Symbol (e.g. "H2O")
-    double MW;              // kg/kmol
-    double LJ_welldepth;    // K
-    double LJ_diameter;     // Å
-    double R;               // J/(kg-K)
-    double T;               // current temperature
+    double _MW;              // kg/kmol
+    double _LJ_welldepth;    // K
+    double _LJ_diameter;     // Å
     ThermoModel thermo;     // embedded thermodynamic model
 
     // Host-side constructor
     template <typename... Args>
-    Species(const std::string& name,
-            double MW_in, double LJw_in, double LJd_in, double T_in=300.0,
-            Args&&... args)
-        : MW(MW_in),
-          LJ_welldepth(LJw_in),
-          LJ_diameter(LJd_in),
-          R(Ru/MW_in),
-          T(T_in),
+    Composition(const char* name,
+                double MW_in, double LJw_in, double LJd_in,
+                Args&&... args)
+        : _MW(MW_in),
+          _LJ_welldepth(LJw_in),
+          _LJ_diameter(LJd_in),
           thermo(std::forward<Args>(args)...)
     {
-        for (int i=0; i<12; ++i)
-            species[i] = (i < static_cast<int>(name.size())) ? name[i] : '\0';
+        for (int i=0; i<12; ++i) species[i] = (name[i] != '\0') ? name[i] : '\0';
     }
 
     // ---------- Thermodynamic properties ----------
-    AMREX_GPU_HOST_DEVICE double cp_mol(double Tval) const noexcept {
-        return thermo.cp_R(Tval) * Ru;
+    AMREX_GPU_HOST_DEVICE
+    double MW(const amrex::Array4<double>& /* mole fraction */,
+              const int /* i */, const int /* j */, const int /* k */,
+              const int /* nspecies */ ) const noexcept {
+        return _MW;
     }
 
-    AMREX_GPU_HOST_DEVICE double cp_mass(double Tval) const noexcept {
-        return cp_mol(Tval) / MW;
+    AMREX_GPU_HOST_DEVICE
+    double R(const amrex::Array4<double>& /* mole fraction */,
+             const int /* i */, const int /* j */, const int /* k */,
+             const int /* nspecies */ ) const noexcept {
+        return Ru/_MW;
     }
 
-    AMREX_GPU_HOST_DEVICE double cv_mol(double Tval) const noexcept {
-        return cp_mol(Tval) - Ru;
+    AMREX_GPU_HOST_DEVICE
+    double cp_mol(const double T, const amrex::Array4<double>& /* mole fraction */,
+                            const int /* i */, const int /* j */, const int /* k */,
+                            const int /* nspecies */ ) const noexcept {
+        return thermo.cp_R(T) * Ru;
     }
 
-    AMREX_GPU_HOST_DEVICE double cv_mass(double Tval) const noexcept {
-        return cv_mol(Tval) / MW;
+    AMREX_GPU_HOST_DEVICE
+    double cp_mass(const double T, const amrex::Array4<double>& /* mole fraction */,
+                   const int /* i */, const int /* j */, const int /* k */,
+                   const int /* nspecies */ ) const noexcept {
+        return cp_mol(T, nullptr, 0, 0, 0, 0) / _MW;
     }
 
-    AMREX_GPU_HOST_DEVICE double gamma(double Tval) const noexcept {
-        return cp_mol(Tval) / cv_mol(Tval);
+    AMREX_GPU_HOST_DEVICE
+    double cv_mol(const double T, const amrex::Array4<double>& /* mole fraction */,
+                  const int /* i */, const int /* j */, const int /* k */,
+                  const int /* nspecies */ ) const noexcept {
+        return cp_mol(T, nullptr, 0, 0, 0, 0) - Ru;
     }
 
-    AMREX_GPU_HOST_DEVICE double enthalpy_mol(double Tval) const noexcept {
-        return thermo.h_RT(Tval) * Ru * Tval;
+    AMREX_GPU_HOST_DEVICE
+    double cv_mass(const double T, const amrex::Array4<double>& /* mole fraction */,
+                   const int /* i */, const int /* j */, const int /* k */,
+                   const int /* nspecies */ ) const noexcept {
+        return cv_mol(T, nullptr, 0, 0, 0, 0) / _MW;
     }
 
-    AMREX_GPU_HOST_DEVICE double enthalpy_mass(double Tval) const noexcept {
-        return enthalpy_mol(Tval) / MW;
+    AMREX_GPU_HOST_DEVICE
+    double gamma(const double T, const amrex::Array4<double>& /* mole fraction */,
+                 const int /* i */, const int /* j */, const int /* k */,
+                 const int /* nspecies */ ) const noexcept {
+        return cp_mol(T, nullptr, 0, 0, 0, 0) / cv_mol(T, nullptr, 0, 0, 0, 0);
     }
 
-    AMREX_GPU_HOST_DEVICE double entropy_mol(double Tval) const noexcept {
-        return thermo.s_R(Tval) * Ru;
+    AMREX_GPU_HOST_DEVICE
+    double enthalpy_mol(const double T, const amrex::Array4<double>& /* mole fraction */,
+                        const int /* i */, const int /* j */, const int /* k */,
+                        const int /* nspecies */ ) const noexcept {
+        return thermo.h_RT(T) * Ru * T;
     }
 
-    AMREX_GPU_HOST_DEVICE double entropy_mass(double Tval) const noexcept {
-        return entropy_mol(Tval) / MW;
+    AMREX_GPU_HOST_DEVICE
+    double enthalpy_mass(const double T, const amrex::Array4<double>& /* mole fraction */,
+                         const int /* i */, const int /* j */, const int /* k */,
+                         const int /* nspecies */ ) const noexcept {
+        return enthalpy_mol(T, nullptr, 0, 0, 0, 0) / _MW;
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    double entropy_mol(const double T, const amrex::Array4<double>& /* mole fraction */,
+                       const int /* i */, const int /* j */, const int /* k */,
+                       const int /* nspecies */ ) const noexcept {
+        return thermo.s_R(T) * Ru;
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    double entropy_mass(const double T, const amrex::Array4<double>& /* mole fraction */,
+                        const int /* i */, const int /* j */, const int /* k */,
+                        const int /* nspecies */ ) const noexcept {
+        return entropy_mol(T, nullptr, 0, 0, 0, 0) / _MW;
     }
 
     // ---------- Transport properties ----------
-    AMREX_GPU_HOST_DEVICE double dynamic_viscosity(double Tval) const noexcept {
-        double Tstar = Tval / LJ_welldepth;
+    AMREX_GPU_HOST_DEVICE
+    double dynamic_viscosity(const double T, const amrex::Array4<double>& /* mole fraction */,
+                             const int /* i */, const int /* j */, const int /* k */,
+                             const int /* nspecies */ ) const noexcept {
+        double Tstar = T / _LJ_welldepth;
         double sigma_star =
             1.16145 * pow(Tstar, -0.14874)
           + 0.52487 / exp(0.77320 * Tstar)
           + 2.16178 / exp(2.43787 * Tstar);
-        return 2.6693e-5 * sqrt(MW * Tval) /
-               (pow(LJ_diameter, 2.0) * sigma_star);
+        return 2.6693e-5 * sqrt(_MW * T) /
+               (pow(_LJ_diameter, 2.0) * sigma_star);
     }
 
-    AMREX_GPU_HOST_DEVICE double thermal_conductivity(double Tval) const noexcept {
-        return gamma(Tval) * dynamic_viscosity(Tval) * R;
+    AMREX_GPU_HOST_DEVICE
+    double thermal_conductivity(const double T, const amrex::Array4<double>& /* mole fraction */,
+                                const int /* i */, const int /* j */, const int /* k */,
+                                const int /* nspecies */ ) const noexcept {
+        return gamma(T, nullptr, 0, 0, 0, 0) * dynamic_viscosity(T, nullptr, 0, 0, 0, 0) * R(nullptr, 0, 0, 0, 0);
     }
 
-    AMREX_GPU_HOST_DEVICE void UpdateTemperature(double Tnew) noexcept { T = Tnew; }
+    // ---------- Composition properties ----------
+    AMREX_GPU_HOST_DEVICE
+    void ComputeLocalFractions(amrex::Array4<double>& X, amrex::Array4<double>& Y,
+                               const amrex::Array4<double>& /* rhoY */, 
+                               const int i, const int j, const int k, const int /* nspecies */) {
+        AMREX_GPU_ASSERT(nspecies == 1);
+        X(i,j,k,0) = 1.0;
+        Y(i,j,k,0) = 1.0;
+    }
 };
 
 } // namespace Gas
