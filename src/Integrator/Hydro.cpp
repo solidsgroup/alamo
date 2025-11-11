@@ -14,6 +14,8 @@
 #include "Solver/Local/Riemann/HLLC.H"
 #if AMREX_SPACEDIM == 2
 
+#include "Model/Gas/Species.H"
+
 namespace Integrator
 {
 
