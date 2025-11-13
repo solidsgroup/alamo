@@ -85,7 +85,7 @@ struct ThermoConst
 };
 
 // ===================================================================================
-// 3. Main templated Species struct
+// 3. Main templated Composition struct
 // ===================================================================================
 template <typename ThermoModel>
 struct Composition

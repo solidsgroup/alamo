@@ -16,71 +16,47 @@ struct CompositionMixture
 {
     // --- Constant pointers (device accessible)
     const Composition<ThermoModel>* species_data;  // array of species
-    const double* rhoY;                            // partial densities [kg/m³]
-    double* DKM;                                   // diffusion coeffs [m²/s]
-    double* Y;                                     // mass fractions [unitless]
-    double* X;                                     // mole fractions [unitless]
 
     // --- Scalars
     int nspecies;
-    double rho;        // mixture density [kg/m³]
-    double mu_mix;     // dynamic viscosity [kg/m-s]
-    double k_mix;      // thermal conductivity [W/m-K]
+    double _rho_mix;    // mixture density [kg/m³]
+    double _mu_mix;     // dynamic viscosity [Pa-s]
+    double _k_mix;      // thermal conductivity [W/m-K]
 
     // --- Constructor (GPU-safe)
     AMREX_GPU_HOST_DEVICE
-    CompositionMixture(int ns,
-                       const Composition<ThermoModel>* sdata,
-                       const double* rhoY_ptr,
-                       double* DKM_ptr,
-                       double* Y_ptr,
-                       double* X_ptr)
+    CompositionMixture(const Composition<ThermoModel>* sdata)
         : species_data(sdata),
-          rhoY(rhoY_ptr),
-          DKM(DKM_ptr),
-          Y(Y_ptr),
-          X(X_ptr),
-          nspecies(ns),
-          rho(0.0),
-          mu_mix(0.0),
-          k_mix(0.0)
-    {
-        // compute total rho safely
-        for (int n = 0; n < nspecies; ++n) {
-            rho += rhoY[n];
-        }
-
-        // compute Y and X from rhoY
-        double MWmix_inv = 0.0;
-        for (int n = 0; n < nspecies; ++n) {
-            Y[n] = rhoY[n] / rho;
-            MWmix_inv += Y[n] / species_data[n].MW();
-        }
-        double MWmix = 1.0 / MWmix_inv;
-        for (int n = 0; n < nspecies; ++n) {
-            X[n] = Y[n] * MWmix / species_data[n].MW();
-        }
-    }
+          _rho_mix(0.0),
+          _mu_mix(0.0),
+          _k_mix(0.0)
+    {}
 
     // ===================================================================================
     // --- Thermodynamic properties
     // ===================================================================================
     AMREX_GPU_HOST_DEVICE
-    double MW() const noexcept {
-        double inv_MW = 0.0;
-        for (int n = 0; n < nspecies; ++n) inv_MW += Y[n] / species_data[n].MW();
-        return 1.0 / inv_MW;
+    double MW(const amrex::Array4<double>& X,
+              const int i, const int j, const int k,
+              const int nspecies) const noexcept {
+        double _MW = 0.0;
+        for (int n = 0; n < nspecies; ++n) _MW += X(i,j,k,n) * species_data[n].MW(nullptr, 0, 0, 0, 0);
+        return _MW;
     }
 
     AMREX_GPU_HOST_DEVICE
-    double R() const noexcept { return Ru / MW(); }
+    double R(const amrex::Array4<double>& X, 
+             const int i, const int j, const int k,
+             const int nspecies) const noexcept { return Ru / MW(X, i, j, k, nspecies); }
 
     AMREX_GPU_HOST_DEVICE
-    double cp_mol(double T) const noexcept {
+    double cp_mol(const double T, const amrex::Array4<double>& X, 
+                  const int i, const int j, const int k,
+                  const int nspecies) const noexcept {
         double cp_mix = 0.0, sumx = 0.0;
         double MWmix = MW();
         for (int n = 0; n < nspecies; ++n) {
-            double x = X[n];
+            double x = X(i,j,k,n);
             cp_mix += x * species_data[n].cp_mol(T);
             sumx += x;
         }
