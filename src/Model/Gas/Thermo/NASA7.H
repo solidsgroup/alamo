@@ -2,23 +2,26 @@
 #define MODEL_GAS_THERMO_NASA7_H_
 
 #include <vector>
+#include <cmath>
+#include <memory>
 #include "Model/Gas/Gas.H"
 
 namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class NASA7 : public virtual Gas {
-public:
+class NASA7 : public Thermo {
+private:
     std::vector<std::vector<double>> Tranges;
     std::vector<std::vector<std::vector<double>>> coeffs;
     
+public:
     NASA7(
-        std::vector<std::vector<double>>& Tranges_in,
-        std::vector<std::vector<std::vector<double>>>& coeffs_in)
-        :   Gas(0, std::vector<double>()) /*Dummy constructor*/,
-            Tranges(Tranges_in), coeffs(coeffs_in) {};
-    virtual ~NASA7() = default;
+        std::shared_ptr<GasData> data,
+        const std::vector<std::vector<double>>& Tranges_in,
+        const std::vector<std::vector<std::vector<double>>>& coeffs_in)
+        :   Thermo(data), Tranges(Tranges_in), coeffs(coeffs_in) {}
+    ~NASA7() override = default;
 
 private:
     // Compute nondimensional quantities (cp/R, h/(RT), s/R) from NASA7 coefficients
@@ -44,19 +47,19 @@ public:
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // Specific heat (constant pressure), J/(kmol-K)
         double cp = 0.0;
-        for (int n=0; n<nspecies; ++n) cp += X(i,j,k,n) * cp_R(T, Tranges[n], coeffs[n]) * Ru;
+        for (int n=0; n<data_->nspecies; ++n) cp += X(i,j,k,n) * cp_R(T, Tranges[n], coeffs[n]) * GasData::Ru;
         return cp;
     }        
     double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // Specific enthalpy, J/kmol)
         double h = 0.0;
-        for (int n=0; n<nspecies; ++n) h += X(i,j,k,n) * h_RT(T, Tranges[n], coeffs[n]) * Ru * T;
+        for (int n=0; n<data_->nspecies; ++n) h += X(i,j,k,n) * h_RT(T, Tranges[n], coeffs[n]) * GasData::Ru * T;
         return h;
     }
     double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // specific entropy, J/(kmol-K)
         double s = 0.0;
-        for (int n=0; n<nspecies; ++n) s += X(i,j,k,n) * s_R(T, Tranges[n], coeffs[n]) * Ru;
+        for (int n=0; n<data_->nspecies; ++n) s += X(i,j,k,n) * s_R(T, Tranges[n], coeffs[n]) * GasData::Ru;
         return s;
     }
 
