@@ -24,22 +24,27 @@ public:
     // Transport quantities
     virtual double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;    // Dynamic viscosity, Pa-s
     virtual double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0; // Thermal conductivity coefficient, W/(m-K)
-    virtual void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P,                                 // Species diffusion coefficients, m^2/s
-                                  Set::Patch<const Set::Scalar>& X, int i, int j, int k) = 0;
+    virtual void diffusion_coeffs(                                                                                  // Species diffusion coefficients, m^2/s
+        Set::Patch<Set::Scalar>& DKM, double T, double P,
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) = 0;
     // EOS
-    virtual double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,  // Temperature, K
-                            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const = 0;
-    virtual double ComputeP(double density, double T,                                                     // Pressure, Pa
-                            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
-    virtual double ComputeE(double density, double momentumx, double momentumy, double T,                 // Energy, J/m^3
-                            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
+    virtual double ComputeT(    // Temperature, K
+        double density, double momentumx, double momentumy, double E, double Tguess,
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const = 0;
+    virtual double ComputeP(    // Pressure, Pa
+        double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
+    virtual double ComputeE(    // Energy, J/m^3
+        double density, double momentumx, double momentumy, double T,
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
 
 // Universal methods inherent to Gas
 public:
-    void ComputeLocalFractions(Set::Patch<const Set::Scalar>& density_mf,
-                               Set::Patch<Set::Scalar>& mass_fraction_mf,
-                               Set::Patch<Set::Scalar>& mole_fraction_mf,
-                               const int i, const int j, const int k) {
+    void ComputeLocalFractions(
+            Set::Patch<const Set::Scalar>& density_mf,
+            Set::Patch<Set::Scalar>& mass_fraction_mf,
+            Set::Patch<Set::Scalar>& mole_fraction_mf,
+            const int i, const int j, const int k)
+    {
         // In place update for mass and mole fractions
         // This needs to be called before any other functions if cell composition 
         // has changed, since they are dependent on mole fraction
@@ -95,7 +100,7 @@ public:
         return entropy_mol(T, X, i, j, k) / MW(X, i, j, k);
     }
 
-} // class Gas
+}; // class Gas
 
 } // namespace Gas
 } // namespace Model

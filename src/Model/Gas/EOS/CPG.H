@@ -5,10 +5,10 @@ namespace Model {
 namespace Gas {
 namespace EOS {
 
-class CPG : public Gas {
+class CPG : public virtual Gas {
 public:
     CPG() {};
-    ~CPG() = default;
+    virtual ~CPG() = default;
 
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,

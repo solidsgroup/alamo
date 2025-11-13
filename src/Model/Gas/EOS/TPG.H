@@ -7,10 +7,10 @@ namespace Model {
 namespace Gas {
 namespace EOS {
 
-class TPG : public Gas {
+class TPG : public virtual Gas {
 public:
     TPG() {};
-    ~TPG() = default;
+    virtual ~TPG() = default;
 
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,

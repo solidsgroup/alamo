@@ -8,37 +8,36 @@ namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class NASA7 : public Gas {
+class NASA7 : public virtual Gas {
 public:
     std::vector<std::vector<double>> Tranges;
     std::vector<std::vector<std::vector<double>>> coeffs;
     
-    NASA7(std::vector<std::vector<double>>& Tranges_in,
-          std::vector<std::vector<std::vector<double>>>& coeffs_in)
-        : Tranges(Tranges_in), coeffs(coeffs_in) {};
-    ~NASA7() = default;
+    NASA7(
+        std::vector<std::vector<double>>& Tranges_in,
+        std::vector<std::vector<std::vector<double>>>& coeffs_in)
+        :   Gas(0, std::vector<double>()) /*Dummy constructor*/,
+            Tranges(Tranges_in), coeffs(coeffs_in) {};
+    virtual ~NASA7() = default;
 
 private:
     // Compute nondimensional quantities (cp/R, h/(RT), s/R) from NASA7 coefficients
     double cp_R(double T, std::vector<double>& Trange, std::vector<std::vector<double>>& coeff) const {
         int hilo = (T <= Trange[1]) ? 0 : 1;
         std::vector<double> a = coeff[hilo];
-        return a[0] + a[1]*T + a[2]*T*T
-             + a[3]*T*T*T + a[4]*T*T*T*T;
+        return a[0] + a[1]*T + a[2]*T*T + a[3]*T*T*T + a[4]*T*T*T*T;
     }   
     
     double h_RT(double T, std::vector<double>& Trange, std::vector<std::vector<double>>& coeff) const {
         int hilo = (T <= Trange[1]) ? 0 : 1;
         std::vector<double> a = coeff[hilo];
-        return a[0] + 0.5*a[1]*T + (1.0/3.0)*a[2]*T*T
-             + 0.25*a[3]*T*T*T + 0.2*a[4]*T*T*T*T + a[5]/T;
+        return a[0] + 0.5*a[1]*T + (1.0/3.0)*a[2]*T*T + 0.25*a[3]*T*T*T + 0.2*a[4]*T*T*T*T + a[5]/T;
     }
 
     double s_R(double T, std::vector<double>& Trange, std::vector<std::vector<double>>& coeff) const {
         int hilo = (T <= Trange[1]) ? 0 : 1;
         std::vector<double> a = coeff[hilo];
-        return a[0]*log(T) + a[1]*T + 0.5*a[2]*T*T
-             + (1.0/3.0)*a[3]*T*T*T + 0.25*a[4]T*T*T*T + a[6];
+        return a[0]*log(T) + a[1]*T + 0.5*a[2]*T*T + (1.0/3.0)*a[3]*T*T*T + 0.25*a[4]T*T*T*T + a[6];
     }
 
 public:

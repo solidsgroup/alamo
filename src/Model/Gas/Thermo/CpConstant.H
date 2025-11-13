@@ -8,19 +8,20 @@ namespace Model {
 namespace Gas {
 namespace Thermo {
 
-class CpConstant : public Gas {
+class CpConstant : public virtual Gas {
 public:
     std::vector<double> cp_moles;
     std::vector<double> h0;
     std::vector<double> s0;
     std::vector<double> Tref;
     
-    CpConstant(std::vector<double>& cp_in,
-               std::vector<double>& h_in,
-               std::vector<double>& s_in,
-               std::vector<double>& Tref_in)
-        : cp_moles(cp_in), h0(h_in), s0(s_in), Tref(Tref_in) {};
-    ~CpConstant() = default;
+    CpConstant(
+        std::vector<double>& cp_in,
+        std::vector<double>& h_in,
+        std::vector<double>& s_in,
+        std::vector<double>& Tref_in)
+        : Gas(0, cp_in) /* Dummy constructor*/, cp_moles(cp_in), h0(h_in), s0(s_in), Tref(Tref_in) {};
+    virtual ~CpConstant() = default;
 
 public:
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {

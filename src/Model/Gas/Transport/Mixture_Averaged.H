@@ -31,21 +31,21 @@ namespace Model {
 namespace Gas {
 namespace Transport {
 
-class Mixture_Averaged : public Gas {
+class Mixture_Averaged : public virtual Gas {
 public:
     int type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
 
     Mixture_Averaged(int type_in, std::vector<double>& val1_in, std::vector<double>& val2_in)
-        : type(type_in), val1(val1_in), val2(val2_in) {};
-    ~Mixture_Averaged() = default;
+        : Gas(0, val1) /*Dummy constructor*/, type(type_in), val1(val1_in), val2(val2_in) {};
+    virtual ~Mixture_Averaged() = default;
 
 private:
     double collision_integral(double Tstar) {
-        double S = 1.16145 * pow(Tstar, -0.14874) 
-                   + 0.52487 / exp(0.77320 * Tstar)
-                   + 2.16178 / exp(2.43787 * Tstar);
+        double S =  1.16145 * pow(Tstar, -0.14874) 
+                    + 0.52487 / exp(0.77320 * Tstar)
+                    + 2.16178 / exp(2.43787 * Tstar);
         return S;
     }
     double mu_enskog(double T, int i) {
@@ -135,9 +135,38 @@ public:
         return k_mix;
     }
 
-    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P,
-                          Set::Patch<const Set::Scalar>& X, int i, int j, int k) override {
-        // Species diffusion coefficients, m^2/s
+    void diffusion_coeffs(
+            Set::Patch<Set::Scalar>& DKM, double T, double P,
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k) override
+    {
+        // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
+        for (int a = 0; a < nspecies; ++a) {
+            double sumD = 0.0;
+            for (int b = 0; b < nspecies; ++b) {
+                if (a == b) continue;
+
+                double sigmaAB = 0.5 * (val1[a] + val1[b]);
+                double epsAB   = sqrt(val2[a] * val2[b]);
+                double Tstar   = T / epsAB;
+
+                double omegaAB =
+                    1.06036 / pow(Tstar, 0.15610) +
+                    0.19300 / exp(0.47635 * Tstar) +
+                    1.03587 / exp(1.52996 * Tstar) +
+                    1.76474 / exp(3.89411 * Tstar);
+
+                double DAB = 
+                    0.0018583 * sqrt(T*T*T * (1.0 / _MW[a] + 1.0 / _MW[b])) /
+                    ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
+                DAB /= 1.0e4;
+
+                sumD += X(i, j, k, b) / DAB;
+            }
+
+            DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
+            if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+        }
+
     }
 
 } // class Mixture_Averaged
