@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include <cmath>
-#include "Model/Gas/Gas.H"
+#include "Model/Gas/Thermo/Thermo.H"
 
 namespace Model {
 namespace Gas {
@@ -19,31 +19,31 @@ private:
     
 public:
     CpConstant(
-        std::shared_ptr<GasData> data,
-        std::vector<double>& cp_in,
-        std::vector<double>& h_in,
-        std::vector<double>& s_in,
-        std::vector<double>& Tref_in)
-        : Thermo(data), cp_moles(cp_in), h0(h_in), s0(s_in), Tref(Tref_in) {}
+        std::shared_ptr<GasData> data_in,
+        const std::vector<double>& cp_in,
+        const std::vector<double>& h_in,
+        const std::vector<double>& s_in,
+        const std::vector<double>& Tref_in)
+        : Thermo(data_in), cp_moles(cp_in), h0(h_in), s0(s_in), Tref(Tref_in) {}
     ~CpConstant() override = default;
 
 public:
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    double cp_mol(double /*T*/, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // Specific heat (constant pressure), J/(kmol-K)
         double cp = 0.0;
-        for (int n=0; n<nspecies; ++n) cp += X(i,j,k,n) * cp_moles[n];
+        for (int n=0; n<data->nspecies; ++n) cp += X(i,j,k,n) * cp_moles[n];
         return cp;
     }        
     double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // Specific enthalpy, J/kmol)
         double h = 0.0;
-        for (int n=0; n<nspecies; ++n) h += X(i,j,k,n) * (cp_moles[n] * (T - Tref[n]) + h0[n]);
+        for (int n=0; n<data->nspecies; ++n) h += X(i,j,k,n) * (cp_moles[n] * (T - Tref[n]) + h0[n]);
         return h;
     }
     double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // specific entropy, J/(kmol-K)
         double s = 0.0;
-        for (int n=0; n<nspecies; ++n) s += X(i,j,k,n) * (cp_moles[n] * log(T / Tref[n]) + s0[n]);
+        for (int n=0; n<data->nspecies; ++n) s += X(i,j,k,n) * (cp_moles[n] * log(T / Tref[n]) + s0[n]);
         return s;
     }
 

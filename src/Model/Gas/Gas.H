@@ -5,6 +5,8 @@
 #include <cmath>
 #include <memory>
 #include "Util/Util.H"
+#include "Set/Base.H"
+#include "Set/Set.H"
 
 namespace Model {
 namespace Gas {
@@ -15,88 +17,56 @@ namespace Transport { class Transport; }
 namespace EOS { class EOS; }
 
 struct GasData {
-    int nspecies;                               // Number of species
-    std::vector<double> MW;                     // Species molecular weights, kg/kmol
-    static constexpr Ru = 8314.46261815324;     // Universal gas constant, J/(kmol-K)
-    static constexpr Boltzmann = 1.380649e-23;  // Boltzmann constant, J/K
-    static constexpr Avogadro = 6.02214076e26;  // Avogradro's number, particles/kmol
+    int nspecies;                // Number of species
+    std::vector<double> MW;      // Species molecular weights, kg/kmol
+    static constexpr double Ru = 8314.46261815324;     // Universal gas constant, J/(kmol-K)
+    static constexpr double Boltzmann = 1.380649e-23;  // Boltzmann constant, J/K
+    static constexpr double Avogadro = 6.02214076e26;  // Avogradro's number, particles/kmol
 };
 
 class Gas {
 protected:
-    std::shared_ptr<GasData> data_;
-    std::unique_ptr<Thermo::Thermo> thermo_;
-    std::unique_ptr<Transport::Transport> transport_;
-    std::unique_ptr<EOS::EOS> eos_;
+    std::shared_ptr<GasData> data;
+    std::shared_ptr<Thermo::Thermo> thermo;
+    std::unique_ptr<Transport::Transport> transport;
+    std::unique_ptr<EOS::EOS> eos;
 
 public:
-    Gas(int nspecies, std::vector<double>& MW);
+    Gas(int nspecies_in, const std::vector<double>& MW_in) {
+        data = std::make_shared<GasData>();
+        data->nspecies = nspecies_in;
+        data->MW = MW_in;
+    }
     virtual ~Gas() = default;
 
     // Attach subsystems
-    void SetThermo(std::unique_ptr<Thermo::Thermo> t) { thermo_ = std::move(t); }
-    void SetTransport(std::unique_ptr<Transport::Transport> tr) { transport_ = std::move(tr); }
-    void SetEOS(std::unique_ptr<EOS::EOS> e) { eos_ = std::move(e); }
+    void SetThermo(std::shared_ptr<Thermo::Thermo> t) { thermo = std::move(t); }
+    void SetTransport(std::unique_ptr<Transport::Transport> tr) { transport = std::move(tr); }
+    void SetEOS(std::unique_ptr<EOS::EOS> e) { eos = std::move(e); }
 
-    const std::shared_ptr<GasData>& dataPtr() const { return data_; }
-    const GasData& data() const { return *data_; }
+    const std::shared_ptr<GasData>& dataPtr() const { return data; }
+    //const GasData& data() const { return *data; }
     
 // Methods that need to be defined by inherited class
 public:
     // Thermodynamic quantities
-    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-        // Specific heat (constant pressure), J/(kmol-K)
-        if (!thermo_) Util::Abort(INFO, "[Gas::cp_mol] No Thermo model attached.");
-        return thermo_-> cp_mol(T, X, i , j, k);
-    }
-    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-        // Specific enthalpy, J/kmol)
-        if (!thermo_) Util::Abort(INFO, "[Gas::enthalpy_mol] No Thermo model attached.");
-        return thermo_-> enthalpy_mol(T, X, i , j, k);
-    }
-    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-        // specific entropy, J/(kmol-K)
-        if (!thermo_) Util::Abort(INFO, "[Gas::entropy_mol] No Thermo model attached.");
-        return thermo_-> entropy_mol(T, X, i , j, k);
-    }
+    double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
     // Transport quantities
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-        // Dynamic viscosity, Pa-s
-        if (!transport_) Util::Abort(INFO, "[Gas::dynamic_viscosity] No Transport model attached.");
-        return transport_-> dynamic_viscosity(T, X, i , j, k);
-    }
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-        // Thermal conductivity coefficient, W/(m-K)
-        if (!transport_) Util::Abort(INFO, "[Gas::thermal_conductivity] No Transport model attached.");
-        return transport_-> thermal_conductivity(T, X, i , j, k);
-    }
-    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k) {
-        // Species diffusion coefficients, m^2/s
-        if (!transport_) Util::Abort(INFO, "[Gas::diffusion_coeffs] No Transport model attached.");
-        return transport_-> diffusion_coeffs(DKM, T, P, X, i , j, k);
-    }
+    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    void diffusion_coeffs(Set::Patch<Set::Scalar>& DKM, double T, double P, Set::Patch<const Set::Scalar>& X, int i, int j, int k);
 
     // EOS
     double ComputeT(
             double density, double momentumx, double momentumy, double E, double Tguess,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const {
-        // Temperature, K
-        if (!eos_) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
-        return eos_-> ComputeT(density, momentumx, momentumy, E, Tguess, X, i , j, k, rtol);
-    }
-    double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-        // Pressure, Pa
-        if (!eos_) Util::Abort(INFO, "[Gas::ComputeP] No EOS model attached.");
-        return eos_-> ComputeP(density, T, X, i , j, k);
-    }
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const;
+    double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double ComputeE(    
             double density, double momentumx, double momentumy, double T,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
-        // Energy, J/m^3
-        if (!eos_) Util::Abort(INFO, "[Gas::ComputeE] No EOS model attached.");
-        return eos_-> ComputeE(density, momentumx, momentumy, T, X, i , j, k);
-    }
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
 
 // Universal methods inherent to Gas
 public:
@@ -111,25 +81,25 @@ public:
         // has changed, since they are dependent on mole fraction
         double density = 0.0;
         double moles = 0.0;
-        for (int n=0; n<data_->nspecies; ++n) {
+        for (int n=0; n<data->nspecies; ++n) {
             density += density_mf(i,j,k,n);
-            moles += density_mf(i,j,k,n) / data_->MW[n];
+            moles += density_mf(i,j,k,n) / data->MW[n];
         }
-        for (int n=0; n<data_->nspecies; ++n) {
+        for (int n=0; n<data->nspecies; ++n) {
             mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
-            mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n / data_->MW[n] / moles;
+            mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / data->MW[n] / moles;
         }
     }
     double MW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
         double mw = 0.0;
-        for (int n=0; n<data_->nspecies; ++n) mw += X(i,j,k,n) * data_->MW[n];
+        for (int n=0; n<data->nspecies; ++n) mw += X(i,j,k,n) * data->MW[n];
         return mw;
     }
     double ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
         double rho = 0.0;
-        for (int n=0; n<data_->nspecies; ++n) rho += rhoY(i,j,k,n);
+        for (int n=0; n<data->nspecies; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
     double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 
@@ -167,4 +137,3 @@ public:
 } // namespace Model
 
 #endif
-

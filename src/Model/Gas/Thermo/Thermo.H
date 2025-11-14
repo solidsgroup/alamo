@@ -11,12 +11,12 @@ namespace Gas {
 namespace Thermo {
 
 class Thermo {
-protectd:
-    std::shared_ptr<GasData> data_;
+protected:
+    std::shared_ptr<GasData> data;
 
 public:
-    Thermo(std::shared_ptr<GasData> data) _data(data) {}
-    virtual ~Thermo() override = default;
+    Thermo(std::shared_ptr<GasData> data_in) : data(data_in) {}
+    virtual ~Thermo() = default;
 
     // Specific heat (constant pressure), J/(kmol-K)
     virtual double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
