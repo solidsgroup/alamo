@@ -1,0 +1,180 @@
+####################
+# Alamo Parameters #
+####################
+
+stop_time = 2e-5
+timestep = 1e-10
+
+####################
+# AMReX Parameters #
+####################
+
+amr.base_regrid_int = 10
+amr.plot_dt = 1e-6
+#amr.plot_int = 1000
+amr.plot_file = output.hydro.react_1D
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 1
+amr.grid_eff = 0.7
+
+#amr.n_cell = 64 8
+amr.n_cell = 1 1
+geometry.prob_lo = -0.5 -0.5
+geometry.prob_hi = 0.5  0.5
+geometry.is_periodic = 0 0 0
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps = 0.02
+eta.ic.expression.region0 = "1" # - 0.5 * (erf((x)/eps) + 1)"
+
+###############################
+# Hydro Integrator Parameters #
+###############################
+
+### HYDRO PARAM ###
+gamma = 1.4
+mu    = 5.0
+pref    = 0
+Tref    = 300.0
+
+##Default is Air
+#species_massf = 0.767 0.233
+
+## Transport Phenomena Ex. 1.4-2 | mu_mix = 1714E-7 g/cm-s = 171.4E-7 kg/m-s
+## Transport Phenomena Ex. 9.3-3 | k_mix = 584E-7 cal/cm-s-K = 0.0244 W/m-K
+#species = H2 H O O2 OH H2O HO2 H2O2 AR N2
+#species_mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.95 28.014
+#species_k = 0.18692308313058376 0.29397455762547026 0.050743730582464515 0.026570734809079212 0.05909990738807511 0.02626794470764762 0.029390866369235085 0.0361346334633821 0.018059726632678255 0.026463112933806793
+#species_cp = 14310.905255369767 20621.18704970528 1368.8549802484818 918.43462505419 1756.8040342682864 1864.9154285171269 1058.2922391213083 1248.260799090108 520.3042940020803 1037.8911357957468
+#species_mu = 9.000297497350422e-06 9.50498709679967e-06 2.48574213354167e-05 2.0654335611112864e-05 2.5628519006356415e-05 1.0327783369401388e-05 2.0977139204768138e-05 2.129505010315616e-05 2.3142358895013927e-05 1.808570419229132e-05
+#species_LJdiameter = 2.92 2.05 2.7500000000000003 3.4580000000000004 2.7500000000000003 2.6050000000000003 3.4580000000000004 3.4580000000000004 3.3300000000000004 3.621
+#species_LJwelldepth = 38.0 145.0 80.0 107.4 80.0 572.4 107.4 107.4 136.5 97.53
+#species_H0 = 0.0 1.3e9 1.56e7 0.0 -2.17e6 -1.34e7 4.61e5 -5.5e3 0.0 0.0
+#
+#density.ic.type = expression
+#density.ic.expression.constant.P = 101325.0
+#density.ic.expression.constant.T = 300.0
+#density.ic.expression.constant.R = 259.83
+#density.ic.expression.constant.eps = 0.01
+#density.ic.expression.region0 = "0.09 * 0.5 * (1.0 - erf((x-1/2)/eps))"
+#density.ic.expression.region1 = "0.0"
+#density.ic.expression.region2 = "0.0"
+#density.ic.expression.region3 = "1.43 * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
+#density.ic.expression.region4 = "0.0"
+#density.ic.expression.region5 = "0.0"
+#density.ic.expression.region6 = "0.0"
+#density.ic.expression.region7 = "0.0"
+#density.ic.expression.region8 = "0.0"
+#density.ic.expression.region9 = "0.0"
+
+#species = C3H8 O2 CO2 H2O N2
+#species_mw = 44.1 31.998 44.01 18.015 28.014
+#species_k = 0.0156 0.026570734809079212 0.015 0.02626794470764762 0.026463112933806793
+#species_cp = 1680.0 918.43462505419 849.0 1864.9154285171269 1037.8911357957468
+#species_mu = 2.979e-6 2.0654335611112864e-05 1.37e-5 1.0327783369401388e-05 1.808570419229132e-05
+#species_LJdiameter = 4.98 3.4580000000000004 3.76 2.6050000000000003 3.621
+#species_LJwelldepth = 266.8 107.4 244.0 572.4 97.53
+
+# partial pressures at 1 atm, 1000 K for equivalence ratio of 1 (C3H8 in air)
+# but then integrate with cantera to t=0.00046 and get values from there
+density.ic.type = expression
+density.ic.expression.region0 = "0.543898"
+#density.ic.expression.region1 = "0.05601476"
+#density.ic.expression.region2 = "0.01865289"
+#density.ic.expression.region3 = "0.0101807"
+#density.ic.expression.region4 = "0.25879967"
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.eps   = 0.1
+velocity.ic.expression.constant.x0    = -2.0
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.region0 = "177553.38044992616"
+
+### ETA BC  ###
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+density.bc.constant.type.xhi = neumann #neumann neumann neumann neumann
+density.bc.constant.type.xlo = neumann #neumann neumann neumann neumann
+density.bc.constant.type.yhi = neumann #neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann #neumann neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 #0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 #0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 #0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 #0.0 0.0 0.0 0.0
+
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0 
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+#hydro.r_refinement_criterion   = 0.1
+#hydro.e_refinement_criterion   = 0.1
+#hydro.m_refinement_criterion   = 0.1
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion = 100000000
+
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.density.ic.constant.value = 40.0 #40.0 40.0 40.0 40.0
+solid.energy.ic.constant.value = 0.0
+
+m0.ic.constant.value = 0.0 #0.0 0.0 0.0 0.0
+u0.ic.constant.value = 0.0 0.0
+q.ic.constant.value = 0.0 0.0
+
+small=1E-18
+cutoff=0.2
+lagrange=2000.0
+
+#hydro.Lfactor=-10
+#hydro.Pfactor=10
+cfl   = 10.0
+cfl_v   = 10.0
+
+#hydro.solver.type = roe
+#hydro.solver.roe.lowmach = 1
+
+solver.type = hllc
+
+#dynamictimestep.on = 0
+#dynamictimestep.verbose = 1
+#dynamictimestep.max  = 1E+10
+#dynamictimestep.min  = 1E-10
+#hydro.cfl   = 1-19
+#hydro.cfl_v = 1.E2
+
+scheme = forwardeuler
+#scheme = backwardeuler
+#reacting_flow = true
+
+#prescribedflowmode = relative

@@ -12,6 +12,8 @@
 #include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
 
+#include "Model/Gas/Gas.H"
+
 #if AMREX_SPACEDIM==2
 
 namespace Integrator
@@ -81,6 +83,9 @@ private:
     Set::Field<Set::Scalar> velocity_mf;
     Set::Field<Set::Scalar> pressure_mf;
 
+    Set::Field<Set::Scalar> mass_fraction_mf;
+    Set::Field<Set::Scalar> mole_fraction_mf;
+
     struct {
         Set::Field<Set::Scalar> density_mf;
         Set::Field<Set::Scalar> momentum_mf;
@@ -137,6 +142,11 @@ private:
     Set::Scalar lagrange=NAN;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
+
+    std::vector<std::string> species;
+    std::vector<double> mws, cps, h0, s0, Tref, mus, ks; 
+    int nspecies;
+    std::shared_ptr<Model::Gas::Gas> gas;
 
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4

@@ -14,8 +14,15 @@
 #include "Solver/Local/Riemann/HLLC.H"
 #if AMREX_SPACEDIM == 2
 
-#include "Model/Gas/Species.H"
-#include "Model/Gas/EOS.H"
+#include "Model/Gas/Gas.H"
+#include "Model/Gas/Thermo/Thermo.H"
+#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
+#include "Model/Gas/Transport/Transport.H"
+#include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/EOS/EOS.H"
+#include "Model/Gas/EOS/CPG.H"
+#include "Model/Gas/EOS/TPG.H"
 
 namespace Integrator
 {
@@ -86,6 +93,17 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
+        // Test stuff for Model::Gas (just assume nspecies=1, CpConstant, CPG
+        pp_queryarr_default("species", value.species, {"Air"});
+        pp_queryarr_default("mws",value.mws, {28.0});
+        pp_queryarr_default("cps",value.cps, {29.1e3});
+        pp_queryarr_default("h0", value.h0, {0.0});
+        pp_queryarr_default("s0", value.h0, {0.0});
+        pp_queryarr_default("Tref", value.Tref, {298.15});
+        pp_queryarr_default("mus", value.mus, {1.789e-5});
+        pp_queryarr_default("ks", value.ks, {0.024});
+        value.nspecies = value.species.size();
+
     }
     // Register FabFields:
     {
@@ -117,6 +135,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true, false);
+
+        value.RegisterNewFab(value.mass_fraction_mf,  &value.bc_nothing, 1, nghost, "mass_fraction",     true , true);
+        value.RegisterNewFab(value.mole_fraction_mf,  &value.bc_nothing, 1, nghost, "mole_fraction",     true , true);
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
@@ -210,6 +231,19 @@ void Hydro::Initialize(int lev)
 
     Source_mf[lev]   ->setVal(0.0);
 
+    ///////////////////////////
+    auto data = std::make_shared<Model::Gas::GasData>();
+    data->nspecies = nspecies;
+    data->MW = mws;
+    gas = std::make_shared<Model::Gas::Gas>(nspecies, mws);
+    auto thermo = std::make_shared<Model::Gas::Thermo::CpConstant>(data, cps, h0, s0, Tref);
+    auto transport = std::make_unique<Model::Gas::Transport::Mixture_Averaged>(data, thermo, 0, mus, ks);
+    auto eos = std::make_unique<Model::Gas::EOS::CPG>(data, gas);
+    gas->SetThermo(std::move(thermo));
+    gas->SetTransport(std::move(transport));
+    gas->SetEOS(std::move(eos));
+    ///////////////////////////
+
     Mix(lev);
 }
 
@@ -232,6 +266,8 @@ void Hydro::Mix(int lev)
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -249,7 +285,17 @@ void Hydro::Mix(int lev)
                 + 
                 E_solid(i, j, k) * (1.0 - eta(i, j, k));
             E_old(i, j, k) = E(i, j, k);
+
+            gas->ComputeLocalFractions(rho, Y, X, i,j,k);
+            std::cout << "X/Y: " << X(i,j,k,0) << " " << Y(i,j,k,0) << "\n";
+            double density = gas->ComputeD(rho, i, j, k);
+            std::cout << "D: " << density << "\n";
+            double T = gas->ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), 500.0, X, i, j, k);
+            std::cout << "T: " << T << "\n";
+            double P = gas->ComputeP(density, T, X, i, j,k);
+            std::cout << "P: " << P << "\n";
         });
+        Util::Abort(INFO);
     }
     c_max = 0.0;
     vx_max = 0.0;

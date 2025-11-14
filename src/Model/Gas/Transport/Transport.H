@@ -4,7 +4,6 @@
 #include <vector>
 #include <memory>
 #include <cmath>
-#include "Model/Gas/Gas.H"
 
 namespace Model {
 namespace Gas {

@@ -28,8 +28,8 @@ class Gas {
 protected:
     std::shared_ptr<GasData> data;
     std::shared_ptr<Thermo::Thermo> thermo;
-    std::unique_ptr<Transport::Transport> transport;
-    std::unique_ptr<EOS::EOS> eos;
+    std::shared_ptr<Transport::Transport> transport;
+    std::shared_ptr<EOS::EOS> eos;
 
 public:
     Gas(int nspecies_in, const std::vector<double>& MW_in) {
@@ -41,8 +41,8 @@ public:
 
     // Attach subsystems
     void SetThermo(std::shared_ptr<Thermo::Thermo> t) { thermo = std::move(t); }
-    void SetTransport(std::unique_ptr<Transport::Transport> tr) { transport = std::move(tr); }
-    void SetEOS(std::unique_ptr<EOS::EOS> e) { eos = std::move(e); }
+    void SetTransport(std::shared_ptr<Transport::Transport> tr) { transport = std::move(tr); }
+    void SetEOS(std::shared_ptr<EOS::EOS> e) { eos = std::move(e); }
 
     const std::shared_ptr<GasData>& dataPtr() const { return data; }
     //const GasData& data() const { return *data; }
@@ -62,7 +62,7 @@ public:
     // EOS
     double ComputeT(
             double density, double momentumx, double momentumy, double E, double Tguess,
-            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const;
+            Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
     double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double ComputeE(    
             double density, double momentumx, double momentumy, double T,
