@@ -49,7 +49,7 @@ pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.eps = 20.0_um
 pf.eta.ic.expression.constant.x0 = 40.0_um
 # pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
-pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(1000*(x-0.25)**2+1000*(y-0.1)**2))"
+pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(500*(x-0.25)**2+500*(y-0.1)**2))"
 #pf.eta.ic.expression.region0 = "x > x0"
 #pf.eta.ic.expression.region0 = "1.0"
 
@@ -112,8 +112,8 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 
 # Thermal transport parameters
 thermal.on = 1  
-#thermal.Tfluid = 300.0_K
-thermal.Tref = 300.0_K
+#thermal.Tfluid = 100.0_K
+thermal.Tref = 100.0_K
 
 # Temperature field initial condition
 temp.ic.type = constant
@@ -139,10 +139,12 @@ thermal.hc = 1.0e7_W/m^2
 
 # Laser initial condition
 laser.ic.type = expression
+laser.ic.expression.constant.eps = 20.0_um
+laser.ic.expression.constant.x0 = 40.0_um
 laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
-laser.ic.expression.region0 = "qflux0*(t<tswitch) + qflux1*(t>=tswitch)"
+laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 + 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
 chamber.pressure = 4.0_MPa  ## [MPa]
