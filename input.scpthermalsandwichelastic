@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 5e-4_s # was 0.001
+amr.plot_dt = 1e-5_s # was 0.001
 amr.max_grid_size = 16
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
@@ -49,7 +49,7 @@ pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.eps = 20.0_um
 pf.eta.ic.expression.constant.x0 = 40.0_um
 # pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
-pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(500*(x-0.25)**2+500*(y-0.1)**2))"
+pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(100*(x-0.3)**2+100*(y-0.1)**2))"
 #pf.eta.ic.expression.region0 = "x > x0"
 #pf.eta.ic.expression.region0 = "1.0"
 
@@ -112,12 +112,12 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 
 # Thermal transport parameters
 thermal.on = 1  
-#thermal.Tfluid = 100.0_K
-thermal.Tref = 100.0_K
+#thermal.Tfluid = 50.0_K
+thermal.Tref = 50.0_K
 
 # Temperature field initial condition
 temp.ic.type = constant
-temp.ic.constant.value = 300.0_K
+temp.ic.constant.value = 50.0_K
 
 # Temperature field boundary conditions
 thermal.temp.bc.type = constant

@@ -2,6 +2,7 @@ Record_*
 Backtrace*
 *.mpg
 *.o
+*.zip
 results
 bin
 *.mod

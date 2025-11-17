@@ -14,7 +14,7 @@ amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 20.0_K
-#amr.phi_refinement_criterion = 0.5
+amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 #amr.node.all = 1
 
@@ -53,11 +53,20 @@ pf.eta.ic.expression.constant.x0 = 40.0_um
 pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
 # pf.eta.ic.expression.region0 = "1 - 1/(100**(x*x + y*y))"
 
+# Phi initial condition (Grain image)
+phi.ic.type = png
+phi.ic.png.filename = SCP_grain_smoothed.png
+phi.ic.png.fit = coord
+phi.ic.png.max = 255
+phi.ic.png.min = 0
+phi.ic.png.coord.lo = 0_mm 1_mm
+phi.ic.png.coord.hi = 1_mm 0_mm
+
 # Phi initial condition (spheres)
-phi.ic.type = psread
-phi.ic.psread.file.unit = m
-phi.ic.psread.file.name = 2d.xyzr
-phi.ic.psread.eps = 10._um
+# phi.ic.type = psread
+# phi.ic.psread.file.unit = m
+# phi.ic.psread.file.name = 2d.xyzr
+# phi.ic.psread.eps = 10._um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
