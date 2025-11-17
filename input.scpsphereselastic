@@ -8,7 +8,7 @@ system.time = s
 
 # AMR and output parameters
 amr.plot_dt = 5e-4_s
-amr.max_grid_size = 4
+amr.max_grid_size = 16
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
@@ -19,17 +19,17 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 4
+amr.max_level = 3
 
 # Full size
-# amr.n_cell = 64 64 64 #32 32 32
-# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-# geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
+amr.n_cell = 32 32 32
+geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
 
 # Quarter size
-amr.n_cell = 16 16 16
-geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
+# amr.n_cell = 16 16 16
+# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+# geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -47,9 +47,13 @@ pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.eps = 20.0_um
 pf.eta.ic.expression.constant.x0 = 40.0_um
-pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
-#pf.eta.ic.expression.region0 = "x > x0"
-#pf.eta.ic.expression.region0 = "1.0"
+pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(1000*(x-0.5)**2+1000*(y-0.5)**2))"
+
+# pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(1 - 1/(5000000000000000000000000000000000000**((x - 0.5)**2 + (y-0.5)**2)))"
+# pf.eta.ic.expression.region0 = "x > x0"
+# pf.eta.ic.expression.region0 = "1.0"
+# pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((y-x0)/eps)"
+# pf.eta.ic.expression.region0 = "1 - 1/(100**(x*x + y*y))"
 
 # Phi initial condition (spheres)
 phi.ic.type = psread

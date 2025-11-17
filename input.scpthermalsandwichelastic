@@ -48,7 +48,8 @@ pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.eps = 20.0_um
 pf.eta.ic.expression.constant.x0 = 40.0_um
-pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
+# pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
+pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(1000*(x-0.25)**2+1000*(y-0.1)**2))"
 #pf.eta.ic.expression.region0 = "x > x0"
 #pf.eta.ic.expression.region0 = "1.0"
 
@@ -58,7 +59,7 @@ phi.ic.laminate.center = 0.0 0.0 0.0
 phi.ic.laminate.thickness = 0.25_mm
 phi.ic.laminate.orientation = 0 1 
 phi.ic.laminate.singlefab = 1 
-phi.ic.laminate.invert = 1
+phi.ic.laminate.invert = 0
 phi.ic.laminate.eps = 20._um
 
 # Phase field parameters
