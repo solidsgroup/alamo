@@ -139,6 +139,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         value.RegisterNewFab(value.mass_fraction_mf,  &value.bc_nothing, 1, nghost, "mass_fraction",     true , true);
         value.RegisterNewFab(value.mole_fraction_mf,  &value.bc_nothing, 1, nghost, "mole_fraction",     true , true);
+        value.RegisterNewFab(value.scratch_mf,  &value.bc_nothing, 1, nghost, "scratch",     false , false);
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
@@ -238,8 +239,8 @@ void Hydro::Initialize(int lev)
     data->MW = mw_array;
     gas = std::make_shared<Model::Gas::Gas>(nspecies, mw_array);
     auto thermo = std::make_shared<Model::Gas::Thermo::CpConstant>(data, cp_array, h0_array, s0_array, Tref_array);
-    auto transport = std::make_unique<Model::Gas::Transport::Mixture_Averaged>(data, thermo, 0, mu_array, k_array);
-    auto eos = std::make_unique<Model::Gas::EOS::CPG>(data, gas);
+    auto transport = std::make_shared<Model::Gas::Transport::Mixture_Averaged>(data, thermo, 0, mu_array, k_array);
+    auto eos = std::make_shared<Model::Gas::EOS::CPG>(data, gas);
     gas->SetThermo(std::move(thermo));
     gas->SetTransport(std::move(transport));
     gas->SetEOS(std::move(eos));
@@ -698,7 +699,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
-        Set::Patch<Set::Scalar> rho_dummy       = rho_rhs_mf.array(mfi);
+        Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
@@ -721,22 +722,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
 
             // Get fluid values to compute primitives
-            Set::Scalar rho_old = rho_dummy(i,j,k);
-            rho_dummy(i,j,k) = (rho(i,j,k) - (1.0 - eta(i,j,k))*rho_solid(i,j,k))/(eta(i,j,k) + small);
+            scratch(i,j,k) = (rho(i,j,k) - (1.0 - eta(i,j,k))*rho_solid(i,j,k))/(eta(i,j,k) + small);
             Set::Scalar Mx_fluid = etaM_fluid(0)/(eta(i,j,k) + small);
             Set::Scalar My_fluid = etaM_fluid(1)/(eta(i,j,k) + small);
             Set::Scalar E_fluid = etaE_fluid/(eta(i,j,k) + small);
-            gas->ComputeLocalFractions(rho_dummy, Y, X, i, j, k);
-            Set::Scalar density = gas->ComputeD(rho_dummy, i, j, k);
-            std::cout << density << " " << Mx_fluid << " " << My_fluid << " " << E_fluid << " " << T(i,j,k) << " " << X(i,j,k) << "\n";
-            std::cout << "computeT\n";
+            gas->ComputeLocalFractions(scratch, Y, X, i, j, k);
+            Set::Scalar density = gas->ComputeD(scratch, i, j, k);
             T(i,j,k) = gas->ComputeT(density, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
-            std::cout << "computeP\n";
             p(i,j,k) = gas->ComputeP(density, T(i,j,k), X, i, j, k);
-            std::cout << "computeP done\n";
-            
-            // reset rho to previous value
-            rho_dummy(i,j,k) = rho_old;
         });
     }
 

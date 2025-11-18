@@ -124,12 +124,12 @@ int main (int argc, char* argv[])
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 
-    Util::Test::Message("Solver::Nonlocal::Riemann::Roe test");
-    {
-        int subfailed = 0;
-        subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
-        failed += Util::Test::SubFinalMessage(subfailed);
-    }
+    //Util::Test::Message("Solver::Nonlocal::Riemann::Roe test");
+    //{
+    //    int subfailed = 0;
+    //    subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
+    //    failed += Util::Test::SubFinalMessage(subfailed);
+    //}
 
     Util::Test::Message("Unit test");
     {

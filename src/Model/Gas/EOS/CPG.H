@@ -19,10 +19,8 @@ public:
         // Temperature, K
         // Since gamma is not a function of temperature, but is a function of composition, we can
         // compute gamma at any dummy temperature
-        std::cout << "start\n";
         double P = (E - 0.5*(momentumx*momentumx + momentumy*momentumy)/density) * (gas->gamma(Tguess, X, i, j, k) - 1.0);
         double T = P / density / gas->R(X, i, j, k);
-        std::cout << "finish\n";
         return T;
     }
     double ComputeT(double pressure, double density,

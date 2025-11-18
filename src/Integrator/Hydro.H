@@ -87,6 +87,7 @@ private:
 
     Set::Field<Set::Scalar> mass_fraction_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
+    Set::Field<Set::Scalar> scratch_mf;
 
     struct {
         Set::Field<Set::Scalar> density_mf;
