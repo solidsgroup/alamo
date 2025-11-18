@@ -48,11 +48,8 @@ eta.ic.expression.region0        = "1.0"
 
 ### HYDRO PARAM ###
 
-gamma = 1.4
 cfl   = 0.6
-mu    = 0.0
-pref = 0.0
-
+mu_array = 0.0
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"

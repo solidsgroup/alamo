@@ -43,10 +43,10 @@ stop_time = 10.0
 
 ### HYDRO PARAM ###
 
-gamma = 3.0
+#gamma = 3.0
+cp_array = 12471.69
 cfl   = 0.4
-mu    = 10.0
-pref = 100.0
+mu_array    = 10.0
 
 small=1E-8
 cutoff=6E-5
@@ -78,7 +78,7 @@ velocity.ic.expression.region0 = "0.001 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+pressure.ic.expression.region0 = "100.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"

@@ -26,17 +26,13 @@ geometry.is_periodic = 0 0 0
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.02
-eta.ic.expression.region0 = "1" # - 0.5 * (erf((x)/eps) + 1)"
+eta.ic.expression.region0 = "0.5" # - 0.5 * (erf((x)/eps) + 1)"
 
 ###############################
 # Hydro Integrator Parameters #
 ###############################
 
 ### HYDRO PARAM ###
-gamma = 1.4
-mu    = 5.0
-pref    = 0
-Tref    = 300.0
 
 ##Default is Air
 #species_massf = 0.767 0.233
@@ -144,8 +140,8 @@ eta_refinement_criterion = 0.1
 omega_refinement_criterion = 10000000
 gradu_refinement_criterion = 100000000
 
-solid.momentum.ic.constant.value = 0.0 0.0
 solid.density.ic.constant.value = 40.0 #40.0 40.0 40.0 40.0
+solid.momentum.ic.constant.value = 0.0 0.0
 solid.energy.ic.constant.value = 0.0
 
 m0.ic.constant.value = 0.0 #0.0 0.0 0.0 0.0

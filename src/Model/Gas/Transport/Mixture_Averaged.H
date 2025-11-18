@@ -109,6 +109,7 @@ public:
         default:
             Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
         }
+        if (!(mu_mix == mu_mix) ) mu_mix = 0.0;
         return mu_mix;
     }
 

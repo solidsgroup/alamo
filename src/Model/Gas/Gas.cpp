@@ -55,6 +55,13 @@ double Gas::ComputeT(
     if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
     return eos->ComputeT(density, momentumx, momentumy, E, Tguess, X, i , j, k, rtol);
 }
+double Gas::ComputeT(
+        double pressure, double density,
+        Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    // Temperature, K
+    if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
+    return eos->ComputeT(pressure, density, X, i , j, k);
+}
 double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Pressure, Pa
     if (!eos) Util::Abort(INFO, "[Gas::ComputeP] No EOS model attached.");

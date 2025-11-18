@@ -43,6 +43,12 @@ public:
         }
         return T;
     }
+    double ComputeT(double pressure, double density,
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+        // Temperature, K
+        double T = pressure / density / gas->R(X, i, j, k);
+        return T;
+    }
     double ComputeP(double density, double T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // Pressure, Pa
