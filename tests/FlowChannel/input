@@ -44,7 +44,7 @@ stop_time = 10.0
 ### HYDRO PARAM ###
 
 #gamma = 3.0
-cp_array = 12471.69
+cp_array = 12471.693927
 cfl   = 0.4
 mu_array    = 10.0
 

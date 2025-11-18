@@ -45,10 +45,9 @@ stop_time = 30.0
 
 ### HYDRO PARAM ###
 
-gamma = 3.0
+cp_array = 12471.69
+mu_array = 10.0
 cfl   = 0.4
-mu    = 10.0
-pref = 100.0
 
 ### ETA IC ###
 
@@ -75,7 +74,7 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0"
+pressure.ic.expression.region0 = "100.0"
 
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"

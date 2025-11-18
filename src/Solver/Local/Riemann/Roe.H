@@ -73,8 +73,8 @@ public:
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
 
         // Ensure no negative densities
-        rho_L = std::max(0.0,rho_L);
-        rho_R = std::max(0.0,rho_R);
+        rho_L = std::max(small,rho_L);
+        rho_R = std::max(small,rho_R);
 
         // STEP 1: Compute fluid primitives
 
