@@ -16,6 +16,7 @@
 #include "Model/Propellant/Homogenize.H"
 
 #include <cmath>
+#include <string>
 
 namespace Integrator
 {
@@ -92,7 +93,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
-    pp.query_default("plot_field",value.plot_field,true); 
+    pp.query_default("plot_field", value.plot_field, true);
+
+    // The number of species
+    pp.query_default("num_species", value.num_species, 1);
+    value.bc_phi.resize(value.num_species, nullptr);
+    value.ic_phi.resize(value.num_species, nullptr);
         
     //
     // PHASE FIELD VARIABLES
@@ -109,17 +115,24 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Barrier energy
     pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());  
     // Burned rest energy
-    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());    
+    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());
 
-    // Boundary conditions for phase field order params
-    pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
-    value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
-    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+    // Initialize each of the species order parameters
+    for (int i = 0; i < value.num_species; i++)
+    {
+        // Name of species
+        string species_name;
+        pp.query_default("pf.phi_" + to_string(i) + ".name", species_name, "phi_" + to_string(i));
+        
+        // Boundary conditions for phase field order parameters
+        pp.select<BC::Constant>("pf.phi_" + to_string(i) + ".bc", value.bc_phi[i], 1);
 
-    // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
+        value.RegisterNewFab(value.phi_mf, value.bc_phi[i], i, 2, species_name, true);
+        value.RegisterNewFab(value.phi_old_mf, value.bc_phi[i], i, 2, species_name + "_old", false);
 
-
+        // Order parameter initial condition
+        pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.phi_" + to_string(i) + ".ic", value.ic_phi[i], value.geom);
+    }
 
     // Select reduced order model to capture heat feedback
     pp.select<  Model::Propellant::PowerLaw, 
@@ -245,7 +258,7 @@ void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
-
+n
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
     ic_phi->Initialize(lev, phi_mf);
