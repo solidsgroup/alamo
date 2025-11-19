@@ -2,6 +2,7 @@
 #define INTEGRATOR_FLAME_H
 
 #include <limits>
+#include <vector>
 
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
@@ -37,11 +38,8 @@ public:
 
     virtual ~Flame()
     {
-        delete ic_eta;
-        delete ic_phi;
         delete thermal.ic_temp;
         delete ic_laser;
-        delete bc_eta;
         delete bc_temp;
     }
 
@@ -55,34 +53,34 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
+
 private:
+    int num_species = 0;
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;
 
-    Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
+    Set::Field<Set::Scalar> phi_old_mf;
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
     Set::Field<Set::Scalar> heatflux_mf;
 
     Set::Field<Set::Scalar> laser_mf;
 
+    std::vector<BC::BC<Set::Scalar>*> bc_phi;
+    std::vector<IC::IC<Set::Scalar>*> ic_phi;
     BC::BC<Set::Scalar>* bc_temp = nullptr;
-    BC::BC<Set::Scalar>* bc_eta = nullptr;
-    IC::IC<Set::Scalar>* ic_phi = nullptr;
-    IC::IC<Set::Scalar>* ic_laser = nullptr;
+    IC::IC<Set::Scalar> *ic_laser = nullptr;
 
     Set::Scalar phi_refinement_criterion = std::numeric_limits<Set::Scalar>::infinity();
     Set::Scalar m_refinement_criterion = NAN;
     Set::Scalar t_refinement_criterion = NAN;
     Set::Scalar t_refinement_restriction = NAN;
     Set::Scalar small = NAN;
-    IC::IC<Set::Scalar>* ic_eta = nullptr;
     bool plot_field = true;
     int variable_pressure = -1;
 
@@ -92,7 +90,7 @@ private:
         Set::Scalar lambda = NAN;
         Set::Scalar kappa = NAN;
         Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
-        Set::Scalar min_eta = 0.001;
+        Set::Scalar min_eta = 0.001;  // update name?
     } pf;
 
     // Thermal transport variables
@@ -110,7 +108,7 @@ private:
         Set::Scalar Telastic = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
-        int phirefinement = -1;
+        int phirefinement = -1;  // update name?
     } elastic;
 
     // Chamber state variables (not inputs)
