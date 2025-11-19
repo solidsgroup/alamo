@@ -16,6 +16,8 @@ main(int argc, char *argv[])
 #if AMREX_SPACEDIM == 2
     IO::ParmParse pp;
     std::string program;
+
+    // Validate/make sure the correct Alamo program/Inetrgator is used
     pp.query_validate("alamo.program", program, { "allencahn", "dendrite", "flame" });
     srand(2);
 

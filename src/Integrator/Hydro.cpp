@@ -184,8 +184,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     // Riemann solver
     pp.select_default<Solver::Local::Riemann::Roe,
-                      Solver::Local::Riemann::HLLE,
-                      Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
+                        Solver::Local::Riemann::HLLE,
+                        Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
 
     std::string prescribedflowmode_str;
