@@ -21,8 +21,8 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator,
-              virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>,
-              virtual public Hydro
+                virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>,
+                virtual public Hydro
 {
 
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;

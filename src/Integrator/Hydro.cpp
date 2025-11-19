@@ -677,7 +677,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
             }
 
-            Set::Vector vel(u(i,j,k,0),u(i,j,k,1));
+            // Set::Vector vel(u(i,j,k,0),u(i,j,k,1));
             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
 
