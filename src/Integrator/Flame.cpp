@@ -216,7 +216,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Body force
     pp_query_default("elastic.traction", value.elastic.traction, 0.0);
-
+    
+    // Scalar value that can be used to reduce the pressure being applied in the traction boundaay condition. If a linear elastic solve is used, results can be scaled appropriately to recover correct solution
     pp.query_default("elastic.pressure_mult", value.elastic.pressure_mult, 1.0);
 
     // Phi refinement criteria 
@@ -239,13 +240,23 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.solver.setPsi(value.eta_mf);
     }
 
+    // Determines if hydro is on, by default hydro starts off and turns on a small time into the simulation to aid hydro initilization
     pp.query_default("hydro.on",value.hydro.on,false);
     if (value.hydro.on)
-    {
+    {   
+        // Time value when hydro starts, recommended to be set slightly larger than the start of the simulation to help integrators start correctly
         pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
+
+        // Density of the gaseous products of Ammonium perchlorate
         pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
+
+        // Density of the gaseous products of Hydroxyl-terminated Polybutadiene
         pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
+
+        // Velocity source term of gaseous AP products, gets overridden in code by conservation of mass source terms
         pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
+
+        // Velocity source term of gaseous HTPB products, gets overridden in code by conservation of mass source terms
         pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
 
         pp.queryclass<Hydro>("hydro", value);

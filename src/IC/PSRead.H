@@ -108,7 +108,7 @@ public:
         std::string filename;
         int verbose = 0;
         // Diffuseness of the sphere boundary
-        pp.query_default("eps", value.eps, "0.0", Unit::Length()); 
+        pp.query_default("eps", value.eps, "0.0", Unit::Length());
 
         pp.forbid("filename", "use file.name instead");
         // Location of .xyzr file
@@ -132,8 +132,8 @@ public:
         Unit unit = Unit::Length();
         // Units of length in the file
         pp.queryunit("file.unit",unit);
-        Util::AssertException(INFO,TEST(unit.isType(Unit::Length())), 
-                              "Unit must be of type length but got unit ",unit.normalized_unitstring());
+        Util::AssertException(  INFO,TEST(unit.isType(Unit::Length())), 
+                                "Unit must be of type length but got unit ",unit.normalized_unitstring());
         
         std::ifstream datafile(filename);
         std::string line;
