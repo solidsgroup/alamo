@@ -285,8 +285,11 @@ namespace Constant
 // Pi
 static const Set::Scalar Pi = 3.14159265359;
 // Gas constant
-static const Unit Rg = Unit::Parse("8.31446261815_J/mol/K");
-
+static const Set::Scalar Rg = Unit::Parse("8.31446261815_J/mol/K").normalized_value();
+// Boltzmann constant
+static const Set::Scalar Boltzmann = Unit::Parse("1.380649e-23_J/K").normalized_value();
+// Avogadro's number
+static const Set::Scalar Avogadro = Unit::Parse("6.02214076e26_1/kmol").normalized_value();
 }
 }
 

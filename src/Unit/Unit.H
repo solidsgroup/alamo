@@ -182,6 +182,9 @@ struct Unit : std::pair<double,std::array<int,7>>
         {"kHz",       {1e3,     "Hz"       }},
         {"MHz",       {1e6,     "Hz"       }},
         {"GHz",       {1e9,     "Hz"       }},
+
+        // Moles
+        {"kmol", {1e3, "mol"}}
     };
 
 

@@ -191,6 +191,9 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                         Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
+    // Gas model
+    pp.queryclass<Model::Gas::Gas>("gas",*value.gas);
+
 
 
     bool allow_unused;
@@ -232,19 +235,6 @@ void Hydro::Initialize(int lev)
     ic_q             ->Initialize(lev, q_mf,            0.0);
 
     Source_mf[lev]   ->setVal(0.0);
-
-    ///////////////////////////
-    auto data = std::make_shared<Model::Gas::GasData>();
-    data->nspecies = nspecies;
-    data->MW = mw_array;
-    gas = std::make_shared<Model::Gas::Gas>(nspecies, mw_array);
-    auto thermo = std::make_shared<Model::Gas::Thermo::CpConstant>(data, cp_array, h0_array, s0_array, Tref_array);
-    auto transport = std::make_shared<Model::Gas::Transport::Mixture_Averaged>(data, thermo, 0, mu_array, k_array);
-    auto eos = std::make_shared<Model::Gas::EOS::CPG>(data, gas);
-    gas->SetThermo(std::move(thermo));
-    gas->SetTransport(std::move(transport));
-    gas->SetEOS(std::move(eos));
-    ///////////////////////////
 
     Mix(lev);
 }

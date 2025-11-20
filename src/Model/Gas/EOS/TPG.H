@@ -12,12 +12,14 @@ namespace EOS {
 
 class TPG : public EOS {
 public:
-    TPG(std::shared_ptr<GasData> data_in, std::shared_ptr<Gas> gas_in) : EOS(data_in, gas_in) {};
+    TPG() {} ;
+    //TPG(std::shared_ptr<GasData> data_in, std::shared_ptr<Gas> gas_in) : EOS(data_in, gas_in) {};
     ~TPG() override = default;
 
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const override {
+        /*
         // Temperature, K
         double vx = momentumx/density;
         double vy = momentumy/density;
@@ -42,26 +44,33 @@ public:
             Util::Abort(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
         }
         return T;
+        */
     }
     double ComputeT(double pressure, double density,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+        /*
         // Temperature, K
         double T = pressure / density / gas->R(X, i, j, k);
         return T;
+        */
     }
     double ComputeP(double density, double T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+        /*
         // Pressure, Pa
         double P = density * gas->R(X, i, j, k) * T;
         return P;
+        */
     }
     double ComputeE(double density, double momentumx, double momentumy, double T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+        /*
         // Energy, J/m^3
         double P = density * gas->R(X, i, j, k) * T;
         double rhoE = P / (gas->gamma(T, X, i, j, k) - 1.0);
         double E = rhoE + 0.5*(momentumx*momentumx + momentumy*momentumy)/density;
         return E;
+        */
     }
 
 }; // class TPG

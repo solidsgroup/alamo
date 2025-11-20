@@ -4,50 +4,41 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+//#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
+#include "IO/ParmParse.H"
+#include "Transport/Transport.H"
+#include "EOS/EOS.H"
 
 namespace Model {
 namespace Gas {
 
-// Forward declarations
-namespace Thermo { class Thermo; }
-namespace Transport { class Transport; }
-namespace EOS { class EOS; }
-
-struct GasData {
-    int nspecies;                // Number of species
-    std::vector<double> MW;      // Species molecular weights, kg/kmol
-    static constexpr double Ru = 8314.46261815324;     // Universal gas constant, J/(kmol-K)
-    static constexpr double Boltzmann = 1.380649e-23;  // Boltzmann constant, J/K
-    static constexpr double Avogadro = 6.02214076e26;  // Avogradro's number, particles/kmol
-};
-
 class Gas {
 protected:
-    std::shared_ptr<GasData> data;
-    std::shared_ptr<Thermo::Thermo> thermo;
+    //std::shared_ptr<GasData> data;
+    int nspecies;
+    std::vector<double> MW;      // Species molecular weights, kg/kmol
+    //std::shared_ptr<Thermo::Thermo> thermo;
+    Thermo::Thermo *thermo;
     std::shared_ptr<Transport::Transport> transport;
     std::shared_ptr<EOS::EOS> eos;
 
 public:
-    Gas(int nspecies_in, const std::vector<double>& MW_in) {
-        data = std::make_shared<GasData>();
-        data->nspecies = nspecies_in;
-        data->MW = MW_in;
-    }
     virtual ~Gas() = default;
 
-    // Attach subsystems
-    void SetThermo(std::shared_ptr<Thermo::Thermo> t) { thermo = std::move(t); }
-    void SetTransport(std::shared_ptr<Transport::Transport> tr) { transport = std::move(tr); }
-    void SetEOS(std::shared_ptr<EOS::EOS> e) { eos = std::move(e); }
+    static void Parse(Gas & value, IO::ParmParse & pp)
+    {
+        // number of species
+        pp.query_default("nspecies",value.nspecies,1);
 
-    const std::shared_ptr<GasData>& dataPtr() const { return data; }
-    //const GasData& data() const { return *data; }
+        // thermal model
+        pp.select<Thermo::CpConstant,Thermo::NASA7>("thermo",value.thermo, value.nspecies);
+    }
     
-// Methods that need to be defined by inherited class
 public:
     // Thermodynamic quantities
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
@@ -84,42 +75,42 @@ public:
         // has changed, since they are dependent on mole fraction
         double density = 0.0;
         double moles = 0.0;
-        for (int n=0; n<data->nspecies; ++n) {
+        for (int n=0; n<nspecies; ++n) {
             density += density_mf(i,j,k,n);
-            moles += density_mf(i,j,k,n) / data->MW[n];
+            moles += density_mf(i,j,k,n) / MW[n];
         }
-        for (int n=0; n<data->nspecies; ++n) {
+        for (int n=0; n<nspecies; ++n) {
             mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
-            mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / data->MW[n] / moles;
+            mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
         }
     }
-    double MW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
+    double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
         double mw = 0.0;
-        for (int n=0; n<data->nspecies; ++n) mw += X(i,j,k,n) * data->MW[n];
+        for (int n=0; n<nspecies; ++n) mw += X(i,j,k,n) * MW[n];
         return mw;
     }
     double ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
         double rho = 0.0;
-        for (int n=0; n<data->nspecies; ++n) rho += rhoY(i,j,k,n);
+        for (int n=0; n<nspecies; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
     double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 
         // Specific gas constant, J/(kg-K)
-        return GasData::Ru/MW(X, i, j, k);
+        return Set::Constant::Rg/GetMW(X, i, j, k);
     }
     double cp_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant pressure), J/(kg-K)
-        return cp_mol(T, X, i, j, k) / MW(X, i, j, k);
+        return cp_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
     double cv_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kmol-K)
-        return cp_mol(T, X, i, j, k) - GasData::Ru;
+        return cp_mol(T, X, i, j, k) - Set::Constant::Rg;
     }
     double cv_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific heat (constant volume), J/(kg-K)
-        return cv_mol(T, X, i, j, k) / MW(X, i, j, k);
+        return cv_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
     double gamma(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const  {
         // Specific heat ratio
@@ -127,11 +118,11 @@ public:
     }
     double enthalpy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific enthalpy, J/kg
-        return enthalpy_mol(T, X, i, j, k) / MW(X, i, j, k);
+        return enthalpy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
     double entropy_mass(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Specific entropy, J/(kg-K)
-        return entropy_mol(T, X, i, j, k) / MW(X, i, j, k);
+        return entropy_mol(T, X, i, j, k) / GetMW(X, i, j, k);
     }
 
 }; // class Gas

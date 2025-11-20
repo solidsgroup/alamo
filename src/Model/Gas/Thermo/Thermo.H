@@ -3,8 +3,8 @@
 
 #include <vector>
 #include <memory>
+#include "Set/Set.H"
 #include <cmath>
-#include "Model/Gas/Gas.H"
 
 namespace Model {
 namespace Gas {
@@ -12,10 +12,9 @@ namespace Thermo {
 
 class Thermo {
 protected:
-    std::shared_ptr<GasData> data;
 
 public:
-    Thermo(std::shared_ptr<GasData> data_in) : data(data_in) {}
+    Thermo() {} ;
     virtual ~Thermo() = default;
 
     // Specific heat (constant pressure), J/(kmol-K)

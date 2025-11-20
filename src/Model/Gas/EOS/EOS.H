@@ -5,17 +5,20 @@
 #include <memory>
 #include <cmath>
 
+#include "Set/Set.H"
+
 namespace Model {
 namespace Gas {
 namespace EOS {
 
 class EOS {
 protected:
-    std::shared_ptr<GasData> data;
-    std::shared_ptr<Gas> gas;
+    // std::shared_ptr<GasData> data;
+    // std::shared_ptr<Gas> gas;
 
 public:
-    EOS(std::shared_ptr<GasData> data_in, std::shared_ptr<Gas> gas_in) : data(data_in), gas(gas_in) {}
+    EOS() {} ;
+    //EOS(std::shared_ptr<GasData> data_in, std::shared_ptr<Gas> gas_in) : data(data_in), gas(gas_in) {}
     virtual ~EOS() = default;
 
     // Temperature, K
