@@ -35,7 +35,7 @@ public:
     static void Parse(CpConstant & value, IO::ParmParse & pp)
     {
         // heat capacity in moles (one per species)
-        pp.queryarr_required("cp_moles",value.cp_moles,Unit::Amount());
+        pp.queryarr_required("cp_moles",value.cp_moles,Unit::Energy()/Unit::Amount()/Unit::Temperature());
         // molar enthalpy (one per species)
         pp.queryarr_required("h0",value.h0,Unit::Energy()/Unit::Amount());
         // molar entropy (one per species)
