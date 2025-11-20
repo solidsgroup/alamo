@@ -41,15 +41,15 @@ Beyond materials science, PF methods have also enjoyed great success in other ap
 The success of the PF method is derived from its implicit, diffuse representation of boundaries and surfaces, which avoids the need for cumbersome interface tracking.
 However, the PF method also can incur great computational expense, due to the need for high grid resolution across the diffuse boundary.
 In order for the PF method to be feasible, strategic algorithms are necessary in order to provide sufficient boundary resolution without wasting grid points on uninteresting regions.
-Such algorithms fall typically into two main categories.
-(1) Spectral methods solve the phase field equations in the frequency domain, e.g. [@kochmann2015phase], and 
+Such algorithms fall typically into two main categories:
+(1) Spectral methods solve the phase field equations in the frequency domain [@kochmann2015phase], and 
 (2) Real-space methods employing adaptive mesh refinement (AMR).
 Spectral methods offer a number of performance advantages, especially when coupling to global mechanical solvers.
 However, they can be limited in their ability to resolve fine-scale features, and can be very cumbersome to use when implementing novel types of models.
 On the other hand, real-space methods with AMR are often able to attain very good performance, can be easily suited to the domain of interest, and provide an attractive platform for prototyping new physical models.
 
 A number of open-source real-space PF codes exist and have enjoyed significant popularity.
-Some of the most widely known codes with PF implementations are Moose, [@giudicelli2024moose], Fenics [@baratta2023dolfinx], and Prisms-PF [@dewitt2020prisms], which employ octree style AMR.
+Some of the most widely known codes with PF implementations are Moose [@giudicelli2024moose], Fenics [@baratta2023dolfinx], and Prisms-PF [@dewitt2020prisms], which employ octree style AMR.
 Though effective, octree-AMR can result on complex and expensive mesh management.
 It is can also be challenging to achieve optimal load balancing, due to the high degree of unpredictable connectivity within the octree mesh.
 
@@ -59,7 +59,7 @@ Communication between patches and levels is then handled through ghost cells, in
 This data structure is extremely efficient and scalable, while also being highly amenable to efficient code prototyping.
 Importantly, BSAMR also acts as a seamless extension to geometric multigrid, making naturally efficient at performing global mechanical equilibrium solves.
 The AMReX framework [@zhang2019amrex] provides a powerful platform for development of BSAMR codes.
-However, the use of AMReX has been limited in PF (with only a few exceptions, [@kumar20243d;@kumar2023ferrox]) and solid mechanics, due to the inherent challenges of solving the mechanical equilibrium equations on a patch-based mesh.
+However, the use of AMReX has been limited in PF, with only a few exceptions [@kumar20243d;@kumar2023ferrox], and solid mechanics, due to the inherent challenges of solving the mechanical equilibrium equations on a patch-based mesh.
 
 The Alamo multiphysics solver leverages the power of BSAMR for phase-field problems.
 Alamo provides a unique, strong-form finite-deformation, matrix-free mechanics solver, enabling the efficient solution of the solid mechanics calculations.
@@ -84,7 +84,7 @@ The Alamo solver, on the other hand, is developed to be native to the BSAMR fram
 It is matrix-free, which is necessary in order to avoid additional communication overhead.
 It is strong-form, using finite differences instead of shape functions to calculate derivatives, ensuring consistency between levels and compatibility with restriction/prolongation operations.
 It handles coarse-fine boundaries using a novel "reflux-free" method, which avoids the special treatment of boundaries by including an extra layer of smoothed ghost nodes.
-Details on these aspects of the solver are available in [@runnels2021massively].
+Details on these aspects of the solver are given by @runnels2021massively.
 
 The Alamo mechanical solver is versatile, allowing any type of mechanical model to be used though the abstract solid model interface (per the norm for most FEM codes).
 Alamo uses templated AMReX BaseFab structures to encapsulate model parameters, which enables users to implement sophisticated models without any knowledge of the external Alamo/AMReX infrastructure.
@@ -96,7 +96,7 @@ The flexibility of this framework is exemplified through Alamo's library of soli
 
 Because the mechanical solver is coupled to problems defined with diffuse boundaries, often involving "void" regions in which there is no mechanical strength, additional steps are necessary to avoid convergence issues.
 Alamo contains methods for accounting for diffuse boundary conditions, and uses a joint cell/node based interpolation scheme to ensure good convergence even when the operator is near-singular.
-Details on the near-singular solver capability, the model vector space implementation, and the methods for applying boundary conditions in the diffuse boundary framework, have been documented in [@agrawal2023robust].
+Details on the near-singular solver capability, the model vector space implementation, and the methods for applying boundary conditions in the diffuse boundary framework, have been documented by @agrawal2023robust.
 
 ## Multiple inheritance polymorphic integrators 
 
@@ -149,7 +149,7 @@ Parser commands self-document the nature of each variable: for instance, `query_
 This is effective at eliminating uninitialized variables, and localizes the variable's usage with its parsing statement.
 All parameters are read in hierarchically, systematically using prefixes to avoid naming conflicts (especially in the case of MIPI integrators).
 
-In addition, Alamo contains a set of python-based code scrapers to scan the source code for all input parameters.
+In addition, Alamo contains a set of Python-based code scrapers to scan the source code for all input parameters.
 The inputs are cataloged, along with their source code location and comment string, and formatted into the automatically-generated documentation.
 This allows users to browse the inputs and link directly to their usage in the code (a common difficulty when encountering a new code), or to search an input index to determine how the inputs are used. 
 It is also used to automatically generate input file builders that are guaranteed to be accurate and consistent with the current source code.
@@ -162,7 +162,7 @@ This ensures that all documentation is kept current with the source code, withou
 
 Regression tests are essential to ensure reliability of a continuously developed code.
 Alamo has a self-contained regression test system designed to run with a single line of code added to an input file stored in the repository.
-It also contains a suite of python helper functions that use the YT library to automatically extract data for comparison and to determine whether runs have completed accurately [@turk2010yt].
+It also contains a suite of Python helper functions that use the YT library to automatically extract data for comparison and to determine whether runs have completed accurately [@turk2010yt].
 The regression test system is automated using the Github Actions CI system, and different variants of tests are executed automatically in different stages of code development.
 For example, full-scale benchmark tests are run on a self-hosted runner in each of the main development branches; lightweight suite of tests are run upon every feature branch commit.
 Selections of the tests are used to check code coverage using gcov, and memory safety using ASan and MSan.
@@ -175,10 +175,10 @@ Since it is implemented with CI, the online test documentation is guaranteed to 
 
 A hallmark feature of Alamo is its guaranteed reproducibility system.
 Alamo integrates with the AMReX ParmParse system to track all input parameters.
-On every execution, Alamo creates a metadata file in the output directory that stores all input parameters, as well as platform information, git commit ID, amrex git commit ID, etc.
+On every execution, Alamo creates a metadata file in the output directory that stores all input parameters, as well as platform information, Git commit ID, AMReX Git commit ID, etc.
 
 Because Alamo is a development code, sometimes last-minute modifications are made to the source that are not committed prior to the code's execution.
-To resolve this, as part of the build process, Alamo always runs a git diff on its own source code, and stores the results.
+To resolve this, as part of the build process, Alamo always runs a `git diff` on its own source code, and stores the results.
 When the code is subsequently executed, the git diff is stored with the output, ensuring that future users can always revert the code back to the exact same state at a later time.
 This guarantees that every Alamo result, regardless of the state of the code, is reproducible.
 
@@ -186,9 +186,9 @@ This guarantees that every Alamo result, regardless of the state of the code, is
 # Acknowledgments
 
 The authors acknowledge the many funding sources that have supported the development of Alamo.
-This includes:
-Support from Lawrence Berkeley National Laboratory, subcontracts \#7473053, \#7645776;
-National Science Foundation, grants \#OAC-2017971, \#MOMS-2142164, \#MOMS-2341922;
-and the Office of Naval Research, grants \#N00014-21-1-2113, \#N00014-25-1-2029.
+This includes
+support from Lawrence Berkeley National Laboratory via subcontracts \#7473053 and \#7645776;
+National Science Foundation via grants \#OAC-2017971, \#MOMS-2142164, and \#MOMS-2341922;
+and the Office of Naval Research via grants \#N00014-21-1-2113 and \#N00014-25-1-2029.
 
 # References
