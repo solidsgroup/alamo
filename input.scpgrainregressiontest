@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 0.01_s
+amr.plot_dt = 0.005_s
 amr.max_grid_size = 16
 amr.blocking_factor = 4
 amr.base_regrid_int = 10
@@ -29,7 +29,7 @@ geometry.prob_hi = 0.5_mm 0.25_mm 0.5_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2.5e-7_s # 0.00005 # [s]
+timestep = 1e-6_s # 0.00005 # [s]
 stop_time = 0.0501_s
 
 small = 1.0e-8
@@ -50,12 +50,6 @@ phi.ic.png.max = 255
 phi.ic.png.min = 0
 phi.ic.png.coord.lo = 0.0_mm 0.5_mm
 phi.ic.png.coord.hi = 0.5_mm 0.0_mm
-
-# Phi initial condition (spheres)
-# phi.ic.type = psread
-# phi.ic.psread.file.unit = m
-# phi.ic.psread.file.name = 2d.xyzr
-# phi.ic.psread.eps = 10._um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -143,7 +137,6 @@ laser.ic.expression.region0 = "qflux0*(t<tswitch) + qflux1*(t>=tswitch)"
 chamber.pressure = 4.0_MPa  ## [MPa]
 
 
-
 # Disable NAN checking
 amr.abort_on_nan = 1
 
@@ -151,7 +144,7 @@ amr.abort_on_nan = 1
 elastic.type = static
 # Thermoelasticity
 elastic.on = 1
-elastic.interval = 1000
+elastic.interval = 5000
 # Elastic model params
 model_ap.mu = 140
 model_ap.kappa = 150
@@ -192,7 +185,6 @@ hydro.u0.ic.constant.value = 0 0.0
 hydro.lagrange= 0.0
 hydro.lagrange_m0=1.0
 hydro.solver.type = roe
-# hydro.scheme = ssprk3
 hydro.gamma = 1.4
 hydro.mu    = 0.00001
 hydro.pref    = 10000
@@ -225,9 +217,4 @@ hydro.density.bc.constant.type.yhi = neumann
 hydro.eta_refinement_criterion=100000
 hydro.omega_refinement_criterion=100000
 hydro.gradu_refinement_criterion=4.0
-# dynamictimestep.on = 1
-# dynamictimestep.verbose = 1
-# dynamictimestep.max = 1e-4
-# dynamictimestep.min = 1e-8
-
 
