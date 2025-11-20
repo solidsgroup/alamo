@@ -5,23 +5,37 @@
 #include <cmath>
 #include <memory>
 #include "Model/Gas/Thermo/Thermo.H"
+#include "IO/ParmParse.H"
+#include "Set/Set.H"
 
 namespace Model {
 namespace Gas {
 namespace Thermo {
 
 class NASA7 : public Thermo {
+public:
+    static constexpr const char* name = "nasa7";
+
 private:
+    int nspecies;
     std::vector<std::vector<double>> Tranges;
     std::vector<std::vector<std::vector<double>>> coeffs;
     
 public:
-    NASA7(
-        std::shared_ptr<GasData> data_in,
-        const std::vector<std::vector<double>>& Tranges_in,
-        const std::vector<std::vector<std::vector<double>>>& coeffs_in)
-        :   Thermo(data_in), Tranges(Tranges_in), coeffs(coeffs_in) {}
+    NASA7() : Thermo() {} ;
+    NASA7(int a_nspecies, IO::ParmParse& pp, std::string name) : NASA7()
+    {
+        nspecies = a_nspecies;
+        pp.queryclass(name, *this);
+    }
+    
     ~NASA7() override = default;
+
+    static void Parse(NASA7 & value, IO::ParmParse & pp)
+    {
+        // TODO: parse Tranges and coeffs here...
+    }
+
 
 private:
     // Compute nondimensional quantities (cp/R, h/(RT), s/R) from NASA7 coefficients
@@ -47,19 +61,19 @@ public:
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // Specific heat (constant pressure), J/(kmol-K)
         double cp = 0.0;
-        for (int n=0; n<data->nspecies; ++n) cp += X(i,j,k,n) * cp_R(T, Tranges[n], coeffs[n]) * GasData::Ru;
+        for (int n=0; n<nspecies; ++n) cp += X(i,j,k,n) * cp_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
         return cp;
     }        
     double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // Specific enthalpy, J/kmol)
         double h = 0.0;
-        for (int n=0; n<data->nspecies; ++n) h += X(i,j,k,n) * h_RT(T, Tranges[n], coeffs[n]) * GasData::Ru * T;
+        for (int n=0; n<nspecies; ++n) h += X(i,j,k,n) * h_RT(T, Tranges[n], coeffs[n]) * Set::Constant::Rg * T;
         return h;
     }
     double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
         // specific entropy, J/(kmol-K)
         double s = 0.0;
-        for (int n=0; n<data->nspecies; ++n) s += X(i,j,k,n) * s_R(T, Tranges[n], coeffs[n]) * GasData::Ru;
+        for (int n=0; n<nspecies; ++n) s += X(i,j,k,n) * s_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
         return s;
     }
 

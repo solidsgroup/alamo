@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <cmath>
+#include "Set/Set.H"
 
 namespace Model {
 namespace Gas {
@@ -11,14 +12,9 @@ namespace Transport {
 
 class Transport {
 protected:
-    std::shared_ptr<GasData> data;
-    std::shared_ptr<Thermo::Thermo> thermo;
 
 public:
-    Transport(
-            std::shared_ptr<GasData> data_in,
-            std::shared_ptr<Thermo::Thermo> thermo_in) 
-        : data(data_in), thermo(thermo_in) {}
+    Transport () {} ;
     virtual ~Transport() = default;
 
     // Mixture dynamic viscosity, Pa-s

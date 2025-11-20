@@ -42,13 +42,7 @@ private:
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
 
 public:
-    Mixture_Averaged(
-            std::shared_ptr<GasData> data_in,
-            std::shared_ptr<Thermo::Thermo> thermo_in,
-            int type_in,
-            const std::vector<double>& val1_in,
-            const std::vector<double>& val2_in)
-        : Transport(data_in, thermo_in), type(type_in), val1(val1_in), val2(val2_in) {};
+    Mixture_Averaged() {} ;
     ~Mixture_Averaged() override = default;
 
 private:
@@ -59,18 +53,23 @@ private:
         return S;
     }
     double mu_enskog(double T, int i) const {
-        return 2.669570e-6 * sqrt(data->MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
+        //return 2.669570e-6 * sqrt(data->MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
     }
-    double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const {
+    double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
+    {
+         /*
         if (!thermo) Util::Abort(INFO, "[Transport::Mixture_Averaged::k_eucken] Thermo model not set.");
         double cp = thermo->cp_mol(T, X, i, j, k);
         return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * GasData::Ru) / data->MW[n];
+        */
     }
 
 public:
-    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override 
+    {
         // Wilke's Average: Dynamic viscosity, Pa-s
         double mu_mix = 0.0;
+        /*
         switch (type) {
         case 0:
             // dynamic viscosity, mu, is constant per species
@@ -109,13 +108,16 @@ public:
         default:
             Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
         }
+        */
         if (!(mu_mix == mu_mix) ) mu_mix = 0.0;
         return mu_mix;
     }
 
-    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
+    double thermal_conductivity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override 
+    {
         // Wilke's Average: Thermal conductivity coefficient, W/(m-K)
         double k_mix = 0.0;
+        /*
         switch (type) {
         case 0:
             // thermal conductivity coefficient, k, is constant per species
@@ -154,6 +156,7 @@ public:
         default:
             Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
         }
+        */
         return k_mix;
     }
 
@@ -162,6 +165,7 @@ public:
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) override
     {
         // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
+        /*
         for (int a = 0; a < data->nspecies; ++a) {
             double sumD = 0.0;
             for (int b = 0; b < data->nspecies; ++b) {
@@ -188,7 +192,7 @@ public:
             DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
             if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
         }
-
+        */
     }
 
 }; // class Mixture_Averaged
