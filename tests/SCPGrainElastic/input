@@ -49,7 +49,7 @@ pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
 
 # Phi initial condition (Grain image)
 phi.ic.type = png
-phi.ic.png.filename = /tests/SCPGrainElastic/SCP_grain_smoothed.png
+phi.ic.png.filename = tests/SCPGrainElastic/SCP_grain_smoothed.png
 phi.ic.png.fit = coord
 phi.ic.png.max = 255
 phi.ic.png.min = 0
