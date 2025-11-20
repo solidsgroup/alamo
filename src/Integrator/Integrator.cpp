@@ -1031,7 +1031,8 @@ Integrator::Evolve()
         TimeStep(lev, cur_time, iteration);
         if (integrate_variables_after_advance) IntegrateVariables(cur_time, step);
         TimeStepComplete(cur_time, step);
-        cur_time += dt[0];
+        if (clock_running)
+            cur_time += dt[0];
 
         if (amrex::ParallelDescriptor::IOProcessor()) {
             std::cout << "STEP " << step + 1 << " ends."
@@ -1198,7 +1199,10 @@ Integrator::TimeStep(int lev, amrex::Real time, int /*iteration*/)
     if (lev < finest_level)
     {
         for (int i = 1; i <= nsubsteps[lev + 1]; ++i)
-            TimeStep(lev + 1, time + (i - 1) * dt[lev + 1], i);
+        {
+            Set::Scalar substep_time = clock_running ? time + (i - 1) * dt[lev + 1] : time;
+            TimeStep(lev + 1, substep_time, i);
+        }
 
         for (int n = 0; n < cell.number_of_fabs; n++)
         {
