@@ -3,10 +3,12 @@
 #@ dim=2
 #@ nprocs=1
 #@ args = stop_time=0.00101
+#@ check-file = reference/2d-serial-short.csv
 #@
 #@ [2d-parallel-long]
 #@ dim=2
 #@ nprocs=8
+#@ check-file = reference/2d-parallel-long.csv
 #@ 
 
 alamo.program = flame
