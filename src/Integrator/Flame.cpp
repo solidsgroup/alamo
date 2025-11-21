@@ -160,10 +160,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.rho_AP_gas_mf, value.bc_temp, 1, 0, "rho_AP_gas", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
         value.RegisterNewFab(value.rho_tot_gas_mf, value.bc_temp, 1, 0, "rho_tot_gas", value.plot_field); // Density of total gaseous field
 
-        // value.RegisterNewFab(value.rho_htpb_solid_mf, value.bc_temp, 1, 0, "rho_HTPB_solid", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
-        // value.RegisterNewFab(value.rho_AP_solid_mf, value.bc_temp, 1, 0, "rho_AP_solid", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
-        // value.RegisterNewFab(value.rho_tot_solid_mf, value.bc_temp, 1, 0, "rho_tot_solid", value.plot_field); // Density of total gaseous field
-
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
@@ -186,6 +182,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
+
+    // Flag to use Flame with and without Hydro. If Hydro is off the pressure traction from Hydro is not calculated (see UpdateModel function)
+    pp_query_default("use_with_Hydro", value.hydro.use_with_Hydro, false);
 
     // Refinement criterion for eta field   
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -332,7 +331,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as boundary condition
+            Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as traction force at solid/fluid interface
 
             if (elastic.on)
             {
@@ -342,12 +341,12 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     Set::Vector pres_reg;
-
-                    if (Hydro::pressure_mf.empty()) {
-                        pres_reg = elastic.pressure_mult*chamber.pressure * grad_eta ; // Add pressure to effect the regression rate
-
-                    } else { 
+                    
+                    if (hydro.use_with_Hydro) {
                         pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    } else {
+                        // If not using hydro to find the pressure on the regressing surface, set the pressure traction term to 0.0
+                        pres_reg = 0.0*grad_eta;
                     }
 
                     rhs(i, j, k) = 0.0*grad_eta;
