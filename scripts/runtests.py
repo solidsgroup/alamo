@@ -216,6 +216,7 @@ def test(testdir):
                 check = True
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
+            config[desc].pop('check')
 
         # Determine if we want to use the coverage version of the code.
         coverage = args.coverage
@@ -226,6 +227,8 @@ def test(testdir):
                 coverage = True
             else:
                 raise(Exception("Invalid value for coverage: {}".format(config[desc]['coverage'])))
+            config[desc].pop('coverage')
+
         if args.only_coverage and not coverage:
             continue
         if args.only_non_coverage and coverage:
@@ -236,12 +239,15 @@ def test(testdir):
         timeout = int(args.timeout)
         if 'timeout' in config[desc].keys():
             timeout = int(config[desc]['timeout'])
+            config[desc].pop('timeout')
 
         dobenchmark = False
         benchmark = None
-        if "benchmark-{}".format(args.benchmark) in config[desc].keys():
+        benchmark_name = "benchmark-{}".format(args.benchmark)
+        if benchmark_name in config[desc].keys():
             dobenchmark = True
             benchmark = float(config[desc]["benchmark-{}".format(args.benchmark)])
+            config[desc].pop(benchmark_name)
 
         # Build the command to run the script. This can be done in two ways:
         #
@@ -257,22 +263,32 @@ def test(testdir):
             command = config[desc]['cmd']
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
+            config[desc].pop('cmd')
         else:
             # If we are doing memory checking, cut off the simulation early
             if args.memcheck: cmdargs += " max_step=2 "
 
             exe = 'alamo'
-            if 'exe' in config[desc].keys(): exe = config[desc]['exe']
+            if 'exe' in config[desc].keys():
+                exe = config[desc]['exe']
+                config[desc].pop('exe')
             dim = 3 # Dimension of alamo to use
-            if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
+            if 'dim' in config[desc].keys():
+                dim = int(config[desc]['dim'])
+                config[desc].pop('dim')
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
-            if 'nprocs' in config[desc].keys(): nprocs = int(config[desc]['nprocs'])
-            if 'args' in config[desc].keys(): cmdargs += config[desc]['args'].replace('\n',' ')
+            if 'nprocs' in config[desc].keys():
+                nprocs = int(config[desc]['nprocs'])
+                config[desc].pop('nprocs')
+            if 'args' in config[desc].keys():
+                cmdargs += config[desc]['args'].replace('\n',' ')
+                config[desc].pop('args')
 
             cmdargs += " plot_file={}/{}_{}".format(testdir,testid,desc)
 
             if 'ignore' in config[desc].keys():
                 cmdargs += " ignore={}".format(config[desc]['ignore'])
+                config[desc].pop('ignore')
 
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
@@ -286,6 +302,7 @@ def test(testdir):
             if 'fft' in config[desc].keys():
                 if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
                     if not args.fft and not args.fft_only: continue
+                config[desc].pop('fft')
 
             # Specify performance flag
             if args.perf:
@@ -333,6 +350,7 @@ def test(testdir):
                     print("  ├ {}{} (skip indicated in input){}".format(color.boldyellow,desc,color.reset))
                     skips += 1
                     continue
+                config[desc].pop('skip')
 
             command += exestr + " "
             command += "{}/input ".format(testdir)
@@ -559,14 +577,18 @@ def test(testdir):
         # The exception handling is basically the same as for the above test.
         if check and not args.memcheck:
             try:
-                if args.dryrun: raise DryRunException()
-                cmd = ["./test","{}_{}".format(testid,desc)]
-                if "check-file" in config[desc].keys():
-                    cmd.append(config[desc]['check-file'])
                 if args.cmd: 
                     print("  ├      " + ' '.join(cmd))
-
                 print("  │      Checking result.........................................",end="",flush=True)
+
+                if args.dryrun:
+                    if ('check-file') in config[desc].keys(): config[desc].pop('check-file')
+                    raise DryRunException()
+                cmd = ["./test","{}_{}".format(testid,desc)]
+                if "check-file" in config[desc ].keys():
+                    cmd.append(config[desc]['check-file'])
+                    config[desc].pop('check-file')
+
                 proc = subprocess.Popen(cmd,cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
                 stdout, stderr = proc.communicate()
@@ -639,8 +661,9 @@ def test(testdir):
                     raise Exception()
                 True # permissive
 
-        records.append(record)
-        append_html(record)
+        if not args.dryrun:
+            records.append(record)
+            append_html(record)
 
         #
         # Clean up all of the node and cell file 
@@ -661,6 +684,16 @@ def test(testdir):
             p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
             
         
+        #
+        # CHECK FOR UNUSED INPUTS
+        #
+        for key in config[desc].keys():
+            if "benchmark-" in key:
+                config[desc].pop(key)
+        if len(config[desc].keys()):
+            raise Exception("The following were specified but not used: "+str(list(config[desc].keys())))
+
+
             
     # Print a quick summary for this test family.
     summary = "  └ "
