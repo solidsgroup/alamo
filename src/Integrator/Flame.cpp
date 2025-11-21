@@ -184,7 +184,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("variable_pressure", value.variable_pressure, false);
 
     // Flag to use Flame with and without Hydro. If Hydro is off the pressure traction from Hydro is not calculated (see UpdateModel function)
-    pp_query_default("use_with_Hydro", value.hydro.use_with_Hydro, false);
+    pp_query_default("use_with_Hydro", value.use_with_Hydro, false);
+
+    if (value.use_with_Hydro == 1) {
+        //Scalar value to reduce the velocity of the products from regression in interface region being ejected into Hydro to improve Hydro stability
+        pp.query_default("velocity_mult", value.velocity_mult, 1.0);
+    }
 
     // Refinement criterion for eta field   
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -216,7 +221,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Body force
     pp_query_default("elastic.traction", value.elastic.traction, 0.0);
     
-    // Scalar value that can be used to reduce the pressure being applied in the traction boundaay condition. If a linear elastic solve is used, results can be scaled appropriately to recover correct solution
+    // Scalar value to reduce the pressure being applied in the traction boundaay condition. If a linear elastic solve is used, results can be scaled appropriately to recover correct solution
     pp.query_default("elastic.pressure_mult", value.elastic.pressure_mult, 1.0);
 
     // Phi refinement criteria 
@@ -342,7 +347,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     Set::Vector pres_reg;
                     
-                    if (hydro.use_with_Hydro) {
+                    if (use_with_Hydro) {
                         pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
                     } else {
                         // If not using hydro to find the pressure on the regressing surface, set the pressure traction term to 0.0
@@ -452,8 +457,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             solidM(i,j,k,0) = solidrho(i,j,k)*u0(0);
             solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
 
-            u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)*rho_tot_gas(i,j,k)/5000; // Update the velocity source term based on conservation of mass
-            u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)*rho_tot_gas(i,j,k)/5000;
+            u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)*rho_tot_gas(i,j,k)*velocity_mult; // Update the velocity source term based on conservation of mass
+            u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)*rho_tot_gas(i,j,k)*velocity_mult;
         });
     }
 

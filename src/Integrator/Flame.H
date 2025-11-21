@@ -96,6 +96,8 @@ protected:
     IC::IC<Set::Scalar>* ic_eta = nullptr;
     bool plot_field = true;
     int variable_pressure = -1;
+    int use_with_Hydro = 0;
+    Real velocity_mult = 0;
 
     // Phase field model variables
     struct {
@@ -131,7 +133,6 @@ protected:
 
         Set::Scalar rho_ap = NAN, rho_htpb = NAN;
         Set::Scalar u0_ap = NAN, u0_htpb = NAN;
-        int use_with_Hydro = 0;
     } hydro;
 
     // Chamber state variables (not inputs)

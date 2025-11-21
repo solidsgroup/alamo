@@ -181,8 +181,9 @@ elastic.pressure_mult = 0.01
 elastic.traction = 0.0
 elastic.zero_out_displacement = true # Zero out the displacement before each elastic solver iternation
 
-hydro.use_with_Hydro = 1
+use_with_Hydro = 1
 hydro.on = 1
+velocity_mult = 0.001
 hydro.tstart = 1e-5 # Was 0.0005
 hydro.rho_ap = 2.0
 hydro.rho_htpb = 1.0
