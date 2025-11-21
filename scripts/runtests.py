@@ -688,8 +688,8 @@ def test(testdir):
         # CHECK FOR UNUSED INPUTS
         #
         for key in config[desc].keys():
-            if "benchmark-" in key:
-                config[desc].pop(key)
+            if "benchmark-" in key: config[desc].pop(key)
+            if key == "check-file": config[desc].pop(key)
         if len(config[desc].keys()):
             raise Exception("The following were specified but not used: "+str(list(config[desc].keys())))
 
