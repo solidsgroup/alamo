@@ -338,16 +338,20 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
                 amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                    Set::Vector grad_pres = Numeric::CellGradientOnNode(pressure, i, j, k, 0, DX);
-                    Set::Vector pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    Set::Vector pres_reg;
+
+                    if (Hydro::pressure_mf.empty()) {
+                        pres_reg = elastic.pressure_mult*chamber.pressure * grad_eta ; // Add pressure to effect the regression rate
+
+                    } else { 
+                        pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
+                    }
+
                     rhs(i, j, k) = 0.0*grad_eta;
                     rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
-                    
-                    if (eta(i,j,k) < 1e-3){
-                        rhs(i, j, k) = grad_eta*0.0;
-                    }
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
