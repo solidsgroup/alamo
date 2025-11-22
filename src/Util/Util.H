@@ -332,17 +332,21 @@ int SubFinalMessage(int failed);
 //
 template<class T>
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/, const int nghost=2)
 {
+    // We want the default to setMultiGhost(true) if nghost isn't explicitly passed, so nghost should default to a number greater than 1
     BL_PROFILE("Util::RealFillBoundary");
-    a_mf.setMultiGhost(true);
+    if (nghost <= 1) {}
+    else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/, const int nghost=2)
 {
+    // We want the default to setMultiGhost(true) if nghost isn't explicitly passed, so nghost should default to a number greater than 1
     BL_PROFILE("Util::RealFillBoundary");
-    a_mf.setMultiGhost(true);
+    if (nghost <= 1) {}
+    else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
 
