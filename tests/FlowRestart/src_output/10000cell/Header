@@ -1,0 +1,50 @@
+HyperCLaw-V1.1
+24
+eta
+eta_old
+etadot
+density
+energy
+momentumx
+momentumy
+pressure
+velocityx
+velocityy
+vorticity
+m0
+u0x
+u0y
+qx
+qy
+solid.momentumx
+solid.momentumy
+solid.density
+solid.energy
+Source001
+Source002
+Source003
+Source004
+2
+9.999999999999897
+1
+0 0 
+0.1875 3 
+2 
+((0,0) (3,63) (0,0)) ((0,0) (7,127) (0,0)) 
+10000 20000 
+0.046875 0.046875 
+0.0234375 0.0234375 
+0
+0
+0 1 9.999999999999897
+10000
+0 0.1875
+0 3
+Level_0/Cell
+1 2 9.999999999999897
+20000
+0 0.1875
+0.1875 0.796875
+0 0.1875
+2.203125 2.8125
+Level_1/Cell
