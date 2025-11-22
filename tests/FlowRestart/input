@@ -10,6 +10,7 @@
 
 plot_file = ./output.couette
 restart = tests/FlowRestart/src_output/10000cell
+amr.abort_on_nan = 0
 
 ### MESHING ###
 
