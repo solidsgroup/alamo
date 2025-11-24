@@ -201,7 +201,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
                         Unit::Temperature());
 
     // Eta value to restrict the refinament for the temperature field 
-    pp.query_default(   "amr.refinament_restriction", value.t_refinement_restriction, "0.1",
+    pp.query_default(   "amr.refinement_restriction", value.t_refinement_restriction, "0.1",
                         Unit::Less());
 
     // Refinement criterion for phi field [infinity]
@@ -209,12 +209,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Minimum allowable threshold for $\eta$
     pp_query_default("small", value.small, 1.0e-8); 
-
-    // Initial condition for $\phi$ field.
-    pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>
-        ("phi.ic",value.ic_phi,value.geom);
-
-    value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
 
     // Whether to use Neo-hookean Elastic model
     pp_query_default("elastic.on", value.elastic.on, 0); 
@@ -239,7 +233,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
         // Use our current eta field as the psi field for the solver
         value.psi_on = false;
-        value.solver.setPsi(value.eta_mf);
+        value.solver.setPsi(value.phi_mf);  // TODO: Verify this works properly if phi is multi-component
     }
 
     bool allow_unused;
@@ -258,15 +252,17 @@ void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
-n
-    ic_eta->Initialize(lev, eta_mf);
-    ic_eta->Initialize(lev, eta_old_mf);
-    ic_phi->Initialize(lev, phi_mf);
-    //ic_phicell->Initialize(lev, phicell_mf);
+
+    for (int i = 0; i < num_species; i++)
+    {
+        ic_phi[i]->Initialize(lev, phi_mf);
+        ic_phi[i]->Initialize(lev, phi_old_mf);
+    }
 
     if (elastic.on) {
         rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
+    
     if (thermal.on) {
         if (thermal.ic_temp)
         {
@@ -285,6 +281,7 @@ n
         heatflux_mf[lev]->setVal(0.0);
         ic_laser->Initialize(lev, laser_mf);
     }
+    
     if (variable_pressure) chamber.pressure = 1.0;
 }
 
