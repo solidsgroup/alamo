@@ -12,7 +12,7 @@
 #include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
 
-#if AMREX_SPACEDIM==2
+// #if AMREX_SPACEDIM==2
 
 namespace Integrator
 {
@@ -182,5 +182,5 @@ protected:
 };
 }
 
-#endif
+// #endif
 #endif
