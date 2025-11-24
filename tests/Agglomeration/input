@@ -1,0 +1,151 @@
+alamo.program = agglomeration
+plot_file = tests/Agglomeration/output
+
+# AMR parameters
+amr.plot_dt = 5e-5
+amr.blocking_factor = 8
+amr.grid_eff = 1
+amr.thermo.plot_dt = 1e-5
+flame.amr.refinement_criterion = 0.1
+flame.amr.refinement_criterion_temp = 10.0
+flame.amr.phi_refinement_criterion = 0.5
+amr.cell.all = 1
+amr.node.all = 1
+
+# Geometry and AMR level specification
+amr.n_cell = 8 8 8
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 5e-4 5e-4 5e-4
+amr.max_level = 4
+geometry.is_periodic = 0 0 0
+
+# Timestep and duration
+timestep = 1e-6
+stop_time = 1.0
+
+# Phase field parameters
+flame.pf.eps = 1e-6
+flame.pf.lambda = 1e-3
+flame.pf.eta.ic.type = constant
+flame.pf.eta.ic.constant.value = 1.0
+flame.pf.kappa = 1.0
+flame.pf.w1 = 1.0
+flame.pf.w12 = 2.0
+flame.pf.w0 = 0.0
+flame.small = 1e-4
+
+# eta boundary condition
+flame.pf.eta.bc.type = constant
+flame.pf.eta.bc.constant.type.xlo = dirichlet
+flame.pf.eta.bc.constant.type.xhi = dirichlet
+flame.pf.eta.bc.constant.type.ylo = neumann
+flame.pf.eta.bc.constant.type.yhi = neumann
+flame.pf.eta.bc.constant.type.zlo = neumann
+flame.pf.eta.bc.constant.type.zhi = neumann
+flame.pf.eta.bc.constant.val.xlo = 0.0
+flame.pf.eta.bc.constant.val.xhi = 1.0
+flame.pf.eta.bc.constant.val.ylo = 0.0
+flame.pf.eta.bc.constant.val.yhi = 0.0
+flame.pf.eta.bc.constant.val.zlo = 0.0
+flame.pf.eta.bc.constant.val.zhi = 0.0
+
+# Phi initial condition (spheres)
+flame.phi.ic.type = psread
+flame.phi.ic.psread.filename = tests/Agglomeration/2d.xyzr
+flame.phi.ic.psread.eps = 1.13e-5
+
+# Use the full-feedback propellant model
+flame.propellant.type = fullfeedback
+# Arrhenius rate law params
+flame.propellant.fullfeedback.m_ap = 1.45e5
+flame.propellant.fullfeedback.m_htpb = 1.04e2
+flame.propellant.fullfeedback.E_ap = 1.1e4
+flame.propellant.fullfeedback.E_htpb = 7.5e3
+flame.propellant.fullfeedback.mob_ap = 1
+flame.propellant.fullfeedback.bound = 300.0
+# Thermal transport params
+flame.propellant.fullfeedback.rho_ap = 1.95e3
+flame.propellant.fullfeedback.rho_htpb = 920.0
+flame.propellant.fullfeedback.k_ap = 0.4186
+flame.propellant.fullfeedback.k_htpb = 0.13
+flame.propellant.fullfeedback.cp_ap = 1.2979e3
+flame.propellant.fullfeedback.cp_htpb = 2.41829e3
+# Mass-to-heat flux estimation params
+flame.propellant.fullfeedback.a1 = 1.114
+flame.propellant.fullfeedback.a2 = 0.46
+flame.propellant.fullfeedback.a3 = 2.797
+flame.propellant.fullfeedback.b1 = 0.323
+flame.propellant.fullfeedback.b2 = 0.42
+flame.propellant.fullfeedback.b3 = 0.3225
+flame.propellant.fullfeedback.c1 = -0.09906
+flame.propellant.fullfeedback.mlocal_ap = 1e3
+flame.propellant.fullfeedback.mlocal_comb = 0.0
+flame.propellant.fullfeedback.phi.zeta_0 = 1.13e-5
+flame.propellant.fullfeedback.phi.zeta = 1.13e-5 
+flame.propellant.fullfeedback.Pref = 1.0_MPa 
+
+# Activate thermal transport
+flame.thermal.on = 1
+
+# Temperature boundary conditions
+flame.thermal.temp.bc.type = constant
+flame.thermal.temp.bc.constant.type.xlo = neumann
+flame.thermal.temp.bc.constant.type.xhi = neumann
+flame.thermal.temp.bc.constant.type.ylo = neumann
+flame.thermal.temp.bc.constant.type.yhi = neumann
+flame.thermal.temp.bc.constant.type.zlo = neumann
+flame.thermal.temp.bc.constant.type.zhi = neumann
+flame.thermal.temp.bc.constant.val.xlo = 0.0
+flame.thermal.temp.bc.constant.val.xhi = 0.0
+flame.thermal.temp.bc.constant.val.ylo = 0.0
+flame.thermal.temp.bc.constant.val.yhi = 0.0
+flame.thermal.temp.bc.constant.val.zlo = 0.0
+flame.thermal.temp.bc.constant.val.zhi = 0.0
+
+# Temperature initial conditions
+flame.temp.ic.type = constant
+flame.temp.ic.constant.value = 500
+
+# Laser source term
+flame.laser.ic.type = constant
+flame.laser.ic.constant.value = 1.0e6
+flame.thermal.hc = 1.0e7
+
+# Pressure
+flame.chamber.pressure = 4.0_MPa
+
+# Mechanics
+flame.elastic.on = 0
+flame.elastic.type = disable
+
+# Agglomeration kinetics method
+kinetics_method = ConstrainedAllenCahn
+
+# Agglomeration parameters
+sigma = 1e0
+epsilon = 1e-5
+lambda = 5e4
+L_0 = 8e0
+n = 3e0
+
+# Agglomerate order parameter initial condition
+alpha.ic.type = random
+
+# Agglomerate order parameter boundary conditions
+alpha.bc.type = constant
+alpha.bc.constant.type.xlo = dirichlet
+alpha.bc.constant.type.xhi = dirichlet
+alpha.bc.constant.type.ylo = dirichlet
+alpha.bc.constant.type.yhi = dirichlet
+alpha.bc.constant.type.zlo = dirichlet
+alpha.bc.constant.type.zhi = dirichlet
+alpha.bc.constant.val.xlo = 0.0
+alpha.bc.constant.val.xhi = 0.0
+alpha.bc.constant.val.ylo = 0.0
+alpha.bc.constant.val.yhi = 0.0
+alpha.bc.constant.val.zlo = 0.0
+alpha.bc.constant.val.zhi = 0.0
+
+# Miscellaneous agglomeration parameters
+gradient_refinement_threshold = 1e-1
+eta_refinement_threshold = 0.9
