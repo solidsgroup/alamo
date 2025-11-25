@@ -337,7 +337,12 @@ def test(testdir):
                 
             # Determine if we want to restart this simulation from a previous test.
             if 'restart' in config[desc].keys():
-                cmdargs += " restart=" + config[desc]['restart'].replace(r'{testid}',testid)
+                restartfile = config[desc]['restart'].replace(r'{testid}',testid)
+                if not os.path.isdir(restartfile):
+                    print("  ├ {}{} (skipped - no restart file)".format(color.boldyellow,desc,color.reset))
+                    skips += 1
+                    continue
+                cmdargs += " restart=" + restartfile
                 config[desc].pop('restart')
         
 
