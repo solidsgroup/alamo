@@ -5,7 +5,7 @@
 #@ check=false
 #@ args=stop_time=15.0
 #@
-#@ [couette-restart2]
+#@ [couette-restart]
 #@ exe=hydro
 #@ dim=2
 #@ restart=tests/FlowRestart/{testid}_couette/15000cell
