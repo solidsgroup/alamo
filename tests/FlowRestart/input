@@ -1,7 +1,14 @@
 #@
-#@ [Couette-Restart]
+#@ [couette]
 #@ exe=hydro
 #@ dim=2
+#@ check=false
+#@ args=stop_time=15.0
+#@
+#@ [couette-restart2]
+#@ exe=hydro
+#@ dim=2
+#@ restart=tests/FlowRestart/{testid}_couette/15000cell
 #@ check-file = reference/eps0.20.dat
 #@
 
@@ -9,7 +16,6 @@
 ### OUTPUT ###
 
 plot_file = ./output.couette
-restart = tests/FlowRestart/src_output/10000cell
 amr.abort_on_nan = 0
 
 ### MESHING ###

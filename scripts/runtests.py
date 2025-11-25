@@ -334,6 +334,12 @@ def test(testdir):
             if args.exe:
                 if not exe in args.exe:
                     continue
+                
+            # Determine if we want to restart this simulation from a previous test.
+            if 'restart' in config[desc].keys():
+                cmdargs += " restart=" + config[desc]['restart'].replace(r'{testid}',testid)
+                config[desc].pop('restart')
+        
 
             # If the exestr doesn't exist, exit noisily.
             # The script will continue but will return a nonzero
@@ -577,6 +583,7 @@ def test(testdir):
         # The exception handling is basically the same as for the above test.
         if check and not args.memcheck:
             try:
+                cmd = ["./test","{}_{}".format(testid,desc)]
                 if args.cmd: 
                     print("  ├      " + ' '.join(cmd))
                 print("  │      Checking result.........................................",end="",flush=True)
@@ -584,7 +591,6 @@ def test(testdir):
                 if args.dryrun:
                     if ('check-file') in config[desc].keys(): config[desc].pop('check-file')
                     raise DryRunException()
-                cmd = ["./test","{}_{}".format(testid,desc)]
                 if "check-file" in config[desc ].keys():
                     cmd.append(config[desc]['check-file'])
                     config[desc].pop('check-file')
