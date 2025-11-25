@@ -108,6 +108,7 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
+parser.add_argument('--permit-skips', dest='permit_skips', default=False, action='store_true', help='Permit skips without failing')
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
@@ -767,7 +768,9 @@ if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowe
 if stats.timeouts: print("{}{} tests timed out".format(color.lightgray,stats.timeouts,color.reset))
 print("")
 
-return_code = stats.fails + stats.skips
+return_code = stats.fails
+if not args.permit_skips:
+    return_code += stats.skips
 if not args.permit_timeout:
     return_code += stats.timeouts
 
