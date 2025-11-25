@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include "IO/ParmParse.H"
 #include "Model/Gas/Transport/Transport.H"
 
 // Type: 0,1 determines if per species viscosity and thermal conductivity are 
@@ -36,6 +37,9 @@ namespace Gas {
 namespace Transport {
 
 class Mixture_Averaged : public Transport {
+public:
+    static constexpr const char* name = "mixture_averaged";
+
 private:
     int type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
@@ -43,7 +47,20 @@ private:
 
 public:
     Mixture_Averaged() {} ;
+    Mixture_Averaged(int a_nspecies, IO::ParmParse& pp, std::string name) : Mixture_Averaged()
+    {
+        nspecies = a_nspecies;
+        pp.queryclass(name, *this);
+    }
+
     ~Mixture_Averaged() override = default;
+
+    static void Parse(Mixture_Averaged & value, IO::ParmParse & pp)
+    {
+        pp.query_required("type", value.type)
+        if (value.type == 1)
+        {
+            pp.queryarr_required("mu", value.mu, Unit::
 
 private:
     double collision_integral(double Tstar) const {

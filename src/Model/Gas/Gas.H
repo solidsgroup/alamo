@@ -4,14 +4,13 @@
 #include <vector>
 #include <cmath>
 #include <memory>
-//#include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/NASA7.H"
+#include "Model/Gas/Transport/Mixture_Averaged.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
-#include "Transport/Transport.H"
 #include "EOS/EOS.H"
 
 namespace Model {
@@ -24,7 +23,8 @@ protected:
     std::vector<double> MW;      // Species molecular weights, kg/kmol
     //std::shared_ptr<Thermo::Thermo> thermo;
     Thermo::Thermo *thermo;
-    std::shared_ptr<Transport::Transport> transport;
+    //std::shared_ptr<Transport::Transport> transport;
+    Transport::Transport *transport;
     std::shared_ptr<EOS::EOS> eos;
 
 public:
@@ -36,7 +36,10 @@ public:
         pp.query_default("nspecies",value.nspecies,1);
 
         // thermal model
-        pp.select<Thermo::CpConstant,Thermo::NASA7>("thermo",value.thermo, value.nspecies);
+        pp.select<Thermo::CpConstant,Thermo::NASA7>("thermo", value.thermo, value.nspecies);
+
+        // transport model
+        pp.select<Transport::Mixture_Averaged("transport", value.transport, value.nspecies);
     }
     
 public:
