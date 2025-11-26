@@ -10,7 +10,7 @@ sudo apt install build-essential g++ gfortran
 # Use apt (or apt-get) to install these packages
 # [ you should only need to do this once ]
 #
-sudo apt install libopenmpi-dev
+sudo apt install libmpich-dev libmpich12 mpich
 sudo apt install libeigen3-dev
 sudo apt install libpng-dev
 
