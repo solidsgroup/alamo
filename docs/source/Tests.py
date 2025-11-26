@@ -248,9 +248,10 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                         cmd += ' {}="{}"'.format(s.split('=')[0], s.split('=')[1])
             if "ignore" in config[c]:
                 cmd += ' ignore="{}"'.format(config[c]["ignore"])
+            if "restart" in config[c]:
+                cmd += ' restart='+config[c]["restart"]
 
             testdocfile.write("      - .. code-block:: bash \n\n             {}\n".format(cmd))
-
 
             testdocfile.write("\n\n")
         
