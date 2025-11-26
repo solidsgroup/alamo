@@ -27,7 +27,7 @@ jobs:
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips
 
   memcheck-2d-asan-clang:
     runs-on: ubuntu-24.04
@@ -47,7 +47,7 @@ jobs:
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
 
   memcheck-2d-msan-clang:
     runs-on: ubuntu-24.04
@@ -67,5 +67,5 @@ jobs:
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
 

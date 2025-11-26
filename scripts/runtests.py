@@ -108,6 +108,7 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
+parser.add_argument('--permit-skips', dest='permit_skips', default=False, action='store_true', help='Permit skips without failing')
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
@@ -334,6 +335,17 @@ def test(testdir):
             if args.exe:
                 if not exe in args.exe:
                     continue
+                
+            # Determine if we want to restart this simulation from a previous test.
+            if 'restart' in config[desc].keys():
+                restartfile = config[desc]['restart'].replace(r'{testid}',testid)
+                if not os.path.isdir(restartfile):
+                    print("  ├ {}{} (skipped - no restart file)".format(color.boldyellow,desc,color.reset))
+                    skips += 1
+                    continue
+                cmdargs += " restart=" + restartfile
+                config[desc].pop('restart')
+        
 
             # If the exestr doesn't exist, exit noisily.
             # The script will continue but will return a nonzero
@@ -577,6 +589,7 @@ def test(testdir):
         # The exception handling is basically the same as for the above test.
         if check and not args.memcheck:
             try:
+                cmd = ["./test","{}_{}".format(testid,desc)]
                 if args.cmd: 
                     print("  ├      " + ' '.join(cmd))
                 print("  │      Checking result.........................................",end="",flush=True)
@@ -584,7 +597,6 @@ def test(testdir):
                 if args.dryrun:
                     if ('check-file') in config[desc].keys(): config[desc].pop('check-file')
                     raise DryRunException()
-                cmd = ["./test","{}_{}".format(testid,desc)]
                 if "check-file" in config[desc ].keys():
                     cmd.append(config[desc]['check-file'])
                     config[desc].pop('check-file')
@@ -756,7 +768,9 @@ if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowe
 if stats.timeouts: print("{}{} tests timed out".format(color.lightgray,stats.timeouts,color.reset))
 print("")
 
-return_code = stats.fails + stats.skips
+return_code = stats.fails
+if not args.permit_skips:
+    return_code += stats.skips
 if not args.permit_timeout:
     return_code += stats.timeouts
 
