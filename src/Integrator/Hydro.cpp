@@ -12,7 +12,7 @@
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
-#if AMREX_SPACEDIM == 2
+// #if AMREX_SPACEDIM == 2
 
 namespace Integrator
 {
@@ -1041,7 +1041,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
                 Util::Exception(INFO);
             }
-#endif
+	    // #endif
 
 
 
