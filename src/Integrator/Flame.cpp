@@ -446,7 +446,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             // u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
             // u0_patch(i,j,k,1) = u0(1);
 
-	    Set::Vector u0;
+	        Set::Vector u0;
             u0(0) = hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi);
             u0(1) = 0.0; 
             #if AMREX_SPACEDIM == 3
@@ -460,16 +460,16 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 	        #if AMREX_SPACEDIM == 2
                 Set::Vector T(N(1), -N(0));
                 u0 = N * u0(0) + T * u0(1);
-		#endif
+		    #endif
 
-                #if AMREX_SPACEDIM == 3
-		Set::Vector T;
-		T(0) = N(1);
-		T(1) = -N(0);
-		T(2) = 0;
-		u0 = N*u0(0) + T * u0(1);
-		// Might not be physcially accurate, need to find how to extend to 3 dimensions
-		#endif
+            #if AMREX_SPACEDIM == 3
+                Set::Vector T;
+                T(0) = N(1);
+                T(1) = -N(0);
+                T(2) = 0;
+                u0 = N*u0(0) + T * u0(1);
+                // Might not be physcially accurate, need to find how to extend to 3 dimensions
+            #endif
 		
             }
 

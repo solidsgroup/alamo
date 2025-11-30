@@ -736,9 +736,18 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta) * rho_solid(i,j,k);
             Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta) * E_solid(i,j,k);
+            
+            Set::Vector etaM_fluid;
 
-            Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta) * M_solid(i,j,k,0),
-                                    M(i,j,k,1) - (1.-eta) * M_solid(i,j,k,1) );
+            etaM_fluid(0) = M(i,j,k,0) - (1.-eta) * M_solid(i,j,k,0);
+            etaM_fluid(1) = M(i,j,k,1) - (1.-eta) * M_solid(i,j,k,1);
+            
+            #if AMREX_SPACEDIM == 3
+                etaM_fluid(2) = 0.0;
+            #endif
+
+            //Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta) * M_solid(i,j,k,0),
+                                    //M(i,j,k,1) - (1.-eta) * M_solid(i,j,k,1) );
 
             //THESE ARE FLUID VELOCITY AND PRESSURE
 
@@ -750,6 +759,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             {
                 v(i,j,k,0) *= eta;
                 v(i,j,k,1) *= eta;
+
+                #if AMREX_SPACEDIM == 3
+                    v(i,j,k,2) *= eta;
+                #endif
             }
         });
     }
@@ -804,23 +817,43 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Matrix hess_eta     = Numeric::Hessian(eta_patch, i, j, k, 0, DX);
             if (invert) grad_eta *= -1.0;
             if (invert) hess_eta *= -1.0;
+            
+            #if AMREX_SPACEDIM == 2
+                Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1)); // Velocity
+                Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1)); // Velocity
+                Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1));
+            #endif
 
-            Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1)); // Velocity
-            Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1)); // Velocity
+            #if AMREX_SPACEDIM == 3
+                Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1), velocity(i, j, k, 2)); // Velocity
+                Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1), _u0(i, j, k, 2)); // Velocity
+                Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1), q(i,j,k,2));
+            #endif
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho      = Numeric::Gradient(rho,i,j,k,0,DX);
             Set::Matrix hess_rho     = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
-
-
             if (prescribedflowmode == PrescribedFlowMode::Relative)
             {
                 Set::Vector N = grad_eta / (grad_eta_mag + small);
-                Set::Vector T(N(1), -N(0));
-                u0 = N * u0(0) + T * u0(1);
+                // Set::Vector T(N(1), -N(0));
+                // u0 = N * u0(0) + T * u0(1);
+
+                #if AMREX_SPACEDIM == 2
+                    Set::Vector T(N(1), -N(0));
+                    u0 = N * u0(0) + T * u0(1);
+                #endif
+
+                #if AMREX_SPACEDIM == 3
+                    Set::Vector T;
+                    T(0) = N(1);
+                    T(1) = -N(0);
+                    T(2) = 0;
+                    u0 = N*u0(0) + T * u0(1);
+                    // Might not be physcially accurate, need to find how to extend to 3 dimensions
+                #endif
             }
 
 
@@ -1041,9 +1074,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
                 Util::Exception(INFO);
             }
-	    // #endif
-
-
+#endif
 
             // todo - may need to move this for higher order schemes...
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
@@ -1135,6 +1166,3 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 }
 
 }
-
-
-#endif
