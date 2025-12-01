@@ -13,7 +13,7 @@
 
 alamo.program = flame
 
-plot_file = tests/SCPSolid/output
+plot_file = tests/SCPSolidElastic/output
 
 system.length = mm
 system.time = s
