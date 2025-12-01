@@ -247,8 +247,8 @@ void Hydro::Mix(int lev)
 
         Set::Patch<const Set::Scalar> eta       = eta_mf.Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> v         = velocity_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho       = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho_old   = density_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       M         = momentum_mf.Patch(lev,mfi);
@@ -265,23 +265,32 @@ void Hydro::Mix(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
-            // compute primitives and energy before mixing
-            gas->ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions
+            // Initially compute primitives (T,P,u) from given initial conditions
+            // But from then on, compute them from mixed values to avoid zero T conditions
+            // Except velocity - keep velocity from fluid values only
+            gas->ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
             Set::Scalar density = gas->ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
             T(i,j,k) = gas->ComputeT(p(i,j,k), density, X, i, j, k);
             Set::Scalar E_fluid = gas->ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
 
             // Mix
-            rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
-            rho_old(i, j, k) = rho(i, j, k);
-
             M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
             M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta(i, j, k)  +  M_solid(i, j, k, 1)*(1.0-eta(i, j, k));
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
+            rho(i, j, k) = eta(i, j, k) * rho(i, j, k) + (1.0 - eta(i, j, k)) * rho_solid(i, j, k);
+            rho_old(i, j, k) = rho(i, j, k);
+
             E(i, j, k) = E_fluid*eta(i, j, k) + E_solid(i,j,k)*(1.0-eta(i,j,k));
             E_old(i, j, k) = E(i, j, k);
+
+            gas->ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
+            density = gas->ComputeD(rho, i, j, k);
+            T(i, j, k) = gas->ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            p(i, j, k) = gas->ComputeP(density, T(i,j,k), X, i, j, k);
+            v(i,j,k,0) = M(i,j,k,0)/density;
+            v(i,j,k,1) = M(i,j,k,1)/density;
         });
     }
     c_max = 0.0;
@@ -699,27 +708,20 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-
-            Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta(i,j,k)) * rho_solid(i,j,k);
-            Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta(i,j,k)) * E_solid(i,j,k);
-
-            Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta(i,j,k)) * M_solid(i,j,k,0),
-                                    M(i,j,k,1) - (1.-eta(i,j,k)) * M_solid(i,j,k,1) );
-
-            //THESE ARE FLUID VELOCITY AND PRESSURE
-
-            v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
-            v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
-
-            // Get fluid values to compute primitives
-            scratch(i,j,k) = (rho(i,j,k) - (1.0 - eta(i,j,k))*rho_solid(i,j,k))/(eta(i,j,k) + small);
-            Set::Scalar Mx_fluid = etaM_fluid(0)/(eta(i,j,k) + small);
-            Set::Scalar My_fluid = etaM_fluid(1)/(eta(i,j,k) + small);
-            Set::Scalar E_fluid = etaE_fluid/(eta(i,j,k) + small);
-            gas->ComputeLocalFractions(scratch, Y, X, i, j, k);
-            Set::Scalar density = gas->ComputeD(scratch, i, j, k);
-            T(i,j,k) = gas->ComputeT(density, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
+            // Compute primitives from mixed values
+            gas->ComputeLocalFractions(rho, Y, X, i, j, k);
+            Set::Scalar density = gas->ComputeD(rho, i, j, k);
+            T(i,j,k) = gas->ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
             p(i,j,k) = gas->ComputeP(density, T(i,j,k), X, i, j, k);
+            v(i,j,k,0) = M(i,j,k,0)/density;
+            v(i,j,k,1) = M(i,j,k,1)/density;
+
+            //scratch(i,j,k) = (rho(i,j,k) - rho_solid(i,j,k)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
+            //Set::Scalar density_fluid = gas->ComputeD(scratch, i, j, k);
+            //Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
+            //Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
+            //v(i,j,k,0) = Mx_fluid/density_fluid;
+            //v(i,j,k,1) = My_fluid/density_fluid;
         });
     }
 
@@ -754,8 +756,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> eta       = eta_old_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> T = temperature_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> molef = mole_fraction_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> molef     = mole_fraction_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -857,12 +859,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta(i,j,k);
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta(i,j,k);
+                flux_xlo = riemannsolver->Solve(state_xlo, state_x, gas, molef, i, j, k, 0, small) * eta(i,j,k);
+                flux_ylo = riemannsolver->Solve(state_ylo, state_y, gas, molef, i, j, k, 2, small) * eta(i,j,k);
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta(i,j,k);
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta(i,j,k);
+                flux_xhi = riemannsolver->Solve(state_x, state_xhi, gas, molef, i, j, k, 1, small) * eta(i,j,k);
+                flux_yhi = riemannsolver->Solve(state_y, state_yhi, gas, molef, i, j, k, 3, small) * eta(i,j,k);
             }
             catch(...)
             {
