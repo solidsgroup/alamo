@@ -3,75 +3,42 @@
 
 #include <cmath>
 #include <memory>
+#include "IO/ParmParse.H"
+#include "Model/Gas/Gas.H"
 #include "Model/Gas/EOS/EOS.H"
 #include "Util/Util.H"
 
 namespace Model {
 namespace Gas {
+class Gas; // Forward declare Gas
+
 namespace EOS {
 
 class TPG : public EOS {
 public:
-    TPG() {} ;
-    //TPG(std::shared_ptr<GasData> data_in, std::shared_ptr<Gas> gas_in) : EOS(data_in, gas_in) {};
+    static constexpr const char* name = "tpg";
+
+private:
+    Gas const * const gas;
+
+public:
+    TPG() = delete;
+    TPG(Gas *a_gas, IO::ParmParse& pp, std::string name) : gas(a_gas)
+    {
+        pp.queryclass(name, *this);
+    }
+
     ~TPG() override = default;
 
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const override {
-        /*
-        // Temperature, K
-        double vx = momentumx/density;
-        double vy = momentumy/density;
-        double e_int = E/density - 0.5*(vx*vx + vy*vy);
-
-        // Newton-Raphson Method
-        double T_old = Tguess;
-        double T = Tguess;
-        bool convergedT = false;
-        double h=0.0, e=0.0;
-        double counter = 0;
-        while (!convergedT && counter <= 100) {
-            ++counter;
-            T_old = T;
-            double cv = gas->cv_mass(T, X, i, j, k);
-            h = gas->enthalpy_mass(T, X, i, j, k);
-            e = h - gas->R(X, i, j, k) * T;
-            T = T_old - (e - e_int)/cv;
-            convergedT = ( std::fabs(T-T_old)/T < rtol );
-        }
-        if (!convergedT) {
-            Util::Abort(INFO, "Temperature didn't converge after ",counter," iterations. T_old: ",T_old," T: ",T);
-        }
-        return T;
-        */
-    }
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const override;
     double ComputeT(double pressure, double density,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
-        /*
-        // Temperature, K
-        double T = pressure / density / gas->R(X, i, j, k);
-        return T;
-        */
-    }
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;
     double ComputeP(double density, double T,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
-        /*
-        // Pressure, Pa
-        double P = density * gas->R(X, i, j, k) * T;
-        return P;
-        */
-    }
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;
     double ComputeE(double density, double momentumx, double momentumy, double T,
-                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override {
-        /*
-        // Energy, J/m^3
-        double P = density * gas->R(X, i, j, k) * T;
-        double rhoE = P / (gas->gamma(T, X, i, j, k) - 1.0);
-        double E = rhoE + 0.5*(momentumx*momentumx + momentumy*momentumy)/density;
-        return E;
-        */
-    }
+                    Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;
 
 }; // class TPG
 

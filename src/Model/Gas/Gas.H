@@ -7,30 +7,29 @@
 #include "Model/Gas/Thermo/CpConstant.H"
 #include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/EOS/CPG.H"
+#include "Model/Gas/EOS/TPG.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
 #include "IO/ParmParse.H"
-#include "EOS/EOS.H"
 
 namespace Model {
 namespace Gas {
 
 class Gas {
 protected:
-    //std::shared_ptr<GasData> data;
     int nspecies;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
-    //std::shared_ptr<Thermo::Thermo> thermo;
     Thermo::Thermo *thermo = nullptr;
-    //std::shared_ptr<Transport::Transport> transport;
     Transport::Transport *transport = nullptr;
-    std::shared_ptr<EOS::EOS> eos;
+    EOS::EOS *eos = nullptr;
 
 public:
     virtual ~Gas() {
         delete thermo;
         delete transport;
+        delete eos;
     }
 
     static void Parse(Gas & value, IO::ParmParse & pp)
@@ -47,6 +46,11 @@ public:
         delete value.transport;
         value.transport = nullptr;
         pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
+
+        // eos model
+        delete value.eos;
+        value.eos = nullptr;
+        pp.select<EOS::CPG,EOS::TPG>("eos", value.eos, &value);
     }
     
 public:
