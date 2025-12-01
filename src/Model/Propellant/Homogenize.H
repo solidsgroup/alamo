@@ -30,7 +30,7 @@ public:
     Set::Scalar Pbar = NAN;
     void set_pressure(const Set::Scalar P) 
     {
-        this->Pbar = P/Pref;
+        this->Pbar = P/P_reference;
         k4 = h1 * P + h2;
     }
     
@@ -74,7 +74,7 @@ public:
     Set::Scalar get_L (Set::Scalar phi, Set::Scalar T) 
     {
         Set::Scalar L = NAN;
-        if (mob_prop == 1) L = m_prop * Pbar * exp(-E_prop / T) * phi;
+        if (mob_prop == 1) L = m_prop * pow(Pbar, pressure_exponent) * exp(-E_prop / T) * phi;
         else L = m_prop * exp(-E_prop / T) * phi;
         if (T <= bound) L = 0.0;
         
@@ -123,7 +123,7 @@ public:
         // Surgate heat flux model paramater - Homogenized
         pp.query_default("h2", value.h2, "1.34_J/m/K",Unit::HeatFlux()); 
         // Reference pressure
-        pp.query_default("Pref", value.Pref, "1_MPa",Unit::Pressure()); 
+        pp.query_default("P_reference", value.P_reference, "1_MPa",Unit::Pressure()); 
 
         // AP mass flux reference value 
         pp.query_default("mlocal_prop", value.mlocal, "0.0_kg/m^2/s", 
@@ -137,6 +137,8 @@ public:
         pp.query_default("mob_prop", value.mob_prop,false); 
         // HTPB Activation Energy for Arrhenius Law
         pp.query_default("bound", value.bound,"0_K", Unit::Temperature()); 
+
+        pp.query_default("pressure_exponent", value.pressure_exponent,"0.5_1", Unit::Less());
     }
 
     // IO variables
@@ -152,7 +154,8 @@ public:
     Set::Scalar m_prop = NAN;
     Set::Scalar E_prop = NAN;
     Set::Scalar bound = NAN;
-    Set::Scalar Pref = NAN;
+    Set::Scalar P_reference = NAN;
+    Set::Scalar pressure_exponent = NAN;
 
     // Calculated variables
     Set::Scalar k4 = NAN;
