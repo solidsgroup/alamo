@@ -22,24 +22,31 @@ protected:
     int nspecies;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
     //std::shared_ptr<Thermo::Thermo> thermo;
-    Thermo::Thermo *thermo;
+    Thermo::Thermo *thermo = nullptr;
     //std::shared_ptr<Transport::Transport> transport;
-    Transport::Transport *transport;
+    Transport::Transport *transport = nullptr;
     std::shared_ptr<EOS::EOS> eos;
 
 public:
-    virtual ~Gas() = default;
+    virtual ~Gas() {
+        delete thermo;
+        delete transport;
+    }
 
     static void Parse(Gas & value, IO::ParmParse & pp)
     {
         // number of species
         pp.query_default("nspecies",value.nspecies,1);
 
-        // thermal model
+        // thermo model
+        delete value.thermo;
+        value.thermo = nullptr;
         pp.select<Thermo::CpConstant,Thermo::NASA7>("thermo", value.thermo, value.nspecies);
 
         // transport model
-        pp.select<Transport::Mixture_Averaged("transport", value.transport, value.nspecies);
+        delete value.transport;
+        value.transport = nullptr;
+        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
     }
     
 public:

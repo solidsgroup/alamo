@@ -13,12 +13,9 @@ namespace EOS {
 
 class EOS {
 protected:
-    // std::shared_ptr<GasData> data;
-    // std::shared_ptr<Gas> gas;
 
 public:
     EOS() {} ;
-    //EOS(std::shared_ptr<GasData> data_in, std::shared_ptr<Gas> gas_in) : data(data_in), gas(gas_in) {}
     virtual ~EOS() = default;
 
     // Temperature, K

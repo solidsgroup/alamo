@@ -41,15 +41,18 @@ public:
     static constexpr const char* name = "mixture_averaged";
 
 private:
+    int nspecies;
+    std::vector<double> &MW;
+    Thermo::Thermo const * const thermo;
     int type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
 
 public:
-    Mixture_Averaged() {} ;
-    Mixture_Averaged(int a_nspecies, IO::ParmParse& pp, std::string name) : Mixture_Averaged()
+    Mixture_Averaged() = delete;
+    Mixture_Averaged(int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo *a_thermo, IO::ParmParse& pp, std::string name)
+        : nspecies(a_nspecies), MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
     {
-        nspecies = a_nspecies;
         pp.queryclass(name, *this);
     }
 
@@ -57,10 +60,23 @@ public:
 
     static void Parse(Mixture_Averaged & value, IO::ParmParse & pp)
     {
-        pp.query_required("type", value.type)
-        if (value.type == 1)
-        {
-            pp.queryarr_required("mu", value.mu, Unit::
+        pp.query_required("type", value.type);
+        switch (value.type) {
+        case 0:
+            pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
+            pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+            break;
+        case 1:
+            pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
+            pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
+            break;
+        default:
+            Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
+        }
+
+        Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
+        Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
+    }
 
 private:
     double collision_integral(double Tstar) const {
@@ -70,15 +86,13 @@ private:
         return S;
     }
     double mu_enskog(double T, int i) const {
-        //return 2.669570e-6 * sqrt(data->MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
+        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
     }
     double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
     {
-         /*
         if (!thermo) Util::Abort(INFO, "[Transport::Mixture_Averaged::k_eucken] Thermo model not set.");
         double cp = thermo->cp_mol(T, X, i, j, k);
-        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * GasData::Ru) / data->MW[n];
-        */
+        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Set::Constant::Rg) / MW[n];
     }
 
 public:
@@ -86,17 +100,16 @@ public:
     {
         // Wilke's Average: Dynamic viscosity, Pa-s
         double mu_mix = 0.0;
-        /*
         switch (type) {
         case 0:
             // dynamic viscosity, mu, is constant per species
-            for (int a = 0; a < data->nspecies; ++a) {
+            for (int a = 0; a < nspecies; ++a) {
                 double mua = val1[a];
-                double MWa = data->MW[a];
+                double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < data->nspecies; ++b) {
+                for (int b = 0; b < nspecies; ++b) {
                     double mub = val1[b];
-                    double MWb = data->MW[b];
+                    double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
                     double mu_ratio = sqrt(mua / mub);
                     double term = sqrt(1.0 + MWa / MWb);
@@ -107,13 +120,13 @@ public:
             break;
         case 1:
             // dynamic viscosity, mu, computed by Chapman-Enskog per species
-            for (int a = 0; a < data->nspecies; ++a) {
+            for (int a = 0; a < nspecies; ++a) {
                 double mua = mu_enskog(T, a);
-                double MWa = data->MW[a];
+                double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < data->nspecies; ++b) {
+                for (int b = 0; b < nspecies; ++b) {
                     double mub = mu_enskog(T, b);
-                    double MWb = data->MW[b];
+                    double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
                     double mu_ratio = sqrt(mua / mub);
                     double term = sqrt(1.0 + MWa / MWb);
@@ -125,7 +138,7 @@ public:
         default:
             Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
         }
-        */
+
         if (!(mu_mix == mu_mix) ) mu_mix = 0.0;
         return mu_mix;
     }
@@ -134,17 +147,16 @@ public:
     {
         // Wilke's Average: Thermal conductivity coefficient, W/(m-K)
         double k_mix = 0.0;
-        /*
         switch (type) {
         case 0:
             // thermal conductivity coefficient, k, is constant per species
-            for (int a = 0; a < data->nspecies; ++a) {
+            for (int a = 0; a < nspecies; ++a) {
                 double mua = val1[a];
-                double MWa = data->MW[a];
+                double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < data->nspecies; ++b) {
+                for (int b = 0; b < nspecies; ++b) {
                     double mub = val1[b];
-                    double MWb = data->MW[b];
+                    double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
                     double mu_ratio = sqrt(mua / mub);
                     double term = sqrt(1.0 + MWa / MWb);
@@ -155,13 +167,13 @@ public:
             break;
         case 1:
             // thermal conductivity coefficient, k, computed by Eucken relation per species
-            for (int a = 0; a < data->nspecies; ++a) {
+            for (int a = 0; a < nspecies; ++a) {
                 double mua = mu_enskog(T, a);
-                double MWa = data->MW[a];
+                double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < data->nspecies; ++b) {
+                for (int b = 0; b < nspecies; ++b) {
                     double mub = mu_enskog(T, b);
-                    double MWb = data->MW[b];
+                    double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
                     double mu_ratio = sqrt(mua / mub);
                     double term = sqrt(1.0 + MWa / MWb);
@@ -173,7 +185,7 @@ public:
         default:
             Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
         }
-        */
+
         return k_mix;
     }
 
@@ -182,10 +194,9 @@ public:
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) override
     {
         // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
-        /*
-        for (int a = 0; a < data->nspecies; ++a) {
+        for (int a = 0; a < nspecies; ++a) {
             double sumD = 0.0;
-            for (int b = 0; b < data->nspecies; ++b) {
+            for (int b = 0; b < nspecies; ++b) {
                 if (a == b) continue;
 
                 double sigmaAB = 0.5 * (val1[a] + val1[b]);
@@ -199,7 +210,7 @@ public:
                     1.76474 / exp(3.89411 * Tstar);
 
                 double DAB = 
-                    0.0018583 * sqrt(T*T*T * (1.0 / data->MW[a] + 1.0 / data->MW[b])) /
+                    0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
                     ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
                 DAB /= 1.0e4;
 
@@ -209,7 +220,6 @@ public:
             DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
             if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
         }
-        */
     }
 
 }; // class Mixture_Averaged

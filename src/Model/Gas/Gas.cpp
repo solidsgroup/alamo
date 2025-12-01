@@ -13,6 +13,7 @@ namespace Model {
 namespace Gas {
 
 // Methods that need to be defined by inherited class
+
 // Thermodynamic quantities
 double Gas::cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Specific heat (constant pressure), J/(kmol-K)

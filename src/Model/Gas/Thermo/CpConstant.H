@@ -43,10 +43,10 @@ public:
         // reference temperature (one per species)
         pp.queryarr_required("Tref",value.Tref, Unit::Temperature());
 
-        Util::Assert(INFO, TEST(value.cp_moles.size() == value.nspecies));
-        Util::Assert(INFO, TEST(value.h0.size() == value.nspecies));
-        Util::Assert(INFO, TEST(value.s0.size() == value.nspecies));
-        Util::Assert(INFO, TEST(value.Tref.size() == value.nspecies));
+        Util::Assert(INFO, TEST(value.cp_moles.size() == (size_t)value.nspecies));
+        Util::Assert(INFO, TEST(value.h0.size() == (size_t)value.nspecies));
+        Util::Assert(INFO, TEST(value.s0.size() == (size_t)value.nspecies));
+        Util::Assert(INFO, TEST(value.Tref.size() == (size_t)value.nspecies));
     }
 
 public:
