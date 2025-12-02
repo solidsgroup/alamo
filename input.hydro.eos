@@ -32,18 +32,18 @@ eta.ic.expression.region0 = "0.5" # - 0.5 * (erf((x)/eps) + 1)"
 #    Gas Model Parameters     #
 ###############################
 
-gas.mw = 28.0
+gas.mw = 28.0_kg/kmol
 
 gas.thermo.type = cpconstant
-gas.thermo.cpconstant.cp_moles = 29.1e3
-gas.thermo.cpconstant.h0 = 0.0
-gas.thermo.cpconstant.s0 = 0.0
-gas.thermo.cpconstant.Tref = 298.15
+gas.thermo.cpconstant.cp_moles = 29.1e3_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0_J/kmol
+gas.thermo.cpconstant.s0 = 0.0_J/kmol/K
+gas.thermo.cpconstant.Tref = 298.15_K
 
 gas.transport.type = mixture_averaged
 gas.transport.mixture_averaged.type = 0
-gas.transport.mixture_averaged.mu = 1.789e-5
-gas.transport.mixture_averaged.k = 0.024
+gas.transport.mixture_averaged.mu = 1.789e-5_Pa*s
+gas.transport.mixture_averaged.k = 0.024_W/m/K
 
 gas.eos.type = cpg
 

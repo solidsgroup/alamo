@@ -36,7 +36,7 @@ public:
     static void Parse(Gas & value, IO::ParmParse & pp)
     {
         // number of species
-        pp.queryarr_default("mw",value.MW,{28.0});
+        pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
         value.nspecies = value.MW.size();
 
         // thermo model
