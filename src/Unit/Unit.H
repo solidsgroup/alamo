@@ -217,12 +217,12 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit SpecificWeight() { return Force() / Volume(); }
     static Unit Work()        { return Energy(); }
     // Thermodynamics
-    static Unit SpecificHeatCapacityMass()    {return Energy() / Mass() / Temperature() ;}
-    static Unit SpecificHeatCapacityMole()    {return Energy() / Amount() / Temperature() ;}
-    static Unit ThermalConductivity()         {return Power()/Length()/Temperature();}
-    static Unit ThermalDiffusivity()          {return ThermalConductivity() / Density() / SpecificHeatCapacityMass();}
-    static Unit HeatFlux()                    { return Power() / Area(); }
-    static Unit HeatTransferCoefficient()     { return HeatFlux() / Temperature(); }
+    static Unit SpecificHeatCapacity()    {return Energy() / Mass() / Temperature() ;}
+    static Unit MolarHeatCapacity()       {return Energy() / Amount() / Temperature() ;}
+    static Unit ThermalConductivity()     {return Power()/Length()/Temperature();}
+    static Unit ThermalDiffusivity()      {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
+    static Unit HeatFlux()                { return Power() / Area(); }
+    static Unit HeatTransferCoefficient() { return HeatFlux() / Temperature(); }
     // Electromagnetism
 
     static Unit Charge()      { return Current() * Time(); }                    // A·s = C

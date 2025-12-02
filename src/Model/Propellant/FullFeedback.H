@@ -144,9 +144,9 @@ public:
         // HTPB Thermal Conductivity
         pp_query_required("k_htpb", value.k_htpb, Unit::ThermalConductivity());
         // AP Specific Heat
-        pp_query_required("cp_ap", value.cp_ap,Unit::SpecificHeatCapacityMass());
+        pp_query_required("cp_ap", value.cp_ap,Unit::SpecificHeatCapacity());
         //HTPB Specific Heat
-        pp_query_required("cp_htpb", value.cp_htpb,Unit::SpecificHeatCapacityMass()); 
+        pp_query_required("cp_htpb", value.cp_htpb,Unit::SpecificHeatCapacity()); 
 
         // AP Pre-exponential factor for Arrhenius Law
         pp_query_required("m_ap", value.m_ap,Unit::Velocity()); 
