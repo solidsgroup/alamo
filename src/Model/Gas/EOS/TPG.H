@@ -30,6 +30,8 @@ public:
 
     ~TPG() override = default;
 
+    static void Parse(TPG & /*value*/, IO::ParmParse & /*pp*/) {}
+
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const override;

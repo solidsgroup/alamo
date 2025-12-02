@@ -27,6 +27,8 @@ public:
 
     ~CPG() override = default;
 
+    static void Parse(CPG & /*value*/, IO::ParmParse & /*pp*/) {}
+
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k, double /*rtol=1e-12*/) const override;
