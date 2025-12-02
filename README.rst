@@ -12,6 +12,7 @@
        <img src="https://img.shields.io/github/issues-pr/solidsuccs/alamo.svg">
        <img src="https://img.shields.io/github/issues/solidsuccs/alamo.svg">
        <img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10381768.svg">
+       <a href="https://joss.theoj.org/papers/43ba1a1a4b86a557f2c74b9f2296a0f4"><img src="https://joss.theoj.org/papers/43ba1a1a4b86a557f2c74b9f2296a0f4/status.svg"></a>
    </p>
 
 .. getting-started:
