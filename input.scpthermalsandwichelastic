@@ -1,13 +1,13 @@
 
 alamo.program = flame
 
-plot_file = output.scpthermalsandwich
+plot_file = output.scpthermalsandwich.old.phi_eps_30
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 1e-5_s # was 0.001
+amr.plot_dt = 5e-4_s # was 0.001
 amr.max_grid_size = 16
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
@@ -60,7 +60,7 @@ phi.ic.laminate.thickness = 0.25_mm
 phi.ic.laminate.orientation = 0 1 
 phi.ic.laminate.singlefab = 1 
 phi.ic.laminate.invert = 0
-phi.ic.laminate.eps = 20._um
+phi.ic.laminate.eps = 30._um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
