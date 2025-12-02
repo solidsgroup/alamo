@@ -146,10 +146,11 @@ private:
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
-    std::vector<std::string> species;
-    std::vector<double> mw_array, cp_array, h0_array, s0_array, Tref_array, mu_array, k_array; 
+    //std::vector<std::string> species;
+    //std::vector<double> mw_array, cp_array, h0_array, s0_array, Tref_array, mu_array, k_array; 
     int nspecies;
-    std::shared_ptr<Model::Gas::Gas> gas;
+    Model::Gas::Gas gas;
+    
 
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4

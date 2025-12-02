@@ -16,6 +16,7 @@ protected:
 public:
     Transport () {} ;
     virtual ~Transport() = default;
+    virtual const char* model_name() const = 0;
 
     // Mixture dynamic viscosity, Pa-s
     virtual double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;

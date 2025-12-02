@@ -14,6 +14,7 @@ namespace EOS {
 class CPG : public EOS {
 public:
     static constexpr const char* name = "cpg";
+    virtual const char* model_name() const override { return name; }
 
 private:
     Gas const * const gas;

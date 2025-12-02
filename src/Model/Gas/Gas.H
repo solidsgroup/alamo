@@ -19,6 +19,7 @@ namespace Gas {
 
 class Gas {
 protected:
+public:
     int nspecies;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo *thermo = nullptr;
@@ -35,7 +36,8 @@ public:
     static void Parse(Gas & value, IO::ParmParse & pp)
     {
         // number of species
-        pp.query_default("nspecies",value.nspecies,1);
+        pp.queryarr_default("mw",value.MW,{28.0});
+        value.nspecies = value.MW.size();
 
         // thermo model
         delete value.thermo;

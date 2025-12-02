@@ -17,6 +17,7 @@ protected:
 public:
     EOS() {} ;
     virtual ~EOS() = default;
+    virtual const char* model_name() const = 0;
 
     // Temperature, K
     virtual double ComputeT(

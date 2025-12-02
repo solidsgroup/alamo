@@ -14,6 +14,7 @@ namespace Thermo {
 class CpConstant : public Thermo {
 public:
     static constexpr const char* name = "cpconstant";
+    const char* model_name() const override { return name; }
 
 private:
     int nspecies = 1;

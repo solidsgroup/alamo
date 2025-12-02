@@ -15,6 +15,7 @@ namespace Thermo {
 class NASA7 : public Thermo {
 public:
     static constexpr const char* name = "nasa7";
+    const char* model_name() const override { return name; }
 
 private:
     int nspecies;

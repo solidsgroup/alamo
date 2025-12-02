@@ -94,16 +94,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
         // Test stuff for Model::Gas (just assume nspecies=1, CpConstant, CPG
-        pp_queryarr_default("species_array", value.species, {"Air"});
-        pp_queryarr_default("mw_array",value.mw_array, {28.0});         // kg/kmol
-        pp_queryarr_default("cp_array",value.cp_array, {29.1e3});       // J/(kmol-K)
-        pp_queryarr_default("h0_array", value.h0_array, {0.0});         // J/kmol
-        pp_queryarr_default("s0_array", value.s0_array, {0.0});         // J/(kmol-K)
-        pp_queryarr_default("Tref_array", value.Tref_array, {298.15});  // K
-        pp_queryarr_default("mu_array", value.mu_array, {1.789e-5});    // Pa-s
-        pp_queryarr_default("k_array", value.k_array, {0.024});         // W/(m-K)
-        value.nspecies = value.species.size();
-
+        pp.queryclass<Model::Gas::Gas>("gas", value.gas);
+        std::cout << value.gas.thermo->model_name() << "\n";
+        std::cout << value.gas.transport->model_name() << "\n";
+        std::cout << value.gas.eos->model_name() << "\n";
+        value.nspecies = value.gas.nspecies;
+        std::cout << value.nspecies << "\n";
     }
     // Register FabFields:
     {
@@ -192,7 +188,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
     // Gas model
-    pp.queryclass<Model::Gas::Gas>("gas",*value.gas);
+    //pp.queryclass<Model::Gas::Gas>("gas",*value.gas);
 
 
 
@@ -268,10 +264,10 @@ void Hydro::Mix(int lev)
             // Initially compute primitives (T,P,u) from given initial conditions
             // But from then on, compute them from mixed values to avoid zero T conditions
             // Except velocity - keep velocity from fluid values only
-            gas->ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
-            Set::Scalar density = gas->ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
-            T(i,j,k) = gas->ComputeT(p(i,j,k), density, X, i, j, k);
-            Set::Scalar E_fluid = gas->ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
+            gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
+            Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
+            T(i,j,k) = gas.ComputeT(p(i,j,k), density, X, i, j, k);
+            Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
 
             // Mix
             M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta(i, j, k)  +  M_solid(i, j, k, 0)*(1.0-eta(i, j, k));
@@ -285,10 +281,10 @@ void Hydro::Mix(int lev)
             E(i, j, k) = E_fluid*eta(i, j, k) + E_solid(i,j,k)*(1.0-eta(i,j,k));
             E_old(i, j, k) = E(i, j, k);
 
-            gas->ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
-            density = gas->ComputeD(rho, i, j, k);
-            T(i, j, k) = gas->ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            p(i, j, k) = gas->ComputeP(density, T(i,j,k), X, i, j, k);
+            gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
+            density = gas.ComputeD(rho, i, j, k);
+            T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
             v(i,j,k,0) = M(i,j,k,0)/density;
             v(i,j,k,1) = M(i,j,k,1)/density;
         });
@@ -709,15 +705,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             // Compute primitives from mixed values
-            gas->ComputeLocalFractions(rho, Y, X, i, j, k);
-            Set::Scalar density = gas->ComputeD(rho, i, j, k);
-            T(i,j,k) = gas->ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            p(i,j,k) = gas->ComputeP(density, T(i,j,k), X, i, j, k);
+            gas.ComputeLocalFractions(rho, Y, X, i, j, k);
+            Set::Scalar density = gas.ComputeD(rho, i, j, k);
+            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
             v(i,j,k,0) = M(i,j,k,0)/density;
             v(i,j,k,1) = M(i,j,k,1)/density;
 
             //scratch(i,j,k) = (rho(i,j,k) - rho_solid(i,j,k)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
-            //Set::Scalar density_fluid = gas->ComputeD(scratch, i, j, k);
+            //Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
             //Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
             //Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
             //v(i,j,k,0) = Mx_fluid/density_fluid;
@@ -788,7 +784,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Vector Pdot0 = Set::Vector::Zero(); 
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
-            Set::Scalar mu = gas->dynamic_viscosity(T(i,j,k), molef, i, j, k);
+            Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
 
             // sten is necessary here because sometimes corner ghost
             // cells don't get filled

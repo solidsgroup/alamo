@@ -16,6 +16,7 @@ protected:
 public:
     Thermo() {} ;
     virtual ~Thermo() = default;
+    virtual const char* model_name() const = 0;
 
     // Specific heat (constant pressure), J/(kmol-K)
     virtual double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;

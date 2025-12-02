@@ -39,6 +39,7 @@ namespace Transport {
 class Mixture_Averaged : public Transport {
 public:
     static constexpr const char* name = "mixture_averaged";
+    virtual const char* model_name() const override { return name; }
 
 private:
     int nspecies;
