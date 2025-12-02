@@ -176,11 +176,11 @@ void Initialize (int argc, char* argv[])
     {
         Unit::setLengthUnit(length);
         Unit::setTimeUnit(time);
-        Unit::setMassUnit(time);
-        Unit::setTemperatureUnit(time);
-        Unit::setCurrentUnit(time);
-        Unit::setAmountUnit(time);
-        Unit::setLuminousIntensityUnit(time);
+        Unit::setMassUnit(mass);
+        Unit::setTemperatureUnit(temperature);
+        Unit::setCurrentUnit(current);
+        Unit::setAmountUnit(amount);
+        Unit::setLuminousIntensityUnit(luminousintensity);
     }
     catch (std::runtime_error &e)
     {
