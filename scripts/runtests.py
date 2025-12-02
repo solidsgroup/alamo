@@ -189,6 +189,10 @@ def test(testdir):
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
 
+    # Store a list of all the cleanup commands that will be run after
+    # going through all sections
+    cleanup_paths = []
+
     # Iterate through all test configurations
     for desc in sections:
 
@@ -340,7 +344,7 @@ def test(testdir):
             if 'restart' in config[desc].keys():
                 restartfile = config[desc]['restart'].replace(r'{testid}',testid)
                 if not os.path.isdir(restartfile):
-                    print("  ├ {}{} (skipped - no restart file)".format(color.boldyellow,desc,color.reset))
+                    print("  ├ {}{} (skipped - no restart file){}".format(color.boldyellow,desc,color.reset))
                     skips += 1
                     continue
                 cmdargs += " restart=" + restartfile
@@ -682,7 +686,9 @@ def test(testdir):
         #
         ok_to_clean = False
         if args.clean and record['runStatus'] == 'PASS':
-            if not 'checkStatus' in record.keys():
+            if 'checkStatus' not in record.keys():
+                ok_to_clean = True # successful run and no testing done
+            elif record['checkStatus'] == 'NONE':
                 ok_to_clean = True # successful run and no testing done
             elif record['checkStatus'] == 'PASS':
                 ok_to_clean = True # successful run and testing completed
@@ -693,7 +699,7 @@ def test(testdir):
 
         if ok_to_clean:
             path = "{}/{}_{}".format(testdir,testid,desc)
-            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+            cleanup_paths.append(path)
             
         
         #
@@ -704,7 +710,12 @@ def test(testdir):
             if key == "check-file": config[desc].pop(key)
         if len(config[desc].keys()):
             raise Exception("The following were specified but not used: "+str(list(config[desc].keys())))
-
+    
+    if len(cleanup_paths):
+        print(f"  ├ {color.lightgray}Cleaning up {len(cleanup_paths)} directories{color.reset}")
+        for path in cleanup_paths:
+            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+        
 
             
     # Print a quick summary for this test family.
