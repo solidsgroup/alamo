@@ -157,15 +157,30 @@ void Initialize (int argc, char* argv[])
     }
 
     IO::ParmParse pp;
-    std::string length, time;
+    std::string length, time, mass, temperature, current, amount, luminousintensity;
     // Set the system length unit
     pp.query_default("system.length",length,"m");
     // Set the system time unit
     pp.query_default("system.time",time,"s");
+    // Set the system mass unit
+    pp.query_default("system.mass",mass,"kg");
+    // Set the system temperature unit
+    pp.query_default("system.temperature",temperature,"K");
+    // Set the system current unit
+    pp.query_default("system.current",current,"A");
+    // Set the system amount unit
+    pp.query_default("system.amount",amount,"mol");
+    // Set the system luminous intensity unit
+    pp.query_default("system.luminousintensity",luminousintensity,"cd");
     try
     {
         Unit::setLengthUnit(length);
         Unit::setTimeUnit(time);
+        Unit::setMassUnit(mass);
+        Unit::setTemperatureUnit(temperature);
+        Unit::setCurrentUnit(current);
+        Unit::setAmountUnit(amount);
+        Unit::setLuminousIntensityUnit(luminousintensity);
     }
     catch (std::runtime_error &e)
     {

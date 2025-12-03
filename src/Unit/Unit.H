@@ -221,6 +221,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit Work()        { return Energy(); }
     // Thermodynamics
     static Unit SpecificHeatCapacity()    {return Energy() / Mass() / Temperature() ;}
+    static Unit MolarHeatCapacity()       {return Energy() / Amount() / Temperature() ;}
     static Unit ThermalConductivity()     {return Power()/Length()/Temperature();}
     static Unit ThermalDiffusivity()      {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
     static Unit HeatFlux()                { return Power() / Area(); }
@@ -364,7 +365,6 @@ struct Unit : std::pair<double,std::array<int,7>>
         return type;
     }
 
-
     static void setLengthUnit(std::string unit)
     {
         Unit parsed = StringParse(unit);
@@ -372,12 +372,53 @@ struct Unit : std::pair<double,std::array<int,7>>
         normalization[int(Type::Length)].first = unit;
         normalization[int(Type::Length)].second = 1.0 / parsed.first;
     }
+    
     static void setTimeUnit(std::string unit)
     {
         Unit parsed = StringParse(unit);
         if (parsed.second != Time().second) throw std::runtime_error("Not a unit of time: " + unit);
         normalization[int(Type::Time)].first = unit;
         normalization[int(Type::Time)].second = 1.0 / parsed.first;
+    }
+    
+    static void setMassUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Mass().second) throw std::runtime_error("Not a unit of mass: " + unit);
+        normalization[int(Type::Mass)].first = unit;
+        normalization[int(Type::Mass)].second = 1.0 / parsed.first;
+    }
+    
+    static void setTemperatureUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Temperature().second) throw std::runtime_error("Not a unit of temperature: " + unit);
+        normalization[int(Type::Temperature)].first = unit;
+        normalization[int(Type::Temperature)].second = 1.0 / parsed.first;
+    }
+    
+    static void setCurrentUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Current().second) throw std::runtime_error("Not a unit of current: " + unit);
+        normalization[int(Type::Current)].first = unit;
+        normalization[int(Type::Current)].second = 1.0 / parsed.first;
+    }
+    
+    static void setAmountUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Amount().second) throw std::runtime_error("Not a unit of amount: " + unit);
+        normalization[int(Type::Amount)].first = unit;
+        normalization[int(Type::Amount)].second = 1.0 / parsed.first;
+    }
+    
+    static void setLuminousIntensityUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != LuminousIntensity().second) throw std::runtime_error("Not a unit of luminous intensity: " + unit);
+        normalization[int(Type::LuminousIntensity)].first = unit;
+        normalization[int(Type::LuminousIntensity)].second = 1.0 / parsed.first;
     }
 
     bool isType(const Unit &test) const
