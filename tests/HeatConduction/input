@@ -21,6 +21,9 @@ alamo.program = heat
 
 plot_file     = tests/HeatConduction/output
 
+integration.type = ForwardEuler
+
+
 # Simulation length
 timestep  = 00.1_ms
 stop_time = 50.0_ms
