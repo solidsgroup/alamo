@@ -92,14 +92,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
-
-        // Test stuff for Model::Gas (just assume nspecies=1, CpConstant, CPG
-        pp.queryclass<Model::Gas::Gas>("gas", value.gas);
-        std::cout << value.gas.thermo->model_name() << "\n";
-        std::cout << value.gas.transport->model_name() << "\n";
-        std::cout << value.gas.eos->model_name() << "\n";
-        value.nspecies = value.gas.nspecies;
-        std::cout << value.nspecies << "\n";
     }
     // Register FabFields:
     {
@@ -187,10 +179,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                         Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
-    // Gas model
-    //pp.queryclass<Model::Gas::Gas>("gas",*value.gas);
-
-
+    // Gas model (Thermo, Transport, and EOS)
+    pp.queryclass<Model::Gas::Gas>("gas", value.gas);
+    value.nspecies = value.gas.nspecies;
+    std::cout << value.gas.thermo->model_name() << "\n";
+    std::cout << value.gas.transport->model_name() << "\n";
+    std::cout << value.gas.eos->model_name() << "\n";
+    std::cout << value.nspecies << "\n";
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
@@ -217,18 +212,17 @@ void Hydro::Initialize(int lev)
 
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
-    density_ic       ->Initialize(lev, density_mf, 0.0);
+    density_ic       ->Initialize(lev, density_mf,  0.0);
 
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
 
-
-    solid.density_ic ->Initialize(lev, solid.density_mf, 0.0);
+    solid.density_ic ->Initialize(lev, solid.density_mf,  0.0);
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
-    solid.energy_ic  ->Initialize(lev, solid.energy_mf, 0.0);
+    solid.energy_ic  ->Initialize(lev, solid.energy_mf,   0.0);
 
     ic_m0            ->Initialize(lev, m0_mf, 0.0);
-    ic_u0            ->Initialize(lev, u0_mf,    0.0);
-    ic_q             ->Initialize(lev, q_mf,            0.0);
+    ic_u0            ->Initialize(lev, u0_mf, 0.0);
+    ic_q             ->Initialize(lev, q_mf,  0.0);
 
     Source_mf[lev]   ->setVal(0.0);
 
@@ -281,12 +275,12 @@ void Hydro::Mix(int lev)
             E(i, j, k) = E_fluid*eta(i, j, k) + E_solid(i,j,k)*(1.0-eta(i,j,k));
             E_old(i, j, k) = E(i, j, k);
 
-            gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
-            density = gas.ComputeD(rho, i, j, k);
-            T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-            v(i,j,k,0) = M(i,j,k,0)/density;
-            v(i,j,k,1) = M(i,j,k,1)/density;
+            //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
+            //density = gas.ComputeD(rho, i, j, k);
+            //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
+            //v(i,j,k,0) = M(i,j,k,0)/density;
+            //v(i,j,k,1) = M(i,j,k,1)/density;
         });
     }
     c_max = 0.0;
@@ -705,19 +699,24 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             // Compute primitives from mixed values
-            gas.ComputeLocalFractions(rho, Y, X, i, j, k);
-            Set::Scalar density = gas.ComputeD(rho, i, j, k);
-            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-            v(i,j,k,0) = M(i,j,k,0)/density;
-            v(i,j,k,1) = M(i,j,k,1)/density;
+            //gas.ComputeLocalFractions(rho, Y, X, i, j, k);
+            //Set::Scalar density = gas.ComputeD(rho, i, j, k);
+            //T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            //p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
+            //v(i,j,k,0) = M(i,j,k,0)/density;
+            //v(i,j,k,1) = M(i,j,k,1)/density;
 
-            //scratch(i,j,k) = (rho(i,j,k) - rho_solid(i,j,k)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
-            //Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
-            //Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
-            //Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
-            //v(i,j,k,0) = Mx_fluid/density_fluid;
-            //v(i,j,k,1) = My_fluid/density_fluid;
+            // Compute primitives from fluid values
+            scratch(i,j,k) = (rho(i,j,k) - rho_solid(i,j,k)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
+            gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
+            Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
+            Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
+            Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
+            Set::Scalar E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta(i,j,k)))/(eta(i,j,k) + small);
+            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
+            v(i,j,k,0) = Mx_fluid/density_fluid;
+            v(i,j,k,1) = My_fluid/density_fluid;
         });
     }
 
@@ -855,12 +854,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo, state_x, gas, molef, i, j, k, 0, small) * eta(i,j,k);
-                flux_ylo = riemannsolver->Solve(state_ylo, state_y, gas, molef, i, j, k, 2, small) * eta(i,j,k);
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta(i,j,k);
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta(i,j,k);
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x, state_xhi, gas, molef, i, j, k, 1, small) * eta(i,j,k);
-                flux_yhi = riemannsolver->Solve(state_y, state_yhi, gas, molef, i, j, k, 3, small) * eta(i,j,k);
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta(i,j,k);
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta(i,j,k);
             }
             catch(...)
             {
