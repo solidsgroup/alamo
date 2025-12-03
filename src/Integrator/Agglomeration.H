@@ -1,3 +1,5 @@
+// TODO: Revise this to match the current model
+//
 // This integrator implements a phase field model for agglomeration of
 // nanoparticles in a solid composite propellant (SCP). The chemical
 // potential :math:`W_C(\alpha)` is defined as
@@ -53,13 +55,10 @@
 #include "Integrator/Flame.H"
 #include "Set/Base.H"
 
-#include "AMReX_Enum.H"
 #include "AMReX_TagBox.H"
 
 namespace Integrator
 {
-
-AMREX_ENUM(AgglomerationKinetics, ConstrainedAllenCahn, CahnHilliard);
 
 class Agglomeration : public Flame
 {
@@ -97,12 +96,10 @@ private:
 
     struct
     {
-        AgglomerationKinetics kinetics_method = getEnum<AgglomerationKinetics>("CahnHilliard");
         Set::Field<Set::Scalar> alpha_old;
         Set::Field<Set::Scalar> alpha;
         IC::IC<Set::Scalar> *alpha_ic = nullptr;
         BC::BC<Set::Scalar> *alpha_bc = nullptr;
-        Set::Field<Set::Scalar> free_energy_derivative;
         Set::Scalar sigma = NAN;
         Set::Scalar epsilon = NAN;
         Set::Scalar lambda = NAN;

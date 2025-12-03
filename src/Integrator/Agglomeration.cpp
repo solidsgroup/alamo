@@ -33,41 +33,31 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 {
     pp.queryclass<Flame>("flame", &value);
 
-    // Method to use for agglomeration kinetics
-    pp.query_enum_case_insensitive("kinetics_method", value.agglom.kinetics_method);
-
     // Interface energy
     pp.query_default("sigma", value.agglom.sigma, "1.0_J/m^2", Unit::Energy() / Unit::Area());
     // Diffuse interface length of the agglomerate phase
-    pp.query_default("epsilon", value.agglom.epsilon, "1e-7_m", Unit::Length());
+    pp.query_default("epsilon", value.agglom.epsilon, "1.0_m", Unit::Length());
 
-    if (value.agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
-        // Prescribed agglomerate mobility parameter for Constrained Allen-Cahn kinetics
-        pp.query_default("L_0", value.agglom.L_0, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
-    else if (value.agglom.kinetics_method == AgglomerationKinetics::CahnHilliard)
-        // Prescribed agglomerate mobility parameter for Cahn-Hilliard kinetics
-        pp.query_default("L_0", value.agglom.L_0, "1.0_m^5/J/s", Unit::Volume() * Unit::Area() / Unit::Energy() / Unit::Time());
+    // Prescribed agglomerate mobility parameter
+    pp.query_default("L_0", value.agglom.L_0, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
     // Agglomeration mobility exponent
     pp.query_default("n", value.agglom.n, "1.0", Unit::Less());
 
-    if (value.agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
-    {
-        // Lagrangian multiplier for the agglomerate volume constraint
-        pp.query_default("lambda", value.agglom.lambda, "100.0_J/m^3", Unit::Energy() / Unit::Volume());
-        // If true, the value of V_0 will be ignored, and the
-        // prescribed volume of agglomerate will be calculated just
-        // before the first timestep after all initialization has
-        // occurred. If false, a value of V_0 must be specified.
-        pp.query_default("calculate_initial_volume", value.agglom.calculate_initial_volume, true);
-        // Prescribed volume of agglomerate in the domain. This value
-        // is only used if calculate_initial_volume is false.
-        pp.query_default("V_0", value.agglom.V_0, "1.0", Unit::Volume());
-    }
+    // Lagrangian multiplier for the agglomerate volume constraint
+    pp.query_default("lambda", value.agglom.lambda, "1.0_J/m^3", Unit::Energy() / Unit::Volume());
+    // If true, the value of V_0 will be ignored, and the
+    // prescribed volume of agglomerate will be calculated just
+    // before the first timestep after all initialization has
+    // occurred. If false, a value of V_0 must be specified.
+    pp.query_default("calculate_initial_volume", value.agglom.calculate_initial_volume, true);
+    // Prescribed volume of agglomerate in the domain. This value
+    // is only used if calculate_initial_volume is false.
+    pp.query_default("V_0", value.agglom.V_0, "1.0", Unit::Volume());
 
     // If the gradient of alpha is larger than this value, refine/regrid alpha
-    pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1e100", Unit::Less());
+    pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1.0", Unit::Less());
     // If eta is larger than this value, do NOT refine/regrid alpha
-    pp.query_default("eta_refinement_threshold", value.agglom.eta_refinement_threshold, "1e100", Unit::Less());
+    pp.query_default("eta_refinement_threshold", value.agglom.eta_refinement_threshold, "1.0", Unit::Less());
 
     // Initial conditions for agglomerate order parameter
     pp.select_default<IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random>("alpha.ic", value.agglom.alpha_ic, value.geom);
@@ -76,10 +66,8 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 
     value.RegisterNewFab(value.agglom.alpha_old, value.agglom.alpha_bc, 1, 1, "agglom.alpha_old", false);
     value.RegisterNewFab(value.agglom.alpha, value.agglom.alpha_bc, 1, 1, "agglom.alpha", true);
-    value.RegisterNewFab(value.agglom.free_energy_derivative, value.agglom.alpha_bc, 1, 1, "agglom.free_energy_derivative", false);
 
-    if (value.agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
-        value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V", true);
+    value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V", true);
 }
 
 void
@@ -89,7 +77,6 @@ Agglomeration::Initialize(int lev)
 
     agglom.alpha_old[lev]->setVal(0.0);
     agglom.alpha_ic->Initialize(lev, agglom.alpha);
-    agglom.free_energy_derivative[lev]->setVal(0.0);
 
     int nComp = agglom.alpha[lev]->nComp();
     int nGrow = agglom.alpha[lev]->nGrow();
@@ -126,7 +113,7 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(agglom.alpha_old[lev], agglom.alpha[lev]);
     const Set::Scalar *dx = geom[lev].CellSize();
 
-    if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn && time == 0.0 && agglom.calculate_initial_volume)
+    if (time == 0.0 && agglom.calculate_initial_volume)
     {
         agglom.V_0 = agglom.V;
         Util::DebugMessage(INFO, "agglom.V_0 dynamically set to ", agglom.V_0);
@@ -137,7 +124,6 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         const amrex::Box &bx = mfi.tilebox();
         Set::Patch<const Set::Scalar> alpha_old = agglom.alpha_old.Patch(lev, mfi);
         Set::Patch<Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> free_energy_derivative = agglom.free_energy_derivative.Patch(lev, mfi);
         Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev, mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -145,32 +131,17 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar laplacian_alpha = Numeric::Laplacian(alpha_old, i, j, k, 0, dx);
 
             // calculate the variational derivative components
-            Set::Scalar chem_term = 2 * agglom.sigma / agglom.epsilon * alpha_old(i, j, k) * (1 - alpha_old(i, j, k)) * (1 - 2 * alpha_old(i, j, k));
-            Set::Scalar grad_term = -agglom.sigma * agglom.epsilon * laplacian_alpha;
+            Set::Scalar free_energy_derivative = 2 * agglom.sigma / agglom.epsilon * alpha_old(i, j, k) * (1 - alpha_old(i, j, k)) * (1 - 2 * alpha_old(i, j, k)) - agglom.sigma * agglom.epsilon * laplacian_alpha;
 
-            free_energy_derivative(i, j, k) = chem_term + grad_term;
-        });
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             // calculate effective mobility L
             Set::Scalar L = agglom.L_0 * std::pow(1 - eta(i, j, k), agglom.n);
 
-            if (agglom.kinetics_method == AgglomerationKinetics::ConstrainedAllenCahn)
-            {
-                // constrained Allen-Cahn equation
-                Set::Scalar lagrange_term = agglom.lambda * (agglom.V / agglom.V_0 - 1);
-                Set::Scalar dalpha_dt = -L * (free_energy_derivative(i, j, k) + lagrange_term);
-                alpha(i, j, k) = alpha_old(i, j, k) + dt * dalpha_dt;
-            }
-            else if (agglom.kinetics_method == AgglomerationKinetics::CahnHilliard)
-            {
-                // calculate the Laplacian of the variational derivative
-                Set::Scalar free_energy_laplacian = Numeric::Laplacian(free_energy_derivative, i, j, k, 0, dx);
+            // constrained Allen-Cahn equation
+            Set::Scalar lagrange_term = agglom.lambda * (agglom.V / agglom.V_0 - 1);
+            Set::Scalar dalpha_dt = -L * (free_energy_derivative + lagrange_term);
 
-                // Cahn-Hilliard equation
-                Set::Scalar dalpha_dt = L * free_energy_laplacian;
-                alpha(i, j, k) = alpha_old(i, j, k) + dt * dalpha_dt;
-            }
+            // evolve alpha
+            alpha(i, j, k) = alpha_old(i, j, k) + dt * dalpha_dt;
         });
     }
 }

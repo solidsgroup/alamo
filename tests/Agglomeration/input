@@ -118,10 +118,8 @@ flame.chamber.pressure = 4.0_MPa
 flame.elastic.on = 0
 flame.elastic.type = disable
 
-# Agglomeration kinetics method
-kinetics_method = ConstrainedAllenCahn
-
 # Agglomeration parameters
+calculate_initial_volume = true
 sigma = 1e0
 epsilon = 1e-5
 lambda = 5e4
