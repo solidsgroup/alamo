@@ -131,6 +131,7 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
+parser.add_argument('--sundials',default=False,action='store_true',help="Compile with SUNDIALS")
 parser.set_defaults(debug=False)
 
 #
@@ -291,10 +292,10 @@ if args.buildamrex and not args.amrex:
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
+    f2.write("${AMREX_TARGET}: ${AMREX_SRC} ${AMREX_DEP}\n")
+    f2.write("\t$(MAKE) -C ext/amrex $(AMREX_MAKECMD)\n") # --output-sync=target
     f2.write("\t$(MAKE) -C ext/amrex install\n")
-    f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
+    f2.write("\ttouch $@\n\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")
@@ -365,6 +366,39 @@ elif (args.eigen != ""):
     message("Eigen-Directory",args.eigen)
     f.write("EIGEN = " + args.eigen + "\n")
 
+#
+# SUNDIALS
+#
+if (args.sundials):
+    if not os.path.isdir("ext/sundials"):
+        shellmessage("SUNDIALS-Clone",
+                     cmd = "git clone https://github.com/LLNL/sundials.git",
+                     message="Cloning SUNDIALS -- This may take a while",
+                     cwd="ext/")
+        subprocess.run(['mkdir','ext/sundials/build'])
+        subprocess.run(['mkdir','ext/sundials/install'])
+
+    shellmessage("SUNDIALS cmake",
+                 cmd = "cmake .. -DCMAKE_INSTALL_PREFIX=../install -DENABLE_MPI=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release",
+                 cwd = "ext/sundials/build")
+        
+    f.write("SUNDIALS_BUILD_DIR   = ext/sundials/build\n")
+    f.write("SUNDIALS_INSTALL_DIR = ext/sundials/install\n")
+    f.write("SUNDIALS_TARGET      = ext/sundials/install/.built\n")
+
+    f.write('AMREX_DEP += ${SUNDIALS_TARGET}\n')
+    f.write('AMREX_MAKECMD += USE_SUNDIALS=TRUE SUNDIALS_HOME=../sundials/install\n')
+
+    f.write('ALAMO_INCLUDE += -Iext/amrex/Src/Extern/SUNDIALS -Iext/sundials/install/include\n')
+    f.write('LINKER_FLAGS += ${SUNDIALS_INSTALL_DIR}/lib/libsundials_*.a\n')
+
+    
+    f2.write("""${SUNDIALS_TARGET}: ${SUNDIALS_BUILD_DIR}/Makefile\n""")
+    f2.write("""	$(MAKE) -C ${SUNDIALS_BUILD_DIR} -j\n""")
+    f2.write("""	$(MAKE) -C ${SUNDIALS_BUILD_DIR} install\n""")
+    f2.write("""	@echo "SUNDIALS build complete" \n""")
+    f2.write("""	@touch ${SUNDIALS_TARGET} \n""")
+    f2.write(" \n")
 
 #
 # MAC OS SUPPORT
@@ -587,6 +621,8 @@ if not args.compile_commands:
 
     otherflags = ""
     if args.fft: otherflags += "-DALAMO_FFT"
+
+    if args.sundials: otherflags += "-I./ext/sundials/install/include/ -I./ext/amrex/Src/Extern/SUNDIALS"
 
     cc = compmpicmd
     command_objects = []

@@ -383,14 +383,14 @@ public:
             // if not using default values, then the input must be specified
             if (!firstbydefault)
             {
-                if (!contains(name.c_str()))
+                if (!amrex::ParmParse::contains(name.c_str()))
                 {
                     Util::ParmParseException(INFO,full(name),"required value for ",full(name)," missing");
                 }
             }
 
             // set default value
-            if (!contains(name.c_str()))
+            if (!amrex::ParmParse::contains(name.c_str()))
             {
                 add(name.c_str(), std::string(possiblecharvals[0]));
             }
