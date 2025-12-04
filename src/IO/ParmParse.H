@@ -340,7 +340,10 @@ public:
             // First value is accepted by default...
 
             // set default value
-            value = possibleintvals[0];
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(), possibleintvals[0]);
+            }
 
             // get the read value (if it exists)
             int retval = query(name.c_str(),value);
@@ -387,7 +390,10 @@ public:
             }
 
             // set default value
-            value = std::string(possiblecharvals[0]);
+            if (!contains(name.c_str()))
+            {
+                add(name.c_str(), std::string(possiblecharvals[0]));
+            }
 
             // get the read value (if it exists)
             int retval = amrex::ParmParse::query(name.c_str(),value);
