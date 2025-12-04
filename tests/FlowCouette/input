@@ -45,8 +45,24 @@ stop_time = 30.0
 
 ### HYDRO PARAM ###
 
-cp_array = 12471.69
-mu_array = 10.0
+solver.type = hllc
+
+system.amount = kmol
+gas.mw = 28.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 12471.69_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 298.15_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = 0
+gas.transport.mixture_averaged.mu = 10.0_Pa*s
+gas.transport.mixture_averaged.k = 0.0_W/m/K
+
+gas.eos.type = cpg
+
 cfl   = 0.4
 
 ### ETA IC ###

@@ -1,13 +1,3 @@
-#@ [hllc]
-#@ exe=hydro
-#@ dim=2
-#@ solver.type = hllc
-
-#@ [hlle]
-#@ exe=hydro
-#@ dim=2
-#@ solver.type = hlle
-
 #@ [roe]
 #@ exe=hydro
 #@ dim=2
@@ -34,6 +24,16 @@
 #@ exe=hydro
 #@ dim=2
 #@ args= solver.roe.entropy_fix=2
+
+#@ [hllc]
+#@ exe=hydro
+#@ dim=2
+#@ args=solver.type=hllc
+
+#@ [hlle]
+#@ exe=hydro
+#@ dim=2
+#@ args=solver.type=hlle
 
 # alamo.program = hydro
 
@@ -87,9 +87,23 @@ eta.ic.type = constant
 eta.ic.constant.value  = 1.0
 
 ### HYDRO PARAM ###
+system.amount = kmol
+gas.mw = 28.0_kg/kmol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = 0
+gas.transport.mixture_averaged.mu = 0.0_Pa*s
+gas.transport.mixture_averaged.k = 0.0_W/m/K
+
+gas.eos.type = cpg
 
 cfl = 0.4
-mu_array = 0
 
 density.ic.type = expression
 density.ic.expression.constant.rho_L = 1.0
