@@ -1,6 +1,7 @@
 #@
 #@ [2d-serial]
 #@ dim=2
+#@ args = integration.type=ForwardEuler
 #@ 
 #@
 #@ [2d-serial-fft]

@@ -390,7 +390,7 @@ if (args.sundials):
     f.write('AMREX_MAKECMD += USE_SUNDIALS=TRUE SUNDIALS_HOME=../sundials/install\n')
 
     f.write('ALAMO_INCLUDE += -Iext/amrex/Src/Extern/SUNDIALS -Iext/sundials/install/include\n')
-    f.write('LIB += ${SUNDIALS_INSTALL_DIR}/lib/libsundials_core.a ${SUNDIALS_INSTALL_DIR}/lib/libsundials_arkode.a ${SUNDIALS_INSTALL_DIR}/lib/libsundials_sunmatrixsparse.a\n')
+    f.write('LINKER_FLAGS += ${SUNDIALS_INSTALL_DIR}/lib/libsundials_*.a\n')
 
     
     f2.write("""${SUNDIALS_TARGET}: ${SUNDIALS_BUILD_DIR}/Makefile\n""")

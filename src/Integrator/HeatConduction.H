@@ -132,7 +132,7 @@ protected:
         // the new one.
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
 
-        amrex::TimeIntegrator<amrex::MultiFab> integrator(*temp_old_mf[lev], time);
+        amrex::TimeIntegrator integrator(*temp_old_mf[lev], time);
         
         auto RHS = [&](amrex::MultiFab & rhs_mf, amrex::MultiFab & temp_mf, const Set::Scalar /*time*/){
 
