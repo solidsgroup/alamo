@@ -622,6 +622,8 @@ if not args.compile_commands:
     otherflags = ""
     if args.fft: otherflags += "-DALAMO_FFT"
 
+    if args.sundials: otherflags += "-I./ext/sundials/install/include/ -I./ext/amrex/Src/Extern/SUNDIALS"
+
     cc = compmpicmd
     command_objects = []
     command_objects = [{
