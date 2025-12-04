@@ -285,7 +285,7 @@ namespace Constant
 // Pi
 static const Set::Scalar Pi = 3.14159265359;
 // Gas constant
-static const Unit Rg = Unit::Parse("8.31446261815_J/mol/K");
+static Unit Rg = Unit::Parse("8.31446261815_J/mol/K");
 
 }
 }
