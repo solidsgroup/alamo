@@ -286,6 +286,8 @@ namespace Constant
 static const Set::Scalar Pi = 3.14159265359;
 // Gas constant
 static Unit Rg = Unit::Parse("8.31446261815_J/mol/K");
+// Function to update constants to match system level units
+void SetSystemUnits();
 
 }
 }
