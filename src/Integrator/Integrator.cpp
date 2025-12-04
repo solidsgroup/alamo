@@ -167,10 +167,12 @@ Integrator::Integrator() : amrex::AmrCore()
 
         IO::ParmParse pp("integration");
         std::string str;
+        // Type of time integration to use (see amrex::TimeIntegrator for more details)
         pp.query_validate("type", str, {"ForwardEuler","RungeKutta"});
         if (str == "RungeKutta")
         {
             int type;
+            // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
             pp.query_validate("rk.type", type, {1,2,3,4});
         }
     }

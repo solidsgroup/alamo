@@ -287,10 +287,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
-    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
     
-    UpdateEta(lev, time);
+    //
+    // UPDATE ETA AND CALCULATE ETADOT
+    //
 
+    UpdateEta(lev, time);
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
@@ -304,34 +306,36 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     }
 
 
-    // Begin time integration...
+    //
+    // DO TIME INTEGRATION (driving the RHS function)
+    //
 
-    // density_bc->FillBoundary(*density_mf[lev], 0, 1, time, 0);   density_mf[lev]->FillBoundary(true);
-    // momentum_bc->FillBoundary(*momentum_mf[lev], 0, 2, time, 0); momentum_mf[lev]->FillBoundary(true);
-    // energy_bc->FillBoundary(*energy_mf[lev], 0, 1, time, 0); energy_mf[lev]->FillBoundary(true);
-
-
-    amrex::Vector<amrex::MultiFab> solution_new;
+    // Organize references to the "new" solution
+    amrex::Vector<amrex::MultiFab> solution_new; 
     solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,1);
     solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
     solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
 
+    // Organize references to the "old" solution
     amrex::Vector<amrex::MultiFab> solution_old;
     solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
     solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
     solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
 
+    // Create the time integrator
     amrex::TimeIntegrator timeintegrator(solution_new, time);
-    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, 
-                               amrex::Vector<amrex::MultiFab> & solution_mf, 
-                               const Set::Scalar time){
+
+    // Set the time integrator RHS - in this case, just relay to our current RHS function
+    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
+    {
         RHS(lev, time,
             rhs_mf[0], rhs_mf[1], rhs_mf[2],
             solution_mf[0],solution_mf[1],solution_mf[2]);
     });
 
-    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, 
-                                             Set::Scalar time) {
+    // Take care of filling boundaries during stages
+    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
+    {
         density_bc->FillBoundary(stage_mf[0],0,1,time,0);   
         stage_mf[0].FillBoundary(true);
         momentum_bc->FillBoundary(stage_mf[1],0,2,time,0);  
@@ -339,12 +343,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         energy_bc->FillBoundary(stage_mf[2],0,1,time,0);    
         stage_mf[2].FillBoundary(true);
     });
-
+    
+    // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
 
-    // ... end time integration.
 
+    //
+    // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
+    //
 
+    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();

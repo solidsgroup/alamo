@@ -132,10 +132,14 @@ protected:
         // the new one.
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
 
+        // Create the time integrator object
         amrex::TimeIntegrator timeintegrator(*temp_old_mf[lev], time);
         
-        timeintegrator.set_rhs([&](amrex::MultiFab & rhs_mf, amrex::MultiFab & temp_mf, const Set::Scalar /*time*/){
-
+        // Calculate the "RHS" of the function.
+        // If using forward Euler, the RHS would be
+        //    T_new = T_old + dt * RHS
+        timeintegrator.set_rhs([&](amrex::MultiFab & rhs_mf, amrex::MultiFab & temp_mf, const Set::Scalar /*time*/)
+        {
             // Get the cell size corresponding to this level
             const Set::Scalar* DX = geom[lev].CellSize();
 
@@ -160,15 +164,15 @@ protected:
             }
         });
         
-        timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, 
-                                                 Set::Scalar time) {
+        // We must update the boundaries here and apply boundary conditions 
+        timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, Set::Scalar time) 
+        {
             bc->FillBoundary(stage_mf,0,1,time,0);   
             stage_mf.FillBoundary(true);
         });
 
+        // Do the update
         timeintegrator.advance(*temp_old_mf[lev], *temp_mf[lev], time, dt);
-
-
     }
 
 
