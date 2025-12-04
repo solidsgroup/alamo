@@ -92,18 +92,24 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     Forbids(pp);
 
     // Whether to include extra fields (such as mdot, etc) in the plot output
-    pp_query_default("plot_field",value.plot_field,true); 
+    pp.query_default("plot_field",value.plot_field,true); 
         
     //
     // PHASE FIELD VARIABLES
     //
         
-    pp_query_default("pf.eps", value.pf.eps, 0.0); // Burn width thickness
-    pp_query_default("pf.kappa", value.pf.kappa, 0.0); // Interface energy param
-    pp_query_default("pf.lambda", value.pf.lambda, 0.0); // Chemical potential multiplier
-    pp_query_default("pf.w1", value.pf.w1, 0.0); // Unburned rest energy
-    pp_query_default("pf.w12", value.pf.w12, 0.0);  // Barrier energy
-    pp_query_default("pf.w0", value.pf.w0, 0.0);    // Burned rest energy
+    // Burn width thickness
+    pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
+    // Interface energy param
+    pp.query_default("pf.kappa", value.pf.kappa, "0.0_J/m^2", Unit::Energy() / Unit::Area()); 
+    // Chemical potential multiplier
+    pp.query_default("pf.lambda", value.pf.lambda, "0.0_J/m^2", Unit::Energy()/Unit::Area()); 
+    // Unburned rest energy
+    pp.query_default("pf.w1", value.pf.w1, "0.0",Unit::Less()); 
+    // Barrier energy
+    pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());  
+    // Burned rest energy
+    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());    
 
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
@@ -127,20 +133,18 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Reference temperature
     // Used to set all other reference temperatures by default.
-    pp_query_default("thermal.Tref", value.thermal.Tref, 300.0); 
+    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature()); 
 
     if (value.thermal.on) {
 
         // Used to change heat flux units
-        pp_query_default("thermal.hc", value.thermal.hc, 1.0);
-        // System AP mass fraction
-        //pp_query_default("thermal.massfraction", value.thermal.massfraction, 0.8);
+        pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
 
         // Effective fluid temperature
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
 
         //Temperature boundary condition
-        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1);
+        pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
             
         value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
@@ -156,27 +160,36 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
 
         // laser initial condition
-        pp.select_default<IC::Constant,IC::Expression>("laser.ic",value.ic_laser, value.geom);
+        pp.select_default<  IC::Constant,
+                            IC::Expression  >
+            ("laser.ic",value.ic_laser, value.geom, Unit::Power()/Unit::Area());
 
         // thermal initial condition
-        pp.select_default<IC::Constant,IC::Expression,IC::BMP,IC::PNG>("temp.ic",value.thermal.ic_temp,value.geom);
+        pp.select_default<  IC::Constant,
+                            IC::Expression,
+                            IC::BMP,
+                            IC::PNG  >
+            ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
 
 
     // Constant pressure value
-    pp_query_default("chamber.pressure", value.chamber.pressure, 1.0); 
+    pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
 
     // Whether to compute the pressure evolution
-    pp_query_default("variable_pressure", value.variable_pressure, 0);
+    pp_query_default("variable_pressure", value.variable_pressure, false);
 
     // Refinement criterion for eta field   
-    pp_query_default("amr.refinement_criterion", value.m_refinement_criterion, 0.001);
+    pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
+                        Unit::Less());
 
     // Refinement criterion for temperature field    
-    pp_query_default("amr.refinement_criterion_temp", value.t_refinement_criterion, 0.001);
+    pp.query_default(   "amr.refinement_criterion_temp", value.t_refinement_criterion, "0.001_K",
+                        Unit::Temperature());
 
     // Eta value to restrict the refinament for the temperature field 
-    pp_query_default("amr.refinament_restriction", value.t_refinement_restriction, 0.1);
+    pp.query_default(   "amr.refinament_restriction", value.t_refinement_restriction, "0.1",
+                        Unit::Less());
 
     // Refinement criterion for phi field [infinity]
     pp_query_default("amr.phi_refinement_criterion", value.phi_refinement_criterion, 1.0e100);
@@ -257,7 +270,6 @@ void Flame::Initialize(int lev)
         alpha_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
-        thermal.w1 = 0.2 * chamber.pressure + 0.9;
         ic_laser->Initialize(lev, laser_mf);
     }
     if (variable_pressure) chamber.pressure = 1.0;

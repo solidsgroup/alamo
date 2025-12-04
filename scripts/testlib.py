@@ -25,12 +25,40 @@ def readHeader(path):
 def warning(msg):
     print(msg, file=sys.stderr)
  
+def readContours(path,
+                 start,
+                 end,
+                 axis = 2,
+                 intercept = 0,
+                 coord = 'x',
+                 vars=[],
+                 returnAll = False):
+                 
+    ds = yt.load(path)
+    dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+    if len(start) == 2: start.append(0.0)
+    if len(end) == 2:   end.append(0.0)
+    if dim == 2: 
+        start[2] = 0
+        end[2] = 0
+
+    prof = ds.ray(start,end)
+    slice2d = ds.slice(axis,intercept)
+
+    new_df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),*vars])
+    new_df = new_df.sort_values(by=coord)
+
+    if returnAll:
+        return new_df, slice2d, ds, dim
+    else: 
+        return new_df
 
 def validate(path, 
              outdir,
              vars = [],
-             start = [0,0,0],
-             end = [1,1,1],
+             start = None, #[0,0,0],
+             end = None, #[1,1,1],
              axis = 2,
              intercept = 0,
              generate_ref_data = False,
@@ -43,24 +71,12 @@ def validate(path,
             
     info = readHeader(path)
             
-    ds = yt.load(path)
-    dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+    if not start: start = info["geom_lo"]
+    if not end:   end = info["geom_hi"]
+                 
+    new_df, slice2d, ds, dim = readContours(path=path,start=start,end=end,axis=axis,
+                                       intercept=intercept,coord=coord,vars=vars,returnAll=True)
 
-    if not type(start) == list: raise Exception("Invalid start, ",start)
-    if not type(end)   == list: raise Exception("Invalid end, ",end)
-    
-    if len(start) == 2: start.append(0.0)
-    if len(end) == 2:   end.append(0.0)
-    if dim == 2: 
-        start[2] = 0
-        end[2] = 0
-
-    prof = ds.ray(start,end)
-    slice2d = ds.slice(axis,intercept)
-
-    new_df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),*vars])
-    new_df = new_df.sort_values(by=coord)
-    
     if not reference:
         reference = "reference/reference-{}d.csv".format(dim)
 

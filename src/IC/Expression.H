@@ -38,6 +38,7 @@
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 #include "AMReX_Parser.H"
+#include <stdexcept>
 
 namespace IC
 {
@@ -54,6 +55,11 @@ public:
         IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom) {}
     Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : 
         IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+    {
+        pp_queryclass(name, *this);
+    }
+    Expression(amrex::Vector<amrex::Geometry>& _geom, Unit a_unit, IO::ParmParse& pp, std::string name) : 
+        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom), unit(a_unit)
     {
         pp_queryclass(name, *this);
     }
@@ -78,17 +84,17 @@ public:
                     if (coord == Expression::CoordSys::Cartesian)
                     {
 #if AMREX_SPACEDIM == 1
-                        field(i, j, k, n) = f[n](x(0), 0.0, 0.0, a_time);
+                        field(i, j, k, n) = f[n](x(0), 0.0, 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 2
-                        field(i, j, k, n) = f[n](x(0), x(1), 0.0, a_time);
+                        field(i, j, k, n) = f[n](x(0), x(1), 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 3
-                        field(i, j, k, n) = f[n](x(0), x(1), x(2), a_time);
+                        field(i, j, k, n) = f[n](x(0), x(1), x(2), a_time) * unitfactor;
 #endif
                     }
 #if AMREX_SPACEDIM>1
                     else if (coord == Expression::CoordSys::Polar)
                     {
-                        field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time);
+                        field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  * unitfactor;
                     }
 #endif
                 });
@@ -118,17 +124,17 @@ public:
                     if (coord == Expression::CoordSys::Cartesian)
                     {
 #if AMREX_SPACEDIM == 1
-                        field(i, j, k)(n) = f[n](x(0), 0.0, 0.0, a_time);
+                        field(i, j, k)(n) = f[n](x(0), 0.0, 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 2
-                        field(i, j, k)(n) = f[n](x(0), x(1), 0.0, a_time);
+                        field(i, j, k)(n) = f[n](x(0), x(1), 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 3
-                        field(i, j, k)(n) = f[n](x(0), x(1), x(2), a_time);
+                        field(i, j, k)(n) = f[n](x(0), x(1), x(2), a_time) * unitfactor;
 #endif
                     }
 #if AMREX_SPACEDIM>1
                     else if (coord == Expression::CoordSys::Polar)
                     {
-                        field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time);
+                        field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  * unitfactor;
                     }
 #endif
                 });
@@ -139,13 +145,27 @@ public:
 
     static void Parse(Expression& value, IO::ParmParse& pp)
     {
-
         std::string coordstr = "";
         // coordinate system to use
         pp_query_validate("coord", coordstr, {"cartesian","polar"}); 
         if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
         else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
-        else Util::Abort(INFO, "unsupported coordinates ", coordstr);
+        else Util::Exception(INFO, "unsupported coordinates ", coordstr);
+
+        std::string unitstr;
+        // Units of the value that is returned by the expression
+        pp.query_default("unit",unitstr,"");
+        try
+        {
+            Unit unit_spec = Unit::Parse(unitstr);
+            if (!unit_spec.isType(value.unit) && !unit_spec.isType(Unit::Less()))
+                Util::Exception(INFO, "Incompatible unit specified: ", unitstr);
+            value.unitfactor = unit_spec.normalized_value();
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::Exception(INFO,e.what());
+        }
 
         std::vector<std::string> expression_strs;
         // Mathematical expression in terms of x,y,z,t (if coord=cartesian)
@@ -166,10 +186,10 @@ public:
             {
                 IO::ParmParse pp;
                 std::string fullname = *entry;
-                Set::Scalar val  = NAN;
-                pp_query(fullname.data(),val);
+                Unit val;
+                pp.queryunit(fullname.data(),val);
                 std::string name = Util::String::Split(fullname,'.').back();
-                value.parser.back().setConstant(name,val);
+                value.parser.back().setConstant(name,val.normalized_value());
             }
 
             if (value.coord == Expression::CoordSys::Cartesian)
@@ -183,8 +203,10 @@ public:
                 value.f.push_back(value.parser.back().compile<4>());
             }
         }
-
     };
+private:
+    Unit unit = Unit::Less();
+    Set::Scalar unitfactor = NAN;
 };
 }
 

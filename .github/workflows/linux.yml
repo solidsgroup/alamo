@@ -2,7 +2,10 @@ name: Linux
 
 on:
   push:
-    branches-ignore: []
+    branches-ignore: ["paper", "candidate-install"]
+
+permissions:
+  contents: read
 
 jobs:
   style-check:
@@ -96,6 +99,7 @@ jobs:
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++  --timeout=200 --no-backspace --perf
     - name: create report
+      if: always()
       run: python3 scripts/package_report.py
     - name: upload report
       if: always()

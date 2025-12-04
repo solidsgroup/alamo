@@ -97,7 +97,7 @@ struct Flux {
         mass(a_mass), momentum_normal(a_momentum_normal),
         momentum_tangent(a_momentum_tangent), energy(a_energy) {}
 
-    Flux(State &in) :
+    Flux(const State &in) :
         mass(in.rho),
         momentum_normal(in.M_normal),
         momentum_tangent(in.M_tangent),

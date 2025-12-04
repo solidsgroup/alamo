@@ -7,6 +7,7 @@
 #include "IO/FileNameParse.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
+#include "Unit/Unit.H"
 #include <numeric>
 
 
@@ -21,13 +22,17 @@ Integrator::Integrator() : amrex::AmrCore()
         // These are basic parameters that are, in 
         // general, common to all Alamo simulations.
         IO::ParmParse pp;
-        pp_query_default("max_step", max_step, 2147483647);  // Number of iterations before ending (default is maximum possible int)
-        pp_query_required("stop_time", stop_time);    // Simulation time before ending
-        pp_query_required("timestep", timestep);      // Nominal timestep on amrlev = 0
+        // Number of iterations before ending (default is maximum possible int)
+        pp_query_default("max_step", max_step, 2147483647);  
+        // Simulation time before ending
+        pp_query_required("stop_time", stop_time, Unit::Time());    
+        // Nominal timestep on amrlev = 0
+        pp_query_required("timestep", timestep, Unit::Time());      
         pp_query("restart", restart_file_cell);       // Name of restart file to READ from
         pp_query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
         pp_query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
     }
+
     {
         // This allows the user to ignore certain arguments that
         // would otherwise cause problems.
@@ -52,7 +57,7 @@ Integrator::Integrator() : amrex::AmrCore()
         pp_query_default("regrid_int", regrid_int, 2);           // Regridding interval in step numbers
         pp_query_default("base_regrid_int", base_regrid_int, 0); // Regridding interval based on coarse level only
         pp_query_default("plot_int", plot_int, -1);               // Interval (in timesteps) between plotfiles (Default negative value will cause the plot interval to be ignored.)
-        pp_query_default("plot_dt", plot_dt, -1.0);                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
+        pp.query_default("plot_dt", plot_dt, "-1.0", Unit::Time());                 // Interval (in simulation time) between plotfiles (Default negative value will cause the plot dt to be ignored.)
 
 
         // Output file: see IO::FileNameParse for wildcards and variable substitution
@@ -119,7 +124,7 @@ Integrator::Integrator() : amrex::AmrCore()
         thermo.interval = 1;                                       // Default: integrate every time.
         pp_query_default("int", thermo.interval, 1);               // Integration interval (1)
         pp_query_default("plot_int", thermo.plot_int, -1);         // Interval (in timesteps) between writing (Default negative value will cause the plot interval to be ignored.)
-        pp_query_default("plot_dt", thermo.plot_dt, -1.0);         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
+        pp_query_default("plot_dt", thermo.plot_dt, "-1.0", Unit::Time());         // Interval (in simulation time) between writing (Default negative value will cause the plot dt to be ignored.)
     }
 
     {
@@ -569,8 +574,8 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
     // AMR level
     int tmp_max_level;
     std::getline(is, line); tmp_max_level = std::stoi(line); Util::Message(INFO, "Max AMR level: ", line);
-    if (tmp_max_level != max_level)
-        Util::Abort(INFO, "The max level specified (", max_level, ") does not match the max level in the restart file (", tmp_max_level, ")");
+    if (tmp_max_level > max_level)
+        Util::Abort(INFO, "The max level specified (", max_level, ") is smaller than the finest level in the restart file (", tmp_max_level, ")");
     finest_level = tmp_max_level;
     // Geometry ?
     std::getline(is, line); Util::Message(INFO, "Input geometry: ", line);
@@ -585,18 +590,28 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
     // Domain
     std::getline(is, line);
     std::vector<std::string> tmp_iters = Util::String::Split(line);
-    if (tmp_iters.size() != (unsigned int)(max_level + 1)) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
-    for (int lev = 0; lev <= max_level; lev++) { istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO, "Iter on level ", lev, " = ", istep[lev]); }
+    if (tmp_iters.size() != (unsigned int)(finest_level + 1)) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
+    for (int lev = 0; lev <= finest_level; lev++) { istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO, "Iter on level ", lev, " = ", istep[lev]); }
 
     amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level + 1);
     int total_ncomp = 0;
 
-    if (a_nodal) for (unsigned int i = 0; i < node.fab_array.size(); i++) total_ncomp += node.ncomp_array[i];
-    else         for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+    if (a_nodal)
+    {
+        for (unsigned int i = 0; i < node.fab_array.size(); i++) 
+            if (node.writeout_array[i]) 
+                total_ncomp += node.ncomp_array[i];
+    }
+    else        
+    {
+        for (unsigned int i = 0; i < cell.fab_array.size(); i++) 
+            if (cell.writeout_array[i]) 
+                total_ncomp += cell.ncomp_array[i];
+    }
 
     int total_nghost = a_nodal ? 0 : cell.nghost_array[0];
 
-    for (int lev = 0; lev <= max_level; lev++)
+    for (int lev = 0; lev <= finest_level; lev++)
     {
         amrex::BoxArray tmp_ba;
         tmp_ba.readFrom(chkpt_is);
@@ -608,15 +623,21 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         {
             amrex::BoxArray ngrids = grids[lev];
             ngrids.convert(amrex::IntVect::TheNodeVector());
-            tmpdata[lev].define(ngrids, dmap[lev], total_ncomp, total_nghost);
+            //tmpdata[lev].define(ngrids, dmap[lev], total_ncomp, total_nghost);
         }
         else
         {
-            tmpdata[lev].define(grids[lev], dmap[lev], total_ncomp, total_nghost);
+            //tmpdata[lev].define(grids[lev], dmap[lev], total_ncomp, total_nghost);
         }
+        Util::Message(INFO,max_level);
+        Util::Message(INFO,finest_level);
+        Util::Message(INFO,lev,dirname);
+        Util::Message(INFO,lev,grids[lev]);
+        Util::Message(INFO,amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
+        Util::Message(INFO,total_ncomp);
+        Util::Message(INFO,total_nghost);
         amrex::VisMF::Read(tmpdata[lev],
             amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
-
 
         if (a_nodal)
             for (int i = 0; i < node.number_of_fabs; i++)
@@ -657,15 +678,18 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             else
             {
                 for (int j = 0; j < cell.number_of_fabs; j++)
+                {
                     for (int k = 0; k < cell.ncomp_array[j]; k++)
                     {
                         if (tmp_name_array[i] == cell.name_array[j][k])
                         {
                             match = true;
                             Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
-                            amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, cell.nghost_array[j]);
+                            amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0 /*cell.nghost_array[j]*/);
+                            Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev], cell.nghost_array[j]);
                         }
                     }
+                }
             }
             if (!match) Util::Warning(INFO, "Fab ", tmp_name_array[i], " is in the restart file, but there is no fab with that name here.");
         }
@@ -678,6 +702,14 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         {
             m_basefields[n]->MakeNewLevelFromScratch(lev, t_new[lev], grids[lev], dmap[lev]);
         }
+
+        
+        for (int n = 0; n < cell.number_of_fabs; n++)
+        {
+            if (cell.writeout_array[n])
+                FillPatch(lev, t_new[lev], *cell.fab_array[n], *(*cell.fab_array[n])[lev], *cell.physbc_array[n], 0);
+        }
+
     }
 
     SetFinestLevel(max_level);

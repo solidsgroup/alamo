@@ -141,7 +141,7 @@ class HTMLPrinter:
 
             elif input['type'] in ["query_default","queryarr_default"]:
                 print(self.mypr,"  "*lev,f"  <td>", file=self.f)
-                print(self.mypr,"  "*lev,f"    <span class='{bdg_success}'>{input['default']}</span>", file=self.f)
+                print(self.mypr,"  "*lev,f"    <span class='{bdg_success}'>{input['default'].replace('"','')}</span>", file=self.f)
                 print(self.mypr,"  "*lev,f"  </td>", file=self.f)
 
             elif input['type'] in ["query_validate"]:

@@ -1,0 +1,113 @@
+#@ [2d-serial-notch]
+#@ exe=fracture
+#@ dim=2
+#@ args= stop_time=0.1
+
+alamo.program = fracture
+
+timestep = 1e-4
+stop_time = 1.e1
+
+plot_file       = tests/FractureLimestone/output
+amr.plot_int    = 100
+amr.max_level   = 4
+amr.n_cell      = 128 128
+amr.blocking_factor = 32
+amr.regrid_int  = 10
+amr.grid_eff    = 0.9
+amr.thermo.int  = 1
+amr.nsubsteps   = 1
+amr.node.any    = 0
+amr.cell.all    = 1
+
+geometry.prob_lo        = -0.05 -0.05
+geometry.prob_hi        = 0.05 0.05
+geometry.is_periodic    = 0 0
+
+crack.refinement_threshold  = 1.e-9
+crack.df.tol_rel            = 0.01
+crack.df.tol_abs            = 0.0
+crack.df.max_iter           = 10000
+
+crack.df.mult_Gc        = 1.0
+crack.df.mult_Lap       = 1.0
+crack.df.beta           = 0
+crack.df.el_mult        = 1.e11
+
+crack.model1.mixed_mode           = 1
+crack.model1.failure_surface      = wang2023
+crack.model1.E                    = 36.2e9
+crack.model1.nu                   = 0.21
+crack.model1.fracture_strength    = 10.25e6
+crack.model1.chi                  = 2.0
+crack.model1.compressive_strength = 102.5e6
+crack.model1.G_c                  = 1.1e1
+
+
+crack.model1.zeta                 = 5e-4 
+crack.model1.mobility             = 5.0e-3
+crack.model1.gtype                = wu_linear
+crack.model1.wtype                = wu
+crack.model1.threshold            = 0.0
+
+crack.ic.type                       = expression
+crack.ic.expression.constant.L      = 10.e-3
+crack.ic.expression.constant.W      = 2.e-4
+crack.ic.expression.constant.x0     = 0.0
+crack.ic.expression.constant.y0     = 0.0
+crack.ic.expression.constant.W      = 2.e-4
+crack.ic.expression.constant.theta  = 0.78539816339
+crack.ic.expression.constant.eps    = 5.e-4
+crack.ic.expression.region0 = "heaviside( max( abs((x-x0)*cos(theta) + (y-y0)*sin(theta)) - L/2, abs(-(x-x0)*sin(theta) + (y-y0)*cos(theta)) - W/2 ), 0 ) * erf( max( abs((x-x0)*cos(theta) + (y-y0)*sin(theta)) - L/2, abs(-(x-x0)*sin(theta) + (y-y0)*cos(theta)) - W/2 )/(sqrt(2)*eps))"
+
+crack.bc.type.xhi = NEUMANN
+crack.bc.type.xlo = NEUMANN
+crack.bc.type.yhi = NEUMANN
+crack.bc.type.ylo = NEUMANN
+
+material.model1.E = 0.362
+material.model1.nu = 0.21
+
+
+material.refinement_threshold = 1.e-1
+
+### Mode-I test
+bc.type = constant
+bc.constant.type.xloylo = disp disp # trac disp # disp disp
+bc.constant.type.xlo    = disp trac # disp trac
+bc.constant.type.xloyhi = disp disp # disp disp
+bc.constant.type.ylo    = trac disp # disp disp
+bc.constant.type.yhi    = trac disp
+bc.constant.type.xhi    = trac trac # disp trac
+bc.constant.type.xhiylo = trac disp # disp disp
+bc.constant.type.xhiyhi = trac disp #disp disp
+bc.constant.val.yhi     = 0.0 (1,10:-1.e-4,-2.e-4)
+bc.constant.val.xloyhi  = 0.0 (1,10:-1.e-4,-2.e-4) #-1.e-3
+bc.constant.val.xhiyhi  = 0.0 (1,10:-1.e-4,-2.e-4) #-1.e-3
+
+#
+# Solver inputs
+#
+elasticop.small                 = 1.e-4
+solver.bottom_solver            = smoother
+solver.tol_abs                  = 1E-16 # This is very important for near-singular problems!!!
+solver.tol_rel                  = 1e-7
+solver.verbose                  = 3
+solver.nriters                  = 1
+solver.fixed_iter               = 10000
+solver.normalize_ddw            = 1
+solver.average_down_coeffs      = 1
+
+#
+# Mechanics inputs
+#
+interval                        = 1
+print_residual                  = 1
+print_model                     = 1
+plot_psi                        = 1
+elastic_ref_threshold           = 0.0001
+zero_out_displacement           = 0
+
+
+amrex.throw_exception           = 1
+driving_force_refinement_threshold = 1.e6
