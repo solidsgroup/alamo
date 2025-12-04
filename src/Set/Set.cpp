@@ -4,6 +4,20 @@ namespace Set
 {
 }
 
+namespace Set
+{
+namespace Constant
+{
+
+    // Function to update constants to match system level units
+    void SetSystemUnits()
+    {
+        Rg.first = Rg.normalized_value();
+    }
+
+}
+}
+
 namespace Util
 {
 Set::Scalar Random()
