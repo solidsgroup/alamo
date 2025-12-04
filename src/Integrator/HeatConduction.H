@@ -132,9 +132,9 @@ protected:
         // the new one.
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
 
-        amrex::TimeIntegrator integrator(*temp_old_mf[lev], time);
+        amrex::TimeIntegrator timeintegrator(*temp_old_mf[lev], time);
         
-        auto RHS = [&](amrex::MultiFab & rhs_mf, amrex::MultiFab & temp_mf, const Set::Scalar /*time*/){
+        timeintegrator.set_rhs([&](amrex::MultiFab & rhs_mf, amrex::MultiFab & temp_mf, const Set::Scalar /*time*/){
 
             // Get the cell size corresponding to this level
             const Set::Scalar* DX = geom[lev].CellSize();
@@ -158,10 +158,15 @@ protected:
                     rhs(i, j, k) = alpha * Numeric::Laplacian(temp, i, j, k, 0, DX);
                 });
             }
-        };
+        });
+        
+        timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, 
+                                                 Set::Scalar time) {
+            bc->FillBoundary(stage_mf,0,1,time,0);   
+            stage_mf.FillBoundary(true);
+        });
 
-        integrator.set_rhs(RHS);
-        integrator.advance(*temp_old_mf[lev], *temp_mf[lev], time, dt);
+        timeintegrator.advance(*temp_old_mf[lev], *temp_mf[lev], time, dt);
 
 
     }

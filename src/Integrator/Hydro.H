@@ -138,11 +138,6 @@ private:
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
-    enum IntegrationScheme {
-        ForwardEuler, SSPRK3, RK4
-    };
-    IntegrationScheme scheme;
-
 };
 }
 

@@ -154,6 +154,27 @@ Integrator::Integrator() : amrex::AmrCore()
         }
     }
 
+
+    {
+        //
+        // These parameters are NOT USED! 
+        // They are shadow paramters for AMReX::TimeIntegration.
+        // The purpose here is:
+        // (1) to set default values
+        // (2) to prevent "unused input" warnings when integration is parsed, since it is parsed in the 
+        //     AMReX convention, not the Alamo convention.
+        // 
+
+        IO::ParmParse pp("integration");
+        std::string str;
+        pp.query_validate("type", str, {"ForwardEuler","RungeKutta"});
+        if (str == "RungeKutta")
+        {
+            int type;
+            pp.query_validate("rk.type", type, {1,2,3,4});
+        }
+    }
+
     int nlevs_max = maxLevel() + 1;
 
     istep.resize(nlevs_max, 0);
