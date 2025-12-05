@@ -29,9 +29,7 @@ def extract_paths_from_html(html_file):
     paths.update(subpaths)
     paths.add(html_file)
 
-    #return [p.relative_to(html_file.parent) for p in paths if (html_file.parent / p).exists()]
     return [p for p in paths if p.exists()]
-    #return [html_file.parent / p for p in paths]
 
 def create_tarball(files, output_path):
     with tarfile.open(output_path, "w:gz") as tar:

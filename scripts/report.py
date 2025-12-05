@@ -167,10 +167,10 @@ def html_hdr(title):
     .result-badges {{
       display: flex;
       gap: 5px;
-      flex-shrink: 0;
+      flex-wrap:wrap;
     }}
     .result-badge {{
-      display: inline-block;
+      display: block;
       padding: 3px 8px;
       border-radius: 3px;
       font-size: 12px;
@@ -178,20 +178,33 @@ def html_hdr(title):
       line-height: 1;
     }}
     .result-badge.pass {{
-      background: #d1e7dd;
+      background: #FFFFFF00;
       color: #0f5132;
+      border: 1px solid #badbcc;
+    }}
+    .result-badge.check.pass {{
+      background: #d1e7dd;
     }}
     .result-badge.fail {{
-      background: #f8d7da;
+      background: #FFFFFF00;
       color: #842029;
     }}
+    .result-badge.check.fail {{
+      background: #f8d7da;
+    }}
     .result-badge.warn {{
-      background: #fff3cd;
+      background: #FFFFFF00;
       color: #664d03;
     }}
+    .result-badge.check.warn {{
+      background: #fff3cd;
+    }}
     .result-badge.timeout {{
-      background: #e2e3e5;
+      background: #FFFFFF00;
       color: #41464b;
+    }}
+    .result-badge.check.timeout {{
+      background: #e2e3e5;
     }}
     .cell {{
       text-align: center;
@@ -216,24 +229,35 @@ def html_hdr(title):
       min-width: 65px;
     }}
     .status-PASS {{ 
-      background: #d1e7dd;
+      background: #FFFFFF00;
       color: #0f5132;
       border: 1px solid #badbcc;
     }}
+    .check.status-PASS {{ 
+      background: #d1e7dd;
+    }}
     .status-FAIL {{ 
-      background: #f8d7da;
+      background: #FFFFFF00;
       color: #842029;
       border: 1px solid #f5c2c7;
     }}
+    .check.status-FAIL {{ 
+      background: #f8d7da;
+    }}
     .status-WARN {{ 
-      background: #fff3cd;
+      background: #FFFFFF00;
       color: #664d03;
       border: 1px solid #ffecb5;
     }}
+    .check.status-WARN {{ 
+      background: #fff3cd;
+    }}
     .status-TIMEOUT {{ 
-      background: #e2e3e5;
       color: #41464b;
       border: 1px solid #d3d6d8;
+    }}
+    .check.status-TIMEOUT {{ 
+      background: #e2e3e5;
     }}
     .runtime {{
       font-size: 11px;
@@ -424,13 +448,17 @@ def write_master_html():
     
     for testid in reversed(testids):
         # Calculate summary statistics for this testid
-        counts = {"PASS": 0, "FAIL": 0, "WARN": 0, "TIMEOUT": 0}
+        counts = {"PASS": 0, "FAIL": 0, "WARN": 0, "TIMEOUT": 0,
+                  "CHECK-PASS": 0, "CHECK-FAIL": 0, "CHECK-WARN": 0, "CHECK-TIMEOUT": 0}
         for test_section in all_tests:
             rec = db[testid].get(test_section)
             if rec:
-                status = rec.get("runStatus", "?")
-                if status in counts:
-                    counts[status] += 1
+                runStatus = rec.get("runStatus", "?")
+                checkStatus = rec.get("checkStatus","?")
+                if checkStatus not in {"NONE","?"}:
+                    counts[f"CHECK-{checkStatus}"] += 1
+                else:
+                    counts[runStatus] += 1
         
         html.append("<tr><td>")
         html.append("<div class='testid-cell'>")
@@ -438,12 +466,20 @@ def write_master_html():
         html.append("<div class='result-badges'>")
         if counts["PASS"] > 0:
             html.append(f"<span class='result-badge pass'>{counts['PASS']} ✓</span>")
+        if counts["CHECK-PASS"] > 0:
+            html.append(f"<span class='result-badge check pass'>{counts['CHECK-PASS']} ✓</span>")
         if counts["FAIL"] > 0:
             html.append(f"<span class='result-badge fail'>{counts['FAIL']} ✗</span>")
+        if counts["CHECK-FAIL"] > 0:
+            html.append(f"<span class='result-badge check fail'>{counts['CHECK-FAIL']} ✗</span>")
         if counts["WARN"] > 0:
             html.append(f"<span class='result-badge warn'>{counts['WARN']} ⚠</span>")
+        if counts["CHECK-WARN"] > 0:
+            html.append(f"<span class='result-badge check warn'>{counts['CHECK-WARN']} ⚠</span>")
         if counts["TIMEOUT"] > 0:
             html.append(f"<span class='result-badge timeout'>{counts['TIMEOUT']} ⏱</span>")
+        if counts["CHECK-TIMEOUT"] > 0:
+            html.append(f"<span class='result-badge check timeout'>{counts['CHECK-TIMEOUT']} ⏱</span>")
         html.append("</div>")
         html.append("</div>")
         html.append("</td>")
@@ -451,11 +487,18 @@ def write_master_html():
         for test_section in all_tests:
             rec = db[testid].get(test_section)
             if rec:
-                status = rec.get("runStatus", "?")
+                runStatus = rec.get("runStatus", "?")
+                checkStatus = rec.get("checkStatus","?")
                 runtime = rec.get("executionTime", "")
                 
                 html.append("<td class='cell'><div class='cell-content'>")
-                html.append(f"<span class='status-badge status-{status}'>{escape(status)}</span>")
+                if runStatus == "PASS":
+                    if checkStatus != "NONE":
+                        html.append(f"<span class='status-badge check status-{checkStatus}'>{checkStatus}</span>")
+                    else:
+                        html.append(f"<span class='status-badge status-{runStatus}'>{runStatus}</span>")
+                        
+                    
                 
                 if runtime:
                     try:
