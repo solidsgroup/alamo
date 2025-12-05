@@ -106,7 +106,6 @@ protected:
 protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
-private:
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> vorticity_mf;

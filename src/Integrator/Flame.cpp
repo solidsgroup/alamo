@@ -22,7 +22,7 @@ namespace Integrator
 
 Flame::Flame() : 
     Base::Mechanics<model_type>(), 
-    Hydro() //(eta_mf, eta_old_mf, true)
+    Hydro(eta_mf, eta_old_mf, true)
 {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
@@ -338,12 +338,13 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            //Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as traction force at solid/fluid interface
+            Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as traction force at solid/fluid interface
 
             if (elastic.on)
             {
                 Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
-                /*amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     Set::Vector pres_reg;
@@ -372,7 +373,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_htpb.F0 += Set::Matrix::Identity();
 
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
-                });*/
+                });
             }
             else
             {
@@ -395,7 +396,6 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
 void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 {
-/*
     amrex::Box domain = this->geom[lev].Domain();
     domain.convert(amrex::IntVect::TheNodeVector());
     const Set::Scalar* DX = geom[lev].CellSize();
@@ -493,7 +493,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
     Util::RealFillBoundary(*solid.momentum_mf[lev],geom[lev]);
     Util::RealFillBoundary(*m0_mf[lev],geom[lev]);
     Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
-*/
 }
 
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
