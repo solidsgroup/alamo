@@ -129,7 +129,7 @@ protected:
     BC::BC<Set::Scalar>* energy_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
     BC::BC<Set::Scalar>* tracer_bc = nullptr;
- 
+
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* density_ic  = nullptr;

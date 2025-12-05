@@ -12,7 +12,7 @@
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
-// #if AMREX_SPACEDIM == 2
+//#if AMREX_SPACEDIM == 2
 
 namespace Integrator
 {
@@ -81,9 +81,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
             pp.select_default<BC::Constant,BC::Expression>("pf.eta.bc",value.eta_bc,1);
         }
 
-        // // Boundary condition for tracer field
-        // pp.select_default<BC::Constant,BC::Expression>("tracer.bc",value.tracer_bc,1);
-
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
@@ -114,9 +111,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.momentum_mf,     value.momentum_bc, 2, nghost, "momentum",     true ,true, {"x","y"});
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false, true);
  
-        // value.RegisterNewFab(value.tracer_mf,     value.tracer_bc, 1, nghost, "tracer",     true ,true);
-        // value.RegisterNewFab(value.tracer_old_mf, value.tracer_bc, 1, nghost, "tracer_old", false);
-
         value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
@@ -159,9 +153,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     // density initial condition type
     pp.select_default<IC::Constant,IC::Expression>("density.ic",value.density_ic,value.geom);
 
-    // density initial condition type
-    // pp.select_default<IC::Constant,IC::Expression>("tracer.ic",value.tracer_ic,value.geom);
-
 
     // SOLID FIELDS
 
@@ -183,7 +174,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select_default<Solver::Local::Riemann::Roe,
+    pp.select_default<  Solver::Local::Riemann::Roe,
                         Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
@@ -194,9 +185,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     if (prescribedflowmode_str == "absolute") value.prescribedflowmode = PrescribedFlowMode::Absolute;
     else if (prescribedflowmode_str == "relative") value.prescribedflowmode = PrescribedFlowMode::Relative;
 
-    Util::Message(INFO);
     pp.queryarr_default("g",value.g,Set::Vector::Zero());
-    Util::Message(INFO);
+
 
 
     bool allow_unused;
@@ -232,8 +222,6 @@ void Hydro::Initialize(int lev)
 
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
 
-    // tracer_ic       ->Initialize(lev, tracer_old_mf, 0.0);
-    // tracer_ic       ->Initialize(lev, tracer_mf, 0.0);
 
     solid.density_ic ->Initialize(lev, solid.density_mf, 0.0);
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
@@ -348,10 +336,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
-    // std::swap(tracer_old_mf[lev],   tracer_mf[lev]);
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
 
-    //ic_u0->Initialize(lev, u0_mf,    time);
 
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
@@ -660,9 +646,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> Source = Source_mf.Patch(lev,mfi);
 
-        // Set::Patch<Set::Scalar> tracer_new = tracer_mf.Patch(lev,mfi);
-        // Set::Patch<const Set::Scalar> tracer   = tracer_old_mf.Patch(lev,mfi);
-
         Set::Scalar *dt_max_handle = &dt_max;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -677,12 +660,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
             }
 
-            // Set::Vector vel(u(i,j,k,0),u(i,j,k,1));
             Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
-
-            // Set::Vector gradtracer        = Numeric::Gradient(tracer, i, j, k,0, DX);
-            // tracer_new(i,j,k) = tracer(i,j,k) - vel.dot(gradtracer)*dt;
 
             if (dynamictimestep.on)
             {
@@ -728,8 +707,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
 
-        // Set::Patch<Set::Scalar> u0_patch  = Flame::u0_mf.Patch(lev,mfi);
-
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
@@ -745,9 +722,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             #if AMREX_SPACEDIM == 3
                 etaM_fluid(2) = 0.0;
             #endif
-
-            //Set::Vector etaM_fluid( M(i,j,k,0) - (1.-eta) * M_solid(i,j,k,0),
-                                    //M(i,j,k,1) - (1.-eta) * M_solid(i,j,k,1) );
 
             //THESE ARE FLUID VELOCITY AND PRESSURE
 
@@ -857,7 +831,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
 
 
-            // Set::Scalar mdot0 = -lagrange_m0 * (rho(i,j,k)-m0(i,j,k)) * grad_eta_mag;
             Set::Scalar mdot0 = -m0(i,j,k)*grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
             Set::Scalar qdot0 = q0.dot(grad_eta);
@@ -895,7 +868,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             // Lagrange terms to enforce no-penetration
             Source(i,j,k,1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
             Source(i,j,k,2) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
-            
+
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
@@ -969,6 +942,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     etadot(i,j,k) * (rho(i,j,k) - rho_solid(i,j,k)) / (eta + small)
                 // ) * dt;
                 ;
+
+
                 
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
@@ -1076,6 +1051,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
 #endif
 
+
+
             // todo - may need to move this for higher order schemes...
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
         });
@@ -1166,3 +1143,6 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 }
 
 }
+
+
+//#endif
