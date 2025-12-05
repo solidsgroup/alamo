@@ -2,7 +2,7 @@
 import sys
 
 sys.path.append('./scripts')
-from report import init_html, append_html, finalize_html, write_master_html
+from report import init_html, append_html, finalize_html
 
 import argparse
 import os, glob, subprocess
@@ -48,8 +48,7 @@ def clean(text,max_length=60):
 #
 now = datetime.now()
 testid = now.strftime("output_%Y-%m-%d_%H.%M.%S_"+socket.gethostname())
-os.makedirs("report",exist_ok=True)
-init_html(html_path=f"report/{testid}.html")
+init_html()
 print("Test ID = ",testid)
 
 #
@@ -507,7 +506,6 @@ def test(testdir):
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
             timeouts += 1
-            append_html(record)
             continue
         except DryRunException as e:
             print("")

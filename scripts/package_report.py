@@ -17,24 +17,16 @@ def extract_paths_from_html(html_file):
     with open(html_file, "r", encoding="utf-8") as f:
         html = f.read()
     paths = set()
-    paths.update([(html_file.parent/Path(p)).absolute().resolve() for p in IMG_RE.findall(html)])
-    paths.update([(html_file.parent/Path(p)).absolute().resolve() for p in LINK_RE.findall(html)])
-
-
-    subpaths = set()
-    for path in paths:
-        if str(path).endswith("html"):
-            subpaths.update(extract_paths_from_html(Path(path).absolute()))
+    paths.update(IMG_RE.findall(html))
+    paths.update(LINK_RE.findall(html))
     # Always include the HTML file itself
-    paths.update(subpaths)
-    paths.add(html_file)
-
-    return [p for p in paths if p.exists()]
+    paths.add(str(REPORT_HTML.relative_to(REPORT_DIR)))
+    return [REPORT_DIR / p for p in paths if (REPORT_DIR / p).exists()]
 
 def create_tarball(files, output_path):
     with tarfile.open(output_path, "w:gz") as tar:
         for file in files:
-            arcname = file.relative_to(REPORT_DIR.absolute())
+            arcname = file.relative_to(REPORT_DIR.parent)
             tar.add(file, arcname=arcname)
 
 def main():
@@ -43,9 +35,7 @@ def main():
         return
 
     print("Scraping report.html...")
-    files = extract_paths_from_html(REPORT_HTML.absolute())
-
-    for f in files: print(f)
+    files = extract_paths_from_html(REPORT_HTML)
 
     print(f"Found {len(files)} files. Creating {TARBALL}...")
     create_tarball(files, TARBALL)

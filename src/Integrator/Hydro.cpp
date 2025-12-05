@@ -329,7 +329,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //
 
     if (!managed) UpdateEta(lev, time);
-    if (managed) Mix(lev);
+    if (managed) 
+    {
+        UpdateFluxes(lev,time,dt);
+        Mix(lev);
+    }
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
