@@ -12,6 +12,9 @@
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
+
+#include "AMReX_TimeIntegrator.H"
+
 //#if AMREX_SPACEDIM == 2
 
 namespace Integrator
@@ -336,7 +339,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
-    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
 
 
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
@@ -355,279 +357,54 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     if (!lev) Util::Warning(INFO,"zeroing out etadot for the moment");
 
 
-    if (scheme == IntegrationScheme::ForwardEuler) // forward euler
+    //
+    // DO TIME INTEGRATION (driving the RHS function)
+    //
+
+    // Organize references to the "new" solution
+    amrex::Vector<amrex::MultiFab> solution_new; 
+    solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+    solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+
+    // Organize references to the "old" solution
+    amrex::Vector<amrex::MultiFab> solution_old;
+    solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
+    solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+
+    // Create the time integrator
+    amrex::TimeIntegrator timeintegrator(solution_new, time);
+
+    // Set the time integrator RHS - in this case, just relay to our current RHS function
+    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
     {
+        RHS(lev, time,
+            rhs_mf[0], rhs_mf[1], rhs_mf[2],
+            solution_mf[0],solution_mf[1],solution_mf[2]);
+    });
 
-        RHS(lev, time, 
-            *density_mf[lev],     *momentum_mf[lev],     *energy_mf[lev],
-            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
-
-        for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
-        {
-            const amrex::Box& bx = mfi.validbox();
-        
-            Set::Patch<const Set::Scalar> rho_rhs = density_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> E_rhs   = energy_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> M_rhs   = momentum_mf.Patch(lev,mfi);
-
-            Set::Patch<const Set::Scalar> rho_old = density_old_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> E_old   = energy_old_mf.Patch(lev,mfi);
-            Set::Patch<const Set::Scalar> M_old   = momentum_old_mf.Patch(lev,mfi);
-
-            Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
-        
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {   
-                rho_new(i, j, k) = rho_old(i, j, k) + dt * rho_rhs(i,j,k);
-                M_new(i,j,k,0) = M_old(i,j,k,0)     + dt * M_rhs(i,j,k,0);
-                M_new(i,j,k,1) = M_old(i,j,k,1)     + dt * M_rhs(i,j,k,1);
-                E_new(i,j,k)     = E_old(i,j,k)     + dt * E_rhs(i,j,k);
-            });
-        }
-    }
-
-
-    else if (scheme == IntegrationScheme::SSPRK3)
+    // Take care of filling boundaries during stages
+    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
     {
-        // Butcher Tableau
-        //     |
-        //  1  |  1    
-        // 1/2 | 1/4  1/4
-        // ---------------------
-        //     | 1/6  1/6  2/3
-        
-        Set::Scalar 
-            /* */  
-            /* */  c2 = 1.0 ,    a21 = 1.0,  
-            /* */  c3 = 0.5,     a31 = 0.25, a32 = 0.25, 
-            /*     ---------------------------------------------    */
-            /* */                b1 = 1./6,  b2 = 1./6., b3 = 2./3.;
+        density_bc->FillBoundary(stage_mf[0],0,1,time,0);   
+        stage_mf[0].FillBoundary(true);
+        momentum_bc->FillBoundary(stage_mf[1],0,2,time,0);  
+        stage_mf[1].FillBoundary(true);
+        energy_bc->FillBoundary(stage_mf[2],0,1,time,0);    
+        stage_mf[2].FillBoundary(true);
+    });
+    
+    // Do the update
+    timeintegrator.advance(solution_old, solution_new, time, dt);
 
 
-        const amrex::BoxArray &ba = density_mf[lev]->boxArray();
-        const amrex::DistributionMapping &dm = density_mf[lev]->DistributionMap();
-        const int ng = density_mf[lev]->nGrow();
+    //
+    // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
+    //
 
-        // handles to old solution
-        const amrex::MultiFab &density_old = *density_old_mf[lev];
-        const amrex::MultiFab &momentum_old = *momentum_old_mf[lev];
-        const amrex::MultiFab &energy_old = *energy_old_mf[lev];
-
-        
-        // temporary storage
-        amrex::MultiFab density_k1(ba,dm,1,0), momentum_k1(ba,dm,2,0), energy_k1(ba,dm,1,0);
-        amrex::MultiFab density_k2(ba,dm,1,0), momentum_k2(ba,dm,2,0), energy_k2(ba,dm,1,0);
-        amrex::MultiFab density_k3(ba,dm,1,0), momentum_k3(ba,dm,2,0), energy_k3(ba,dm,1,0);
-            
-        // buffer to hold combs of k1
-        amrex::MultiFab density_temp(ba,dm,1,ng), momentum_temp(ba,dm,2,ng), energy_temp(ba,dm,1,ng);
-
-        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
-        density_temp.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-        momentum_temp.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
-        energy_temp.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-
-        // handles to new solution
-        amrex::MultiFab &density_new = *density_mf[lev];
-        amrex::MultiFab &momentum_new = *momentum_mf[lev];
-        amrex::MultiFab &energy_new = *energy_mf[lev];
-
-
-        //
-        // Calculate K1
-        //
-        // k1 = RHS(t, yold)
-
-        RHS(lev,time,
-            density_k1,momentum_k1,energy_k1,
-            *density_old_mf[lev], *momentum_old_mf[lev], *energy_old_mf[lev]);
-
-
-        //
-        // Calculate K2
-        // 
-        // ytemp = yold + dt*( a21*k1 )
-        amrex::MultiFab::LinComb(density_temp,  1.0, density_old,  0, dt*a21, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_temp, 1.0, momentum_old, 0, dt*a21, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_temp,   1.0, energy_old,   0, dt*a21, energy_k1,   0, 0, 1, 0);
-        // fill boundary
-        density_bc ->FillBoundary(density_temp,  0, 1, time, 0); density_temp.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_temp, 0, 2, time, 0); momentum_temp.FillBoundary(true);
-        energy_bc  ->FillBoundary(energy_temp,   0, 1, time, 0); energy_temp.FillBoundary(true);
-        // k2 = RHS(t + c2*dt, ytemp)
-        RHS(lev,time + c2*dt,
-            density_k2, momentum_k2, energy_k2,
-            density_temp, momentum_temp, energy_temp);
-
-        //
-        // Calculate K3
-        //
-        // ytemp = yold + dt*( a31*k1 + a32*k2 )
-        //
-        // 1. ytemp = yold + dt*a31*k1
-        amrex::MultiFab::LinComb(density_temp,  1.0, density_old,  0, dt*a31, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_temp, 1.0, momentum_old, 0, dt*a31, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_temp,   1.0, energy_old,   0, dt*a31, energy_k1,   0, 0, 1, 0);
-        // 2. ytemp += dt*a32*k2
-        amrex::MultiFab::Saxpy(density_temp,  dt*a32, density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_temp, dt*a32, momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_temp,   dt*a32, energy_k2,   0, 0, 1, 0);
-        // 3. fill boundary
-        density_bc ->FillBoundary(density_temp,  0, 1, time+c2*dt, 0); density_temp.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_temp, 0, 2, time+c2*dt, 0); momentum_temp.FillBoundary(true);
-        energy_bc  ->FillBoundary(energy_temp,   0, 1, time+c2*dt, 0); energy_temp.FillBoundary(true);
-        // 4. k3 = RHS(t + c3*dt, ytemp)
-        RHS(lev,time + c3*dt,
-            density_k3, momentum_k3, energy_k3,
-            density_temp, momentum_temp, energy_temp);
-        
-        //
-        // Assemble to get ynew
-        //
-        // ynew = yold + dt*(b1*k1 + b2*k2 + b3*k3)
-        //
-        // 1. ynew = yold + dt*b1*k1
-        amrex::MultiFab::LinComb(density_new,  1.0, density_old,  0, dt*b1, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_new, 1.0, momentum_old, 0, dt*b1, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_new,   1.0, energy_old,   0, dt*b1, energy_k1,   0, 0, 1, 0);
-        // 2. ynew += dt*b2*k2
-        amrex::MultiFab::Saxpy(density_new,  dt*b2, density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, dt*b2, momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   dt*b2, energy_k2,   0, 0, 1, 0);
-        // 2. ynew += dt*b3*k3
-        amrex::MultiFab::Saxpy(density_new,  dt*b3, density_k3,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, dt*b3, momentum_k3, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   dt*b3, energy_k3,   0, 0, 1, 0);
-
-    }
-
-
-
-    else if (scheme == IntegrationScheme::RK4)
-    {
-        //
-        // RK4 time integration scheme:
-        //
-        
-        const amrex::BoxArray &ba = density_mf[lev]->boxArray();
-        const amrex::DistributionMapping &dm = density_mf[lev]->DistributionMap();
-        const int ng = density_mf[lev]->nGrow();
-
-        // handles to old solution
-        const amrex::MultiFab &density_old = *density_old_mf[lev];
-        const amrex::MultiFab &momentum_old = *momentum_old_mf[lev];
-        const amrex::MultiFab &energy_old = *energy_old_mf[lev];
-
-        // runge kutta stages
-        amrex::MultiFab density_k1(ba,dm,1,0), momentum_k1(ba,dm,2,0), energy_k1(ba,dm,1,0);
-        amrex::MultiFab density_k2(ba,dm,1,0), momentum_k2(ba,dm,2,0), energy_k2(ba,dm,1,0);
-        amrex::MultiFab density_k3(ba,dm,1,0), momentum_k3(ba,dm,2,0), energy_k3(ba,dm,1,0);
-        amrex::MultiFab density_k4(ba,dm,1,0), momentum_k4(ba,dm,2,0), energy_k4(ba,dm,1,0);
-        
-        // temporary storage
-        amrex::MultiFab density_st(ba,dm,1,ng), momentum_st(ba,dm,2,ng), energy_st(ba,dm,1,ng);
-            
-        // fill the ghost cells from the _old fields, which were updated from the coarse patch.
-        density_st.ParallelCopyToGhost(*density_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-        momentum_st.ParallelCopyToGhost(*momentum_old_mf[lev],0,0,2,amrex::IntVect(1),amrex::IntVect(1));
-        energy_st.ParallelCopyToGhost(*energy_old_mf[lev],0,0,1,amrex::IntVect(1),amrex::IntVect(1));
-
-
-        // handles to new solution
-        amrex::MultiFab &density_new = *density_mf[lev];
-        amrex::MultiFab &momentum_new = *momentum_mf[lev];
-        amrex::MultiFab &energy_new = *energy_mf[lev];
-
-
-        //
-        // K1
-        // 
-
-        RHS(lev,time,
-            density_k1,momentum_k1,energy_k1,
-            density_old, momentum_old, energy_old);
-
-        //
-        // K2
-        //
-
-        // [state] = [old] + (dt/2)[k1]
-        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt/2.0, density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k1,   0, 0, 1, 0);
-
-        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
-        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary(true);
-        
-
-        RHS(lev,time,
-            density_k2, momentum_k2, energy_k2,
-            density_st, momentum_st, energy_st);
-
-        //
-        // K3
-        //
-
-        // [state] = [old] + (dt/2)[k2]
-        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt/2.0, density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt/2.0, momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt/2.0, energy_k2,   0, 0, 1, 0);
-
-        density_bc->FillBoundary(density_st, 0, 1, time, 0);   density_st.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
-        energy_bc->FillBoundary(energy_st,0,1,time,0);         energy_st.FillBoundary(true);
-
-        RHS(lev,time,
-            density_k3, momentum_k3, energy_k3,
-            density_st, momentum_st, energy_st);
-        
-        //
-        // K4
-        //
-        
-        // [state] = [old] + (dt/2)[k3]
-        amrex::MultiFab::LinComb(density_st,  1.0, density_old,  0, dt, density_k3,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_st, 1.0, momentum_old, 0, dt, momentum_k3, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_st,   1.0, energy_old,   0, dt, energy_k3,   0, 0, 1, 0);
-
-        density_bc-> FillBoundary(density_st,  0, 1, time, 0); density_st.FillBoundary(true);
-        momentum_bc->FillBoundary(momentum_st, 0, 2, time, 0); momentum_st.FillBoundary(true);
-        energy_bc->  FillBoundary(energy_st,   0, 1, time, 0); energy_st.FillBoundary(true);
-
-
-        RHS(lev,time,
-            density_k4, momentum_k4, energy_k4,
-            density_st, momentum_st, energy_st);
-
-        
-        // [new] = [old] + (dt/6)k1
-        amrex::MultiFab::LinComb(density_new,  1.0, density_old,  0, (dt/6.0), density_k1,  0, 0, 1, 0);
-        amrex::MultiFab::LinComb(momentum_new, 1.0, momentum_old, 0, (dt/6.0), momentum_k1, 0, 0, 2, 0);
-        amrex::MultiFab::LinComb(energy_new,   1.0, energy_old,   0, (dt/6.0), energy_k1,   0, 0, 1, 0);
-
-        // [new] += (2 dt/6)k2
-        amrex::MultiFab::Saxpy(density_new,  (dt/3.0), density_k2,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, (dt/3.0), momentum_k2, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   (dt/3.0), energy_k2,   0, 0, 1, 0);
-
-        // [new] += (2 dt/6)k3
-        amrex::MultiFab::Saxpy(density_new,  (dt/3.0), density_k3,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, (dt/3.0), momentum_k3, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   (dt/3.0), energy_k3,   0, 0, 1, 0);
-                                 
-        // [new] += (dt/6)k4
-        amrex::MultiFab::Saxpy(density_new,  (dt/6.0), density_k4,  0, 0, 1, 0);
-        amrex::MultiFab::Saxpy(momentum_new, (dt/6.0), momentum_k4, 0, 0, 2, 0);
-        amrex::MultiFab::Saxpy(energy_new,   (dt/6.0), energy_k4,   0, 0, 1, 0);
-
-    }
-
-
-    for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
+    Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
+    for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         const Set::Scalar* DX = geom[lev].CellSize();
