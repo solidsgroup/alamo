@@ -100,7 +100,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     //
     // PHASE FIELD VARIABLES
     //
-
+        
     // Burn width thickness
     pp.query_default("pf.eps", value.pf.eps, "1.0_m", Unit::Length()); 
     // Interface energy param
@@ -120,7 +120,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom);
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
+
 
 
     // Select reduced order model to capture heat feedback
@@ -177,6 +178,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             ("temp.ic",value.thermal.ic_temp,value.geom, Unit::Temperature());
     }
 
+
     // Constant pressure value
     pp_query_default("chamber.pressure", value.chamber.pressure, "1.0_MPa", Unit::Pressure()); 
 
@@ -219,7 +221,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("elastic.on", value.elastic.on, 0); 
 
     // Body force
-    pp_query_default("elastic.traction", value.elastic.traction, 0.0);
+    pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
     
     // Scalar value to reduce the pressure being applied in the traction boundaay condition. If a linear elastic solve is used, results can be scaled appropriately to recover correct solution
     pp.query_default("elastic.pressure_mult", value.elastic.pressure_mult, 1.0);
@@ -531,17 +533,18 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     //
     // Chamber pressure update
-    
-    // if (variable_pressure) {
-    //     chamber.pressure = exp(0.00075 * chamber.massflux);
-    //     if (chamber.pressure > 10.0) {
-    //         chamber.pressure = 10.0;
-    //     }
-    //     else if (chamber.pressure <= 0.99) {
-    //         chamber.pressure = 0.99;
-    //     }
-    //     elastic.traction = chamber.pressure;
-    // }
+    //
+    if (variable_pressure) {
+        chamber.pressure = exp(0.00075 * chamber.massflux);
+        if (chamber.pressure > 10.0) {
+            chamber.pressure = 10.0;
+        }
+        else if (chamber.pressure <= 0.99) {
+            chamber.pressure = 0.99;
+        }
+        elastic.traction = chamber.pressure;
+    }
+
 
     //
     // Multi-well chemical potential
@@ -756,7 +759,6 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
     Set::Patch<const Set::Scalar> eta  = eta_mf.Patch(amrlev,mfi);
     Set::Patch<const Set::Scalar> mdot = mdot_mf.Patch(amrlev,mfi);
-
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -765,14 +767,13 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
             chamber.area += da;
-            
+
             Set::Vector mgrad = Numeric::Gradient(mdot, i, j, k, 0, DX);
             Set::Scalar mnormgrad = mgrad.lpNorm<2>();
             Set::Scalar dm = mnormgrad * dv;
             chamber.massflux += dm;
+
         });
-
-
     }
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -787,3 +788,5 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
+
+

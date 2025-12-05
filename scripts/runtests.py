@@ -18,6 +18,8 @@ import signal
 
 from sympy import capture
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
 class color:
     reset = "\033[0m"
     red   = "\033[31m"
@@ -106,11 +108,13 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
+parser.add_argument('--permit-skips', dest='permit_skips', default=False, action='store_true', help='Permit skips without failing')
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
+parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -154,6 +158,7 @@ def test(testdir):
     fasters = 0
     slowers = 0
     timeouts = 0
+    post_fails = 0
     records = []
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
@@ -184,6 +189,10 @@ def test(testdir):
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
 
+    # Store a list of all the cleanup commands that will be run after
+    # going through all sections
+    cleanup_paths = []
+
     # Iterate through all test configurations
     for desc in sections:
 
@@ -212,6 +221,7 @@ def test(testdir):
                 check = True
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
+            config[desc].pop('check')
 
         # Determine if we want to use the coverage version of the code.
         coverage = args.coverage
@@ -222,6 +232,8 @@ def test(testdir):
                 coverage = True
             else:
                 raise(Exception("Invalid value for coverage: {}".format(config[desc]['coverage'])))
+            config[desc].pop('coverage')
+
         if args.only_coverage and not coverage:
             continue
         if args.only_non_coverage and coverage:
@@ -232,12 +244,15 @@ def test(testdir):
         timeout = int(args.timeout)
         if 'timeout' in config[desc].keys():
             timeout = int(config[desc]['timeout'])
+            config[desc].pop('timeout')
 
         dobenchmark = False
         benchmark = None
-        if "benchmark-{}".format(args.benchmark) in config[desc].keys():
+        benchmark_name = "benchmark-{}".format(args.benchmark)
+        if benchmark_name in config[desc].keys():
             dobenchmark = True
             benchmark = float(config[desc]["benchmark-{}".format(args.benchmark)])
+            config[desc].pop(benchmark_name)
 
         # Build the command to run the script. This can be done in two ways:
         #
@@ -253,22 +268,32 @@ def test(testdir):
             command = config[desc]['cmd']
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
+            config[desc].pop('cmd')
         else:
             # If we are doing memory checking, cut off the simulation early
             if args.memcheck: cmdargs += " max_step=2 "
 
             exe = 'alamo'
-            if 'exe' in config[desc].keys(): exe = config[desc]['exe']
+            if 'exe' in config[desc].keys():
+                exe = config[desc]['exe']
+                config[desc].pop('exe')
             dim = 3 # Dimension of alamo to use
-            if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
+            if 'dim' in config[desc].keys():
+                dim = int(config[desc]['dim'])
+                config[desc].pop('dim')
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
-            if 'nprocs' in config[desc].keys(): nprocs = int(config[desc]['nprocs'])
-            if 'args' in config[desc].keys(): cmdargs += config[desc]['args'].replace('\n',' ')
+            if 'nprocs' in config[desc].keys():
+                nprocs = int(config[desc]['nprocs'])
+                config[desc].pop('nprocs')
+            if 'args' in config[desc].keys():
+                cmdargs += config[desc]['args'].replace('\n',' ')
+                config[desc].pop('args')
 
             cmdargs += " plot_file={}/{}_{}".format(testdir,testid,desc)
 
             if 'ignore' in config[desc].keys():
                 cmdargs += " ignore={}".format(config[desc]['ignore'])
+                config[desc].pop('ignore')
 
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
@@ -282,6 +307,7 @@ def test(testdir):
             if 'fft' in config[desc].keys():
                 if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
                     if not args.fft and not args.fft_only: continue
+                config[desc].pop('fft')
 
             # Specify performance flag
             if args.perf:
@@ -313,6 +339,17 @@ def test(testdir):
             if args.exe:
                 if not exe in args.exe:
                     continue
+                
+            # Determine if we want to restart this simulation from a previous test.
+            if 'restart' in config[desc].keys():
+                restartfile = config[desc]['restart'].replace(r'{testid}',testid)
+                if not os.path.isdir(restartfile):
+                    print("  ├ {}{} (skipped - no restart file){}".format(color.boldyellow,desc,color.reset))
+                    skips += 1
+                    continue
+                cmdargs += " restart=" + restartfile
+                config[desc].pop('restart')
+        
 
             # If the exestr doesn't exist, exit noisily.
             # The script will continue but will return a nonzero
@@ -329,6 +366,7 @@ def test(testdir):
                     print("  ├ {}{} (skip indicated in input){}".format(color.boldyellow,desc,color.reset))
                     skips += 1
                     continue
+                config[desc].pop('skip')
 
             command += exestr + " "
             command += "{}/input ".format(testdir)
@@ -555,14 +593,18 @@ def test(testdir):
         # The exception handling is basically the same as for the above test.
         if check and not args.memcheck:
             try:
-                if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
-                if "check-file" in config[desc].keys():
-                    cmd.append(config[desc]['check-file'])
                 if args.cmd: 
                     print("  ├      " + ' '.join(cmd))
-
                 print("  │      Checking result.........................................",end="",flush=True)
+
+                if args.dryrun:
+                    if ('check-file') in config[desc].keys(): config[desc].pop('check-file')
+                    raise DryRunException()
+                if "check-file" in config[desc ].keys():
+                    cmd.append(config[desc]['check-file'])
+                    config[desc].pop('check-file')
+
                 proc = subprocess.Popen(cmd,cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
                 stdout, stderr = proc.communicate()
@@ -608,6 +650,7 @@ def test(testdir):
         # Scan metadata file for insteresting things to include in the record
         #
         if args.post:
+            print("  │      Posting result..........................................",end="")
             try:
                 metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
                 metadata = readMetadata(metadatafile)
@@ -617,26 +660,35 @@ def test(testdir):
                 record['test-section'] = record['testdir'] + '/' + record['section']
                 p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
                 record['git_commit_date'] = p.stdout.decode('utf-8').replace('\n','')
+
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(post.updateDatabase, postdata,[record])
+                    future.result(timeout=int(args.post_timeout));
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
+            except TimeoutError as e:
+                post_fails += 1
+                print("[{}TIME{}]".format(color.lightgray,color.reset))
             except Exception as e:
+                post_fails += 1
+                print("[{}FAIL{}]".format(color.red,color.reset))
+                for line in str(e).split('\n'):
+                    print("  │      {}{}{}".format(color.red,line,color.reset))
                 if not args.permissive:
-                    print("Problem getting metadata, here it is:")
-                    print(record)
                     raise Exception()
                 True # permissive
 
-            try:
-                post.updateDatabase(postdata,[record])
-            except Exception as e:
-                print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
-        records.append(record)
-        append_html(record)
+        if not args.dryrun:
+            records.append(record)
+            append_html(record)
 
         #
         # Clean up all of the node and cell file 
         #
         ok_to_clean = False
         if args.clean and record['runStatus'] == 'PASS':
-            if not 'checkStatus' in record.keys():
+            if 'checkStatus' not in record.keys():
+                ok_to_clean = True # successful run and no testing done
+            elif record['checkStatus'] == 'NONE':
                 ok_to_clean = True # successful run and no testing done
             elif record['checkStatus'] == 'PASS':
                 ok_to_clean = True # successful run and testing completed
@@ -647,9 +699,24 @@ def test(testdir):
 
         if ok_to_clean:
             path = "{}/{}_{}".format(testdir,testid,desc)
-            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+            cleanup_paths.append(path)
             
         
+        #
+        # CHECK FOR UNUSED INPUTS
+        #
+        for key in config[desc].keys():
+            if "benchmark-" in key: config[desc].pop(key)
+            if key == "check-file": config[desc].pop(key)
+        if len(config[desc].keys()):
+            raise Exception("The following were specified but not used: "+str(list(config[desc].keys())))
+    
+    if len(cleanup_paths):
+        print(f"  ├ {color.lightgray}Cleaning up {len(cleanup_paths)} directories{color.reset}")
+        for path in cleanup_paths:
+            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+        
+
             
     # Print a quick summary for this test family.
     summary = "  └ "
@@ -660,6 +727,7 @@ def test(testdir):
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.lightgray,timeouts,color.reset))
+    if post_fails: sums.append("{}{} tests failed to post{}".format(color.lightgray,post_fails,color.reset))
     print(summary + ", ".join(sums))
     return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
@@ -711,7 +779,9 @@ if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowe
 if stats.timeouts: print("{}{} tests timed out".format(color.lightgray,stats.timeouts,color.reset))
 print("")
 
-return_code = stats.fails + stats.skips
+return_code = stats.fails
+if not args.permit_skips:
+    return_code += stats.skips
 if not args.permit_timeout:
     return_code += stats.timeouts
 

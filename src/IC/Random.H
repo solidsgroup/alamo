@@ -5,13 +5,21 @@
 #ifndef IC_RANDOM_H_
 #define IC_RANDOM_H_
 
+#include <string>
+
+#include "AMReX_Box.H"
+#include "AMReX_Geometry.H"
+#include "AMReX_GpuQualifiers.H"
+#include "AMReX_IndexType.H"
+#include "AMReX_MFIter.H"
+#include "AMReX_Random.H"
+#include "AMReX_RandomEngine.H"
 #include "AMReX_Vector.H"
 
-#include "IO/ParmParse.H"
 #include "IC/IC.H"
-#include "Util/Util.H"
-#include "Set/Set.H"
 #include "IO/ParmParse.H"
+#include "Set/Set.H"
+#include "Util/Util.H"
 
 namespace IC
 {
@@ -19,32 +27,37 @@ namespace IC
 class Random : public IC<Set::Scalar>
 {
 public:
-    static constexpr const char* name = "random";
+    static constexpr const char *name = "random";
 
-    Random (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult) :
-        IC(_geom), mult(a_mult)
-    {}
-    Random(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
+    Random(amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult) : IC(_geom), mult(a_mult)
+    {
+    }
+    Random(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom)
     {
         pp.queryclass(name, *this);
     }
-  
+
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
+        auto mult = this->mult;
+        auto offset = this->offset;
+
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx;
             amrex::IndexType type = a_field[lev]->ixType();
-            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
-            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
-            else Util::Abort(INFO, "Unkonwn index type");
-            
-            Set::Patch<Set::Scalar> field = a_field.Patch(lev,mfi);
+            if (type == amrex::IndexType::TheCellType())
+                bx = mfi.growntilebox();
+            else if (type == amrex::IndexType::TheNodeType())
+                bx = mfi.grownnodaltilebox();
+            else
+                Util::Abort(INFO, "Unknown index type");
+
+            Set::Patch<Set::Scalar> field = a_field.Patch(lev, mfi);
             for (int n = 0; n < a_field[lev]->nComp(); n++)
             {
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    field(i,j,k,n) += offset + mult * Util::Random();
+                amrex::ParallelForRNG(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k, amrex::RandomEngine const &engine) {
+                    field(i, j, k, n) += offset + mult * amrex::Random(engine);
                 });
             }
         }
@@ -52,18 +65,17 @@ public:
 
     using IC::Add;
 
-    static void Parse(Random & value, IO::ParmParse & pp)
+    static void Parse(Random &value, IO::ParmParse &pp)
     {
         // offset from the [0,1] random number range
-        pp.query_default("offset",value.offset,0.0); 
+        pp.query_default("offset", value.offset, 0.0);
         // multiplier for the [0,1] random number range
-        pp.query_default("mult",value.mult,1.0);
+        pp.query_default("mult", value.mult, 1.0);
     }
-    
-private:
-    Set::Scalar mult = NAN; 
-    Set::Scalar offset = NAN;
 
+private:
+    Set::Scalar mult = NAN;
+    Set::Scalar offset = NAN;
 };
 }
 #endif
