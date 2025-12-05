@@ -48,18 +48,6 @@ public:
     {
         Define(a_levs,a_grids,a_dmap,a_ncomp,a_nghost);
     } 
-
-    void Alias(Field<T> &a_field)
-    {
-        Util::Assert(INFO, TEST(this->size() == 0), 
-                     "Cannot make alias for field ", a_field.name, " from an existing field");
-        this->name = a_field.name();
-        for (int lev = 0; lev < a_field.size(); lev++)
-        {
-            this->emplace_back(a_field[lev].get(), amrex::MakeType::make_alias, 0, a_field.NComp());
-        }
-    }
-
     Field(int size) : amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>(size) {}
     void Define(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost)
     {
@@ -250,18 +238,6 @@ class Field<Set::Scalar> : public amrex::Vector<std::unique_ptr<amrex::MultiFab>
 public:
     Field() {} 
     Field(int size) : amrex::Vector<std::unique_ptr<amrex::MultiFab>>(size) {}
-    void Alias(Field<Set::Scalar> &a_field)
-    {
-        Util::Assert(INFO, TEST(this->size() == 0), 
-                     "Cannot make alias from an existing field");
-        for (int lev = 0; lev < a_field.size(); lev++)
-        {
-            this->push_back(std::make_unique<amrex::MultiFab>(
-                *(a_field[lev]), amrex::MakeType::make_alias, 0, a_field[lev]->nComp()
-            ));
-        }
-    }
-
     void Define(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost)
     {
         Util::Assert(INFO,TEST(a_levs == a_grids.size()));

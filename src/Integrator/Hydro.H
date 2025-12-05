@@ -26,10 +26,8 @@ public:
     Hydro(  Set::Field<Set::Scalar> &a_eta,
             Set::Field<Set::Scalar> &a_etaold,
             bool a_invert) :
-        invert(a_invert)
+        eta_mf(&a_eta), eta_old_mf(&a_etaold), invert(a_invert)
     {
-        this->eta_mf.Alias(a_eta);
-        this->eta_old_mf.Alias(a_eta);
         this->managed = true;
     }
 
@@ -37,6 +35,11 @@ public:
     static void Parse(Hydro& value, IO::ParmParse& pp);
     virtual ~Hydro()
     {
+        if (!managed)
+        {
+            delete eta_mf;
+            delete eta_old_mf;
+        }
 
         delete density_bc;
         delete momentum_bc;
@@ -103,9 +106,8 @@ protected:
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
 
-protected:
-    Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar>* eta_mf;
+    Set::Field<Set::Scalar>* eta_old_mf;
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> vorticity_mf;

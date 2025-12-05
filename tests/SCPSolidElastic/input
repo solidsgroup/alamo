@@ -191,7 +191,6 @@ hydro.solid.density.ic.constant.value = 1.0
 hydro.m0.ic.constant.value = "1.0" 
 hydro.u0.ic.constant.value = 0 0.0
 hydro.lagrange= 0.0
-hydro.lagrange_m0=1.0
 hydro.solver.type = roe
 hydro.gamma = 1.4
 hydro.mu    = 0.00001

@@ -92,8 +92,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
         if (!value.managed)
         {
-            value.RegisterNewFab(value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true, true);
-            value.RegisterNewFab(value.eta_old_mf, value.eta_bc, 1, nghost, "eta_old", true, true);
+            value.eta_mf = new Set::Field<Set::Scalar>();
+            value.eta_old_mf = new Set::Field<Set::Scalar>();
+            value.RegisterNewFab(*value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true, true);
+            value.RegisterNewFab(*value.eta_old_mf, value.eta_bc, 1, nghost, "eta_old", true, true);
         }
         value.RegisterNewFab(value.etadot_mf,  value.eta_bc, 1, nghost, "etadot",  true, false);
 
@@ -203,8 +205,8 @@ void Hydro::Initialize(int lev)
  
     if (!managed)
     {
-        eta_ic           ->Initialize(lev, eta_mf,     0.0);
-        eta_ic           ->Initialize(lev, eta_old_mf, 0.0);
+        eta_ic           ->Initialize(lev, *eta_mf,     0.0);
+        eta_ic           ->Initialize(lev, *eta_old_mf, 0.0);
     }
     etadot_mf[lev]   ->setVal(0.0);
 
@@ -235,11 +237,11 @@ void Hydro::Mix(int lev)
 {
     if (managed && mixed[lev]) return;
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
 
-        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
@@ -282,7 +284,7 @@ void Hydro::Mix(int lev)
 void Hydro::UpdateEta(int lev, Set::Scalar time)
 {
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
-    eta_ic->Initialize(lev, eta_mf, time);
+    eta_ic->Initialize(lev, *eta_mf, time);
 }
 
 void Hydro::UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt)
@@ -317,7 +319,7 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
-    if (!managed) std::swap(eta_old_mf, eta_mf);
+    if (!managed) std::swap(*eta_old_mf, *eta_mf);
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
@@ -328,11 +330,11 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     if (!managed) UpdateEta(lev, time);
     if (managed) Mix(lev);
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta_new = (*(*eta_mf)[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -391,12 +393,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     //
 
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         const Set::Scalar* DX = geom[lev].CellSize();
         
-        Set::Patch<const Set::Scalar> eta_patch = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
@@ -455,10 +457,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 const amrex::MultiFab &E_mf)
 {
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta_patch = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
 
         Set::Patch<const Set::Scalar> rho       = rho_mf.array(mfi);  // density
         Set::Patch<const Set::Scalar> M         = M_mf.array(mfi);    // momentum
@@ -492,13 +494,23 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
             v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
             p(i,j,k)   = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))-pref;
+
+            if (eta < small) 
+            {
+                v(i,j,k,0) *= eta;
+                v(i,j,k,1) *= eta;
+
+                #if AMREX_SPACEDIM == 3
+                    v(i,j,k,2) *= eta;
+                #endif
+            }
         });
     }
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
 
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
         
@@ -523,7 +535,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         Set::Patch<Set::Scalar>       omega     = vorticity_mf.Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
 
@@ -545,23 +557,50 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Matrix hess_eta     = Numeric::Hessian(eta_patch, i, j, k, 0, DX);
             if (invert) grad_eta *= -1.0;
             if (invert) hess_eta *= -1.0;
+            
+            #if AMREX_SPACEDIM == 2
+                Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1)); // Velocity
+                Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1)); // Velocity
+                Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1));
+            #endif
 
-            Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1));
-            Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
+            #if AMREX_SPACEDIM == 3
+                Set::Vector u            = Set::Vector(velocity(i, j, k, 0), velocity(i, j, k, 1), velocity(i, j, k, 2)); // Velocity
+                Set::Vector u0           = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1), _u0(i, j, k, 2)); // Velocity
+                Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1), q(i,j,k,2));
+            #endif
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho      = Numeric::Gradient(rho,i,j,k,0,DX);
             Set::Matrix hess_rho     = Numeric::Hessian(rho,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
 
-            Set::Vector q0           = Set::Vector(q(i,j,k,0),q(i,j,k,1));
+            if (prescribedflowmode == PrescribedFlowMode::Relative)
+            {
+                Set::Vector N = grad_eta / (grad_eta_mag + small);
+                // Set::Vector T(N(1), -N(0));
+                // u0 = N * u0(0) + T * u0(1);
 
-            Set::Scalar mdot0 = -m0(i,j,k) * grad_eta_mag;
-            Set::Vector Pdot0 = Set::Vector::Zero(); 
+                #if AMREX_SPACEDIM == 2
+                    Set::Vector T(N(1), -N(0));
+                    u0 = N * u0(0) + T * u0(1);
+                #endif
+
+                #if AMREX_SPACEDIM == 3
+                    Set::Vector T;
+                    T(0) = N(1);
+                    T(1) = -N(0);
+                    T(2) = 0;
+                    u0 = N*u0(0) + T * u0(1);
+                    // Might not be physcially accurate, need to find how to extend to 3 dimensions
+                #endif
+            }
+
+
+            Set::Scalar mdot0 = -m0(i,j,k)*grad_eta_mag;
+            Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
-            // sten is necessary here because sometimes corner ghost
-            // cells don't get filled
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
@@ -804,10 +843,10 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
     // Eta criterion for refinement
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_mf)[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
