@@ -16,7 +16,7 @@ amr.node.all = 1
 amr.n_cell = 8 8 8
 geometry.prob_lo = 0.0 0.0 0.0
 geometry.prob_hi = 5e-4 5e-4 5e-4
-amr.max_level = 5
+amr.max_level = 4
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
@@ -52,7 +52,7 @@ flame.pf.eta.bc.constant.val.zhi = 0.0
 # Phi initial condition (spheres)
 flame.phi.ic.type = psread
 flame.phi.ic.psread.filename = tests/Agglomeration/unimodal_varying_AP_ratio/xyzrs/uni_31_AP5005_R35um.xyzr
-flame.phi.ic.psread.eps = 7.75e-6
+flame.phi.ic.psread.eps = 1.15e-5
 
 # Use the full-feedback propellant model
 flame.propellant.type = fullfeedback
@@ -122,8 +122,8 @@ flame.elastic.phirefinement = 0
 # Agglomeration parameters
 calculate_initial_volume = true
 sigma = 1e0
-epsilon = 9e-6
-lambda = 2e4
+epsilon = 8e-6
+lambda = 2.5e4
 L_0 = 1e1
 n = 3e0
 
@@ -148,4 +148,4 @@ alpha.bc.constant.val.zhi = 0.0
 # Miscellaneous agglomeration parameters
 eta_refinement_threshold = 0.9
 phi_refinement_threshold = 0.75
-gradient_alpha_refinement_threshold = 1e-1
+gradient_alpha_refinement_threshold = 2.5e-1
