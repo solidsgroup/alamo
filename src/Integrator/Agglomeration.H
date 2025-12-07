@@ -108,8 +108,9 @@ private:
         Set::Scalar V = NAN;
         bool calculate_initial_volume = true;
         Set::Scalar V_0 = NAN;
-        Set::Scalar gradient_alpha_refinement_threshold = NAN;
         Set::Scalar eta_refinement_threshold = NAN;
+        Set::Scalar phi_refinement_threshold = NAN;
+        Set::Scalar gradient_alpha_refinement_threshold = NAN;
     } agglom;
 };
 }

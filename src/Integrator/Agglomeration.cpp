@@ -54,10 +54,12 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     // is only used if calculate_initial_volume is false.
     pp.query_default("V_0", value.agglom.V_0, "1.0", Unit::Volume());
 
-    // If the gradient of alpha is larger than this value, refine/regrid alpha
-    pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1.0", Unit::Less());
     // If eta is larger than this value, do NOT refine/regrid alpha
     pp.query_default("eta_refinement_threshold", value.agglom.eta_refinement_threshold, "1.0", Unit::Less());
+    // If eta is greater than `eta_refinement_threshold` and phi is smaller than this value, refine/regrid alpha
+    pp.query_default("phi_refinement_threshold", value.agglom.phi_refinement_threshold, "1.0", Unit::Less());
+    // If the gradient of alpha is larger than this value and eta is smaller than `eta_refinement_threshold`, refine/regrid alpha
+    pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1.0", Unit::Less());
 
     // Initial conditions for agglomerate order parameter
     pp.select_default<IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random>("alpha.ic", value.agglom.alpha_ic, value.geom);
@@ -160,6 +162,7 @@ Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::S
         Set::Patch<char> tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev, mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             if (eta(i, j, k) < agglom.eta_refinement_threshold)
@@ -167,6 +170,13 @@ Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::S
                 Set::Vector grad = Numeric::Gradient(alpha, i, j, k, 0, dx.data());
                 if (grad.lpNorm<2>() * dr > agglom.gradient_alpha_refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
+            }
+        });
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            if (eta(i, j, k) > agglom.eta_refinement_threshold && phi(i, j, k) < agglom.phi_refinement_threshold)
+            {
+                tags(i, j, k) = amrex::TagBox::SET;
             }
         });
     }
