@@ -20,7 +20,6 @@ namespace Constant
     {
         // Gas constant
         Rg        = Unit::Parse("8.31446261815_J/mol/K").normalized_value();
-        Rg        = Unit::Parse("8.31446261815_J/mol/K").first;
         // Boltzmann constant
         Boltzmann = Unit::Parse("1.380649e-23_J/K").normalized_value();
         // Avogadro's number
