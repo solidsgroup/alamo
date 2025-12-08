@@ -63,7 +63,3 @@ setup.py
 alamo.py
 .DS_Store 
 # DELETEME before merge
-flame-sfi.output*/
-auto-bisect.sh
-bisect.log
-*nova.zip
