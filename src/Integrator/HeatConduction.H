@@ -22,6 +22,7 @@
 #include <AMReX.H>
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
+#include <AMReX_TimeIntegrator.H>
 #ifdef ALAMO_FFT
 #include <AMReX_FFT.H>
 #endif
@@ -131,28 +132,47 @@ protected:
         // the new one.
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
 
-        // Get the cell size corresponding to this level
-        const Set::Scalar* DX = geom[lev].CellSize();
-
-        // Iterate over all of the patches on this level
-        for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        // Create the time integrator object
+        amrex::TimeIntegrator timeintegrator(*temp_old_mf[lev], time);
+        
+        // Calculate the "RHS" of the function.
+        // If using forward Euler, the RHS would be
+        //    T_new = T_old + dt * RHS
+        timeintegrator.set_rhs([&](amrex::MultiFab & rhs_mf, amrex::MultiFab & temp_mf, const Set::Scalar /*time*/)
         {
-            // Get the box (index dimensions) for this patch
-            const amrex::Box &bx = mfi.tilebox();
+            // Get the cell size corresponding to this level
+            const Set::Scalar* DX = geom[lev].CellSize();
 
-            // Get an array-accessible handle to the data on this patch.
-            Set::Patch<const Set::Scalar>  temp_old = temp_old_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar>        temp     = temp_mf.Patch(lev,mfi);
-
-            // Iterate over the grid on this patch
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            // Iterate over all of the patches on this level
+            for (amrex::MFIter mfi(temp_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-                // Do the physics!
-                // Note that Numeric::Laplacian is an inlined function so there is no overhead.
-                // You can calculate the derivatives yourself if you want.
-                temp(i, j, k) = temp_old(i, j, k) + dt * alpha * Numeric::Laplacian(temp_old, i, j, k, 0, DX);
-            });
-        }
+                // Get the box (index dimensions) for this patch
+                const amrex::Box &bx = mfi.tilebox();
+
+                // Get an array-accessible handle to the data on this patch.
+                Set::Patch<const Set::Scalar>  temp     = temp_mf.array(mfi);
+                Set::Patch<Set::Scalar>        rhs      = rhs_mf.array(mfi);
+
+                // Iterate over the grid on this patch
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    // Do the physics!
+                    // Note that Numeric::Laplacian is an inlined function so there is no overhead.
+                    // You can calculate the derivatives yourself if you want.
+                    rhs(i, j, k) = alpha * Numeric::Laplacian(temp, i, j, k, 0, DX);
+                });
+            }
+        });
+        
+        // We must update the boundaries here and apply boundary conditions 
+        timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, Set::Scalar time) 
+        {
+            bc->FillBoundary(stage_mf,0,1,time,0);   
+            stage_mf.FillBoundary(true);
+        });
+
+        // Do the update
+        timeintegrator.advance(*temp_old_mf[lev], *temp_mf[lev], time, dt);
     }
 
 

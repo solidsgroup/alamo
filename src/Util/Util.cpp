@@ -181,6 +181,9 @@ void Initialize (int argc, char* argv[])
         Unit::setCurrentUnit(current);
         Unit::setAmountUnit(amount);
         Unit::setLuminousIntensityUnit(luminousintensity);
+
+        // Update Constants to desired system units
+        Set::Constant::SetSystemUnits();
     }
     catch (std::runtime_error &e)
     {

@@ -5,13 +5,15 @@
 #@ [roe-rk4]
 #@ exe=hydro
 #@ dim=2
-#@ args = scheme=rk4
+#@ args = integration.type=RungeKutta
+#@ args = integration.rk.type=4
 #@ args = timestep=5.0e-5
 
 #@ [roe-ssprk3]
 #@ exe=hydro
 #@ dim=2
-#@ args = scheme=ssprk3
+#@ args = integration.type=RungeKutta
+#@ args = integration.rk.type=3
 #@ args = timestep=5.0e-5
 
 

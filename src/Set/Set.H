@@ -282,14 +282,19 @@ namespace Set
 {
 namespace Constant
 {
+
 // Pi
-static const Set::Scalar Pi = 3.14159265359;
+extern const Set::Scalar Pi;
 // Gas constant
-static const Set::Scalar Rg = Unit::Parse("8.31446261815_J/mol/K").normalized_value();
+extern Set::Scalar Rg;
 // Boltzmann constant
-static const Set::Scalar Boltzmann = Unit::Parse("1.380649e-23_J/K").normalized_value();
+extern Set::Scalar Boltzmann;
 // Avogadro's number
-static const Set::Scalar Avogadro = Unit::Parse("6.02214076e26_1/kmol").normalized_value();
+extern Set::Scalar Avogadro;
+
+// Function to update constants to match system level units
+extern void SetSystemUnits();
+
 }
 }
 

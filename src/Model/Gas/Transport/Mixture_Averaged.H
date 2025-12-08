@@ -45,7 +45,7 @@ private:
     int nspecies;
     std::vector<double> &MW;
     Thermo::Thermo const * const thermo;
-    int type;
+    std::string type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
 
@@ -76,7 +76,7 @@ public:
         {
             Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
         }
-        pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        //pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
 
         Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
         Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
@@ -104,8 +104,8 @@ public:
     {
         // Wilke's Average: Dynamic viscosity, Pa-s
         double mu_mix = 0.0;
-        switch (type) {
-        case 0:
+        if ( type == "constant" )
+        {
             // dynamic viscosity, mu, is constant per species
             for (int a = 0; a < nspecies; ++a) {
                 double mua = val1[a];
@@ -121,8 +121,9 @@ public:
                 }
                 mu_mix += X(i, j, k, a) * mua / phi;
             }
-            break;
-        case 1:
+        }
+        else if ( type == "LJ" )
+        {
             // dynamic viscosity, mu, computed by Chapman-Enskog per species
             for (int a = 0; a < nspecies; ++a) {
                 double mua = mu_enskog(T, a);
@@ -138,8 +139,9 @@ public:
                 }
                 mu_mix += X(i, j, k, a) * mua / phi;
             }
-            break;
-        default:
+        }
+        else
+        {
             Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
         }
 
@@ -151,8 +153,8 @@ public:
     {
         // Wilke's Average: Thermal conductivity coefficient, W/(m-K)
         double k_mix = 0.0;
-        switch (type) {
-        case 0:
+        if ( type == "constant" )
+        {
             // thermal conductivity coefficient, k, is constant per species
             for (int a = 0; a < nspecies; ++a) {
                 double mua = val1[a];
@@ -168,8 +170,9 @@ public:
                 }
                 k_mix += X(i, j, k, a) * val2[a] / phi;
             }
-            break;
-        case 1:
+        }
+        else if ( type == "LJ" )
+        {
             // thermal conductivity coefficient, k, computed by Eucken relation per species
             for (int a = 0; a < nspecies; ++a) {
                 double mua = mu_enskog(T, a);
@@ -185,8 +188,9 @@ public:
                 }
                 k_mix += X(i, j, k, a) * k_eucken(T, X, i, j, k, a) / phi;
             }
-            break;
-        default:
+        }
+        else
+        {
             Util::Abort(INFO, "[Transport::Mixture_Averaged] Unknown type.");
         }
 
