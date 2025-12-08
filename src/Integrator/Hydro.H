@@ -12,8 +12,6 @@
 #include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
 
-// #if AMREX_SPACEDIM==2
-
 namespace Integrator
 {
 class Hydro : virtual public Integrator
@@ -176,5 +174,4 @@ protected:
 };
 }
 
-// #endif
 #endif
