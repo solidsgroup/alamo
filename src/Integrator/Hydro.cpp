@@ -272,7 +272,7 @@ void Hydro::Mix(int lev)
 
             E(i, j, k) = E_fluid*eta(i, j, k) + E_solid(i,j,k)*(1.0-eta(i,j,k));
             E_old(i, j, k) = E(i, j, k);
-            Util::Abort(INFO,"Energy: ", E(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
+            //Util::Abort(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
 
             //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
             //density = gas.ComputeD(rho, i, j, k);
