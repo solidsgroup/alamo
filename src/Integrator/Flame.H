@@ -68,10 +68,6 @@ protected:
     Set::Field<Set::Scalar> rho_AP_gas_mf; // Density field of Ammonium perchlorate (AP)
     Set::Field<Set::Scalar> rho_tot_gas_mf; // Total density field of the AP and HTPB mixture
 
-    // Set::Field<Set::Scalar> rho_htpb_solid_mf; // Density field of Hydroxyl-terminated polybutadiene (HTPB)
-    // Set::Field<Set::Scalar> rho_AP_solid_mf; // Density field of Ammonium perchlorate (AP)
-    // Set::Field<Set::Scalar> rho_tot_solid_mf; // Total density field of the AP and HTPB mixture
-
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> mdot_mf;

@@ -259,11 +259,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Density of the gaseous products of Hydroxyl-terminated Polybutadiene
         pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
 
-        // Velocity source term of gaseous AP products, gets overridden in code by conservation of mass source terms
-        pp.query_default("hydro.u0_ap",value.hydro.u0_ap,0.0);
+        // Velocity source term of gaseous AP products, default value is only needed for the first step of hydro after mixing, 
+        // after conservation of mass is used to calculate these terms
+        pp.query_default("hydro.u0_ap",value.hydro.u0_ap, 0.0);
 
-        // Velocity source term of gaseous HTPB products, gets overridden in code by conservation of mass source terms
-        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb,0.0);
+        // Velocity source term of gaseous HTPB products, default value is only needed for the first step of hydro after mixing, 
+        // after conservation of mass is used to calculate these terms
+        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb, 0.0);
 
         pp.queryclass<Hydro>("hydro", value);
     }
