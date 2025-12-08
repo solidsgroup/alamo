@@ -1,5 +1,6 @@
 
 #include "Hydro.H"
+#include "AMReX_MultiFab.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "BC/Expression.H"
@@ -36,13 +37,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // momentum-based refinement
         // pp.query_default("m_refinement_criterion",     value.m_refinement_criterion    , 0.01);
 
-        std::string scheme_str;
-        // time integration scheme to use
-        pp.query_validate("scheme",scheme_str, {"forwardeuler","ssprk3","rk4"});
-        if (scheme_str == "forwardeuler") value.scheme = IntegrationScheme::ForwardEuler;
-        else if (scheme_str == "ssprk3") value.scheme = IntegrationScheme::SSPRK3;
-        else if (scheme_str == "rk4") value.scheme = IntegrationScheme::RK4;
-
+        pp.forbid("scheme","use integration.type instead");
 
         // eta-based refinement
         pp.query_default("eta_refinement_criterion",   value.eta_refinement_criterion  , 0.01);
@@ -87,7 +82,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
-        pp_query_default("lagrange_m0",value.lagrange_m0,1.0); // lagrange no-penetration factor
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
@@ -202,7 +196,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.AllUnusedInputs();
         Util::Exception(INFO,"Aborting. Specify 'allow_unused=True` to ignore this error.");
     }
-
 }
 
 
@@ -236,15 +229,14 @@ void Hydro::Initialize(int lev)
 
     Source_mf[lev]   ->setVal(0.0);
 
-
-    if (lev >= mixed.size()) mixed.push_back(false);
+    if (managed)  { if (lev >= mixed.size()) mixed.push_back(false);}
+    else  Mix(lev);
 }
 
 void Hydro::Mix(int lev)
 {
-    if (mixed[lev])  return;
+    if (managed && mixed[lev]) return;
 
-    Util::Message(INFO,"MIXING");
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
@@ -286,7 +278,7 @@ void Hydro::Mix(int lev)
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
-    mixed[lev] = true;
+    if (managed) mixed[lev] = true;
 }
 
 void Hydro::UpdateEta(int lev, Set::Scalar time)
@@ -327,20 +319,21 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
 
-    if (!managed)
-    {
-        std::swap(*eta_old_mf, *eta_mf);
-        UpdateEta(lev, time);
-    }
-    UpdateFluxes(lev, time, dt);
-
-    Mix(lev);
-
+    if (!managed) std::swap(*eta_old_mf, *eta_mf);
     std::swap(density_old_mf[lev],  density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
     std::swap(energy_old_mf[lev],   energy_mf[lev]);
+    
+    //
+    // UPDATE ETA AND CALCULATE ETADOT
+    //
 
-
+    if (!managed) UpdateEta(lev, time);
+    if (managed) 
+    {
+        UpdateFluxes(lev,time,dt);
+        Mix(lev);
+    }
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
