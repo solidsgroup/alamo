@@ -61,19 +61,22 @@ public:
 
     static void Parse(Mixture_Averaged & value, IO::ParmParse & pp)
     {
-        pp.query_required("type", value.type);
-        switch (value.type) {
-        case 0:
+        pp.query_validate("type", value.type, {"constant", "LJ"});
+        if (value.type == "constant")
+        {
             pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
             pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
-            break;
-        case 1:
+        }
+        else if (value.type == "LJ")
+        {
             pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
             pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
-            break;
-        default:
+        }
+        else
+        {
             Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
         }
+        pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
 
         Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
         Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
