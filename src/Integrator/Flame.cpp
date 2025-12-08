@@ -443,16 +443,12 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
-            
-            // Set::Vector u0( hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi), 0.0);
-            // u0_patch(i,j,k,0) = u0(0); // Take the zeroth component of u0 (x and y) componets of velocity
-            // u0_patch(i,j,k,1) = u0(1);
 
                 Set::Vector u0;
             u0(0) = hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi);
             u0(1) = 0.0; 
             #if AMREX_SPACEDIM == 3
-                u0(2) = 0.0;   // Or whatever the correct z-velocity is
+                u0(2) = 0.0;   // Might not be physcially accurate, need to find how to extend to 3 dimensions
             #endif
 
             Set::Scalar deta_dt = (eta_hydro - etaold_hydro)/(dt); // time derivate approximation of eta
