@@ -185,7 +185,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
 
-    // Flag to use Flame with and without Hydro. If Hydro is off the pressure traction from Hydro is not calculated (see UpdateModel function)
+    // Flag to use Flame with or without Hydro. If Hydro is off the pressure traction from Hydro is not calculated (see UpdateModel function)
     pp_query_default("use_with_Hydro", value.use_with_Hydro, false);
 
     if (value.use_with_Hydro == 1) {

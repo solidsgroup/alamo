@@ -16,8 +16,6 @@
 
 #include "AMReX_TimeIntegrator.H"
 
-//#if AMREX_SPACEDIM == 2
-
 namespace Integrator
 {
 
@@ -913,6 +911,3 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 }
 
 }
-
-
-//#endif
