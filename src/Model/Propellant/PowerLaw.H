@@ -35,9 +35,9 @@ public:
     void set_pressure(const Set::Scalar P) 
     {
         // for the pressure power law option
-        fmod_ap = r_ap * pow(P/Pref, n_ap);
-        fmod_htpb = r_htpb * pow(P/Pref, n_htpb);
-        fmod_comb = r_comb * pow(P/Pref, n_comb);
+        fmod_ap = r_ap * pow(P/P_1MPa, n_ap);
+        fmod_htpb = r_htpb * pow(P/P_1MPa, n_htpb);
+        fmod_comb = r_comb * pow(P/P_1MPa, n_comb);
 
         // a_fit = -1.16582 * sin(P) - 0.681788 * cos(P) + 3.3563;
         // b_fit = -0.708225 * sin(P) + 0.548067 * cos(P) + 1.55985;
@@ -95,8 +95,8 @@ public:
         pp.query_required("n_comb", value.n_comb, Unit::Less()); 
         // jump in chemical potential
         pp.query_default("deltaw", value.deltaw, 1.0); 
-        // reference pressure
-        pp.query_default("Pref",value.Pref, "1_MPa",Unit::Pressure());
+        // pressure normilization factor, by default always normalized to 1 MPa regardless of units (MPa will be converted to required unit)
+        pp.query_default("P_1MPA",value.P_1MPa, "1_MPa",Unit::Pressure());
     }
 
     Set::Scalar gamma = NAN;
@@ -104,7 +104,7 @@ public:
     Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
     Set::Scalar fmod_ap = NAN, fmod_htpb = NAN, fmod_comb = NAN;
     Set::Scalar deltaw = NAN;
-    Set::Scalar Pref = NAN;
+    Set::Scalar P_1MPa = NAN;
 };
 }
 }
