@@ -181,9 +181,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     pp.queryarr_default("g",value.g,Set::Vector::Zero());
 
-    // Set etadot to be zero
-    pp_query_default("set_etadot_zero", value.set_etadot_zero, 0);
-
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
     // (Not recommended.)
@@ -340,13 +337,10 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
-            if (!set_etadot_zero) {
-                etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
-                if (invert) etadot(i,j,k) *= 1.0;
-            } else {
-                etadot(i,j,k) = 0.0;
-                // Only use when etadot is small
-            }
+
+            etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
+            if (invert) etadot(i,j,k) *= 1.0;
+
         });
     }
 
