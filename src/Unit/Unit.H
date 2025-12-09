@@ -13,6 +13,7 @@
 #include <cmath>
 #include <regex>
 
+#include "Util/Util.H"
 //#include "Set/Base.H"
 //#include "String.H"
 
@@ -182,6 +183,9 @@ struct Unit : std::pair<double,std::array<int,7>>
         {"kHz",       {1e3,     "Hz"       }},
         {"MHz",       {1e6,     "Hz"       }},
         {"GHz",       {1e9,     "Hz"       }},
+
+        // Moles
+        {"kmol",      {1e3,     "mol"      }}
     };
 
 
@@ -436,9 +440,10 @@ struct Unit : std::pair<double,std::array<int,7>>
         ret.second = rhs.second;
         return ret;
     }
-    friend Unit operator / (double lhs, const Unit& rhs) {
-        Unit ret = Unit::Less() / rhs;
-        ret.first = lhs * rhs.first;
+    friend Unit operator*(const Unit& lhs, double rhs) {
+        Unit ret;
+        ret.first = rhs * lhs.first;
+        ret.second = lhs.second;
         return ret;
     }
     Unit operator / (const Unit &rhs)
@@ -446,6 +451,33 @@ struct Unit : std::pair<double,std::array<int,7>>
         Unit ret;
         ret.first = this->first / rhs.first;
         for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] - rhs.second[i];
+        return ret;
+    }
+    friend Unit operator / (double lhs, const Unit& rhs) {
+        Unit ret = Unit::Less() / rhs;
+        ret.first = lhs * rhs.first;
+        return ret;
+    }
+    friend Unit operator / (const Unit& lhs, double rhs) {
+        Unit ret;
+        ret.first = lhs.first / rhs;
+        ret.second = lhs.second;
+        return ret;
+    }
+    Unit operator + (const Unit &rhs)
+    {
+        Util::Assert(INFO, TEST(this->second == rhs.second), "Error adding values with unequal units");
+        Unit ret;
+        ret.first = this->first + rhs.first;
+        for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i];
+        return ret;
+    }
+    Unit operator - (const Unit &rhs)
+    {
+        Util::Assert(INFO, TEST(this->second == rhs.second), "Error subtracting values with unequal units");
+        Unit ret;
+        ret.first = this->first - rhs.first;
+        for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i];
         return ret;
     }
     Unit operator ^ (const int &rhs)
