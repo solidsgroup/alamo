@@ -183,7 +183,7 @@ void Initialize (int argc, char* argv[])
         Unit::setLuminousIntensityUnit(luminousintensity);
 
         // Update Constants to desired system units
-        Set::Constant::SetSystemUnits();
+        Set::Constant::SetGlobalConstants();
     }
     catch (std::runtime_error &e)
     {

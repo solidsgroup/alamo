@@ -16,7 +16,7 @@ namespace Constant
     Set::Scalar Avogadro  = 0.0;
 
     // Function to update constants to match system level units
-    void SetSystemUnits()
+    void SetGlobalConstants()
     {
         // Gas constant
         Rg        = Unit::Parse("8.31446261815_J/mol/K").normalized_value();

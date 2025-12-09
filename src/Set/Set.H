@@ -293,7 +293,7 @@ extern Set::Scalar Boltzmann;
 extern Set::Scalar Avogadro;
 
 // Function to update constants to match system level units
-extern void SetSystemUnits();
+extern void SetGlobalConstants();
 
 }
 }
