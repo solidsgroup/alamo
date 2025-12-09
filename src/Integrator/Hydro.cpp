@@ -181,6 +181,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     pp.queryarr_default("g",value.g,Set::Vector::Zero());
 
+    // Set etadot to be zero
     pp_query_default("set_etadot_zero", value.set_etadot_zero, 0);
 
     bool allow_unused;
