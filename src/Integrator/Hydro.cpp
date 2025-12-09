@@ -13,7 +13,6 @@
 #include "Solver/Local/Riemann/Roe.H"
 #include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
-
 #include "AMReX_TimeIntegrator.H"
 
 namespace Integrator
@@ -182,7 +181,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     pp.queryarr_default("g",value.g,Set::Vector::Zero());
 
-
+    pp_query_default("set_etadot_zero", value.set_etadot_zero, 0);
 
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
@@ -339,13 +338,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
         amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {
-            // etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
-            // if (invert) etadot(i,j,k) *= 1.0;
-            etadot(i,j,k) = 0.0;
+        {   
+            if (!set_etadot_zero) {
+                etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
+                if (invert) etadot(i,j,k) *= 1.0;
+            } else {
+                etadot(i,j,k) = 0.0;
+                // Only use when etadot is small
+            }
         });
     }
-    if (!lev) Util::Warning(INFO,"zeroing out etadot for the moment");
 
 
     //

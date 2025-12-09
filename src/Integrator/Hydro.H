@@ -104,6 +104,8 @@ protected:
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
 
+    int set_etadot_zero = 0;
+
     Set::Field<Set::Scalar>* eta_mf;
     Set::Field<Set::Scalar>* eta_old_mf;
     Set::Field<Set::Scalar> etadot_mf;
