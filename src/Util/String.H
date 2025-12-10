@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "AMReX_Config.H"
 #include "Set/Base.H"
 #include "Util/Util.H"
 

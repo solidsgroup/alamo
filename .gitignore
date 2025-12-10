@@ -2,7 +2,6 @@ Record_*
 Backtrace*
 *.mpg
 *.o
-*.zip
 results
 bin
 *.mod
@@ -61,5 +60,3 @@ alamo.egg-info
 alamo
 setup.py
 alamo.py
-.DS_Store 
-# DELETEME before merge
