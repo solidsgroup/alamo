@@ -151,7 +151,9 @@ public:
 
                 Set::Scalar x = (std::stod(strx) * unit).normalized_value();
                 Set::Scalar y = (std::stod(stry) * unit).normalized_value();
+                #if AMREX_SPACEDIM > 2
                 Set::Scalar z = (std::stod(strz) * unit).normalized_value();
+                #endif
                 Set::Scalar r = (std::stod(strR) * unit).normalized_value();
 
                 Set::Vector X(AMREX_D_DECL(x,y,z));
