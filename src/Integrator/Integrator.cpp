@@ -709,9 +709,9 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                             match = true;
                             Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0 /*cell.nghost_array[j]*/);
-                            Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev], cell.nghost_array[j]);
                         }
                     }
+                    Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev]);
                 }
             }
             if (!match) Util::Warning(INFO, "Fab ", tmp_name_array[i], " is in the restart file, but there is no fab with that name here.");
