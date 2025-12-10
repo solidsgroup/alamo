@@ -3,6 +3,10 @@ name: Linux
 on:
   push:
     branches-ignore: ["paper", "candidate-install"]
+  pull_request:
+    branches:
+      - development
+      - master
 
 permissions:
   contents: read
@@ -40,6 +44,12 @@ jobs:
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: make
       run: bash .github/workflows/build-docs.sh
+    - name: upload documentation
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation
+        path: docs/build/html
   test-2d-22-04:
     runs-on: ubuntu-22.04
     steps:
@@ -54,6 +64,15 @@ jobs:
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
     - name: parallelism check
       run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: regression-report
+        path: report.tar.gz
   test-2d-24-04:
     runs-on: ubuntu-24.04
     steps:
@@ -68,6 +87,15 @@ jobs:
       run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace
     - name: parallelism check
       run: scripts/runtests.py tests/Unit/ --check-mpi --dim=2 --no-backspace --mpirun-flags="--oversubscribe"
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: regression-report
+        path: report.tar.gz
   test-3d-24-04:
     runs-on: ubuntu-24.04
     steps:
@@ -82,6 +110,15 @@ jobs:
       run: scripts/runtests.py --serial --no-coverage --dim=3 --benchmark=github  --timeout=200 --no-backspace
     - name: parallelism check
       run: scripts/runtests.py tests/Unit/ --check-mpi --dim=3 --no-backspace --mpirun-flags="--oversubscribe"
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: regression-report
+        path: report.tar.gz
   test-2d-24-04-clang:
     runs-on: ubuntu-24.04
     steps:
@@ -123,3 +160,12 @@ jobs:
       run: make
     - name: regression tests
       run: scripts/runtests.py --serial --no-coverage --comp=clang++  --timeout=200 --no-backspace --fft-only
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: regression-report
+        path: report.tar.gz
