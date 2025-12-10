@@ -59,7 +59,7 @@ propellant.powerlaw.n_htpb = 0.0 # [ 1 ]
 propellant.powerlaw.n_comb = 0.0 # [ 1 ]
 
 # Chamber pressure (affects the propellant model)
-chamber.pressure = 0.2
+chamber.pressure = 0.2_MPa
 
 # Phase field initial condition
 pf.eta.ic.type = constant
