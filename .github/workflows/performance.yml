@@ -37,10 +37,10 @@ jobs:
       run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py --permissive --no-backspace --post-timeout=10
     - name: create report
       if: always()
-      run: python3 scripts/package_report.py
+      run: python3 scripts/package_report.py --name scooter
     - name: upload report
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: regression-report
-        path: report.tar.gz
+        name: scoter
+        path: scoter

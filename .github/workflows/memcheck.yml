@@ -34,13 +34,13 @@ jobs:
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips
     - name: create report
       if: always()
-      run: python3 scripts/package_report.py
+      run: python3 scripts/package_report.py --name memcheck-2d-asan-gcc
     - name: upload report
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: regression-report
-        path: report.tar.gz
+        name: memcheck-2d-asan-gcc
+        path: memcheck-2d-asan-gcc
 
   memcheck-2d-asan-clang:
     runs-on: ubuntu-24.04
@@ -63,13 +63,13 @@ jobs:
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
     - name: create report
       if: always()
-      run: python3 scripts/package_report.py
+      run: python3 scripts/package_report.py --name memcheck-2d-asan-clang
     - name: upload report
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: regression-report
-        path: report.tar.gz
+        name: memcheck-2d-asan-clang
+        path: memcheck-2d-asan-clang
 
   memcheck-2d-msan-clang:
     runs-on: ubuntu-24.04
@@ -92,11 +92,11 @@ jobs:
       run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
     - name: create report
       if: always()
-      run: python3 scripts/package_report.py
+      run: python3 scripts/package_report.py --name memcheck-2d-msan-clang
     - name: upload report
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: regression-report
-        path: report.tar.gz
+        name: memcheck-2d-msan-clang
+        path: memcheck-2d-msan-clang
 
