@@ -666,6 +666,26 @@ public:
         return amrex::ParmParse::queryarr(name.c_str(),value);
     }
 
+    int queryarr_default(   std::string name, Set::Vector & value, std::string defaultvalue, Unit unit)
+    {
+        try
+        {
+            if (!contains(name.c_str()))
+            {
+                this->addarr(name.c_str(),Util::String::Split(defaultvalue));
+            }
+            return queryarr(name.c_str(),value,unit);
+        }
+        catch (std::runtime_error &e)
+        {
+            Util::ParmParseException(INFO,full(name), e.what());
+        }
+        catch (...)
+        {
+            Util::ParmParseException(INFO,full(name));
+        }
+        return -1;
+    }
     int queryarr_default(   std::string name, Set::Vector & value, Set::Vector defaultvalue)
     {
         try
@@ -1309,10 +1329,6 @@ public:
             Util::ParmParseException(INFO,names_str);
         }
     }
-
-
-
-
 };
 }
 #endif
