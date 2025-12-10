@@ -12,8 +12,6 @@
 #include "Set/Base.H"
 #include "Solver/Local/Riemann/Roe.H"
 
-#if AMREX_SPACEDIM==2
-
 namespace Integrator
 {
 class Hydro : virtual public Integrator
@@ -22,10 +20,25 @@ public:
     static constexpr const char* name = "hydro";
 
     Hydro() {};
-    Hydro(IO::ParmParse& pp);
+
+    Hydro(  Set::Field<Set::Scalar> &a_eta,
+            Set::Field<Set::Scalar> &a_etaold,
+            bool a_invert) :
+        eta_mf(&a_eta), eta_old_mf(&a_etaold), invert(a_invert)
+    {
+        this->managed = true;
+    }
+
+    Hydro(IO::ParmParse& pp); 
     static void Parse(Hydro& value, IO::ParmParse& pp);
     virtual ~Hydro()
     {
+        if (!managed)
+        {
+            delete eta_mf;
+            delete eta_old_mf;
+        }
+
         delete density_bc;
         delete momentum_bc;
         delete energy_bc;
@@ -59,7 +72,8 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
-private:
+    virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
+protected:
     
     void RHS(   int lev, Set::Scalar time, 
                 amrex::MultiFab &rho_rhs_mf, 
@@ -89,11 +103,9 @@ private:
         IC::IC<Set::Scalar>* momentum_ic  = nullptr;
         IC::IC<Set::Scalar>* energy_ic    = nullptr;
     } solid;
-
-protected:
-    Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
-private:
+    
+    Set::Field<Set::Scalar>* eta_mf;
+    Set::Field<Set::Scalar>* eta_old_mf;
     Set::Field<Set::Scalar> etadot_mf;
 
     Set::Field<Set::Scalar> vorticity_mf;
@@ -108,10 +120,12 @@ private:
     BC::BC<Set::Scalar>* momentum_bc = nullptr;
     BC::BC<Set::Scalar>* energy_bc = nullptr;
     BC::BC<Set::Scalar>* eta_bc = nullptr;
+    BC::BC<Set::Scalar>* tracer_bc = nullptr;
 
     IC::IC<Set::Scalar>* velocity_ic = nullptr;
     IC::IC<Set::Scalar>* pressure_ic = nullptr;
     IC::IC<Set::Scalar>* density_ic  = nullptr;
+    IC::IC<Set::Scalar>* tracer_ic  = nullptr;
 
     IC::IC<Set::Scalar>* ic_m0 = nullptr;
     IC::IC<Set::Scalar>* ic_u0 = nullptr;
@@ -135,11 +149,29 @@ private:
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
+    Set::Scalar lagrange_m0=NAN;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
+
+    enum IntegrationScheme {
+        ForwardEuler, SSPRK3, RK4
+    };
+    IntegrationScheme scheme;
+
+    enum PrescribedFlowMode {
+        Absolute, Relative
+    };
+    PrescribedFlowMode prescribedflowmode;
+
+
+    Set::Vector g;
+
+    bool managed = false;
+    bool invert = false;
+
+    std::vector<bool> mixed;
 
 };
 }
 
-#endif
 #endif
