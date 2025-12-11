@@ -15,4 +15,4 @@ source alamovenv/bin/activate
 pip install -e .
 
 # Run the python regression test
-./scripts/runtests.sh --python tests/Py 
+./scripts/runtests.py --python tests/Py 
