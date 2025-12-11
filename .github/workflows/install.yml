@@ -29,6 +29,8 @@ jobs:
       run: bash .github/workflows/build-and-test.sh
     - name: documentation
       run: bash .github/workflows/build-docs.sh
+    - name: python
+      run: bash .github/workflows/python.sh
   install-macos:
     runs-on: macos-latest
     steps:
