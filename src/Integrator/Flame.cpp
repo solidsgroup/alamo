@@ -355,7 +355,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                         pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
                     } else {
                         // If not using hydro to find the pressure on the regressing surface, set the pressure traction term to 0.0
-                        pres_reg = -1000*grad_eta;
+                        pres_reg = -1*grad_eta;
                     }
 
                     rhs(i, j, k) = 0.0*grad_eta;
