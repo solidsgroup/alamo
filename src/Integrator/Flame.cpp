@@ -339,6 +339,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<model_type>        model = model_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       psi   = Mechanics::psi_mf.Patch(lev, mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
             Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as traction force at solid/fluid interface
 
@@ -350,6 +351,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     Set::Vector pres_reg;
+
+                    psi(i,j,k) = eta(i,j,k);
                     
                     if (use_with_Hydro) {
                         pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate

@@ -56,18 +56,6 @@ pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(100*(x-0.3)**2+1
 # Phi initial condition (Solid AP to verify pressure/stress)
 phi.ic.type = "constant"
 phi.ic.constant.value = 0.5
-# phi.ic.laminate.number_of_inclusions = 0
-# phi.ic.laminate.center  = 0.0 0.0 0.0
-# phi.ic.laminate.thickness = 0.1
-# phi.ic.laminate.orientation = 0 1 
-# phi.ic.laminate.eps = 0.015
-# phi.ic.laminate.singlefab = 1
-# phi.ic.laminate.invert = 1
-
-# phi.ic.type = psread
-# phi.ic.psread.file.unit = m
-# phi.ic.psread.file.name = tests/SCPSpheresElastic/2d.xyzr
-# phi.ic.psread.eps = 10._um
 
 # Phase field parameters
 pf.kappa      = 1.0_J/m^2
@@ -191,3 +179,8 @@ elastic.pressure_mult = 0.01
 elastic.traction = 0.0
 #elastic.elastic_ref_threshold = 0.0005
 elastic.zero_out_displacement = true # Zero out the displacement before each elastic solver iternation
+
+## Psi Initial Condition
+# psi.ic.type = expression
+# psi.ic.expression.constant.x0 = 40.0_um
+# psi.ic.expression.region0 = "(erf(100*(x-0.3)**2+100*(y-0.1)**2))"
