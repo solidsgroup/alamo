@@ -96,12 +96,32 @@ for testdirname in sorted(glob.glob("../../tests/*")):
     
     testname = os.path.basename(testdirname)
 
+    if os.path.isfile(testdirname+"/input.py"):
+        docfile.write(f"    * - :fab:`python;sd-text-success fa-fw fa-lg`\n\n")
+        docfile.write("      - :ref:`{}`\n".format(testname))
+        docfile.write(f"      - \n\n")
+        docfile.write(f"      - \n\n")
+        docfile.write(f"      - \n\n")
+        with open("Tests/{}.rst".format(testname),"w") as testdocfile:
+            toctreestr += "   Tests/{}\n".format(testname)
+            testdocfile.write(testname + "\n")
+            testdocfile.write("="*len(testname) + "\n")
+
+            readmes = find_files_ignore_case(Path(testdirname), "README.rst")
+            for readme in readmes: testdocfile.write(f".. include:: ../{testdirname}/{readme.name}\n")
+            if readmes: testdocfile.write("\n\n")
+
+            testdocfile.write(".. literalinclude:: ../{}/input.py\n".format(testdirname))
+            testdocfile.write("   :caption: Input file ({}/input.py)\n".format(testdirname))
+            testdocfile.write("   :language: python\n")
+        continue
+
     if not os.path.isfile(testdirname+"/input"):
-        docfile.write("    * - :fas:`circle-xmark;sd-text-danger fa-fw fa-lg`\n\n")
-        docfile.write("      - {}\n\n".format(testname))
-        docfile.write("      - {}\n\n".format(testname))
-        docfile.write("      - {}\n\n".format(testname))
-        docfile.write("      - {}\n\n".format(testname))
+        docfile.write(f"    * - :fas:`circle-xmark;sd-text-danger fa-fw fa-lg`\n\n")
+        docfile.write(f"      - {testname}\n\n")
+        docfile.write(f"      - \n\n")
+        docfile.write(f"      - \n\n")
+        docfile.write(f"      - \n\n")
         continue
 
 
