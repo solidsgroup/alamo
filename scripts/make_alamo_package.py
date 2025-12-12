@@ -51,8 +51,6 @@ def get_version():
         return "0.0.0.dev0"
 
 version = get_version()
-print("Python package version:", version)
-
 
 f = open("setup.py",'w')
 f.write(f"""
