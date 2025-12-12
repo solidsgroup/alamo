@@ -14,7 +14,6 @@
 #include "Model/Propellant/Propellant.H"
 #include "Model/Propellant/FullFeedback.H"
 #include "Model/Propellant/Homogenize.H"
-
 #include <cmath>
 
 namespace Integrator
@@ -352,7 +351,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                     Set::Vector pres_reg;
 
-                    psi(i,j,k) = eta(i,j,k);
+                    // psi(i,j,k) = eta(i,j,k);
                     
                     if (use_with_Hydro) {
                         pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
@@ -378,7 +377,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_htpb.F0 *= (temp_avg - elastic.Telastic);
                     model_htpb.F0 += Set::Matrix::Identity();
 
-                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
                 });
             }
             else
@@ -391,7 +390,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_ap.F0 *= Set::Matrix::Zero();
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 *= Set::Matrix::Zero();
-                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
                 });
             }
         }

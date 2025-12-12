@@ -181,6 +181,7 @@ elastic.traction = 0.0
 elastic.zero_out_displacement = true # Zero out the displacement before each elastic solver iternation
 
 ## Psi Initial Condition
-# psi.ic.type = expression
-# psi.ic.expression.constant.x0 = 40.0_um
-# psi.ic.expression.region0 = "(erf(100*(x-0.3)**2+100*(y-0.1)**2))"
+# elastic.psi.ic.type = expression
+# elastic.psi.ic.expression.constant.x0 = 40.0_um
+# elastic.psi.ic.expression.region0 = "(erf(100*(x-0.3)**2+100*(y-0.1)**2))"
+# elastic.plot_psi = true
