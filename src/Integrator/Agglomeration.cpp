@@ -35,10 +35,10 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 
     // Interface energy
     pp.query_default("sigma", value.agglom.sigma, "1.0_J/m^2", Unit::Energy() / Unit::Area());
-    // Diffuse interface length of the agglomerate phase
+    // Diffuse interface length parameter
     pp.query_default("epsilon", value.agglom.epsilon, "1.0_m", Unit::Length());
 
-    // Prescribed agglomerate mobility parameter
+    // Free-flow mobility parameter
     pp.query_default("L_0", value.agglom.L_0, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
     // Agglomeration mobility exponent
     pp.query_default("n", value.agglom.n, "1.0", Unit::Less());
@@ -61,9 +61,9 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     // If the gradient of alpha is larger than this value and eta is smaller than `eta_refinement_threshold`, refine/regrid alpha
     pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1.0", Unit::Less());
 
-    // Initial conditions for agglomerate order parameter
+    // Initial condition for the agglomerate order parameter
     pp.select_default<IC::Constant, IC::Expression, IC::BMP, IC::PNG, IC::Random>("alpha.ic", value.agglom.alpha_ic, value.geom);
-    // Boundary conditions for agglomerate order parameter
+    // Boundary condition for for agglomerate order parameter
     pp.select_default<BC::Constant>("alpha.bc", value.agglom.alpha_bc, 1);
 
     value.RegisterNewFab(value.agglom.alpha_old, value.agglom.alpha_bc, 1, 1, "agglom.alpha_old", false);
@@ -132,7 +132,7 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // calculate the Laplacian of alpha
             Set::Scalar laplacian_alpha = Numeric::Laplacian(alpha_old, i, j, k, 0, dx);
 
-            // calculate the variational derivative components
+            // calculate the variational derivative
             Set::Scalar free_energy_derivative = 2 * agglom.sigma / agglom.epsilon * alpha_old(i, j, k) * (1 - alpha_old(i, j, k)) * (1 - 2 * alpha_old(i, j, k)) - agglom.sigma * agglom.epsilon * laplacian_alpha;
 
             // calculate effective mobility L

@@ -1,50 +1,51 @@
-// TODO: Revise this to match the current model
-//
-// This integrator implements a phase field model for agglomeration of
-// nanoparticles in a solid composite propellant (SCP). The chemical
-// potential :math:`W_C(\alpha)` is defined as
+// This integrator implements a phase field model that simulates
+// agglomeration of of a nanopowder additive in a solid composite
+// propellant (SCP). The chemical potential :math:`W_C(\alpha)` is
+// defined as
 //
 // .. math::
-//    W_C(\alpha)=\frac{\sigma}{\varepsilon}\alpha^2(1-\alpha)^2
+//    W_C(\alpha)=\frac{\sigma}{\epsilon}\alpha^2(1-\alpha)^2
 //
 // where :math:`\sigma` is the interface energy and
-// :math:`\varepsilon` is the diffuse interface width. To capture the
-// surface tension of the agglomerate phase, we define
+// :math:`\varepsilon` is the diffuse interface length parameter. To
+// capture the surface tension of the agglomerate phase, we define
 //
 // .. math::
-//    W_B(\alpha)=\frac{1}{2}\sigma\varepsilon|\nabla\alpha|^2.
+//    W_B(\alpha)=\frac{1}{2}\sigma\epsilon|\nabla\alpha|^2.
 //
 // The free energy is
 //
 // .. math::
-//    F[\alpha]=\int_\Omega(W_c(\alpha)+W_B(\alpha))\mathrm{d}\boldsymbol{x}.
+//    F[\alpha]=\int_\Omega(W_c(\alpha)+W_B(\alpha))\mathrm{d}\boldsymbol{x}=\int_\Omega\left(\frac{\sigma}{\epsilon}\alpha^2(1-\alpha)^2+\frac{1}{2}\sigma\epsilon|\nabla\alpha|^2\right)\mathrm{d}\boldsymbol{x}.
 //
-// The effective mobility :math:`L` of the agglomerate phase is
-// defined as
+// The kinetic coefficient ("mobility") :math:`L` governing the
+// evolution of :math:`\alpha` is defined as
 //
 // .. math::
 //    L=L_0(1-\eta)^n
 //
-// where :math:`L_0` is the prescribed mobility parameter and
-// :math:`n` is some constant greater than 0.
+// where :math:`L_0` is the free-flow parameter and :math:`n>0` is a
+// model constant. This definition restricts the movement of
+// agglomerate in the binder.
 //
-// The agglomerate phase can be evolved according to Cahn-Hilliard
-// kinetics
-//
-// .. math::
-//    \frac{\partial\alpha}{\partial t}=L\Delta\left(\frac{\delta F}{\delta\alpha}\right)
-//
-// or Allen-Cahn kinetics with a Lagrangian constraint
+// The kinetics are modeled with Allen-Cahn kinetics with a Lagrangian
+// constraint on the volume of agglomerate in the domain:
 //
 // .. math::
-//    \frac{\partial\alpha}{\partial t}=-L\left(\frac{\partial F}{\partial\alpha}+\lambda\left(\frac{V}{V_0}-1\right)\right)
+//    \frac{\partial\alpha}{\partial t}=-L\left[\frac{\partial F}{\partial\alpha}+\lambda\left(\frac{V}{V_0}-1\right)\right]
 //
-// where :math:`\lambda` is a suitably large Lagrangian multiplier to enforce the constraint up to tolerance, :math:`V` is the volume of agglomerate in the domain, and :math:`V_0` is the prescribed volume of agglomerate in the domain.
+// where :math:`\lambda` is a Lagrangian multiplier that is suitably large to enforce the constraint up to tolerance, :math:`V` is the volume of agglomerate in the domain, and :math:`V_0` is the prescribed volume of agglomerate in the domain. :math:`V_0` is usually equal to the initial volume of agglomerate in the domain.
 //
 // For reference, the functional derivative of the free energy :math:`F` is
 //
 // .. math::
-//    \frac{\delta F}{\delta\alpha}=2\frac{\sigma}{\varepsilon}\alpha(1-\alpha)(1-2\alpha)-\sigma\varepsilon\Delta\alpha.
+//    \frac{\delta F}{\delta\alpha}=2\frac{\sigma}{\epsilon}\alpha(1-\alpha)(1-2\alpha)-\sigma\epsilon\Delta\alpha
+//
+// where :math:`\Delta\alpha` is the Laplacian of :math:`\alpha`.
+//
+// See the following reference for more details on the model:
+//
+// TODO: Add reference to 2026 AIAA SciTech paper once published.
 
 #ifndef INTEGRATOR_AGGLOMERATION_H
 #define INTEGRATOR_AGGLOMERATION_H
