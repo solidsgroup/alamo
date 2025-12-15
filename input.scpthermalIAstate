@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.scpthermalsandwich
+plot_file = output.scpthermalIAstate
 
 system.length = mm
 system.time = s
@@ -14,22 +14,16 @@ amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 20.0_K
-#amr.phi_refinement_criterion = 0.5
+amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 3
-
+amr.max_level = 4
 
 # Full size
-# amr.n_cell = 64 64 64 #32 32 32
-# geometry.prob_lo = 0.0_mm -1.0_mm -1.0_mm
-# geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
-
-# # Quarter size
-amr.n_cell = 16 32 16
-geometry.prob_lo = 0.0_mm -0.5_mm -0.5_mm
+amr.n_cell = 16 16 16
+geometry.prob_lo = 0.0_mm 0_mm 0_mm
 geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0 
@@ -43,21 +37,18 @@ pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
-#pf.eta.ic.type = constant 
-#pf.eta.ic.constant.value = 1.0 
-pf.eta.ic.type = expression
-pf.eta.ic.expression.constant.eps = 20.0_um
-pf.eta.ic.expression.constant.x0 = 40.0_um
-# pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
-pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(50*(x-0.3)**2+50*(y-0.1)**2))"
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
-# pf.eta.ic.psread.file.name = 2d.xyzr
-# pf.eta.ic.psread.eps = 1.13e-5_m
+
+pf.eta.ic.type = png
+pf.eta.ic.png.filename = iowastate_processed.png
+pf.eta.ic.png.fit = coord
+pf.eta.ic.png.max = 0
+pf.eta.ic.png.min = 255
+pf.eta.ic.png.coord.lo = 0.0_mm 0.5_mm
+pf.eta.ic.png.coord.hi = 0.5_mm 0.0_mm
 
 ## Phi field initial conditions
 phi.ic.type = laminate
-phi.ic.laminate.center = 0.0 0.0 0.0 
+phi.ic.laminate.center = 0.0 0.25 0.0 
 phi.ic.laminate.thickness = 0.25_mm
 phi.ic.laminate.orientation = 0 1 
 phi.ic.laminate.singlefab = 1 
@@ -168,7 +159,7 @@ model_htpb.kappa = 210
 model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
 # Elastic solver information
 elastic.solver.verbose = 4
-elastic.solver.fixed_iter = 500
+elastic.solver.fixed_iter = 5000
 elastic.solver.nriters = 1
 elastic.solver.nrtolerance = 1E-5
 elastic.print_model = 1
