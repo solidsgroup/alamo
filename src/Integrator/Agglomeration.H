@@ -74,23 +74,7 @@ public:
 
 private:
     void Initialize(int lev) override;
-
-    /**
-     * @brief Scales the dst order parameter by the complement of src
-     *
-     * This function evaluates dst * (1 - src) and stores the result in dst.
-     *
-     * @param dst The order parameter to be scaled
-     * @param src The scaling order parameter
-     * @param srccomp The starting component in the src MultiFab
-     * @param dstcomp The starting component in the dst MultiFab
-     * @param numcomp The number of components to scale
-     * @param nghost The number of ghost cells to scale
-     *
-     * @warning Assumes src is in the range [0.0,1.0].
-     */
     void scaleByComplement(MultiFab &dst, const MultiFab &src, int srccomp, int dstcomp, int numcomp, int nghost);
-
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow) override;
     void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mif, const amrex::Box &box) override;
