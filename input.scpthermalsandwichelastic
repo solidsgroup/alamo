@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 1e-4_s # was 0.001
+amr.plot_dt = 1e-3_s # was 0.001
 amr.max_grid_size = 16
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
@@ -35,8 +35,8 @@ geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
 geometry.is_periodic = 0 0 0 
 
 ## Timestep
-timestep = 1e-7_s # 0.00005 # [s]
-stop_time = 0.125_s
+timestep = 1e-6_s # 0.00005 # [s]
+stop_time = 0.15_s
 
 small = 1.0e-8
 pf.eps = 1.0_um #0.0005 # [m]
@@ -49,7 +49,11 @@ pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.eps = 20.0_um
 pf.eta.ic.expression.constant.x0 = 40.0_um
 # pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
-pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(100*(x-0.3)**2+100*(y-0.1)**2))"
+pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(1000*(x-0.3)**2+1000*(y-0.1)**2))"
+# pf.eta.ic.type = psread
+# pf.eta.ic.psread.file.unit = m
+# pf.eta.ic.psread.file.name = 2d.xyzr
+# pf.eta.ic.psread.eps = 1.13e-5_m
 
 ## Phi field initial conditions
 phi.ic.type = laminate
@@ -111,7 +115,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 # Thermal transport parameters
 thermal.on = 1  
 #thermal.Tfluid = 300.0_K
-thermal.Tref = 305.0_K
+thermal.Tref = 300.5_K
 
 # Temperature field initial condition
 temp.ic.type = constant
@@ -153,7 +157,7 @@ amr.abort_on_nan = 1
 # Disable elasticity
 elastic.type = static
 # Thermoelasticity
-elastic.on = 0
+elastic.on = 1
 elastic.interval = 500
 # Elastic model params
 model_ap.mu = 140
@@ -181,52 +185,3 @@ elastic.pressure_mult = 0.01
 elastic.traction = 0.0
 #elastic.elastic_ref_threshold = 0.0005
 elastic.zero_out_displacement = true # Zero out the displacement before each elastic solver iternation
-
-use_with_Hydro = 1
-velocity_mult = 0.001
-hydro.on = 1
-hydro.tstart = 1e-5 # Was 0.0005
-hydro.rho_ap = 2.0
-hydro.rho_htpb = 1.0
-hydro.u0_ap = 5.0
-hydro.u0_htpb = 20.0 # 20.0 
-hydro.density.ic.constant.value = 1.0
-hydro.solid.density.ic.constant.value = 1.0
-hydro.m0.ic.constant.value = "1.0" 
-hydro.u0.ic.constant.value = 0 0.0
-hydro.lagrange=10.0
-hydro.solver.type = roe
-integration.type=RungeKutta
-integration.rk.type=2
-hydro.gamma = 1.4
-hydro.mu    = 0.00001
-hydro.pref    = 10000
-hydro.cfl   = 10.0
-hydro.cfl_v   = 10.0
-hydro.prescribedflowmode = relative
-hydro.velocity.ic.type = constant
-hydro.velocity.ic.constant.value = 0.0
-hydro.pressure.ic.type = expression
-hydro.pressure.ic.expression.constant.gamma = 1.4
-hydro.pressure.ic.expression.constant.E_solid = 5.0
-hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
-hydro.solid.momentum.ic.constant.value = 0.0
-hydro.solid.energy.ic.constant.value = 0.0
-hydro.q.ic.constant.value = 0.0
-hydro.small=1E-3
-hydro.cutoff=0.2
-hydro.momentum.bc.constant.type.xhi = neumann neumann
-hydro.momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
-hydro.momentum.bc.constant.type.ylo = neumann dirichlet
-hydro.momentum.bc.constant.type.yhi = neumann dirichlet
-hydro.energy.bc.constant.type.xhi = neumann
-hydro.energy.bc.constant.type.xlo = neumann #dirichlet #neumann
-hydro.energy.bc.constant.type.ylo = neumann
-hydro.energy.bc.constant.type.yhi = neumann
-hydro.density.bc.constant.type.xhi = neumann
-hydro.density.bc.constant.type.xlo = neumann #dirichlet
-hydro.density.bc.constant.type.ylo = neumann
-hydro.density.bc.constant.type.yhi = neumann
-hydro.eta_refinement_criterion=100000
-hydro.omega_refinement_criterion=100000
-hydro.gradu_refinement_criterion=4.0
