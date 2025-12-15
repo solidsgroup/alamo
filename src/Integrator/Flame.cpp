@@ -119,8 +119,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
-
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
 
 
     // Select reduced order model to capture heat feedback
