@@ -30,24 +30,24 @@ amr.node.all = 1
 
 # Geometry and AMR level specification
 amr.n_cell = 8 8 8
-geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 0.0005 0.0005 0.0005
+geometry.prob_lo = 0.0000_m 0.0000_m 0.0000_m
+geometry.prob_hi = 0.0005_m 0.0005_m 0.0005_m
 amr.max_level = 4
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 0.000001
-stop_time = 0.11
+timestep = 0.000001_s
+stop_time = 0.11_s
 
 # Phase field parameters
-pf.eps = 0.000001 
-pf.lambda = 0.001
+pf.eps = 0.000001_m
+pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = constant
 pf.eta.ic.constant.value=1.0
-pf.kappa = 1.0
-pf.w1 = 1.0
-pf.w12 = 2.0
-pf.w0 = 0.0
+pf.kappa = 1.0_J/m^2
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
 small = 1E-4
 
 # Eta boundary condition
@@ -67,37 +67,38 @@ pf.eta.bc.constant.val.zhi = 0.0
 
 # Phi initial condition (spheres)
 phi.ic.type = psread
-phi.ic.psread.filename = tests/SCPSpheresElastic/2d.xyzr
-phi.ic.psread.eps = 1.13e-5 
+phi.ic.psread.file.unit = m
+phi.ic.psread.file.name = tests/SCPSpheresElastic/2d.xyzr
+phi.ic.psread.eps = 1.13e-5_m
 
 # Use the full-feedback propellant model
 propellant.type = fullfeedback
 # Arrhenius rate law params
-propellant.fullfeedback.m_ap = 1.45e5
-propellant.fullfeedback.m_htpb = 1.04e2
-propellant.fullfeedback.E_ap = 11000.0
-propellant.fullfeedback.E_htpb = 7500.0
-propellant.fullfeedback.mob_ap = 1
-propellant.fullfeedback.bound = 300.0
+propellant.fullfeedback.m_ap = 1.45e5_m/s
+propellant.fullfeedback.m_htpb = 1.04e2_m/s
+propellant.fullfeedback.E_ap = 11000.0_K
+propellant.fullfeedback.E_htpb = 7500.0_K
+propellant.fullfeedback.mob_ap = true
+propellant.fullfeedback.bound = 300.0_K
 # Thermal transport params
-propellant.fullfeedback.rho_ap = 1950.0
-propellant.fullfeedback.rho_htpb = 920.0
-propellant.fullfeedback.k_ap = 0.4186e0
-propellant.fullfeedback.k_htpb = 0.13
-propellant.fullfeedback.cp_ap = 1297.9
-propellant.fullfeedback.cp_htpb = 2418.29
+propellant.fullfeedback.rho_ap = 1950.0_kg/m^3
+propellant.fullfeedback.rho_htpb = 920.0_kg/m^3
+propellant.fullfeedback.k_ap = 0.4186e0_W/m/K
+propellant.fullfeedback.k_htpb = 0.13_W/m/K
+propellant.fullfeedback.cp_ap = 1297.9_J/kg/K
+propellant.fullfeedback.cp_htpb = 2418.29_J/kg/K
 # Mass-to-heat flux estimation params
-propellant.fullfeedback.a1 = 1.114
-propellant.fullfeedback.a2 = 0.46
-propellant.fullfeedback.a3 = 2.797
-propellant.fullfeedback.b1 = 0.323
-propellant.fullfeedback.b2 = 0.42
-propellant.fullfeedback.b3 = 0.3225
-propellant.fullfeedback.c1 = -0.09906
-propellant.fullfeedback.mlocal_ap = 1000.0
-propellant.fullfeedback.mlocal_comb = 0.0
-propellant.fullfeedback.phi.zeta_0 = 1.13e-5
-propellant.fullfeedback.phi.zeta = 1.13e-5 
+propellant.fullfeedback.a1 =  1.11400_1
+propellant.fullfeedback.a2 =  0.46000_1
+propellant.fullfeedback.a3 =  2.79700_1
+propellant.fullfeedback.b1 =  0.32300_1
+propellant.fullfeedback.b2 =  0.42000_1
+propellant.fullfeedback.b3 =  0.32250_1
+propellant.fullfeedback.c1 = -0.09906_1
+propellant.fullfeedback.mlocal_ap = 1000.0_kg/m^3/s
+propellant.fullfeedback.mlocal_comb = 0.0_kg/m^3/s
+propellant.fullfeedback.phi.zeta_0 = 1.13e-5_m
+propellant.fullfeedback.phi.zeta = 1.13e-5 _m
 propellant.fullfeedback.Pref = 1.0_MPa 
 
 
@@ -121,12 +122,12 @@ thermal.temp.bc.constant.val.zhi = 0.0
 
 # Temperature initial conditions
 temp.ic.type="constant"
-temp.ic.constant.value=500
+temp.ic.constant.value=500_K
 
 # Laser source term
 laser.ic.type = constant
-laser.ic.constant.value = 1.0e6
-thermal.hc = 1.0e7
+laser.ic.constant.value = 1.0e6_W/m^2
+thermal.hc = 1.0e7_W/m^2
 
 # Pressure
 chamber.pressure = 4.0_MPa # [MPa]

@@ -154,6 +154,29 @@ Integrator::Integrator() : amrex::AmrCore()
         }
     }
 
+
+    {
+        //
+        // These parameters are NOT USED! 
+        // They are shadow paramters for AMReX::TimeIntegration.
+        // The purpose here is:
+        // (1) to set default values
+        // (2) to prevent "unused input" warnings when integration is parsed, since it is parsed in the 
+        //     AMReX convention, not the Alamo convention.
+        // 
+
+        IO::ParmParse pp("integration");
+        std::string str;
+        // Type of time integration to use (see amrex::TimeIntegrator for more details)
+        pp.query_validate("type", str, {"ForwardEuler","RungeKutta"});
+        if (str == "RungeKutta")
+        {
+            int type;
+            // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
+            pp.query_validate("rk.type", type, {1,2,3,4});
+        }
+    }
+
     int nlevs_max = maxLevel() + 1;
 
     istep.resize(nlevs_max, 0);
@@ -686,9 +709,9 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
                             match = true;
                             Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
                             amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0 /*cell.nghost_array[j]*/);
-                            Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev], cell.nghost_array[j]);
                         }
                     }
+                    Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev]);
                 }
             }
             if (!match) Util::Warning(INFO, "Fab ", tmp_name_array[i], " is in the restart file, but there is no fab with that name here.");
