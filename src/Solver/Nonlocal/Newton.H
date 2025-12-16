@@ -98,8 +98,8 @@ private:
                 });
             }
 
-            a_dw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            a_ddw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->FillBoundary (m_elastic->Geom(lev).periodicity()); 
+            a_ddw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity()); 
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -122,22 +122,24 @@ private:
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     // Do this if on the domain boundary
-                    if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
+                    if (AMREX_D_TERM(false || false, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                     {
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
                         Set::Vector ret = m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
+                        Util::Message(INFO);
                     }
                     else
                     {
+                        Util::Message(INFO);
                         Set::Vector divdw = Numeric::Divergence(dw, i, j, k, dx);
                         for (int p = 0; p < AMREX_SPACEDIM; p++) rhs(i, j, k, p) = b(i, j, k, p) - divdw(p);
                     }
                 });
             }
-            a_ddw_mf[lev]->FillBoundary();// Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
-            a_rhs_mf[lev]->FillBoundary();// Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
+            a_ddw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
+            a_rhs_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
         }
     }
 
@@ -184,8 +186,8 @@ private:
                 });
             }
 
-            a_dw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            a_ddw_mf[lev]->FillBoundary(); //  Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); // Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
+            a_ddw_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); //  Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -211,11 +213,17 @@ private:
                 // This is for if psi is not being used and has not been set
                 if (m_psi == nullptr)
                 {
+
+                    /////
+                    /////
+                    /////  THIS IS WHERE THE ACTION HAPPENS
+                    ///// 
+                    /////
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
-                        if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
+                        if (AMREX_D_TERM(false || false, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                             Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
@@ -223,8 +231,18 @@ private:
                         }
                         else
                         {
+
                             Set::Vector divdw = Numeric::Divergence(dw, i, j, k, dx, sten);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
+                            if (i == 0)
+                            {
+                                Util::Message(INFO,i," ",j);
+                                Util::Message(INFO,b(i,j,k).transpose());
+                                Util::Message(INFO,divdw.transpose());
+                                Util::Message(INFO,rhs(i,j,k,0));
+                                Util::Message(INFO,rhs(i,j,k,1));
+                            }
+
                         }
                     });
                 }
@@ -239,7 +257,7 @@ private:
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
-                        if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
+                        if (AMREX_D_TERM(false || false, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                             Set::Scalar psiavg = 1.0;
@@ -249,6 +267,7 @@ private:
                             }
                             Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
+                            Util::Message(INFO);
                         }
                         else
                         {
@@ -260,13 +279,15 @@ private:
                                 divdw += dw(i, j, k) * gradpsi;
                             }
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
+                            Util::Message(INFO);
+
                         }
                     });
                 }
             }
 
-            a_ddw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
-            a_rhs_mf[lev]->FillBoundary(); //Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
+            a_ddw_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); // Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_rhs_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); //Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
         }
     }
 
@@ -402,7 +423,6 @@ public:
             if (nriter == m_nriters) break;
 
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
-            //Solver::Nonlocal::Linear::solve(GetVecOfPtrs(dsol_mf), GetVecOfConstPtrs(rhs_mf), a_tol_rel, a_tol_abs,checkpoint_file);
 
             Set::Scalar cornorm = 0, solnorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)

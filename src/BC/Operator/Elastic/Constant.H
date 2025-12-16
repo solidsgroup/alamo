@@ -162,6 +162,8 @@ public:
 
                     #endif
 
+                    if (face == Face::XLO || face==Face::XHI) continue;
+
                     if (!(face == Face::INT))
                     {
                         if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
@@ -239,6 +241,8 @@ public:
                     else if (k==hi.z) face = Face::ZHI;
 
                     #endif
+
+                    if (face == Face::XLO || face==Face::XHI) continue;
 
                     if (!(face == Face::INT))
                     {
@@ -379,13 +383,13 @@ public:
         Set::Vector f = Set::Vector::Zero();
         for (int i = 0; i < AMREX_SPACEDIM; i++)
         {
-            if      (bc_type[i] == Type::Displacement) 
+            if      (bc_type[i] == Type::Displacement || bc_type[i] == Periodic) 
                 f(i) = u(i);
             else if (bc_type[i] == Type::Traction)
                 f(i) = (sigma*n)(i);
             else if (bc_type[i] == Type::Neumann)
                 f(i) = (gradu*n)(i);
-            else if (bc_type[i] == Periodic)
+            else
                 continue;
         }
         return f;

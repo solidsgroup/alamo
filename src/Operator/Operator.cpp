@@ -683,7 +683,9 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
 {
     resid.setVal(0.0);
+    Util::Message(INFO);
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+    Util::Message(INFO);
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     amrex::Geometry geom = m_geom[amrlev][mglev];
