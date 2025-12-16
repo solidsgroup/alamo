@@ -622,16 +622,19 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
     const DistributionMapping& fdm = fine_ddw.DistributionMap();
 
     MultiTab fine_ddw_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
-    fine_ddw_for_coarse.ParallelCopy(crse_ddw, 0, 0, ncomp, 0, 0, cgeom.periodicity());
+    fine_ddw_for_coarse.ParallelCopy(crse_ddw, 0, 0, ncomp, 0, 0);
+    //, cgeom.periodicity());
 
     const int coarse_fine_node = 1;
     const int fine_fine_node = 2;
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
-    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
+    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0);
+    //, cgeom.periodicity());
 
     amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba, 2), amrex::IntVect::TheCellVector()), fdm, 1, 2);
-    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1, cgeom.periodicity());
+    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1);
+    //, cgeom.periodicity());
 
     for (MFIter mfi(fine_ddw_for_coarse, false); mfi.isValid(); ++mfi)
     {
@@ -707,9 +710,10 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
 
     // Copy the fine residual restricted onto the coarse grid
     // into the final residual.
-    crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
+    crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0);
+    //, cgeom.periodicity());
     const int mglev = 0;
-    Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
+    crse_ddw.FillBoundary(); //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
     return;
 }
 
@@ -731,6 +735,16 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         MultiTab& crse = *m_ddw_mf[amrlev][mglev];
         MultiTab& fine = *m_ddw_mf[amrlev][mglev - 1];
 
+        for (MFIter mfi(fine, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>> const& fdata = fine.array(mfi);
+            Box bx = mfi.validbox();
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                Util::Message(INFO,"i=",i,"j=",j,"\n",fdata(i,j,k));
+            });
+        }
+            
+
         amrex::BoxArray crseba = crse.boxArray();
         amrex::BoxArray fineba = fine.boxArray();
 
@@ -738,7 +752,8 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         newba.refine(2);
         MultiTab fine_on_crseba;
         fine_on_crseba.define(newba, crse.DistributionMap(), 1, 4);
-        fine_on_crseba.ParallelCopy(fine, 0, 0, 1, 2, 4, m_geom[amrlev][mglev].periodicity());
+        fine_on_crseba.ParallelCopy(fine, 0, 0, 1, 2, 4);
+                                                          // , m_geom[amrlev][mglev].periodicity());
 
         for (MFIter mfi(crse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -798,7 +813,25 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
 
 #ifdef AMREX_DEBUG
-                if (cdata(I, J, K).contains_nan()) Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
+                if (cdata(I, J, K).contains_nan())
+                {
+                    Util::Warning(INFO,"course lo ",lo);
+                    Util::Warning(INFO, "coarse hi ",hi);
+                    Util::Warning(INFO, "coarse box ",bx);
+                    Util::Warning(INFO,i-1," ",j-1,"\n",fdata(i-1,j-1,k));
+                    Util::Warning(INFO,i-1," ",j,"\n",fdata(i-1,j,k));
+                    Util::Warning(INFO,i-1," ",j+1,"\n",fdata(i-1,j+1,k));
+
+                    Util::Warning(INFO,i," ",j-1,"\n",fdata(i,j-1,k));
+                    Util::Warning(INFO,i," ",j,"\n",fdata(i,j,k));
+                    Util::Warning(INFO,i," ",j+1,"\n",fdata(i,j+1,k));
+
+                    Util::Warning(INFO,i+1," ",j-1,"\n",fdata(i+1,j-1,k));
+                    Util::Warning(INFO,i+1," ",j,"\n",fdata(i+1,j,k));
+                    Util::Warning(INFO,i+1," ",j+1,"\n",fdata(i+1,j+1,k));
+                    
+                    Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
+                }
 #endif
             });
         }
@@ -813,7 +846,8 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         MultiFab& fine_psi = *m_psi_mf[amrlev][mglev - 1];
         MultiFab fine_psi_on_crseba;
         fine_psi_on_crseba.define(newba.convert(amrex::IntVect::TheCellVector()), crse_psi.DistributionMap(), 1, 1);
-        fine_psi_on_crseba.ParallelCopy(fine_psi, 0, 0, 1, 1, 1, m_geom[amrlev][mglev].periodicity());
+        fine_psi_on_crseba.ParallelCopy(fine_psi, 0, 0, 1, 1, 1);
+        //, m_geom[amrlev][mglev].periodicity());
 
         for (MFIter mfi(crse_psi, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -886,13 +920,15 @@ Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const Geometry& geom)
     for (int i = 0; i < 2; i++)
     {
         MultiTab& mf = sigma;
-        mf.FillBoundary(geom.periodicity());
+        mf.FillBoundary();//geom.periodicity());
         const int ncomp = mf.nComp();
         const int ng1 = 1;
         const int ng2 = 2;
         MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1); //
+                                                       // , geom.periodicity());
+        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2); //
+                                                       // , geom.periodicity());
     }
 }
 
@@ -904,13 +940,15 @@ Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const Geometry& geom)
     for (int i = 0; i < 2; i++)
     {
         MultiFab& mf = psi;
-        mf.FillBoundary(geom.periodicity());
+        mf.FillBoundary();//geom.periodicity());
         const int ncomp = mf.nComp();
         const int ng1 = 1;
         const int ng2 = 2;
         MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1); //
+                                                       // , geom.periodicity());
+        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2); //
+                                                       // , geom.periodicity());
     }
 }
 

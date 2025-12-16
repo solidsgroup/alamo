@@ -319,18 +319,18 @@ int SubFinalMessage(int failed);
 //
 template<class T>
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &a_geom)
 {
     BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
-    a_mf.FillBoundary();
+    a_mf.FillBoundary();//a_geom.periodicity());
 }
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &a_geom)
 {
     BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
-    a_mf.FillBoundary();
+    a_mf.FillBoundary(); //a_geom.periodicity());
 }
 
 

@@ -229,7 +229,7 @@ public:
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            eta_mf[lev]->FillBoundary();
+            eta_mf[lev]->FillBoundary(this->geom[lev].periodicity());
 
             amrex::Box domain = this->geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());

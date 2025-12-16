@@ -98,8 +98,8 @@ private:
                 });
             }
 
-            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
+            a_ddw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -136,8 +136,8 @@ private:
                     }
                 });
             }
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
+            a_ddw_mf[lev]->FillBoundary();// Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_rhs_mf[lev]->FillBoundary();// Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
         }
     }
 
@@ -184,8 +184,8 @@ private:
                 });
             }
 
-            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
+            a_ddw_mf[lev]->FillBoundary(); //  Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -265,8 +265,8 @@ private:
                 }
             }
 
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
+            a_ddw_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_rhs_mf[lev]->FillBoundary(); //Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
         }
     }
 
@@ -491,7 +491,7 @@ public:
 
         for (int lev = 0; lev < a_res_mf.size(); ++lev)
         {
-            Util::RealFillBoundary(*res_mf[lev], m_elastic->Geom(lev));
+            res_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*res_mf[lev], m_elastic->Geom(lev));
             a_res_mf.CopyFrom(lev, *res_mf[lev], 0, 2);
         }
     }

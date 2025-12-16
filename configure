@@ -555,6 +555,9 @@ if not args.compile_commands:
     otherflags = ""
     if args.fft: otherflags += "-DALAMO_FFT"
 
+    if args.amrex: otherflags += f" -I{args.amrex}/include"
+    else: otherflags += f" -I./ext/amrex/{postfix_amrex}/include"
+
     cc = compmpicmd
     command_objects = []
     command_objects = [{
@@ -566,7 +569,7 @@ if not args.compile_commands:
             "-std=c++17",
             "-I./src/",
             srcfile,
-            f"-I./ext/amrex/{postfix_amrex}/include",
+            
         ],
     } for srcfile in srcfiles]
 
