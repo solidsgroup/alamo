@@ -1,4 +1,14 @@
 #@ 
+#@ [2d-serial-short]
+#@ dim=2
+#@ args=stop_time=0.05
+#@ check=false
+#@
+#@ [2d-serial-restart]
+#@ dim=2
+#@ args=stop_time=0.1
+#@ restart=tests/VoronoiElastic/{testid}_2d-serial-short/00100cell
+#@ 
 #@ [2d-serial]
 #@ dim=2
 #@ benchmark-beaker = 65.12

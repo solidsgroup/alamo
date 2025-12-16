@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+import sys, glob,pylab, numpy
+sys.path.insert(0,"../../scripts")
+import testlib
+
+outdir = sys.argv[1]
+
+
+start = [-1.0, 0.0625]
+end   = [1.0, 0.0625]
+
+path = sorted(glob.glob(f"{outdir}/*cell"))[-1]
+print(path)
+ds = testlib.readContours(path, start, end, vars=['alpha'])
+
+x = ds["x"]
+alpha_new = ds["alpha"]
+
+pylab.plot(x,alpha_new,label='Numerical solution')
+
+eps   = float(sys.argv[2].split('_')[1])
+sigma = float(sys.argv[2].split('_')[3])
+print(sys.argv[2])
+print(sigma,eps)
+
+kappa = sigma*eps/2
+lamb = 4*sigma/eps
+print(kappa,lamb)
+
+
+gamma = numpy.sqrt(2.0 * lamb / kappa)
+
+alpha_exact = 1 / (numpy.exp(-gamma*x) + 1)
+
+pylab.plot(x,alpha_exact,linestyle='--',linewidth=2, label='Exact solution')
+
+
+bndry_left = [-0.5*eps, 0]
+bndry_right = [0.5*eps, 1]
+
+pylab.fill_between([-0.5*eps, 0.5*eps], [0,0], [0,1],color='C2',alpha=0.1,zorder=-1)
+pylab.plot([-0.5*eps, 0.5*eps], [0,1], color='C2',zorder=-2,label='Predicted slope at x=0')
+
+
+
+pylab.grid()
+pylab.title(sys.argv[2])
+pylab.legend()
+pylab.tight_layout()
+pylab.savefig(f"{outdir}/comparison.png")
+
+
+err = ( testlib.integrate(x,abs(alpha_exact - alpha_new)) /
+        testlib.integrate(x,abs(alpha_exact + alpha_new)) )
+
+if err > 0.01:
+    raise Exception("Error in eta: %err = ", err)
+
+exit(0)
+
+
+
+
+

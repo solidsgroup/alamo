@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import sys
+
+sys.path.append('./scripts')
+from report import init_html, append_html, finalize_html
+
 import argparse
 import os, glob, subprocess
 import configparser, io
@@ -13,6 +17,8 @@ import threading
 import signal
 
 from sympy import capture
+
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 class color:
     reset = "\033[0m"
@@ -42,6 +48,7 @@ def clean(text,max_length=60):
 #
 now = datetime.now()
 testid = now.strftime("output_%Y-%m-%d_%H.%M.%S_"+socket.gethostname())
+init_html()
 print("Test ID = ",testid)
 
 #
@@ -86,6 +93,7 @@ parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tes
 parser.add_argument('--exe',default=None, nargs='*', help='Run only certain executables')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--perf',default=False,action='store_true',help='Use clang perf')
 parser.add_argument('--coverage',default=False,action='store_true',help='Use the gcov version of the code for all tests')
 parser.add_argument('--only-coverage',default=False,action='store_true',help='Gracefully skip non-coverage tests')
 parser.add_argument('--only-non-coverage',default=False,action='store_true',help='Gracefully skip coverage tests')
@@ -100,11 +108,15 @@ parser.add_argument('--clean', dest='clean', default=True, action='store_true', 
 parser.add_argument('--no-clean', dest='clean', default=False, action='store_false', help='Keep all output files')
 parser.add_argument('--permissive', dest='permissive', default=False, action='store_true', help='Option to run without erroring out (if at all possible)')
 parser.add_argument('--permit-timeout', dest='permit_timeout', default=False, action='store_true', help='Permit timeouts without failing')
+parser.add_argument('--permit-skips', dest='permit_skips', default=False, action='store_true', help='Permit skips without failing')
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
+parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
+parser.add_argument('--python', default=False,action='store_true', help='Include python tests')
+parser.add_argument('--only-python', default=False,action='store_true', help='Run python tests only')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -115,6 +127,9 @@ if args.memcheck and not args.debug:
     raise Exception("Debug must be enabled with memory check")
 if args.memcheck and not args.serial:
     raise Exception("Memory check supported in serial only")
+
+if args.only_python:
+    args.python = True
 
 if args.post:
     if not os.path.isfile(args.post):
@@ -148,7 +163,41 @@ def test(testdir):
     fasters = 0
     slowers = 0
     timeouts = 0
+    post_fails = 0
     records = []
+
+
+    
+    # Formatting strings
+    bs = "\b\b\b\b\b\b"
+
+
+    if os.path.isfile(testdir + "/input.py"):
+        print(f"RUN    {color.bold}{testdir}{color.reset}")
+        cmd = f'python {testdir}/input.py'
+        print("  │      Running test............................................",end="",flush=True)
+        try:
+            proc = subprocess.Popen(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate(timeout=int(args.timeout))
+            retcode = proc.returncode
+            if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
+            print("[{}PASS{}]".format(color.boldgreen,color.reset))
+            tests += 1
+            print("  └ Python test complete ")
+            return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+
+        except subprocess.CalledProcessError as e:
+            print(bs+"[{}FAIL{}]".format(color.red,color.reset))
+            print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
+            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
+            fails += 1
+
+        if os.path.isfile(f"{testdir}/input"):
+            raise(Exception(f"Test {testdir} cannot have both input and input.py"))
+
+        return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
@@ -178,8 +227,15 @@ def test(testdir):
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
 
+    # Store a list of all the cleanup commands that will be run after
+    # going through all sections
+    cleanup_paths = []
+
     # Iterate through all test configurations
     for desc in sections:
+
+        # Start off with the current environment as the default
+        env = os.environ.copy()
 
         record = dict()
         record['testdir'] = testdir
@@ -203,6 +259,7 @@ def test(testdir):
                 check = True
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
+            config[desc].pop('check')
 
         # Determine if we want to use the coverage version of the code.
         coverage = args.coverage
@@ -213,6 +270,8 @@ def test(testdir):
                 coverage = True
             else:
                 raise(Exception("Invalid value for coverage: {}".format(config[desc]['coverage'])))
+            config[desc].pop('coverage')
+
         if args.only_coverage and not coverage:
             continue
         if args.only_non_coverage and coverage:
@@ -223,12 +282,15 @@ def test(testdir):
         timeout = int(args.timeout)
         if 'timeout' in config[desc].keys():
             timeout = int(config[desc]['timeout'])
+            config[desc].pop('timeout')
 
         dobenchmark = False
         benchmark = None
-        if "benchmark-{}".format(args.benchmark) in config[desc].keys():
+        benchmark_name = "benchmark-{}".format(args.benchmark)
+        if benchmark_name in config[desc].keys():
             dobenchmark = True
             benchmark = float(config[desc]["benchmark-{}".format(args.benchmark)])
+            config[desc].pop(benchmark_name)
 
         # Build the command to run the script. This can be done in two ways:
         #
@@ -244,22 +306,32 @@ def test(testdir):
             command = config[desc]['cmd']
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
+            config[desc].pop('cmd')
         else:
             # If we are doing memory checking, cut off the simulation early
             if args.memcheck: cmdargs += " max_step=2 "
 
             exe = 'alamo'
-            if 'exe' in config[desc].keys(): exe = config[desc]['exe']
+            if 'exe' in config[desc].keys():
+                exe = config[desc]['exe']
+                config[desc].pop('exe')
             dim = 3 # Dimension of alamo to use
-            if 'dim' in config[desc].keys(): dim = int(config[desc]['dim'])
+            if 'dim' in config[desc].keys():
+                dim = int(config[desc]['dim'])
+                config[desc].pop('dim')
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
-            if 'nprocs' in config[desc].keys(): nprocs = int(config[desc]['nprocs'])
-            if 'args' in config[desc].keys(): cmdargs += config[desc]['args'].replace('\n',' ')
+            if 'nprocs' in config[desc].keys():
+                nprocs = int(config[desc]['nprocs'])
+                config[desc].pop('nprocs')
+            if 'args' in config[desc].keys():
+                cmdargs += config[desc]['args'].replace('\n',' ')
+                config[desc].pop('args')
 
             cmdargs += " plot_file={}/{}_{}".format(testdir,testid,desc)
 
             if 'ignore' in config[desc].keys():
                 cmdargs += " ignore={}".format(config[desc]['ignore'])
+                config[desc].pop('ignore')
 
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
@@ -273,6 +345,11 @@ def test(testdir):
             if 'fft' in config[desc].keys():
                 if config[desc]['fft'] in {"yes","Yes","true","True","1"}:
                     if not args.fft and not args.fft_only: continue
+                config[desc].pop('fft')
+
+            # Specify performance flag
+            if args.perf:
+                env["CPUPROFILE"] = "profile.prof"
 
             # If not running in serial, specify mpirun command
             if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
@@ -282,6 +359,7 @@ def test(testdir):
             if args.debug: exestr += "-debug"
             if args.memcheck: exestr += "-{}".format(args.memcheck)
             if args.profile: exestr += "-profile"
+            if args.perf: exestr += "-perf"
             if coverage: exestr += "-coverage"
             exestr += "-"+args.comp
             
@@ -292,11 +370,6 @@ def test(testdir):
             if not os.path.isfile(exestr):
                 exestr=exestr.replace("-coverage","")
 
-            #if args.debug and args.profile: exestr = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
-            #elif args.debug: exestr = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
-            #elif args.profile: exestr = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
-            #else: exestr = "./bin/alamo-{}d-{}".format(dim,args.comp)
-
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
@@ -304,8 +377,20 @@ def test(testdir):
             if args.exe:
                 if not exe in args.exe:
                     continue
+                
+            # Determine if we want to restart this simulation from a previous test.
+            if 'restart' in config[desc].keys():
+                restartfile = config[desc]['restart'].replace(r'{testid}',testid)
+                if not os.path.isdir(restartfile):
+                    print("  ├ {}{} (skipped - no restart file){}".format(color.boldyellow,desc,color.reset))
+                    skips += 1
+                    continue
+                cmdargs += " restart=" + restartfile
+                config[desc].pop('restart')
+        
 
-            # If the exestr doesn't exist, exit noisily. The script will continue but will return a nonzero
+            # If the exestr doesn't exist, exit noisily.
+            # The script will continue but will return a nonzero
             # exit code.
             if not os.path.isfile(exestr):
                 print("  ├ {}{} (skipped - no {} executable){}".format(color.boldyellow,desc,exestr,color.reset))
@@ -319,15 +404,20 @@ def test(testdir):
                     print("  ├ {}{} (skip indicated in input){}".format(color.boldyellow,desc,color.reset))
                     skips += 1
                     continue
+                config[desc].pop('skip')
 
             command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
         
-        # Run the actual test.
+
+
+        # 
+        # [ R U N   T H E   T E S T ]
+        #
+
         print("  ├ " + desc)
         if args.cmd: print("  ├      " + command)
-        bs = "\b\b\b\b\b\b"
         if args.no_backspace:
             print("  │      Running test............................................",end="")
             bs = ""
@@ -361,7 +451,8 @@ def test(testdir):
                     time.sleep(1)
 
             # Start the run
-            proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                                    env=env)
 
             # Start the check_progress thread
             monitor_thread = threading.Thread(target=check_progress, args=(proc,""))
@@ -415,6 +506,7 @@ def test(testdir):
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
             for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            append_html(record)
             continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
@@ -462,22 +554,94 @@ def test(testdir):
             record['runStatus'] = 'FAIL'
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            append_html(record)
             continue
         
+
+        #
+        # 
+        # [ P R O F I L I N G ]
+        #
+        #
+
+        if args.perf:
+
+            profile_file = None
+
+            if nprocs>1:
+                profile_file = "profile.prof.rank-0"
+            else:
+                profile_file = "profile.prof"
+
+            output_svg = f"{testdir}/{testid}_{desc}/flame.svg"
+
+            # Step 1: Collapse the profile
+            try:
+                print("  │      Processing profiling data...............................",
+                      end="",flush=True)
+                result = subprocess.run(
+                    ["google-pprof", "--collapsed", exestr, profile_file],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    check=True, text=True)
+
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
+                print("  │      Generating flame plot...................................",
+                      end="",flush=True)
+
+                with open("out.folded", "w") as f:
+                    f.write(result.stdout)
+            
+                result = subprocess.run(
+                    ["ext/FlameGraph/flamegraph.pl", "out.folded"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    check=True, text=True )
+            
+                with open(output_svg, "w") as f:
+                    f.write(result.stdout)
+            
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
+                print(f"  │      {color.lightgray}{output_svg}{color.reset}")
+
+            except subprocess.CalledProcessError as e:
+                print("[{}FAIL{}]".format(color.red,color.reset))
+                for line in e.stderr.split('\n'):
+                    print("  │      {}ERROR: {}{}".format(color.red,clean(line,1000),color.reset))
+                print("Error during flamegraph generation:")
+                print(e.stderr)
+                raise
+
+
+            # remove profiling files
+            os.remove("out.folded")
+            for f in glob.glob("profile.prof*"):
+                os.remove(f)
+
+
+        #
+        # 
+        # [ V E R I F I C A T I O N   T E S T ]
+        #
+        #
+
+
         # If we have specified that we are doing a check, use the 
         # ./tests/MyTest/test 
         # script to determine if the run was successful.
         # The exception handling is basically the same as for the above test.
         if check and not args.memcheck:
             try:
-                if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
-                if "check-file" in config[desc].keys():
-                    cmd.append(config[desc]['check-file'])
                 if args.cmd: 
                     print("  ├      " + ' '.join(cmd))
-
                 print("  │      Checking result.........................................",end="",flush=True)
+
+                if args.dryrun:
+                    if ('check-file') in config[desc].keys(): config[desc].pop('check-file')
+                    raise DryRunException()
+                if "check-file" in config[desc ].keys():
+                    cmd.append(config[desc]['check-file'])
+                    config[desc].pop('check-file')
+
                 proc = subprocess.Popen(cmd,cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
                 stdout, stderr = proc.communicate()
@@ -503,6 +667,7 @@ def test(testdir):
                 for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
                 for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
                 fails += 1
+                append_html(record)
                 continue
             except DryRunException as e:
                 print("[----]")
@@ -512,6 +677,7 @@ def test(testdir):
                 record['checkStatus'] = 'FAIL'
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
+                append_html(record)
                 continue
         else:
             record['checkStatus'] = 'NONE'
@@ -521,6 +687,7 @@ def test(testdir):
         # Scan metadata file for insteresting things to include in the record
         #
         if args.post:
+            print("  │      Posting result..........................................",end="")
             try:
                 metadatafile = open("{}/{}_{}/metadata".format(testdir,testid,desc),"r")
                 metadata = readMetadata(metadatafile)
@@ -530,26 +697,35 @@ def test(testdir):
                 record['test-section'] = record['testdir'] + '/' + record['section']
                 p = subprocess.run('git show --no-patch --format=%ci {}'.format(record['git_commit_hash'].split('-')[0]).split(),capture_output=True)
                 record['git_commit_date'] = p.stdout.decode('utf-8').replace('\n','')
+
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(post.updateDatabase, postdata,[record])
+                    future.result(timeout=int(args.post_timeout));
+                print("[{}DONE{}]".format(color.boldgreen,color.reset))
+            except TimeoutError as e:
+                post_fails += 1
+                print("[{}TIME{}]".format(color.lightgray,color.reset))
             except Exception as e:
+                post_fails += 1
+                print("[{}FAIL{}]".format(color.red,color.reset))
+                for line in str(e).split('\n'):
+                    print("  │      {}{}{}".format(color.red,line,color.reset))
                 if not args.permissive:
-                    print("Problem getting metadata, here it is:")
-                    print(record)
                     raise Exception()
                 True # permissive
 
-            try:
-                post.updateDatabase(postdata,[record])
-            except Exception as e:
-                print("  │      [{}POST ERROR{}] : {}".format(color.red,color.reset,e))
-        records.append(record)
-
+        if not args.dryrun:
+            records.append(record)
+            append_html(record)
 
         #
         # Clean up all of the node and cell file 
         #
         ok_to_clean = False
         if args.clean and record['runStatus'] == 'PASS':
-            if not 'checkStatus' in record.keys():
+            if 'checkStatus' not in record.keys():
+                ok_to_clean = True # successful run and no testing done
+            elif record['checkStatus'] == 'NONE':
                 ok_to_clean = True # successful run and no testing done
             elif record['checkStatus'] == 'PASS':
                 ok_to_clean = True # successful run and testing completed
@@ -560,9 +736,24 @@ def test(testdir):
 
         if ok_to_clean:
             path = "{}/{}_{}".format(testdir,testid,desc)
-            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+            cleanup_paths.append(path)
             
         
+        #
+        # CHECK FOR UNUSED INPUTS
+        #
+        for key in config[desc].keys():
+            if "benchmark-" in key: config[desc].pop(key)
+            if key == "check-file": config[desc].pop(key)
+        if len(config[desc].keys()):
+            raise Exception("The following were specified but not used: "+str(list(config[desc].keys())))
+    
+    if len(cleanup_paths):
+        print(f"  ├ {color.lightgray}Cleaning up {len(cleanup_paths)} directories{color.reset}")
+        for path in cleanup_paths:
+            p = subprocess.run(f'rm -rf *cell *node',capture_output=True,cwd=path,shell=True)
+        
+
             
     # Print a quick summary for this test family.
     summary = "  └ "
@@ -573,6 +764,7 @@ def test(testdir):
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.lightgray,timeouts,color.reset))
+    if post_fails: sums.append("{}{} tests failed to post{}".format(color.lightgray,post_fails,color.reset))
     print(summary + ", ".join(sums))
     return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
@@ -597,9 +789,19 @@ class stats:
 # Iterate through all test directories, running the above "test" function
 # for each.
 for testdir in tests:
-    if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
-        print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
+    if (not os.path.isdir(testdir)):
+        print(f"{color.darkgray}IGNORE {testdir} (no input){color.reset}")
         continue
+    if os.path.isfile(testdir + "/input") and os.path.isfile(testdir + "/input.py"):
+        print(f"{color.darkgray}IGNORE {testdir} (cannot specify both input and input.py){color.reset}")
+        continue
+    if os.path.isfile(testdir + "/input") and args.only_python:
+        print(f"{color.darkgray}IGNORE {testdir} (running python tests only){color.reset}")
+        continue
+    if os.path.isfile(testdir + "/input.py") and not args.python:
+        print(f"{color.darkgray}IGNORE {testdir} (did not specify --python or --only-python){color.reset}")
+        continue
+
     f, c, w, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
     stats.tests += t
@@ -624,9 +826,13 @@ if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowe
 if stats.timeouts: print("{}{} tests timed out".format(color.lightgray,stats.timeouts,color.reset))
 print("")
 
-return_code = stats.fails + stats.skips
+return_code = stats.fails
+if not args.permit_skips:
+    return_code += stats.skips
 if not args.permit_timeout:
     return_code += stats.timeouts
+
+finalize_html()
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
 exit(return_code)

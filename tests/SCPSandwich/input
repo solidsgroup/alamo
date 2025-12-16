@@ -22,58 +22,58 @@ alamo.program = flame
 # AMR parameters
 plot_file = tests/SCPSandwich/output
 amr.plot_dt = 0.01
-amr.max_level = 7 
-amr.n_cell = 16 2 2
-amr.blocking_factor = 2
+amr.max_level = 2
+amr.n_cell = 512 64 64
+amr.blocking_factor = 16
 amr.regrid_int = 100
 amr.base_regrid_int = 20
 amr.grid_eff = 0.7
 
+system.length = mm
+
 # Geometry
-geometry.prob_lo = 0.0 -0.25 -0.1 # [mm]
-geometry.prob_hi = 4.0 0.25 0.1 # [mm]
+geometry.prob_lo = 0.0_mm -0.25_mm -0.1_mm # [mm]
+geometry.prob_hi = 4.0_mm  0.25_mm  0.1_mm # [mm]
 geometry.is_periodic = 0 1 1
 
 # Timestep and duration
-timestep = 0.00005 # [s]
-stop_time = 0.2 # [s]
+timestep = 0.0000125_s # [s]
+stop_time = 0.2_s # [s]
 
 # Phase field params
-pf.eps = 0.0005 # [mm]
-pf.lambda = 0.001
-pf.kappa = 1.0
-pf.gamma = 0.02726
-pf.w1 = 1.0
-pf.w12 = 2.0
-pf.w0 = 0.0
+pf.eps = 0.0005_mm # [mm]
+pf.lambda = 0.001_kg/s^2
+pf.kappa = 1.0_kg/s^2
+pf.w1 = 1.0_1
+pf.w12 = 2.0_1
+pf.w0 = 0.0_1
 
-# AP / HTPB regression rate params 
-pressure.r_ap = 1.222 # [ mm / s ]
-pressure.n_ap = 1.042 # [ 1 ]
-pressure.r_htpb = 0.1 # [ mm / s]
-pressure.r_comb = 10.0 # [ mm / s]
-pressure.n_htpb = 0.0 # [ 1 ]
-pressure.n_comb = 0.0 # [ 1 ]
-# Pressure used in regression rate calc
-pressure.P = 0.2
+# Propellant model parameters
+propellant.type = powerlaw
+propellant.powerlaw.gamma = 0.02726
+propellant.powerlaw.r_ap = 1.222 # [ mm / s ]
+propellant.powerlaw.n_ap = 1.042 # [ 1 ]
+propellant.powerlaw.r_htpb = 0.1 # [ mm / s]
+propellant.powerlaw.r_comb = 10.0 # [ mm / s]
+propellant.powerlaw.n_htpb = 0.0 # [ 1 ]
+propellant.powerlaw.n_comb = 0.0 # [ 1 ]
 
-# Phase field IC
-pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1
+# Chamber pressure (affects the propellant model)
+chamber.pressure = 0.2_MPa
 
-# Species field params
-phi.ic.type = laminate
-phi.ic.laminate.number_of_inclusions = 1
-phi.ic.laminate.center  = 0.0 0.0 0.0
-phi.ic.laminate.thickness = 0.1
-phi.ic.laminate.orientation = 0 1 
-phi.ic.laminate.eps = 0.015
-phi.ic.laminate.singlefab = 1
-phi.ic.laminate.invert = 1
-
-# Initial conditions on eta
+# Phase field initial condition
 pf.eta.ic.type = constant
 pf.eta.ic.constant.value = 1.0
+
+# Species field initial condition
+phi.ic.type = laminate
+phi.ic.laminate.number_of_inclusions = 1
+phi.ic.laminate.center  = 0.0_mm 0.0_mm 0.0_mm
+phi.ic.laminate.thickness = 0.1_mm
+phi.ic.laminate.orientation = 0 1 
+phi.ic.laminate.eps = 0.015_mm
+phi.ic.laminate.singlefab = 1
+phi.ic.laminate.invert = 1
 
 # Boundary conditions on eta
 pf.eta.bc.type = constant
@@ -86,9 +86,9 @@ pf.eta.bc.constant.val.xhi = 1.0
 pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 0.0
 
-pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1.0
+# Deactivate thermal transport model
+thermal.on = 0
 
-thermal.on = 0 
+# Deactivate elastic model
 elastic.type = disable
-#amr.node.any = 0
+

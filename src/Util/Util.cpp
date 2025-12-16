@@ -2,7 +2,9 @@
 #include "Color.H"
 
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
+#include <stdexcept>
 
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
@@ -153,6 +155,77 @@ void Initialize (int argc, char* argv[])
         file_overwrite = Util::CreateCleanDirectory(filename, false);
         IO::WriteMetaData(filename);
     }
+
+    IO::ParmParse pp;
+    std::string length, time, mass, temperature, current, amount, luminousintensity;
+    // Set the system length unit
+    pp.query_default("system.length",length,"m");
+    // Set the system time unit
+    pp.query_default("system.time",time,"s");
+    // Set the system mass unit
+    pp.query_default("system.mass",mass,"kg");
+    // Set the system temperature unit
+    pp.query_default("system.temperature",temperature,"K");
+    // Set the system current unit
+    pp.query_default("system.current",current,"A");
+    // Set the system amount unit
+    pp.query_default("system.amount",amount,"mol");
+    // Set the system luminous intensity unit
+    pp.query_default("system.luminousintensity",luminousintensity,"cd");
+    try
+    {
+        Unit::setLengthUnit(length);
+        Unit::setTimeUnit(time);
+        Unit::setMassUnit(mass);
+        Unit::setTemperatureUnit(temperature);
+        Unit::setCurrentUnit(current);
+        Unit::setAmountUnit(amount);
+        Unit::setLuminousIntensityUnit(luminousintensity);
+
+        // Update Constants to desired system units
+        Set::Constant::SetGlobalConstants();
+    }
+    catch (std::runtime_error &e)
+    {
+        Util::Exception(INFO, "Error in setting system units: ", e.what());
+    }
+
+    //
+    // This is some logic to unit-ize the geometry.prob_lo, geometry.prob_hi input variables/
+    // We also do some checking to make sure the geometry is valid.
+    //
+    // Note that here, unlike most places, we actually **replace and overwrite** the 
+    // geom.prob_* variables, since they are read deep inside amrex infrastructure.
+    //
+    {
+        IO::ParmParse pp("geometry");
+        
+        if (pp.contains("prob_lo"))
+        {
+            std::vector<Set::Scalar> prob_lo, prob_hi;
+            // Location of the lower+left+bottom corner
+            pp.queryarr("prob_lo", prob_lo, Unit::Length());
+            // Location of the upper_right_top corner
+            pp.queryarr("prob_hi", prob_hi, Unit::Length());
+            pp.remove("prob_lo");
+            pp.remove("prob_hi");
+
+            Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
+                            "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
+            Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
+                            "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
+#if AMREX_SPACEDIM>2
+            Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
+                            "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
+#endif
+
+            Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
+            Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
+
+            pp.addarr("prob_lo",prob_lo);
+            pp.addarr("prob_hi",prob_hi);
+        }
+    }
 }
 
 void Finalize()
@@ -217,123 +290,6 @@ CreateCleanDirectory (const std::string &path, bool callbarrier)
         amrex::ParallelDescriptor::Barrier("amrex::UtilCreateCleanDirectory");
     }
     return ret;
-}
-
-
-
-
-
-
-namespace String
-{
-int ReplaceAll(std::string &str, const std::string before, const std::string after)
-{
-    size_t start_pos = 0;
-    while((start_pos = str.find(before, start_pos)) != std::string::npos) {
-        str.replace(start_pos, before.length(), after);
-        start_pos += after.length();
-    }
-    return 0;
-}
-int ReplaceAll(std::string &str, const char before, const std::string after)
-{
-    size_t start_pos = 0;
-    while((start_pos = str.find(before, start_pos)) != std::string::npos) {
-        str.replace(start_pos, 1, after);
-        start_pos += after.length();
-    }
-    return 0;
-}
-
-std::string Join(std::vector<std::string> & vec, char separator)
-{
-    std::ostringstream oss;
-    for (size_t i = 0; i < vec.size(); ++i) {
-        oss << vec[i];
-        if (i < vec.size() - 1) { // Don't add separator after the last element
-            oss << separator;
-        }
-    }
-    return oss.str();
-}
-
-std::string Wrap(std::string text, unsigned per_line)
-{
-    unsigned line_begin = 0;
-
-    while (line_begin < text.size())
-    {
-        const unsigned ideal_end = line_begin + per_line ;
-        unsigned line_end = ideal_end <= text.size() ? ideal_end : text.size()-1;
-
-        if (line_end == text.size() - 1)
-            ++line_end;
-        else if (std::isspace(text[line_end]))
-        {
-            text[line_end] = '\n';
-            ++line_end;
-        }
-        else    // backtrack
-        {
-            unsigned end = line_end;
-            while ( end > line_begin && !std::isspace(text[end]))
-                --end;
-
-            if (end != line_begin)                  
-            {                                       
-                line_end = end;                     
-                text[line_end++] = '\n';            
-            }                                       
-            else                                    
-                text.insert(line_end++, 1, '\n');
-        }
-
-        line_begin = line_end;
-    }
-
-    return text;
-}
-std::vector<std::string> Split(std::string &str, const char delim)
-{
-    std::vector<std::string> ret;
-    std::stringstream ss(str);
-    std::string item;
-    while (std::getline(ss, item, delim)) {
-        ret.push_back(item);
-    }
-    return ret;
-}
-bool Contains(std::string &str, const std::string find)
-{
-    if (str.find(find) != std::string::npos) return true;
-    else return false;
-}
-
-template<>
-std::complex<int> Parse(std::string input)
-{
-    int re=0, im=0;
-
-    ReplaceAll(input, "+", " +");
-    ReplaceAll(input, "-", " -");
-    std::vector<std::string> tokens = Split(input,' ');
-    for (unsigned int i = 0; i < tokens.size(); i++)
-    {
-        if(tokens[i]=="") continue;
-        if(Contains(tokens[i],"i"))
-        {
-            ReplaceAll(tokens[i],"i","");
-            im += std::stoi(tokens[i]);
-        }
-        else 
-        {
-            re += std::stoi(tokens[i]);
-        }
-    }
-    return std::complex<int>(re,im);
-}
-
-
 }
 
 

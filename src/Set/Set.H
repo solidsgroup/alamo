@@ -21,7 +21,7 @@
 #include <iomanip>
 
 #include "Util/Util.H"
-
+#include "Unit/Unit.H"
 #include "Set/Base.H"
 /// \brief A collection of data types and symmetry-reduced data structures
 
@@ -260,7 +260,7 @@ public:
     int NComp() const
     {Util::Abort(INFO,"This should never be called");return -1;}
 
-    amrex::Array4<Set::Scalar> Patch (int lev, amrex::MFIter &mfi) const &
+    amrex::Array4<Set::Scalar> Patch (const int lev, const amrex::MFIter &mfi) const &
     {
         if (this->size()) return (*(*this)[lev]).array(mfi);
         else return empty;
@@ -282,10 +282,19 @@ namespace Set
 {
 namespace Constant
 {
+
 // Pi
-static const Set::Scalar Pi = 3.14159265359;
+extern const Set::Scalar Pi;
 // Gas constant
-static const Set::Scalar Rg = 8.31446261815;
+extern Set::Scalar Rg;
+// Boltzmann constant
+extern Set::Scalar Boltzmann;
+// Avogadro's number
+extern Set::Scalar Avogadro;
+
+// Function to update constants to match system level units
+extern void SetGlobalConstants();
+
 }
 }
 

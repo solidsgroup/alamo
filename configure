@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-import argparse
-import os
-import re
-import subprocess
-import textwrap
-import sys
-import shutil
-#import ctypes.util
-import glob
-import json
-from pathlib import Path
+
+try:
+    import argparse
+    import os
+    import re
+    import subprocess
+    import textwrap
+    import sys
+    import shutil
+    import glob
+    import json
+    from pathlib import Path
+except ImportError as e:
+    sys.stderr.write(
+        f"\nError: Missing required Python module: {e.name}\n"
+        "Please install it and rerun configure.\n\n"
+    )
+    sys.exit(1)    
 
 #
 # Configuration parameters, mainly to specify default values:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.04"
+amrex_current_version = "25.12"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -114,6 +121,7 @@ parser.add_argument('--docs',dest='docs',action='store_true',help='Check install
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
 parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
+parser.add_argument('--perf',dest='perf',action='store_true',default=False,help="Add profile flags")
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
 parser.add_argument('--memcheck',dest='memcheck',action='store_true',default=False,help="Use memory checking")
 parser.add_argument('--memcheck-tool',dest='memcheck_tool',default="msan",help="Memory checking toolL MSan (default) or ASan")
@@ -174,6 +182,7 @@ if args.memcheck:
     if args.memcheck_tool == "asan": postfix += "-asan"
     if args.memcheck_tool == "msan": postfix += "-msan"
 if args.profile: postfix += "-profile"
+if args.perf: postfix += "-perf"
 if args.coverage: postfix += "-coverage"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
@@ -274,7 +283,7 @@ if args.buildamrex and not args.amrex:
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
-    if args.debug: amrex_configure += ' --debug=yes'
+    if args.debug: amrex_configure += ' --debug=yes --enable-pic=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
     if args.fft: amrex_configure += " --enable-fft=yes"
@@ -361,9 +370,11 @@ elif (args.eigen != ""):
 # MAC OS SUPPORT
 #
 if args.macos:
-    #f.write("ALAMO_INCLUDE += -DALAMO_NOPNG\n")
     f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
-#else:
+
+#
+# LINK LIBPNG
+#
 f.write("LIB += -lpng \n")
 
 #
@@ -372,6 +383,7 @@ f.write("LIB += -lpng \n")
 if args.link:
     for l in args.link:
         f.write("LIB += -L" + l + "\n")
+        f.write("LIB += -Wl,-rpath," + l + "\n")
     
 #
 # CHECK COMPILER AND SET OPTIONS
@@ -398,7 +410,7 @@ elif "mvapich2" in mpidiststr.lower():
     mpidist = "mvapich2"
 elif "mvapich" in mpidiststr.lower():
     mpidist = "mvapich"
-elif "openmpi" in mpidiststr.lower():
+elif "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
     mpidist = "openmpi"
 message("mpi implementation", mpidist)
 
@@ -456,6 +468,12 @@ else:
     warning("We haven't tested "+mpidist+" yet. Attempting to add the proper compile " +
             "flags but no guarantees.")
 
+if args.perf:
+    if not os.path.isdir('ext/FlameGraph'):
+        shellmessage("FlameGraph", 
+                     cmd="git clone https://github.com/brendangregg/FlameGraph",
+                     message="Cloning flamegraph",
+                     cwd="ext/")
 
 #
 # ADD NECESSARY COMPILER-SPECIFIC MPI FLAGS
@@ -465,7 +483,8 @@ else:
 if args.comp == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.coverage: f.write("LINKER_FLAGS += -fprofile-arcs\n")
+    if args.coverage:
+        f.write("LINKER_FLAGS += -fprofile-arcs\n")
     if args.memcheck:
         if args.memcheck_tool=="asan":
             f.write("CXX_COMPILE_FLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope\n")
@@ -475,15 +494,26 @@ if args.comp == 'g++':
             f.write("LINKER_FLAGS += -fsanitize=memory\n")
         else:
             error("Invalid memory check tool ", args.memcheck_tool)
-    if args.coverage and args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage\n")
-    elif args.debug:                 f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    elif args.coverage:              f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
-    else:                            f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+    if args.coverage and args.debug:
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fprofile-arcs -ftest-coverage -fPIC\n")
+    elif args.debug:
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3  -fPIC\n")
+    elif args.coverage:
+        f.write("CXX_COMPILE_FLAGS += -fprofile-arcs -ftest-coverage\n")
+    else:
+        f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
+        f.write("LINKER_FLAGS += -flto\n")
 if args.comp == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+    if args.debug:
+        f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
+    elif args.perf:
+        f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
+        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    
+    else:
+        f.write("CXX_COMPILE_FLAGS += -O3\n")
+        f.write("LINKER_FLAGS += -flto \n")    
 if args.comp == 'icc':
     f.write("MPI_LIB += -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
@@ -492,6 +522,9 @@ if args.comp == 'icc':
 if args.fft:
     f.write("MPI_LIB += -lfftw3 -lfftw3f\n")
     f.write("CXX_COMPILE_FLAGS += -DALAMO_FFT\n")
+
+    
+
 
 #
 # DIFF
@@ -517,6 +550,15 @@ f2.write(f"\t   echo '$(B_ON)$(FG_MAGENTA)DIFF$(RESET)            ==>   $(FG_MAG
 f2.write(f"\t fi\n")
 f2.write(f"\t$(QUIET)git diff > $@\n")
 
+#
+# PYTHON CHECKING
+#
+f2.write(f"python_ok:\n")
+if args.comp == 'g++' and args.debug:
+    f2.write(f"\n")
+else:
+    f2.write(f"""\t$(error $(error Python module requires configuration with --comp=g++ and --debug))\n""")
+    
 #
 # Documentation check
 #

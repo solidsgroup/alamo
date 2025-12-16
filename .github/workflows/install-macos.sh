@@ -6,27 +6,20 @@ set -eu -o pipefail
 #
 
 #
-# Use Mac OS HomeBrew system to install mpich and eigen
+# Use the Homebrew package manager for macOS to install dependencies
 # [ you should only need to do this once ]
 #
 brew update
-brew install gfortran || true
-brew install mpich || true
-brew install eigen || true
-brew install libpng || true
-
-
-#
-# If your system is unable to find gfortran (for instance, if you are
-# a github action), you can try creating an alias using the following
-# command:
-#
-# ln -s /opt/homebrew/bin/gfortran-14 /opt/homebrew/bin/gfortran
+brew reinstall --force --binaries llvm gfortran openmpi eigen libpng
 
 #
 # CONFIGURATION
 # =============
 #
+EIGEN_PREFIX="$(brew --prefix eigen)"
+LIBPNG_PREFIX="$(brew --prefix libpng)"
+LLVM_PREFIX="$(brew --prefix llvm)"
+GCC_PREFIX="$(brew --prefix gcc)"
 
 #
 # This command updates the include path to be able to find
@@ -34,14 +27,19 @@ brew install libpng || true
 #
 # [ you need to do this in every new shell OR add to your shell config file (like .bashrc) ]
 #
-export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/include
+export CPLUS_INCLUDE_PATH="$EIGEN_PREFIX/include:$LIBPNG_PREFIX/include"
+
+#
+# Add the LLVM directory first in the path to avoid using Apple Clang
+#
+export PATH="$LLVM_PREFIX/bin:$PATH"
 
 #
 # In the alamo directory, run this command with any additional arguments. 
 #
 # [ you need to include these arguments every time you configure ]
 #
-./configure --macos --link $(brew --prefix)/lib/gcc/current/ $(brew --prefix libpng)/lib/
+./configure --comp clang++ --link "$LLVM_PREFIX/lib/c++" "$GCC_PREFIX/lib/gcc/current" "$LIBPNG_PREFIX/lib"
 
 #
 # Compile the code by running make
@@ -49,30 +47,7 @@ export CPLUS_INCLUDE_PATH=$(brew --prefix)/include:$(brew --prefix libpng)/inclu
 make
 
 #
-# Executables should now be available under ./bin
-#
-ls ./bin/
-
-#
 # Run the unit test suite
 #
-./bin/test-3d-g++
-
-
-#
-# PYTHON [OPTIONAL]
-# =================
-#
-# These are not required tu run alamo, but are needed to use alamo scripts such as
-# the regression test script.
-# The following commands work on the Github VM, but your configuration may vary.
-#
-# (If you already have another way of installing python packages, use it - the
-# "break-system-packages" is kind of dangerous and is only needed for this CI script)
-#
-
-#
-# Install packages needed for regression test script
-#
-pip3 install sympy yt matplotlib numpy pandas --break-system-packages --user
+./bin/test-3d-clang++
 

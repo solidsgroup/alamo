@@ -3,8 +3,21 @@
 #@ exe=hydro
 #@ dim=2
 #@
+#@
+#@ [2d-serial-rk4]
+#@ exe=hydro
+#@ dim=2
+#@ args = integration.type=RungeKutta
+#@ args = integration.rk.type=4
+#@ args = timestep=1.0e-3
+#@
+#@ [2d-serial-ssprk3]
+#@ exe=hydro
+#@ dim=2
+#@ args = integration.type=RungeKutta
+#@ args = integration.rk.type=3
+#@ args = timestep=1.0e-3
 
-alamo.program = hydro
 
 ### OUTPUT ###
 

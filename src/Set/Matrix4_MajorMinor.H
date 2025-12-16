@@ -162,6 +162,70 @@ public:
     }
 
 
+    static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    {
+        Set::Matrix4<2,Sym::MajorMinor> ret;
+        Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};
+
+        for(int i = 0; i < 3; i++)
+            for(int j = 0; j < 3; j++)
+                for(int k = 0; k < 3; k++)
+                    for(int l = 0; l < 3; l++)
+                    {
+                        if(i==j && j==k && k==l)
+                        {
+                            if      (i < 2)   Ctmp[i][j][k][l] = C11;
+                            else              Ctmp[i][j][k][l] = C33;
+                        }
+                        else if(i==j && k==l)
+                        {
+                            if      (i<2 && k<2 && i!=k) Ctmp[i][j][k][l] = C12;
+                            else if ((i<2 && k==2) || (i==2 && k<2)) Ctmp[i][j][k][l] = C13;
+                        }
+                        else if((i==k && j==l) && (i!=j))
+                        {
+                            Ctmp[i][j][k][l] = C44;
+                        }
+                        else
+                        {
+                            Ctmp[i][j][k][l] = 0.0;
+                        }
+                    }
+
+        // C66 = 0.5*(C11 - C12)
+        Ctmp[0][1][0][1] = 0.5 * (C11 - C12);
+        Ctmp[1][0][1][0] = 0.5 * (C11 - C12);
+
+        for(int p = 0; p < 2; p++)
+            for(int q = 0; q < 2; q++)
+                for(int s = 0; s < 2; s++)
+                    for(int t = 0; t < 2; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++)
+                            for(int j = 0; j < 3; j++)
+                                for(int k = 0; k < 3; k++)
+                                    for(int l = 0; l < 3; l++)
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }
+        return ret;
+    }
+    static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    {
+        Eigen::Quaterniond q =
+            Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+        Eigen::Matrix3d R = q.toRotationMatrix();
+        return Matrix4<2,Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,R);
+    }
+    static Matrix4<2,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Quaternion q)
+    {
+        Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+        return Transverse(C11,C12,C13,C33,C44,R);
+    }
+
+
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
     friend bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
@@ -484,6 +548,69 @@ public:
     {
         Eigen::Matrix3d R = q.normalized().toRotationMatrix();
         return Cubic(C11,C12,C44,R);
+    }
+
+    static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    {
+        Set::Matrix4<3,Sym::MajorMinor> ret;
+        Set::Scalar Ctmp[3][3][3][3] = {{{{0.0}}}};
+
+        for(int i = 0; i < 3; i++)
+            for(int j = 0; j < 3; j++)
+                for(int k = 0; k < 3; k++)
+                    for(int l = 0; l < 3; l++)
+                    {
+                        if(i==j && j==k && k==l)
+                        {
+                            if      (i < 2)   Ctmp[i][j][k][l] = C11;
+                            else              Ctmp[i][j][k][l] = C33;
+                        }
+                        else if(i==j && k==l)
+                        {
+                            if      (i<2 && k<2 && i!=k) Ctmp[i][j][k][l] = C12;
+                            else if ((i<2 && k==2) || (i==2 && k<2)) Ctmp[i][j][k][l] = C13;
+                        }
+                        else if((i==k && j==l) && (i!=j))
+                        {
+                            Ctmp[i][j][k][l] = C44;
+                        }
+                        else
+                        {
+                            Ctmp[i][j][k][l] = 0.0;
+                        }
+                    }
+
+        // C66 = 0.5*(C11 - C12)
+        Ctmp[0][1][0][1] = 0.5 * (C11 - C12);
+        Ctmp[1][0][1][0] = 0.5 * (C11 - C12);
+
+        for(int p = 0; p < 3; p++)
+            for(int q = 0; q < 3; q++)
+                for(int s = 0; s < 3; s++)
+                    for(int t = 0; t < 3; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++)
+                            for(int j = 0; j < 3; j++)
+                                for(int k = 0; k < 3; k++)
+                                    for(int l = 0; l < 3; l++)
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }
+        return ret;
+    }
+    static Matrix4<3,Sym::MajorMinor> Transverse(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    {
+        Eigen::Quaterniond q =
+            Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+        Eigen::Matrix3d R = q.toRotationMatrix();
+        return Matrix4<3,Sym::MajorMinor>::Transverse(C11,C12,C13,C33,C44,R);
+    }
+    static Matrix4<3,Sym::MajorMinor> Trans(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Quaternion q)
+    {
+        Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+        return Transverse(C11,C12,C13,C33,C44,R);
     }
 
     friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);

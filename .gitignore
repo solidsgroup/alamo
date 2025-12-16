@@ -53,3 +53,10 @@ compile_commands.json
 .pyright-override.toml
 .clangd
 .DS_Store
+profile.prof*
+report*.html
+report.tar.gz
+alamo.egg-info
+alamo
+setup.py
+alamo.py

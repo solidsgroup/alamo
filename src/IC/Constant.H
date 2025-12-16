@@ -10,6 +10,7 @@
 #include "IC/IC.H"
 #include "IO/ParmParse.H"
 #include "Util/Util.H"
+#include "Unit/Unit.H"
 
 namespace IC
 {
@@ -27,6 +28,9 @@ public:
     {pp_queryclass(*this);}
     Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : 
         IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom)
+    {pp_queryclass(name,*this);}
+    Constant (amrex::Vector<amrex::Geometry> &_geom, Unit a_unit, IO::ParmParse &pp, std::string name) : 
+        IC<Set::Scalar>(_geom), IC<Set::Vector>(_geom), unit(a_unit)
     {pp_queryclass(name,*this);}
 
 
@@ -62,11 +66,13 @@ public:
     {
         // Default: set equal to one everywhere
         value.m_value.clear();
-        // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
-        pp_queryarr_required("value",value.m_value); 
+
+        // Value (or values if multicomponent) to set field to 
+        pp.queryarr_required("value", value.m_value, value.unit); 
     }
 private:
     std::vector<Set::Scalar> m_value;
+    Unit unit;
 };
 }
 #endif

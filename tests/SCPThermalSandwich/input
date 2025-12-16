@@ -2,8 +2,8 @@
 #@ dim = 2
 #@ check = true
 #@ check-file = reference/serial.dat
-#@ args = stop_time=0.001
-#@ args = amr.plot_dt=0.001
+#@ args = stop_time=0.001_s
+#@ args = amr.plot_dt=0.001_s
 #@ 
 #@ [2d-serial-coverage]
 #@ dim = 2
@@ -19,52 +19,59 @@
 
 alamo.program = flame
 
-# * = you almost definitely don't need to change this
-
 plot_file = tests/SCPThermalSandwich/output
-amr.plot_dt = 0.001
+
+system.length = m
+system.time = s
+
+# AMR and output parameters
+amr.plot_dt = 0.001_s
 amr.max_level = 7
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.1
-amr.refinement_criterion_temp = 10.0
+amr.refinement_criterion_temp = 10.0_K
 
+# Geometry and base grid size
 amr.n_cell = 16 2 2
-geometry.prob_lo = 0.0 -0.00025 -0.00025 # [ m ] 
-geometry.prob_hi = 0.004 0.00025 0.00025 # [ m ]
-
+geometry.prob_lo =    0.0_um -250._um -250._um
+geometry.prob_hi = 4000.0_um  250._um  250._um
 geometry.is_periodic = 0 1 1
 
-## TIME EPS ############################################################ TIME EPS
+## Timestep
+timestep = 1.0e-5_s # 0.00005 # [s]
+stop_time = 0.03_s
 
-timestep = 1.0e-5 # 0.00005 # [s]
-stop_time = 0.03
 small = 1.0e-8
+pf.eps = 1.0_um #0.0005 # [m]
+pf.lambda = 0.001_J/m^2
 
-pf.eps = 0.000001 #0.0005 # [m]
-pf.lambda = 0.001
+## Eta initial condition
+pf.eta.ic.type = constant 
+pf.eta.ic.constant.value = 1.0 
+#pf.eta.ic.type = expression
+#pf.eta.ic.expression.constant.eps = 1.0_um
+#pf.eta.ic.expression.constant.x0 = 40.0_um
+#pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
 
-## ETA IC ################################################################ ETA IC
-pf.eta.ic.type = constant #laminate 
-pf.eta.ic.constant.value = 1.0 #laminate 
-
-### Constant IC ############################################################ IC
+## Phi field initial conditions
 phi.ic.type = laminate
 phi.ic.laminate.center = 0.0 0.0 0.0 
-phi.ic.laminate.thickness = 0.0001
+phi.ic.laminate.thickness = 100.0_um
 phi.ic.laminate.orientation = 0 1 
 phi.ic.laminate.singlefab = 1 
 phi.ic.laminate.invert = 1
-phi.ic.laminate.eps = 0.00002
+phi.ic.laminate.eps = 20._um
 
-pf.kappa = 1.0
-pf.gamma = 0.02726
-pf.w1 = 1.0
-pf.w12 = 2.0
-pf.w0 = 0.0
+# Phase field parameters
+pf.kappa      = 1.0_J/m^2
+pf.w1         = 1.0_1
+pf.w12        = 2.0_1
+pf.w0         = 0.0_1
 
+# Eta boundary conditions
 pf.eta.bc.type = constant
 pf.eta.bc.constant.type.xlo = dirichlet
 pf.eta.bc.constant.type.xhi = dirichlet
@@ -79,33 +86,43 @@ pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
 pf.eta.bc.constant.val.zhi = 0.0
 
-pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1.0
+# Propellant model - requires thermal model
+propellant.type = fullfeedback
+# arrhenius rate law parameters
+propellant.fullfeedback.m_ap      = 1.45e5_m/s
+propellant.fullfeedback.m_htpb    = 1.4e1_m/s
+propellant.fullfeedback.E_ap      = 11000.0_K
+propellant.fullfeedback.E_htpb    = 7500.0_K
+# thermal transport parameters
+propellant.fullfeedback.rho_ap      =  1950.0_kg/m^3
+propellant.fullfeedback.rho_htpb    =   920.0_kg/m^3
+propellant.fullfeedback.k_ap        =  0.4186_W/m/K
+propellant.fullfeedback.k_htpb      =  0.1300_W/m/K 
+propellant.fullfeedback.cp_ap       = 1297.90_J/kg/K 
+propellant.fullfeedback.cp_htpb     = 2418.29_J/kg/K
+propellant.fullfeedback.mlocal_ap   =  1000.0_kg/m^3/s
+propellant.fullfeedback.mlocal_comb =     0.0_kg/m^3/s
+# Mass-to-heat flux fit parameters
+propellant.fullfeedback.a1       =    1.114_1
+propellant.fullfeedback.a2       =    0.460_1
+propellant.fullfeedback.a3       =    2.797_1
+propellant.fullfeedback.b1       =    0.323_1
+propellant.fullfeedback.b2       =    0.420_1
+propellant.fullfeedback.b3       =   0.3225_1
+propellant.fullfeedback.c1       = -0.09906_1
+propellant.fullfeedback.phi.zeta =     20.0_um
+propellant.fullfeedback.Pref     =      1.0_MPa
 
+# Thermal transport parameters
+thermal.on = 1  
+#thermal.Tfluid = 300.0_K
+thermal.Tref = 300.0_K
 
-# THERMAL VARIABLES ######################################################### THERMAL
-thermal.T_fluid = 300.0
-
-thermal.m_ap = 1.45e5 #[m/s]
-thermal.m_htpb = 1.4e1 # 0.2 # [m/s]
-thermal.E_ap = 11000.0   # 1050.0 # 4.0
-thermal.E_htpb = 7500.0   # 1200.0
-
-thermal.on = 1  #activates the thermal functions
-thermal.bound = 300.0
-
-thermal.rho_ap = 1950.0 # [kg/m3] 
-thermal.rho_htpb = 920.0 # [kg/m3]
-
-thermal.k_ap = 0.4186e0 # 5.5 [W/mK]
-thermal.k_htpb = 0.13 # 0.283[W/mK]
-
-thermal.cp_ap = 1297.9 #[J/kgK]
-thermal.cp_htpb = 2418.29 #[J/kgK]
-
+# Temperature field initial condition
 temp.ic.type = constant
-temp.ic.constant.value = 300.0
+temp.ic.constant.value = 300.0_K
 
+# Temperature field boundary conditions
 thermal.temp.bc.type = constant
 thermal.temp.bc.constant.type.xlo = neumann
 thermal.temp.bc.constant.type.xhi = neumann
@@ -120,34 +137,21 @@ thermal.temp.bc.constant.val.yhi = 0.0
 thermal.temp.bc.constant.val.zlo = 0.0 
 thermal.temp.bc.constant.val.zhi = 0.0
 
-thermal.hc = 1.0e7
+# volumetric heat flux multiplier
+thermal.hc = 1.0e7_W/m^2
 
-thermal.mlocal_ap = 1000.0
-thermal.mlocal_htpb = 5000.0
-thermal.mlocal_comb = 0.0
+# Laser initial condition
+laser.ic.type = constant
+laser.ic.constant.value = 1.0e6_W/m^2
 
-## PRESSURE VARIABLES ######################################################### PRESSURE
+# Chamber pressure (used for regression model)
+chamber.pressure = 4.0_MPa  ## [MPa]
 
-pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
-pressure.mob_ap = 0
-
-pressure.a1 = 1.114 
-pressure.a2 = 0.46  
-pressure.a3 = 2.797
-
-pressure.b1 = 0.323
-pressure.b2 = 0.42
-pressure.b3 = 0.3225
-
-pressure.c1 = -0.09906
-
-## ELASTIC VARIABLES ######################################################### ELASTIC
-
+# Disable elasticity
 elastic.type = disable
 
-laser.ic.type = constant
-laser.ic.constant.value = 1.0e6
+# Disable plotting all extra fields
+plot_field = 1
 
-plot_field = 0
-
+# Disable NAN checking
 amr.abort_on_nan = 0
