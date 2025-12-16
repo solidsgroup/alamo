@@ -504,8 +504,9 @@ else:
 
 if args.perf:
     if not os.path.isdir('ext/brendangregg/FlameGraph'):
+        subprocess.run(['mkdir','-p','ext/brendangregg'])
         shellmessage("FlameGraph", 
-                     cmd=r"git clone {GITHUB_REMOTE}brendangregg/FlameGraph",
+                     cmd=f"git clone {GITHUB_REMOTE}brendangregg/FlameGraph",
                      message="Cloning flamegraph",
                      cwd="ext/brendangregg/")
 
