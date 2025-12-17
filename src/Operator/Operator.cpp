@@ -189,6 +189,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
             });
         }
     }
+    a_x.FillBoundary(m_geom[amrlev][mglev].periodicity());
 }
 
 Operator<Grid::Node>::Operator(const Vector<Geometry>& a_geom,
@@ -566,8 +567,8 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     const DistributionMapping& fdm = fine_res.DistributionMap();
 
     MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
-    fine_res_for_coarse.ParallelCopy(res, 0, 0, ncomp, 0, 0);
-    // , cgeom.periodicity());
+    fine_res_for_coarse.ParallelCopy(res, 0, 0, ncomp, 0, 0
+                                      , cgeom.periodicity());
 
     applyBC(crse_amrlev + 1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
@@ -577,12 +578,12 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     const int fine_fine_node = 2;
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
-    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0);
-    // , cgeom.periodicity());
+    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0
+                          , cgeom.periodicity());
 
     amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba, 2), amrex::IntVect::TheCellVector()), fdm, 1, 2);
-    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1); 
-    // , cgeom.periodicity());
+    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1
+                          , cgeom.periodicity());
 
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {
@@ -654,8 +655,8 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     // Copy the fine residual restricted onto the coarse grid
     // into the final residual.
-    res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0);
-    //, cgeom.periodicity());
+    res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0
+                     , cgeom.periodicity());
 
     const int mglev = 0;
 
@@ -675,7 +676,8 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
     amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(resid, geom);
+    resid.FillBoundary(geom.periodicity());
+        //realFillBoundary(resid, geom);
 }
 
 void
@@ -683,13 +685,13 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
 {
     resid.setVal(0.0);
-    Util::Message(INFO);
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
-    Util::Message(INFO);
+    Util::Message(INFO,resid.nGrow());
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(resid, geom);
+    resid.FillBoundary(geom.periodicity());
+        //realFillBoundary(resid, geom);
 }
 
 

@@ -76,24 +76,29 @@ rhs.alpha = 1
 
 rhs.type = expression
 rhs.expression.constant.pi = 3.14159
-#rhs.expression.region0 = "sin(pi*x/2)*sin(pi*y)"
-rhs.expression.region0 = "sin(pi*y)"
+rhs.expression.region0 = "sin(pi*x)*sin(pi*y)"
+#rhs.expression.region0 = "sin(pi*y)"
+#rhs.expression.region0 = "0.0"
 rhs.expression.region1 = "0.0"
 
 
 # laplacian coefficient
 model.alpha = 1
 
-solver.verbose = 1000
+solver.verbose = 3
 solver.nriters = 1
-solver.fixed_iter = 1
-solver.bottom_max_iter = 1
+solver.fixed_iter = 1000
+solver.bottom_max_iter = 10000
 #solver.max_iter = 100
 
 ### UNIAXIAL TENSION ###
 bc.type = constant
 bc.constant.type.xlo = periodic neumann
 bc.constant.type.xhi = periodic neumann
+#bc.constant.val.yhi = 1.0 0.0
+#bc.constant.val.xloyhi = 1.0 0.0
+#bc.constant.val.xhiyhi = 1.0 0.0
 
 amr.abort_on_nan = 0
 max_coarsening_level = 0
+print_residual = 1

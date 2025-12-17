@@ -155,17 +155,14 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
-
-
     for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         Box stencilbox = domain;
         if (m_geom[amrlev][mglev].isPeriodic(0))
             stencilbox = stencilbox.grow(0,1);
 
-        Box bx = mfi.validbox().grow(1) & stencilbox;
+        Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
-
 
         amrex::Array4<MATRIX4> const& DDW = (*(m_ddw_mf[amrlev][mglev])).array(mfi);
         amrex::Array4<const amrex::Real> const& U = a_u.array(mfi);
@@ -173,6 +170,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
 
         const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
+
         amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
             Set::Vector f = Set::Vector::Zero();
@@ -187,7 +185,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             // Determine if a special stencil will be necessary for first derivatives
             std::array<Numeric::StencilType, AMREX_SPACEDIM>
                 sten = Numeric::GetStencil(i, j, k, stencilbox);
-            
+
             // The displacement gradient tensor
             Set::Matrix gradu; // gradu(i,j) = u_{i,j)
 
@@ -225,19 +223,21 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                 for (int p = 0; p < AMREX_SPACEDIM; p++)
                 {
                     // Diagonal terms:
-                    AMREX_D_TERM(gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX));,
+                    AMREX_D_TERM(
+                        gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX));,
                         gradgradu(p, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(U, i, j, k, p, DX));,
                         gradgradu(p, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(U, i, j, k, p, DX)););
 
                     // Off-diagonal terms:
-                    AMREX_D_TERM(,// 2D
+                    AMREX_D_TERM(
+                        ,// 2D
                         gradgradu(p, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 1, 0) = gradgradu(p, 0, 1);
-                    ,// 3D
+                        gradgradu(p, 1, 0) = gradgradu(p, 0, 1);
+                        ,// 3D
                         gradgradu(p, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 2, 0) = gradgradu(p, 0, 2);
-                    gradgradu(p, 2, 1) = gradgradu(p, 1, 2););
+                        gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX));
+                        gradgradu(p, 2, 0) = gradgradu(p, 0, 2);
+                        gradgradu(p, 2, 1) = gradgradu(p, 1, 2););
                 }
 
                 //
@@ -288,23 +288,6 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
     }
 
     a_f.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
-
-
-    
-    // std::cout << std::endl;
-    // std::cout << std::endl;
-    // for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    // {
-    //     Box bx = mfi.grownnodaltilebox();
-    //     amrex::Array4<amrex::Real> const& F = a_f.array(mfi);
-    //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-    //         if (i==-2) std::cout << std::endl;
-    //         std::cout << "i="<<i<< " j="<<j<< " "<<F(i,j,k,0) << "\t";
-    //     });
-    //     std::cout << std::endl;
-    // }
-    // std::cout << std::endl;
-    // std::cout << std::endl;
 }
 
 
@@ -327,14 +310,12 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
             stencilbox = stencilbox.grow(0,1);
         }
 
-
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
 
         amrex::Array4<MATRIX4> const& DDW = (*(m_ddw_mf[amrlev][mglev])).array(mfi);
         amrex::Array4<Set::Scalar> const& diag = a_diag.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
-
 
         const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
 
@@ -354,7 +335,8 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 
             Set::Vector f = Set::Vector::Zero();
 
-            bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
+            bool    
+                AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
                 AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
 
             Set::Scalar psi_avg = 1.0;
@@ -374,7 +356,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
                     Set::Matrix sig = DDW(i, j, k) * gradu[p] * psi_avg;
                     Set::Vector u = Set::Vector::Zero();
                     u(p) = 1.0;
-                    f = (*m_bc)(u, gradu[p], sig, i, j, k, domain);
+                    f = (*m_bc)(u, gradu[p], sig, i, j, k, stencilbox);
                     diag(i, j, k, p) = f(p);
                 }
                 else
@@ -664,19 +646,19 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
     const DistributionMapping& fdm = fine_ddw.DistributionMap();
 
     MultiTab fine_ddw_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
-    fine_ddw_for_coarse.ParallelCopy(crse_ddw, 0, 0, ncomp, 0, 0);
-    //, cgeom.periodicity());
+    fine_ddw_for_coarse.ParallelCopy(crse_ddw, 0, 0, ncomp, 0, 0,
+                                     cgeom.periodicity());
 
     const int coarse_fine_node = 1;
     const int fine_fine_node = 2;
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
-    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0);
-    //, cgeom.periodicity());
+    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0
+                          , cgeom.periodicity());
 
     amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba, 2), amrex::IntVect::TheCellVector()), fdm, 1, 2);
-    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1);
-    //, cgeom.periodicity());
+    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1
+                          , cgeom.periodicity());
 
     for (MFIter mfi(fine_ddw_for_coarse, false); mfi.isValid(); ++mfi)
     {
@@ -752,10 +734,10 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
 
     // Copy the fine residual restricted onto the coarse grid
     // into the final residual.
-    crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0);
-    //, cgeom.periodicity());
+    crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0
+    , cgeom.periodicity());
     const int mglev = 0;
-    crse_ddw.FillBoundary(); //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
+    crse_ddw.FillBoundary(cgeom.periodicity()); //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
     return;
 }
 
@@ -794,8 +776,8 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         newba.refine(2);
         MultiTab fine_on_crseba;
         fine_on_crseba.define(newba, crse.DistributionMap(), 1, 4);
-        fine_on_crseba.ParallelCopy(fine, 0, 0, 1, 2, 4);
-                                                          // , m_geom[amrlev][mglev].periodicity());
+        fine_on_crseba.ParallelCopy(fine, 0, 0, 1, 2, 4
+                                    , m_geom[amrlev][mglev].periodicity());
 
         for (MFIter mfi(crse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -888,8 +870,8 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         MultiFab& fine_psi = *m_psi_mf[amrlev][mglev - 1];
         MultiFab fine_psi_on_crseba;
         fine_psi_on_crseba.define(newba.convert(amrex::IntVect::TheCellVector()), crse_psi.DistributionMap(), 1, 1);
-        fine_psi_on_crseba.ParallelCopy(fine_psi, 0, 0, 1, 1, 1);
-        //, m_geom[amrlev][mglev].periodicity());
+        fine_psi_on_crseba.ParallelCopy(fine_psi, 0, 0, 1, 1, 1
+                                        , m_geom[amrlev][mglev].periodicity());
 
         for (MFIter mfi(crse_psi, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -962,15 +944,15 @@ Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const Geometry& geom)
     for (int i = 0; i < 2; i++)
     {
         MultiTab& mf = sigma;
-        mf.FillBoundary();//geom.periodicity());
+        mf.FillBoundary(geom.periodicity());
         const int ncomp = mf.nComp();
         const int ng1 = 1;
         const int ng2 = 2;
         MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1); //
-                                                       // , geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2); //
-                                                       // , geom.periodicity());
+        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1
+                           , geom.periodicity());
+        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2
+                        , geom.periodicity());
     }
 }
 
@@ -982,15 +964,15 @@ Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const Geometry& geom)
     for (int i = 0; i < 2; i++)
     {
         MultiFab& mf = psi;
-        mf.FillBoundary();//geom.periodicity());
+        mf.FillBoundary(geom.periodicity());
         const int ncomp = mf.nComp();
         const int ng1 = 1;
         const int ng2 = 2;
         MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1); //
-                                                       // , geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2); //
-                                                       // , geom.periodicity());
+        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1
+                           , geom.periodicity());
+        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2
+                        , geom.periodicity());
     }
 }
 

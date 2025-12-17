@@ -15,7 +15,6 @@
     "fft": false,
     "geteigen": false,
     "gfortranln": false,
-    "github_mode": "ssh",
     "link": null,
     "macos": false,
     "memcheck": false,
