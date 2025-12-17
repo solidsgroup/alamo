@@ -101,6 +101,6 @@ bc.constant.type.xhi = periodic neumann
 #bc.constant.val.xhiyhi = 1.0 0.0
 
 amr.abort_on_nan = 0
-max_coarsening_level = 0
+max_coarsening_level = 1
 print_residual = 1
 print_model=1

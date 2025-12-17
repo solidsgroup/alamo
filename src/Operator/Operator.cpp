@@ -115,42 +115,49 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            const Box& bx = mfi.validbox();
-            amrex::FArrayBox& xfab = x[mfi];
-            const amrex::FArrayBox& bfab = b[mfi];
-            //const amrex::FArrayBox &Axfab   = Ax[mfi];
-            const amrex::FArrayBox& Rxfab = Rx[mfi];
-            const amrex::FArrayBox& diagfab = (*m_diag[amrlev][mglev])[mfi];
+            const Box& bx = mfi.validbox().grow(2) & domain;
+            
+            amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
+            amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
+            amrex::Array4<const amrex::Real> const& Rxfab = Rx.array(mfi);
+            amrex::Array4<const amrex::Real> const& diagfab = (*m_diag[amrlev][mglev]).array(mfi);
+
+            // const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
             for (int n = 0; n < ncomp; n++)
             {
-                AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1 <= bx.hiVect()[0] + 2; m1++),
-                    for (int m2 = bx.loVect()[1] - 2; m2 <= bx.hiVect()[1] + 2; m2++),
-                        for (int m3 = bx.loVect()[2] - 2; m3 <= bx.hiVect()[2] + 2; m3++))
-                {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                    amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
+                    // bool
+                    //     AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
+                    //     AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
 
-                    // Skip ghost cells outside problem domain
-                    if (AMREX_D_TERM(m[0] < domain.loVect()[0], ||
-                        m[1] < domain.loVect()[1], ||
-                        m[2] < domain.loVect()[2])) continue;
-                    if (AMREX_D_TERM(m[0] > domain.hiVect()[0] + 1, ||
-                        m[1] > domain.hiVect()[1] + 1, ||
-                        m[2] > domain.hiVect()[2] + 1)) continue;
-
-                    if (AMREX_D_TERM(m[0] == bx.loVect()[0] - nghost || m[0] == bx.hiVect()[0] + nghost, ||
-                        m[1] == bx.loVect()[1] - nghost || m[1] == bx.hiVect()[1] + nghost, ||
-                        m[2] == bx.loVect()[2] - nghost || m[2] == bx.hiVect()[2] + nghost))
+                    if (AMREX_D_TERM(i == bx.loVect()[0] - nghost || i == bx.hiVect()[0] + nghost, ||
+                                     j == bx.loVect()[1] - nghost || j == bx.hiVect()[1] + nghost, ||
+                                     k == bx.loVect()[2] - nghost || k == bx.hiVect()[2] + nghost))
                     {
-                        xfab(m, n) = 0.0;
-                        continue;
+                        xfab(i,j,k,n) = 0.0;
                     }
-
-                    //xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
-                    xfab(m, n) = (1. - m_omega) * xfab(m, n) + m_omega * (bfab(m, n) - Rxfab(m, n)) / diagfab(m, n);
-                }
+                    else
+                    {
+                        xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n) + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
+                    }
+                });
             }
+
+            // for (int n = 0; n < ncomp; n++)
+            // {
+            //     AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1 <= bx.hiVect()[0] + 2; m1++),
+            //         for (int m2 = bx.loVect()[1] - 2; m2 <= bx.hiVect()[1] + 2; m2++),
+            //             for (int m3 = bx.loVect()[2] - 2; m3 <= bx.hiVect()[2] + 2; m3++))
+            //     {
+
+            //         amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
+
+            //         //xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
+            //         xfab(m, n) = (1. - m_omega) * xfab(m, n) + m_omega * (bfab(m, n) - Rxfab(m, n)) / diagfab(m, n);
+            //     }
+            // }
         }
     }
     amrex::Geometry geom = m_geom[amrlev][mglev];
