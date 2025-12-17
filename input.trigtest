@@ -76,9 +76,10 @@ rhs.alpha = 1
 
 rhs.type = expression
 rhs.expression.constant.pi = 3.14159
-rhs.expression.region0 = "sin(pi*x)*sin(pi*y)"
+rhs.expression.region0 = "sin(pi*fmod(x,1.0))*sin(pi*fmod(y,1.0))"
+#rhs.expression.region0 = "2*fmod(x,1.0)"
 #rhs.expression.region0 = "sin(pi*y)"
-#rhs.expression.region0 = "0.0"
+#rhs.expression.region0 = "1.0"
 rhs.expression.region1 = "0.0"
 
 
@@ -87,8 +88,8 @@ model.alpha = 1
 
 solver.verbose = 3
 solver.nriters = 1
-solver.fixed_iter = 1000
-solver.bottom_max_iter = 10000
+solver.fixed_iter = 10
+solver.bottom_max_iter = 100
 #solver.max_iter = 100
 
 ### UNIAXIAL TENSION ###
@@ -102,3 +103,4 @@ bc.constant.type.xhi = periodic neumann
 amr.abort_on_nan = 0
 max_coarsening_level = 0
 print_residual = 1
+print_model=1

@@ -173,7 +173,8 @@ public:
                     }
                 }
             });
-        }                    
+        }
+        a_rhs->FillBoundary(a_geom.periodicity());
     }
 
     using Elastic::Init;
@@ -254,6 +255,7 @@ public:
                 }
             });
         }                    
+        a_rhs->FillBoundary(a_geom.periodicity());
     }
 
     virtual
@@ -383,7 +385,7 @@ public:
         Set::Vector f = Set::Vector::Zero();
         for (int i = 0; i < AMREX_SPACEDIM; i++)
         {
-            if      (bc_type[i] == Type::Displacement || bc_type[i] == Periodic) 
+            if      (bc_type[i] == Type::Displacement) 
                 f(i) = u(i);
             else if (bc_type[i] == Type::Traction)
                 f(i) = (sigma*n)(i);
