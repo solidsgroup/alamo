@@ -89,7 +89,7 @@ model.alpha = 1
 solver.verbose = 3
 solver.nriters = 1
 solver.fixed_iter = 10
-solver.bottom_max_iter = 100
+solver.bottom_max_iter = 10
 #solver.max_iter = 100
 
 ### UNIAXIAL TENSION ###
@@ -101,6 +101,7 @@ bc.constant.type.xhi = periodic neumann
 #bc.constant.val.xhiyhi = 1.0 0.0
 
 amr.abort_on_nan = 0
-max_coarsening_level = 1
+#max_coarsening_level = 1
 print_residual = 1
 print_model=1
+#solver.bottom_solver=smoother

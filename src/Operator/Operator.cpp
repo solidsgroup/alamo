@@ -90,6 +90,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
     BL_PROFILE("Operator::Fsmooth()");
 
     amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    domain.convert(amrex::IntVect::TheNodeVector());
 
     int ncomp = b.nComp();
     int nghost = 2; //b.nGrow();
@@ -161,7 +162,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
         }
     }
     amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(x, geom);
+    x.FillBoundary(geom.periodicity());
     nodalSync(amrlev, mglev, x);
 }
 
@@ -319,7 +320,9 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
-        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+        amrex::Box cstencilbox = cdomain.grow(0,1);
+
+        const Dim3 lo = amrex::lbound(cstencilbox), hi = amrex::ubound(cstencilbox);
 
 
         for (int n = 0; n < crse.nComp(); n++)
@@ -393,7 +396,8 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
     }
 
     amrex::Geometry geom = m_geom[amrlev][cmglev];
-    realFillBoundary(crse, geom);
+    //realFillBoundary(crse, geom);
+    crse.FillBoundary(geom.periodicity());
     nodalSync(amrlev, cmglev, crse);
 }
 
@@ -401,7 +405,8 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 {
     BL_PROFILE("Operator::interpolation()");
     //int nghost = getNGrow();
-    amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
+    amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); 
+    fdomain.convert(amrex::IntVect::TheNodeVector());
 
     bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
     MultiFab cfine;
@@ -415,7 +420,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
     for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
     {
-        const Box& fine_bx = mfi.validbox() & fdomain;
+        const Box& fine_bx = mfi.validbox() & fdomain.grow(0,2);
         const Box& course_bx = amrex::coarsen(fine_bx, 2);
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;
@@ -463,7 +468,8 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
     }
 
     amrex::Geometry geom = m_geom[amrlev][fmglev];
-    realFillBoundary(fine, geom);
+    //realFillBoundary(fine, geom);
+    fine.FillBoundary(geom.periodicity());
     nodalSync(amrlev, fmglev, fine);
 }
 
@@ -495,8 +501,7 @@ void Operator<Grid::Node>::applyBC(int amrlev, int mglev, MultiFab& phi, BCMode/
     const Geometry& geom = m_geom[amrlev][mglev];
 
     if (!skip_fillboundary) {
-
-        realFillBoundary(phi, geom);
+        phi.FillBoundary(geom.periodicity());
     }
 }
 
@@ -692,7 +697,6 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
 {
     resid.setVal(0.0);
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
-    Util::Message(INFO,resid.nGrow());
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     amrex::Geometry geom = m_geom[amrlev][mglev];
