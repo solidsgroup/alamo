@@ -145,20 +145,6 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
                     }
                 });
             }
-
-            // for (int n = 0; n < ncomp; n++)
-            // {
-            //     AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1 <= bx.hiVect()[0] + 2; m1++),
-            //         for (int m2 = bx.loVect()[1] - 2; m2 <= bx.hiVect()[1] + 2; m2++),
-            //             for (int m3 = bx.loVect()[2] - 2; m3 <= bx.hiVect()[2] + 2; m3++))
-            //     {
-
-            //         amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
-
-            //         //xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
-            //         xfab(m, n) = (1. - m_omega) * xfab(m, n) + m_omega * (bfab(m, n) - Rxfab(m, n)) / diagfab(m, n);
-            //     }
-            // }
         }
     }
     amrex::Geometry geom = m_geom[amrlev][mglev];
@@ -489,7 +475,6 @@ void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_so
 
 void Operator<Grid::Node>::realFillBoundary(MultiFab& phi, const Geometry& geom)
 {
-    //Util::RealFillBoundary(phi, geom);
     phi.FillBoundary();
 }
 
@@ -579,8 +564,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     const DistributionMapping& fdm = fine_res.DistributionMap();
 
     MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
-    fine_res_for_coarse.ParallelCopy(res, 0, 0, ncomp, 0, 0
-                                      , cgeom.periodicity());
+    fine_res_for_coarse.ParallelCopy(res, 0, 0, ncomp, 0, 0, cgeom.periodicity());
 
     applyBC(crse_amrlev + 1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
@@ -590,12 +574,10 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     const int fine_fine_node = 2;
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
-    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0
-                          , cgeom.periodicity());
+    nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
 
     amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba, 2), amrex::IntVect::TheCellVector()), fdm, 1, 2);
-    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1
-                          , cgeom.periodicity());
+    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1, cgeom.periodicity());
 
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {
@@ -667,8 +649,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     // Copy the fine residual restricted onto the coarse grid
     // into the final residual.
-    res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0
-                     , cgeom.periodicity());
+    res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
 
     const int mglev = 0;
 

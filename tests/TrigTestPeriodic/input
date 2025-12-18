@@ -1,42 +1,28 @@
-#@  [2D-1AMR-Levels-serial]
+#@
+#@  [2d-amr0-mg0]
 #@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
 #@  args = amr.max_level=0
+#@  args = max_coarsening_level=0
+#@  ignore = explicitmesh.on
+#@  ignore = explicitmesh.lo1
+#@  ignore = explicitmesh.hi1
+#@  ignore = explicitmesh.lo2
+#@  ignore = explicitmesh.hi2
 #@
-#@  [2D-1AMR-Levels-serial-coverage]
+#@
+#@  [2d-amr0]
 #@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
 #@  args = amr.max_level=0
-#@  coverage = true
-#@  check = false
+#@  ignore = explicitmesh.on
+#@  ignore = explicitmesh.lo1
+#@  ignore = explicitmesh.hi1
+#@  ignore = explicitmesh.lo2
+#@  ignore = explicitmesh.hi2
 #@
-#@  [2D-2AMRLevels-serial]
-#@  exe=mechanics
-#@  dim = 2
-#@  nprocs = 1
-#@  args = amr.max_level=1
-#@
-#@  [2D-3AMRLevels-serial]
-#@  exe=mechanics
-#@  dim = 2
-#@  nprocs = 1
-#@
-#@  [2D-3AMRLevels-parallel]
-#@  exe=mechanics
-#@  dim = 2
-#@  nprocs = 4
-#@ 
-#@  [3D-1AMRLevels-serial]
-#@  exe=mechanics
-#@  dim = 3
-#@  nprocs = 1
-#@
-#@  [3D-3AMRLevels-parallel]
-#@  exe=mechanics
-#@  dim = 3
-#@  nprocs = 4
 
 alamo.program                 = mechanics
 alamo.program.mechanics.model = linear.laplacian
@@ -50,7 +36,7 @@ stop_time		      = 0.1
 # amr parameters
 amr.plot_int		      = 1
 amr.max_level		      = 0
-amr.n_cell		      = 16 16 16 #4 4 4 #32 32 32
+amr.n_cell		      = 32 32 32
 amr.blocking_factor	      = 4
 amr.regrid_int		      = 1
 amr.grid_eff		      = 1.0
@@ -77,9 +63,6 @@ rhs.alpha = 1
 rhs.type = expression
 rhs.expression.constant.pi = 3.14159
 rhs.expression.region0 = "sin(pi*fmod(x,1.0))*sin(pi*fmod(y,1.0))"
-#rhs.expression.region0 = "2*fmod(x,1.0)"
-#rhs.expression.region0 = "sin(pi*y)"
-#rhs.expression.region0 = "1.0"
 rhs.expression.region1 = "0.0"
 
 
@@ -88,20 +71,18 @@ model.alpha = 1
 
 solver.verbose = 3
 solver.nriters = 1
-solver.fixed_iter = 10
-solver.bottom_max_iter = 10
+#solver.fixed_iter = 10
+#solver.bottom_max_iter = 10
 #solver.max_iter = 100
 
 ### UNIAXIAL TENSION ###
 bc.type = constant
-bc.constant.type.xlo = periodic neumann
-bc.constant.type.xhi = periodic neumann
+bc.constant.type.xlo = periodic periodic
+bc.constant.type.xhi = periodic periodic
 #bc.constant.val.yhi = 1.0 0.0
 #bc.constant.val.xloyhi = 1.0 0.0
 #bc.constant.val.xhiyhi = 1.0 0.0
 
-amr.abort_on_nan = 0
-#max_coarsening_level = 1
 print_residual = 1
 print_model=1
 #solver.bottom_solver=smoother

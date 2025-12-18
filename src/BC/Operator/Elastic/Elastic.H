@@ -91,6 +91,12 @@ public:
                 const int &i, const int &j, const int &k,
                 const amrex::Box &domain) = 0;
 
+    virtual amrex::Periodicity Periodicity(const amrex::Geometry &geom) const
+    {
+        if (geom.isAnyPeriodic()) Util::Abort(INFO, "Not supported yet with periodicity");
+        return geom.periodicity();
+    }
+
 protected:
     Set::Scalar m_time = 0.0;
 };
