@@ -735,7 +735,8 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
     // into the final residual.
     crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
     const int mglev = 0;
-    crse_ddw.FillBoundary(cgeom.periodicity()); //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
+    //crse_ddw.FillBoundary(cgeom.periodicity()); //
+    Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
     return;
 }
 

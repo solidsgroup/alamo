@@ -107,7 +107,7 @@ public:
     virtual amrex::Periodicity Periodicity(int amrlev = 0, int mglev = 0) const
     {
         Util::Abort(INFO,"Don't want to use this right now.");
-        return amrex::Periodicity::NonPeriodic();
+        return m_geom[amrlev][mglev].periodicity();
     }
 
 public:
