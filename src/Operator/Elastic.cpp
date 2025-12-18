@@ -217,19 +217,21 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                 for (int p = 0; p < AMREX_SPACEDIM; p++)
                 {
                     // Diagonal terms:
-                    AMREX_D_TERM(gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX));,
+                    AMREX_D_TERM(
+                        gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX));,
                         gradgradu(p, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(U, i, j, k, p, DX));,
                         gradgradu(p, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(U, i, j, k, p, DX)););
 
                     // Off-diagonal terms:
-                    AMREX_D_TERM(,// 2D
+                    AMREX_D_TERM(
+                        ,// 2D
                         gradgradu(p, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 1, 0) = gradgradu(p, 0, 1);
-                    ,// 3D
+                        gradgradu(p, 1, 0) = gradgradu(p, 0, 1);
+                        ,// 3D
                         gradgradu(p, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 2, 0) = gradgradu(p, 0, 2);
-                    gradgradu(p, 2, 1) = gradgradu(p, 1, 2););
+                        gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX));
+                        gradgradu(p, 2, 0) = gradgradu(p, 0, 2);
+                        gradgradu(p, 2, 1) = gradgradu(p, 1, 2););
                 }
 
                 //
@@ -298,6 +300,8 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 
     for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
+        Box stencilbox = domain;
+
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
 
@@ -305,59 +309,51 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
         amrex::Array4<Set::Scalar> const& diag = a_diag.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
 
-        const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+        const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
 
-        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+
+            // Determine if a special stencil will be necessary for first derivatives
+            std::array<Numeric::StencilType, AMREX_SPACEDIM>
+                sten = Numeric::GetStencil(i, j, k, stencilbox);
+
+            // gradu(i,j) = u_{i,j)
+            std::array<Set::Matrix,AMREX_SPACEDIM> gradu = Numeric::Gradient_Diagonal<Set::Matrix>(DX, sten);  
+
+            // gradgradu[k](l,j) = u_{k,lj}
+            std::array<Set::Matrix3,AMREX_SPACEDIM>  gradgradu = Numeric::Gradient_Diagonal<Set::Matrix3>(DX); 
+
 
             Set::Vector f = Set::Vector::Zero();
 
-            bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
+            bool    
+                AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
                 AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
 
             Set::Scalar psi_avg = 1.0;
             if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
-            Set::Matrix gradu; // gradu(i,j) = u_{i,j)
-            Set::Matrix3 gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
 
             for (int p = 0; p < AMREX_SPACEDIM; p++)
             {
 
                 diag(i, j, k, p) = 0.0;
-                for (int q = 0; q < AMREX_SPACEDIM; q++)
-                {
-                    AMREX_D_TERM(
-                        gradu(q, 0) = ((!xmax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!xmin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((xmin || xmax ? 1.0 : 2.0) * DX[0]);,
-                        gradu(q, 1) = ((!ymax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!ymin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((ymin || ymax ? 1.0 : 2.0) * DX[1]);,
-                        gradu(q, 2) = ((!zmax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!zmin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((zmin || zmax ? 1.0 : 2.0) * DX[2]););
-
-                    AMREX_D_TERM(
-                        gradgradu(q, 0, 0) = (p == q ? -2.0 : 0.0) / DX[0] / DX[0];
-                    ,// 2D
-                        gradgradu(q, 0, 1) = 0.0;
-                    gradgradu(q, 1, 0) = 0.0;
-                    gradgradu(q, 1, 1) = (p == q ? -2.0 : 0.0) / DX[1] / DX[1];
-                    ,// 3D
-                        gradgradu(q, 0, 2) = 0.0;
-                    gradgradu(q, 1, 2) = 0.0;
-                    gradgradu(q, 2, 0) = 0.0;
-                    gradgradu(q, 2, 1) = 0.0;
-                    gradgradu(q, 2, 2) = (p == q ? -2.0 : 0.0) / DX[2] / DX[2]);
-                }
 
 
                 amrex::IntVect m(AMREX_D_DECL(i, j, k));
                 if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                 {
-                    Set::Matrix sig = DDW(i, j, k) * gradu * psi_avg;
+                    Set::Matrix sig = DDW(i, j, k) * gradu[p] * psi_avg;
                     Set::Vector u = Set::Vector::Zero();
                     u(p) = 1.0;
-                    f = (*m_bc)(u, gradu, sig, i, j, k, domain);
+                    f = (*m_bc)(u, gradu[p], sig, i, j, k, stencilbox);
                     diag(i, j, k, p) = f(p);
                 }
                 else
                 {
-                    Set::Vector f = (DDW(i, j, k) * gradgradu) * psi_avg;
+                    Set::Vector f = (DDW(i, j, k) * gradgradu[p]) * psi_avg;
                     diag(i, j, k, p) += f(p);
                 }
 
