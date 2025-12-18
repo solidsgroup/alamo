@@ -23,6 +23,19 @@
 #@  ignore = explicitmesh.lo2
 #@  ignore = explicitmesh.hi2
 #@
+#@  [2d-amr1]
+#@  exe=mechanics
+#@  dim = 2
+#@  nprocs = 1
+#@  args = amr.max_level=1
+#@  ignore = explicitmesh.lo2
+#@  ignore = explicitmesh.hi2
+#@
+#@  [2d-amr2]
+#@  exe=mechanics
+#@  dim = 2
+#@  nprocs = 1
+#@
 
 alamo.program                 = mechanics
 alamo.program.mechanics.model = linear.laplacian
@@ -86,3 +99,4 @@ bc.constant.type.xhi = periodic periodic
 print_residual = 1
 print_model=1
 #solver.bottom_solver=smoother
+amr.abort_on_nan = 0
