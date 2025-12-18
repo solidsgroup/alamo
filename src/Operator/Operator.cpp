@@ -306,7 +306,8 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
-        amrex::Box cstencilbox = cdomain.grow(0,1);
+        amrex::Box cstencilbox = cdomain;
+        if (Periodicity(amrlev,cmglev).isPeriodic(0)) cstencilbox = cstencilbox.grow(0,1);
 
         const Dim3 lo = amrex::lbound(cstencilbox), hi = amrex::ubound(cstencilbox);
 

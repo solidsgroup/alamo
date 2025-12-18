@@ -1,11 +1,9 @@
 // TODO: Remove these 
 
 #include "Elastic.H"
-#include "AMReX_Periodicity.H"
 #include "Set/Set.H"
 
 #include "Numeric/Stencil.H"
-#include <cmath>
 namespace Operator
 {
 template<int SYM>
@@ -158,8 +156,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
     for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         Box stencilbox = domain;
-        if (m_geom[amrlev][mglev].isPeriodic(0))
-            stencilbox = stencilbox.grow(0,1);
+        if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -289,7 +286,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         });
     }
 
-    a_f.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
+    //// a_f.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
 }
 
 
@@ -307,10 +304,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
     for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         Box stencilbox = domain;
-        if (m_geom[amrlev][mglev].isPeriodic(0))
-        {
-            stencilbox = stencilbox.grow(0,1);
-        }
+        if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -376,7 +370,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
             }
         });
     }
-    a_diag.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
+    //// a_diag.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
 }
 
 
@@ -735,7 +729,6 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
     // into the final residual.
     crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
     const int mglev = 0;
-    //crse_ddw.FillBoundary(cgeom.periodicity()); //
     Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
     return;
 }

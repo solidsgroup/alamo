@@ -109,7 +109,11 @@ private:
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
-            const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+
+            amrex::Box stencilbox = domain;
+            if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+
+            const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
@@ -122,17 +126,15 @@ private:
                 {
                     auto sten = Numeric::GetStencil(i, j, k, bx);
                     // Do this if on the domain boundary
-                    if (AMREX_D_TERM(false || false, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
+                    if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                     {
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                         Set::Vector U(AMREX_D_DECL(u(i, j, k, 0), u(i, j, k, 1), u(i, j, k, 2)));
                         Set::Vector ret = m_elastic->GetBC()(U, gradu, dw(i, j, k), i, j, k, bx);
                         for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k, d) - ret(d);
-                        Util::Message(INFO);
                     }
                     else
                     {
-                        Util::Message(INFO);
                         Set::Vector divdw = Numeric::Divergence(dw, i, j, k, dx);
                         for (int p = 0; p < AMREX_SPACEDIM; p++) rhs(i, j, k, p) = b(i, j, k, p) - divdw(p);
                     }
@@ -200,8 +202,12 @@ private:
         {
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
+
+            amrex::Box stencilbox = domain;
+            if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
-            const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+            const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
@@ -213,17 +219,11 @@ private:
                 // This is for if psi is not being used and has not been set
                 if (m_psi == nullptr)
                 {
-
-                    /////
-                    /////
-                    /////  THIS IS WHERE THE ACTION HAPPENS
-                    ///// 
-                    /////
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
-                        if (AMREX_D_TERM(false || false, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
+                        if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                             Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k), i, j, k, bx);
@@ -231,18 +231,8 @@ private:
                         }
                         else
                         {
-
                             Set::Vector divdw = Numeric::Divergence(dw, i, j, k, dx, sten);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
-                            if (i == 0)
-                            {
-                                Util::Message(INFO,i," ",j);
-                                Util::Message(INFO,b(i,j,k).transpose());
-                                Util::Message(INFO,divdw.transpose());
-                                Util::Message(INFO,rhs(i,j,k,0));
-                                Util::Message(INFO,rhs(i,j,k,1));
-                            }
-
                         }
                     });
                 }
@@ -257,7 +247,7 @@ private:
                     {
                         auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
-                        if (AMREX_D_TERM(false || false, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
+                        if (AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j == hi.y, || k == lo.z || k == hi.z))
                         {
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
                             Set::Scalar psiavg = 1.0;
@@ -267,7 +257,6 @@ private:
                             }
                             Set::Vector ret = m_elastic->GetBC()(u(i, j, k), gradu, dw(i, j, k) * psiavg, i, j, k, bx);
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - ret(d);
-                            Util::Message(INFO);
                         }
                         else
                         {
@@ -279,8 +268,6 @@ private:
                                 divdw += dw(i, j, k) * gradpsi;
                             }
                             for (int d = 0; d < AMREX_SPACEDIM; d++) rhs(i, j, k, d) = b(i, j, k)(d) - divdw(d);
-                            Util::Message(INFO);
-
                         }
                     });
                 }
