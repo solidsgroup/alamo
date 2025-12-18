@@ -3,6 +3,7 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
+#include "AMReX_Periodicity.H"
 #include "Util/Color.H"
 #include "Set/Set.H"
 #include "Operator.H"
@@ -409,7 +410,9 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
     for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
     {
-        const Box& fine_bx = mfi.validbox() & fdomain.grow(0,2);
+        Box fine_bx = mfi.validbox();
+        if (Periodicity().isPeriodic(0)) fine_bx = fine_bx & fdomain.grow(0,2);
+
         const Box& course_bx = amrex::coarsen(fine_bx, 2);
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;
