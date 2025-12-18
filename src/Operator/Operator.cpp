@@ -116,28 +116,29 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            const Box& bx = mfi.validbox().grow(2) & domain;
+            Box bx = mfi.validbox();
+            bx = bx.grow(2);
             
             amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
             amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
             amrex::Array4<const amrex::Real> const& Rxfab = Rx.array(mfi);
             amrex::Array4<const amrex::Real> const& diagfab = (*m_diag[amrlev][mglev]).array(mfi);
 
-            // const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
 
             for (int n = 0; n < ncomp; n++)
             {
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::ParallelFor(bx, [&] AMREX_GPU_DEVICE(int i, int j, int k) 
+                {
 
-                    // bool
-                    //     AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
-                    //     AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
-
-                    if (AMREX_D_TERM(i == bx.loVect()[0] - nghost || i == bx.hiVect()[0] + nghost, ||
-                                     j == bx.loVect()[1] - nghost || j == bx.hiVect()[1] + nghost, ||
-                                     k == bx.loVect()[2] - nghost || k == bx.hiVect()[2] + nghost))
+                    // Skip ghost cells outside problem domain
+                    if (!domain.contains(i,j,k))
                     {
-                        xfab(i,j,k,n) = 0.0;
+                        //continue;
+                    }
+                    else if ( !bx.strictly_contains(i,j,k))
+                    {
+                        xfab(i, j, k, n) = 0.0;
+                        //continue;
                     }
                     else
                     {
@@ -148,8 +149,9 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
         }
     }
     amrex::Geometry geom = m_geom[amrlev][mglev];
-    x.FillBoundary(geom.periodicity());
+    realFillBoundary(x, geom);
     nodalSync(amrlev, mglev, x);
+    //Util::Abort(INFO);
 }
 
 void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
