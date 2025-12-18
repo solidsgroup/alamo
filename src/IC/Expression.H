@@ -140,7 +140,7 @@ public:
                 });
             }
         }
-        a_field[lev]->FillBoundary(IC<Set::Vector>::geom[lev].periodicity());
+        a_field[lev]->FillBoundary();
     };
 
     static void Parse(Expression& value, IO::ParmParse& pp)
