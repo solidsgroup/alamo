@@ -115,8 +115,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
             C(i, j, k) = a_C(i, j, k);
         });
     }
-    //FillBoundaryCoeff(*model[amrlev][0], m_geom[amrlev][0]);
-
+    FillBoundaryCoeff(*m_ddw_mf[amrlev][0], m_geom[amrlev][0]);
 
     m_model_set = true;
 }
@@ -822,17 +821,17 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     Util::Warning(INFO,"course lo ",lo);
                     Util::Warning(INFO, "coarse hi ",hi);
                     Util::Warning(INFO, "coarse box ",bx);
-                    Util::Warning(INFO,i-1," ",j-1,"\n",fdata(i-1,j-1,k));
-                    Util::Warning(INFO,i-1," ",j,"\n",fdata(i-1,j,k));
-                    Util::Warning(INFO,i-1," ",j+1,"\n",fdata(i-1,j+1,k));
+                    Util::Warning(INFO,i-1," ",j-1,":\t",fdata(i-1,j-1,k));
+                    Util::Warning(INFO,i-1," ",j,":\t",fdata(i-1,j,k));
+                    Util::Warning(INFO,i-1," ",j+1,":\t",fdata(i-1,j+1,k));
 
-                    Util::Warning(INFO,i," ",j-1,"\n",fdata(i,j-1,k));
-                    Util::Warning(INFO,i," ",j,"\n",fdata(i,j,k));
-                    Util::Warning(INFO,i," ",j+1,"\n",fdata(i,j+1,k));
+                    Util::Warning(INFO,i," ",j-1,":\t",fdata(i,j-1,k));
+                    Util::Warning(INFO,i," ",j,":\t",fdata(i,j,k));
+                    Util::Warning(INFO,i," ",j+1,":\t",fdata(i,j+1,k));
 
-                    Util::Warning(INFO,i+1," ",j-1,"\n",fdata(i+1,j-1,k));
-                    Util::Warning(INFO,i+1," ",j,"\n",fdata(i+1,j,k));
-                    Util::Warning(INFO,i+1," ",j+1,"\n",fdata(i+1,j+1,k));
+                    Util::Warning(INFO,i+1," ",j-1,":\t",fdata(i+1,j-1,k));
+                    Util::Warning(INFO,i+1," ",j,":\t",fdata(i+1,j,k));
+                    Util::Warning(INFO,i+1," ",j+1,":\t",fdata(i+1,j+1,k));
                     
                     Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
                 }

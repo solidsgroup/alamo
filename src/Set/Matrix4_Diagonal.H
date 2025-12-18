@@ -9,7 +9,8 @@ namespace Set
 template<>
 class Matrix4<AMREX_SPACEDIM, Sym::Diagonal>
 {
-    Set::Matrix A = Set::Matrix::Ones();
+    Set::Matrix A = Set::Matrix::Zero();
+    
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_GPU_HOST_DEVICE Matrix4(Set::Matrix a_A): A(a_A) {};
