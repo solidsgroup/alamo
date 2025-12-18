@@ -3,6 +3,7 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
+#include "AMReX_IntVect.H"
 #include "Util/Color.H"
 #include "Set/Set.H"
 #include "Operator.H"
@@ -90,6 +91,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
     BL_PROFILE("Operator::Fsmooth()");
 
     amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    domain.convert(amrex::IntVect::TheNodeVector());
 
     int ncomp = b.nComp();
     int nghost = 2; //b.nGrow();
@@ -115,47 +117,42 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            const Box& bx = mfi.validbox();
-            amrex::FArrayBox& xfab = x[mfi];
-            const amrex::FArrayBox& bfab = b[mfi];
-            //const amrex::FArrayBox &Axfab   = Ax[mfi];
-            const amrex::FArrayBox& Rxfab = Rx[mfi];
-            const amrex::FArrayBox& diagfab = (*m_diag[amrlev][mglev])[mfi];
+            Box bx = mfi.validbox();
+            bx = bx.grow(2);
+            
+            amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
+            amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
+            amrex::Array4<const amrex::Real> const& Rxfab = Rx.array(mfi);
+            amrex::Array4<const amrex::Real> const& diagfab = (*m_diag[amrlev][mglev]).array(mfi);
+
 
             for (int n = 0; n < ncomp; n++)
             {
-                AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1 <= bx.hiVect()[0] + 2; m1++),
-                    for (int m2 = bx.loVect()[1] - 2; m2 <= bx.hiVect()[1] + 2; m2++),
-                        for (int m3 = bx.loVect()[2] - 2; m3 <= bx.hiVect()[2] + 2; m3++))
+                amrex::ParallelFor(bx, [&] AMREX_GPU_DEVICE(int i, int j, int k) 
                 {
 
-                    amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
-
                     // Skip ghost cells outside problem domain
-                    if (AMREX_D_TERM(m[0] < domain.loVect()[0], ||
-                        m[1] < domain.loVect()[1], ||
-                        m[2] < domain.loVect()[2])) continue;
-                    if (AMREX_D_TERM(m[0] > domain.hiVect()[0] + 1, ||
-                        m[1] > domain.hiVect()[1] + 1, ||
-                        m[2] > domain.hiVect()[2] + 1)) continue;
-
-                    if (AMREX_D_TERM(m[0] == bx.loVect()[0] - nghost || m[0] == bx.hiVect()[0] + nghost, ||
-                        m[1] == bx.loVect()[1] - nghost || m[1] == bx.hiVect()[1] + nghost, ||
-                        m[2] == bx.loVect()[2] - nghost || m[2] == bx.hiVect()[2] + nghost))
+                    if (!domain.contains(i,j,k))
                     {
-                        xfab(m, n) = 0.0;
-                        continue;
+                        //continue;
                     }
-
-                    //xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
-                    xfab(m, n) = (1. - m_omega) * xfab(m, n) + m_omega * (bfab(m, n) - Rxfab(m, n)) / diagfab(m, n);
-                }
+                    else if ( !bx.strictly_contains(i,j,k))
+                    {
+                        xfab(i, j, k, n) = 0.0;
+                        //continue;
+                    }
+                    else
+                    {
+                        xfab(i,j,k,n) = (1. - m_omega) * xfab(i,j,k, n) + m_omega * (bfab(i,j,k, n) - Rxfab(i,j,k, n)) / diagfab(i,j,k,n);
+                    }
+                });
             }
         }
     }
     amrex::Geometry geom = m_geom[amrlev][mglev];
     realFillBoundary(x, geom);
     nodalSync(amrlev, mglev, x);
+    //Util::Abort(INFO);
 }
 
 void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
