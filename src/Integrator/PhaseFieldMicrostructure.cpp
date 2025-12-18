@@ -340,7 +340,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
         amrex::Box domain = this->geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
-        eta_mf[lev]->FillBoundary(this->geom[lev].periodicity());
+        eta_mf[lev]->FillBoundary();
 
         for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
         {

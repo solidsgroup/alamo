@@ -3,7 +3,6 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
-#include "AMReX_Periodicity.H"
 #include "Util/Color.H"
 #include "Set/Set.H"
 #include "Operator.H"
@@ -152,7 +151,6 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
     amrex::Geometry geom = m_geom[amrlev][mglev];
     realFillBoundary(x, geom);
     nodalSync(amrlev, mglev, x);
-    //Util::Abort(INFO);
 }
 
 void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
@@ -186,7 +184,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
             });
         }
     }
-    a_x.FillBoundary(m_geom[amrlev][mglev].periodicity());
+    a_x.FillBoundary(Periodicity(amrlev,mglev));
 }
 
 Operator<Grid::Node>::Operator(const Vector<Geometry>& a_geom,
@@ -387,7 +385,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
     amrex::Geometry geom = m_geom[amrlev][cmglev];
     //realFillBoundary(crse, geom);
-    crse.FillBoundary(geom.periodicity());
+    crse.FillBoundary(Periodicity(amrlev,cmglev));
     nodalSync(amrlev, cmglev, crse);
 }
 
@@ -461,7 +459,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
     amrex::Geometry geom = m_geom[amrlev][fmglev];
     //realFillBoundary(fine, geom);
-    fine.FillBoundary(geom.periodicity());
+    fine.FillBoundary(Periodicity(amrlev,fmglev));
     nodalSync(amrlev, fmglev, fine);
 }
 
@@ -481,7 +479,7 @@ void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_so
 
 void Operator<Grid::Node>::realFillBoundary(MultiFab& phi, const Geometry& geom)
 {
-    phi.FillBoundary();
+    Util::RealFillBoundary(phi, geom);
 }
 
 void Operator<Grid::Node>::applyBC(int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,

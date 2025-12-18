@@ -176,8 +176,7 @@ public:
                     }
                 }
             });
-        }
-        a_rhs->FillBoundary(Periodicity(a_geom));
+        }                    
     }
 
     using Elastic::Init;
@@ -261,7 +260,6 @@ public:
                 }
             });
         }                    
-        a_rhs->FillBoundary(Periodicity(a_geom));
     }
 
     virtual
