@@ -186,6 +186,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
             });
         }
     }
+    a_x.FillBoundary(Periodicity(amrlev,mglev));
 }
 
 Operator<Grid::Node>::Operator(const Vector<Geometry>& a_geom,
@@ -308,7 +309,10 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
-        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+        amrex::Box cstencilbox = cdomain;
+        if (Periodicity(amrlev,cmglev).isPeriodic(0)) cstencilbox = cstencilbox.grow(0,1);
+
+        const Dim3 lo = amrex::lbound(cstencilbox), hi = amrex::ubound(cstencilbox);
 
 
         for (int n = 0; n < crse.nComp(); n++)
@@ -390,7 +394,8 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 {
     BL_PROFILE("Operator::interpolation()");
     //int nghost = getNGrow();
-    amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
+    amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); 
+    fdomain.convert(amrex::IntVect::TheNodeVector());
 
     bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
     MultiFab cfine;
@@ -404,7 +409,9 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
     for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
     {
-        const Box& fine_bx = mfi.validbox() & fdomain;
+        Box fine_bx = mfi.validbox();
+        if (Periodicity().isPeriodic(0)) fine_bx = fine_bx & fdomain.grow(0,2);
+
         const Box& course_bx = amrex::coarsen(fine_bx, 2);
         const Box& tmpbx = amrex::refine(course_bx, 2);
         FArrayBox tmpfab;

@@ -109,7 +109,11 @@ private:
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
-            const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+
+            amrex::Box stencilbox = domain;
+            if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+
+            const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
@@ -198,8 +202,12 @@ private:
         {
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
+
+            amrex::Box stencilbox = domain;
+            if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
-            const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+            const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
