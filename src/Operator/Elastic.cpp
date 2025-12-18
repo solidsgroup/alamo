@@ -259,10 +259,29 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     gradpsi *= (1.0 - m_psi_small);
                     f += (DDW(i, j, k) * gradu) * gradpsi;
                 }
+
+                if (std::isnan(f(0)) || std::isnan(f(1)))
+                {
+                    Util::Message(INFO,"  =================  ");
+                    Util::Message(INFO,"amrlev=",amrlev);
+                    Util::Message(INFO,"mglev=",mglev);
+                    Util::Message(INFO,"i=",i," j=",j);
+                    Util::Message(INFO,"f:            ",f.transpose());
+                    Util::Message(INFO,"U(i,j,k):     ",U(i,j,k,0)," ",U(i,j,k,1));
+                    Util::Message(INFO,"U(i-1,j,k):   ",U(i-1,j,k,0)," ",U(i-1,j,k,1));
+                    Util::Message(INFO,"gradu:        ",gradu);
+                    Util::Message(INFO,"gradgradu[0]: ",gradgradu[0]);
+                    Util::Message(INFO,"gradgradu[1]: ",gradgradu[1]);
+                    Util::Message(INFO,"  =================  ");
+                        Util::Abort(INFO);
+                }
+
             }
             AMREX_D_TERM(F(i, j, k, 0) = f[0];, F(i, j, k, 1) = f[1];, F(i, j, k, 2) = f[2];);
         });
     }
+
+    //// a_f.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
 }
 
 
@@ -351,6 +370,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
             }
         });
     }
+    //// a_diag.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
 }
 
 
@@ -798,7 +818,25 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
 
 #ifdef AMREX_DEBUG
-                if (cdata(I, J, K).contains_nan()) Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
+                if (cdata(I, J, K).contains_nan())
+                {
+                    Util::Warning(INFO,"course lo ",lo);
+                    Util::Warning(INFO, "coarse hi ",hi);
+                    Util::Warning(INFO, "coarse box ",bx);
+                    Util::Warning(INFO,i-1," ",j-1,"\n",fdata(i-1,j-1,k));
+                    Util::Warning(INFO,i-1," ",j,"\n",fdata(i-1,j,k));
+                    Util::Warning(INFO,i-1," ",j+1,"\n",fdata(i-1,j+1,k));
+
+                    Util::Warning(INFO,i," ",j-1,"\n",fdata(i,j-1,k));
+                    Util::Warning(INFO,i," ",j,"\n",fdata(i,j,k));
+                    Util::Warning(INFO,i," ",j+1,"\n",fdata(i,j+1,k));
+
+                    Util::Warning(INFO,i+1," ",j-1,"\n",fdata(i+1,j-1,k));
+                    Util::Warning(INFO,i+1," ",j,"\n",fdata(i+1,j,k));
+                    Util::Warning(INFO,i+1," ",j+1,"\n",fdata(i+1,j+1,k));
+                    
+                    Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
+                }
 #endif
             });
         }

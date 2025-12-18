@@ -399,6 +399,8 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
         }
 
         Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
+
+        //this->model_mf[lev]->setVal(mechanics.model[0]);
     }
 
 }
