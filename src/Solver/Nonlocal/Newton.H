@@ -98,8 +98,8 @@ private:
                 });
             }
 
-            a_dw_mf[lev]->FillBoundary (m_elastic->Geom(lev).periodicity()); 
-            a_ddw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity()); 
+            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
+            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -109,11 +109,7 @@ private:
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
-
-            amrex::Box stencilbox = domain;
-            if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
-
-            const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
+            const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
@@ -140,8 +136,8 @@ private:
                     }
                 });
             }
-            a_ddw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
-            a_rhs_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
+            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
         }
     }
 
@@ -188,8 +184,8 @@ private:
                 });
             }
 
-            a_dw_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); // Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            a_ddw_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); //  Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
+            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -202,12 +198,8 @@ private:
         {
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
-
-            amrex::Box stencilbox = domain;
-            if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
-
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
-            const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
+            const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox() & domain;
@@ -273,8 +265,8 @@ private:
                 }
             }
 
-            a_ddw_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); // Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
-            a_rhs_mf[lev]->FillBoundary(linop->Geom(lev).periodicity()); //Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
+            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            Util::RealFillBoundary(*a_rhs_mf[lev], m_elastic->Geom(lev));
         }
     }
 
@@ -410,6 +402,7 @@ public:
             if (nriter == m_nriters) break;
 
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, checkpoint_file);
+            //Solver::Nonlocal::Linear::solve(GetVecOfPtrs(dsol_mf), GetVecOfConstPtrs(rhs_mf), a_tol_rel, a_tol_abs,checkpoint_file);
 
             Set::Scalar cornorm = 0, solnorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
@@ -498,7 +491,7 @@ public:
 
         for (int lev = 0; lev < a_res_mf.size(); ++lev)
         {
-            res_mf[lev]->FillBoundary(); // Util::RealFillBoundary(*res_mf[lev], m_elastic->Geom(lev));
+            Util::RealFillBoundary(*res_mf[lev], m_elastic->Geom(lev));
             a_res_mf.CopyFrom(lev, *res_mf[lev], 0, 2);
         }
     }

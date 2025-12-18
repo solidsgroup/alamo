@@ -162,11 +162,6 @@ public:
 
                     #endif
 
-                    if (Periodicity(a_geom).isPeriodic(0))
-                    {
-                        if (face == Face::XLO || face==Face::XHI) continue;
-                    }
-
                     if (!(face == Face::INT))
                     {
                         if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
@@ -176,8 +171,7 @@ public:
                     }
                 }
             });
-        }
-        a_rhs->FillBoundary(Periodicity(a_geom));
+        }                    
     }
 
     using Elastic::Init;
@@ -246,11 +240,6 @@ public:
 
                     #endif
 
-                    if (Periodicity(a_geom).isPeriodic(0))
-                    {
-                        if (face == Face::XLO || face==Face::XHI) continue;
-                    }
-
                     if (!(face == Face::INT))
                     {
                         if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
@@ -261,7 +250,6 @@ public:
                 }
             });
         }                    
-        a_rhs->FillBoundary(Periodicity(a_geom));
     }
 
     virtual
@@ -397,7 +385,7 @@ public:
                 f(i) = (sigma*n)(i);
             else if (bc_type[i] == Type::Neumann)
                 f(i) = (gradu*n)(i);
-            else
+            else if (bc_type[i] == Periodic)
                 continue;
         }
         return f;
@@ -625,17 +613,6 @@ public:
         #endif
 
     }
-
-    virtual amrex::Periodicity Periodicity(const amrex::Geometry &geom) const override
-    {
-        amrex::IntVect isperiodic;
-
-        isperiodic[0] = geom.periodicity().isPeriodic(0) && (m_bc_type[Face::XLO][0] == Type::Periodic);
-        isperiodic[1] = geom.periodicity().isPeriodic(1) && (m_bc_type[Face::YLO][0] == Type::Periodic);
-
-        return amrex::Periodicity(isperiodic);
-    }
-
 };
 }
 }

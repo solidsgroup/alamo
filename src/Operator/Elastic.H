@@ -56,11 +56,6 @@ public:
     void SetPsi (int amrlev, const amrex::MultiFab& a_psi, const Set::Scalar &a_psi_small)
     {m_psi_small = a_psi_small; SetPsi(amrlev,a_psi);}
 
-    virtual amrex::Periodicity Periodicity(int amrlev=0, int mglev=0) const override 
-    {
-        return m_bc->Periodicity(m_geom[amrlev][mglev]);
-    }
-
     /// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
     ///
     void SetBC (::BC::Operator::Elastic::Elastic *a_bc) 
