@@ -162,9 +162,19 @@ public:
 
                     #endif
 
-                    if (Periodicity(a_geom).isPeriodic(0))
+                    amrex::Periodicity p = Periodicity(a_geom);
+                    if (p.isPeriodic(0) && p.isPeriodic(1))
+                    {
+                        if (face == Face::XLO || face == Face::XHI ||
+                            face == Face::YLO || face == Face::YHI) continue;
+                    }
+                    if (p.isPeriodic(0))
                     {
                         if (face == Face::XLO || face==Face::XHI) continue;
+                    }
+                    if (p.isPeriodic(1))
+                    {
+                        if (face == Face::YLO || face==Face::YHI) continue;
                     }
 
                     if (!(face == Face::INT))
@@ -245,9 +255,19 @@ public:
 
                     #endif
 
-                    if (Periodicity(a_geom).isPeriodic(0))
+                    amrex::Periodicity p = Periodicity(a_geom);
+                    if (p.isPeriodic(0) && p.isPeriodic(1))
+                    {
+                        if (face == Face::XLO || face == Face::XHI ||
+                            face == Face::YLO || face == Face::YHI) continue;
+                    }
+                    if (p.isPeriodic(0))
                     {
                         if (face == Face::XLO || face==Face::XHI) continue;
+                    }
+                    if (p.isPeriodic(1))
+                    {
+                        if (face == Face::YLO || face==Face::YHI) continue;
                     }
 
                     if (!(face == Face::INT))

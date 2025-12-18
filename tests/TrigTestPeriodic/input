@@ -1,5 +1,5 @@
 #@
-#@  [2d-amr0-mg0]
+#@  [2d-x-amr0-mg0]
 #@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
@@ -12,7 +12,7 @@
 #@  ignore = explicitmesh.hi2
 #@
 #@
-#@  [2d-amr0]
+#@  [2d-x-amr0]
 #@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
@@ -23,7 +23,7 @@
 #@  ignore = explicitmesh.lo2
 #@  ignore = explicitmesh.hi2
 #@
-#@  [2d-amr1]
+#@  [2d-x-amr1]
 #@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
@@ -31,10 +31,20 @@
 #@  ignore = explicitmesh.lo2
 #@  ignore = explicitmesh.hi2
 #@
-#@  [2d-amr2]
+#@  [2d-x-amr2]
 #@  exe=mechanics
 #@  dim = 2
 #@  nprocs = 1
+#@
+#@  [2d-y-amr2]
+#@  exe=mechanics
+#@  dim = 2
+#@  nprocs = 1
+#@  args = geometry.is_periodic=0 1 0
+#@  ignore = bc.constant.type.xlo
+#@  ignore = bc.constant.type.xhi
+#@  args = bc.constant.type.ylo=periodic periodic
+#@  args = bc.constant.type.yhi=periodic periodic
 #@
 
 alamo.program                 = mechanics
@@ -65,7 +75,7 @@ explicitmesh.hi2              = 79 79 79
 # geometry
 geometry.prob_lo	      = 0 0 0
 geometry.prob_hi	      = 1 1 1
-geometry.is_periodic	 = 1 0 0 #1 1 1
+geometry.is_periodic	 = 0 1 0 #1 1 1
 
 rhs.type = trig
 rhs.trig.nr = 0 0 0
@@ -90,8 +100,8 @@ solver.nriters = 1
 
 ### UNIAXIAL TENSION ###
 bc.type = constant
-bc.constant.type.xlo = periodic periodic
-bc.constant.type.xhi = periodic periodic
+bc.constant.type.ylo = periodic periodic
+bc.constant.type.yhi = periodic periodic
 #bc.constant.val.yhi = 1.0 0.0
 #bc.constant.val.xloyhi = 1.0 0.0
 #bc.constant.val.xhiyhi = 1.0 0.0

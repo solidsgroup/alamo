@@ -309,6 +309,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
         amrex::Box cstencilbox = cdomain;
         if (Periodicity(amrlev,cmglev).isPeriodic(0)) cstencilbox = cstencilbox.grow(0,1);
+        if (Periodicity(amrlev,cmglev).isPeriodic(1)) cstencilbox = cstencilbox.grow(1,1);
 
         const Dim3 lo = amrex::lbound(cstencilbox), hi = amrex::ubound(cstencilbox);
 
@@ -408,6 +409,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
     {
         Box fine_bx = mfi.validbox();
         if (Periodicity().isPeriodic(0)) fine_bx = fine_bx & fdomain.grow(0,2);
+        if (Periodicity().isPeriodic(1)) fine_bx = fine_bx & fdomain.grow(1,2);
 
         const Box& course_bx = amrex::coarsen(fine_bx, 2);
         const Box& tmpbx = amrex::refine(course_bx, 2);

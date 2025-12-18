@@ -157,6 +157,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
     {
         Box stencilbox = domain;
         if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+        if (Periodicity(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -285,8 +286,6 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             AMREX_D_TERM(F(i, j, k, 0) = f[0];, F(i, j, k, 1) = f[1];, F(i, j, k, 2) = f[2];);
         });
     }
-
-    //// a_f.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
 }
 
 
@@ -305,6 +304,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
     {
         Box stencilbox = domain;
         if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+        if (Periodicity(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -370,7 +370,6 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
             }
         });
     }
-    //// a_diag.FillBoundary(m_geom[amrlev][mglev].periodicity(),true);
 }
 
 

@@ -112,6 +112,7 @@ private:
 
             amrex::Box stencilbox = domain;
             if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+            if (linop->Periodicity(lev,0).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
 
             const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
@@ -205,6 +206,7 @@ private:
 
             amrex::Box stencilbox = domain;
             if (linop->Periodicity(lev,0).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+            if (linop->Periodicity(lev,0).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
 
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             const amrex::Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);

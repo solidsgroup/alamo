@@ -3,7 +3,6 @@
 
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
-#include "AMReX_SPACE.H"
 #include "Set/Set.H"
 
 /// \brief This namespace contains some numerical tools
