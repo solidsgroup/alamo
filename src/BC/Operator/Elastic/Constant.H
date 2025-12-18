@@ -100,7 +100,7 @@ public:
     virtual void
     Init(amrex::FabArray<amrex::BaseFab<Set::Vector>> *a_rhs,
         const amrex::Geometry &a_geom,
-        bool a_homogeneous = false) const
+        bool a_homogeneous = false) const override
     {
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
@@ -183,7 +183,7 @@ public:
     virtual void
     Init(amrex::MultiFab * a_rhs,
         const amrex::Geometry &a_geom,
-        bool a_homogeneous = false) const
+        bool a_homogeneous = false) const override
     {
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
@@ -265,7 +265,7 @@ public:
     virtual
     std::array<Type,AMREX_SPACEDIM> getType (
                 const int &i, const int &j, [[maybe_unused]] const int &k,
-                const amrex::Box &domain)
+                const amrex::Box &domain) override
     {
         amrex::IntVect m(AMREX_D_DECL(i,j,k));
         const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -323,7 +323,7 @@ public:
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,
                 const int &i, const int &j, const int &k,
-                const amrex::Box &domain)
+                const amrex::Box &domain) override
     {
         (void)i; (void)j; (void)k; // Suppress "unused variable" warnings
         //Set::Vector f;

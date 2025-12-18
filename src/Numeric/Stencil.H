@@ -892,23 +892,23 @@ Gradient(const amrex::Array4<const Set::Matrix>& f,
 template<class T>
 [[nodiscard]] AMREX_FORCE_INLINE
 std::array<T,AMREX_SPACEDIM>
-Gradient_Diagonal(const Set::Scalar dx[AMREX_SPACEDIM],
-                  std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType);
+Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
+                    std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType);
 
 template<>
 [[nodiscard]] AMREX_FORCE_INLINE
 std::array<Set::Matrix,AMREX_SPACEDIM>
-Gradient_Diagonal(const Set::Scalar dx[AMREX_SPACEDIM],
-                  std::array<StencilType, AMREX_SPACEDIM> stencil)
+Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
+                    std::array<StencilType, AMREX_SPACEDIM> stencil)
 {
 
     std::array<Set::Matrix,AMREX_SPACEDIM> gradu;
-    AMREX_D_TERM( bool xmin = stencil[0] == StencilType::Hi;
-                  bool xmax = stencil[0] == StencilType::Lo;, 
-                  bool ymin = stencil[1] == StencilType::Hi;
-                  bool ymax = stencil[1] == StencilType::Lo;,
-                  bool zmin = stencil[2] == StencilType::Hi;
-                  bool zmax = stencil[2] == StencilType::Lo; );
+    AMREX_D_TERM(   bool xmin = stencil[0] == StencilType::Hi;
+                    bool xmax = stencil[0] == StencilType::Lo;, 
+                    bool ymin = stencil[1] == StencilType::Hi;
+                    bool ymax = stencil[1] == StencilType::Lo;,
+                    bool zmin = stencil[2] == StencilType::Hi;
+                    bool zmax = stencil[2] == StencilType::Lo; );
         
     for (int p = 0; p < AMREX_SPACEDIM; p++)
         for (int q = 0; q < AMREX_SPACEDIM; q++)
@@ -924,12 +924,12 @@ Gradient_Diagonal(const Set::Scalar dx[AMREX_SPACEDIM],
 template<>
 [[nodiscard]] AMREX_FORCE_INLINE
 std::array<Set::Matrix3,AMREX_SPACEDIM>
-Gradient_Diagonal(const Set::Scalar dx[AMREX_SPACEDIM],
-                  std::array<StencilType, AMREX_SPACEDIM> stencil)
+Gradient_Diagonal(  const Set::Scalar dx[AMREX_SPACEDIM],
+                    std::array<StencilType, AMREX_SPACEDIM> stencil)
 {
-    AMREX_D_TERM( Util::Assert(INFO,TEST(stencil[0]==StencilType::Central));,
-                  Util::Assert(INFO,TEST(stencil[1]==StencilType::Central));,
-                  Util::Assert(INFO,TEST(stencil[2]==StencilType::Central)););
+    AMREX_D_TERM(   Util::Assert(INFO,TEST(stencil[0]==StencilType::Central));,
+                    Util::Assert(INFO,TEST(stencil[1]==StencilType::Central));,
+                    Util::Assert(INFO,TEST(stencil[2]==StencilType::Central)););
 
     std::array<Set::Matrix3,AMREX_SPACEDIM> gradgradu;
 

@@ -383,8 +383,6 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         crse.ParallelCopy(cfine);
     }
 
-    amrex::Geometry geom = m_geom[amrlev][cmglev];
-    //realFillBoundary(crse, geom);
     crse.FillBoundary(Periodicity(amrlev,cmglev));
     nodalSync(amrlev, cmglev, crse);
 }
@@ -457,8 +455,6 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         fine[mfi].plus(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
     }
 
-    amrex::Geometry geom = m_geom[amrlev][fmglev];
-    //realFillBoundary(fine, geom);
     fine.FillBoundary(Periodicity(amrlev,fmglev));
     nodalSync(amrlev, fmglev, fine);
 }
@@ -672,7 +668,6 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     const int ncomp = b.nComp();
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
-    amrex::Geometry geom = m_geom[amrlev][mglev];
     resid.FillBoundary();
 }
 
@@ -684,7 +679,6 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
-    amrex::Geometry geom = m_geom[amrlev][mglev];
     resid.FillBoundary();
 }
 
