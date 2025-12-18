@@ -155,6 +155,9 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
     for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
+        Box stencilbox = domain;
+        if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
 
@@ -163,7 +166,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         amrex::Array4<amrex::Real> const& F = a_f.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
 
-        const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+        const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
 
         amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
@@ -178,7 +181,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
             // Determine if a special stencil will be necessary for first derivatives
             std::array<Numeric::StencilType, AMREX_SPACEDIM>
-                sten = Numeric::GetStencil(i, j, k, domain);
+                sten = Numeric::GetStencil(i, j, k, stencilbox);
 
             // The displacement gradient tensor
             Set::Matrix gradu; // gradu(i,j) = u_{i,j)
@@ -202,7 +205,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
             {
-                f = (*m_bc)(u, gradu, sig, i, j, k, domain);
+                f = (*m_bc)(u, gradu, sig, i, j, k, stencilbox);
             }
             else
             {
@@ -301,6 +304,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
     for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         Box stencilbox = domain;
+        if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
