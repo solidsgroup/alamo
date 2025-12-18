@@ -81,6 +81,7 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 #endif
             });
         }
+        (*(m_ddw_mf[amrlev][0])).FillBoundary(Periodicity(amrlev,0));
     }
     m_model_set = true;
 }
@@ -106,7 +107,6 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
     {
         Box bx = mfi.tilebox();
         bx.grow(nghost);   // Expand to cover first layer of ghost nodes
-        bx = bx & domain;  // Take intersection of box and the problem domain
 
         amrex::Array4<MATRIX4> const& C = (*(m_ddw_mf[amrlev][0])).array(mfi);
         amrex::Array4<const MATRIX4> const& a_C = a_model.array(mfi);
@@ -116,7 +116,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
         });
     }
     FillBoundaryCoeff(*m_ddw_mf[amrlev][0], m_geom[amrlev][0]);
-
+    m_ddw_mf[amrlev][0]->FillBoundary(Periodicity(amrlev,0));
     m_model_set = true;
 }
 
@@ -129,7 +129,7 @@ Elastic<SYM>::SetPsi(int amrlev, const amrex::MultiFab& a_psi_mf)
 
     for (MFIter mfi(a_psi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        Box bx = mfi.growntilebox() & domain;
+        Box bx = mfi.growntilebox();
 
         amrex::Array4<Set::Scalar> const& m_psi = (*(m_psi_mf[amrlev][0])).array(mfi);
         amrex::Array4<const Set::Scalar> const& a_psi = a_psi_mf.array(mfi);
@@ -277,6 +277,13 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     Util::Message(INFO,"gradu:        ",gradu);
                     Util::Message(INFO,"gradgradu[0]: ",gradgradu[0]);
                     Util::Message(INFO,"gradgradu[1]: ",gradgradu[1]);
+                    Util::Message(INFO,"DDW: ",DDW(i,j,k));
+                    Util::Message(INFO,"DDW: ",DDW(i-1,j,k));
+                    Util::Message(INFO,"DDW: ",DDW(i+1,j,k));
+                    Util::Message(INFO,"DDW: ",DDW(i,j+1,k));
+                    Util::Message(INFO,"DDW: ",DDW(i,j-1,k));
+                    Util::Message(INFO,"psi_av: ",psi_avg);
+                    Util::Message(INFO,"psi_set: ",m_psi_set);
                     Util::Message(INFO,"  =================  ");
                         Util::Abort(INFO);
                 }
@@ -725,10 +732,13 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
 
     // Copy the fine residual restricted onto the coarse grid
     // into the final residual.
+
     crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
-    const int mglev = 0;
-    Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
-    return;
+    //const int mglev = 0;
+    //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
+
+    FillBoundaryCoeff(crse_ddw,cgeom);
+
 }
 
 
