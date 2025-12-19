@@ -592,7 +592,7 @@ def test(testdir):
                     f.write(result.stdout)
             
                 result = subprocess.run(
-                    ["ext/FlameGraph/flamegraph.pl", "out.folded"],
+                    ["ext/brendangregg/FlameGraph/flamegraph.pl", "out.folded"],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     check=True, text=True )
             
