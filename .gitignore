@@ -61,4 +61,7 @@ alamo
 setup.py
 alamo.py
 .amrex
-
+## DELETE BEFORE MERGING
+*.zip
+bisect.log
+auto-bisect.sh
