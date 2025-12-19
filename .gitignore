@@ -60,7 +60,5 @@ alamo.egg-info
 alamo
 setup.py
 alamo.py
-# DELETE ME AND FOLLOWING LINES BEFORE DEVELOPMENT MERGE
-auto-bisect.sh
-bisect.log
-*.zip
+.amrex
+
