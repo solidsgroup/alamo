@@ -1,6 +1,18 @@
-#@  [2d-periodic-y]
+#@  [2d-periodicy-amr0]
 #@  exe=mechanics
 #@  dim=2
+#@  args=amr.max_level=0
+#@
+#@  [2d-periodicy-amr1]
+#@  exe=mechanics
+#@  dim=2
+#@  args=amr.max_level=1
+#@
+#@  [2d-periodicy-amr2]
+#@  exe=mechanics
+#@  dim=2
+#@  args=amr.max_level=2
+#@
 
 
 alamo.program                 = mechanics
@@ -14,7 +26,7 @@ stop_time		      = 0.1
 
 # amr parameters
 amr.plot_int		      = 1
-amr.max_level		      = 2
+amr.max_level		      =  2
 amr.n_cell		      = 32 32 32
 amr.blocking_factor	      = 4
 amr.regrid_int		      = 1
@@ -23,10 +35,11 @@ amr.cell.all                  = 1
 
 # use an explicit mesh (i.e. no adaptive meshing)
 explicitmesh.on               = 1
-explicitmesh.lo1              = 0 16 16
+explicitmesh.lo1              = 0 0 0
 explicitmesh.hi1              = 47 47 47
-explicitmesh.lo2              = 48 48 48
-explicitmesh.hi2              = 79 79 79
+
+explicitmesh.lo2              = 32 32 32
+explicitmesh.hi2              = 81 81 81
 
 # geometry
 geometry.prob_lo	      = -8 -8 -8 
@@ -96,3 +109,5 @@ bc.constant.type.xhiyhizhi = disp trac trac
 bc.constant.val.xhiyhizhi = 0.1 0.0 0.0
 
 
+print_model = 1
+print_residual = 1

@@ -14,8 +14,8 @@ testlib.validate(path=path,
                  end  =[8.0, 8.0],
                  coord = 'x',
                  vars=["disp_x","disp_y","stress_xx"],
-                 tolerance=[0.01,1E07, 1E05],
-                 abs_tolerance=1E100, #ignore absolute tolerance
+                 tolerance    =[1E100, 0.001, 1E100],
+                 abs_tolerance=[0.001, 1E100, 0.001], 
                  generate_ref_data = False,
                  tight_layout=False,
 )
