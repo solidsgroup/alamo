@@ -67,9 +67,7 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 
         for (MFIter mfi(*m_ddw_mf[amrlev][0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            Box bx = mfi.tilebox();
-            bx.grow(nghost);   // Expand to cover first layer of ghost nodes
-            bx = bx & domain;  // Take intersection of box and the problem domain
+            Box bx = mfi.grownnodaltilebox();
 
             amrex::Array4<MATRIX4> const& ddw = (*(m_ddw_mf[amrlev][0])).array(mfi);
 
@@ -105,8 +103,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
 
     for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        Box bx = mfi.tilebox();
-        bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+        Box bx = mfi.grownnodaltilebox();
 
         amrex::Array4<MATRIX4> const& C = (*(m_ddw_mf[amrlev][0])).array(mfi);
         amrex::Array4<const MATRIX4> const& a_C = a_model.array(mfi);
@@ -129,7 +126,7 @@ Elastic<SYM>::SetPsi(int amrlev, const amrex::MultiFab& a_psi_mf)
 
     for (MFIter mfi(a_psi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        Box bx = mfi.growntilebox();
+        Box bx = mfi.growntilebox() & domain;
 
         amrex::Array4<Set::Scalar> const& m_psi = (*(m_psi_mf[amrlev][0])).array(mfi);
         amrex::Array4<const Set::Scalar> const& a_psi = a_psi_mf.array(mfi);

@@ -560,6 +560,10 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     amrex::Box cdomain(m_geom[crse_amrlev][0].Domain());
     cdomain.convert(amrex::IntVect::TheNodeVector());
 
+    amrex::Box cstencilbox = cdomain;
+    if (Periodicity(crse_amrlev,0).isPeriodic(0)) cstencilbox.grow(0,1);
+    if (Periodicity(crse_amrlev,0).isPeriodic(1)) cstencilbox.grow(1,1);
+
     const Geometry& cgeom = m_geom[crse_amrlev][0];
 
     const BoxArray& fba = fine_res.boxArray();
@@ -591,7 +595,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
         amrex::Array4<const amrex::Real> const& fdata = fine_res.array(mfi);
 
-        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+        const Dim3 lo = amrex::lbound(cstencilbox), hi = amrex::ubound(cstencilbox);
 
         for (int n = 0; n < fine_res.nComp(); n++)
         {
