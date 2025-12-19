@@ -19,17 +19,12 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 3
+amr.max_level = 4
 
 # Full size
 amr.n_cell = 16 16 16
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
-
-# Quarter size
-# amr.n_cell = 8 8 8 
-# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-# geometry.prob_hi = 0.3_mm 0.3_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -38,16 +33,13 @@ timestep = 1e-6_s # [s]
 stop_time = 0.08_s
 
 small = 1.0e-8
-pf.eps = 0.25_um #0.0005 # [m]
+pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-pf.eta.ic.type = psread
-pf.eta.ic.psread.file.unit = m
-pf.eta.ic.psread.file.name = 2d.xyr
-pf.eta.ic.psread.eps = 5_um
-pf.eta.ic.psread.invert = 1
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value = 1
 
 #pf.eta.ic.type = constant 
 #pf.eta.ic.constant.value = 1.0 
@@ -64,7 +56,7 @@ pf.eta.ic.psread.invert = 1
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
 phi.ic.psread.file.name = /home/mungerct/research/papers/RegressionWithVoidsFullFeedback/results/kogha_paper_no_voids_validation/setC_xyzrs/uni_R240um_AP6498_10.xyzr
-phi.ic.psread.eps = 5_um
+phi.ic.psread.eps = 10_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -146,12 +138,12 @@ laser.ic.type = expression
 laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
-laser.ic.expression.constant.eps = 5.0_um
-laser.ic.expression.constant.x0 = 10.0_um
+laser.ic.expression.constant.eps = 10.0_um
+laser.ic.expression.constant.x0 = 20.0_um
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
-chamber.pressure = 4.0_MPa  ## [MPa]
+chamber.pressure = 1.0_MPa  ## [MPa]
 
 # Disable NAN checking
 amr.abort_on_nan = 1
