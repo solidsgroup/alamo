@@ -209,7 +209,8 @@ public:
 
                 for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.grownnodaltilebox();
+                    amrex::Box bx = mfi.nodaltilebox();
+                    bx = bx & domain;
 
                     amrex::Array4<Set::Vector> const& rhs = rhs_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Scalar> const& psi = psi_mf[lev]->array(mfi);
