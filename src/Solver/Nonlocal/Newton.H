@@ -97,8 +97,8 @@ private:
                 });
             }
 
-            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
+            a_ddw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -160,7 +160,7 @@ private:
             Set::Vector DX(linop->Geom(lev).CellSize());
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox();
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
 
                 amrex::Array4<const T>           const& model = a_model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Vector> const& u = a_u_mf[lev]->array(mfi);
@@ -187,8 +187,8 @@ private:
                 });
             }
 
-            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
+            a_ddw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
         }
 
         m_elastic->SetModel(a_ddw_mf);
