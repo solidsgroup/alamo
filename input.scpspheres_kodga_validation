@@ -7,13 +7,13 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 5e-6_s
-amr.max_grid_size = 2
-amr.blocking_factor = 2
+amr.plot_dt = 4e-3_s
+amr.max_grid_size = 8
+amr.blocking_factor = 8
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.05
-amr.refinement_criterion_temp = 1.0_K
+amr.refinement_criterion_temp = 5.0_K
 amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 #amr.node.all = 1
@@ -22,7 +22,7 @@ amr.cell.all = 1
 amr.max_level = 4
 
 # Full size
-amr.n_cell = 16 16 16
+amr.n_cell = 32 32 32
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
@@ -34,7 +34,7 @@ geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 1e-6_s # [s]
+timestep = 2e-6_s # [s]
 stop_time = 0.2_s
 
 small = 1.0e-8
