@@ -64,7 +64,7 @@ pf.eta.ic.constant.value = 1.0
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
 phi.ic.psread.file.name = setC_xyzrs/uni_R240um_AP6499_1.xyzr
-phi.ic.psread.eps = 15_um
+phi.ic.psread.eps = 8_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -96,7 +96,7 @@ propellant.fullfeedback.E_ap      = 11000.0_K
 propellant.fullfeedback.E_htpb    = 7500.0_K
 # thermal transport parameters
 propellant.fullfeedback.rho_ap      =  1950.0_kg/m^3
-propellant.fullfeedback.rho_htpb    =   920.0_kg/m^3
+propellant.fullfeedback.rho_htpb    =   930.0_kg/m^3
 propellant.fullfeedback.k_ap        =  0.4186_W/m/K
 propellant.fullfeedback.k_htpb      =  0.1300_W/m/K 
 propellant.fullfeedback.cp_ap       = 1297.90_J/kg/K 
@@ -117,11 +117,11 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 # Thermal transport parameters
 thermal.on = 1  
 #thermal.Tfluid = 300.0_K
-thermal.Tref = 301.0_K
+thermal.Tref = 289.0_K
 
 # Temperature field initial condition
 temp.ic.type = constant
-temp.ic.constant.value = 300.0_K
+temp.ic.constant.value = 288.0_K
 
 # Temperature field boundary conditions
 thermal.temp.bc.type = constant
@@ -151,7 +151,7 @@ laser.ic.expression.constant.x0 = 10.0_um
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
-chamber.pressure = 4.0_MPa  ## [MPa]
+chamber.pressure = 1.0_MPa  ## [MPa]
 
 # Disable NAN checking
 amr.abort_on_nan = 1
