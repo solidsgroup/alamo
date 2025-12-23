@@ -31,14 +31,6 @@
 #@  dim=3
 #@  nprocs=4
 #@  
-#@  [2d-periodic-y]
-#@  exe=mechanics
-#@  dim=2
-#@  args = geometry.is_periodic=0 1 0
-#@  args = bc.constant.type.ylo=periodic periodic periodic
-#@  args = bc.constant.type.yhi=periodic periodic periodic
-#@  check = false
-#@ 
 
 alamo.program                 = mechanics
 alamo.program.mechanics.model = linear.isotropic

@@ -112,7 +112,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
             C(i, j, k) = a_C(i, j, k);
         });
     }
-    FillBoundaryCoeff(*m_ddw_mf[amrlev][0], m_geom[amrlev][0]);
+    FillBoundaryCoeff(*m_ddw_mf[amrlev][0], Periodicity(amrlev,0));
     m_ddw_mf[amrlev][0]->FillBoundary(Periodicity(amrlev,0));
     m_model_set = true;
 }
@@ -271,14 +271,17 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     Util::Message(INFO,"f:            ",f.transpose());
                     Util::Message(INFO,"U(i,j,k):     ",U(i,j,k,0)," ",U(i,j,k,1));
                     Util::Message(INFO,"U(i-1,j,k):   ",U(i-1,j,k,0)," ",U(i-1,j,k,1));
+                    Util::Message(INFO,"U(i+1,j,k):   ",U(i+1,j,k,0)," ",U(i-1,j,k,1));
+                    Util::Message(INFO,"U(i,j-1,k):     ",U(i,j-1,k,0)," ",U(i,j-1,k,1));
+                    Util::Message(INFO,"U(i,j+1,k):     ",U(i,j+1,k,0)," ",U(i,j+1,k,1));
                     Util::Message(INFO,"gradu:        ",gradu);
                     Util::Message(INFO,"gradgradu[0]: ",gradgradu[0]);
                     Util::Message(INFO,"gradgradu[1]: ",gradgradu[1]);
-                    Util::Message(INFO,"DDW: ",DDW(i,j,k));
-                    Util::Message(INFO,"DDW: ",DDW(i-1,j,k));
-                    Util::Message(INFO,"DDW: ",DDW(i+1,j,k));
-                    Util::Message(INFO,"DDW: ",DDW(i,j+1,k));
-                    Util::Message(INFO,"DDW: ",DDW(i,j-1,k));
+                    Util::Message(INFO,"DDW (i  ,j  ): ",DDW(i,j,k));
+                    Util::Message(INFO,"DDW (i-1,j  ): ",DDW(i-1,j,k));
+                    Util::Message(INFO,"DDW (i+1,j  ): ",DDW(i+1,j,k));
+                    Util::Message(INFO,"DDW (i  ,j+1): ",DDW(i,j+1,k));
+                    Util::Message(INFO,"DDW (i  ,j-1): ",DDW(i,j-1,k));
                     Util::Message(INFO,"psi_av: ",psi_avg);
                     Util::Message(INFO,"psi_set: ",m_psi_set);
                     Util::Message(INFO,"  =================  ");
@@ -615,8 +618,8 @@ Elastic<SYM>::averageDownCoeffs()
         for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
         {
             if (m_ddw_mf[amrlev][mglev]) {
-                FillBoundaryCoeff(*m_ddw_mf[amrlev][mglev], m_geom[amrlev][mglev]);
-                FillBoundaryCoeff(*m_psi_mf[amrlev][mglev], m_geom[amrlev][mglev]);
+                FillBoundaryCoeff(*m_ddw_mf[amrlev][mglev], Periodicity(amrlev,mglev));
+                FillBoundaryCoeff(*m_psi_mf[amrlev][mglev], Periodicity(amrlev,mglev));
             }
         }
     }
@@ -734,7 +737,7 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
     //const int mglev = 0;
     //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
 
-    FillBoundaryCoeff(crse_ddw,cgeom);
+    FillBoundaryCoeff(crse_ddw,Periodicity(fine_amrlev,0));
 
 }
 
@@ -845,7 +848,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 #endif
             });
         }
-        FillBoundaryCoeff(crse, m_geom[amrlev][mglev]);
+        FillBoundaryCoeff(crse, Periodicity(amrlev,mglev));
 
 
         if (!m_psi_set) continue;
@@ -916,45 +919,23 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
             });
         }
-        FillBoundaryCoeff(crse_psi, m_geom[amrlev][mglev]);
+        FillBoundaryCoeff(crse_psi, Periodicity(amrlev,mglev));
 
     }
 }
 
 template<int SYM>
 void
-Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const Geometry& geom)
+Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const amrex::Periodicity& p)
 {
-    BL_PROFILE("Elastic::FillBoundaryCoeff()");
-    for (int i = 0; i < 2; i++)
-    {
-        MultiTab& mf = sigma;
-        mf.FillBoundary(geom.periodicity());
-        const int ncomp = mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-    }
+    sigma.FillBoundary(p);
 }
 
 template<int SYM>
 void
-Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const Geometry& geom)
+Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const amrex::Periodicity& p)
 {
-    BL_PROFILE("Elastic::FillBoundaryCoeff()");
-    for (int i = 0; i < 2; i++)
-    {
-        MultiFab& mf = psi;
-        mf.FillBoundary(geom.periodicity());
-        const int ncomp = mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-    }
+    psi.FillBoundary(p);
 }
 
 template class Elastic<Set::Sym::Major>;
