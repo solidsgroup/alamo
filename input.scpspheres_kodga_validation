@@ -19,17 +19,17 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 4
+amr.max_level = 5
 
 # Full size
-amr.n_cell = 32 32 32
-geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
+# amr.n_cell = 32 32 32
+# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+# geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
 # Quarter size
-# amr.n_cell = 8 8 8 
-# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-# geometry.prob_hi = 0.3_mm 0.3_mm 0.5_mm
+amr.n_cell = 64 64 64
+geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+geometry.prob_hi = 0.3_mm 0.3_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -43,14 +43,14 @@ pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
-# pf.eta.ic.psread.file.name = 2d.xyr
-# pf.eta.ic.psread.eps = 5_um
-# pf.eta.ic.psread.invert = 1
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
+pf.eta.ic.psread.file.name = all_datasets/A4/setA4_xyzrs/A4_1_void.xyzr
+pf.eta.ic.psread.eps = 0.5_um
+pf.eta.ic.psread.invert = 1
 
-pf.eta.ic.type = constant 
-pf.eta.ic.constant.value = 1.0 
+# pf.eta.ic.type = constant 
+# pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
 # pf.eta.ic.expression.constant.x0 = 30.0_um
@@ -63,8 +63,8 @@ pf.eta.ic.constant.value = 1.0
 ## Phi initial condition (spheres)
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
-phi.ic.psread.file.name = setC_xyzrs/uni_R240um_AP6499_1.xyzr
-phi.ic.psread.eps = 8_um
+phi.ic.psread.file.name = all_datasets/A4/setA4_xyzrs/A4_1_AP.xyzr
+phi.ic.psread.eps = 4_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
