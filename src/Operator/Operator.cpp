@@ -184,7 +184,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
             });
         }
     }
-    a_x.FillBoundary(Periodicity(amrlev,mglev));
+    a_x.FillBoundary(Geom(amrlev,mglev).periodicity());
 }
 
 Operator<Grid::Node>::Operator(const Vector<Geometry>& a_geom,
@@ -308,8 +308,8 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
         amrex::Box cstencilbox = cdomain;
-        if (Periodicity(amrlev,cmglev).isPeriodic(0)) cstencilbox = cstencilbox.grow(0,1);
-        if (Periodicity(amrlev,cmglev).isPeriodic(1)) cstencilbox = cstencilbox.grow(1,1);
+        if (Geom(amrlev,cmglev).isPeriodic(0)) cstencilbox = cstencilbox.grow(0,1);
+        if (Geom(amrlev,cmglev).isPeriodic(1)) cstencilbox = cstencilbox.grow(1,1);
 
         const Dim3 lo = amrex::lbound(cstencilbox), hi = amrex::ubound(cstencilbox);
 
@@ -384,7 +384,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         crse.ParallelCopy(cfine);
     }
 
-    crse.FillBoundary(Periodicity(amrlev,cmglev));
+    crse.FillBoundary(Geom(amrlev,cmglev).periodicity());
     nodalSync(amrlev, cmglev, crse);
 }
 
@@ -408,8 +408,8 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
     for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
     {
         Box fine_bx = mfi.validbox();
-        if (Periodicity().isPeriodic(0)) fine_bx = fine_bx & fdomain.grow(0,2);
-        if (Periodicity().isPeriodic(1)) fine_bx = fine_bx & fdomain.grow(1,2);
+        if (Geom(amrlev,fmglev).isPeriodic(0)) fine_bx = fine_bx & fdomain.grow(0,2);
+        if (Geom(amrlev,fmglev).isPeriodic(1)) fine_bx = fine_bx & fdomain.grow(1,2);
 
         const Box& course_bx = amrex::coarsen(fine_bx, 2);
         const Box& tmpbx = amrex::refine(course_bx, 2);
@@ -457,7 +457,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         fine[mfi].plus(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
     }
 
-    fine.FillBoundary(Periodicity(amrlev,fmglev));
+    fine.FillBoundary(Geom(amrlev,fmglev).periodicity());
     nodalSync(amrlev, fmglev, fine);
 }
 
@@ -578,8 +578,6 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
 
-    amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba, 2), amrex::IntVect::TheCellVector()), fdm, 1, 2);
-    cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev], 0, 0, 1, 1, 1, cgeom.periodicity());
 
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {

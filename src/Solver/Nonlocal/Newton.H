@@ -61,8 +61,8 @@ private:
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
-            if (linop->Periodicity(lev).isPeriodic(0)) domain.grow(0,1);
-            if (linop->Periodicity(lev).isPeriodic(1)) domain.grow(1,1);
+            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,1);
+            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,1);
 
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
@@ -116,8 +116,8 @@ private:
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
 
-            if (linop->Periodicity(lev).isPeriodic(0)) domain.grow(0,1);
-            if (linop->Periodicity(lev).isPeriodic(1)) domain.grow(1,1);
+            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,1);
+            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,1);
 
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
@@ -163,8 +163,8 @@ private:
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
-            if (linop->Periodicity(lev).isPeriodic(0)) domain.grow(0,1);
-            if (linop->Periodicity(lev).isPeriodic(1)) domain.grow(1,1);
+            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,1);
+            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,1);
 
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
@@ -215,8 +215,8 @@ private:
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
-            if (linop->Periodicity(lev).isPeriodic(0)) domain.grow(0,1);
-            if (linop->Periodicity(lev).isPeriodic(1)) domain.grow(1,1);
+            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,1);
+            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,1);
 
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);

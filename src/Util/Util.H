@@ -16,6 +16,7 @@
 #include "AMReX.H"
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
+#include <AMReX_iMultiFab.H>
 
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
@@ -349,6 +350,56 @@ void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/, 
     else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
+
+template<class T>
+AMREX_FORCE_INLINE
+void Probe(
+    std::string file, std::string func, int line,
+    amrex::FabArray<amrex::BaseFab<T>> &a_mf, int i, int j, int k, int n)
+{
+    // Loop over boxes owned by this rank
+    for (amrex::MFIter mfi(a_mf); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& validbox = mfi.validbox();
+        const amrex::Box& box = mfi.grownnodaltilebox();
+
+        if (box.contains(amrex::IntVect(AMREX_D_DECL(i,j,0))))
+        {
+            const auto& arr = a_mf.const_array(mfi);
+            if (validbox.strictly_contains(i,j,k))
+                Util::ParallelMessage(file,func,line, "inside: (",i,",",j,",",k,") ",arr(i, j, k, n));
+            else if (validbox.contains(i,j,k))
+                Util::ParallelMessage(file,func,line, "border: (",i,",",j,",",k,") ",arr(i, j, k, n));
+            else
+                Util::ParallelMessage(file,func,line, "ghost:  (",i,",",j,",",k,") ",arr(i, j, k, n));
+        }
+    }
+}
+
+AMREX_FORCE_INLINE
+void Probe(
+    std::string file, std::string func, int line,
+    amrex::iMultiFab &a_mf, int i, int j, int k, int n)
+{
+    // Loop over boxes owned by this rank
+    for (amrex::MFIter mfi(a_mf); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& validbox = mfi.validbox();
+        const amrex::Box& box = mfi.grownnodaltilebox();
+
+        if (box.contains(amrex::IntVect(AMREX_D_DECL(i,j,0))))
+        {
+            const auto& arr = a_mf.const_array(mfi);
+            if (validbox.strictly_contains(i,j,k))
+                Util::ParallelMessage(file,func,line, "inside: (",i,",",j,",",k,") ",arr(i, j, k, n));
+            else if (validbox.contains(i,j,k))
+                Util::ParallelMessage(file,func,line, "border: (",i,",",j,",",k,") ",arr(i, j, k, n));
+            else
+                Util::ParallelMessage(file,func,line, "ghost:  (",i,",",j,",",k,") ",arr(i, j, k, n));
+        }
+    }
+}
+
 
 
 void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);

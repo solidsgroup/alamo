@@ -162,17 +162,16 @@ public:
 
                     #endif
 
-                    amrex::Periodicity p = Periodicity(a_geom);
-                    if (p.isPeriodic(0) && p.isPeriodic(1))
+                    if (a_geom.isPeriodic(0) && a_geom.isPeriodic(1))
                     {
                         if (face == Face::XLO || face == Face::XHI ||
                             face == Face::YLO || face == Face::YHI) continue;
                     }
-                    if (p.isPeriodic(0))
+                    if (a_geom.isPeriodic(0))
                     {
                         if (face == Face::XLO || face==Face::XHI) continue;
                     }
-                    if (p.isPeriodic(1))
+                    if (a_geom.isPeriodic(1))
                     {
                         if (face == Face::YLO || face==Face::YHI) continue;
                     }
@@ -254,18 +253,17 @@ public:
                     else if (k==hi.z) face = Face::ZHI;
 
                     #endif
-
-                    amrex::Periodicity p = Periodicity(a_geom);
-                    if (p.isPeriodic(0) && p.isPeriodic(1))
+                    
+                    if (a_geom.isPeriodic(0) && a_geom.isPeriodic(1))
                     {
                         if (face == Face::XLO || face == Face::XHI ||
                             face == Face::YLO || face == Face::YHI) continue;
                     }
-                    if (p.isPeriodic(0))
+                    if (a_geom.isPeriodic(0))
                     {
                         if (face == Face::XLO || face==Face::XHI) continue;
                     }
-                    if (p.isPeriodic(1))
+                    if (a_geom.isPeriodic(1))
                     {
                         if (face == Face::YLO || face==Face::YHI) continue;
                     }
@@ -642,16 +640,6 @@ public:
         pp.ignore("val.zlo"); pp.ignore("val.zhi");
         #endif
 
-    }
-
-    virtual amrex::Periodicity Periodicity(const amrex::Geometry &geom) const override
-    {
-        amrex::IntVect isperiodic;
-
-        isperiodic[0] = geom.periodicity().isPeriodic(0) && (m_bc_type[Face::XLO][0] == Type::Periodic);
-        isperiodic[1] = geom.periodicity().isPeriodic(1) && (m_bc_type[Face::YLO][0] == Type::Periodic);
-
-        return amrex::Periodicity(isperiodic);
     }
 
 };

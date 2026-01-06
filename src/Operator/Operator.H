@@ -104,11 +104,6 @@ public:
     virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
                     BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override final;
 
-    virtual amrex::Periodicity Periodicity(int amrlev = 0, int mglev = 0) const
-    {
-        return m_geom[amrlev][mglev].periodicity();
-    }
-
 public:
     static void realFillBoundary(MultiFab &phi, const Geometry &geom);
 

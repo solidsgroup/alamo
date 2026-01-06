@@ -79,7 +79,7 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 #endif
             });
         }
-        (*(m_ddw_mf[amrlev][0])).FillBoundary(Periodicity(amrlev,0));
+        (*(m_ddw_mf[amrlev][0])).FillBoundary( Geom(amrlev,0).periodicity());
     }
     m_model_set = true;
 }
@@ -112,8 +112,8 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
             C(i, j, k) = a_C(i, j, k);
         });
     }
-    FillBoundaryCoeff(*m_ddw_mf[amrlev][0], Periodicity(amrlev,0));
-    m_ddw_mf[amrlev][0]->FillBoundary(Periodicity(amrlev,0));
+    FillBoundaryCoeff(*m_ddw_mf[amrlev][0], Geom(amrlev,0).periodicity());
+    m_ddw_mf[amrlev][0]->FillBoundary(Geom(amrlev,0).periodicity());
     m_model_set = true;
 }
 
@@ -152,8 +152,8 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
     for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         Box stencilbox = domain;
-        if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
-        if (Periodicity(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
+        if (Geom(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+        if (Geom(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -309,8 +309,8 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
     for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         Box stencilbox = domain;
-        if (Periodicity(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
-        if (Periodicity(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
+        if (Geom(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
+        if (Geom(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
 
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -618,8 +618,8 @@ Elastic<SYM>::averageDownCoeffs()
         for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
         {
             if (m_ddw_mf[amrlev][mglev]) {
-                FillBoundaryCoeff(*m_ddw_mf[amrlev][mglev], Periodicity(amrlev,mglev));
-                FillBoundaryCoeff(*m_psi_mf[amrlev][mglev], Periodicity(amrlev,mglev));
+                FillBoundaryCoeff(*m_ddw_mf[amrlev][mglev], Geom(amrlev,mglev).periodicity());
+                FillBoundaryCoeff(*m_psi_mf[amrlev][mglev], Geom(amrlev,mglev).periodicity());
             }
         }
     }
@@ -737,7 +737,7 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
     //const int mglev = 0;
     //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
 
-    FillBoundaryCoeff(crse_ddw,Periodicity(fine_amrlev,0));
+    FillBoundaryCoeff(crse_ddw,Geom(fine_amrlev,0).periodicity());
 
 }
 
@@ -848,7 +848,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 #endif
             });
         }
-        FillBoundaryCoeff(crse, Periodicity(amrlev,mglev));
+        FillBoundaryCoeff(crse, Geom(amrlev,mglev).periodicity());
 
 
         if (!m_psi_set) continue;
@@ -919,7 +919,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
             });
         }
-        FillBoundaryCoeff(crse_psi, Periodicity(amrlev,mglev));
+        FillBoundaryCoeff(crse_psi, Geom(amrlev,mglev).periodicity());
 
     }
 }
