@@ -75,6 +75,9 @@ Integrator::Integrator() : amrex::AmrCore()
 
         pp_query_default("max_plot_level", max_plot_level, -1);    // Specify a maximum level of refinement for output files (NO REFINEMENT)
 
+        pp.query_default("print_ghost_nodes", print_ghost_nodes, 0); // include ghost nodes in output
+        pp.query_default("print_ghost_cells", print_ghost_cells, 0); // include ghost cells in output
+
         IO::FileNameParse(plot_file);
 
         nsubsteps.resize(maxLevel() + 1, 1);
@@ -878,7 +881,9 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         {
             int ncomp = ccomponents + bfcomponents_cell;
             if (cell.all) ncomp += ncomponents + bfcomponents;
-            cplotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
+            amrex::BoxArray cgrids_ghost = grids[ilev];
+            cgrids_ghost.grow(print_ghost_cells);
+            cplotmf[ilev].define(cgrids_ghost, dmap[ilev], ncomp, 0);
 
             int n = 0;
             int cnames_cnt = 0;
@@ -954,7 +959,11 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             ngrids.convert(amrex::IntVect::TheNodeVector());
             int ncomp = ncomponents + bfcomponents;
             if (node.all) ncomp += ccomponents + bfcomponents_cell;
-            nplotmf[ilev].define(ngrids, dmap[ilev], ncomp, 0);
+
+            amrex::BoxArray ngrids_ghost = ngrids;
+            ngrids_ghost.grow(print_ghost_nodes);
+            
+            nplotmf[ilev].define(ngrids_ghost, dmap[ilev], ncomp, 0);
 
             int n = 0;
             for (int i = 0; i < node.number_of_fabs; i++)
@@ -981,7 +990,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
                     if (!cell.writeout_array[i]) continue;
                     if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO, cnames[i], " contains nan (i=", i, "). Resetting to zero.");
                     if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
-                    if ((*cell.fab_array[i])[ilev]->nGrow() == 0)
+                    if ((*cell.fab_array[i])[ilev]->nGrow() < 1)
                     {
                         if (initial) Util::Warning(INFO, cnames[i], " has no ghost cells and will not be included in nodal output");
                         continue;
