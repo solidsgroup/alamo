@@ -163,8 +163,8 @@ private:
             amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
-            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,1);
-            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,1);
+            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,2);
+            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,2);
 
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
@@ -198,10 +198,10 @@ private:
                 });
             }
 
-            //a_dw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
-            //a_ddw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
-            Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
-            Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
+            a_dw_mf[lev]->setMultiGhost(true);
+            a_dw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
+            a_ddw_mf[lev]->setMultiGhost(true);
+            a_ddw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
         }
 
         m_elastic->SetModel(a_ddw_mf);
