@@ -112,7 +112,6 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
             C(i, j, k) = a_C(i, j, k);
         });
     }
-    FillBoundaryCoeff(*m_ddw_mf[amrlev][0], Geom(amrlev,0).periodicity());
     m_ddw_mf[amrlev][0]->FillBoundary(Geom(amrlev,0).periodicity());
     m_model_set = true;
 }
