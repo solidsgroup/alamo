@@ -651,12 +651,10 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     // into the final residual.
     res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
 
-    const int mglev = 0;
-
     // Sync up ghost nodes
-    amrex::Geometry geom = m_geom[crse_amrlev][mglev];
-    realFillBoundary(res, geom);
-    nodalSync(crse_amrlev, mglev, res);
+    //realFillBoundary(res, cgeom);
+    res.FillBoundary(Geom(crse_amrlev).periodicity());
+    nodalSync(crse_amrlev, 0, res);
     return;
 }
 
@@ -668,7 +666,7 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     const int ncomp = b.nComp();
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
-    resid.FillBoundary();
+    resid.FillBoundary(Geom(amrlev).periodicity());
 }
 
 void
@@ -679,7 +677,7 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
-    resid.FillBoundary();
+    resid.FillBoundary(Geom(amrlev).periodicity());
 }
 
 
