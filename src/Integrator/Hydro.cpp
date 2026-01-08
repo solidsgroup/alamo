@@ -51,6 +51,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
         pp_query_required("mu", value.mu); // linear viscosity coefficient
+        pp_query_default("mu_b", value.mu_b. 0.0); // bulk viscosity coefficient
         pp_forbid("Lfactor","replaced with mu");
         //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
         pp_forbid("Pfactor","replaced with mu");
@@ -118,6 +119,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true, false);
+
+        // Viscocity
+        value.RegisterNewFab(value.tau_xx_mf, value.energy_bc, 1, nghost, "tau_xx", true, { "xx" }); // Stress Tensor xx
+        value.RegisterNewFab(value.tau_xy_mf, value.energy_bc, 1, nghost, "tau_xy", true, { "xy" }); // Stress Tensor xy
+        value.RegisterNewFab(value.tau_yy_mf, value.energy_bc, 1, nghost, "tau_yy", true, { "yy" }); // Stress Tensor yy
+        value.RegisterNewFab(value.Ldot_mf, &value.bc_nothing, 2, nghost, "Ldot", true, { "x", "y" }); // Ldot
+
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
@@ -223,6 +231,12 @@ void Hydro::Initialize(int lev)
     ic_q             ->Initialize(lev, q_mf,            0.0);
 
     Source_mf[lev]   ->setVal(0.0);
+
+    // Viscosity
+    tau_xx_mf[lev]->setVal(0.0);
+    tau_xy_mf[lev]->setVal(0.0);
+    tau_yy_mf[lev]->setVal(0.0);
+    Ldot_mf[lev]->setVal(0.0);
 
     if (managed)  { if (lev >= mixed.size()) mixed.push_back(false);}
     else  Mix(lev);
@@ -509,6 +523,127 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
 
+    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Second Time Loop for intermediate values
+    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        amrex::Box bx = mfi.validbox(); // copy the box
+        bx.grow(1);                     // now safe
+
+        // PRIMARY FLUIDS
+        // MIXTURE
+        Set::Patch<const Set::Scalar> rho = rho_mf.array(mfi); // density
+        Set::Patch<const Set::Scalar> M = M_mf.array(mfi);     // momentum
+        Set::Patch<const Set::Scalar> E = E_mf.array(mfi);     // total energy (internal energy + kinetic energy) per unit volume (E/rho = e + 0.5*v^2)
+
+
+        // SOURCES
+        Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> v = velocity_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> press = pressure_mf.Patch(lev, mfi);
+
+        Set::Patch<Set::Scalar> tau_xx = tau_xx_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> tau_xy = tau_xy_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> tau_yy = tau_yy_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> Ldot_ = Ldot_mf.Patch(lev, mfi);
+
+        // Set::Scalar *dt_max_handle = &dt_max;
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            auto sten = Numeric::GetStencil(i, j, k, domain);
+
+            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+
+            Set::Vector u = Set::Vector(v(i, j, k, 0), v(i, j, k, 1));
+            Set::Vector u0 = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
+
+            Set::Matrix gradM = Numeric::Gradient(M, i, j, k, DX);
+            Set::Vector gradrho = Numeric::Gradient(rho, i, j, k, 0, DX);
+            Set::Matrix hess_rho = Numeric::Hessian(rho, i, j, k, 0, DX, sten);
+            Set::Matrix gradu = (gradM - u * gradrho.transpose()) / (rho(i, j, k));
+
+            // ------------------------------------------------------------
+            // Strain Rate Tensor
+            // ------------------------------------------------------------
+            Set::Vector eps = Set::Vector::Zero();
+            Set::Scalar div_u = gradu(0, 0) + gradu(1, 1); // Divergence of velocity
+            for (int p = 0; p < 2; ++p)
+            {
+                for (int q = 0; q < 2; ++q)
+                {
+                    eps(p, q) = 0.5 * (gradu(p, q) + gradu(q, p));
+                }
+            }
+
+            // ------------------------------------------------------------
+            // Effective Viscosities
+            // ------------------------------------------------------------
+            Set::Vector grad_mu = mu * grad_eta;
+            Set::Vector grad_lambda = mu_b * grad_eta;
+
+            // ------------------------------------------------------------
+            // Stress Tensor
+            // ------------------------------------------------------------
+            Set::Vector tau = Set::Vector::Zero();
+            for (int p = 0; p < 2; ++p)
+            {
+                for (int q = 0; q < 2; ++q)
+                {
+                    const Set::Scalar Comp = 0.0; // Boolean if p == q
+                    if (p == q)
+                    {
+                        Comp = 1.0;
+                    }
+                    tau(p, q) = 2.0 * mu * eps(p, q) + mu_b * div_u * Comp;
+                }
+            }
+            tau_xx(i, j, k) = tau(0, 0);
+            tau_xy(i, j, k) = tau(0, 1);
+            tau_yy(i, j, k) = tau(1, 1);
+
+            // ------------------------------------------------------------
+            // Grad(mu) Coupling
+            // ------------------------------------------------------------
+            Set::Vector Ldot = Set::Vector::Zero();
+            for (int p = 0; p < 2; ++p)
+            {
+                for (int q = 0; q < 2; ++q)
+                {
+                    Ldot(p) = Ldot(p) + grad_mu(q) * (gradu(p, q) + gradu(q, p));
+                }
+                Ldot(p) = Ldot(p) + grad_lambda(p) * div_u;
+                Ldot_(i, j, k, p) = Ldot(p);
+            }
+
+            // DEBUG Tool
+            if ((Ldot_(i, j, k, 0) != Ldot_(i, j, k, 0))
+                or (Ldot_(i, j, k, 1) != Ldot_(i, j, k, 1))
+                or (tau_xx(i, j, k) != tau_xx(i, j, k))
+                or (tau_xy(i, j, k) != tau_xy(i, j, k))
+                or (tau_yy(i, j, k) != tau_yy(i, j, k)))
+            {
+                Util::ParallelMessage(INFO, "------------------------------------------------------------");
+                Util::ParallelMessage(INFO, "ERROR IN Hydro(): Intermediate time step loop:");
+                Util::ParallelMessage(INFO, "lev=", lev);
+                Util::ParallelMessage(INFO, "i=", i, "j=", j);
+                Util::ParallelMessage(INFO, "dx=", DX[0], "dy=", DX[1]);
+
+                Util::ParallelMessage(INFO, "eps=", eps(0, 0), ", ", eps(0, 1), "; ", eps(1, 0), ", ", eps(1, 1));
+                Util::ParallelMessage(INFO, "mu=", mu);
+                Util::ParallelMessage(INFO, "lambda=", mu_b);
+                Util::ParallelMessage(INFO, "grad_lambda=", grad_lambda);
+                Util::ParallelMessage(INFO, "Ldot=", Ldot_(i, j, k, 0), ", ", Ldot_(i, j, k, 1));
+                Util::ParallelMessage(INFO, "tau_xx=", tau_xx(i, j, k));
+                Util::ParallelMessage(INFO, "tau_xy=", tau_xy(i, j, k));
+                Util::ParallelMessage(INFO, "tau_yy=", tau_yy(i, j, k));
+                Util::Abort(INFO);
+            }
+        });
+    }
+    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
@@ -541,6 +676,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> _u0       = u0_mf.Patch(lev,mfi);
+
+        Set::Patch<const Set::Scalar> tau_xx = tau_xx_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> tau_xy = tau_xy_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> tau_yy = tau_yy_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> Ldot_ = Ldot_mf.Patch(lev, mfi);
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
@@ -611,6 +751,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             / rho(i,j,k);
                     }
 
+            /*
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
             for (int p = 0; p<2; p++)
@@ -624,7 +765,50 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
                             div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
                         }
-            
+            */
+            // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // ------------------------------------------------------------
+            // Divergence of Stress
+            // ------------------------------------------------------------
+            Set::Matrix grad_tau_xx = Numeric::Gradient(tau_xx, i, j, k, DX);
+            Set::Matrix grad_tau_xy = Numeric::Gradient(tau_xy, i, j, k, DX);
+            Set::Matrix grad_tau_yy = Numeric::Gradient(tau_yy, i, j, k, DX);
+
+            Set::Vector div_tau = Set::Vector::Zero();
+            div_tau(0) = grad_tau_xx(0, 0) + grad_tau_xy(0, 1);
+            div_tau(1) = grad_tau_xy(1, 0) + grad_tau_yy(1, 1);
+
+            Set::Vector Ldot0 = Set::Vector(Ldot_(i, j, k, 0), Ldot_(i, j, k, 1));
+
+            // DEBUG Tool
+            if ((Ldot_(i, j, k, 0) != Ldot_(i, j, k, 0))
+                or (Ldot_(i, j, k, 1) != Ldot_(i, j, k, 1))
+                or (div_tau(0) != div_tau(0))
+                or (div_tau(1) != div_tau(1)))
+            {
+                Util::ParallelMessage(INFO, "------------------------------------------------------------");
+                Util::ParallelMessage(INFO, "ERROR IN Hydro2(): Viscosity solving:");
+                Util::ParallelMessage(INFO, "lev=", lev);
+                Util::ParallelMessage(INFO, "i=", i, "j=", j);
+                Util::ParallelMessage(INFO, "dx=", DX[0], "dy=", DX[1]);
+
+                Util::ParallelMessage(INFO, "Ldot=", Ldot_(i, j, k, 0), ", ", Ldot_(i, j, k, 1));
+                Util::ParallelMessage(INFO, "tau_xx=", tau_xx(i, j, k));
+                Util::ParallelMessage(INFO, "tau_xy=", tau_xy(i, j, k));
+                Util::ParallelMessage(INFO, "tau_yy=", tau_yy(i, j, k));
+
+                Util::ParallelMessage(INFO, "grad_tau_xx=", grad_tau_xx(0, 0), ", ", grad_tau_xx(0, 1), "; ", grad_tau_xx(1, 0), ", ", grad_tau_xx(1, 1));
+                Util::ParallelMessage(INFO, "grad_tau_xy=", grad_tau_xy(0, 0), ", ", grad_tau_xy(0, 1), "; ", grad_tau_xy(1, 0), ", ", grad_tau_xy(1, 1));
+                Util::ParallelMessage(INFO, "grad_tau_yy=", grad_tau_yy(0, 0), ", ", grad_tau_yy(0, 1), "; ", grad_tau_yy(1, 0), ", ", grad_tau_yy(1, 1));
+
+                Util::ParallelMessage(INFO, "div_tau=", div_tau(0), ", ", div_tau(1));
+
+                Util::Abort(INFO);
+            }
+            // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = (Pdot0(0) - Ldot0(0));
             Source(i,j, k, 2) = (Pdot0(1) - Ldot0(1));
