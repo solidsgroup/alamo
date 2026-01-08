@@ -51,7 +51,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
         pp_query_required("mu", value.mu); // linear viscosity coefficient
-        pp_query_default("mu_b", value.mu_b. 0.0); // bulk viscosity coefficient
+        pp_query_default("mu_b", value.mu_b, 0.0); // bulk viscosity coefficient
         pp_forbid("Lfactor","replaced with mu");
         //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
         pp_forbid("Pfactor","replaced with mu");
@@ -86,7 +86,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = 1;
+        int nghost = 4;
 
         if (!value.managed)
         {
@@ -121,10 +121,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true, false);
 
         // Viscocity
-        value.RegisterNewFab(value.tau_xx_mf, value.energy_bc, 1, nghost, "tau_xx", true, { "xx" }); // Stress Tensor xx
-        value.RegisterNewFab(value.tau_xy_mf, value.energy_bc, 1, nghost, "tau_xy", true, { "xy" }); // Stress Tensor xy
-        value.RegisterNewFab(value.tau_yy_mf, value.energy_bc, 1, nghost, "tau_yy", true, { "yy" }); // Stress Tensor yy
-        value.RegisterNewFab(value.Ldot_mf, &value.bc_nothing, 2, nghost, "Ldot", true, { "x", "y" }); // Ldot
+        value.RegisterNewFab(value.tau_xx_mf, value.energy_bc, 1, nghost, "tau_xx", true, false, { "xx" }); // Stress Tensor xx
+        value.RegisterNewFab(value.tau_xy_mf, value.energy_bc, 1, nghost, "tau_xy", true, false, { "xy" }); // Stress Tensor xy
+        value.RegisterNewFab(value.tau_yy_mf, value.energy_bc, 1, nghost, "tau_yy", true, false, { "yy" }); // Stress Tensor yy
+        value.RegisterNewFab(value.Ldot_mf, &value.bc_nothing, 2, nghost, "Ldot", true, false, { "x", "y" }); // Ldot
 
     }
 
@@ -469,8 +469,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 const amrex::MultiFab &M_mf,
                 const amrex::MultiFab &E_mf)
 {
-
-    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
         amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
@@ -526,10 +525,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Second Time Loop for intermediate values
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
     {
-        amrex::Box bx = mfi.validbox(); // copy the box
-        bx.grow(1);                     // now safe
+        const amrex::Box bx = mfi.validbox(); // copy the box
+        // bx.grow(1);                     // now safe
 
         // PRIMARY FLUIDS
         // MIXTURE
@@ -553,11 +552,10 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             auto sten = Numeric::GetStencil(i, j, k, domain);
 
-            Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Vector grad_eta = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
 
             Set::Vector u = Set::Vector(v(i, j, k, 0), v(i, j, k, 1));
-            Set::Vector u0 = Set::Vector(_u0(i, j, k, 0), _u0(i, j, k, 1));
-
+            
             Set::Matrix gradM = Numeric::Gradient(M, i, j, k, DX);
             Set::Vector gradrho = Numeric::Gradient(rho, i, j, k, 0, DX);
             Set::Matrix hess_rho = Numeric::Hessian(rho, i, j, k, 0, DX, sten);
@@ -590,7 +588,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             {
                 for (int q = 0; q < 2; ++q)
                 {
-                    const Set::Scalar Comp = 0.0; // Boolean if p == q
+                    Set::Scalar Comp = 0.0; // Boolean if p == q
                     if (p == q)
                     {
                         Comp = 1.0;

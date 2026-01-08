@@ -116,6 +116,11 @@ protected:
     Set::Field<Set::Scalar> Source_mf;
     Set::Field<Set::Scalar> flux_mf;
 
+    Set::Field<Set::Scalar> tau_xx_mf; // Stress Tensor (xx)
+    Set::Field<Set::Scalar> tau_xy_mf; // Stress Tensor (xy)
+    Set::Field<Set::Scalar> tau_yy_mf; // Stress Tensor (yy)
+    Set::Field<Set::Scalar> Ldot_mf;   // Ldot
+
     BC::BC<Set::Scalar>* density_bc = nullptr;
     BC::BC<Set::Scalar>* momentum_bc = nullptr;
     BC::BC<Set::Scalar>* energy_bc = nullptr;
@@ -144,7 +149,7 @@ protected:
     Set::Scalar vy_max = 0.0;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
-    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  pref=NAN;
+    Set::Scalar gamma=NAN, cfl=NAN, cfl_v=NAN, mu=NAN,  mu_b=NAN, pref=NAN;
 
     Set::Scalar small=NAN;
     Set::Scalar cutoff=NAN;
