@@ -143,17 +143,16 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 {
     BL_PROFILE("Operator::Elastic::Fapply()");
 
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
     domain.convert(amrex::IntVect::TheNodeVector());
+
+    amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
+    stencilbox.convert(amrex::IntVect::TheNodeVector());
 
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
     for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        Box stencilbox = domain;
-        if (Geom(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
-        if (Geom(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
-
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
 
@@ -301,16 +300,16 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 {
     BL_PROFILE("Operator::Elastic::Diagonal()");
 
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
     domain.convert(amrex::IntVect::TheNodeVector());
+
+    amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
+    stencilbox.convert(amrex::IntVect::TheNodeVector());
+
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
     for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        Box stencilbox = domain;
-        if (Geom(amrlev,mglev).isPeriodic(0)) stencilbox = stencilbox.grow(0,1);
-        if (Geom(amrlev,mglev).isPeriodic(1)) stencilbox = stencilbox.grow(1,1);
-
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
 

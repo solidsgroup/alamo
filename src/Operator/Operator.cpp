@@ -89,7 +89,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 {
     BL_PROFILE("Operator::Fsmooth()");
 
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
     domain.convert(amrex::IntVect::TheNodeVector());
 
     int ncomp = b.nComp();
@@ -288,8 +288,8 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
     applyBC(amrlev, cmglev - 1, fine, BCMode::Homogeneous, StateMode::Solution);
 
-    amrex::Box cdomain = m_geom[amrlev][cmglev].Domain();
-    cdomain.convert(amrex::IntVect::TheNodeVector());
+    amrex::Box cdomain = m_geom[amrlev][cmglev].growPeriodicDomain(1);
+    cdomain = cdomain.convert(amrex::IntVect::TheNodeVector());
 
     bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
     MultiFab cfine;
@@ -307,11 +307,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
-        amrex::Box cstencilbox = cdomain;
-        if (Geom(amrlev,cmglev).isPeriodic(0)) cstencilbox = cstencilbox.grow(0,1);
-        if (Geom(amrlev,cmglev).isPeriodic(1)) cstencilbox = cstencilbox.grow(1,1);
-
-        const Dim3 lo = amrex::lbound(cstencilbox), hi = amrex::ubound(cstencilbox);
+        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
 
 
         for (int n = 0; n < crse.nComp(); n++)
