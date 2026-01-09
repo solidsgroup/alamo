@@ -102,13 +102,12 @@ public:
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const override
     {
-            amrex::Box domain(a_geom.Domain());
+            amrex::Box domain(a_geom.growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
             for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.tilebox();
-                bx.grow(2);
+                amrex::Box bx = mfi.grownnodaltilebox();
                 bx = bx & domain;
                 amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
