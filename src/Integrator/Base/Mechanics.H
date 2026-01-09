@@ -167,7 +167,6 @@ protected:
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
             rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
@@ -195,6 +194,10 @@ protected:
 
         solver.Define(elastic_op);
         if (psi_on) solver.setPsi(psi_mf);
+
+        for (int lev = 0; lev <= finest_level; ++lev)
+            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
+
         solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
         if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
         solver.Clear();

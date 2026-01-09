@@ -67,9 +67,7 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 
         for (MFIter mfi(*m_ddw_mf[amrlev][0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            Box bx = mfi.tilebox();
-            bx.grow(nghost);   // Expand to cover first layer of ghost nodes
-            bx = bx & domain;  // Take intersection of box and the problem domain
+            Box bx = mfi.grownnodaltilebox();
 
             amrex::Array4<MATRIX4> const& ddw = (*(m_ddw_mf[amrlev][0])).array(mfi);
 
@@ -81,6 +79,9 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 #endif
             });
         }
+        
+        (*(m_ddw_mf[amrlev][0])).setMultiGhost(true);
+        (*(m_ddw_mf[amrlev][0])).FillBoundary( Geom(amrlev,0).periodicity());
     }
     m_model_set = true;
 }
@@ -104,9 +105,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
 
     for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        Box bx = mfi.tilebox();
-        bx.grow(nghost);   // Expand to cover first layer of ghost nodes
-        bx = bx & domain;  // Take intersection of box and the problem domain
+        Box bx = mfi.grownnodaltilebox();
 
         amrex::Array4<MATRIX4> const& C = (*(m_ddw_mf[amrlev][0])).array(mfi);
         amrex::Array4<const MATRIX4> const& a_C = a_model.array(mfi);
@@ -115,9 +114,8 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
             C(i, j, k) = a_C(i, j, k);
         });
     }
-    //FillBoundaryCoeff(*model[amrlev][0], m_geom[amrlev][0]);
-
-
+    m_ddw_mf[amrlev][0]->setMultiGhost(true);
+    m_ddw_mf[amrlev][0]->FillBoundary(Geom(amrlev,0).periodicity());
     m_model_set = true;
 }
 
@@ -127,6 +125,7 @@ Elastic<SYM>::SetPsi(int amrlev, const amrex::MultiFab& a_psi_mf)
 {
     BL_PROFILE("Operator::Elastic::SetPsi()");
     amrex::Box domain(m_geom[amrlev][0].Domain());
+    domain.convert(amrex::IntVect::TheNodeVector());
 
     for (MFIter mfi(a_psi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -148,8 +147,11 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 {
     BL_PROFILE("Operator::Elastic::Fapply()");
 
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
     domain.convert(amrex::IntVect::TheNodeVector());
+
+    amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
+    stencilbox.convert(amrex::IntVect::TheNodeVector());
 
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
@@ -163,7 +165,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
         amrex::Array4<amrex::Real> const& F = a_f.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
 
-        const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+        const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
 
         amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
@@ -178,7 +180,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 
             // Determine if a special stencil will be necessary for first derivatives
             std::array<Numeric::StencilType, AMREX_SPACEDIM>
-                sten = Numeric::GetStencil(i, j, k, domain);
+                sten = Numeric::GetStencil(i, j, k, stencilbox);
 
             // The displacement gradient tensor
             Set::Matrix gradu; // gradu(i,j) = u_{i,j)
@@ -202,7 +204,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             amrex::IntVect m(AMREX_D_DECL(i, j, k));
             if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
             {
-                f = (*m_bc)(u, gradu, sig, i, j, k, domain);
+                f = (*m_bc)(u, gradu, sig, i, j, k, stencilbox);
             }
             else
             {
@@ -217,19 +219,21 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                 for (int p = 0; p < AMREX_SPACEDIM; p++)
                 {
                     // Diagonal terms:
-                    AMREX_D_TERM(gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX));,
+                    AMREX_D_TERM(
+                        gradgradu(p, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(U, i, j, k, p, DX));,
                         gradgradu(p, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(U, i, j, k, p, DX));,
                         gradgradu(p, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(U, i, j, k, p, DX)););
 
                     // Off-diagonal terms:
-                    AMREX_D_TERM(,// 2D
+                    AMREX_D_TERM(
+                        ,// 2D
                         gradgradu(p, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 1, 0) = gradgradu(p, 0, 1);
-                    ,// 3D
+                        gradgradu(p, 1, 0) = gradgradu(p, 0, 1);
+                        ,// 3D
                         gradgradu(p, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX));
-                    gradgradu(p, 2, 0) = gradgradu(p, 0, 2);
-                    gradgradu(p, 2, 1) = gradgradu(p, 1, 2););
+                        gradgradu(p, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(U, i, j, k, p, DX));
+                        gradgradu(p, 2, 0) = gradgradu(p, 0, 2);
+                        gradgradu(p, 2, 1) = gradgradu(p, 1, 2););
                 }
 
                 //
@@ -259,6 +263,33 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
                     gradpsi *= (1.0 - m_psi_small);
                     f += (DDW(i, j, k) * gradu) * gradpsi;
                 }
+
+                if (std::isnan(f(0)) || std::isnan(f(1)))
+                {
+                    Util::Message(INFO,"  =================  ");
+                    Util::Message(INFO,"amrlev=",amrlev);
+                    Util::Message(INFO,"mglev=",mglev);
+                    Util::Message(INFO,"i=",i," j=",j);
+                    Util::Message(INFO,"f:            ",f.transpose());
+                    Util::Message(INFO,"U(i,j,k):     ",U(i,j,k,0)," ",U(i,j,k,1));
+                    Util::Message(INFO,"U(i-1,j,k):   ",U(i-1,j,k,0)," ",U(i-1,j,k,1));
+                    Util::Message(INFO,"U(i+1,j,k):   ",U(i+1,j,k,0)," ",U(i-1,j,k,1));
+                    Util::Message(INFO,"U(i,j-1,k):     ",U(i,j-1,k,0)," ",U(i,j-1,k,1));
+                    Util::Message(INFO,"U(i,j+1,k):     ",U(i,j+1,k,0)," ",U(i,j+1,k,1));
+                    Util::Message(INFO,"gradu:        ",gradu);
+                    Util::Message(INFO,"gradgradu[0]: ",gradgradu[0]);
+                    Util::Message(INFO,"gradgradu[1]: ",gradgradu[1]);
+                    Util::Message(INFO,"DDW (i  ,j  ): ",DDW(i,j,k));
+                    Util::Message(INFO,"DDW (i-1,j  ): ",DDW(i-1,j,k));
+                    Util::Message(INFO,"DDW (i+1,j  ): ",DDW(i+1,j,k));
+                    Util::Message(INFO,"DDW (i  ,j+1): ",DDW(i,j+1,k));
+                    Util::Message(INFO,"DDW (i  ,j-1): ",DDW(i,j-1,k));
+                    Util::Message(INFO,"psi_av: ",psi_avg);
+                    Util::Message(INFO,"psi_set: ",m_psi_set);
+                    Util::Message(INFO,"  =================  ");
+                        Util::Abort(INFO);
+                }
+
             }
             AMREX_D_TERM(F(i, j, k, 0) = f[0];, F(i, j, k, 1) = f[1];, F(i, j, k, 2) = f[2];);
         });
@@ -273,8 +304,12 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 {
     BL_PROFILE("Operator::Elastic::Diagonal()");
 
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
+    amrex::Box domain(m_geom[amrlev][mglev].growPeriodicDomain(1));
     domain.convert(amrex::IntVect::TheNodeVector());
+
+    amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
+    stencilbox.convert(amrex::IntVect::TheNodeVector());
+
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
     for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -286,59 +321,51 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
         amrex::Array4<Set::Scalar> const& diag = a_diag.array(mfi);
         amrex::Array4<Set::Scalar> const& psi = m_psi_mf[amrlev][mglev]->array(mfi);
 
-        const Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
+        const Dim3 lo = amrex::lbound(stencilbox), hi = amrex::ubound(stencilbox);
 
-        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+
+            // Determine if a special stencil will be necessary for first derivatives
+            std::array<Numeric::StencilType, AMREX_SPACEDIM>
+                sten = Numeric::GetStencil(i, j, k, stencilbox);
+
+            // gradu(i,j) = u_{i,j)
+            std::array<Set::Matrix,AMREX_SPACEDIM> gradu = Numeric::Gradient_Diagonal<Set::Matrix>(DX, sten);  
+
+            // gradgradu[k](l,j) = u_{k,lj}
+            std::array<Set::Matrix3,AMREX_SPACEDIM>  gradgradu = Numeric::Gradient_Diagonal<Set::Matrix3>(DX); 
+
 
             Set::Vector f = Set::Vector::Zero();
 
-            bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
+            bool    
+                AMREX_D_DECL(xmin = (i == lo.x), ymin = (j == lo.y), zmin = (k == lo.z)),
                 AMREX_D_DECL(xmax = (i == hi.x), ymax = (j == hi.y), zmax = (k == hi.z));
 
             Set::Scalar psi_avg = 1.0;
             if (m_psi_set) psi_avg = (1.0 - m_psi_small) * Numeric::Interpolate::CellToNodeAverage(psi, i, j, k, 0) + m_psi_small;
 
-            Set::Matrix gradu; // gradu(i,j) = u_{i,j)
-            Set::Matrix3 gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
 
             for (int p = 0; p < AMREX_SPACEDIM; p++)
             {
 
                 diag(i, j, k, p) = 0.0;
-                for (int q = 0; q < AMREX_SPACEDIM; q++)
-                {
-                    AMREX_D_TERM(
-                        gradu(q, 0) = ((!xmax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!xmin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((xmin || xmax ? 1.0 : 2.0) * DX[0]);,
-                        gradu(q, 1) = ((!ymax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!ymin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((ymin || ymax ? 1.0 : 2.0) * DX[1]);,
-                        gradu(q, 2) = ((!zmax ? 0.0 : (p == q ? 1.0 : 0.0)) - (!zmin ? 0.0 : (p == q ? 1.0 : 0.0))) / ((zmin || zmax ? 1.0 : 2.0) * DX[2]););
-
-                    AMREX_D_TERM(
-                        gradgradu(q, 0, 0) = (p == q ? -2.0 : 0.0) / DX[0] / DX[0];
-                    ,// 2D
-                        gradgradu(q, 0, 1) = 0.0;
-                    gradgradu(q, 1, 0) = 0.0;
-                    gradgradu(q, 1, 1) = (p == q ? -2.0 : 0.0) / DX[1] / DX[1];
-                    ,// 3D
-                        gradgradu(q, 0, 2) = 0.0;
-                    gradgradu(q, 1, 2) = 0.0;
-                    gradgradu(q, 2, 0) = 0.0;
-                    gradgradu(q, 2, 1) = 0.0;
-                    gradgradu(q, 2, 2) = (p == q ? -2.0 : 0.0) / DX[2] / DX[2]);
-                }
 
 
                 amrex::IntVect m(AMREX_D_DECL(i, j, k));
                 if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                 {
-                    Set::Matrix sig = DDW(i, j, k) * gradu * psi_avg;
+                    Set::Matrix sig = DDW(i, j, k) * gradu[p] * psi_avg;
                     Set::Vector u = Set::Vector::Zero();
                     u(p) = 1.0;
-                    f = (*m_bc)(u, gradu, sig, i, j, k, domain);
+                    f = (*m_bc)(u, gradu[p], sig, i, j, k, stencilbox);
                     diag(i, j, k, p) = f(p);
                 }
                 else
                 {
-                    Set::Vector f = (DDW(i, j, k) * gradgradu) * psi_avg;
+                    Set::Vector f = (DDW(i, j, k) * gradgradu[p]) * psi_avg;
                     diag(i, j, k, p) += f(p);
                 }
 
@@ -593,8 +620,8 @@ Elastic<SYM>::averageDownCoeffs()
         for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
         {
             if (m_ddw_mf[amrlev][mglev]) {
-                FillBoundaryCoeff(*m_ddw_mf[amrlev][mglev], m_geom[amrlev][mglev]);
-                FillBoundaryCoeff(*m_psi_mf[amrlev][mglev], m_geom[amrlev][mglev]);
+                FillBoundaryCoeff(*m_ddw_mf[amrlev][mglev], Geom(amrlev,mglev).periodicity());
+                FillBoundaryCoeff(*m_psi_mf[amrlev][mglev], Geom(amrlev,mglev).periodicity());
             }
         }
     }
@@ -707,10 +734,13 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels(int fine_amrlev)
 
     // Copy the fine residual restricted onto the coarse grid
     // into the final residual.
+
     crse_ddw.ParallelCopy(fine_ddw_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
-    const int mglev = 0;
-    Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
-    return;
+    //const int mglev = 0;
+    //Util::RealFillBoundary(crse_ddw, m_geom[crse_amrlev][mglev]);
+
+    FillBoundaryCoeff(crse_ddw,Geom(fine_amrlev,0).periodicity());
+
 }
 
 
@@ -798,11 +828,29 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
 
 #ifdef AMREX_DEBUG
-                if (cdata(I, J, K).contains_nan()) Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
+                if (cdata(I, J, K).contains_nan())
+                {
+                    Util::Warning(INFO,"course lo ",lo);
+                    Util::Warning(INFO, "coarse hi ",hi);
+                    Util::Warning(INFO, "coarse box ",bx);
+                    Util::Warning(INFO,i-1," ",j-1,":\t",fdata(i-1,j-1,k));
+                    Util::Warning(INFO,i-1," ",j,":\t",fdata(i-1,j,k));
+                    Util::Warning(INFO,i-1," ",j+1,":\t",fdata(i-1,j+1,k));
+
+                    Util::Warning(INFO,i," ",j-1,":\t",fdata(i,j-1,k));
+                    Util::Warning(INFO,i," ",j,":\t",fdata(i,j,k));
+                    Util::Warning(INFO,i," ",j+1,":\t",fdata(i,j+1,k));
+
+                    Util::Warning(INFO,i+1," ",j-1,":\t",fdata(i+1,j-1,k));
+                    Util::Warning(INFO,i+1," ",j,":\t",fdata(i+1,j,k));
+                    Util::Warning(INFO,i+1," ",j+1,":\t",fdata(i+1,j+1,k));
+                    
+                    Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
+                }
 #endif
             });
         }
-        FillBoundaryCoeff(crse, m_geom[amrlev][mglev]);
+        FillBoundaryCoeff(crse, Geom(amrlev,mglev).periodicity());
 
 
         if (!m_psi_set) continue;
@@ -873,45 +921,25 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
             });
         }
-        FillBoundaryCoeff(crse_psi, m_geom[amrlev][mglev]);
+        FillBoundaryCoeff(crse_psi, Geom(amrlev,mglev).periodicity());
 
     }
 }
 
 template<int SYM>
 void
-Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const Geometry& geom)
+Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const amrex::Periodicity& p)
 {
-    BL_PROFILE("Elastic::FillBoundaryCoeff()");
-    for (int i = 0; i < 2; i++)
-    {
-        MultiTab& mf = sigma;
-        mf.FillBoundary(geom.periodicity());
-        const int ncomp = mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-    }
+    sigma.setMultiGhost(true);
+    sigma.FillBoundary(p);
 }
 
 template<int SYM>
 void
-Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const Geometry& geom)
+Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const amrex::Periodicity& p)
 {
-    BL_PROFILE("Elastic::FillBoundaryCoeff()");
-    for (int i = 0; i < 2; i++)
-    {
-        MultiFab& mf = psi;
-        mf.FillBoundary(geom.periodicity());
-        const int ncomp = mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.ParallelCopy(mf, 0, 0, ncomp, ng2, ng1, geom.periodicity());
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-    }
+    psi.setMultiGhost(true);
+    psi.FillBoundary(p);
 }
 
 template class Elastic<Set::Sym::Major>;

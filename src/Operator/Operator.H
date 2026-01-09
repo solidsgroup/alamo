@@ -104,7 +104,6 @@ public:
     virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
                     BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override final;
 
-
 public:
     static void realFillBoundary(MultiFab &phi, const Geometry &geom);
 
