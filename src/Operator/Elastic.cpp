@@ -79,6 +79,8 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
 #endif
             });
         }
+        
+        (*(m_ddw_mf[amrlev][0])).setMultiGhost(true);
         (*(m_ddw_mf[amrlev][0])).FillBoundary( Geom(amrlev,0).periodicity());
     }
     m_model_set = true;
@@ -112,6 +114,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
             C(i, j, k) = a_C(i, j, k);
         });
     }
+    m_ddw_mf[amrlev][0]->setMultiGhost(true);
     m_ddw_mf[amrlev][0]->FillBoundary(Geom(amrlev,0).periodicity());
     m_model_set = true;
 }
@@ -122,6 +125,7 @@ Elastic<SYM>::SetPsi(int amrlev, const amrex::MultiFab& a_psi_mf)
 {
     BL_PROFILE("Operator::Elastic::SetPsi()");
     amrex::Box domain(m_geom[amrlev][0].Domain());
+    domain.convert(amrex::IntVect::TheNodeVector());
 
     for (MFIter mfi(a_psi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -926,6 +930,7 @@ template<int SYM>
 void
 Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const amrex::Periodicity& p)
 {
+    sigma.setMultiGhost(true);
     sigma.FillBoundary(p);
 }
 
@@ -933,6 +938,7 @@ template<int SYM>
 void
 Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const amrex::Periodicity& p)
 {
+    psi.setMultiGhost(true);
     psi.FillBoundary(p);
 }
 

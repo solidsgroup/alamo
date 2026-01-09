@@ -149,7 +149,8 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
         }
     }
     amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(x, geom);
+    x.setMultiGhost(true);
+    x.FillBoundary(geom.periodicity());
     nodalSync(amrlev, mglev, x);
 }
 
@@ -184,6 +185,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
             });
         }
     }
+    a_x.setMultiGhost(true);
     a_x.FillBoundary(Geom(amrlev,mglev).periodicity());
 }
 
@@ -380,6 +382,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
         crse.ParallelCopy(cfine);
     }
 
+    crse.setMultiGhost(true);
     crse.FillBoundary(Geom(amrlev,cmglev).periodicity());
     nodalSync(amrlev, cmglev, crse);
 }
@@ -453,6 +456,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
         fine[mfi].plus(tmpfab, fine_bx, fine_bx, 0, 0, fine.nComp());
     }
 
+    fine.setMultiGhost(true);
     fine.FillBoundary(Geom(amrlev,fmglev).periodicity());
     nodalSync(amrlev, fmglev, fine);
 }
@@ -649,6 +653,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     // Sync up ghost nodes
     //realFillBoundary(res, cgeom);
+    res.setMultiGhost(true);
     res.FillBoundary(Geom(crse_amrlev).periodicity());
     nodalSync(crse_amrlev, 0, res);
     return;
