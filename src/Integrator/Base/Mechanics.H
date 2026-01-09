@@ -165,14 +165,8 @@ protected:
         BL_PROFILE("Integrator::Base::Mechanics::TimeStepBegin");
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
 
-        if (m_type != Mechanics<MODEL>::Type::Static) return;
-        if (a_time < tstart) return;
-        if (m_interval && a_step % m_interval) return;
-
-
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
             rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
@@ -182,6 +176,9 @@ protected:
         bc->SetTime(a_time);
         bc->Init(rhs_mf, geom);
 
+        if (m_type != Mechanics<MODEL>::Type::Static) return;
+        if (a_time < tstart) return;
+        if (m_interval && a_step % m_interval) return;
 
         amrex::LPInfo info;
         if (m_max_coarsening_level >= 0)
@@ -197,6 +194,10 @@ protected:
 
         solver.Define(elastic_op);
         if (psi_on) solver.setPsi(psi_mf);
+
+        for (int lev = 0; lev <= finest_level; ++lev)
+            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
+
         solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
         if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
         solver.Clear();
