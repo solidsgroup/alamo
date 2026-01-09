@@ -34,4 +34,13 @@ jobs:
       continue-on-error: true
       run: ./bin/test-3d-g++
     - name: regression tests (2d + 3d)
-      run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py --permissive --no-backspace
+      run: scripts/runtests.py --benchmark=scooter --post=/opt/post.py --permissive --no-backspace --post-timeout=10
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name scooter
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: scoter
+        path: scoter

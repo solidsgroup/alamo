@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-import argparse
-import os
-import re
-import subprocess
-import textwrap
-import sys
-import shutil
-#import ctypes.util
-import glob
-import json
-from pathlib import Path
+
+try:
+    import argparse
+    import os
+    import re
+    import subprocess
+    import textwrap
+    import sys
+    import shutil
+    import glob
+    import json
+    from pathlib import Path
+except ImportError as e:
+    sys.stderr.write(
+        f"\nError: Missing required Python module: {e.name}\n"
+        "Please install it and rerun configure.\n\n"
+    )
+    sys.exit(1)    
 
 #
 # Configuration parameters, mainly to specify default values:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.07"
+amrex_current_version = "25.12"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -96,13 +103,24 @@ message("Python",python_version)
 if sys.version_info.major < python_minimum_major or sys.version_info.minor < python_minimum_minor:
     raise Exception(error("You need Python {}.{} or greater".format(python_minimum_major,python_minimum_minor)))
 
+CONFIG_FILE = ".alamo"
+preparser = argparse.ArgumentParser(add_help=False)
+preparser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
+preparser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
+pre_args, remaining_argv = preparser.parse_known_args()
+defaults = {}
+if os.path.exists(pre_args.config):
+    with open(pre_args.config) as f:
+        defaults = json.load(f)
+    message("Config",f"loading configuration in {pre_args.config}")
+
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
-parser.add_argument('--build-amrex-fork', dest="amrexfork",action='store_true',default="AMReX-Codes", help='Download and build AMReX automatically')
-parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
+parser.add_argument('--build-amrex-fork', dest="amrexfork",default="AMReX-Codes", help='Specify an AMReX fork')
+parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default=None, help='Specify an AMReX branch (You probably don\'t need to change this!)' )
 parser.add_argument('--build-amrex-tag',dest="buildamrextag",default=None, help='AMReX Branch (You probably don\'t need to change this!)' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
@@ -124,7 +142,11 @@ parser.add_argument('--link',default=None, nargs='+', help='Additional link path
 parser.add_argument('--no-comp-cmds',dest='compile_commands',default=False,action='store_true', help='Suppress generation of compile_commands.json for language servers like clangd')
 parser.add_argument('--verbose',default=False,action='store_true',help="Show full make commands - useful if encountering compile/link errors")
 parser.add_argument('--fft',default=False,action='store_true',help="Compile with fftw3")
-parser.set_defaults(debug=False)
+parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
+parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
+parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
+parser.set_defaults(**defaults)
+
 
 #
 # Logic to ensure compatibility of command line arguments.
@@ -139,6 +161,26 @@ if args.memcheck and args.coverage:
     raise(Exception(error("Cannot run memcheck and coverage at the same time currently")))
 if args.memcheck and args.memcheck_tool == "msan" and not args.comp=="clang++":
     raise(Exception(error("MSan only works with clang, use --comp=clang++")))
+
+if pre_args.save:
+    data = vars(args)
+    data.pop("save",None)
+    data.pop("config",None)
+    with open(pre_args.config,"w") as f:
+        json.dump(data,f,indent=4,sort_keys=True)
+    message("Config",f"saving configuration to {pre_args.config}")
+
+
+#
+# Github checkout mode (ssh or http)
+#
+if args.github_mode == "ssh":
+    GITHUB_REMOTE = "git@github.com:"
+elif args.github_mode in ["http","https"]:
+    GITHUB_REMOTE = "https://github.com/"
+else:
+    raise Exception(error(f"Github mode must be ssh, http or https but got {args.github_mode}"))
+
 
 #
 # Update default arguments version numbers (etc.) based on command line arguments
@@ -214,22 +256,21 @@ if args.omp:
 # AMREX
 #
 if args.buildamrex and not args.amrex:
-    if not os.path.isdir("ext"): 
-        shellmessage("Make ext",'mkdir -p ext')
-    if not os.path.isdir("ext/amrex"):
+    if not os.path.isdir(f"ext/{args.amrexfork}"):  shellmessage("Make ext",f'mkdir -p ext/{args.amrexfork}')
+    if not os.path.isdir(f"ext/{args.amrexfork}/amrex"):
         if args.offline:
             raise Exception(error("Cannot download AMReX and no version currently exists!"))
         if args.buildamrexbranch:
             shellmessage("AMReX-Clone",
-                            cmd = "git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch,
+                            cmd = f"git clone {GITHUB_REMOTE}{args.amrexfork}/amrex.git --branch " + args.buildamrexbranch,
                             message="Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",
-                            cwd="ext/")
+                            cwd=f"ext/{args.amrexfork}")
         else: shellmessage("AMReX-Clone", 
-                            cmd="git clone https://github.com/AMReX-Codes/amrex.git",
+                            cmd=f"git clone {GITHUB_REMOTE}{args.amrexfork}/amrex.git",
                             message="Cloning AMReX [default branch] -- This may take a while",
-                            cwd="ext/")
+                            cwd=f"ext/{args.amrexfork}")
     elif not args.offline:
-        shellmessage("AMReX-Update",cmd="git -C ext/amrex fetch --all")
+        shellmessage("AMReX-Update",cmd=f"git -C ext/{args.amrexfork}/amrex fetch --all")
         #p = subprocess.Popen("".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
     
@@ -237,13 +278,13 @@ if args.buildamrex and not args.amrex:
         try:
             if args.buildamrextag:
                 shellmessage("AMReX-Checkout",
-                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrextag)
+                                cmd=f"git -c advice.detachedHead=false -C ext/{args.amrexfork}/amrex checkout "+args.buildamrextag)
             elif args.buildamrexbranch:
                 shellmessage("AMReX-Checkout",
-                                cmd="git -c advice.detachedHead=false -C ext/amrex checkout "+args.buildamrexbranch)
+                                cmd=f"git -c advice.detachedHead=false -C ext/{args.amrexfork}/amrex checkout "+args.buildamrexbranch)
             else:
                 shellmessage("AMReX-Checkout",
-                                cmd="git -C ext/amrex pull")
+                                cmd=f"git -C ext/{args.amrexfork}/amrex pull")
         except Exception as e:
             error("There was an error updating AMReX. It often helps to run")
             error(color.bgdarkgray+color.green+"make realclean"+color.reset)
@@ -255,7 +296,7 @@ if args.buildamrex and not args.amrex:
 
     amrexdescribe = ""
     for cmd, desc in zip(["git describe --always --dirty", "git log -1 --pretty=format:%H"], ["AMReX-Describe","AMReX-Hash"]):
-        ret = subprocess.run(cmd.split(' '),cwd="ext/amrex/",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        ret = subprocess.run(cmd.split(' '),cwd=f"ext/{args.amrexfork}/amrex",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         if not ret.returncode:
             message(desc, ret.stdout.decode())
         else:
@@ -265,10 +306,10 @@ if args.buildamrex and not args.amrex:
     
     postfix_amrex = postfix+"-"+amrexdescribe
     
-    args.amrex = "ext/amrex/"+postfix_amrex
-    f.write("AMREX = ext/amrex/" + postfix_amrex + "/\n")
-    f.write("AMREX_TARGET = ext/amrex/" + postfix_amrex + "\n")
-    f.write('AMREX_SRC := $(shell find ext/amrex/Src -name "*.H") $(shell find ext/amrex/Src -name "*.cpp")' + "\n")
+    args.amrex = f"ext/{args.amrexfork}/amrex/{postfix_amrex}"
+    f.write(f"AMREX = ext/{args.amrexfork}/amrex/" + postfix_amrex + "/\n")
+    f.write(f"AMREX_TARGET = ext/{args.amrexfork}/amrex/" + postfix_amrex + "\n")
+    f.write(f'AMREX_SRC := $(shell find ext/{args.amrexfork}/amrex/Src -name "*.H") $(shell find ext/{args.amrexfork}/amrex/Src -name "*.cpp")' + "\n")
     
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
@@ -282,18 +323,18 @@ if args.buildamrex and not args.amrex:
     if args.fft: amrex_configure += " --enable-fft=yes"
 
     message("AMReX-Configure",amrex_configure,False)
-    subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
+    subprocess.Popen(amrex_configure.split(),cwd=f"ext/{args.amrexfork}/amrex")
     
-    f2.write("ext/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
-    f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
-    f2.write("\t$(MAKE) -C ext/amrex install\n")
+    f2.write(f"ext/{args.amrexfork}/amrex/"+postfix_amrex+": ${AMREX_SRC}\n")
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex $(MAKECMD)\n") # --output-sync=target
+    f2.write(f"\t$(MAKE) -C ext/{args.amrexfork}/amrex install\n")
     f2.write("\ttouch $@\n") # update directory timestamp to prevent build every time
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")
     else:        
         message("AMReX-Status", "Using pre-downloaded version")
-    message("AMReX-Directory", "ext/amrex/"+postfix_amrex)
+    message("AMReX-Directory", f"ext/{args.amrexfork}/amrex/{postfix_amrex}")
 
 
             
@@ -341,17 +382,17 @@ else:
 # EIGEN
 #
 if (args.geteigen):
-    if not os.path.isdir("ext"): subprocess.run(['mkdir','-p','ext'])
-    if not os.path.isdir("ext/eigen3"):
+    if not os.path.isdir("ext/libeigen"): subprocess.run(['mkdir','-p','ext/libeigen'])
+    if not os.path.isdir("ext/libeigen/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
         #p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
-        p = subprocess.Popen(("git clone https://gitlab.com/libeigen/eigen.git eigen3").split(),
+        p = subprocess.Popen((f"git clone {GITHUB_REMOTE}libeigen/eigen.git eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
         #subprocess.run("mv eigen-git-mirror eigen3".split())
-    message("Eigen-Directory","ext/")
-    f.write("EIGEN = ./ext/\n")
+    message("Eigen-Directory","ext/libeigen/")
+    f.write("EIGEN = ./ext/libeigen/\n")
 elif (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
@@ -376,6 +417,7 @@ f.write("LIB += -lpng \n")
 if args.link:
     for l in args.link:
         f.write("LIB += -L" + l + "\n")
+        f.write("LIB += -Wl,-rpath," + l + "\n")
     
 #
 # CHECK COMPILER AND SET OPTIONS
@@ -402,7 +444,7 @@ elif "mvapich2" in mpidiststr.lower():
     mpidist = "mvapich2"
 elif "mvapich" in mpidiststr.lower():
     mpidist = "mvapich"
-elif "openmpi" in mpidiststr.lower():
+elif "openmpi" in mpidiststr.lower() or "open-mpi" in mpidiststr.lower():
     mpidist = "openmpi"
 message("mpi implementation", mpidist)
 
@@ -461,11 +503,12 @@ else:
             "flags but no guarantees.")
 
 if args.perf:
-    if not os.path.isdir('ext/FlameGraph'):
+    if not os.path.isdir('ext/brendangregg/FlameGraph'):
+        subprocess.run(['mkdir','-p','ext/brendangregg'])
         shellmessage("FlameGraph", 
-                     cmd="git clone https://github.com/brendangregg/FlameGraph",
+                     cmd=f"git clone {GITHUB_REMOTE}brendangregg/FlameGraph",
                      message="Cloning flamegraph",
-                     cwd="ext/")
+                     cwd="ext/brendangregg/")
 
 #
 # ADD NECESSARY COMPILER-SPECIFIC MPI FLAGS
@@ -543,6 +586,15 @@ f2.write(f"\t fi\n")
 f2.write(f"\t$(QUIET)git diff > $@\n")
 
 #
+# PYTHON CHECKING
+#
+f2.write(f"python_ok:\n")
+if args.comp == 'g++' and args.debug:
+    f2.write(f"\n")
+else:
+    f2.write(f"""\t$(error $(error Python module requires configuration with --comp=g++ and --debug))\n""")
+    
+#
 # Documentation check
 #
 if (args.docs):
@@ -580,6 +632,9 @@ if not args.compile_commands:
     otherflags = ""
     if args.fft: otherflags += "-DALAMO_FFT"
 
+    if args.amrex: otherflags += f" -I{args.amrex}/include"
+    else: otherflags += f" -I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"
+
     cc = compmpicmd
     command_objects = []
     command_objects = [{
@@ -591,7 +646,7 @@ if not args.compile_commands:
             "-std=c++17",
             "-I./src/",
             srcfile,
-            f"-I./ext/amrex/{postfix_amrex}/include",
+            
         ],
     } for srcfile in srcfiles]
 

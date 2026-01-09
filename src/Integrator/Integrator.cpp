@@ -75,6 +75,9 @@ Integrator::Integrator() : amrex::AmrCore()
 
         pp_query_default("max_plot_level", max_plot_level, -1);    // Specify a maximum level of refinement for output files (NO REFINEMENT)
 
+        pp.query_default("print_ghost_nodes", print_ghost_nodes, 0); // include ghost nodes in output
+        pp.query_default("print_ghost_cells", print_ghost_cells, 0); // include ghost cells in output
+
         IO::FileNameParse(plot_file);
 
         nsubsteps.resize(maxLevel() + 1, 1);
@@ -151,6 +154,29 @@ Integrator::Integrator() : amrex::AmrCore()
 
                 explicitmesh.box.push_back(amrex::Box(lo, hi));
             }
+        }
+    }
+
+
+    {
+        //
+        // These parameters are NOT USED! 
+        // They are shadow paramters for AMReX::TimeIntegration.
+        // The purpose here is:
+        // (1) to set default values
+        // (2) to prevent "unused input" warnings when integration is parsed, since it is parsed in the 
+        //     AMReX convention, not the Alamo convention.
+        // 
+
+        IO::ParmParse pp("integration");
+        std::string str;
+        // Type of time integration to use (see amrex::TimeIntegrator for more details)
+        pp.query_validate("type", str, {"ForwardEuler","RungeKutta"});
+        if (str == "RungeKutta")
+        {
+            int type;
+            // If RungeKutta specified, which order to use (3=SSPRK3, 4=RK4)
+            pp.query_validate("rk.type", type, {1,2,3,4});
         }
     }
 
@@ -574,8 +600,8 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
     // AMR level
     int tmp_max_level;
     std::getline(is, line); tmp_max_level = std::stoi(line); Util::Message(INFO, "Max AMR level: ", line);
-    if (tmp_max_level != max_level)
-        Util::Abort(INFO, "The max level specified (", max_level, ") does not match the max level in the restart file (", tmp_max_level, ")");
+    if (tmp_max_level > max_level)
+        Util::Abort(INFO, "The max level specified (", max_level, ") is smaller than the finest level in the restart file (", tmp_max_level, ")");
     finest_level = tmp_max_level;
     // Geometry ?
     std::getline(is, line); Util::Message(INFO, "Input geometry: ", line);
@@ -590,18 +616,28 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
     // Domain
     std::getline(is, line);
     std::vector<std::string> tmp_iters = Util::String::Split(line);
-    if (tmp_iters.size() != (unsigned int)(max_level + 1)) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
-    for (int lev = 0; lev <= max_level; lev++) { istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO, "Iter on level ", lev, " = ", istep[lev]); }
+    if (tmp_iters.size() != (unsigned int)(finest_level + 1)) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
+    for (int lev = 0; lev <= finest_level; lev++) { istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO, "Iter on level ", lev, " = ", istep[lev]); }
 
     amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level + 1);
     int total_ncomp = 0;
 
-    if (a_nodal) for (unsigned int i = 0; i < node.fab_array.size(); i++) total_ncomp += node.ncomp_array[i];
-    else         for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+    if (a_nodal)
+    {
+        for (unsigned int i = 0; i < node.fab_array.size(); i++) 
+            if (node.writeout_array[i]) 
+                total_ncomp += node.ncomp_array[i];
+    }
+    else        
+    {
+        for (unsigned int i = 0; i < cell.fab_array.size(); i++) 
+            if (cell.writeout_array[i]) 
+                total_ncomp += cell.ncomp_array[i];
+    }
 
     int total_nghost = a_nodal ? 0 : cell.nghost_array[0];
 
-    for (int lev = 0; lev <= max_level; lev++)
+    for (int lev = 0; lev <= finest_level; lev++)
     {
         amrex::BoxArray tmp_ba;
         tmp_ba.readFrom(chkpt_is);
@@ -613,15 +649,21 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         {
             amrex::BoxArray ngrids = grids[lev];
             ngrids.convert(amrex::IntVect::TheNodeVector());
-            tmpdata[lev].define(ngrids, dmap[lev], total_ncomp, total_nghost);
+            //tmpdata[lev].define(ngrids, dmap[lev], total_ncomp, total_nghost);
         }
         else
         {
-            tmpdata[lev].define(grids[lev], dmap[lev], total_ncomp, total_nghost);
+            //tmpdata[lev].define(grids[lev], dmap[lev], total_ncomp, total_nghost);
         }
+        Util::Message(INFO,max_level);
+        Util::Message(INFO,finest_level);
+        Util::Message(INFO,lev,dirname);
+        Util::Message(INFO,lev,grids[lev]);
+        Util::Message(INFO,amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
+        Util::Message(INFO,total_ncomp);
+        Util::Message(INFO,total_nghost);
         amrex::VisMF::Read(tmpdata[lev],
             amrex::MultiFabFileFullPrefix(lev, dirname, "Level_", "Cell"));
-
 
         if (a_nodal)
             for (int i = 0; i < node.number_of_fabs; i++)
@@ -662,15 +704,18 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
             else
             {
                 for (int j = 0; j < cell.number_of_fabs; j++)
+                {
                     for (int k = 0; k < cell.ncomp_array[j]; k++)
                     {
                         if (tmp_name_array[i] == cell.name_array[j][k])
                         {
                             match = true;
                             Util::Message(INFO, "Initializing ", cell.name_array[j][k], "; ncomp=", cell.ncomp_array[j], "; nghost=", cell.nghost_array[j], " with ", tmp_name_array[i]);
-                            amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, cell.nghost_array[j]);
+                            amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(), tmpdata[lev], i, k, 1, 0 /*cell.nghost_array[j]*/);
                         }
                     }
+                    Util::RealFillBoundary(*(*cell.fab_array[j])[lev].get(), geom[lev]);
+                }
             }
             if (!match) Util::Warning(INFO, "Fab ", tmp_name_array[i], " is in the restart file, but there is no fab with that name here.");
         }
@@ -683,6 +728,14 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
         {
             m_basefields[n]->MakeNewLevelFromScratch(lev, t_new[lev], grids[lev], dmap[lev]);
         }
+
+        
+        for (int n = 0; n < cell.number_of_fabs; n++)
+        {
+            if (cell.writeout_array[n])
+                FillPatch(lev, t_new[lev], *cell.fab_array[n], *(*cell.fab_array[n])[lev], *cell.physbc_array[n], 0);
+        }
+
     }
 
     SetFinestLevel(max_level);
@@ -828,7 +881,9 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
         {
             int ncomp = ccomponents + bfcomponents_cell;
             if (cell.all) ncomp += ncomponents + bfcomponents;
-            cplotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
+            amrex::BoxArray cgrids_ghost = grids[ilev];
+            cgrids_ghost.grow(print_ghost_cells);
+            cplotmf[ilev].define(cgrids_ghost, dmap[ilev], ncomp, 0);
 
             int n = 0;
             int cnames_cnt = 0;
@@ -904,7 +959,11 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
             ngrids.convert(amrex::IntVect::TheNodeVector());
             int ncomp = ncomponents + bfcomponents;
             if (node.all) ncomp += ccomponents + bfcomponents_cell;
-            nplotmf[ilev].define(ngrids, dmap[ilev], ncomp, 0);
+
+            amrex::BoxArray ngrids_ghost = ngrids;
+            ngrids_ghost.grow(print_ghost_nodes);
+            
+            nplotmf[ilev].define(ngrids_ghost, dmap[ilev], ncomp, 0);
 
             int n = 0;
             for (int i = 0; i < node.number_of_fabs; i++)
@@ -931,7 +990,7 @@ Integrator::WritePlotFile(Set::Scalar time, amrex::Vector<int> iter, bool initia
                     if (!cell.writeout_array[i]) continue;
                     if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO, cnames[i], " contains nan (i=", i, "). Resetting to zero.");
                     if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO, cnames[i], " contains inf (i=", i, ")");
-                    if ((*cell.fab_array[i])[ilev]->nGrow() == 0)
+                    if ((*cell.fab_array[i])[ilev]->nGrow() < 1)
                     {
                         if (initial) Util::Warning(INFO, cnames[i], " has no ghost cells and will not be included in nodal output");
                         continue;

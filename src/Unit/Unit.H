@@ -13,6 +13,7 @@
 #include <cmath>
 #include <regex>
 
+#include "Util/Util.H"
 //#include "Set/Base.H"
 //#include "String.H"
 
@@ -28,6 +29,7 @@ struct Unit : std::pair<double,std::array<int,7>>
     // Fundamental units
     inline static const std::map<std::string, std::pair<double,std::array<int,7>>> base_units =
     {
+        {"1",  {1.0, {0,0,0,0,0,0,0}}},
         {"m",  {1.0, {1,0,0,0,0,0,0}}},
         {"s",  {1.0, {0,1,0,0,0,0,0}}},
         {"kg", {1.0, {0,0,1,0,0,0,0}}},
@@ -61,6 +63,10 @@ struct Unit : std::pair<double,std::array<int,7>>
         {"au",        {1.495978707e11, "m" }}, // astronomical unit
         {"ly",        {9.4607304725808e15, "m"}}, // lightyear
         {"pc",        {3.08567758149137e16, "m"}}, // parsec
+
+        // Angles
+        {"rad",       {1.0,     "1"}},
+        {"deg",       {0.01745329251, "rad" }},
 
         // Times
         {"ms",        {1e-3,    "s"        }},
@@ -119,6 +125,7 @@ struct Unit : std::pair<double,std::array<int,7>>
 
         // Energy
         {"J",         {1.0,     "N*m"      }},
+        {"mJ",        {1e-3,    "J"        }},
         {"kJ",        {1e3,     "J"        }},
         {"MJ",        {1e6,     "J"        }},
         {"eV",        {1.602176634e-19, "J"}},
@@ -129,6 +136,7 @@ struct Unit : std::pair<double,std::array<int,7>>
 
         // Power
         {"W",         {1.0,     "J/s"      }},
+        {"mW",        {1e-3,    "W"        }},
         {"kW",        {1e3,     "W"        }},
         {"MW",        {1e6,     "W"        }},
         {"hp",        {745.7,   "W"        }},
@@ -175,6 +183,9 @@ struct Unit : std::pair<double,std::array<int,7>>
         {"kHz",       {1e3,     "Hz"       }},
         {"MHz",       {1e6,     "Hz"       }},
         {"GHz",       {1e9,     "Hz"       }},
+
+        // Moles
+        {"kmol",      {1e3,     "mol"      }}
     };
 
 
@@ -192,10 +203,12 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit Amount()            { return Unit{1.0, {0,0,0,0,0,1,0}}; } // mol
     static Unit LuminousIntensity() { return Unit{1.0, {0,0,0,0,0,0,1}}; } // cd
 
+    static Unit Angle() {return Unit::Less();}
+
     // Geometry and kinematics
-    static Unit Area() { return Length()*Length(); }
-    static Unit Volume() { return Length()*Length()*Length(); }
-    static Unit Velocity() {return Length() / Time();}
+    static Unit Area()        { return Length()*Length(); }
+    static Unit Volume()      { return Length()*Length()*Length(); }
+    static Unit Velocity()    { return Length() / Time();}
     static Unit Acceleration(){ return Velocity() / Time(); }
     // Mechanics
     static Unit Force()       { return Mass() * Acceleration(); } // kg·m/s² = N
@@ -208,10 +221,11 @@ struct Unit : std::pair<double,std::array<int,7>>
     static Unit SpecificWeight() { return Force() / Volume(); }
     static Unit Work()        { return Energy(); }
     // Thermodynamics
-    static Unit SpecificHeatCapacity() {return Energy() / Mass() / Temperature() ;}
-    static Unit ThermalConductivity() {return Power()/Length()/Temperature();}
-    static Unit ThermalDiffusivity() {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
-    static Unit HeatFlux()             { return Power() / Area(); }
+    static Unit SpecificHeatCapacity()    {return Energy() / Mass() / Temperature() ;}
+    static Unit MolarHeatCapacity()       {return Energy() / Amount() / Temperature() ;}
+    static Unit ThermalConductivity()     {return Power()/Length()/Temperature();}
+    static Unit ThermalDiffusivity()      {return ThermalConductivity() / Density() / SpecificHeatCapacity();}
+    static Unit HeatFlux()                { return Power() / Area(); }
     static Unit HeatTransferCoefficient() { return HeatFlux() / Temperature(); }
     // Electromagnetism
 
@@ -253,13 +267,13 @@ struct Unit : std::pair<double,std::array<int,7>>
     static std::map<std::string, int> ParseUnitString(const std::string& input);
 
     
-    static Unit Parse(double val, std::string unitstring)
+    static Unit Parse(double val, std::string unitstring, bool verbose = false)
     {
-        Unit ret = StringParse(unitstring);
+        Unit ret = StringParse(unitstring, verbose);
         ret.first *= val;
         return ret;
     }
-    static Unit Parse(std::string unit)
+    static Unit Parse(std::string unit, bool verbose = false)
     {
         if (unit.size() == 0) return Unit::Less();
         std::vector<std::string> split;
@@ -270,7 +284,7 @@ struct Unit : std::pair<double,std::array<int,7>>
         }
         if (split.size() == 2)
         {        
-            return Parse(std::stod(split[0]),split[1]);
+            return Parse(std::stod(split[0]),split[1], verbose);
         }
         else if (split.size() == 1)
         {
@@ -305,34 +319,52 @@ struct Unit : std::pair<double,std::array<int,7>>
     }
 
 
-    static Unit StringParse(std::string unitstring)
+    static Unit StringParse(std::string unitstring, bool verbose = false)
     {
         Unit type = Unit::Less();
-        std::map<std::string, int> map = ParseUnitString(unitstring);
-        for (auto it = map.begin(); it != map.end(); it++)
-        {
-            auto [str, exp] = *it;
 
-            if (Unit::base_units.find(str) != base_units.end())
+        // Get the map of base tokens with signed exponents from ParseUnitString
+        std::map<std::string,int> parsed_units = ParseUnitString(unitstring);
+        if (verbose)
+        {
+            for (auto parsed_unit : parsed_units)
             {
-                Unit t = Unit::base_units.at(str);
-                type = type * (t^exp);
+                std::cout << parsed_unit.first << " " << parsed_unit.second << std::endl;
             }
-            else if (compound.find(it->first) != compound.end())
+        }
+
+        for (auto &p : parsed_units)
+        {
+            const std::string &token = p.first;
+            int exp = p.second;
+
+            if (Unit::base_units.find(token) != base_units.end())
             {
-                auto [subfac, substr] = compound.at(str);
-                Unit t = StringParse(substr);
-                t.first *= subfac;
-                type = type * t^exp;
+                // Base unit: apply exponent
+                Unit t = Unit(Unit::base_units.at(token)) ^ exp;
+                type = type * t;
+            }
+            else if (compound.find(token) != compound.end())
+            {
+                // Compound unit: expand recursively
+                auto pair = compound.at(token);
+                double factor = pair.first;
+                const std::string &subunit_str = pair.second;
+
+                Unit t = StringParse(subunit_str);  // recursive expansion
+                t = t ^ exp;                         // apply exponent to both factor and dimension
+                t.first *= std::pow(factor, exp);    // scale numeric factor correctly
+
+                type = type * t;
             }
             else
             {
-                throw std::runtime_error("Unknown unit: " + unitstring);
+                throw std::runtime_error("Unknown unit token: " + token);
             }
         }
+
         return type;
     }
-
 
     static void setLengthUnit(std::string unit)
     {
@@ -341,12 +373,53 @@ struct Unit : std::pair<double,std::array<int,7>>
         normalization[int(Type::Length)].first = unit;
         normalization[int(Type::Length)].second = 1.0 / parsed.first;
     }
+    
     static void setTimeUnit(std::string unit)
     {
         Unit parsed = StringParse(unit);
         if (parsed.second != Time().second) throw std::runtime_error("Not a unit of time: " + unit);
         normalization[int(Type::Time)].first = unit;
         normalization[int(Type::Time)].second = 1.0 / parsed.first;
+    }
+    
+    static void setMassUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Mass().second) throw std::runtime_error("Not a unit of mass: " + unit);
+        normalization[int(Type::Mass)].first = unit;
+        normalization[int(Type::Mass)].second = 1.0 / parsed.first;
+    }
+    
+    static void setTemperatureUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Temperature().second) throw std::runtime_error("Not a unit of temperature: " + unit);
+        normalization[int(Type::Temperature)].first = unit;
+        normalization[int(Type::Temperature)].second = 1.0 / parsed.first;
+    }
+    
+    static void setCurrentUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Current().second) throw std::runtime_error("Not a unit of current: " + unit);
+        normalization[int(Type::Current)].first = unit;
+        normalization[int(Type::Current)].second = 1.0 / parsed.first;
+    }
+    
+    static void setAmountUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != Amount().second) throw std::runtime_error("Not a unit of amount: " + unit);
+        normalization[int(Type::Amount)].first = unit;
+        normalization[int(Type::Amount)].second = 1.0 / parsed.first;
+    }
+    
+    static void setLuminousIntensityUnit(std::string unit)
+    {
+        Unit parsed = StringParse(unit);
+        if (parsed.second != LuminousIntensity().second) throw std::runtime_error("Not a unit of luminous intensity: " + unit);
+        normalization[int(Type::LuminousIntensity)].first = unit;
+        normalization[int(Type::LuminousIntensity)].second = 1.0 / parsed.first;
     }
 
     bool isType(const Unit &test) const
@@ -361,6 +434,18 @@ struct Unit : std::pair<double,std::array<int,7>>
         for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] + rhs.second[i];
         return ret;
     }
+    friend Unit operator*(double lhs, const Unit& rhs) {
+        Unit ret;
+        ret.first = lhs * rhs.first;
+        ret.second = rhs.second;
+        return ret;
+    }
+    friend Unit operator*(const Unit& lhs, double rhs) {
+        Unit ret;
+        ret.first = rhs * lhs.first;
+        ret.second = lhs.second;
+        return ret;
+    }
     Unit operator / (const Unit &rhs)
     {
         Unit ret;
@@ -368,7 +453,33 @@ struct Unit : std::pair<double,std::array<int,7>>
         for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i] - rhs.second[i];
         return ret;
     }
-
+    friend Unit operator / (double lhs, const Unit& rhs) {
+        Unit ret = Unit::Less() / rhs;
+        ret.first = lhs * rhs.first;
+        return ret;
+    }
+    friend Unit operator / (const Unit& lhs, double rhs) {
+        Unit ret;
+        ret.first = lhs.first / rhs;
+        ret.second = lhs.second;
+        return ret;
+    }
+    Unit operator + (const Unit &rhs)
+    {
+        Util::Assert(INFO, TEST(this->second == rhs.second), "Error adding values with unequal units");
+        Unit ret;
+        ret.first = this->first + rhs.first;
+        for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i];
+        return ret;
+    }
+    Unit operator - (const Unit &rhs)
+    {
+        Util::Assert(INFO, TEST(this->second == rhs.second), "Error subtracting values with unequal units");
+        Unit ret;
+        ret.first = this->first - rhs.first;
+        for (unsigned int i = 0; i < this->second.size(); i++) ret.second[i] = (this->second)[i];
+        return ret;
+    }
     Unit operator ^ (const int &rhs)
     {
         Unit ret;
@@ -382,8 +493,8 @@ struct Unit : std::pair<double,std::array<int,7>>
 
     friend std::ostream& operator<<(std::ostream &out, const Unit &a) 
     {
-        std::cout << a.normalized_value() << " ";
-        std::cout << a.normalized_unitstring();
+        out << a.normalized_value() << "_";
+        out << a.normalized_unitstring();
         return out;
     }
 
@@ -430,12 +541,6 @@ struct Unit : std::pair<double,std::array<int,7>>
         
         return ret;
     }
-    
-
-
-
-
-
 };
 
 

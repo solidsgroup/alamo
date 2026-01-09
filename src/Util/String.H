@@ -80,7 +80,7 @@ std::string Wrap(std::string text, unsigned per_line)
 }
 
 AMREX_FORCE_INLINE
-std::string Join(const std::vector<std::string> & vec, char separator = '_')
+std::string Join(const std::vector<std::string> & vec, std::string separator = "_")
 {
     std::ostringstream oss;
     for (size_t i = 0; i < vec.size(); ++i) {
@@ -90,6 +90,20 @@ std::string Join(const std::vector<std::string> & vec, char separator = '_')
         }
     }
     return oss.str();
+}
+
+AMREX_FORCE_INLINE
+std::string Join(const std::vector<std::string> & vec, char separator)
+{
+    return Join(vec,std::to_string(separator));
+}
+
+AMREX_FORCE_INLINE
+std::string Join(const std::vector<double> & vec, std::string separator = " ")
+{
+    std::vector<std::string> strvec;
+    for (auto v : vec) strvec.push_back(std::to_string(v));
+    return Join(strvec,separator);
 }
 
 AMREX_FORCE_INLINE

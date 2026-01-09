@@ -84,17 +84,17 @@ public:
                     if (coord == Expression::CoordSys::Cartesian)
                     {
 #if AMREX_SPACEDIM == 1
-                        field(i, j, k, n) = f[n](x(0), 0.0, 0.0, a_time) / unitfactor;
+                        field(i, j, k, n) = f[n](x(0), 0.0, 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 2
-                        field(i, j, k, n) = f[n](x(0), x(1), 0.0, a_time) / unitfactor;
+                        field(i, j, k, n) = f[n](x(0), x(1), 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 3
-                        field(i, j, k, n) = f[n](x(0), x(1), x(2), a_time) / unitfactor;
+                        field(i, j, k, n) = f[n](x(0), x(1), x(2), a_time) * unitfactor;
 #endif
                     }
 #if AMREX_SPACEDIM>1
                     else if (coord == Expression::CoordSys::Polar)
                     {
-                        field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  / unitfactor;
+                        field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  * unitfactor;
                     }
 #endif
                 });
@@ -124,17 +124,17 @@ public:
                     if (coord == Expression::CoordSys::Cartesian)
                     {
 #if AMREX_SPACEDIM == 1
-                        field(i, j, k)(n) = f[n](x(0), 0.0, 0.0, a_time) / unitfactor;
+                        field(i, j, k)(n) = f[n](x(0), 0.0, 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 2
-                        field(i, j, k)(n) = f[n](x(0), x(1), 0.0, a_time) / unitfactor;
+                        field(i, j, k)(n) = f[n](x(0), x(1), 0.0, a_time) * unitfactor;
 #elif AMREX_SPACEDIM == 3
-                        field(i, j, k)(n) = f[n](x(0), x(1), x(2), a_time) / unitfactor;
+                        field(i, j, k)(n) = f[n](x(0), x(1), x(2), a_time) * unitfactor;
 #endif
                     }
 #if AMREX_SPACEDIM>1
                     else if (coord == Expression::CoordSys::Polar)
                     {
-                        field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  / unitfactor;
+                        field(i, j, k)(n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time)  * unitfactor;
                     }
 #endif
                 });
@@ -186,10 +186,10 @@ public:
             {
                 IO::ParmParse pp;
                 std::string fullname = *entry;
-                Set::Scalar val  = NAN;
-                pp_query(fullname.data(),val);
+                Unit val;
+                pp.queryunit(fullname.data(),val);
                 std::string name = Util::String::Split(fullname,'.').back();
-                value.parser.back().setConstant(name,val);
+                value.parser.back().setConstant(name,val.normalized_value());
             }
 
             if (value.coord == Expression::CoordSys::Cartesian)

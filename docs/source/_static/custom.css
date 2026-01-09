@@ -43,12 +43,12 @@ li[class="toctree-l1"] a:hover
 }
 
 h1 {font-size:xx-large!important;}
-h2 {font-size:x-large!important;}
-h3 {font-size:large!important;}
+/*h2 {font-size:x-large!important;}*/
+h2 {font-size:large!important;}
+h3 {font-size:medium!important;}
 h4 {font-size:medium!important;}
-h5 {font-size:medium!important;}
+h5 {font-size:small!important;}
 h6 {font-size:small!important;}
-h7 {font-size:small!important;}
 
 
 .wy-nav-content {
@@ -177,11 +177,18 @@ h1 {
     font-weight: bold;
 }
 
-h2 {
-    background-color: #3498db; /* Slightly lighter blue */
+/*h2 {
+    background-color: #3498db; 
     color: white !important;
     padding: 8px;
     border-radius: 4px;
+}*/
+
+h2 {
+    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
+    padding-bottom: 5px;
+    margin-top: 20px;
+    color: #2c3e50; /* ReadTheDocs dark gray text */
 }
 
 h3 {
@@ -199,13 +206,6 @@ h4 {
 }
 
 h5 {
-    border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
-    padding-bottom: 5px;
-    margin-top: 20px;
-    color: #2c3e50; /* ReadTheDocs dark gray text */
-}
-
-h6 {
     border-bottom: 2px solid #4d8fcc; /* ReadTheDocs sidebar blue */
     padding-bottom: 5px;
     margin-top: 20px;

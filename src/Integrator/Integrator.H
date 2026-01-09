@@ -187,6 +187,16 @@ protected:
     {}
 
 
+    inline void StopClock()
+    {
+        clock_running = false;
+    }
+    inline void RestartClock()
+    {
+        clock_running = true;
+    }
+
+
     /// Add a new cell-based scalar field.
     void RegisterNewFab(Set::Field<Set::Scalar>& new_fab, BC::BC<Set::Scalar>* new_bc, int ncomp, int nghost, std::string name, bool writeout,bool evolving = true,std::vector<std::string> suffix = {});
     /// Add a new cell-based scalar field (with additional arguments).
@@ -382,6 +392,8 @@ protected:
     amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
 private:
     int max_plot_level = -1;
+    int print_ghost_nodes = 0;
+    int print_ghost_cells = 0;
 
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
     int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
@@ -391,6 +403,8 @@ private:
 protected:
     bool integrate_variables_before_advance = true;
     bool integrate_variables_after_advance = false;
+
+    bool clock_running = true;
 
 protected:
     struct {
