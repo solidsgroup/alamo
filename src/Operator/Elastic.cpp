@@ -125,7 +125,6 @@ Elastic<SYM>::SetPsi(int amrlev, const amrex::MultiFab& a_psi_mf)
 {
     BL_PROFILE("Operator::Elastic::SetPsi()");
     amrex::Box domain(m_geom[amrlev][0].Domain());
-    domain.convert(amrex::IntVect::TheNodeVector());
 
     for (MFIter mfi(a_psi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
