@@ -469,7 +469,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 const amrex::MultiFab &M_mf,
                 const amrex::MultiFab &E_mf)
 {
-    for (amrex::MFIter mfi(*(velocity_mf)[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox();
         amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_old_mf)[lev]).array(mfi);
@@ -525,7 +525,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Second Time Loop for intermediate values
-    for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box bx = mfi.validbox(); // copy the box
         // bx.grow(1);                     // now safe
@@ -769,41 +769,51 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             // ------------------------------------------------------------
             // Divergence of Stress
             // ------------------------------------------------------------
-            Set::Matrix grad_tau_xx = Numeric::Gradient(tau_xx, i, j, k, DX);
-            Set::Matrix grad_tau_xy = Numeric::Gradient(tau_xy, i, j, k, DX);
-            Set::Matrix grad_tau_yy = Numeric::Gradient(tau_yy, i, j, k, DX);
-
             Set::Vector div_tau = Set::Vector::Zero();
-            div_tau(0) = grad_tau_xx(0, 0) + grad_tau_xy(0, 1);
-            div_tau(1) = grad_tau_xy(1, 0) + grad_tau_yy(1, 1);
+            if (gradu.lpNorm<2>() < 0.00001)
+            {
+                div_tau(0) = 0.0;
+                div_tau(1) = 0.0;
+            }
+            else
+            {
+                Set::Matrix grad_tau_xx = Numeric::Gradient(tau_xx, i, j, k, DX);
+                Set::Matrix grad_tau_xy = Numeric::Gradient(tau_xy, i, j, k, DX);
+                Set::Matrix grad_tau_yy = Numeric::Gradient(tau_yy, i, j, k, DX);
+
+                div_tau(0) = grad_tau_xx(0, 0) + grad_tau_xy(0, 1);
+                div_tau(1) = grad_tau_xy(1, 0) + grad_tau_yy(1, 1);
+
+                // DEBUG Tool
+                if ((Ldot_(i, j, k, 0) != Ldot_(i, j, k, 0))
+                    or (Ldot_(i, j, k, 1) != Ldot_(i, j, k, 1))
+                    or (div_tau(0) != div_tau(0))
+                    or (div_tau(1) != div_tau(1)))
+                {
+                    Util::ParallelMessage(INFO, "------------------------------------------------------------");
+                    Util::ParallelMessage(INFO, "ERROR IN Hydro2(): Viscosity solving:");
+                    Util::ParallelMessage(INFO, "lev=", lev);
+                    Util::ParallelMessage(INFO, "i=", i, "j=", j);
+                    Util::ParallelMessage(INFO, "dx=", DX[0], "dy=", DX[1]);
+
+                    Util::ParallelMessage(INFO, "Ldot=", Ldot_(i, j, k, 0), ", ", Ldot_(i, j, k, 1));
+                    Util::ParallelMessage(INFO, "tau_xx=", tau_xx(i, j, k));
+                    Util::ParallelMessage(INFO, "tau_xy=", tau_xy(i, j, k));
+                    Util::ParallelMessage(INFO, "tau_yy=", tau_yy(i, j, k));
+
+                    Util::ParallelMessage(INFO, "grad_tau_xx=", grad_tau_xx(0, 0), ", ", grad_tau_xx(0, 1), "; ", grad_tau_xx(1, 0), ", ", grad_tau_xx(1, 1));
+                    Util::ParallelMessage(INFO, "grad_tau_xy=", grad_tau_xy(0, 0), ", ", grad_tau_xy(0, 1), "; ", grad_tau_xy(1, 0), ", ", grad_tau_xy(1, 1));
+                    Util::ParallelMessage(INFO, "grad_tau_yy=", grad_tau_yy(0, 0), ", ", grad_tau_yy(0, 1), "; ", grad_tau_yy(1, 0), ", ", grad_tau_yy(1, 1));
+
+                    Util::ParallelMessage(INFO, "div_tau=", div_tau(0), ", ", div_tau(1));
+
+                    Util::Abort(INFO);
+                }
+            }
 
             Set::Vector Ldot0 = Set::Vector(Ldot_(i, j, k, 0), Ldot_(i, j, k, 1));
 
-            // DEBUG Tool
-            if ((Ldot_(i, j, k, 0) != Ldot_(i, j, k, 0))
-                or (Ldot_(i, j, k, 1) != Ldot_(i, j, k, 1))
-                or (div_tau(0) != div_tau(0))
-                or (div_tau(1) != div_tau(1)))
-            {
-                Util::ParallelMessage(INFO, "------------------------------------------------------------");
-                Util::ParallelMessage(INFO, "ERROR IN Hydro2(): Viscosity solving:");
-                Util::ParallelMessage(INFO, "lev=", lev);
-                Util::ParallelMessage(INFO, "i=", i, "j=", j);
-                Util::ParallelMessage(INFO, "dx=", DX[0], "dy=", DX[1]);
-
-                Util::ParallelMessage(INFO, "Ldot=", Ldot_(i, j, k, 0), ", ", Ldot_(i, j, k, 1));
-                Util::ParallelMessage(INFO, "tau_xx=", tau_xx(i, j, k));
-                Util::ParallelMessage(INFO, "tau_xy=", tau_xy(i, j, k));
-                Util::ParallelMessage(INFO, "tau_yy=", tau_yy(i, j, k));
-
-                Util::ParallelMessage(INFO, "grad_tau_xx=", grad_tau_xx(0, 0), ", ", grad_tau_xx(0, 1), "; ", grad_tau_xx(1, 0), ", ", grad_tau_xx(1, 1));
-                Util::ParallelMessage(INFO, "grad_tau_xy=", grad_tau_xy(0, 0), ", ", grad_tau_xy(0, 1), "; ", grad_tau_xy(1, 0), ", ", grad_tau_xy(1, 1));
-                Util::ParallelMessage(INFO, "grad_tau_yy=", grad_tau_yy(0, 0), ", ", grad_tau_yy(0, 1), "; ", grad_tau_yy(1, 0), ", ", grad_tau_yy(1, 1));
-
-                Util::ParallelMessage(INFO, "div_tau=", div_tau(0), ", ", div_tau(1));
-
-                Util::Abort(INFO);
-            }
+            
             // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             // ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
