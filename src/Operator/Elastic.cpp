@@ -753,7 +753,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
 
     for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
     {
-        amrex::Box cdomain(m_geom[amrlev][mglev].Domain());
+        amrex::Box cdomain(m_geom[amrlev][mglev].growPeriodicDomain(2));
         cdomain.convert(amrex::IntVect::TheNodeVector());
         amrex::Box fdomain(m_geom[amrlev][mglev - 1].Domain());
         fdomain.convert(amrex::IntVect::TheNodeVector());
@@ -768,17 +768,18 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         newba.refine(2);
         MultiTab fine_on_crseba;
         fine_on_crseba.define(newba, crse.DistributionMap(), 1, 4);
-        fine_on_crseba.ParallelCopy(fine, 0, 0, 1, 2, 4, m_geom[amrlev][mglev].periodicity());
+        fine_on_crseba.ParallelCopy(fine, 0, 0, 1, 2, 4, m_geom[amrlev][mglev-1].periodicity());
 
-        for (MFIter mfi(crse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+
+        for (MFIter mfi(crse, false); mfi.isValid(); ++mfi)
         {
-            Box bx = mfi.tilebox();
-            bx = bx & cdomain;
+
+            Box bx = mfi.grownnodaltilebox() & cdomain;
 
             amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>> const& fdata = fine_on_crseba.array(mfi);
             amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, SYM>> const& cdata = crse.array(mfi);
 
-            const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+            const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
@@ -833,6 +834,9 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     Util::Warning(INFO,"course lo ",lo);
                     Util::Warning(INFO, "coarse hi ",hi);
                     Util::Warning(INFO, "coarse box ",bx);
+                    Util::Warning(INFO);
+                    Util::Warning(INFO,"i=",i,", j=",j);
+                    Util::Warning(INFO);
                     Util::Warning(INFO,i-1," ",j-1,":\t",fdata(i-1,j-1,k));
                     Util::Warning(INFO,i-1," ",j,":\t",fdata(i-1,j,k));
                     Util::Warning(INFO,i-1," ",j+1,":\t",fdata(i-1,j+1,k));
