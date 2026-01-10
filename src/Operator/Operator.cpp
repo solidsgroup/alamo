@@ -116,8 +116,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            Box bx = mfi.validbox();
-            bx = bx.grow(2);
+            Box bx = mfi.grownnodaltilebox();
             
             amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
             amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
@@ -156,35 +155,11 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
 void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
 {
-    BL_PROFILE("Operator::normalize()");
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
-    domain.convert(amrex::IntVect::TheNodeVector());
-
-    int ncomp = getNComp();
-    int nghost = 1; //x.nGrow();
-
     if (!m_diagonal_computed)
         Util::Abort(INFO, "Operator::Diagonal() must be called before using normalize");
 
-    for (MFIter mfi(a_x, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
+    a_x.divide(*m_diag[amrlev][mglev],0,getNComp(),2);
 
-        Box bx = mfi.tilebox();
-        bx.grow(nghost);
-        bx = bx & domain;
-
-        amrex::Array4<amrex::Real> const& x = a_x.array(mfi);
-        amrex::Array4<const amrex::Real> const& diag = m_diag[amrlev][mglev]->array(mfi);
-
-        for (int n = 0; n < ncomp; n++)
-        {
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-                x(i, j, k) /= diag(i, j, k);
-
-            });
-        }
-    }
     a_x.setMultiGhost(true);
     a_x.FillBoundary(Geom(amrlev,mglev).periodicity());
 }
@@ -667,6 +642,7 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
     resid.setMultiGhost(true);
     resid.FillBoundary(Geom(amrlev).periodicity());
+    nodalSync(amrlev,0,resid);
 }
 
 void
@@ -679,6 +655,7 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     resid.setMultiGhost(true);
     resid.FillBoundary(Geom(amrlev).periodicity());
+    nodalSync(amrlev,0,resid);
 }
 
 
