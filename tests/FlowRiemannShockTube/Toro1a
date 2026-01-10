@@ -1,7 +1,6 @@
 #@ [hllc]
 #@ exe=hydro
 #@ dim=2
-#@ args = solver.type=hllc
 
 # alamo.program = hydro
 
@@ -25,9 +24,18 @@ geometry.prob_hi =  1.0   0.02   0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
-### TIME STEP ###
-timestep  = 1.0e-4
+### TIME STEPING ###
 stop_time = 0.25
+## Static:
+timestep  = 1.0e-4
+## Adaptive
+#dynamictimestep.on = 0
+#dynamictimestep.verbose = 1
+#dynamictimestep.max = 1e-0
+#dynamictimestep.min = 1e-12
+cfl = 0.04
+
+solver.type=hllc
 
 ### ETA IC ###
 
