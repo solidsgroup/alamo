@@ -625,7 +625,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             Set::Scalar Bpqrs = mu * ((p == r) * (r == s) + (p == s) * (q == r));
                             div_tau(p) = Bpqrs * hess_u(r, s, q) * ((q == s)); //+ (r == s));
 
-                            Ldot0(p) += 0.5 * Bpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+                            Ldot0(p) += 0.0; //0.5 * Bpqrs * (u(r) - u0(r)) * hess_eta(q, s);
 
                             /*
                             Set::Scalar Mpqrs = 0.0;
@@ -724,7 +724,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dMxf_dt =
                 (flux_xlo.momentum_normal  - flux_xhi.momentum_normal ) / DX[0] +
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
-                //div_tau(0) * eta +
+                div_tau(0) * eta +
                 g(0)*rho(i,j,k) +
                 Source(i, j, k, 1);
 
@@ -740,7 +740,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar dMyf_dt =
                 (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0] +
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
-                //div_tau(1) * eta + 
+                div_tau(1) * eta + 
                 g(1)*rho(i,j,k) +
                 Source(i, j, k, 2);
                 
