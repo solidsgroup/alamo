@@ -8,7 +8,7 @@ plot_file = ./tests/FlowCylinder/FlowCylinder
 #plot_file = ./output.VortexShed_20260103_BC_AMR5
 
 # INCLINE
-plot_file = /mmfs1/home/ttryon/flames/bin/tests/FlowCylinder/FlowCylinder
+#plot_file = /mmfs1/home/ttryon/flames/bin/tests/FlowCylinder/FlowCylinder
 #plot_file = /mmfs1/home/jquinlan/alamo_data/output.VortexShedLarge_BC_testing_AMR7
 #plot_file = /mmfs1/home/jquinlan/alamo_data/output.VS_AMR4
  
