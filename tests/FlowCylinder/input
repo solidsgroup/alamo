@@ -3,18 +3,18 @@
 ### OUTPUT ###
  
 # non INCLINE
-plot_file = ./tests/FlowCylinder/FlowCylinder
+plot_file = ./tests/FlowCylinder/FlowCylinderViscReWork
 #plot_file = ./tests/output.VortexShedLarge_20251209_
 #plot_file = ./output.VortexShed_20260103_BC_AMR5
 
 # INCLINE
-plot_file = /mmfs1/home/ttryon/flames/bin/tests/FlowCylinder/FlowCylinder
+#plot_file = /mmfs1/home/ttryon/flames/bin/tests/FlowCylinder/FlowCylinder
 #plot_file = /mmfs1/home/jquinlan/alamo_data/output.VortexShedLarge_BC_testing_AMR7
 #plot_file = /mmfs1/home/jquinlan/alamo_data/output.VS_AMR4
  
 ### MESHING ###
  
-amr.plot_dt = 10.
+amr.plot_dt = 2.
 # amr.plot_int = 10
 amr.max_grid_size = 5000000
 amr.blocking_factor = 4
@@ -68,7 +68,8 @@ eta.ic.expression.region0        = "(y>=ycut)*(0.5*(1 + tanh((sqrt((x-x0)**2 + (
  
 gamma = 1.4
 cfl   = 0.0024
-mu    = 2.5
+#mu    = 2.5
+mu    = 1.25
 pref = 1000.0
  
 density.ic.type = expression
@@ -191,7 +192,7 @@ gradu_refinement_criterion = 0.75
  
 amr.abort_on_nan = 0
  
-# dynamictimestep.on = 1
+# dynamictimestep.on = 0
 # dynamictimestep.verbose = 1
 # #dynamictimestep.cfl = 0.6
 # dynamictimestep.cfl = 0.5
