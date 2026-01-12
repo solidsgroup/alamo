@@ -3,6 +3,10 @@
 
 
 // TODO: Imports
+#include "Util/Util.H"
+#include "IO/ParmParse.H"
+#include <vector>
+#include <cmath>
 
 
 namespace Model
@@ -14,7 +18,9 @@ class Ballistic
 public:
     static constexpr const char* name = "ballistic";
 
-    // TODO: defaults and parmparse stuff
+    Ballistic() = default;
+    Ballistic(IO::ParmParse &pp, std::string name) { pp_queryclass(name, *this); }
+    virtual ~Ballistic() = default;
 
 public:
 
