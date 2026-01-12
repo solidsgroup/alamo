@@ -199,9 +199,9 @@ private:
             }
 
             a_dw_mf[lev]->setMultiGhost(true);
-            a_dw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
+            a_dw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
             a_ddw_mf[lev]->setMultiGhost(true);
-            a_ddw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
+            a_ddw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
         }
 
         m_elastic->SetModel(a_ddw_mf);
@@ -286,9 +286,9 @@ private:
             }
 
             a_rhs_mf[lev]->setMultiGhost(true);
-            a_rhs_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
+            a_rhs_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
             a_ddw_mf[lev]->setMultiGhost(true);
-            a_ddw_mf[lev]->FillBoundary(m_elastic->Geom(lev).periodicity());
+            a_ddw_mf[lev]->FillBoundaryAndSync(m_elastic->Geom(lev).periodicity());
         }
     }
 

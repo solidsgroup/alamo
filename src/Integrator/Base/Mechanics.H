@@ -236,8 +236,10 @@ protected:
                     }
                 });
             }
-            Util::RealFillBoundary(*stress_mf[lev], geom[lev]);
-            Util::RealFillBoundary(*strain_mf[lev], geom[lev]);
+            stress_mf[lev]->setMultiGhost(true);
+            stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+            strain_mf[lev]->setMultiGhost(true);
+            strain_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
         }
     }
 
@@ -376,8 +378,9 @@ protected:
                 model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
         }
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-
+        
+        model_mf[lev]->setMultiGhost(true);
+        model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
