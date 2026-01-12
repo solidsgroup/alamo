@@ -413,6 +413,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
         Set::Scalar *dt_max_handle = &dt_max;
 
+        c_max = 0.0;
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
@@ -430,10 +432,16 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             if (dynamictimestep.on)
             {
-                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta + small));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta + small)));
+                Set::Vector u_new = Set::Vector(M_new(i, j, k, 0) / (rho_new(i, j, k) + small), M_new(i, j, k, 1) / (rho_new(i, j, k) + small));
+                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u_new(0) * eta + small));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u_new(1)* eta + small)));
                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+
+                Set::Scalar KE_new = 0.5 * rho_new(i, j, k) * (u_new(0) * u_new(0) + u_new(1) * u_new(1));
+                Set::Scalar UE_new = E_new(i,j,k) - KE_new;
+                Set::Scalar press_new = (gamma - 1.0) * UE_new;
+                c_max = std::max(c_max, sqrt(gamma * press_new / (rho_new(i,j,k)+small)) );
             }
         });
     }

@@ -3,7 +3,7 @@
 ### OUTPUT ###
  
 # non INCLINE
-plot_file = ./tests/FlowCylinder/FlowCylinderDynam
+plot_file = ./tests/FlowCylinder/FlowCylinderNoLdot
 #plot_file = ./tests/output.VortexShedLarge_20251209_
 #plot_file = ./output.VortexShed_20260103_BC_AMR5
 
@@ -68,7 +68,7 @@ eta.ic.expression.region0        = "(y>=ycut)*(0.5*(1 + tanh((sqrt((x-x0)**2 + (
  
 gamma = 1.4
 cfl   = 0.0024
-mu    = 2.5
+mu    = 2.08333
 pref = 1000.0
  
 density.ic.type = expression
@@ -191,12 +191,12 @@ gradu_refinement_criterion = 0.75
  
 amr.abort_on_nan = 0
  
-dynamictimestep.on = 1
-dynamictimestep.verbose = 1
-dynamictimestep.cfl = 0.6
-dynamictimestep.cfl = 0.5
-dynamictimestep.max  = 1.0
-dynamictimestep.min  = 1e-10
+# dynamictimestep.on = 1
+# dynamictimestep.verbose = 1
+# #dynamictimestep.cfl = 0.6
+# dynamictimestep.cfl = 0.5
+# dynamictimestep.max  = 1.0
+# dynamictimestep.min  = 0.0
  
  
 small=1E-8
