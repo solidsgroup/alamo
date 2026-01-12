@@ -65,11 +65,11 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
     
 
-    Test::Set::Matrix4<2,Set::Sym::Full>::Test();
-    Test::Set::Matrix4<2,Set::Sym::Isotropic>::Test();
-    Test::Set::Matrix4<2,Set::Sym::Diagonal>::Test();
-    Test::Set::Matrix4<2,Set::Sym::MajorMinor>::Test();
-    Test::Set::Matrix4<2,Set::Sym::Major>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Full>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Test();
+    Test::Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major>::Test();
 
     Util::Test::Message("Numeric::Interpolator<Linear>");
     {

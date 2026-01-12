@@ -443,10 +443,14 @@ public:
         for (int i = 0; i < 45; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
     }
-    static Matrix4<3, Sym::Major> Randomize()
+    void Randomize()
+    {
+        for (int i = 0; i < 45; i++) data[i] = (Util::Random());
+    }
+    static Matrix4<3, Sym::Major> Random()
     {
         Matrix4<3, Sym::Major> ret;
-        for (int i = 0; i < 45; i++) ret.data[i] = (Util::Random());
+        ret.Randomize();
         return ret;
     }
     static Matrix4<3, Sym::Major> Zero()

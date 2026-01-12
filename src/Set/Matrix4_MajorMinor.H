@@ -499,10 +499,14 @@ public:
         for (int i = 0 ; i < 21; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
     }
-    static Matrix4<3,Sym::MajorMinor> Randomize()
+    void Randomize()
+    {
+        for (int i = 0 ; i < 21; i++) data[i] = (Util::Random());
+    }
+    static Matrix4<3,Sym::MajorMinor> Random()
     {
         Matrix4<3,Sym::MajorMinor> ret;
-        for (int i = 0 ; i < 21; i++) ret.data[i] = (Util::Random());
+        ret.Randomize();
         return ret;
     }
     static Matrix4<3,Sym::MajorMinor> Zero()
