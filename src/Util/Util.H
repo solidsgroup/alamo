@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <complex>
 #include <stdlib.h>
+#include <string_view>
 
 #include <string>
 #include "Util/String.H"
@@ -324,6 +325,7 @@ namespace Test
 int Message(std::string testname);
 int Message(std::string testname, int passed);
 int SubMessage(std::string testname, int passed);
+void SubWarning(std::string testname);
 int SubFinalMessage(int failed);
 }
 
@@ -485,6 +487,8 @@ void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const a
 template <class... Ts>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void IgnoreUnused (const Ts&...) {}
+
+
 
 }
 

@@ -2,6 +2,10 @@
 #define SET_MATRIX4_MAJOR_H
 
 #include "Base.H"
+#include "Matrix4.H"
+#include "Matrix4_MajorMinor.H"
+#include "Matrix4_Isotropic.H"
+#include "Matrix4_Diagonal.H"
 
 namespace Set
 {
@@ -15,36 +19,6 @@ class Matrix4<2, Sym::Major>
 public:
     AMREX_GPU_HOST_DEVICE Matrix4(){};
 
-    #if AMREX_SPACEDIM == 2
-    Matrix4(const Matrix4<2,Sym::Isotropic> &in)
-    {
-        // TODO: very inefficient, need to optimize
-        for (int i = 0; i < 2; i++)
-        for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-        for (int l = 0; l < 2; l++)
-            (*this)(i,j,k,l) = in(i,j,k,l);
-    }
-    Matrix4(const Matrix4<2,Sym::Diagonal> &in)
-    {
-        // TODO: very inefficient, need to optimize
-        for (int i = 0; i < 2; i++)
-        for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-        for (int l = 0; l < 2; l++)
-            (*this)(i,j,k,l) = in(i,j,k,l);
-    }
-    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
-    {
-        // TODO: very inefficient, need to optimize
-        for (int i = 0; i < 2; i++)
-        for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-        for (int l = 0; l < 2; l++)
-            (*this)(i,j,k,l) = in(i,j,k,l);
-    }
-    #endif
-    
     AMREX_FORCE_INLINE
     const Scalar &operator()(const int i, const int j, const int k, const int l) const
     {
@@ -82,6 +56,38 @@ public:
             Util::Abort(INFO, "Index out of range");
         return Set::Garbage;
     }
+
+
+    #if AMREX_SPACEDIM == 2
+    Matrix4(const Matrix4<2,Sym::Isotropic> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 2; k++)
+        for (int l = 0; l < 2; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
+    Matrix4(const Matrix4<2,Sym::Diagonal> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 2; k++)
+        for (int l = 0; l < 2; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
+    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 2; k++)
+        for (int l = 0; l < 2; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
+    #endif
+    
     void Print(std::ostream &os)
     {
         os.precision(4);
@@ -132,10 +138,14 @@ public:
         for (int i = 0; i < 10; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
     }
-    static Matrix4<2, Sym::Major> Randomize()
+    void Randomize()
+    {
+        for (int i = 0; i < 10; i++) data[i] = (Util::Random());
+    }
+    static Matrix4<2, Sym::Major> Random()
     {
         Matrix4<2, Sym::Major> ret;
-        for (int i = 0; i < 10; i++) ret.data[i] = (Util::Random());
+        ret.Randomize();
         return ret;
     }
     static Matrix4<2, Sym::Major> Zero()

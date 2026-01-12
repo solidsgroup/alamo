@@ -15,8 +15,16 @@
 #include <AMReX.H>
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
+#include <type_traits>
 
 #include "Set/Set.H"
+#include "Set/Matrix4.H"
+#include "Set/Matrix4_Diagonal.H"
+#include "Set/Matrix4_Full.H"
+#include "Set/Matrix4_Isotropic.H"
+#include "Set/Matrix4_Major.H"
+#include "Set/Matrix4_MajorMinor.H"
+#include "Util/Util.H"
 
 namespace Model
 {
@@ -29,40 +37,68 @@ template<Set::Sym SYM>
 class Solid
 {
 public:
-    Solid() {} ;
+    Solid() = default;
 
-    virtual ~Solid() {};
+    ~Solid() = default;
 
     static constexpr Set::Sym sym = SYM;
 
-    virtual Set::Scalar W(const Set::Matrix &) const      
+    Set::Scalar W(const Set::Matrix &) const      
     {Util::Abort(INFO,"W not implemented"); return 0.0;};
-    virtual Set::Matrix DW(const Set::Matrix &) const         
+    Set::Matrix DW(const Set::Matrix &) const         
     {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
-    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
+    Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
     {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
     
-    virtual void Advance(Set::Scalar /*dt*/, Set::Matrix /*strain*/, Set::Matrix /*stress*/, Set::Scalar /*time*/) {}
+    void Advance(Set::Scalar /*dt*/, Set::Matrix /*strain*/, Set::Matrix /*stress*/, Set::Scalar /*time*/) {}
 
     // Todo: implement for all models and make this pure virtual
-    virtual bool ContainsNan() {return true;};
+    bool ContainsNan() {return true;};
 
 
 public:
     static const KinematicVariable kinvar = KinematicVariable::F;
 
 
-        friend std::ostream& operator<<(std::ostream &out, const Solid &a)
+    friend std::ostream& operator<<(std::ostream &out, const Solid &a)
     {
         a.Print(out);
         return out;
     }
-    virtual void Print(std::ostream &out) const
+    void Print(std::ostream &out) const
     {
         out << "No print function written for this model.";
     }
 
 public: 
+    template <class T>
+    static int PODTest(int verbose = 0)
+    {
+        int ret = 0, warn=0;
+        if (!std::is_trivially_copyable<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model is not trivially copyable");
+            warn += 1;
+        }
+        if (std::has_virtual_destructor<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model has a virtual destructor");
+            warn += 1;
+        }
+        if (std::is_polymorphic<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model is polymorphic");
+            warn += 1;
+        }
+        if (!std::is_standard_layout<T>::value)
+        {
+            if (verbose) Util::Test::SubWarning("Model does not have standard layout.");
+            warn += 1;
+        }
+        return ret;
+    }
+
+
     template <class T>
     static int ArithmeticTest(int verbose = 0)
     {
