@@ -224,7 +224,7 @@ void Hydro::Initialize(int lev)
 
     Source_mf[lev]   ->setVal(0.0);
 
-    if (managed)  { if (lev >= mixed.size()) mixed.push_back(false);}
+    if (managed)  { if (lev >= (int)mixed.size()) mixed.push_back(false);}
     else  Mix(lev);
 }
 
@@ -282,7 +282,7 @@ void Hydro::UpdateEta(int lev, Set::Scalar time)
     eta_ic->Initialize(lev, *eta_mf, time);
 }
 
-void Hydro::UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt)
+void Hydro::UpdateFluxes(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/)
 {
     Util::Assert(INFO,TEST(!managed),"Should override this if Hydro is managed!");
 }

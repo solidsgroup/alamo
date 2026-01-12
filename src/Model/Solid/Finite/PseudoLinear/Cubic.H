@@ -15,11 +15,11 @@ namespace PseudoLinear
 class Cubic : public Solid<Set::Sym::Major>
 {
 public:
-    Cubic() {};
+    Cubic() = default;
     //Cubic(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
-    virtual ~Cubic() {};
+    ~Cubic() = default;
 
-    Set::Scalar W(const Set::Matrix & F) const override
+    Set::Scalar W(const Set::Matrix & F) const 
     {
         q.normalize();
         Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> CC
@@ -27,7 +27,7 @@ public:
         Set::Matrix E = 0.5 * (F.transpose() * F - Set::Matrix::Identity());
         return 0.5 * (E * (CC*E).transpose()).trace();
     }
-    Set::Matrix DW(const Set::Matrix & F) const override
+    Set::Matrix DW(const Set::Matrix & F) const 
     {
         q.normalize();
         Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> CC
@@ -44,7 +44,7 @@ public:
         }
         return dw;      
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const 
     {
         q.normalize();
         Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> CC
@@ -70,7 +70,7 @@ public:
 
         return ddw;   
     }
-    virtual void Print(std::ostream &out) const override 
+    void Print(std::ostream &out) const 
     {
         //out << "CC = " << CC;
         out << "C11=" << C11 << " C12=" << C12 << " C44=" << C44 <<
