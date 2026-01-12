@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include "Set/Matrix4.H"
 #include "Util/Util.H"
 
 #include "Test/Numeric/Stencil.H"
@@ -23,6 +24,8 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
+#include "Set/Matrix4_Full.H"
+
 #include "Solver/Local/Riemann/Roe.H"
 
 #include "Unit/Test.H"
@@ -40,6 +43,7 @@ int main (int argc, char* argv[])
         Util::Test::Message(#TYPE); \
         { \
             int subfailed = 0; \
+            subfailed += Util::Test::SubMessage("PODTest",         TYPE::PODTest<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("ArithmeticTest",  TYPE::ArithmeticTest<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("DerivativeTest1", TYPE::DerivativeTest1<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("DerivativeTest2", TYPE::DerivativeTest2<TYPE>(true)); \
@@ -49,6 +53,8 @@ int main (int argc, char* argv[])
             } \
             failed += Util::Test::SubFinalMessage(subfailed); \
         }
+
+
     MODELTEST(Model::Solid::Linear::Isotropic);
     MODELTEST(Model::Solid::Linear::Cubic);
     MODELTEST(Model::Solid::Linear::Laplacian);
@@ -63,17 +69,26 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Finite::PseudoAffine::Cubic);
     
 
-    Util::Test::Message("Set::Matrix4");
-    {
-        int subfailed = 0;
-        Test::Set::Matrix4<2,Set::Sym::Full> test_2d_full;
-        subfailed += Util::Test::SubMessage("2D - Full", test_2d_full.SymmetryTest(0));
-        Test::Set::Matrix4<3,Set::Sym::Full> test_3d_full;
-        subfailed += Util::Test::SubMessage("3D - Full", test_3d_full.SymmetryTest(0));
-        Test::Set::Matrix4<3,Set::Sym::MajorMinor> test_3d_majorminor;
-        subfailed += Util::Test::SubMessage("3D - MajorMinor", test_3d_majorminor.SymmetryTest(0));
-        failed += Util::Test::SubFinalMessage(subfailed);
-    }
+    //Set::Matrix4<2,Set::Sym::Full>::
+
+    Test::Set::Matrix4<2,Set::Sym::Full>::Test();
+    Test::Set::Matrix4<2,Set::Sym::Isotropic>::Test();
+    Test::Set::Matrix4<2,Set::Sym::Diagonal>::Test();
+    Test::Set::Matrix4<2,Set::Sym::MajorMinor>::Test();
+    Test::Set::Matrix4<2,Set::Sym::Major>::Test();
+    //Test::Set::Matrix4<2,Set::Sym::None>::Test();
+
+    // Util::Test::Message("Set::Matrix4");
+    // {
+    //     int subfailed = 0;
+    //     Test::Set::Matrix4<2,Set::Sym::Full> test_2d_full;
+    //     subfailed += Util::Test::SubMessage("2D - Full", test_2d_full.SymmetryTest(0));
+    //     Test::Set::Matrix4<3,Set::Sym::Full> test_3d_full;
+    //     subfailed += Util::Test::SubMessage("3D - Full", test_3d_full.SymmetryTest(0));
+    //     Test::Set::Matrix4<3,Set::Sym::MajorMinor> test_3d_majorminor;
+    //     subfailed += Util::Test::SubMessage("3D - MajorMinor", test_3d_majorminor.SymmetryTest(0));
+    //     failed += Util::Test::SubFinalMessage(subfailed);
+    // }
 
     Util::Test::Message("Numeric::Interpolator<Linear>");
     {

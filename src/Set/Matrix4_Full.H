@@ -1,7 +1,9 @@
 #ifndef SET_MATRIX4_FULL_H
 #define SET_MATRIX4_FULL_H
 #include "Util/Util.H"
+#include "Set.H"
 #include "Base.H"
+#include "Matrix4.H"
 namespace Set
 {
 
@@ -57,7 +59,7 @@ public:
         else Util::Abort(INFO,"Index out of range");
         return data[0]; // this code is unreachable
     }
-    static Matrix4<2,Sym::Full> Randomize()
+    static Matrix4<2,Sym::Full> Random()
     {
         Matrix4<2,Sym::Full> ret;
         for (int i = 0 ; i < 5; i++) ret.data[i] = Util::Random();

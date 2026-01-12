@@ -1,8 +1,11 @@
 #ifndef SET_MATRIX4_MAJORMINOR_H
 #define SET_MATRIX4_MAJORMINOR_H
 
+#include "Set.H"
 #include "Base.H"
 #include <math.h>
+#include "Matrix3.H"
+#include "Matrix4.H"
 
 namespace Set
 {
@@ -103,10 +106,14 @@ public:
         for (int i = 0 ; i < 6; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
     }
-    static Matrix4<2,Sym::MajorMinor> Randomize()
+    void Randomize()
+    {
+        for (int i = 0 ; i < 6; i++) data[i] = (Util::Random());
+    }
+    static Matrix4<2,Sym::MajorMinor> Random()
     {
         Matrix4<2,Sym::MajorMinor> ret;
-        for (int i = 0 ; i < 6; i++) ret.data[i] = (Util::Random());
+        ret.Randomize();
         return ret;
     }
     static Matrix4<2,Sym::MajorMinor> Zero()

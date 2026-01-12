@@ -116,8 +116,7 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
 
         for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            Box bx = mfi.validbox();
-            bx = bx.grow(2);
+            Box bx = mfi.grownnodaltilebox();
             
             amrex::Array4<amrex::Real> const& xfab = x.array(mfi);
             amrex::Array4<const amrex::Real> const& bfab = b.array(mfi);
@@ -147,44 +146,20 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
                 });
             }
         }
+        amrex::Geometry geom = m_geom[amrlev][mglev];
+        x.setMultiGhost(true);
+        x.FillBoundary(geom.periodicity());
+        nodalSync(amrlev, mglev, x);
     }
-    amrex::Geometry geom = m_geom[amrlev][mglev];
-    x.setMultiGhost(true);
-    x.FillBoundary(geom.periodicity());
-    nodalSync(amrlev, mglev, x);
 }
 
 void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
 {
-    BL_PROFILE("Operator::normalize()");
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
-    domain.convert(amrex::IntVect::TheNodeVector());
-
-    int ncomp = getNComp();
-    int nghost = 1; //x.nGrow();
-
     if (!m_diagonal_computed)
         Util::Abort(INFO, "Operator::Diagonal() must be called before using normalize");
 
-    for (MFIter mfi(a_x, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
+    a_x.divide(*m_diag[amrlev][mglev],0,getNComp(),2);
 
-        Box bx = mfi.tilebox();
-        bx.grow(nghost);
-        bx = bx & domain;
-
-        amrex::Array4<amrex::Real> const& x = a_x.array(mfi);
-        amrex::Array4<const amrex::Real> const& diag = m_diag[amrlev][mglev]->array(mfi);
-
-        for (int n = 0; n < ncomp; n++)
-        {
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-                x(i, j, k) /= diag(i, j, k);
-
-            });
-        }
-    }
     a_x.setMultiGhost(true);
     a_x.FillBoundary(Geom(amrlev,mglev).periodicity());
 }
@@ -304,12 +279,12 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
     for (MFIter mfi(*pcrse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        const Box& bx = mfi.tilebox();
+        const Box& bx = mfi.grownnodaltilebox(-1,1) & cdomain;
 
         amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
         amrex::Array4<amrex::Real> const& cdata = pcrse->array(mfi);
 
-        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+        const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
 
 
         for (int n = 0; n < crse.nComp(); n++)
@@ -391,7 +366,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 {
     BL_PROFILE("Operator::interpolation()");
     //int nghost = getNGrow();
-    amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); 
+    amrex::Box fdomain = m_geom[amrlev][fmglev].growPeriodicDomain(2);
     fdomain.convert(amrex::IntVect::TheNodeVector());
 
     bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -406,9 +381,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
     for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
     {
-        Box fine_bx = mfi.validbox();
-        if (Geom(amrlev,fmglev).isPeriodic(0)) fine_bx = fine_bx & fdomain.grow(0,2);
-        if (Geom(amrlev,fmglev).isPeriodic(1)) fine_bx = fine_bx & fdomain.grow(1,2);
+        Box fine_bx = mfi.validbox() & fdomain;
 
         const Box& course_bx = amrex::coarsen(fine_bx, 2);
         const Box& tmpbx = amrex::refine(course_bx, 2);
@@ -557,7 +530,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     int ncomp = AMREX_SPACEDIM;
 
-    amrex::Box cdomain(m_geom[crse_amrlev][0].Domain());
+    amrex::Box cdomain(m_geom[crse_amrlev][0].growPeriodicDomain(2));
     cdomain.convert(amrex::IntVect::TheNodeVector());
 
     const Geometry& cgeom = m_geom[crse_amrlev][0];
@@ -577,11 +550,12 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
-
+    // nodemask.setMultiGhost(true);
+    // nodemask.FillBoundaryAndSync(cgeom.periodicity());
 
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {
-        const Box& bx = mfi.validbox();
+        const Box& bx = mfi.grownnodaltilebox(-1,1) & cdomain;
 
         amrex::Array4<const int> const& nmask = nodemask.array(mfi);
         //amrex::Array4<const int> const& cmask = cellmask.array(mfi);
@@ -589,7 +563,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
         amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
         amrex::Array4<const amrex::Real> const& fdata = fine_res.array(mfi);
 
-        const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+        const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
 
         for (int n = 0; n < fine_res.nComp(); n++)
         {
@@ -669,6 +643,7 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
     resid.setMultiGhost(true);
     resid.FillBoundary(Geom(amrlev).periodicity());
+    nodalSync(amrlev,0,resid);
 }
 
 void
@@ -681,6 +656,7 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     resid.setMultiGhost(true);
     resid.FillBoundary(Geom(amrlev).periodicity());
+    nodalSync(amrlev,0,resid);
 }
 
 
