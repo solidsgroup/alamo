@@ -613,17 +613,26 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
-            for (int p = 0; p<2; p++)
-                for (int q = 0; q<2; q++)
-                    for (int r = 0; r<2; r++)
-                        for (int s = 0; s<2; s++)
+
+            for (int p = 0; p < 2; p++)
+                for (int q = 0; q < 2; q++)
+                    for (int r = 0; r < 2; r++)
+                        for (int s = 0; s < 2; s++)
                         {
                             Set::Scalar Mpqrs = 0.0;
-                            if (p==r && q==s) Mpqrs += 0.5 * mu;
 
-                            Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            div_tau(p) += 1.0*Mpqrs * hess_u(r,s,q);
+                            if (p == r && q == s)
+                                Mpqrs += 0.5 * mu; 
+                            if (p == s && q == r)
+                                Mpqrs += 0.5 * mu;
+                            // BULK VISCOSITY to be implemented later
+                            //if (p == q && r == s)
+                            //    Mpqrs += mu_b; // Bulk viscosity
+
+                            div_tau(p) += 1.0 * Mpqrs * hess_u(r, s, q);
+                            Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
                         }
+
             
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = (Pdot0(0) - Ldot0(0));

@@ -1,0 +1,207 @@
+#alamo.program = hydro
+ 
+### OUTPUT ###
+ 
+# non INCLINE
+plot_file = ./tests/FlowCylinder/FlowCylinderNoLdot
+#plot_file = ./tests/output.VortexShedLarge_20251209_
+#plot_file = ./output.VortexShed_20260103_BC_AMR5
+
+# INCLINE
+#plot_file = /mmfs1/home/ttryon/flames/bin/tests/FlowCylinder/FlowCylinder
+#plot_file = /mmfs1/home/jquinlan/alamo_data/output.VortexShedLarge_BC_testing_AMR7
+#plot_file = /mmfs1/home/jquinlan/alamo_data/output.VS_AMR4
+ 
+### MESHING ###
+ 
+amr.plot_dt = 10.
+# amr.plot_int = 10
+amr.max_grid_size = 5000000
+amr.blocking_factor = 4
+amr.regrid_int = 1
+amr.grid_eff = 0.8
+ 
+ 
+amr.max_level = 4
+timestep   = 0.1e-2
+# timestep   = 0.24e-2
+amr.n_cell = 128 128
+ 
+ 
+### DIMENSIONS ###
+ 
+geometry.prob_lo = -24.0 -24.0 0.0 # [ m ]
+geometry.prob_hi =  24.0  24.0 0.0 # [ m ]
+ 
+geometry.is_periodic = 0 0 0
+ 
+### TIME STEP ###
+ 
+stop_time = 500.0
+ 
+### ETA IC ###
+ 
+m0.ic.type = constant
+m0.ic.constant.value = 0.0
+ 
+u0.ic.type = expression
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "0.0"
+ 
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
+ 
+eta.ic.type = expression
+#eta.ic.expression.constant.eps   = 0.0075
+eta.ic.expression.constant.eps   = 0.024
+eta.ic.expression.constant.vel_x = 0.0
+eta.ic.expression.constant.vel_y = 0.0
+eta.ic.expression.constant.x0    = 0.0
+eta.ic.expression.constant.y0    = 0.0
+eta.ic.expression.constant.R1    = 0.5
+eta.ic.expression.constant.R2    = 0.5
+eta.ic.expression.constant.ycut  = -0.5
+eta.ic.expression.region0        = "(y>=ycut)*(0.5*(1 + tanh((sqrt((x-x0)**2 + (y-y0)**2) - R1)/eps))) + (y<ycut)*(0.5*(1 + tanh((sqrt((x-x0)**2 + (y-y0)**2) - R2)/eps)))"
+ 
+### HYDRO PARAM ###
+ 
+gamma = 1.4
+cfl   = 0.0024
+mu    = 2.12766
+pref = 1000.0
+ 
+density.ic.type = expression
+density.ic.expression.region0 = "100.0"
+ 
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "1.0"
+velocity.ic.expression.region1 = "0.0"
+ 
+pressure.ic.type = expression
+pressure.ic.expression.region0 = "101.325"
+ 
+### SOLID ###
+ 
+solid.density.ic.type = expression
+solid.density.ic.expression.region0 = "100.0"
+ 
+solid.momentum.ic.type = expression
+solid.momentum.ic.expression.region0 = "0.0"
+solid.momentum.ic.expression.region1 = "0.0"
+ 
+solid.energy.ic.type = expression
+solid.energy.ic.expression.region0 = "0.0"
+ 
+### ETA BC  ###
+ 
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+ 
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+ 
+### HYDRO BC ###
+ 
+#density.bc.constant.type.xhi = neumann
+#density.bc.constant.type.xlo = dirichlet
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+#density.bc.constant.val.xhi = 0.0
+#density.bc.constant.val.xlo = 100.0
+density.bc.constant.val.ylo = 0.0
+density.bc.constant.val.yhi = 0.0
+ 
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.xlo = dirichlet
+# density.bc.constant.type.ylo = dirichlet
+# density.bc.constant.type.yhi = dirichlet
+density.bc.constant.val.xhi = 0.0
+density.bc.constant.val.xlo = 100.0
+# density.bc.constant.val.ylo = 100.0
+# density.bc.constant.val.yhi = 100.0
+ 
+# energy.bc.constant.type.xhi = neumann
+# energy.bc.constant.type.xlo = dirichlet 
+# energy.bc.constant.type.ylo = dirichlet
+# energy.bc.constant.type.yhi = dirichlet
+# energy.bc.constant.val.xhi = 0.0
+# energy.bc.constant.val.xlo = 52.533125
+# energy.bc.constant.val.ylo = 52.533125
+# energy.bc.constant.val.yhi = 52.533125
+ 
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0
+energy.bc.constant.val.yhi = 0.0
+ 
+#momentum.bc.constant.type.xlo = dirichlet neumann
+#momentum.bc.constant.type.xhi = neumann neumann
+#momentum.bc.constant.type.ylo = neumann dirichlet
+#momentum.bc.constant.type.yhi = neumann dirichlet
+#momentum.bc.constant.val.xlo = 100.0 0.0
+#momentum.bc.constant.val.xhi = 0.0 0.0
+#momentum.bc.constant.val.ylo = 0.0 0.0
+#momentum.bc.constant.val.yhi = 0.0 0.0
+ 
+momentum.bc.constant.type.xlo = dirichlet dirichlet
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.ylo = dirichlet dirichlet
+momentum.bc.constant.type.yhi = dirichlet dirichlet
+momentum.bc.constant.val.xlo = 100.0 0.0
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.ylo = 100.0 0.0
+momentum.bc.constant.val.yhi = 100.0 0.0
+ 
+#momentum.bc.constant.type.xlo = dirichlet neumann
+#momentum.bc.constant.type.xhi = neumann neumann
+#momentum.bc.constant.type.ylo = dirichlet neumann
+#momentum.bc.constant.type.yhi = dirichlet neumann
+#momentum.bc.constant.val.xlo = 100.0 0.0
+#momentum.bc.constant.val.xhi = 0.0 0.0
+#momentum.bc.constant.val.ylo = 100.0 0.0
+#momentum.bc.constant.val.yhi = 100.0 0.0
+ 
+### HYDRO REFINEMENT CRITERIA ###
+ 
+# eta_refinement_criterion = 0.1
+# omega_refinement_criterion = 0.2
+# gradu_refinement_criterion = 1.0
+ 
+eta_refinement_criterion = 0.1
+#omega_refinement_criterion = 0.1
+omega_refinement_criterion = 0.5
+#gradu_refinement_criterion = 0.25
+gradu_refinement_criterion = 0.75
+ 
+ 
+#TODO
+ 
+amr.abort_on_nan = 0
+ 
+# dynamictimestep.on = 1
+# dynamictimestep.verbose = 1
+# #dynamictimestep.cfl = 0.6
+# dynamictimestep.cfl = 0.5
+# dynamictimestep.max  = 1.0
+# dynamictimestep.min  = 0.0
+ 
+ 
+small=1E-8
+cutoff=0.01
+lagrange=2000.0
+
+solver.type=hllc
+
