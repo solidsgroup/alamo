@@ -74,26 +74,22 @@ public:
     template <class T>
     static int PODTest(int verbose = 0)
     {
-        int ret = 0, warn=0;
+        int ret = 0;
         if (!std::is_trivially_copyable<T>::value)
         {
             if (verbose) Util::Test::SubWarning("Model is not trivially copyable");
-            warn += 1;
         }
         if (std::has_virtual_destructor<T>::value)
         {
             if (verbose) Util::Test::SubWarning("Model has a virtual destructor");
-            warn += 1;
         }
         if (std::is_polymorphic<T>::value)
         {
             if (verbose) Util::Test::SubWarning("Model is polymorphic");
-            warn += 1;
         }
         if (!std::is_standard_layout<T>::value)
         {
             if (verbose) Util::Test::SubWarning("Model does not have standard layout.");
-            warn += 1;
         }
         return ret;
     }
@@ -113,8 +109,6 @@ public:
         {
             Util::Message(INFO,"Random() failed: a = \n",a); return 1;
         }
-
-        const T b = T::Random();
 
         T c = a;
         if (!(c==a) && verbose) {Util::Message(INFO); return 1;}
