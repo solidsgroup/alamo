@@ -157,6 +157,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
 
+        value.RegisterNewFab(value.L_mf, value.bc_temp, 1, 0, "L", value.plot_field);
+
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.mdot, "mass_flux");
@@ -279,6 +281,7 @@ void Flame::Initialize(int lev)
         alpha_mf[lev]->setVal(0.0);
         mdot_mf[lev]->setVal(0.0);
         heatflux_mf[lev]->setVal(0.0);
+        L_mf[lev]->setVal(0.0);
         ic_laser->Initialize(lev, laser_mf);
     }
     //if (variable_pressure) chamber.pressure = 1.0;
@@ -377,10 +380,12 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure)
     {
-        Util::Message(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
-        chamber.pressure = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
-
+        auto [new_pressure, current_dpdt] = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
+        chamber.pressure = new_pressure;
         Util::ParallelMessage(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
+        Util::ParallelMessage(INFO, "chamber.mdot = ", Unit::Mass(chamber.mdot) / Unit::Time());
+        Util::ParallelMessage(INFO, "chamber.volume = ", Unit::Volume(chamber.volume));
+        Util::ParallelMessage(INFO, "chamber.dpdt = ", current_dpdt);
     }
 }
 
@@ -418,6 +423,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         // Diagnostic fields
         Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> L_out = L_mf.Patch(lev, mfi);
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -438,6 +444,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             // CALCULATE MOBILITY
             // 
             Set::Scalar L = propellant.get_L(  phi_avg, T);
+            L_out(i, j, k) = L;
             if (L != L) {
                 Util::Message(INFO, "phi = ", phi_avg);
                 Util::Message(INFO, "T = ", T);
@@ -647,7 +654,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            chamber.volume += eta(i, j, k, 0) * dv;
+            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
@@ -666,7 +673,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            chamber.volume += eta(i, j, k, 0) * dv;
+            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
