@@ -74,6 +74,8 @@ private:
 
     Set::Field<Set::Scalar> laser_mf;
 
+    Set::Field<Set::Scalar> L_mf;
+
     BC::BC<Set::Scalar>* bc_temp = nullptr;
     BC::BC<Set::Scalar>* bc_eta = nullptr;
     IC::IC<Set::Scalar>* ic_phi = nullptr;
