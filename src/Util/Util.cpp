@@ -1,4 +1,5 @@
 #include "Util.H"
+#include "AMReX_VisMF.H"
 #include "Color.H"
 
 #include <chrono>
@@ -23,6 +24,92 @@ std::string globalprefix = "";
 std::pair<std::string,std::string> file_overwrite;
 bool initialized = false;
 bool finalized = false;
+
+
+std::map<std::string,int>  Compare_map;
+
+void Compare(
+    std::string file, std::string func, int line,
+    const amrex::MultiFab &mf, std::string desc,
+    amrex::Box domain)
+{
+    Set::Scalar tolerance = 1E-10;
+
+    std::ostringstream messagestream;
+    std::string filesan = file;
+    Util::String::ReplaceAll(filesan,"/","_");
+    messagestream << filesan << "_" << func << "_" << line << desc;
+    std::string key = messagestream.str();//String::Wrap(messagestream.str(),150);
+
+    int cntr = 0;
+    if (Compare_map.find(key) == Compare_map.end())
+        Compare_map[key] = 0;
+    else
+        Compare_map[key] ++;
+    cntr = Compare_map[key];
+
+    messagestream << "_" << cntr;
+
+    std::string name = messagestream.str();
+
+
+    if (amrex::ParallelDescriptor::NProcs() == 1)
+    {
+        Util::ParallelMessage(file,func,line,"Storing ",name);
+        amrex::VisMF::Write(mf, name);
+    }
+    else
+    {
+        Util::ParallelMessage(file,func,line,"Comparing ",name);
+
+
+        amrex::BoxArray ba = mf.boxArray();
+        if (domain != amrex::Box::TheUnitBox())
+        {
+            //     for (auto &b : ba.boxList()) b = b.grow(2) & domain;
+            Util::Message(INFO,ba);
+        }
+
+        amrex::MultiFab mforig(ba,mf.distributionMap,mf.nComp(),0);
+        amrex::VisMF::Read(mforig,name);
+
+        amrex::MultiFab mfdiff(ba, mf.distributionMap, mf.nComp(), mf.nGrow());
+        amrex::MultiFab::Copy(mfdiff, mf,0,0,mf.nComp(),mf.nGrow());
+        //mf.deepCopy();
+        amrex::MultiFab::Subtract(mfdiff,mforig,0,0,mf.nComp(),0);
+        mfdiff.abs(0,mf.nComp());
+
+        for (int n = 0 ; n < mf.nGrow(); n++)
+        {
+            Set::Scalar max = mfdiff.max(n,0);
+            auto argmax = mfdiff.maxIndex(n,0);
+            if (max > tolerance)
+            {
+                amrex::ParallelDescriptor::Barrier();
+                Util::Message(file,func,line,"ours");
+                amrex::ParallelDescriptor::Barrier();
+                Util::Probe(file,func,line,mf,argmax[0],argmax[1],0,n,3);
+
+                amrex::ParallelDescriptor::Barrier();
+                Util::Message(file,func,line,"original");
+                amrex::ParallelDescriptor::Barrier();
+                Util::Probe(file,func,line,mforig,argmax[0],argmax[1],0,n,3);
+
+                amrex::ParallelDescriptor::Barrier();
+                Util::Message(file,func,line,"diff");
+                amrex::ParallelDescriptor::Barrier();
+                Util::Probe(file,func,line,mfdiff,argmax[0],argmax[1],0,n,3);
+
+                messagestream << "_diff";
+                amrex::VisMF::Write(mfdiff,messagestream.str());
+                Util::Warning(file,func,line,name);
+                Util::Abort(file,func,line,max," at ", argmax);
+            }
+        }
+    }
+
+}
+
 
 std::string GetFileName()
 {

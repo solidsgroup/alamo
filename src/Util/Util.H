@@ -390,65 +390,71 @@ void Probe(
     const int t_ghost = 3;
     
 
-    // Loop over boxes owned by this rank
-    for (amrex::MFIter mfi(a_mf,false); mfi.isValid(); ++mfi)
+    for (int rank = 0; rank < amrex::ParallelDescriptor::NProcs() ; rank++)
     {
-        const amrex::Box& validbox = mfi.validbox();
-        const amrex::Box& box = mfi.grownnodaltilebox();
-        bool contains = false;
+        amrex::ParallelDescriptor::Barrier();
+        if (rank != amrex::ParallelDescriptor::MyRankInTeam()) continue;
 
-        std::vector<std::vector<Set::Scalar>> vals(2*pad + 1);
-        std::vector<std::vector<int>> types(2*pad + 1);
-        for (auto & val : vals) val.resize(2*pad + 1,NAN);
-        for (auto & type : types) type.resize(2*pad + 1,t_notexist);
-
-        for (int I = 0; I <= 2*pad; I++)
+        // Loop over boxes owned by this rank
+        for (amrex::MFIter mfi(a_mf,false); mfi.isValid(); ++mfi)
         {
-            for (int J = 0; J <= 2*pad; J++)
-            {
-                int i = (_i - pad) + I;
-                int j = (_j - pad) + J;
-                
-                if (box.contains(amrex::IntVect(AMREX_D_DECL(i,j,0))))
-                {
-                    const auto& arr = a_mf.const_array(mfi);
-                    vals[I][J] = arr(i,j,0,n);
-                    if (validbox.strictly_contains(i,j,0)) types[I][J] = t_inside;
-                    else if (validbox.contains(i,j,0))     types[I][J] = t_border;
-                    else types[I][J] = t_ghost;
-                    contains = true;
-                }
-            }
-        }
+            const amrex::Box& validbox = mfi.validbox();
+            const amrex::Box& box = mfi.grownnodaltilebox();
+            bool contains = false;
 
-        if (contains)
-        {
-            std::stringstream ss;
-            ss << "  " << std::setw(10) << Color::FG::LightYellow;
+            std::vector<std::vector<Set::Scalar>> vals(2*pad + 1);
+            std::vector<std::vector<int>> types(2*pad + 1);
+            for (auto & val : vals) val.resize(2*pad + 1,NAN);
+            for (auto & type : types) type.resize(2*pad + 1,t_notexist);
+
             for (int I = 0; I <= 2*pad; I++)
             {
-                int i = (_i - pad) + I;
-                ss << "i=" << std::left << std::setw(13)  << i;
+                for (int J = 0; J <= 2*pad; J++)
+                {
+                    int i = (_i - pad) + I;
+                    int j = (_j - pad) + J;
+                
+                    if (box.contains(amrex::IntVect(AMREX_D_DECL(i,j,0))))
+                    {
+                        const auto& arr = a_mf.const_array(mfi);
+                        vals[I][J] = arr(i,j,0,n);
+                        if (validbox.strictly_contains(i,j,0)) types[I][J] = t_inside;
+                        else if (validbox.contains(i,j,0))     types[I][J] = t_border;
+                        else types[I][J] = t_ghost;
+                        contains = true;
+                    }
+                }
             }
-            Util::Message(file,func,line,ss.str());
-                
 
-            for (int J = 2*pad; J >= 0; J--)
+            if (contains)
             {
-                int j = (_j - pad) + J;
-                
                 std::stringstream ss;
-                ss << Color::FG::LightYellow << "j=" << std::left << std::setw(5) << j << Color::Reset;
+                ss << "  " << std::setw(10) << Color::FG::LightYellow;
                 for (int I = 0; I <= 2*pad; I++)
                 {
-                    if (types[I][J] == t_ghost) ss << Color::Dim;
-                    if (types[I][J] == t_border) ss << Color::FG::Green;
-                    if (types[I][J] == t_inside) ss << Color::FG::Blue;
-                    if (types[I][J] == t_notexist) ss << Color::FG::Red;
-                    ss << std::left << std::setw(15) << vals[I][J];
-                    ss << Color::Reset;
+                    int i = (_i - pad) + I;
+                    ss << "i=" << std::left << std::setw(13)  << i;
                 }
-                Util::Message(file,func,line,ss.str());
+                Util::ParallelMessage(file,func,line,ss.str());
+                
+
+                for (int J = 2*pad; J >= 0; J--)
+                {
+                    int j = (_j - pad) + J;
+                
+                    std::stringstream ss;
+                    ss << Color::FG::LightYellow << "j=" << std::left << std::setw(5) << j << Color::Reset;
+                    for (int I = 0; I <= 2*pad; I++)
+                    {
+                        if (types[I][J] == t_ghost) ss << Color::Dim;
+                        if (types[I][J] == t_border) ss << Color::FG::Green;
+                        if (types[I][J] == t_inside) ss << Color::FG::Blue;
+                        if (types[I][J] == t_notexist) ss << Color::FG::Red;
+                        ss << std::left << std::setw(15) << vals[I][J];
+                        ss << Color::Reset;
+                    }
+                    Util::ParallelMessage(file,func,line,ss.str());
+                }
             }
         }
     }
@@ -479,6 +485,24 @@ void Probe(
     }
 }
 
+void Compare(
+    std::string file, std::string func, int line,
+    const amrex::MultiFab &mf, std::string desc, const amrex::Box domain);
+
+AMREX_FORCE_INLINE
+void Compare(
+    std::string file, std::string func, int line,
+    const amrex::MultiFab &mf, const amrex::Box domain)
+{
+    Compare(file,func,line,mf,"",domain);
+}
+AMREX_FORCE_INLINE
+void Compare(
+    std::string file, std::string func, int line,
+    const amrex::MultiFab &mf, std::string desc="")
+{    
+    Compare(file,func,line,mf,desc,amrex::Box::TheUnitBox());
+}
 
 
 void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);

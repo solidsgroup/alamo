@@ -152,6 +152,8 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
     amrex::Box stencilbox(m_geom[amrlev][mglev].growPeriodicDomain(2));
     stencilbox.convert(amrex::IntVect::TheNodeVector());
 
+    //Util::Compare(INFO,a_f,"a_u");
+
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
     for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -293,6 +295,7 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             AMREX_D_TERM(F(i, j, k, 0) = f[0];, F(i, j, k, 1) = f[1];, F(i, j, k, 2) = f[2];);
         });
     }
+    //Util::Compare(INFO,a_f,"a_f");
 }
 
 
@@ -311,7 +314,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
-    for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    for (MFIter mfi(a_diag, false); mfi.isValid(); ++mfi)
     {
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -377,6 +380,14 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
             }
         });
     }
+
+    a_diag.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
+    nodalSync(amrlev,mglev,a_diag);
+
+    Util::Message(INFO,amrlev);
+    Util::Message(INFO,mglev);
+    Util::Compare(INFO,*m_psi_mf[amrlev][mglev],"psi",domain);
+    Util::Compare(INFO,a_diag,"diag",domain);
 }
 
 
