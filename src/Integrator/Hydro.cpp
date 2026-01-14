@@ -601,6 +601,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
+            Set::Matrix3 hess_u = Numeric::Hessian(velocity, i, j, k, DX);
+            /*
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
                 for (int q = 0; q < 2; q++)
@@ -610,31 +612,40 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             (hess_M(r,p,q) - gradu(r,q)*gradrho(p) - gradu(r,p)*gradrho(q) - u(r)*hess_rho(p,q))
                             / rho(i,j,k);
                     }
+            */
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
-            for (int p = 0; p<2; p++)
-                for (int q = 0; q<2; q++)
-                    for (int r = 0; r<2; r++)
-                        for (int s = 0; s<2; s++)
+            /*
+            for (int p = 0; p < 2; p++)
+                for (int q = 0; q < 2; q++)
+                    for (int r = 0; r < 2; r++)
+                        for (int s = 0; s < 2; s++)
                         {
-                            // i = p
-                            // j = q
-                            // k = r
-                            // l = s
-                            Set::Scalar Bpqrs = mu * ((p == r) * (r == s) + (p == s) * (q == r));
-                            div_tau(p) = Bpqrs * hess_u(r, s, q) * ((q == s)); //+ (r == s));
+                            // Cauchy Stress Tensor
+                            //Set::Scalar Mpqrs = mu * ((p == r && q == s) + (p == s && q == r));
+                            Set::Scalar Mpqrs = mu * ((p == r && q == s) + (p == s && q == r))
+                                                - (2.0 / 3.0) * mu * (p == q && r == s);
+                            div_tau(p) += Mpqrs * hess_u(r, s, q);
 
-                            Ldot0(p) += 0.0; //0.5 * Bpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-
-                            /*
-                            Set::Scalar Mpqrs = 0.0;
-                            if (p==r && q==s) Mpqrs += 0.5 * mu;
-
-                            Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
-                            */
+                            // Interface force (viscous coupling at phase boundary)
+                            Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
                         }
+            */
+            for (int p = 0; p < 2; p++)             // i
+                for (int q = 0; q < 2; q++)         // j
+                    for (int r = 0; r < 2; r++)     // r
+                        for (int s = 0; s < 2; s++) // s
+                        {
+                            Set::Scalar mu_b = 0.0; // Stokes Hypothesis
+                            Set::Scalar Mpqrs = mu * ((p==r)?(1.0):(0.0) * (q==s)?(1.0):(0.0) + (p==s)?(1.0):(0.0) * (q==r)?(1.0):(0.0))
+                                       + (mu_b - 2.0 / 3.0 * mu) * (p==q)?(1.0):(0.0) * (r==s)?(1.0):(0.0);
+
+                            div_tau(p) += Mpqrs * hess_u(r, q, s);
+                            Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+
+                        }
+
             
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = (Pdot0(0) - Ldot0(0));

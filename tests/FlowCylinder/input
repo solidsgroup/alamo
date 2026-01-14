@@ -3,7 +3,7 @@
 ### OUTPUT ###
  
 # non INCLINE
-plot_file = ./tests/FlowCylinder/FlowCylinderViscReWork
+plot_file = ./tests/FlowCylinder/FlowCylinderViscReWorkPlsWork
 #plot_file = ./tests/output.VortexShedLarge_20251209_
 #plot_file = ./output.VortexShed_20260103_BC_AMR5
 
