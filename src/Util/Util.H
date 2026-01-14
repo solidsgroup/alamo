@@ -197,12 +197,13 @@ void ParallelMessage (std::string file, std::string func, int line, Args const &
     Util::String::ReplaceAll(message,'\n',"\n"+info);
     std::cout << info << message << std::endl;
 
-
+#ifdef AMREX_DEBUG
     int rank = amrex::ParallelDescriptor::MyProc();
     std::ostringstream fname;
     fname << "log." << rank;   // e.g., log.0, log.1, ...
     std::ofstream out(fname.str(), std::ios::app);  // append mode
     out << message << std::endl;
+#endif
 }
 
 template<typename... Args>

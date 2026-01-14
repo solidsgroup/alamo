@@ -38,12 +38,12 @@ void Compare(
     const amrex::MultiFab &a_mf, std::string desc,
     amrex::Box domain)
 {
-    Compare_cnt++;
-
-    Util::ParallelMessage(INFO,"[",Compare_cnt,"] ","COUNT=",Compare_cnt);
 #ifndef AMREX_DEBUG
     return;
- #endif
+#endif
+
+    Compare_cnt++;
+
     Set::Scalar tolerance = 1E-10;
 
     std::ostringstream messagestream;
@@ -67,7 +67,9 @@ void Compare(
     for (auto & othername : allnames)
     {
         if (name != othername)
-            Util::ParallelAbort(INFO, "MPI Paths have diverged: I am trying to read ", name, " but some other process is trying to read ", othername);
+            Util::ParallelAbort(INFO, "MPI Paths have diverged: I am trying to read ", 
+                                name, " but some other process is trying to read ", 
+                                othername);
     }
 
     amrex::BoxArray ba = a_mf.boxArray();

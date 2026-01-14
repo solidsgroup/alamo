@@ -151,17 +151,6 @@ void Operator<Grid::Node>::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, co
         x.FillBoundary(geom.periodicity());
         nodalSync(amrlev, mglev, x);
     }
-    /*
-    amrex::Geometry geom = m_geom[amrlev][mglev];
-    x.setMultiGhost(true);
-    x.FillBoundaryAndSync(geom.periodicity());
-    nodalSync(amrlev, mglev, x);
-    */
-
-    if (mglev > 2) return;
-    Util::ParallelMessage(INFO,"amrlev",amrlev);
-    Util::ParallelMessage(INFO,"mglev",mglev);
-    Util::Compare(INFO,x,domain);
 }
 
 void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
@@ -274,13 +263,7 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 {
     BL_PROFILE("Operator::restriction()");
 
-    Util::Message(INFO, amrlev);
-    Util::Message(INFO, cmglev);
-    //Util::Compare(INFO,fine);
-
     applyBC(amrlev, cmglev - 1, fine, BCMode::Homogeneous, StateMode::Solution);
-
-    Util::Compare(INFO,fine);
 
     amrex::Box cdomain = m_geom[amrlev][cmglev].growPeriodicDomain(1);
     cdomain = cdomain.convert(amrex::IntVect::TheNodeVector());
@@ -372,30 +355,16 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 
     if (need_parallel_copy) {
         crse.ParallelCopy(cfine);
-        /*crse.ParallelCopy(cfine,Geom(amrlev,cmglev).periodicity());*/
     }
 
     crse.setMultiGhost(true);
     crse.FillBoundary(Geom(amrlev,cmglev).periodicity());
     nodalSync(amrlev, cmglev, crse);
-
-    Util::ParallelMessage(INFO,"component = 0");
-    Util::Probe(INFO,fine,16,16,0,0,2);
-    Util::ParallelMessage(INFO,"component = 0");
-    Util::Probe(INFO,crse,8,8,0,0,2);
-
-
-    Util::ParallelMessage(INFO,"parallel copy? ", need_parallel_copy);
-    Util::ParallelMessage(INFO,amrlev);
-    Util::ParallelMessage(INFO,cmglev);
-    Util::Compare(INFO,crse);
-
 }
 
 void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
     BL_PROFILE("Operator::interpolation()");
-    //int nghost = getNGrow();
     amrex::Box fdomain = m_geom[amrlev][fmglev].growPeriodicDomain(2);
     fdomain.convert(amrex::IntVect::TheNodeVector());
 
@@ -461,13 +430,7 @@ void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine,
 
     fine.setMultiGhost(true);
     fine.FillBoundary(Geom(amrlev,fmglev).periodicity());
-    /*fine.FillBoundaryAndSync(Geom(amrlev,fmglev).periodicity());*/
     nodalSync(amrlev, fmglev, fine);
-
-    Util::Message(INFO,amrlev);
-    Util::Message(INFO,fmglev);
-    Util::Compare(INFO,fine);
-
 }
 
 void Operator<Grid::Node>::averageDownSolutionRHS(int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
@@ -566,8 +529,6 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 {
     BL_PROFILE("Operator::Elastic::reflux()");
 
-    // Util::Compare(INFO,fine_res);
-
     int ncomp = AMREX_SPACEDIM;
 
     amrex::Box cdomain(m_geom[crse_amrlev][0].growPeriodicDomain(2));
@@ -581,12 +542,7 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
     fine_res_for_coarse.ParallelCopy(res, 0, 0, ncomp, 0, 0, cgeom.periodicity());
 
-    // Util::Compare(INFO,fine_res_for_coarse);
-
     applyBC(crse_amrlev + 1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
-
-    // Util::Compare(INFO,fine_res);
-
 
     /// \todo Replace with Enum
     // const int coarse_coarse_node = 0;
@@ -670,17 +626,10 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     // into the final residual.
     res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
 
-    Util::Probe(INFO,fine_res_for_coarse,36,66,0,0,2);
-
     // Sync up ghost nodes
-    //realFillBoundary(res, cgeom);
     res.setMultiGhost(true);
-    //res.FillBoundary(Geom(crse_amrlev).periodicity());
     res.FillBoundaryAndSync(Geom(crse_amrlev).periodicity());
     nodalSync(crse_amrlev, 0, res);
-
-    // Util::Message(INFO,crse_amrlev);
-    // Util::Compare(INFO,res);
 
     return;
 }
@@ -695,10 +644,6 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
     resid.setMultiGhost(true);
     resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
-    /*resid.FillBoundaryAndSync(Geom(amrlev).periodicity());*/
-    //nodalSync(amrlev,0,resid);
-    //Util::Message(INFO,amrlev);
-    //Util::Compare(INFO,resid);
 }
 
 void
@@ -711,11 +656,6 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     resid.setMultiGhost(true);
     resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
-    /*resid.FillBoundaryAndSync(Geom(amrlev).periodicity());*/
-    //nodalSync(amrlev,0,resid);
-    //Util::Message(INFO,amrlev);
-    //Util::Message(INFO,mglev);
-    //Util::Compare(INFO,resid);
 }
 
 

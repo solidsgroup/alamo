@@ -29,9 +29,9 @@ int Allgather(std::vector<T>& a_data)
     std::vector<T> a_data_all(num);
     // Send information about how many sites on each proc to all procs
     std::vector<int> nsites_procs(nprocs);
-    MPI_Allgather(&my_num, 1, amrex::ParallelDescriptor::Mpi_typemap<int>::type(),
-                  nsites_procs.data(), 1, amrex::ParallelDescriptor::Mpi_typemap<int>::type(),
-                  MPI_COMM_WORLD);
+    MPI_Allgather(  &my_num, 1, amrex::ParallelDescriptor::Mpi_typemap<int>::type(),
+                    nsites_procs.data(), 1, amrex::ParallelDescriptor::Mpi_typemap<int>::type(),
+                    MPI_COMM_WORLD);
     // Calculate the offset for each
     std::vector<int> nsites_disp(nprocs);
     for (int i = 0; i < nprocs; i++)
@@ -51,8 +51,8 @@ int Allgather(std::vector<T>& a_data)
     return 0;
 }
 
-inline void Bcast(std::string &s,
-                  int root = amrex::ParallelDescriptor::IOProcessorNumber())
+inline void Bcast(  std::string &s,
+                    int root = amrex::ParallelDescriptor::IOProcessorNumber())
 {
     using namespace amrex;
 
@@ -75,8 +75,8 @@ inline void Bcast(std::string &s,
 
 
 
-inline void AllGather(const std::string &local,
-                      std::vector<std::string> &out)
+inline void AllGather(  const std::string &local,
+                        std::vector<std::string> &out)
 {
     using namespace amrex;
 
