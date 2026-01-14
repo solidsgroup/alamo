@@ -1,4 +1,6 @@
 #include "Util.H"
+#include "AMReX_Config.H"
+#include "AMReX_DistributionMapping.H"
 #include "AMReX_VisMF.H"
 #include "Color.H"
 
@@ -15,6 +17,8 @@
 #include "IO/FileNameParse.H"
 #include "Color.H"
 #include "Numeric/Stencil.H"
+#include "Util/MPI.H"
+#include "mpi.h"
 
 namespace Util
 {
@@ -27,19 +31,26 @@ bool finalized = false;
 
 
 std::map<std::string,int>  Compare_map;
+int Compare_cnt = 0;
 
 void Compare(
     std::string file, std::string func, int line,
-    const amrex::MultiFab &mf, std::string desc,
+    const amrex::MultiFab &a_mf, std::string desc,
     amrex::Box domain)
 {
+    Compare_cnt++;
+
+    Util::ParallelMessage(INFO,"[",Compare_cnt,"] ","COUNT=",Compare_cnt);
+#ifndef AMREX_DEBUG
+    return;
+ #endif
     Set::Scalar tolerance = 1E-10;
 
     std::ostringstream messagestream;
     std::string filesan = file;
     Util::String::ReplaceAll(filesan,"/","_");
     messagestream << filesan << "_" << func << "_" << line << desc;
-    std::string key = messagestream.str();//String::Wrap(messagestream.str(),150);
+    std::string key = messagestream.str();
 
     int cntr = 0;
     if (Compare_map.find(key) == Compare_map.end())
@@ -51,63 +62,83 @@ void Compare(
     messagestream << "_" << cntr;
 
     std::string name = messagestream.str();
+    std::vector<std::string> allnames;
+    Util::MPI::AllGather(name,allnames);
+    for (auto & othername : allnames)
+    {
+        if (name != othername)
+            Util::ParallelAbort(INFO, "MPI Paths have diverged: I am trying to read ", name, " but some other process is trying to read ", othername);
+    }
 
-
+    amrex::BoxArray ba = a_mf.boxArray();
+    amrex::DistributionMapping dm = a_mf.DistributionMap();
+    int nghost = a_mf.nGrow();
+    int ncomp = a_mf.nComp();
+    if (domain != amrex::Box::TheUnitBox())
+    {
+        for (auto &b : ba.boxList()) b = b.grow(2) & domain;
+        nghost = 0;
+    }
+    amrex::MultiFab mf(ba,dm,ncomp,nghost);
+    amrex::MultiFab::Copy(mf,a_mf,0,0,ncomp,0);
     if (amrex::ParallelDescriptor::NProcs() == 1)
     {
-        Util::ParallelMessage(file,func,line,"Storing ",name);
-        amrex::VisMF::Write(mf, name);
+        Util::ParallelMessage(INFO,"[",Compare_cnt,"] ","Storing ",name);
+        Util::ParallelMessage(INFO,"[",Compare_cnt,"] ",name, " - ncomp ",ncomp);
+        std::filesystem::create_directory("checks");
+        amrex::VisMF::Write(mf, "checks/" + name);
     }
     else
     {
-        Util::ParallelMessage(file,func,line,"Comparing ",name);
-
-
-        amrex::BoxArray ba = mf.boxArray();
-        if (domain != amrex::Box::TheUnitBox())
+        Util::ParallelMessage(INFO,"[",Compare_cnt,"] ","Comparing ",name);
         {
-            //     for (auto &b : ba.boxList()) b = b.grow(2) & domain;
-            Util::Message(INFO,ba);
+            amrex::MultiFab mftmp;
+            amrex::VisMF::Read(mftmp,"checks/" + name);
+            if (ba != mftmp.boxArray())
+            {
+                Util::ParallelMessage(file,func,line,"[",Compare_cnt,"] ","our boxarray ",ba);
+                Util::ParallelMessage(file,func,line,"[",Compare_cnt,"] ","saved boxarray ",mftmp.boxArray());
+                Util::Abort(file,func,line,"[",Compare_cnt,"] ","different box arrays !! !! !!");
+            }
         }
 
-        amrex::MultiFab mforig(ba,mf.distributionMap,mf.nComp(),0);
-        amrex::VisMF::Read(mforig,name);
+        amrex::MultiFab mforig(ba,mf.distributionMap,ncomp,nghost);
+        amrex::VisMF::Read(mforig,"checks/" + name);
 
-        amrex::MultiFab mfdiff(ba, mf.distributionMap, mf.nComp(), mf.nGrow());
-        amrex::MultiFab::Copy(mfdiff, mf,0,0,mf.nComp(),mf.nGrow());
-        //mf.deepCopy();
-        amrex::MultiFab::Subtract(mfdiff,mforig,0,0,mf.nComp(),0);
-        mfdiff.abs(0,mf.nComp());
+        amrex::MultiFab mfdiff(ba, mf.distributionMap, ncomp, nghost);
+        amrex::MultiFab::Copy(mfdiff, mf,0,0,ncomp,nghost);
+        amrex::MultiFab::Subtract(mfdiff,mforig,0,0,ncomp,nghost);
+        mfdiff.abs(0,ncomp,nghost);
 
-        for (int n = 0 ; n < mf.nGrow(); n++)
+        for (int n = 0 ; n < ncomp; n++)
         {
-            Set::Scalar max = mfdiff.max(n,0);
-            auto argmax = mfdiff.maxIndex(n,0);
+            Set::Scalar max = mfdiff.max(n,nghost);
+            auto argmax = mfdiff.maxIndex(n,nghost);
             if (max > tolerance)
             {
                 amrex::ParallelDescriptor::Barrier();
-                Util::Message(file,func,line,"ours");
+                Util::ParallelMessage(INFO,"ours (n=",n,")");
                 amrex::ParallelDescriptor::Barrier();
-                Util::Probe(file,func,line,mf,argmax[0],argmax[1],0,n,3);
+                Util::Probe(INFO,mf,argmax[0],argmax[1],0,n,3);
 
                 amrex::ParallelDescriptor::Barrier();
-                Util::Message(file,func,line,"original");
+                Util::ParallelMessage(INFO,"original (n=",n,")");
                 amrex::ParallelDescriptor::Barrier();
-                Util::Probe(file,func,line,mforig,argmax[0],argmax[1],0,n,3);
+                Util::Probe(INFO,mforig,argmax[0],argmax[1],0,n,3);
 
                 amrex::ParallelDescriptor::Barrier();
-                Util::Message(file,func,line,"diff");
+                Util::ParallelMessage(INFO,"diff (n=",n,")");
                 amrex::ParallelDescriptor::Barrier();
-                Util::Probe(file,func,line,mfdiff,argmax[0],argmax[1],0,n,3);
+                Util::Probe(INFO,mfdiff,argmax[0],argmax[1],0,n,3);
 
                 messagestream << "_diff";
                 amrex::VisMF::Write(mfdiff,messagestream.str());
-                Util::Warning(file,func,line,name);
-                Util::Abort(file,func,line,max," at ", argmax);
+                Util::Warning(INFO,"[",Compare_cnt,"] ",name);
+                Util::Abort(INFO,"[",Compare_cnt,"] ",max," at ", argmax);
             }
         }
     }
-
+    //if (Compare_cnt == 169) Util::ParallelAbort(INFO,"exiting");
 }
 
 

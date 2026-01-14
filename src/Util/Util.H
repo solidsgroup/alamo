@@ -18,6 +18,7 @@
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_iMultiFab.H>
+#include <AMReX_Reduce.H>
 
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
@@ -195,6 +196,13 @@ void ParallelMessage (std::string file, std::string func, int line, Args const &
     std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
     Util::String::ReplaceAll(message,'\n',"\n"+info);
     std::cout << info << message << std::endl;
+
+
+    int rank = amrex::ParallelDescriptor::MyProc();
+    std::ostringstream fname;
+    fname << "log." << rank;   // e.g., log.0, log.1, ...
+    std::ofstream out(fname.str(), std::ios::app);  // append mode
+    out << message << std::endl;
 }
 
 template<typename... Args>
@@ -379,7 +387,7 @@ void Probe(
 }
 
 AMREX_FORCE_INLINE
-void Probe(
+int Probe(
     std::string file, std::string func, int line,
     const amrex::MultiFab &a_mf, int _i, int _j, int /*_k*/, int n,
     int pad = 0)
@@ -389,6 +397,7 @@ void Probe(
     const int t_border = 2;
     const int t_ghost = 3;
     
+    int hit = 0;
 
     for (int rank = 0; rank < amrex::ParallelDescriptor::NProcs() ; rank++)
     {
@@ -428,6 +437,7 @@ void Probe(
 
             if (contains)
             {
+                hit++;
                 std::stringstream ss;
                 ss << "  " << std::setw(10) << Color::FG::LightYellow;
                 for (int I = 0; I <= 2*pad; I++)
@@ -458,6 +468,8 @@ void Probe(
             }
         }
     }
+    amrex::ParallelDescriptor::ReduceIntSum(hit);
+    return hit;
 }
 
 
@@ -501,6 +513,7 @@ void Compare(
     std::string file, std::string func, int line,
     const amrex::MultiFab &mf, std::string desc="")
 {    
+    Util::ParallelMessage(INFO);
     Compare(file,func,line,mf,desc,amrex::Box::TheUnitBox());
 }
 
