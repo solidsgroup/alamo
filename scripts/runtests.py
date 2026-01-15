@@ -469,6 +469,25 @@ def test(testdir):
                         True #do nothing
                     time.sleep(1)
 
+            def write_log(stdout,stderr):
+                try:
+                    if stdout is None: stdout = ""
+                    if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+                    fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
+                    fstdout.write(ansi_escape.sub('',stdout))
+                    fstdout.close()
+                except Exception:
+                    pass
+                try:
+                    if stderr is None: stderr = ""
+                    if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+                    fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
+                    fstderr.write(ansi_escape.sub('',stderr))
+                    fstderr.close()
+                except Exception:
+                    pass
+
+
             # Start the run
             proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,
                                     env=env)
@@ -508,6 +527,7 @@ def test(testdir):
                     slowers += 1
             else: print(")")
 
+            write_log(stdout,stderr)
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless permit-timout
@@ -516,10 +536,16 @@ def test(testdir):
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
-            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
+            stdout = e.stdout
+            if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+            stderr = e.stderr
+            if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+            for line in stdout.split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in stderr.split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            write_log(stdout,stderr)
             append_html(record)
+            continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
         except subprocess.TimeoutExpired as e:
@@ -544,7 +570,13 @@ def test(testdir):
             print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
             try:
-                stdoutlines = e.stdout.decode('utf-8').split('\n')
+                stdout = e.stdout
+                if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+                stderr = e.stderr
+                if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+                write_log(stdout,stderr)
+                append_html(record)
+                stdoutlines =stdout.split('\n')
                 if len(stdoutlines) < 10:
                     for line in stdoutlines:      print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
                 else:
@@ -555,6 +587,7 @@ def test(testdir):
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
             timeouts += 1
+            continue
         except DryRunException as e:
             print("")
             record['runStatus'] = '----'
@@ -566,15 +599,6 @@ def test(testdir):
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             append_html(record)
-        
-        fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-        fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
-        fstdout.close()
-        fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-        fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
-        fstderr.close()
-
-        if record['runStatus'] in ['FAIL','TIMEOUT']:
             continue
         
         #
