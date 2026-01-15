@@ -115,7 +115,7 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
         });
     }
     m_ddw_mf[amrlev][0]->setMultiGhost(true);
-    m_ddw_mf[amrlev][0]->FillBoundary(Geom(amrlev,0).periodicity());
+    m_ddw_mf[amrlev][0]->FillBoundaryAndSync(Geom(amrlev,0).periodicity());
     m_model_set = true;
 }
 
@@ -311,7 +311,7 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
 
     const Real* DX = m_geom[amrlev][mglev].CellSize();
 
-    for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    for (MFIter mfi(a_diag, false); mfi.isValid(); ++mfi)
     {
         Box bx = mfi.validbox().grow(1) & domain;
         amrex::Box tilebox = mfi.grownnodaltilebox() & bx;
@@ -377,6 +377,9 @@ Elastic<SYM>::Diagonal(int amrlev, int mglev, MultiFab& a_diag)
             }
         });
     }
+
+    a_diag.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
+    nodalSync(amrlev,mglev,a_diag);
 }
 
 
@@ -768,17 +771,19 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
         MultiTab fine_on_crseba;
         fine_on_crseba.define(newba, crse.DistributionMap(), 1, 4);
         fine_on_crseba.ParallelCopy(fine, 0, 0, 1, 2, 4, m_geom[amrlev][mglev-1].periodicity());
-
+        /* ine_on_crseba.FillBoundaryAndSync(m_geom[amrlev][mglev-1].periodicity()); */
 
         for (MFIter mfi(crse, false); mfi.isValid(); ++mfi)
         {
 
             Box bx = mfi.grownnodaltilebox() & cdomain;
+            /*Box bx = mfi.grownnodaltilebox(-1,1) & cdomain;*/
 
             amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM, SYM>> const& fdata = fine_on_crseba.array(mfi);
             amrex::Array4<Set::Matrix4<AMREX_SPACEDIM, SYM>> const& cdata = crse.array(mfi);
 
             const Dim3 lo = amrex::lbound(bx), hi = amrex::ubound(bx);
+            /*const Dim3 lo = amrex::lbound(cdomain), hi = amrex::ubound(cdomain);*/
 
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
@@ -934,7 +939,7 @@ void
 Elastic<SYM>::FillBoundaryCoeff(MultiTab& sigma, const amrex::Periodicity& p)
 {
     sigma.setMultiGhost(true);
-    sigma.FillBoundary(p);
+    sigma.FillBoundaryAndSync(p);
 }
 
 template<int SYM>
@@ -942,7 +947,7 @@ void
 Elastic<SYM>::FillBoundaryCoeff(MultiFab& psi, const amrex::Periodicity& p)
 {
     psi.setMultiGhost(true);
-    psi.FillBoundary(p);
+    psi.FillBoundaryAndSync(p);
 }
 
 template class Elastic<Set::Sym::Major>;

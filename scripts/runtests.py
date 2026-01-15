@@ -15,6 +15,7 @@ import re
 import pathlib
 import threading
 import signal
+import fnmatch
 
 from sympy import capture
 
@@ -212,7 +213,24 @@ def test(testdir):
     config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
 
-    sections = config.sections()
+    #
+    # Apply wildcard sections and then remove them from the list
+    #
+    sections = [s for s in config.sections() if "*" not in s]
+    section_wildcards = [s for s in config.sections() if "*" in s]
+    for desc in sections:
+        desc_wildcards = [s for s in section_wildcards if fnmatch.fnmatch(desc,s)]
+        for wc in desc_wildcards:
+            new = dict(config[wc])
+            newargs = None
+            if "args" in config[desc].keys() and "args" in config[wc].keys():
+                newargs = new["args"] + "\n" + config[desc]["args"]
+            new.update(config[desc])
+            if newargs: new["args"] = newargs
+            config[desc] = new
+    for wc in section_wildcards:
+        config.remove_section(wc)
+
     if args.sections:
         if len(args.sections)>0:
             sections = list(set(config.sections()).intersection(set(args.sections)))
@@ -409,6 +427,7 @@ def test(testdir):
             command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
+            record['cmd_test'] = command
         
 
 
@@ -477,12 +496,6 @@ def test(testdir):
 
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
-            fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-            fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
-            fstdout.close()
-            fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-            fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
-            fstderr.close()
             print(bs+"[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             record['runStatus'] = 'PASS'
             if dobenchmark:
@@ -507,7 +520,6 @@ def test(testdir):
             for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             append_html(record)
-            continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
         except subprocess.TimeoutExpired as e:
@@ -543,7 +555,6 @@ def test(testdir):
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
             timeouts += 1
-            continue
         except DryRunException as e:
             print("")
             record['runStatus'] = '----'
@@ -555,9 +566,17 @@ def test(testdir):
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             append_html(record)
+        
+        fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
+        fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
+        fstdout.close()
+        fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
+        fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
+        fstderr.close()
+
+        if record['runStatus'] in ['FAIL','TIMEOUT']:
             continue
         
-
         #
         # 
         # [ P R O F I L I N G ]

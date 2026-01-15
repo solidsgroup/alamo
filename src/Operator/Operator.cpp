@@ -161,7 +161,7 @@ void Operator<Grid::Node>::normalize(int amrlev, int mglev, MultiFab& a_x) const
     a_x.divide(*m_diag[amrlev][mglev],0,getNComp(),2);
 
     a_x.setMultiGhost(true);
-    a_x.FillBoundary(Geom(amrlev,mglev).periodicity());
+    a_x.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
 }
 
 Operator<Grid::Node>::Operator(const Vector<Geometry>& a_geom,
@@ -365,7 +365,6 @@ void Operator<Grid::Node>::restriction(int amrlev, int cmglev, MultiFab& crse, M
 void Operator<Grid::Node>::interpolation(int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
     BL_PROFILE("Operator::interpolation()");
-    //int nghost = getNGrow();
     amrex::Box fdomain = m_geom[amrlev][fmglev].growPeriodicDomain(2);
     fdomain.convert(amrex::IntVect::TheNodeVector());
 
@@ -461,7 +460,9 @@ void Operator<Grid::Node>::applyBC(int amrlev, int mglev, MultiFab& phi, BCMode/
     const Geometry& geom = m_geom[amrlev][mglev];
 
     if (!skip_fillboundary) {
-        phi.FillBoundary(geom.periodicity());
+        //phi.FillBoundary(geom.periodicity());
+        //phi.setMultiGhost(true);
+        phi.FillBoundaryAndSync(geom.periodicity());
     }
 }
 
@@ -550,8 +551,8 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
-    // nodemask.setMultiGhost(true);
-    // nodemask.FillBoundaryAndSync(cgeom.periodicity());
+    // nodemask.setMultiGhost(true); /*Uncommented*/
+    // nodemask.FillBoundaryAndSync(cgeom.periodicity()); /*Uncommented*/
 
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {
@@ -626,10 +627,10 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
     res.ParallelCopy(fine_res_for_coarse, 0, 0, ncomp, 0, 0, cgeom.periodicity());
 
     // Sync up ghost nodes
-    //realFillBoundary(res, cgeom);
     res.setMultiGhost(true);
-    res.FillBoundary(Geom(crse_amrlev).periodicity());
+    res.FillBoundaryAndSync(Geom(crse_amrlev).periodicity());
     nodalSync(crse_amrlev, 0, res);
+
     return;
 }
 
@@ -642,8 +643,7 @@ Operator<Grid::Node>::solutionResidual(int amrlev, MultiFab& resid, MultiFab& x,
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
     resid.setMultiGhost(true);
-    resid.FillBoundary(Geom(amrlev).periodicity());
-    nodalSync(amrlev,0,resid);
+    resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }
 
 void
@@ -655,8 +655,7 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     resid.setMultiGhost(true);
-    resid.FillBoundary(Geom(amrlev).periodicity());
-    nodalSync(amrlev,0,resid);
+    resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
 }
 
 

@@ -49,7 +49,7 @@ public:
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Zero();
         return ret;
     }
-    static void Parse(Laplacian value,IO::ParmParse pp)
+    static void Parse(Laplacian &value,IO::ParmParse &pp)
     {
         Set::Scalar alpha = NAN;
         // Coefficient for the Laplacian
