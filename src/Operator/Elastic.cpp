@@ -63,8 +63,6 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
         amrex::Box domain(m_geom[amrlev][0].Domain());
         domain.convert(amrex::IntVect::TheNodeVector());
 
-        int nghost = m_ddw_mf[amrlev][0]->nGrow();
-
         for (MFIter mfi(*m_ddw_mf[amrlev][0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             Box bx = mfi.grownnodaltilebox();
@@ -100,8 +98,6 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
     if (a_model.nComp() != m_ddw_mf[amrlev][0]->nComp()) Util::Abort(INFO, "Inconsistent # of components - should be ", m_ddw_mf[amrlev][0]->nComp());
     if (a_model.nGrow() != m_ddw_mf[amrlev][0]->nGrow()) Util::Abort(INFO, "Inconsistent # of ghost nodes, should be ", m_ddw_mf[amrlev][0]->nGrow());
 
-
-    int nghost = m_ddw_mf[amrlev][0]->nGrow();
 
     for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {

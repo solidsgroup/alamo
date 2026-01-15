@@ -174,6 +174,12 @@ public:
                     {
                         if (face == Face::YLO || face==Face::YHI) continue;
                     }
+                    #if AMREX_SPACEDIM == 3
+                    if (a_geom.isPeriodic(2))
+                    {
+                        if (face == Face::ZLO || face==Face::ZHI) continue;
+                    }
+                    #endif
 
                     if (!(face == Face::INT))
                     {
