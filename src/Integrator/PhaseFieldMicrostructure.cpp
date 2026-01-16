@@ -268,12 +268,8 @@ template <class model_type>
 void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
 {
     if (this->m_type == Base::Mechanics<model_type>::Disable) return;
-    
-    eta_mf[lev]->setMultiGhost(true);
-    eta_mf[lev]->FillBoundaryAndSync(this->geom[lev].periodicity());
-    eta_old_mf[lev]->setMultiGhost(true);
-    eta_old_mf[lev]->FillBoundaryAndSync(this->geom[lev].periodicity());
-
+    eta_mf[lev]->FillBoundary();
+    eta_old_mf[lev]->FillBoundary();
 
     amrex::Box domain = this->geom[lev].Domain();
     domain.convert(amrex::IntVect::TheNodeVector());
@@ -301,8 +297,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
         });
     }
     
-    this->model_mf[lev]->setMultiGhost(true);
-    this->model_mf[lev]->FillBoundary(this->geom[lev].periodicity());
+    Util::RealFillBoundary(*this->model_mf[lev],this->geom[lev]);
 }
 
 template<class model_type>
@@ -353,11 +348,10 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
 
     for (int lev = 0; lev <= this->finest_level; ++lev)
     {
-        amrex::Box domain = this->geom[lev].growPeriodicDomain(2);
+        amrex::Box domain = this->geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
-        eta_mf[lev]->setMultiGhost(true);
-        eta_mf[lev]->FillBoundaryAndSync(this->geom[lev].periodicity());
+        eta_mf[lev]->FillBoundary();
 
         for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
         {
@@ -415,8 +409,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step, Set::Scalar /
             }
         }
 
-        this->model_mf[lev]->setMultiGhost(true);
-        this->model_mf[lev]->FillBoundaryAndSync(this->geom[lev].periodicity());
+        Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
     }
 
 }
