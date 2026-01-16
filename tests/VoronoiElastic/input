@@ -101,3 +101,5 @@ mechanics.solver.tol_abs = 1E-8
 mechanics.solver.average_down_coeffs = 0
 mechanics.time_evolving = 0
 mechanics.tstart = 0
+
+geometry.is_periodic = 0 1 0

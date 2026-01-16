@@ -655,7 +655,7 @@ Operator<Grid::Node>::correctionResidual(int amrlev, int mglev, MultiFab& resid,
     int ncomp = b.nComp();
     MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
     resid.setMultiGhost(true);
-    resid.FillBoundaryAndSync(Geom(amrlev).periodicity());
+    resid.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
 }
 
 

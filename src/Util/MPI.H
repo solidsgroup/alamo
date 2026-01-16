@@ -75,7 +75,7 @@ inline void Bcast(  std::string &s,
 
 
 
-inline void AllGather(  const std::string &local,
+inline void Allgather(  const std::string &local,
                         std::vector<std::string> &out)
 {
     using namespace amrex;

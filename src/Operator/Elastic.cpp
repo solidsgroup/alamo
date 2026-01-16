@@ -289,6 +289,8 @@ Elastic<SYM>::Fapply(int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
             AMREX_D_TERM(F(i, j, k, 0) = f[0];, F(i, j, k, 1) = f[1];, F(i, j, k, 2) = f[2];);
         });
     }
+    a_f.setMultiGhost(true);
+    a_f.FillBoundaryAndSync(Geom(amrlev,mglev).periodicity());
 }
 
 

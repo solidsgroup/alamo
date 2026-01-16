@@ -7,6 +7,7 @@
 #include <AMReX_BaseFab.H>
 
 #include "BC/BC.H"
+#include "Util/Debug.H"
 
 using namespace amrex;
 
@@ -106,6 +107,34 @@ public:
 
 public:
     static void realFillBoundary(MultiFab &phi, const Geometry &geom);
+
+
+
+    virtual void interpolationAmr (int famrlev, amrex::MultiFab& fine, const amrex::MultiFab& crse_cor,
+                                   IntVect const& nghost) const override
+    {
+        Util::Warning(INFO,"This has been modified for debugging purposes");
+
+        Util::Debug::Compare(INFO,crse_cor); // no difference
+
+        // copied from MLMG::interpCorrection
+        amrex::Geometry crse_geom = Geom(famrlev-1,0);
+        amrex::MultiFab cfine = makeCoarseAmr(famrlev, IntVect(2));
+        setVal(cfine, RT(0.0));
+        
+        Util::Debug::Compare(INFO,cfine); // no difference in cfine
+
+        // copied from MLMG::interpCorrection
+        ParallelCopy(cfine, crse_cor, 0, 0, 2, IntVect(2), IntVect(2),
+                     crse_geom.periodicity());
+
+        Util::ParallelMessage(INFO,"famrlev=",famrlev); 
+        Util::Debug::Compare(INFO,cfine);  // breaks on famrlev=1 !!
+
+        amrex::MLNodeLinOp::interpolationAmr(famrlev,fine,cfine,nghost);
+        fine.FillBoundaryAndSync(Geom(famrlev,0).periodicity());
+        Util::Debug::Compare(INFO,fine);
+    }
 
 private:
     bool m_is_bottom_singular = false;
