@@ -11,16 +11,16 @@ amr.regrid_int = 50
 amr.grid_eff = 0.8
 
 amr.max_level = 0
-timestep   = 4.0e-6
+timestep   = 5.0e-6
 amr.n_cell = 8 128        # 1 cell in x (ignored), 128 in y for 1D vertical test
 
 ### DIMENSIONS ###
-geometry.prob_lo = -0.5 -0.5 0.0
-geometry.prob_hi =  1.0  1.0 0.0 
+geometry.prob_lo = -0.5  0.0 0.0
+geometry.prob_hi =  0.5  1.0 0.0 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
-stop_time = 0.5
+stop_time = 2.5
 
 ### ETA IC ###
 m0.ic.type = constant
@@ -40,12 +40,12 @@ eta.ic.expression.region0 = 1.0
 ### HYDRO PARAM ###
 gamma = 1.4
 cfl   = 0.2
-mu    = 0.01
+mu    = 2.5
 pref  = 0.0
 
 ### INITIAL CONDITIONS ###
 density.ic.type = expression
-density.ic.expression.region0 = "1.0"
+density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"   # start from rest everywhere
@@ -57,7 +57,7 @@ pressure.ic.expression.region0 = "100000.0"
 
 ### SOLID ###
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "1.0"
+solid.density.ic.expression.region0 = "1.0" 
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.0"
@@ -95,7 +95,7 @@ momentum.bc.constant.type.yhi = dirichlet dirichlet
 
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.xhi = 0.0 0.0
-momentum.bc.constant.val.ylo = 1.0 0.0
+momentum.bc.constant.val.ylo = 100.0 0.0		# < Bottom plate movement momentum
 momentum.bc.constant.val.yhi = 0.0 0.0
 
 # Energy: Neumann in y (no heat flux), Neumann in x

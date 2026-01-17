@@ -1,27 +1,24 @@
 """
-Rayleigh Flow (Stokes' First Problem) Analysis Script
+Rayleigh Flow (Stokes' First Problem) Viscosity Analysis Script
 
 This script extracts velocity profiles from AMReX Rayleigh flow simulations,
-compares them with the analytical transient solution, and generates visualization plots.
+calculates numerical velocity gradients (du/dy) and effective viscosity,
+and compares them with analytical values to detect numerical viscosity errors.
 
 Analytical Solution:
     u_x(y,t) = U * erfc(y / sqrt(4*nu*t))
-    
-    where:
-    - U: plate velocity (m/s)
-    - nu: kinematic viscosity (m^2/s) = mu/rho
-    - y: distance from plate (m)
-    - t: time (s)
-    - erfc: complementary error function
+    du/dy = -U / sqrt(pi*nu*t) * exp(-y^2 / (4*nu*t))
 
 Features:
 - Extracts 1D velocity profile along y-direction at x=0 for y>0
-- Compares numerical solution with analytical Rayleigh solution
-- Creates multi-panel plot showing transient evolution (up to 6 timesteps)
-- Customizable plotting parameters (fonts, titles, line weights)
+- Calculates numerical du/dy using central differences
+- Calculates numerical mu_effective from shear stress balance
+- Creates multi-panel plot showing transient velocity evolution
+- Creates mu vs. y plot comparing analytical and numerical viscosity
 - Outputs plots as both .eps and .png formats
-- Optional GIF generation showing velocity profile evolution
+- Optional GIF generation showing velocity and viscosity evolution
 - Error metrics (L2 and L-infinity norms) for each timestep
+- Viscosity error analysis in active diffusion region
 
 Required inputs:
 - U: Plate velocity (m/s)
@@ -113,6 +110,33 @@ def analytical_rayleigh_velocity(y, t, U, nu):
     # Rayleigh solution
     return U * erfc(eta)
 
+def analytical_rayleigh_gradient(y, t, U, nu):
+    """
+    Analytical velocity gradient du/dy for Rayleigh flow.
+    
+    Formula: du/dy = -U / sqrt(pi*nu*t) * exp(-y^2 / (4*nu*t))
+    
+    Parameters:
+    -----------
+    y : array-like
+        Distance from the plate (m), must be >= 0
+    t : float
+        Time since impulsive start (s), must be > 0
+    U : float
+        Plate velocity (m/s)
+    nu : float
+        Kinematic viscosity (m^2/s)
+    
+    Returns:
+    --------
+    du_dy : array-like
+        Velocity gradient at each y position (1/s)
+    """
+    if t <= 0:
+        return np.zeros_like(y)
+    
+    return -U / np.sqrt(np.pi * nu * t) * np.exp(-y**2 / (4.0 * nu * t))
+
 # ============================================================================
 # HELPER FUNCTION TO EXTRACT TIMESTEP NUMBER
 # ============================================================================
@@ -130,13 +154,13 @@ def extract_timestep_number(filename):
 # SETUP
 # ============================================================================
 print("=" * 70)
-print("RAYLEIGH FLOW (STOKES' FIRST PROBLEM) ANALYSIS")
+print("RAYLEIGH FLOW VISCOSITY ANALYSIS")
 print("=" * 70)
 print(f"\nPhysical Parameters:")
 print(f"  Plate Velocity (U):      {U:.4f} m/s")
-print(f"  Density (rho):             {rho:.2e} kg/m^3")
-print(f"  Dynamic Viscosity (mu):   {mu:.2e} Pa-s")
-print(f"  Kinematic Viscosity (nu): {nu:.2e} m^2/s")
+print(f"  Density (rho):           {rho:.2e} kg/m^3")
+print(f"  Dynamic Viscosity (mu):  {mu:.2e} Pa-s")
+print(f"  Kinematic Viscosity (nu):{nu:.2e} m^2/s")
 
 # Create output directory if it doesn't exist
 if not os.path.exists(output_folder):
@@ -280,29 +304,30 @@ plt.tight_layout(rect=[0, 0, 1, 0.99])
 multipanel_filename = os.path.join(output_folder, 'rayleigh_transient_multipanel')
 plt.savefig(multipanel_filename + '.png', format='png', dpi=300, bbox_inches='tight')
 plt.savefig(multipanel_filename + '.eps', format='eps', bbox_inches='tight')
-
 print("\n" + "=" * 70)
 print("MULTI-PANEL PLOT SAVED")
 print("=" * 70)
 print(f"  {multipanel_filename}.png")
 print(f"  {multipanel_filename}.eps")
-
 plt.show()
 
 # ============================================================================
-# CREATE FINAL TIMESTEP COMPARISON PLOT
+# VISCOSITY ANALYSIS - FINAL TIMESTEP
 # ============================================================================
 print("\n" + "=" * 70)
-print("CREATING FINAL TIMESTEP COMPARISON PLOT")
+print("VISCOSITY ANALYSIS - FINAL TIMESTEP")
 print("=" * 70)
 
 last_plot = plot_files[-1]
 ds_final = yt.load(last_plot)
 simulation_time_final = float(ds_final.current_time)
-
 y_min_final = float(ds_final.domain_left_edge[1])
 y_max_final = float(ds_final.domain_right_edge[1])
 
+print(f"\nProcessing final timestep: {os.path.basename(last_plot)}")
+print(f"Time: {simulation_time_final:.6e} s")
+
+# Extract data
 ray_start_final = ds_final.arr([0.0, y_min_final, 0.0], 'code_length')
 ray_end_final = ds_final.arr([0.0, y_max_final, 0.0], 'code_length')
 ray_final = ds_final.ray(ray_start_final, ray_end_final)
@@ -312,8 +337,117 @@ y_numerical_final = np.array(ray_final['y'][sort_indices_final])
 velocity_numerical_final = np.array(ray_final['velocityx'][sort_indices_final])
 
 positive_y_mask_final = y_numerical_final >= 0
-y_numerical_final_filtered = y_numerical_final[positive_y_mask_final]
-velocity_numerical_final_filtered = velocity_numerical_final[positive_y_mask_final]
+y_num = y_numerical_final[positive_y_mask_final]
+v_num = velocity_numerical_final[positive_y_mask_final]
+
+print(f"Extracted {len(y_num)} points (y >= 0)")
+
+# ============================================================================
+# CALCULATE NUMERICAL GRADIENTS AND EFFECTIVE VISCOSITY
+# ============================================================================
+print("\nCalculating numerical gradients and effective viscosity...")
+
+# 1. Numerical du/dy using central differences
+du_dy_num = np.gradient(v_num, y_num)
+
+# 2. Analytical du/dy
+du_dy_ana = analytical_rayleigh_gradient(y_num, simulation_time_final, U, nu)
+
+# 3. Calculate numerical mu_effective
+# For Rayleigh flow: tau = mu * (du/dy)
+# From shear stress balance: tau_analytical = mu_analytical * du_dy_analytical
+# If numerical code has error: tau_numerical = mu_effective * du_dy_numerical
+# Assuming tau should match: mu_effective = mu_analytical * (du_dy_analytical / du_dy_numerical)
+
+with np.errstate(divide='ignore', invalid='ignore'):
+    mu_eff = mu * (du_dy_ana / du_dy_num)
+    # Filter noise where gradients are near zero (far field)
+    mu_eff[np.abs(du_dy_num) < 1e-6] = np.nan
+    mu_eff[np.abs(du_dy_ana) < 1e-6] = np.nan
+
+# ============================================================================
+# CREATE MU VS Y PLOT
+# ============================================================================
+print("\nCreating viscosity profile plot (mu vs y)...")
+
+fig_visc, ax_visc = plt.subplots(figsize=(10, 8))
+
+# Plot Analytical mu (Constant vertical line)
+ax_visc.axvline(x=mu, color='blue', linestyle='-', 
+                linewidth=LINE_WIDTH_EXACT, label=f'Analytical mu = {mu} Pa-s')
+
+# Plot Numerical mu_effective
+ax_visc.plot(mu_eff, y_num, 'ro', markersize=4, 
+             label='Numerical mu_effective', alpha=0.6)
+
+# Formatting
+ax_visc.set_xlabel('Viscosity mu (Pa-s)', fontsize=FONT_SIZE_LABEL)
+ax_visc.set_ylabel('Height y (m)', fontsize=FONT_SIZE_LABEL)
+ax_visc.set_title(f'Effective Viscosity Profile - Rayleigh Flow\nt = {simulation_time_final:.4e} s', 
+                  fontsize=FONT_SIZE_TITLE, fontweight='bold')
+ax_visc.set_xlim([0, mu * 2.5])
+ax_visc.set_ylim([0, y_max_final])
+ax_visc.grid(True, alpha=0.3)
+ax_visc.legend(fontsize=FONT_SIZE_LEGEND, loc='best')
+ax_visc.tick_params(labelsize=FONT_SIZE_TICK)
+
+plt.tight_layout()
+
+# Save viscosity plot
+viscosity_filename = os.path.join(output_folder, 'rayleigh_viscosity_profile')
+plt.savefig(viscosity_filename + '.png', format='png', dpi=300, bbox_inches='tight')
+plt.savefig(viscosity_filename + '.eps', format='eps', bbox_inches='tight')
+
+print(f"\nViscosity plot saved:")
+print(f"  {viscosity_filename}.png")
+print(f"  {viscosity_filename}.eps")
+plt.show()
+
+# ============================================================================
+# VISCOSITY ERROR STATISTICS
+# ============================================================================
+print("\n" + "=" * 70)
+print("VISCOSITY ERROR ANALYSIS")
+print("=" * 70)
+
+# Focus on the active diffusion region (10% to 90% of wall velocity)
+active_region = (v_num > 0.1 * U) & (v_num < 0.9 * U)
+valid_mu = mu_eff[active_region & ~np.isnan(mu_eff)]
+
+print(f"\nAnalytical mu (input):     {mu:.6e} Pa-s")
+
+if len(valid_mu) > 0:
+    mean_mu = np.mean(valid_mu)
+    std_mu = np.std(valid_mu)
+    min_mu = np.min(valid_mu)
+    max_mu = np.max(valid_mu)
+    
+    print(f"Mean Numerical mu:         {mean_mu:.6e} Pa-s")
+    print(f"Standard Deviation:        {std_mu:.6e} Pa-s")
+    print(f"Min Numerical mu:          {min_mu:.6e} Pa-s")
+    print(f"Max Numerical mu:          {max_mu:.6e} Pa-s")
+    print(f"\nAbsolute Error:            {abs(mean_mu - mu):.6e} Pa-s")
+    print(f"Relative Error:            {abs(mean_mu - mu)/mu*100:.2f}%")
+    print(f"Viscosity Ratio (mu_eff/mu): {mean_mu/mu:.4f}")
+    
+    if abs(mean_mu/mu - 2.0) < 0.1:
+        print("\n*** WARNING: Effective viscosity is approximately 2x analytical value!")
+        print("*** This suggests a factor-of-2 error in the stress tensor implementation.")
+else:
+    print("\nWarning: Could not calculate mean mu in the active region.")
+
+# Wall gradient analysis
+wall_idx = np.argmin(np.abs(y_num))
+if wall_idx < len(mu_eff) and not np.isnan(mu_eff[wall_idx]):
+    print(f"\nmu_effective at wall (y~0): {mu_eff[wall_idx]:.6e} Pa-s")
+    print(f"Wall viscosity ratio:       {mu_eff[wall_idx]/mu:.4f}")
+
+# ============================================================================
+# CREATE FINAL TIMESTEP VELOCITY COMPARISON PLOT
+# ============================================================================
+print("\n" + "=" * 70)
+print("CREATING FINAL TIMESTEP VELOCITY COMPARISON PLOT")
+print("=" * 70)
 
 y_analytical_final = np.linspace(0, y_max_final, 1000)
 velocity_analytical_final = analytical_rayleigh_velocity(y_analytical_final, simulation_time_final, U, nu)
@@ -322,7 +456,7 @@ fig_final, ax_final = plt.subplots(figsize=(10, 8))
 
 ax_final.plot(velocity_analytical_final, y_analytical_final, 'b-', 
               linewidth=LINE_WIDTH_EXACT, label='Analytical', zorder=1)
-ax_final.plot(velocity_numerical_final_filtered, y_numerical_final_filtered, 'r--', 
+ax_final.plot(v_num, y_num, 'r--', 
               linewidth=LINE_WIDTH_NUMERICAL, label='Numerical', 
               zorder=2, alpha=0.8)
 
@@ -341,17 +475,15 @@ plt.tight_layout()
 final_filename = os.path.join(output_folder, 'rayleigh_final_comparison')
 plt.savefig(final_filename + '.png', format='png', dpi=300, bbox_inches='tight')
 plt.savefig(final_filename + '.eps', format='eps', bbox_inches='tight')
-
 print(f"  {final_filename}.png")
 print(f"  {final_filename}.eps")
-
 plt.show()
 
 # ============================================================================
 # COMPUTE AND DISPLAY ERROR METRICS
 # ============================================================================
 print("\n" + "=" * 70)
-print("ERROR METRICS SUMMARY")
+print("VELOCITY ERROR METRICS SUMMARY")
 print("=" * 70)
 print(f"\n{'Time (s)':<15} {'L2 Error':<15} {'L-inf Error':<15}")
 print("-" * 45)
@@ -359,15 +491,13 @@ for error_entry in error_data:
     print(f"{error_entry['time']:<15.6e} {error_entry['l2_error']:<15.6e} {error_entry['linf_error']:<15.6e}")
 
 # Final timestep error
-velocity_analytical_final_interp = np.interp(y_numerical_final_filtered, 
-                                              y_analytical_final, 
-                                              velocity_analytical_final)
-velocity_error_final = velocity_numerical_final_filtered - velocity_analytical_final_interp
+velocity_analytical_final_interp = np.interp(y_num, y_analytical_final, velocity_analytical_final)
+velocity_error_final = v_num - velocity_analytical_final_interp
 l2_error_final = np.linalg.norm(velocity_error_final) / np.sqrt(len(velocity_error_final))
 linf_error_final = np.max(np.abs(velocity_error_final))
 
 print("\n" + "=" * 70)
-print("FINAL TIMESTEP ERROR METRICS")
+print("FINAL TIMESTEP VELOCITY ERROR METRICS")
 print("=" * 70)
 print(f"  Time:          {simulation_time_final:.6e} s")
 print(f"  L2 error:      {l2_error_final:.6e}")
@@ -386,11 +516,11 @@ abs_error_safe = abs_velocity_error_final + epsilon
 
 fig_error, ax_error = plt.subplots(figsize=(10, 8))
 
-ax_error.semilogy(y_numerical_final_filtered, abs_error_safe, 'k-', linewidth=LINE_WIDTH_NUMERICAL)
+ax_error.semilogy(y_num, abs_error_safe, 'k-', linewidth=LINE_WIDTH_NUMERICAL)
 
 ax_error.set_xlabel('Height y (m)', fontsize=FONT_SIZE_LABEL)
 ax_error.set_ylabel('Absolute Error |vx - v_true| (m/s)', fontsize=FONT_SIZE_LABEL)
-ax_error.set_title(f'Rayleigh Flow: Absolute Error\nt = {simulation_time_final:.6e} s', 
+ax_error.set_title(f'Rayleigh Flow: Absolute Velocity Error\nt = {simulation_time_final:.6e} s', 
                    fontsize=FONT_SIZE_TITLE, fontweight='bold')
 ax_error.grid(True, alpha=0.3, which='both')
 ax_error.tick_params(labelsize=FONT_SIZE_TICK)
@@ -400,10 +530,8 @@ plt.tight_layout()
 error_filename = os.path.join(output_folder, 'rayleigh_error_semilog')
 plt.savefig(error_filename + '.png', format='png', dpi=300, bbox_inches='tight')
 plt.savefig(error_filename + '.eps', format='eps', bbox_inches='tight')
-
 print(f"  {error_filename}.png")
 print(f"  {error_filename}.eps")
-
 plt.show()
 
 # ============================================================================
@@ -510,6 +638,8 @@ print(f"Output directory: {output_folder}")
 print(f"\nFiles generated:")
 print(f"  - rayleigh_transient_multipanel.png")
 print(f"  - rayleigh_transient_multipanel.eps")
+print(f"  - rayleigh_viscosity_profile.png")
+print(f"  - rayleigh_viscosity_profile.eps")
 print(f"  - rayleigh_final_comparison.png")
 print(f"  - rayleigh_final_comparison.eps")
 print(f"  - rayleigh_error_semilog.png")
