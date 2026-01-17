@@ -51,6 +51,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
         pp_query_required("mu", value.mu); // linear viscosity coefficient
+        pp_query_required("mu_b", value.mu_b); // linear bulk viscosity coefficient
         pp_forbid("Lfactor","replaced with mu");
         //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
         pp_forbid("Pfactor","replaced with mu");
@@ -624,14 +625,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         for (int s = 0; s < 2; s++) // s
                         {
                             Set::Scalar Mpqrs = 0.0;
-                            Set::Scalar mu_b = (- 2.0 / 3.0) * mu; // Stokes Hypothesis
                             if ((p == r) and (q == s))
                                 Mpqrs += mu;
                             if ((p == s) and (q == r))
                                 Mpqrs += mu;
 
                             if ((p == q) and (r == s))
-                                Mpqrs += mu_b;
+                                Mpqrs += mu_b - (2.0 / 3.0) * mu;
 
                             div_tau(p) += Mpqrs * hess_u(r, q, s);
                             Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
