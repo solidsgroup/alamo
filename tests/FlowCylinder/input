@@ -191,12 +191,12 @@ gradu_refinement_criterion = 0.75
  
 amr.abort_on_nan = 0
  
-# dynamictimestep.on = 0
-# dynamictimestep.verbose = 1
-# #dynamictimestep.cfl = 0.6
-# dynamictimestep.cfl = 0.5
-# dynamictimestep.max  = 1.0
-# dynamictimestep.min  = 0.0
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+#dynamictimestep.cfl = 0.6
+dynamictimestep.cfl = 0.5
+dynamictimestep.max  = 1.0
+dynamictimestep.min  = 0.0
  
  
 small=1E-8

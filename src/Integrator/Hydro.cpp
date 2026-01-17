@@ -51,7 +51,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
         pp_query_required("mu", value.mu); // linear viscosity coefficient
-        pp_query_required("mu_b", value.mu_b); // linear bulk viscosity coefficient
+        pp_query_default("mu_b", value.mu_b, 0.0);         // linear bulk viscosity coefficient
         pp_forbid("Lfactor","replaced with mu");
         //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
         pp_forbid("Pfactor","replaced with mu");
@@ -314,138 +314,138 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
-
-    if (!managed) std::swap(*eta_old_mf, *eta_mf);
-    std::swap(density_old_mf[lev],  density_mf[lev]);
+    if (!managed)
+        std::swap(*eta_old_mf, *eta_mf);
+    std::swap(density_old_mf[lev], density_mf[lev]);
     std::swap(momentum_old_mf[lev], momentum_mf[lev]);
-    std::swap(energy_old_mf[lev],   energy_mf[lev]);
-    
+    std::swap(energy_old_mf[lev], energy_mf[lev]);
+
     //
     // UPDATE ETA AND CALCULATE ETADOT
     //
-
-    if (!managed) UpdateEta(lev, time);
-    if (managed) 
+    if (!managed)
+        UpdateEta(lev, time);
+    if (managed)
     {
-        UpdateFluxes(lev,time,dt);
+        UpdateFluxes(lev, time, dt);
         Mix(lev);
     }
+
     for (amrex::MFIter mfi(*(velocity_mf)[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
-        amrex::Array4<const Set::Scalar> const& eta_new = (*(*eta_mf)[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*(*eta_old_mf)[lev]).array(mfi);
-        amrex::Array4<Set::Scalar>       const& etadot = (*etadot_mf[lev]).array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
+        const amrex::Box &bx = mfi.growntilebox();
+        amrex::Array4<const Set::Scalar> const &eta_new = (*((*eta_mf)[lev])).array(mfi);
+        amrex::Array4<const Set::Scalar> const &eta = (*((*eta_old_mf)[lev])).array(mfi);
+        amrex::Array4<Set::Scalar> const &etadot = (*etadot_mf[lev]).array(mfi);
 
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             etadot(i, j, k) = (eta_new(i, j, k) - eta(i, j, k)) / dt;
-            if (invert) etadot(i,j,k) *= 1.0;
-
+            if (invert)
+                etadot(i, j, k) *= 1.0;
         });
     }
-
 
     //
     // DO TIME INTEGRATION (driving the RHS function)
     //
-
     // Organize references to the "new" solution
-    amrex::Vector<amrex::MultiFab> solution_new; 
-    solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,1);
-    solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
-    solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    amrex::Vector<amrex::MultiFab> solution_new;
+    solution_new.emplace_back(*density_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
+    solution_new.emplace_back(*momentum_mf[lev].get(), amrex::MakeType::make_alias, 0, 2);
+    solution_new.emplace_back(*energy_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
 
     // Organize references to the "old" solution
     amrex::Vector<amrex::MultiFab> solution_old;
-    solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
-    solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
-    solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
+    solution_old.emplace_back(*density_old_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
+    solution_old.emplace_back(*momentum_old_mf[lev].get(), amrex::MakeType::make_alias, 0, 2);
+    solution_old.emplace_back(*energy_old_mf[lev].get(), amrex::MakeType::make_alias, 0, 1);
 
     // Create the time integrator
     amrex::TimeIntegrator timeintegrator(solution_new, time);
 
     // Set the time integrator RHS - in this case, just relay to our current RHS function
-    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
-    {
-        RHS(lev, time,
-            rhs_mf[0], rhs_mf[1], rhs_mf[2],
-            solution_mf[0],solution_mf[1],solution_mf[2]);
+    timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> &rhs_mf, amrex::Vector<amrex::MultiFab> &solution_mf, const Set::Scalar time) {
+        RHS(lev, time, rhs_mf[0], rhs_mf[1], rhs_mf[2], solution_mf[0], solution_mf[1], solution_mf[2]);
     });
 
     // Take care of filling boundaries during stages
-    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
-    {
-        density_bc->FillBoundary(stage_mf[0],0,1,time,0);   
+    timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> &stage_mf, Set::Scalar time) {
+        density_bc->FillBoundary(stage_mf[0], 0, 1, time, 0);
         stage_mf[0].FillBoundary(true);
-        momentum_bc->FillBoundary(stage_mf[1],0,2,time,0);  
+        momentum_bc->FillBoundary(stage_mf[1], 0, 2, time, 0);
         stage_mf[1].FillBoundary(true);
-        energy_bc->FillBoundary(stage_mf[2],0,1,time,0);    
+        energy_bc->FillBoundary(stage_mf[2], 0, 1, time, 0);
         stage_mf[2].FillBoundary(true);
     });
-    
+
     // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
-
 
     //
     // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
     //
-
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
+
     for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
-        const Set::Scalar* DX = geom[lev].CellSize();
-        
-        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+        const amrex::Box &bx = mfi.validbox();
+        const Set::Scalar *DX = geom[lev].CellSize();
 
-        Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> M_new         = momentum_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> M_solid = solid.momentum_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> E_solid = solid.energy_mf.Patch(lev, mfi);
 
-        Set::Patch<Set::Scalar> omega         = vorticity_mf.Patch(lev,mfi);
-        
-        Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev,mfi);
-        Set::Patch<Set::Scalar> Source = Source_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> rho_new = density_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> E_new = energy_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> M_new = momentum_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> omega = vorticity_mf.Patch(lev, mfi);
+
+        Set::Patch<Set::Scalar> u = velocity_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> Source = Source_mf.Patch(lev, mfi);
 
         Set::Scalar *dt_max_handle = &dt_max;
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-        {   
-            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            Set::Scalar eta = invert ? 1.0 - eta_patch(i, j, k) * eta_patch(i, j, k) : eta_patch(i, j, k);
 
             if (eta < cutoff)
             {
-                rho_new(i,j,k,0) = rho_solid(i,j,k,0);
-                M_new(i,j,k,0)   = M_solid(i,j,k,0);
-                M_new(i,j,k,1)   = M_solid(i,j,k,1);
-                E_new(i,j,k,0)   = E_solid(i,j,k,0);
+                rho_new(i, j, k, 0) = rho_solid(i, j, k, 0);
+                M_new(i, j, k, 0) = M_solid(i, j, k, 0);
+                M_new(i, j, k, 1) = M_solid(i, j, k, 1);
+                E_new(i, j, k, 0) = E_solid(i, j, k, 0);
             }
 
-            Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
-            omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
+            // Calculate u_new from UPDATED momentum and density
+            Set::Vector u_new(M_new(i, j, k, 0) / (rho_new(i, j, k) + small),
+                              M_new(i, j, k, 1) / (rho_new(i, j, k) + small));
+
+            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX);
+            omega(i, j, k) = eta * (gradu(1, 0) - gradu(0, 1));
 
             if (dynamictimestep.on)
             {
-                *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta + small));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta + small)));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,1)+small)));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,2)+small)));
+                // Calculate a_new (sound speed) from UPDATED energy and density
+                Set::Scalar KE_new = 0.5 * (M_new(i, j, k, 0) * u_new(0) + M_new(i, j, k, 1) * u_new(1));
+                Set::Scalar press_new = (gamma - 1.0) * (E_new(i, j, k) - KE_new) - pref;
+                Set::Scalar a_new = std::sqrt(gamma * (press_new + pref) / (rho_new(i, j, k) + small));
+
+                // Use u_new and a_new for timestep calculation
+                *dt_max_handle = std::fabs(cfl * DX[0] / ((a_new + std::abs(u_new(0))) * eta + small));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / ((a_new + std::abs(u_new(1))) * eta + small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0] * DX[0] / (Source(i, j, k, 1) + small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1] * DX[1] / (Source(i, j, k, 2) + small)));
             }
         });
     }
 
-
     if (dynamictimestep.on)
     {
-        this->DynamicTimestep_SyncTimeStep(lev,dt_max);
+        this->DynamicTimestep_SyncTimeStep(lev, dt_max);
     }
+}
 
-}//end Advance
 
 
 void Hydro::RHS(int lev, Set::Scalar /*time*/, 
