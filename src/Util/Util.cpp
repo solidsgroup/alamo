@@ -343,6 +343,23 @@ int SubMessage(std::string testname, int failed)
     }
     return failed;
 }
+void SubWarning(std::string testname)
+{
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        std::stringstream ss;
+        ss << "[" << Color::FG::LightYellow << Color::Bold << "WARN" << Color::Reset << "]";
+
+        int terminalwidth = 80; 
+
+        std::cout << std::left
+            << "  ├ "
+            << testname 
+            << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
+    }
+}
 int SubFinalMessage(int failed)
 {
     if (amrex::ParallelDescriptor::IOProcessor())
