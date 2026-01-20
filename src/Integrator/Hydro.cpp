@@ -620,12 +620,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         {
                             Set::Scalar Mpqrs = 0.0;
                             if (p==r && q==s) Mpqrs += 0.5 * mu;
-                            if (p==s && q==r) Mpqrs += 0.5 * mu;
 
                             Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            div_tau(p) += Mpqrs * hess_u(r,s,q);
+                            div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
                         }
-            
+
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = (Pdot0(0) - Ldot0(0));
             Source(i,j, k, 2) = (Pdot0(1) - Ldot0(1));
