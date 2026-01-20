@@ -99,7 +99,7 @@ gas.thermo.cpconstant.s0 = 0.0
 gas.thermo.cpconstant.Tref = 0.0_K
 
 gas.transport.type = mixture_averaged
-gas.transport.mixture_averaged.type = 0
+gas.transport.mixture_averaged.type = constant
 gas.transport.mixture_averaged.mu = 0.0_Pa*s
 gas.transport.mixture_averaged.k = 0.0_W/m/K
 

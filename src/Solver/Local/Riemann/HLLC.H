@@ -106,7 +106,12 @@ public:
             default:
                 Util::Abort(INFO, "Unknown side in Riemann solver, ",side);
         }
-        
+        //T_L = std::max(T_L, 1.0e-6);
+        //T_R = std::max(T_R, 1.0e-6);
+        //Util::Message(INFO,"Side: ", side);
+        //Util::Message(INFO, "Left:  rho/u/v/E/p/T: ", rho_L, " ", u_L, " " , v_L, " ", E_L, " ", p_L, " ", T_L);
+        //Util::Message(INFO, "Right: rho/u/v/E/p/T: ", rho_R, " ", u_R, " " , v_R, " ", E_R, " ", p_R, " ", T_R);
+ 
         // sound speeds
         Set::Scalar a_L = std::sqrt(gamma_L*p_L / rho_L);
         Set::Scalar a_R = std::sqrt(gamma_R*p_R / rho_R);
