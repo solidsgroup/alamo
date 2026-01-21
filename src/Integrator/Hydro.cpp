@@ -264,7 +264,7 @@ void Hydro::Mix(int lev)
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
             E(i, j, k) =
-                (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k) + p(i, j, k) / (gamma - 1.0)) * eta 
+                (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k) + (p(i, j, k) + pref) / (gamma - 1.0)) * eta 
                 + 
                 E_solid(i, j, k) * (1.0 - eta);
             E_old(i, j, k) = E(i, j, k);
@@ -624,7 +624,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
                             div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
                         }
-            
+
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = (Pdot0(0) - Ldot0(0));
             Source(i,j, k, 2) = (Pdot0(1) - Ldot0(1));
