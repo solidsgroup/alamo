@@ -56,51 +56,51 @@ public:
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
             case 0: // xlo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i-1, j, k);
+                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i-1, j, k));
                 gamma_L = gas.gamma(T_L, X, i-1, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 1: // xhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i+1, j, k);
+                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i+1, j, k));
                 gamma_R = gas.gamma(T_R, X, i+1, j, k);
                 break;
             case 2: // ylo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j-1, k);
+                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k));
+                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j-1, k));
                 gamma_L = gas.gamma(T_L, X, i, j-1, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 3: // yhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j+1, k);
+                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k));
+                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j+1, k));
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
                 break;
             case 4: // zlo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k-1);
+                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1));
+                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k-1));
                 gamma_L = gas.gamma(T_L, X, i, j, k-1);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 5: // zhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k+1);
+                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1));
+                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k+1));
                 gamma_R = gas.gamma(T_R, X, i, j, k+1);
                 break;
             default:
@@ -122,10 +122,10 @@ public:
         
         Set::Scalar q_L = pstar <= p_L ?
             1.0 :
-            std::sqrt(1.0 + ((gamma_L+1)/(2*gamma_L)) * (pstar/p_L - 1.0));
+            std::sqrt(1.0 + ((gamma_L+1.0)/(2.0*gamma_L)) * (pstar/p_L - 1.0));
         Set::Scalar q_R = pstar <= p_R ?
             1.0 :
-            std::sqrt(1.0 + ((gamma_R+1)/(2*gamma_R)) * (pstar/p_R - 1.0));
+            std::sqrt(1.0 + ((gamma_R+1.0)/(2.0*gamma_R)) * (pstar/p_R - 1.0));
         
         // wave speed estimate
         Set::Scalar S_L = u_L - a_L*q_L;

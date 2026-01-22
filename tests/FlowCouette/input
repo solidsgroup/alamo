@@ -2,6 +2,7 @@
 #@ [eps0.20]
 #@ exe=hydro
 #@ dim=2
+#@ args = eta.ic.expression.constant.eps=0.2
 #@ check-file = reference/eps0.20.dat
 #@
 #@ [eps0.10]
@@ -18,9 +19,29 @@
 #@ check-file = reference/eps0.05.dat
 #@
 
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+gas.mw = 28.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 12471.69_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 10.0_Pa*s
+gas.transport.mixture_averaged.k = 0.023_W/m/K
+
+gas.eos.type = cpg
+
 ### OUTPUT ###
 
-plot_file = ./tests/FlowCouette/output
+plot_file = output.couette
 
 ### MESHING ###
 
@@ -44,28 +65,14 @@ stop_time = 30.0
 
 ### HYDRO PARAM ###
 
-system.amount = kmol
-gas.mw = 28.0_g/mol
-
-gas.thermo.type = cpconstant
-gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
-gas.thermo.cpconstant.h0 = 0.0
-gas.thermo.cpconstant.s0 = 0.0
-gas.thermo.cpconstant.Tref = 0.0_K
-
-gas.transport.type = mixture_averaged
-gas.transport.mixture_averaged.type = constant
-gas.transport.mixture_averaged.mu = 15.0_Pa*s
-gas.transport.mixture_averaged.k = 0.0_W/m/K
-
-gas.eos.type = cpg
-
 cfl   = 0.4
+small = 1e-8
+lagrange = 100
 
 ### ETA IC ###
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.20
+eta.ic.expression.constant.eps   = 0.10
 eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
 m0.ic.type = constant
@@ -87,10 +94,10 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "100.0"
+pressure.ic.expression.region0 = "0.0"
 
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "200.0"
+solid.density.ic.expression.region0 = "100.0"
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.1*(y>1.5)" #"0.5*(tanh((y-1.5)/.05) + 1)" # 0 at bottom plate and 1 at top plate
