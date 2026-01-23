@@ -363,12 +363,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Create the time integrator
     amrex::TimeIntegrator timeintegrator(solution_new, time);
 
-    // Set the time integrator RHS - in this case, just relay to our current RHS function
+    // Set the time integrator RHS
     timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> &rhs_mf, amrex::Vector<amrex::MultiFab> &solution_mf, const Set::Scalar time) {
         RHS(lev, time, rhs_mf[0], rhs_mf[1], rhs_mf[2], solution_mf[0], solution_mf[1], solution_mf[2]);
     });
 
-    // Take care of filling boundaries during stages
+    // Filling boundaries during stages
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> &stage_mf, Set::Scalar time) {
         density_bc->FillBoundary(stage_mf[0], 0, 1, time, 0);
         stage_mf[0].FillBoundary(true);
@@ -417,7 +417,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 E_new(i, j, k, 0) = E_solid(i, j, k, 0);
             }
 
-            // Calculate u_new from UPDATED momentum and density
+            // Calculate u_new from updated momentum and density
             Set::Vector u_new(M_new(i, j, k, 0) / (rho_new(i, j, k) + small),
                               M_new(i, j, k, 1) / (rho_new(i, j, k) + small));
 
@@ -426,12 +426,12 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             if (dynamictimestep.on)
             {
-                // Calculate a_new (sound speed) from UPDATED energy and density
+                // Calculate a_new from updated energy and density
                 Set::Scalar KE_new = 0.5 * (M_new(i, j, k, 0) * u_new(0) + M_new(i, j, k, 1) * u_new(1));
                 Set::Scalar press_new = (gamma - 1.0) * (E_new(i, j, k) - KE_new) - pref;
                 Set::Scalar a_new = std::sqrt(gamma * (press_new + pref) / (rho_new(i, j, k) + small));
 
-                // Use u_new and a_new for timestep calculation
+                // Find new timestep calculation
                 *dt_max_handle = std::fabs(cfl * DX[0] / ((a_new + std::abs(u_new(0))) * eta + small));
                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / ((a_new + std::abs(u_new(1))) * eta + small)));
                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0] * DX[0] / (Source(i, j, k, 1) + small)));
@@ -621,8 +621,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             for (int p = 0; p < 2; p++)             // i
                 for (int q = 0; q < 2; q++)         // j
-                    for (int r = 0; r < 2; r++)     // r
-                        for (int s = 0; s < 2; s++) // s
+                    for (int r = 0; r < 2; r++)     // l
+                        for (int s = 0; s < 2; s++) // m
                         {
                             Set::Scalar Mpqrs = 0.0;
                             if ((p == r) and (q == s))

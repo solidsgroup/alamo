@@ -63,3 +63,6 @@ alamo.py
 .amrex
 
 .vs/
+*.eps
+*.png
+*.gif

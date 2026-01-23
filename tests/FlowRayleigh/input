@@ -41,6 +41,7 @@ eta.ic.expression.region0 = 1.0
 gamma = 1.4
 cfl   = 0.2
 mu    = 2.5
+mu_b    = 1.67
 pref  = 0.0
 
 ### INITIAL CONDITIONS ###
