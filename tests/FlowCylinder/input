@@ -69,6 +69,8 @@ eta.ic.expression.region0        = "(y>=ycut)*(0.5*(1 + tanh((sqrt((x-x0)**2 + (
 gamma = 1.4
 cfl   = 0.0024
 mu    = 2.5
+#mu    = 1.25
+mu_b  = 0.0
 pref = 1000.0
  
 density.ic.type = expression
