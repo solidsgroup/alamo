@@ -15,7 +15,9 @@ class Isotropic : public Affine<Set::Sym::Isotropic>
 {
 public:
 
-    Isotropic() {};
+    Isotropic()  = default;
+    ~Isotropic() = default;
+    
     Isotropic(Affine<Set::Sym::Isotropic> base) : Affine<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0 = Set::Matrix::Zero())
     {
@@ -33,23 +35,23 @@ public:
         ddw = Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Isotropic>(a_lambda, a_mu);
     }
 
-    Set::Scalar W(const Set::Matrix& F) const override
+    Set::Scalar W(const Set::Matrix& F) const 
     {
         return 0.5 * ((F - F0).transpose() * (ddw * ((F - F0)))).trace();
     }
-    Set::Matrix DW(const Set::Matrix& F) const override
+    Set::Matrix DW(const Set::Matrix& F) const 
     {
         return ddw * (F - F0);
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Isotropic> DDW(const Set::Matrix& /*F*/) const override
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Isotropic> DDW(const Set::Matrix& /*F*/) const 
     {
         return ddw;
     }
-    virtual void Print(std::ostream& out) const override
+    void Print(std::ostream& out) const 
     {
         out << "lambda=" << ddw.Lambda() << ", mu=" << ddw.Mu() << ", F0=\n" << F0;
     }
-    virtual bool ContainsNan() override
+    bool ContainsNan() 
     {
         if (F0.hasNaN()) return true;
         if (ddw.contains_nan()) return true;

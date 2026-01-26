@@ -39,20 +39,20 @@ namespace Finite
 class CrystalPlastic : public PseudoLinear::Cubic
 {
 public:
-    CrystalPlastic() {};
+    CrystalPlastic() = default;
 
-    virtual ~CrystalPlastic() {};
+    ~CrystalPlastic() = default;
 
-    Set::Scalar W(const Set::Matrix & F) const override
+    Set::Scalar W(const Set::Matrix & F) const 
     {
         return PseudoLinear::Cubic::W(F * Set::reduce(Fp).inverse());
     }
-    Set::Matrix DW(const Set::Matrix & F) const override
+    Set::Matrix DW(const Set::Matrix & F) const 
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         return PseudoLinear::Cubic::DW(F * Fpinv) * Fpinv.transpose();
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const 
     {
         Set::Matrix Fpinv = Set::reduce(Fp).inverse();
         auto DDW = PseudoLinear::Cubic::DDW(F * Fpinv);
@@ -70,7 +70,7 @@ public:
         return ret;
     }
     
-    virtual void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) override
+    void Advance(Set::Scalar dt, Set::Matrix /*F*/, Set::Matrix P, Set::Scalar time) 
     {
         if (time  < tstart) return;
 
