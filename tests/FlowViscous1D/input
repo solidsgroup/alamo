@@ -13,7 +13,7 @@ plot_file = ./tests/FlowViscous1D/output
 #amr.plot_dt = 1.0
 amr.plot_int = 100
 amr.max_grid_size = 500000
-amr.blocking_factor = 2
+amr.blocking_factor = 4
 amr.regrid_int = 100
 amr.grid_eff = 0.8
 amr.n_cell = 64 8 0
@@ -31,7 +31,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 0.5e-3
+timestep  = 0.5e-15
 stop_time = 0.5
 
 ### ETA IC ###
@@ -52,20 +52,42 @@ eta.ic.expression.constant.vel_x = 0.0
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.region0        = "0.5*tanh((4.0-x)/eps) + 0.5"
 
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+gas.mw = 28.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29099_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 0.5_Pa*s
+gas.transport.mixture_averaged.k = 0.023_W/m/K
+
+gas.eos.type = cpg
+
 ### HYDRO PARAM ###
 
 cfl   = 0.4
-mu_array    = 0.5
+small = 1e-8
+cutoff = 0.01
+lagrange = 1000
 
 density.ic.type = expression
 density.ic.expression.region0 = "1.225"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
+velocity.ic.expression.region0 = "0.0 * (0.5*tanh((4.0-x)/0.15) + 0.5)"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "100.0" 
+pressure.ic.expression.region0 = "1e0" 
 
 ### SOLID ###
 
@@ -77,7 +99,7 @@ solid.momentum.ic.expression.region0 = "0.0"
 solid.momentum.ic.expression.region1 = "0.0"
 
 solid.energy.ic.type = expression
-solid.energy.ic.expression.region0 = "0.0" 
+solid.energy.ic.expression.region0 = "100.0" 
 
 ### ETA BC  ###
 

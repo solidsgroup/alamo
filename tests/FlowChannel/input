@@ -13,6 +13,26 @@
 #@ args = stop_time=10
 #@ check = false
 
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+gas.mw = 28.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 12471.69_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 20.0_Pa*s
+gas.transport.mixture_averaged.k = 0.023_W/m/K
+
+gas.eos.type = cpg
+
 ### OUTPUT ###
 
 plot_file = ./output
@@ -38,19 +58,17 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-3
+timestep  = 5.0e-4
 stop_time = 10.0
 
 ### HYDRO PARAM ###
 
 #gamma = 3.0
-cp_array = 12471.693927
 cfl   = 0.4
-mu_array    = 10.0
 
 small=1E-8
-cutoff=6E-5
-lagrange=1E3
+cutoff=1E-5
+lagrange=1E2
 
 ### ETA IC ###
 
@@ -74,11 +92,11 @@ density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
 velocity.ic.expression.constant.eps = 0.1
-velocity.ic.expression.region0 = "0.001 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+velocity.ic.expression.region0 = "0.00135 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "100.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+pressure.ic.expression.region0 = "0.0" #"(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"
@@ -131,7 +149,7 @@ momentum.bc.expression.type.xlo = dirichlet dirichlet
 momentum.bc.expression.type.xhi = neumann neumann
 momentum.bc.expression.type.ylo = neumann neumann
 momentum.bc.expression.type.yhi = neumann neumann
-momentum.bc.expression.val.xlo = "0.1 * (0.5*tanh((y - 0.5)/0.1) - 0.5*tanh((y - 2.5)/0.1))" "0.0"
+momentum.bc.expression.val.xlo = "0.135 * (0.5*tanh((y - 0.5)/0.1) - 0.5*tanh((y - 2.5)/0.1))" "0.0"
 momentum.bc.expression.val.xhi = "0.0" "0.0"
 momentum.bc.expression.val.ylo = "0.0" "0.0"
 momentum.bc.expression.val.yhi = "0.0" "0.0"
