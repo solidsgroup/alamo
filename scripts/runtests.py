@@ -15,6 +15,7 @@ import re
 import pathlib
 import threading
 import signal
+import fnmatch
 
 from sympy import capture
 
@@ -115,6 +116,8 @@ parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra 
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
 parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
+parser.add_argument('--python', default=False,action='store_true', help='Include python tests')
+parser.add_argument('--only-python', default=False,action='store_true', help='Run python tests only')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -125,6 +128,9 @@ if args.memcheck and not args.debug:
     raise Exception("Debug must be enabled with memory check")
 if args.memcheck and not args.serial:
     raise Exception("Memory check supported in serial only")
+
+if args.only_python:
+    args.python = True
 
 if args.post:
     if not os.path.isfile(args.post):
@@ -161,6 +167,39 @@ def test(testdir):
     post_fails = 0
     records = []
 
+
+    
+    # Formatting strings
+    bs = "\b\b\b\b\b\b"
+
+
+    if os.path.isfile(testdir + "/input.py"):
+        print(f"RUN    {color.bold}{testdir}{color.reset}")
+        cmd = f'python {testdir}/input.py'
+        print("  │      Running test............................................",end="",flush=True)
+        try:
+            proc = subprocess.Popen(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate(timeout=int(args.timeout))
+            retcode = proc.returncode
+            if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
+            print("[{}PASS{}]".format(color.boldgreen,color.reset))
+            tests += 1
+            print("  └ Python test complete ")
+            return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+
+        except subprocess.CalledProcessError as e:
+            print(bs+"[{}FAIL{}]".format(color.red,color.reset))
+            print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
+            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
+            fails += 1
+
+        if os.path.isfile(f"{testdir}/input"):
+            raise(Exception(f"Test {testdir} cannot have both input and input.py"))
+
+        return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+
+
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
     # The variable "config" is a dict of dicts where each item corresponds to
@@ -174,7 +213,24 @@ def test(testdir):
     config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
 
-    sections = config.sections()
+    #
+    # Apply wildcard sections and then remove them from the list
+    #
+    sections = [s for s in config.sections() if "*" not in s]
+    section_wildcards = [s for s in config.sections() if "*" in s]
+    for desc in sections:
+        desc_wildcards = [s for s in section_wildcards if fnmatch.fnmatch(desc,s)]
+        for wc in desc_wildcards:
+            new = dict(config[wc])
+            newargs = None
+            if "args" in config[desc].keys() and "args" in config[wc].keys():
+                newargs = new["args"] + "\n" + config[desc]["args"]
+            new.update(config[desc])
+            if newargs: new["args"] = newargs
+            config[desc] = new
+    for wc in section_wildcards:
+        config.remove_section(wc)
+
     if args.sections:
         if len(args.sections)>0:
             sections = list(set(config.sections()).intersection(set(args.sections)))
@@ -371,6 +427,7 @@ def test(testdir):
             command += exestr + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
+            record['cmd_test'] = command
         
 
 
@@ -380,7 +437,6 @@ def test(testdir):
 
         print("  ├ " + desc)
         if args.cmd: print("  ├      " + command)
-        bs = "\b\b\b\b\b\b"
         if args.no_backspace:
             print("  │      Running test............................................",end="")
             bs = ""
@@ -413,6 +469,25 @@ def test(testdir):
                         True #do nothing
                     time.sleep(1)
 
+            def write_log(stdout,stderr):
+                try:
+                    if stdout is None: stdout = ""
+                    if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+                    fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
+                    fstdout.write(ansi_escape.sub('',stdout))
+                    fstdout.close()
+                except Exception:
+                    pass
+                try:
+                    if stderr is None: stderr = ""
+                    if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+                    fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
+                    fstderr.write(ansi_escape.sub('',stderr))
+                    fstderr.close()
+                except Exception:
+                    pass
+
+
             # Start the run
             proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,
                                     env=env)
@@ -440,12 +515,6 @@ def test(testdir):
 
             executionTime = time.time() - timeStarted
             record['executionTime'] = str(executionTime)
-            fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-            fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
-            fstdout.close()
-            fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-            fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
-            fstderr.close()
             print(bs+"[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             record['runStatus'] = 'PASS'
             if dobenchmark:
@@ -458,6 +527,7 @@ def test(testdir):
                     slowers += 1
             else: print(")")
 
+            write_log(stdout,stderr)
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless permit-timout
@@ -466,9 +536,14 @@ def test(testdir):
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
-            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
+            stdout = e.stdout
+            if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+            stderr = e.stderr
+            if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+            for line in stdout.split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in stderr.split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            write_log(stdout,stderr)
             append_html(record)
             continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
@@ -495,7 +570,13 @@ def test(testdir):
             print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
             try:
-                stdoutlines = e.stdout.decode('utf-8').split('\n')
+                stdout = e.stdout
+                if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+                stderr = e.stderr
+                if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+                write_log(stdout,stderr)
+                append_html(record)
+                stdoutlines =stdout.split('\n')
                 if len(stdoutlines) < 10:
                     for line in stdoutlines:      print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
                 else:
@@ -520,7 +601,6 @@ def test(testdir):
             append_html(record)
             continue
         
-
         #
         # 
         # [ P R O F I L I N G ]
@@ -555,7 +635,7 @@ def test(testdir):
                     f.write(result.stdout)
             
                 result = subprocess.run(
-                    ["ext/FlameGraph/flamegraph.pl", "out.folded"],
+                    ["ext/brendangregg/FlameGraph/flamegraph.pl", "out.folded"],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     check=True, text=True )
             
@@ -752,9 +832,19 @@ class stats:
 # Iterate through all test directories, running the above "test" function
 # for each.
 for testdir in tests:
-    if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
-        print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
+    if (not os.path.isdir(testdir)):
+        print(f"{color.darkgray}IGNORE {testdir} (no input){color.reset}")
         continue
+    if os.path.isfile(testdir + "/input") and os.path.isfile(testdir + "/input.py"):
+        print(f"{color.darkgray}IGNORE {testdir} (cannot specify both input and input.py){color.reset}")
+        continue
+    if os.path.isfile(testdir + "/input") and args.only_python:
+        print(f"{color.darkgray}IGNORE {testdir} (running python tests only){color.reset}")
+        continue
+    if os.path.isfile(testdir + "/input.py") and not args.python:
+        print(f"{color.darkgray}IGNORE {testdir} (did not specify --python or --only-python){color.reset}")
+        continue
+
     f, c, w, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
     stats.tests += t

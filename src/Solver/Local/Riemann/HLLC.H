@@ -197,7 +197,7 @@ public:
         Util::Message(INFO,S_R);
         Util::Message(INFO,Sstar);
         Util::Message(INFO,S_L);
-        Util::Abort(INFO);
+        Util::Exception(INFO);
         return Flux(NAN,NAN,NAN,NAN);
     }
 };

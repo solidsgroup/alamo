@@ -94,7 +94,7 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0"
+pressure.ic.expression.region0 = "-100.0"
 
 solid.density.ic.type = expression
 solid.density.ic.expression.region0 = "100.0"

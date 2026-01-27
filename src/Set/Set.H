@@ -282,7 +282,6 @@ namespace Set
 {
 namespace Constant
 {
-
 // Pi
 extern const Set::Scalar Pi;
 // Gas constant
@@ -293,13 +292,9 @@ extern Set::Scalar Boltzmann;
 extern Set::Scalar Avogadro;
 
 // Function to update constants to match system level units
-extern void SetSystemUnits();
+extern void SetGlobalConstants();
 
 }
 }
-
-#include "Set/Matrix3.H"
-#include "Set/Matrix4.H"
-
 
 #endif
