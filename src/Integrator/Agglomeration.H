@@ -73,26 +73,32 @@ public:
     static void Parse(Agglomeration &value, IO::ParmParse &pp);
 
 private:
+    Set::Scalar CalculateInitialVolume(int target_resolution_level);
+    void ScaleByComplement(MultiFab &dst, const MultiFab &src, int srccomp, int dstcomp, int numcomp, int nghost);
+    void ScaleByPhiComplement(const Set::Field<Set::Scalar> &mf, int lev);
     void Initialize(int lev) override;
-    void scaleByComplement(MultiFab &dst, const MultiFab &src, int srccomp, int dstcomp, int numcomp, int nghost);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow) override;
-    void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mif, const amrex::Box &box) override;
+    void Regrid(int lev, Set::Scalar time) override;
 
     struct
     {
+        Set::Field<Set::Scalar> alpha_0;
         Set::Field<Set::Scalar> alpha_old;
         Set::Field<Set::Scalar> alpha;
+        Set::Field<Set::Scalar> alphadot_agglom;
+        Set::Field<Set::Scalar> alphadot_reaction;
         IC::IC<Set::Scalar> *alpha_ic = nullptr;
         BC::BC<Set::Scalar> *alpha_bc = nullptr;
         Set::Scalar sigma = NAN;
         Set::Scalar epsilon = NAN;
         Set::Scalar lambda = NAN;
-        Set::Scalar L_0 = NAN;
+        Set::Scalar L_0_agglom = NAN;
+        Set::Scalar L_0_reaction = NAN;
         Set::Scalar n = NAN;
         Set::Scalar V = NAN;
-        bool calculate_initial_volume = true;
         Set::Scalar V_0 = NAN;
+        bool calculate_initial_volume = true;
         Set::Scalar eta_refinement_threshold = NAN;
         Set::Scalar phi_refinement_threshold = NAN;
         Set::Scalar gradient_alpha_refinement_threshold = NAN;
