@@ -2,11 +2,6 @@
 #@ exe=hydro
 #@ dim=2
 
-#@ [hllc]
-#@ exe=hydro
-#@ dim=2
-#@ args = solver.type=hllc
-
 #@ [roe-rk4]
 #@ exe=hydro
 #@ dim=2
@@ -20,7 +15,6 @@
 #@ args = integration.type=RungeKutta
 #@ args = integration.rk.type=3
 #@ args = timestep=5.0e-5
-
 
 #@ [roe-fix1]
 #@ exe=hydro

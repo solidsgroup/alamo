@@ -47,7 +47,7 @@ q.ic.expression.region0 = "0.0"
 q.ic.expression.region1 = "0.0"
 
 eta.ic.type = expression
-eta.ic.expression.constant.eps   = 0.05
+eta.ic.expression.constant.eps   = 0.07
 eta.ic.expression.constant.vel_x = 0.0 
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.region0        = "0.5*tanh((4.0-x)/eps) + 0.5"
@@ -76,18 +76,18 @@ gas.eos.type = cpg
 
 cfl   = 0.4
 small = 1e-8
-cutoff = 0.01
-lagrange = 1000
+#cutoff = 0.01
+lagrange = 100
 
 density.ic.type = expression
 density.ic.expression.region0 = "1.225"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "1.0 * (0.5*tanh((4.0-x)/0.05) + 0.5)"
+velocity.ic.expression.region0 = "1.0 * (0.5*tanh((4.0-x)/0.07) + 0.5)"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.0" 
+pressure.ic.expression.region0 = "27.0" 
 
 ### SOLID ###
 
