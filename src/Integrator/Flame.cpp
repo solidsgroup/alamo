@@ -382,10 +382,10 @@ void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
     {
         auto [new_pressure, current_dpdt] = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
         chamber.pressure = new_pressure;
-        Util::ParallelMessage(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
-        Util::ParallelMessage(INFO, "chamber.mdot = ", Unit::Mass(chamber.mdot) / Unit::Time());
-        Util::ParallelMessage(INFO, "chamber.volume = ", Unit::Volume(chamber.volume));
-        Util::ParallelMessage(INFO, "chamber.dpdt = ", current_dpdt);
+        Util::Message(INFO, "chamber.pressure = ", Unit::Pressure(chamber.pressure));
+        Util::Message(INFO, "chamber.mdot = ", Unit::Mass(chamber.mdot) / Unit::Time());
+        Util::Message(INFO, "chamber.volume = ", Unit::Volume(chamber.volume));
+        Util::Message(INFO, "chamber.dpdt = ", current_dpdt);
     }
 }
 
@@ -654,7 +654,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
+            chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
@@ -673,7 +673,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
+            chamber.volume += eta(i, j, k, 0) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
