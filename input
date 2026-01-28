@@ -4,38 +4,42 @@
 
 alamo.program = flame
 plot_file = output
-amr.plot_dt = 0.01
-#amr.plot_int = 1
-amr.max_level = 3
-amr.blocking_factor = 4
-amr.base_regrid_int = 100
+#amr.plot_dt = 0.001
+amr.plot_int = 1
+amr.max_level = 1
+amr.blocking_factor = 8
+amr.base_regrid_int = 50
 amr.grid_eff = 1
 amr.node.all = 1
 amr.refinement_criterion = 0.05 
-amr.refinement_criterion_temp = 10.0_K
+amr.refinement_criterion_temp = 5.0_K
 #amr.refinement_restriction = 0.3
 amr.phi_refinement_criterion = 0.6
-amr.n_cell = 32 4 32
+amr.n_cell = 8192 8192 8192
 amr.thermo.plot_int = 1
 amr.thermo.int = 1
 geometry.prob_lo = 0.0_m 0.0_m 0.0_m # [m]
-geometry.prob_hi = 0.08_m 0.01_m 0.1_m # [m]
-geometry.is_periodic = 0 1 0
+geometry.prob_hi = 0.1754_m 0.1754_m 0.1754_m # [m]
+geometry.is_periodic = 0 0 0
 
 system.length = m
 system.time = s
 
 # Timestep and duration
-timestep = 5.0e-5_s # [s]
+timestep = 1.0e-4_s # [s]
 stop_time = 5.0_s # [s]
 
 # Phase field parameters
 pf.eps = 0.0005_m # [m]
 pf.lambda = 0.001_J/m^2
-pf.eta.ic.type = expression
-pf.eta.ic.expression.region0 = "1.0 * (x > 0.02)"
-phi.ic.type = expression
-phi.ic.expression.region0 = "1.0"
+pf.eta.ic.type = png
+pf.eta.ic.png.filename = circle.png
+pf.eta.ic.png.fit = stretch
+pf.eta.ic.png.channel = g
+phi.ic.type = png
+phi.ic.png.filename = base_circle0.png
+phi.ic.png.fit = stretch
+phi.ic.png.channel = g
 pf.kappa = 1.0_J/m^2
 pf.w1 = 1.0_1
 pf.w12 = 2.0_1
@@ -44,12 +48,14 @@ small = 1E-4
 
 # Eta boundary condition
 pf.eta.bc.type = constant
-pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xlo = dirichlet
 pf.eta.bc.constant.type.xhi = dirichlet
-pf.eta.bc.constant.type.ylo = periodic
-pf.eta.bc.constant.type.yhi = periodic
-pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.type.ylo = dirichlet
+pf.eta.bc.constant.type.yhi = dirichlet
+pf.eta.bc.constant.val.xlo = 1.0
 pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 1.0
+pf.eta.bc.constant.val.yhi = 1.0
 
 #propellant.type = constant
 #propellant.constant.K = 1E-8
@@ -77,7 +83,7 @@ pf.eta.bc.constant.val.xhi = 1.0
 
 # Controls weather or not pressure affects the mobility or not.
 # Effectively changes the units of m_ap if set to 1.
-#propellant.homogenize.mob_ap       = false 
+
 
 #propellant.homogenize.mlocal_ap = 1000.0_kg/m^2/s # [???] kg/s
 
@@ -86,21 +92,27 @@ pf.eta.bc.constant.val.xhi = 1.0
 
 propellant.type = homogenize
 
-propellant.homogenize.dispersion1 = 0.1_W/m/K # K
-propellant.homogenize.dispersion2 = 1.0_kg/m^3 # rho
-propellant.homogenize.dispersion3 = 1.0_J/kg/K # cp
+propellant.homogenize.dispersion1 = 0.1 # K _W/m/K
+propellant.homogenize.dispersion2 = 1.0 # rho _kg/m^3
+propellant.homogenize.dispersion3 = 1.0 # cp _J/kg/K 
 
-propellant.homogenize.h1        = 1.81_W/m^2 # W/N
-propellant.homogenize.h2        = 1.34_W/m^2 # W/m^2
+
+# Use Defaults?
+propellant.homogenize.h1        = 10.67_W/m^2 # W/N
+propellant.homogenize.h2        = 9.94e6_W/m^2 # W/m^2
+
+propellant.homogenize.P_reference = 2_MPa
 
 propellant.homogenize.rho_prop = 1344.0_kg/m^3 # density
 propellant.homogenize.k_prop = 0.1366_W/m/K # thermal conductivity
 propellant.homogenize.cp_prop = 1476.0_J/kg/K # specific heat
-propellant.homogenize.m_prop = 1.16e5_cm/s # pre-exponential factor for Arrhenius Law
-propellant.homogenize.E_prop = 7600.0_K # activation energy for Arrhenius Law
-propellant.homogenize.mob_prop = false # bool - whether to include pressure in arrhenius law
+propellant.homogenize.m_prop = 0.8e5_cm/s # pre-exponential factor for Arrhenius Law
+propellant.homogenize.E_prop = 16000.0_K # activation energy for Arrhenius Law
+propellant.homogenize.mob_prop = true # bool - whether to include pressure in arrhenius law
+propellant.homogenize.pressure_exponent = 0.5
 
-propellant.homogenize.Pref = 7_MPa
+# Unused
+#propellant.homogenize.Pref = 2_MPa 
 
 
 
@@ -131,39 +143,39 @@ propellant.homogenize.Pref = 7_MPa
 
 
 thermal.on = 1
-thermal.Tref = 500 #[K]
+thermal.Tref = 300 #[K]
+thermal.Tfluid = 500 #[K]
 thermal.temp.bc.type = constant
-thermal.temp.bc.constant.type.xlo = neumann
-thermal.temp.bc.constant.type.xhi = neumann
-thermal.temp.bc.constant.type.ylo = neumann
-thermal.temp.bc.constant.type.yhi = neumann
-thermal.temp.bc.constant.type.zlo = neumann
-thermal.temp.bc.constant.type.zhi = neumann
-thermal.temp.bc.constant.val.xlo = 0.0
-thermal.temp.bc.constant.val.xhi = 0.0
-thermal.temp.bc.constant.val.ylo = 0.0
-thermal.temp.bc.constant.val.yhi = 0.0
-thermal.temp.bc.constant.val.zlo = 0.0
-thermal.temp.bc.constant.val.zhi = 0.0
+thermal.temp.bc.constant.type.xlo = dirichlet
+thermal.temp.bc.constant.type.xhi = dirichlet
+thermal.temp.bc.constant.type.ylo = dirichlet
+thermal.temp.bc.constant.type.yhi = dirichlet
+
+thermal.temp.bc.constant.val.xlo = 300_K
+thermal.temp.bc.constant.val.xhi = 300_K
+thermal.temp.bc.constant.val.ylo = 300_K
+thermal.temp.bc.constant.val.yhi = 300_K
+
 
 # Temperature initial conditions
 temp.ic.type="constant"
-temp.ic.constant.value=500_K #[K]
+temp.ic.constant.value=300_K #[K]
 
 # Laser source term
-laser.ic.type = constant
-laser.ic.constant.value = 5e-1_kW/cm^2
-thermal.hc = 5e-1_kW/m^2 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
+laser.ic.type = expression
+laser.ic.expression.region0 = "(t < 0.2) * (75000000)"
+thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) / ( kW m^2) )
 
 
 
 
 # Pressure
-variable_pressure = 0
-#chamber.pressure = 4.0_MPa # [MPa?] yes MPa
-#chamber.ballistic.At = 1.0_m^2 # [?] m^2
-#chamber.ballistic.T0 = 500_K # [?] K 
-#chamber.ballistic.R = 0.000287_J/kg/K #[?] J/kg/K
+variable_pressure = 1
+chamber.pressure = 2.0_MPa # Initial pressure
+chamber.ballistic.At = 0.00007_m^2 # [?] m^2
+chamber.ballistic.T0 = 1500_K # [?] K 
+chamber.ballistic.R = 287_J/kg/K #[?] J/kg/K
+chamber.ballistic.gamma = 1.25
 
 # Thermoelasticity
 #elastic.on = 0
