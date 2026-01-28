@@ -61,3 +61,4 @@ alamo.egg-info
 alamo
 setup.py
 alamo.py
+/.venv
