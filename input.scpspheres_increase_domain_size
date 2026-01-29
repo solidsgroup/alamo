@@ -1,20 +1,20 @@
 
 alamo.program = flame
 
-plot_file = output.arbitary_geo
+plot_file = output.scpspheres_voids_large_domain
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 5e-3_s
+amr.plot_dt = 5e-4_s
 amr.max_grid_size = 8
 amr.blocking_factor = 8
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
-amr.refinement_criterion = 0.05
-amr.refinement_criterion_temp = 5.0_K
-amr.phi_refinement_criterion = 0.5
+amr.refinement_criterion = 0.15
+amr.refinement_criterion_temp = 1.0_K
+# amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 #amr.node.all = 1
 
@@ -22,29 +22,34 @@ amr.cell.all = 1
 amr.max_level = 4
 
 # Full size
-amr.n_cell = 40 40 40
+# amr.n_cell = 32 8 32
+# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+# geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
+
+# Quarter size
+amr.n_cell = 32 8 32
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
+geometry.prob_hi = 1_mm 0.25_mm 0.1_mm
 
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2e-6_s # [s]
-stop_time = 0.701_s
+timestep = 1e-7_s # [s]
+stop_time = 0.2_s
 
 small = 1.0e-8
-pf.eps = 0.25_um #0.0005 # [m]
+pf.eps = 2.5_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
-pf.eta.ic.psread.file.name = all_datasets/arbitary_geo/spiral_eta_IC_blur.png
-# pf.eta.ic.psread.eps = 0.5_um
-# pf.eta.ic.psread.invert = 1
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
+pf.eta.ic.psread.file.name = all_datasets/Test_Files/porous_80_by_weight_1_void.xyzr
+pf.eta.ic.psread.eps = 5.0_um
+pf.eta.ic.psread.invert = 1
 
-# pf.eta.ic.type = constant
+# pf.eta.ic.type = constant 
 # pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
@@ -55,14 +60,11 @@ pf.eta.ic.psread.file.name = all_datasets/arbitary_geo/spiral_eta_IC_blur.png
 # pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
 # pf.eta.ic.expression.region0 = "1 - 1/(100**(x*x + y*y))"
 
-## Phi initial condition (Random Grains)
-phi.ic.type = png
-phi.ic.png.filename = all_datasets/arbitary_geo/grains_phi_IC_blur.png
-phi.ic.png.fit = coord
-phi.ic.png.max = 255
-phi.ic.png.min = 0
-phi.ic.png.coord.lo = 0.0_mm 1.0_mm
-phi.ic.png.coord.hi = 1.0_mm 0.0_mm
+## Phi initial condition (spheres)
+phi.ic.type = psread
+phi.ic.psread.file.unit = m
+phi.ic.psread.file.name = all_datasets/Test_Files/porous_80_by_weight_1_AP.xyzr
+phi.ic.psread.eps = 20_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -72,14 +74,14 @@ pf.w0         = 0.0_1
 
 # Eta boundary conditions
 pf.eta.bc.type = constant
-pf.eta.bc.constant.type.xlo = neumann
-pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
 pf.eta.bc.constant.type.ylo = neumann
 pf.eta.bc.constant.type.yhi = neumann
 pf.eta.bc.constant.type.zlo = neumann
 pf.eta.bc.constant.type.zhi = neumann
 pf.eta.bc.constant.val.xlo = 0.0
-pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.xhi = 1.0
 pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0
@@ -109,7 +111,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =     20.0_um
+propellant.fullfeedback.phi.zeta =      47.5_um
 propellant.fullfeedback.Pref     =      1.0_MPa
 
 # Thermal transport parameters
@@ -144,9 +146,9 @@ laser.ic.type = expression
 laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
-laser.ic.expression.constant.eps = 5.0_um
-laser.ic.expression.constant.x0 = 10.0_um
-laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(1 - (erf(1000*(x-0.5)**2+1000*(y-0.5)**2)))"
+laser.ic.expression.constant.eps = 1.0_um
+laser.ic.expression.constant.x0 = 1.0_um
+laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
 chamber.pressure = 1.0_MPa  ## [MPa]
