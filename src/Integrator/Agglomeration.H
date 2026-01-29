@@ -77,6 +77,7 @@ private:
     void ScaleByComplement(MultiFab &dst, const MultiFab &src, int srccomp, int dstcomp, int numcomp, int nghost);
     void ScaleByPhiComplement(const Set::Field<Set::Scalar> &mf, int lev);
     void Initialize(int lev) override;
+    void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;

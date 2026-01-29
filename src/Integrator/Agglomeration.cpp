@@ -1,6 +1,6 @@
+#include <algorithm>
 #include <cmath>
 #include <utility>
-#include <algorithm>
 
 #include "Agglomeration.H"
 #include "Flame.H"
@@ -19,10 +19,10 @@
 #include "AMReX_Box.H"
 #include "AMReX_GpuLaunchFunctsC.H"
 #include "AMReX_GpuQualifiers.H"
+#include "AMReX_IntVect.H"
 #include "AMReX_MFIter.H"
 #include "AMReX_MultiFab.H"
 #include "AMReX_MultiFabUtil.H"
-#include "AMReX_IntVect.H"
 #include "AMReX_TagBox.H"
 
 namespace Integrator
@@ -72,14 +72,64 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     value.RegisterNewFab(value.agglom.alpha, value.agglom.alpha_bc, 1, 1, "agglom.alpha", true);
     value.RegisterNewFab(value.agglom.alphadot_agglom, value.agglom.alpha_bc, 1, 1, "agglom.alphadot_agglom", false);
     value.RegisterNewFab(value.agglom.alphadot_reaction, value.agglom.alpha_bc, 1, 1, "agglom.alphadot_reaction", false);
+
+    value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V", false);
+    value.RegisterIntegratedVariable(&value.agglom.V_0, "agglom.V_0", false);
 }
 
 Set::Scalar
 Agglomeration::CalculateInitialVolume(int target_resolution_level)
 {
+    BL_PROFILE("Integrator::Agglomeration::CalculateInitialVolume");
+
+    // calculate refined cell count based on target resolution level
     amrex::IntVect refined_cells = geom[0].Domain().length();
     for (int i = 0; i < target_resolution_level; i++)
         refined_cells *= refRatio(std::min(i, max_level - 1));
+
+    // create fine geometry with same physical domain but higher resolution
+    amrex::Box fine_domain(amrex::IntVect(0), refined_cells - amrex::IntVect(1));
+    amrex::Geometry fine_geom(fine_domain, geom[0].ProbDomain(), geom[0].Coord(), geom[0].isPeriodic());
+
+    // create BoxArray and DistributionMapping for the fine grid
+    amrex::BoxArray fine_ba(fine_domain);
+    fine_ba.maxSize(32);
+    amrex::DistributionMapping fine_dm(fine_ba);
+
+    // create BoxArray for node-centered data
+    amrex::BoxArray fine_nodal_ba = amrex::convert(fine_ba, amrex::IntVect::TheNodeVector());
+
+    // create temporary fields
+    Set::Field<Set::Scalar> fine_phi_field(1);
+    fine_phi_field.Define(0, fine_nodal_ba, fine_dm, 1, 0);
+    Set::Field<Set::Scalar> fine_alpha_field(1);
+    fine_alpha_field.Define(0, fine_ba, fine_dm, 1, 0);
+
+    // temporarily replace geom[0] with fine geometry so existing ICs use correct positions
+    // this is a bit hacky, but necessary because when the ICs are parsed, they're associated with a geometry
+    amrex::Geometry original_geom = geom[0];
+    geom[0] = fine_geom;
+
+    // initialize phi and alpha using the existing ICs (which now see fine_geom via geom[0])
+    ic_phi->Initialize(0, fine_phi_field);
+    agglom.alpha_ic->Initialize(0, fine_alpha_field);
+
+    // restore original geometry
+    geom[0] = original_geom;
+
+    // average phi from nodes to cell centers and apply complement scaling
+    amrex::MultiFab fine_phi_cc(fine_ba, fine_dm, 1, 0);
+    amrex::average_node_to_cellcenter(fine_phi_cc, 0, *fine_phi_field[0], 0, 1, 0);
+    ScaleByComplement(*fine_alpha_field[0], fine_phi_cc, 0, 0, 1, 0);
+
+    // compute volume integral
+    const Set::Scalar *dx = fine_geom.CellSize();
+    Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);
+    Set::Scalar volume = fine_alpha_field[0]->sum() * dv;
+
+    Util::Message(INFO, "Calculated initial volume on fine grid (level ", target_resolution_level, ", ", refined_cells[0], "x", refined_cells[1], "x", refined_cells[2], " cells): V_0 = ", volume);
+
+    return volume;
 }
 
 void
@@ -116,12 +166,24 @@ Agglomeration::Initialize(int lev)
 {
     Flame::Initialize(lev);
 
-    // TODO: Calculate agglom.V_0 based on the finest grid level
-    // TODO: Set agglom.V = agglom.V_0
-
     agglom.alpha_old[lev]->setVal(0.0);
     agglom.alpha_ic->Initialize(lev, agglom.alpha);
     ScaleByPhiComplement(agglom.alpha, lev);
+}
+
+void
+Agglomeration::TimeStepBegin(Set::Scalar a_time, int a_iter)
+{
+    BL_PROFILE("Integrator::Agglomeration::TimeStepBegin");
+    Flame::TimeStepBegin(a_time, a_iter);
+
+    // Calculate initial volume on first timestep
+    if (a_time == 0.0 && agglom.calculate_initial_volume)
+    {
+        agglom.V_0 = CalculateInitialVolume(max_level);
+        agglom.V = agglom.V_0;
+        Util::Message(INFO, "agglom.V_0 dynamically set to ", agglom.V_0);
+    }
 }
 
 void
@@ -132,12 +194,6 @@ Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     std::swap(agglom.alpha_old[lev], agglom.alpha[lev]);
     const Set::Scalar *dx = geom[lev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);
-
-    if (time == 0.0 && agglom.calculate_initial_volume)
-    {
-        agglom.V_0 = agglom.V;
-        Util::DebugMessage(INFO, "agglom.V_0 dynamically set to ", agglom.V_0);
-    }
 
     for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
     {
