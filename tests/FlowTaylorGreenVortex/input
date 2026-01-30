@@ -1,0 +1,113 @@
+#alamo.program = hydro
+ 
+### OUTPUT ###
+plot_file = ./tests/FlowTaylorGreenVortex/TaylorGreenDecay
+
+### MESHING ###
+amr.plot_dt = 0.5
+amr.max_grid_size = 64
+amr.blocking_factor = 8
+amr.regrid_int = 10
+amr.grid_eff = 0.8
+ 
+amr.max_level = 2 
+timestep   = 1.0e-4
+amr.n_cell = 128 128
+ 
+### DIMENSIONS ###
+# Taylor-Green Vortex on [0, 2pi] × [0, 2pi] domain
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 6.283185307 6.283185307 0.0  # 2*pi
+ 
+# CRITICAL: TGV requires full periodicity
+geometry.is_periodic = 1 1 0
+ 
+### TIME STEP ###
+stop_time = 10.0  # Run long enough to see viscous decay
+ 
+### ETA IC ###
+eta.ic.type = expression
+eta.ic.expression.region0 = "1.0"
+
+m0.ic.type = constant
+m0.ic.constant.value = 0.0
+
+u0.ic.type = expression
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "0.0"
+
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
+ 
+### HYDRO PARAM ###
+gamma = 1.4
+cfl   = 0.5
+mu    = 0.01    # Adjust for desired Reynolds number: Re = rho*U*L/mu
+mu_b  = 0.0     # No bulk viscosity for incompressible TGV
+pref  = 0.0
+ 
+density.ic.type = expression
+density.ic.expression.region0 = "1.0"
+ 
+### TAYLOR-GREEN INITIAL CONDITIONS ###
+# u =  sin(x) * cos(y)
+# v = -cos(x) * sin(y)
+# p = p0 + (rho/4) * (cos(2*x) + cos(2*y))
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "sin(x) * cos(y)"
+velocity.ic.expression.region1 = "-cos(x) * sin(y)"
+ 
+pressure.ic.type = expression
+pressure.ic.expression.region0 = "100.0 + 0.25 * (cos(2.0*x) + cos(2.0*y))"
+ 
+### SOLID (not needed for TGV, but keeping structure) ###
+solid.density.ic.type = expression
+solid.density.ic.expression.region0 = "1.0"
+
+solid.momentum.ic.type = expression
+solid.momentum.ic.expression.region0 = "0.0"
+solid.momentum.ic.expression.region1 = "0.0"
+
+solid.energy.ic.type = expression
+solid.energy.ic.expression.region0 = "0.0"
+ 
+### ETA BC (periodic, but keeping for compatibility) ###
+pf.eta.bc.constant.type.xlo = periodic
+pf.eta.bc.constant.type.xhi = periodic
+pf.eta.bc.constant.type.ylo = periodic
+pf.eta.bc.constant.type.yhi = periodic
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+ 
+### HYDRO BC - ALL PERIODIC ###
+density.bc.constant.type.xlo = periodic
+density.bc.constant.type.xhi = periodic
+density.bc.constant.type.ylo = periodic
+density.bc.constant.type.yhi = periodic
+ 
+energy.bc.constant.type.xlo = periodic
+energy.bc.constant.type.xhi = periodic
+energy.bc.constant.type.ylo = periodic
+energy.bc.constant.type.yhi = periodic
+ 
+momentum.bc.constant.type.xlo = periodic periodic
+momentum.bc.constant.type.xhi = periodic periodic
+momentum.bc.constant.type.ylo = periodic periodic
+momentum.bc.constant.type.yhi = periodic periodic
+ 
+### HYDRO REFINEMENT CRITERIA ###
+# Refine on vorticity to capture vortex cores
+omega_refinement_criterion = 0.1
+gradu_refinement_criterion = 0.1
+ 
+amr.abort_on_nan = 1
+ 
+dynamictimestep.on = 1
+dynamictimestep.verbose = 1
+dynamictimestep.cfl = 0.5
+dynamictimestep.max = 1.0
+dynamictimestep.min = 1.0e-12
+ 
+solver.type = hllc

@@ -603,8 +603,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
-            //Set::Matrix3 hess_u = Numeric::Hessian(velocity, i, j, k, DX);
-            // /*
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
                 for (int q = 0; q < 2; q++)
@@ -614,15 +612,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             (hess_M(r,p,q) - gradu(r,q)*gradrho(p) - gradu(r,p)*gradrho(q) - u(r)*hess_rho(p,q))
                             / rho(i,j,k);
                     }
-            // */
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
-
+            
             for (int p = 0; p < 2; p++)             // i
                 for (int q = 0; q < 2; q++)         // j
-                    for (int r = 0; r < 2; r++)     // l
-                        for (int s = 0; s < 2; s++) // m
+                    for (int r = 0; r < 2; r++)     // k
+                        for (int s = 0; s < 2; s++) // l
                         {
                             Set::Scalar Mpqrs = 0.0;
                             if ((p == r) and (q == s))
@@ -639,9 +636,15 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             }
 
                             div_tau(p) += Mpqrs * hess_u(r, s, q);
-                            Ldot0(p) += 0.5 * Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-
+                            Ldot0(p) += 0.5 * Mpqrs *(u(r) - u0(r)) * hess_eta(q, s);
+                            //Ldot0(p) += 0.5 * (u(r) - u0(r)) * gradM(s) * grad_eta(q, s);
                         }
+
+            //for (int p = 0; p < 2; p++)             // i
+            //{
+            //    Ldot0(p) += (u(p) - u0(p)) * M(i,j,k,p) * grad_eta(p);
+            //}
+
             
             Source(i,j, k, 0) = mdot0;
             Source(i,j, k, 1) = (Pdot0(0) - Ldot0(0));
