@@ -34,10 +34,10 @@ geometry.prob_hi = 0.1_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 1e-7_s # [s]
-stop_time = 0.2_s
+timestep = 7.5e-8_s # [s]
+stop_time = 0.05_s
 
-small = 1.0e-8
+small = 1.0e-10
 pf.eps = 0.25_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
