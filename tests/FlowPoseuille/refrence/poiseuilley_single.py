@@ -1,5 +1,5 @@
 """
-Poiseuille Flow Analysis Script - Pressure Driven
+Poiseuille Flow Analysis Script - Pressure Driven IN X DIRECTION
 
 This script extracts velocity profiles from AMReX Poiseuille flow simulations,
 compares them with the analytical pressure-driven solution, and generates visualization plots.
@@ -47,7 +47,7 @@ y_max_sim = 0.5                  # geometry.prob_hi (y-component)
 H = y_max_sim - y_min_sim        # Total height (1.0 m)
 
 # File paths
-amrex_output_dir = r'..\..\..\bin\tests\FlowPoiseuille\FlowPoiseuille'
+amrex_output_dir = r'..\..\..\bin\tests\FlowPoiseuille\FlowPoiseuilley'
 
 # Plotting customization
 FONT_SIZE_TITLE = 16

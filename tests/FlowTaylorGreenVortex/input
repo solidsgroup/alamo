@@ -10,9 +10,9 @@ amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 0.8
  
-amr.max_level = 2 
+amr.max_level = 0
 timestep   = 1.0e-4
-amr.n_cell = 128 128
+amr.n_cell = 512 512
  
 ### DIMENSIONS ###
 # Taylor-Green Vortex on [0, 2pi] × [0, 2pi] domain
@@ -45,6 +45,7 @@ gamma = 1.4
 cfl   = 0.5
 mu    = 0.01    # Adjust for desired Reynolds number: Re = rho*U*L/mu
 mu_b  = 0.0     # No bulk viscosity for incompressible TGV
+#mu_b  = 0.00666666666666666666666666666667
 pref  = 0.0
  
 density.ic.type = expression

@@ -1,7 +1,7 @@
 #alamo.program = hydro
 
 ### OUTPUT ###
-plot_file = ./tests/FlowPoiseuille/FlowPoiseuille
+plot_file = ./tests/FlowPoiseuille/FlowPoiseuilley
 
 ### MESHING ###
 amr.plot_dt = 0.5
@@ -12,11 +12,11 @@ amr.grid_eff = 0.8
 
 amr.max_level = 1
 timestep   = 2.0e-5
-amr.n_cell = 80 64
+amr.n_cell = 64 80 
 
 ### DIMENSIONS ###
-geometry.prob_lo = -2.5  -0.5 0.0
-geometry.prob_hi = 2.5   0.5 0.0
+geometry.prob_lo = -0.5 -2.5 0.0
+geometry.prob_hi =  0.5  2.5 0.0
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
@@ -53,7 +53,7 @@ velocity.ic.expression.region1 = "0.0"
 
 # Optional: pressure IC consistent with dp/dx = -1 Pa/m
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "100000.0 - 1.0 * x"
+pressure.ic.expression.region0 = "100000.0 - 1.0 * y"
 
 ### SOLID ###
 solid.density.ic.type = expression
@@ -92,27 +92,29 @@ density.bc.constant.val.xhi = 0.0
 density.bc.constant.val.ylo = 0.0
 density.bc.constant.val.yhi = 0.0
 
-# Momentum — no-slip walls, free in x
-momentum.bc.constant.type.xlo = neumann neumann
-momentum.bc.constant.type.xhi = neumann neumann
-momentum.bc.constant.type.ylo = dirichlet dirichlet
-momentum.bc.constant.type.yhi = dirichlet dirichlet
+# Momentum — no-slip walls, free in y
+momentum.bc.constant.type.xlo = dirichlet dirichlet
+momentum.bc.constant.type.xhi = dirichlet dirichlet
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
 momentum.bc.constant.val.yhi = 0.0 0.0
 
+
 # Energy — impose pressure difference via energy BC
 # p_left = 100000, p_right = 100000 - 1*5 = 99995
 # E = p/(gamma-1)
-energy.bc.constant.type.xlo = dirichlet
-energy.bc.constant.type.xhi = dirichlet
-energy.bc.constant.type.ylo = neumann
-energy.bc.constant.type.yhi = neumann
-energy.bc.constant.val.xlo = 250000
-energy.bc.constant.val.xhi = 249987.5
-energy.bc.constant.val.ylo = 0.0
-energy.bc.constant.val.yhi = 0.0
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.ylo = dirichlet
+energy.bc.constant.type.yhi = dirichlet
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.ylo = 250000
+energy.bc.constant.val.yhi = 249987.5
+
 
 ### REFINEMENT CRITERIA ###
 eta_refinement_criterion = 0.1

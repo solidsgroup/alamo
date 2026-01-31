@@ -1,26 +1,26 @@
 #alamo.program = hydro
 
 ### OUTPUT ###
-plot_file = ./tests/FlowRayleigh/FlowRayleigh
+plot_file = ./tests/FlowPoiseuille/FlowPoiseuillex
 
 ### MESHING ###
-amr.plot_dt = 0.1
+amr.plot_dt = 0.5
 amr.max_grid_size = 5000000
 amr.blocking_factor = 4
 amr.regrid_int = 50
 amr.grid_eff = 0.8
 
-amr.max_level = 0
-timestep   = 5.0e-6
-amr.n_cell = 8 128        # 1 cell in x (ignored), 128 in y for 1D vertical test
+amr.max_level = 1
+timestep   = 2.0e-5
+amr.n_cell = 80 64
 
 ### DIMENSIONS ###
-geometry.prob_lo = -0.5  0.0 0.0
-geometry.prob_hi =  0.5  1.0 0.0 
+geometry.prob_lo = -2.5  -0.5 0.0
+geometry.prob_hi = 2.5   0.5 0.0
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
-stop_time = 2.5
+stop_time = 20.0
 
 ### ETA IC ###
 m0.ic.type = constant
@@ -40,25 +40,24 @@ eta.ic.expression.region0 = 1.0
 ### HYDRO PARAM ###
 gamma = 1.4
 cfl   = 0.2
-mu    = 2.5
-mu_b    = 1.67
+mu    = 0.1
 pref  = 0.0
 
 ### INITIAL CONDITIONS ###
 density.ic.type = expression
-density.ic.expression.region0 = "100.0"
+density.ic.expression.region0 = "1.0"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "0.0"   # start from rest everywhere
+velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
-# Energy consistent with p ~ 1e5 (keeps sound speed large; not important for viscous test)
+# Optional: pressure IC consistent with dp/dx = -1 Pa/m
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "100000.0"
+pressure.ic.expression.region0 = "100000.0 - 1.0 * x"
 
 ### SOLID ###
 solid.density.ic.type = expression
-solid.density.ic.expression.region0 = "1.0" 
+solid.density.ic.expression.region0 = "1.0"
 
 solid.momentum.ic.type = expression
 solid.momentum.ic.expression.region0 = "0.0"
@@ -72,13 +71,18 @@ pf.eta.bc.constant.type.xlo = neumann
 pf.eta.bc.constant.type.xhi = neumann
 pf.eta.bc.constant.type.ylo = neumann
 pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
 pf.eta.bc.constant.val.xlo = 0.0
 pf.eta.bc.constant.val.xhi = 0.0
 pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
 
 ### HYDRO BC ###
-# Density: Neumann everywhere
+# Density
 density.bc.constant.type.xlo = neumann
 density.bc.constant.type.xhi = neumann
 density.bc.constant.type.ylo = neumann
@@ -88,24 +92,25 @@ density.bc.constant.val.xhi = 0.0
 density.bc.constant.val.ylo = 0.0
 density.bc.constant.val.yhi = 0.0
 
-# Momentum:
+# Momentum — no-slip walls, free in x
 momentum.bc.constant.type.xlo = neumann neumann
 momentum.bc.constant.type.xhi = neumann neumann
 momentum.bc.constant.type.ylo = dirichlet dirichlet
 momentum.bc.constant.type.yhi = dirichlet dirichlet
-
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.xhi = 0.0 0.0
-momentum.bc.constant.val.ylo = 100.0 0.0		# < Bottom plate movement momentum
+momentum.bc.constant.val.ylo = 0.0 0.0
 momentum.bc.constant.val.yhi = 0.0 0.0
 
-# Energy: Neumann in y (no heat flux), Neumann in x
-energy.bc.constant.type.xlo = neumann
-energy.bc.constant.type.xhi = neumann
+# Energy — impose pressure difference via energy BC
+# p_left = 100000, p_right = 100000 - 1*5 = 99995
+# E = p/(gamma-1)
+energy.bc.constant.type.xlo = dirichlet
+energy.bc.constant.type.xhi = dirichlet
 energy.bc.constant.type.ylo = neumann
 energy.bc.constant.type.yhi = neumann
-energy.bc.constant.val.xlo = 0.0
-energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 250000
+energy.bc.constant.val.xhi = 249987.5
 energy.bc.constant.val.ylo = 0.0
 energy.bc.constant.val.yhi = 0.0
 
