@@ -1,12 +1,12 @@
 """
 ===============================================================================
-TAYLOR-GREEN VORTEX (TGV) COMPREHENSIVE ANALYSIS SCRIPT
+LAMB-OSEEN VORTEX COMPREHENSIVE ANALYSIS SCRIPT
 ===============================================================================
 
 PURPOSE:
-    Perform full diagnostic of TGV simulations, comparing Domain KE, 
-    velocity profiles (U and V), and 3D error surfaces against analytical 
-    solutions. Includes effective viscosity (mu_eff) tracking.
+    Perform full diagnostic of Lamb-Oseen vortex simulations, comparing 
+    Domain KE, velocity profiles (U and V), and 3D error surfaces against 
+    analytical solutions. Includes effective viscosity (mu_eff) tracking.
 
 FEATURES:
     - 9 standalone diagnostic plots (.png and .eps)
@@ -14,12 +14,12 @@ FEATURES:
     - Static color mapping for 3D error surfaces across all timesteps
 
 INPUTS:
-    - AMReX plot files from TGV simulation
-    - Physical parameters: rho, mu, L, U0
+    - AMReX plot files from Lamb-Oseen simulation
+    - Physical parameters: rho, mu, Gamma, rc0, xc, yc
 
 OUTPUTS:
-    - 9 diagnostic plots
-    - 6 evolution GIFs
+    - 9 diagnostic plots 
+    - 6 evolution GIFs 
 
 ===============================================================================
 """
@@ -41,17 +41,20 @@ yt.funcs.mylog.setLevel(40)
 # CONFIGURATION PARAMETERS
 # ============================================================================
 
-# Physical parameters (matching TGV input file)
+# Physical parameters (matching Lamb-Oseen input file)
 gamma = 1.4
 mu = 0.01                        # Dynamic viscosity (Pa-s)
 density = 1.0                    # Fluid density (kg/m^3)
-U0 = 1.0                         # Initial velocity magnitude (m/s)
-L = 2.0 * np.pi                  # Domain length (m)
 nu = mu / density                # Kinematic viscosity (m^2/s)
-k = 1.0 #2.0 * np.pi / L              # Wavenumber (1/m)
+
+# Lamb-Oseen Specifics
+Gamma = 1.0                      # Circulation
+rc0 = 0.5                        # Initial core radius
+xc, yc = 5.0, 5.0                # Center of the vortex
+L = 10.0                         # Domain length (m)
 
 # File paths
-amrex_output_dir = r'..\..\..\bin\tests\FlowTaylorGreenVortex\TaylorGreenDecay'
+amrex_output_dir = r'..\..\..\bin\tests\FlowLambOseenVortex\FlowLambOseenVortex'
 
 # Plotting customization
 FONT_SIZE_TITLE = 16
@@ -62,12 +65,12 @@ LINE_WIDTH_EXACT = 2.5
 LINE_WIDTH_NUMERICAL = 2.0
 
 # Output settings
-output_folder = './TGV_Analysis'
+output_folder = './LambOseen_Analysis'
 create_gifs = False               # Set to True to generate evolution GIFs
 gif_duration = 200               # Duration per frame in milliseconds
 
-# Sampling location for velocity profiles (middle of domain)
-x_sample = np.pi                 # Sample at x = pi (middle)
+# Sampling location for velocity profiles (through the center)
+x_sample = xc                 
 
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
@@ -76,20 +79,25 @@ if not os.path.exists(output_folder):
 # ANALYTICAL SOLUTIONS
 # ============================================================================
 
-def analytical_tgv_velocity_u(x, y, t, U0, k, nu):
-    """U-velocity for TGV: u = U0 * sin(kx) * cos(ky) * exp(-2*nu*k^2*t)"""
-    decay = np.exp(-2.0 * nu * (k**2) * t)
-    return U0 * np.sin(k * x) * np.cos(k * y) * decay
+def get_lamb_oseen_vtheta(r, t, Gamma, rc0, nu):
+    """Tangential velocity: v_theta = (Gamma / (2*pi*r)) * (1 - exp(-r^2 / (rc0^2 + 4*nu*t)))"""
+    if t < 0: 
+        t = 0
+    r_core_sq = rc0**2 + 4.0 * nu * t
+    # Avoid division by zero at r=0
+    return (Gamma / (2.0 * np.pi * (r + 1e-12))) * (1.0 - np.exp(-(r**2) / r_core_sq))
 
-def analytical_tgv_velocity_v(x, y, t, U0, k, nu):
-    """V-velocity for TGV: v = -U0 * cos(kx) * sin(ky) * exp(-2*nu*k^2*t)"""
-    decay = np.exp(-2.0 * nu * (k**2) * t)
-    return -U0 * np.cos(k * x) * np.sin(k * y) * decay
+def analytical_lamb_oseen_u(x, y, t, Gamma, rc0, nu, xc, yc):
+    """U-velocity: u = -v_theta * (y - yc) / r"""
+    r = np.sqrt((x - xc)**2 + (y - yc)**2)
+    v_theta = get_lamb_oseen_vtheta(r, t, Gamma, rc0, nu)
+    return -v_theta * (y - yc) / (r + 1e-12)
 
-def analytical_kinetic_energy(t, KE0, nu, k):
-    """Analytical KE decay: KE(t) = KE(0) * exp(-4*nu*k^2*t)"""
-    return KE0 * np.exp(-4.0 * nu * (k**2) * t)
-
+def analytical_lamb_oseen_v(x, y, t, Gamma, rc0, nu, xc, yc):
+    """V-velocity: v = v_theta * (x - xc) / r"""
+    r = np.sqrt((x - xc)**2 + (y - yc)**2)
+    v_theta = get_lamb_oseen_vtheta(r, t, Gamma, rc0, nu)
+    return v_theta * (x - xc) / (r + 1e-12)
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -107,7 +115,7 @@ def extract_timestep_number(filename):
 # ============================================================================
 
 print("=" * 70)
-print("TAYLOR-GREEN VORTEX COMPREHENSIVE ANALYSIS")
+print("LAMB-OSEEN VORTEX COMPREHENSIVE ANALYSIS")
 print("=" * 70)
 
 plot_files = []
@@ -135,8 +143,8 @@ times = []
 kinetic_energies = []
 all_u_data = []
 all_v_data = []
-all_x_coords = []
 all_y_coords = []
+analytical_kes = []
 
 for i, plot_file in enumerate(plot_files):
     ds = yt.load(plot_file)
@@ -154,55 +162,63 @@ for i, plot_file in enumerate(plot_files):
     times.append(t)
     kinetic_energies.append(KE)
     
-    # Extract 2D velocity fields for spatial analysis
-    # Create a slice at z=0
-    y_min = float(ds.domain_left_edge[1])
-    y_max = float(ds.domain_right_edge[1])
-    x_min = float(ds.domain_left_edge[0])
-    x_max = float(ds.domain_right_edge[0])
+    # Calculate analytical KE by integrating analytical profile over domain
+    x_coords = np.array(ad['x'])
+    y_coords = np.array(ad['y'])
+    u_ana = analytical_lamb_oseen_u(x_coords, y_coords, t, Gamma, rc0, nu, xc, yc)
+    v_ana = analytical_lamb_oseen_v(x_coords, y_coords, t, Gamma, rc0, nu, xc, yc)
+    analytical_kes.append(0.5 * np.sum(density * (u_ana**2 + v_ana**2)))
     
     # Extract 1D profile at x_sample
+    y_min = float(ds.domain_left_edge[1])
+    y_max = float(ds.domain_right_edge[1])
+    
     ray_start = ds.arr([x_sample, y_min, 0.0], 'code_length')
     ray_end = ds.arr([x_sample, y_max, 0.0], 'code_length')
     ray = ds.ray(ray_start, ray_end)
     
     sort_indices = np.argsort(ray['y'])
-    y_coords = np.array(ray['y'][sort_indices])
+    y_coords_1d = np.array(ray['y'][sort_indices])
     u_profile = np.array(ray['velocityx'][sort_indices])
     v_profile = np.array(ray['velocityy'][sort_indices])
     
     all_u_data.append(u_profile)
     all_v_data.append(v_profile)
-    all_y_coords.append(y_coords)
+    all_y_coords.append(y_coords_1d)
     
     if (i + 1) % 10 == 0 or i == len(plot_files) - 1:
         print(f"  Processed {i + 1}/{len(plot_files)} timesteps")
 
 times = np.array(times)
 kinetic_energies = np.array(kinetic_energies)
+analytical_kes = np.array(analytical_kes)
 
 # ============================================================================
-# CALCULATE ANALYTICAL KE AND EFFECTIVE VISCOSITY
+# CALCULATE EFFECTIVE VISCOSITY
 # ============================================================================
 
 print("\n" + "=" * 70)
-print("CALCULATING ANALYTICAL SOLUTIONS AND MU_EFF")
+print("CALCULATING EFFECTIVE VISCOSITY")
 print("=" * 70)
 
-KE0 = kinetic_energies[0]
-analytical_ke = analytical_kinetic_energy(times, KE0, nu, k)
-
 # Calculate mu_eff from KE decay rate
+# For Lamb-Oseen, use 1/rc as characteristic wavenumber
+k_char = 1.0 / rc0
+
+ln_ke = np.log(kinetic_energies + 1e-16)
+d_ln_ke_dt = np.gradient(ln_ke, times)
+nu_eff_time = -d_ln_ke_dt / (2.0 * k_char**2)
+mu_eff_time = nu_eff_time * density
+
 if len(times) > 10:
     fit_start = 5
-    log_KE = np.log(kinetic_energies[fit_start:])
+    log_KE = np.log(kinetic_energies[fit_start:] + 1e-16)
     times_fit = times[fit_start:]
     
     coeffs = np.polyfit(times_fit, log_KE, 1)
     slope_measured = coeffs[0]
-    slope_expected = -2.0 * nu * k**2
     
-    nu_effective = -slope_measured / (2.0 * k**2)
+    nu_effective = -slope_measured / (2.0 * k_char**2)
     mu_effective = nu_effective * density
     
     print(f"\nViscosity Analysis:")
@@ -221,7 +237,6 @@ else:
     selected_indices = np.linspace(0, len(plot_files) - 1, num_panels, dtype=int)
 
 selected_times = times[selected_indices]
-
 print(f"\nSelected {num_panels} timesteps for 2x3 grids:")
 for i, idx in enumerate(selected_indices):
     print(f"  Panel {i+1}: t = {times[idx]:.6e} s")
@@ -235,20 +250,17 @@ print("CREATING PLOT 1: KE COMPARISON (LINEAR-LINEAR)")
 print("=" * 70)
 
 fig1, ax1 = plt.subplots(figsize=(10, 8))
-
-ax1.plot(times, analytical_ke, 'b-', linewidth=LINE_WIDTH_EXACT, 
+ax1.plot(times, analytical_kes, 'b-', linewidth=LINE_WIDTH_EXACT, 
          label='Analytical KE', zorder=1)
 ax1.plot(times, kinetic_energies, 'ro', markersize=6, 
          label='Domain KE', alpha=0.7, zorder=2)
-
 ax1.set_xlabel('Time (s)', fontsize=FONT_SIZE_LABEL)
 ax1.set_ylabel('Kinetic Energy', fontsize=FONT_SIZE_LABEL)
-ax1.set_title(f'Taylor-Green Vortex: KE Comparison\nmu = {mu} Pa-s, nu = {nu:.4e} m^2/s', 
+ax1.set_title(f'Lamb-Oseen Vortex: KE Comparison\nmu = {mu} Pa-s, Gamma = {Gamma}, rc0 = {rc0}', 
               fontsize=FONT_SIZE_TITLE, fontweight='bold')
 ax1.legend(fontsize=FONT_SIZE_LEGEND, loc='best')
 ax1.grid(True, alpha=0.3)
 ax1.tick_params(labelsize=FONT_SIZE_TICK)
-
 plt.tight_layout()
 plt.savefig(os.path.join(output_folder, '01_KE_Comparison.png'), dpi=300)
 plt.savefig(os.path.join(output_folder, '01_KE_Comparison.eps'))
@@ -264,20 +276,17 @@ print("CREATING PLOT 2: KE ERROR (SEMILOG)")
 print("=" * 70)
 
 fig2, ax2 = plt.subplots(figsize=(10, 8))
-
-ke_error = np.abs(kinetic_energies - analytical_ke)
+ke_error = np.abs(kinetic_energies - analytical_kes)
 epsilon = 1e-16
 ke_error_safe = ke_error + epsilon
 
 ax2.semilogy(times, ke_error_safe, 'k-', linewidth=LINE_WIDTH_NUMERICAL)
-
 ax2.set_xlabel('Time (s)', fontsize=FONT_SIZE_LABEL)
 ax2.set_ylabel('|Domain KE - Analytical KE|', fontsize=FONT_SIZE_LABEL)
-ax2.set_title('Taylor-Green Vortex: KE Error', 
+ax2.set_title('Lamb-Oseen Vortex: KE Error', 
               fontsize=FONT_SIZE_TITLE, fontweight='bold')
 ax2.grid(True, alpha=0.3, which='both')
 ax2.tick_params(labelsize=FONT_SIZE_TICK)
-
 plt.tight_layout()
 plt.savefig(os.path.join(output_folder, '02_KE_Error.png'), dpi=300)
 plt.savefig(os.path.join(output_folder, '02_KE_Error.eps'))
@@ -299,7 +308,7 @@ for i, idx in enumerate(selected_indices):
     t = times[idx]
     y_h = all_y_coords[idx]
     u_num = all_u_data[idx]
-    u_ana = analytical_tgv_velocity_u(x_sample, y_h, t, U0, k, nu)
+    u_ana = analytical_lamb_oseen_u(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
     
     axes3[i].plot(u_ana, y_h, 'b-', linewidth=LINE_WIDTH_EXACT, 
                   label='Analytical', zorder=1)
@@ -336,7 +345,7 @@ for i, idx in enumerate(selected_indices):
     t = times[idx]
     y_h = all_y_coords[idx]
     u_num = all_u_data[idx]
-    u_ana = analytical_tgv_velocity_u(x_sample, y_h, t, U0, k, nu)
+    u_ana = analytical_lamb_oseen_u(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
     u_error = np.abs(u_num - u_ana)
     
     axes4[i].plot(u_error, y_h, 'k-', linewidth=LINE_WIDTH_NUMERICAL)
@@ -370,7 +379,7 @@ for i, idx in enumerate(selected_indices):
     t = times[idx]
     y_h = all_y_coords[idx]
     v_num = all_v_data[idx]
-    v_ana = analytical_tgv_velocity_v(x_sample, y_h, t, U0, k, nu)
+    v_ana = analytical_lamb_oseen_v(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
     
     axes5[i].plot(v_ana, y_h, 'b-', linewidth=LINE_WIDTH_EXACT, 
                   label='Analytical', zorder=1)
@@ -407,7 +416,7 @@ for i, idx in enumerate(selected_indices):
     t = times[idx]
     y_h = all_y_coords[idx]
     v_num = all_v_data[idx]
-    v_ana = analytical_tgv_velocity_v(x_sample, y_h, t, U0, k, nu)
+    v_ana = analytical_lamb_oseen_v(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
     v_error = np.abs(v_num - v_ana)
     
     axes6[i].plot(v_error, y_h, 'k-', linewidth=LINE_WIDTH_NUMERICAL)
@@ -465,8 +474,8 @@ v_errors_all = []
 
 for i, idx in enumerate(selected_indices):
     t = times[idx]
-    u_ana_field = analytical_tgv_velocity_u(X_grid, Y_grid, t, U0, k, nu)
-    v_ana_field = analytical_tgv_velocity_v(X_grid, Y_grid, t, U0, k, nu)
+    u_ana_field = analytical_lamb_oseen_u(X_grid, Y_grid, t, Gamma, rc0, nu, xc, yc)
+    v_ana_field = analytical_lamb_oseen_v(X_grid, Y_grid, t, Gamma, rc0, nu, xc, yc)
     
     u_error_field = np.abs(all_u_fields[i] - u_ana_field)
     v_error_field = np.abs(all_v_fields[i] - v_ana_field)
@@ -560,19 +569,11 @@ print("\n" + "=" * 70)
 print("CREATING PLOT 9: MU_EFF VS TIME (LINEAR-LINEAR)")
 print("=" * 70)
 
-# Calculate mu_eff at each timestep using gradient
-ln_ke = np.log(kinetic_energies)
-d_ln_ke_dt = np.gradient(ln_ke, times)
-nu_eff_time = -d_ln_ke_dt / (2.0 * k**2)
-mu_eff_time = nu_eff_time * density
-
 fig9, ax9 = plt.subplots(figsize=(10, 8))
-
 ax9.plot(times, mu_eff_time, 'g-', linewidth=LINE_WIDTH_NUMERICAL, 
          label='Numerical mu_eff')
 ax9.axhline(y=mu, color='b', linestyle='--', linewidth=LINE_WIDTH_EXACT, 
             label=f'Analytical mu = {mu} Pa-s')
-
 ax9.set_xlabel('Time (s)', fontsize=FONT_SIZE_LABEL)
 ax9.set_ylabel('Effective Viscosity mu_eff (Pa-s)', fontsize=FONT_SIZE_LABEL)
 ax9.set_title('Effective Viscosity vs Time', 
@@ -580,7 +581,6 @@ ax9.set_title('Effective Viscosity vs Time',
 ax9.legend(fontsize=FONT_SIZE_LEGEND, loc='best')
 ax9.grid(True, alpha=0.3)
 ax9.tick_params(labelsize=FONT_SIZE_TICK)
-
 plt.tight_layout()
 plt.savefig(os.path.join(output_folder, '09_Mu_Eff_Time.png'), dpi=300)
 plt.savefig(os.path.join(output_folder, '09_Mu_Eff_Time.eps'))
@@ -613,7 +613,7 @@ if create_gifs:
         t = times[idx]
         y_h = all_y_coords[idx]
         u_num = all_u_data[idx]
-        u_ana = analytical_tgv_velocity_u(x_sample, y_h, t, U0, k, nu)
+        u_ana = analytical_lamb_oseen_u(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
         
         fig_temp = plt.figure(figsize=(10, 8))
         plt.plot(u_ana, y_h, 'b-', linewidth=LINE_WIDTH_EXACT, label='Analytical')
@@ -642,7 +642,7 @@ if create_gifs:
         t = times[idx]
         y_h = all_y_coords[idx]
         u_num = all_u_data[idx]
-        u_ana = analytical_tgv_velocity_u(x_sample, y_h, t, U0, k, nu)
+        u_ana = analytical_lamb_oseen_u(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
         u_error = np.abs(u_num - u_ana)
         
         fig_temp = plt.figure(figsize=(10, 8))
@@ -670,7 +670,7 @@ if create_gifs:
         t = times[idx]
         y_h = all_y_coords[idx]
         v_num = all_v_data[idx]
-        v_ana = analytical_tgv_velocity_v(x_sample, y_h, t, U0, k, nu)
+        v_ana = analytical_lamb_oseen_v(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
         
         fig_temp = plt.figure(figsize=(10, 8))
         plt.plot(v_ana, y_h, 'b-', linewidth=LINE_WIDTH_EXACT, label='Analytical')
@@ -699,7 +699,7 @@ if create_gifs:
         t = times[idx]
         y_h = all_y_coords[idx]
         v_num = all_v_data[idx]
-        v_ana = analytical_tgv_velocity_v(x_sample, y_h, t, U0, k, nu)
+        v_ana = analytical_lamb_oseen_v(x_sample, y_h, t, Gamma, rc0, nu, xc, yc)
         v_error = np.abs(v_num - v_ana)
         
         fig_temp = plt.figure(figsize=(10, 8))
@@ -737,7 +737,7 @@ if create_gifs:
     
     for i, idx in enumerate(gif_indices):
         t = gif_times[i]
-        u_ana_field = analytical_tgv_velocity_u(X_grid, Y_grid, t, U0, k, nu)
+        u_ana_field = analytical_lamb_oseen_u(X_grid, Y_grid, t, Gamma, rc0, nu, xc, yc)
         u_error_field = np.abs(gif_u_fields[i] - u_ana_field)
         u_error_log = np.log10(u_error_field + 1e-16)
         
@@ -784,7 +784,7 @@ if create_gifs:
     
     for i, idx in enumerate(gif_indices):
         t = gif_times[i]
-        v_ana_field = analytical_tgv_velocity_v(X_grid, Y_grid, t, U0, k, nu)
+        v_ana_field = analytical_lamb_oseen_v(X_grid, Y_grid, t, Gamma, rc0, nu, xc, yc)
         v_error_field = np.abs(gif_v_fields[i] - v_ana_field)
         v_error_log = np.log10(v_error_field + 1e-16)
         
@@ -834,6 +834,7 @@ print(f"  - 06_V_Error.png/.eps")
 print(f"  - 07_U_3D_Error.png/.eps")
 print(f"  - 08_V_3D_Error.png/.eps")
 print(f"  - 09_Mu_Eff_Time.png/.eps")
+
 if create_gifs:
     print(f"  - GIF_03_U_Comparison.gif")
     print(f"  - GIF_04_U_Error.gif")

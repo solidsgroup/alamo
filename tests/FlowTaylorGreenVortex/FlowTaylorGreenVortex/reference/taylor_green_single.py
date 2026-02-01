@@ -18,8 +18,8 @@ INPUTS:
     - Physical parameters: rho, mu, L, U0
 
 OUTPUTS:
-    - 9 diagnostic plots
-    - 6 evolution GIFs
+    - 9 diagnostic plots (linear-linear and semilog as specified)
+    - 6 evolution GIFs (plots 3-8)
 
 ===============================================================================
 """
