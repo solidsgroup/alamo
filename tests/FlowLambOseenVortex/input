@@ -104,3 +104,5 @@ dynamictimestep.max = 1.0
 dynamictimestep.min = 1.0e-12
 
 solver.type = hllc
+integration.type=RungeKutta
+integration.rk.type=4
