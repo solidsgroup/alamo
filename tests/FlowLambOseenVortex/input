@@ -60,7 +60,7 @@ velocity.ic.expression.region0 = "-(1.0 / (2.0 * 3.14159265)) * ((y-5.0) / ((x-5
 velocity.ic.expression.region1 =  "(1.0 / (2.0 * 3.14159265)) * ((x-5.0) / ((x-5.0)**2 + (y-5.0)**2 + 1e-8)) * (1.0 - exp(-((x-5.0)**2 + (y-5.0)**2) / (0.5**2)))"
  
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "0.1"
+pressure.ic.expression.region0 = "1.0"
  
 ### SOLID ###
 solid.density.ic.type = expression
@@ -100,5 +100,7 @@ amr.abort_on_nan = 1
 dynamictimestep.on = 1
 dynamictimestep.verbose = 1
 dynamictimestep.cfl = 0.5
+dynamictimestep.max = 1.0
+dynamictimestep.min = 1.0e-12
 
 solver.type = hllc
