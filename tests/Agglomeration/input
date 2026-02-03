@@ -7,7 +7,7 @@ amr.blocking_factor = 4
 amr.grid_eff = 1
 amr.thermo.plot_dt = 1e-4
 flame.amr.refinement_criterion = 1e-1
-flame.amr.refinement_criterion_temp = 2.5e2
+flame.amr.refinement_criterion_temp = 10.0
 flame.amr.phi_refinement_criterion = 5e-1
 amr.cell.all = 1
 amr.node.all = 1
@@ -20,7 +20,7 @@ amr.max_level = 4
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 5e-7
+timestep = 2.5e-7
 stop_time = 1.0
 
 # Phase field parameters
@@ -124,10 +124,9 @@ flame.elastic.phirefinement = 0
 calculate_initial_volume = true
 sigma = 1e0
 epsilon = 5.5e-6
-lambda = 5.5e4
+lambda = 6.5e4
 L_0_agglom = 2.5e1
 L_0_reaction = 0
-n = 3e0
 
 # Agglomerate order parameter initial condition
 alpha.ic.type = constant
@@ -150,5 +149,4 @@ alpha.bc.constant.val.zhi = 0.0
 
 # Miscellaneous agglomeration parameters
 eta_refinement_threshold = 0.9
-phi_refinement_threshold = 0.0
-gradient_alpha_refinement_threshold = 5e-1
+gradient_alpha_refinement_threshold = 1e-1

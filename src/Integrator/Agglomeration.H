@@ -79,6 +79,7 @@ private:
     void Initialize(int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
+    void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
 
@@ -87,8 +88,8 @@ private:
         Set::Field<Set::Scalar> alpha_0;
         Set::Field<Set::Scalar> alpha_old;
         Set::Field<Set::Scalar> alpha;
-        Set::Field<Set::Scalar> alphadot_agglom;
-        Set::Field<Set::Scalar> alphadot_reaction;
+        Set::Field<Set::Scalar> dalpha_agglom;
+        Set::Field<Set::Scalar> dalpha_reaction;
         IC::IC<Set::Scalar> *alpha_ic = nullptr;
         BC::BC<Set::Scalar> *alpha_bc = nullptr;
         Set::Scalar sigma = NAN;
@@ -96,13 +97,15 @@ private:
         Set::Scalar lambda = NAN;
         Set::Scalar L_0_agglom = NAN;
         Set::Scalar L_0_reaction = NAN;
-        Set::Scalar n = NAN;
         Set::Scalar V = NAN;
         Set::Scalar V_0 = NAN;
+        Set::Scalar dV = 0.0;
+        Set::Scalar dV_0 = 0.0;
         bool calculate_initial_volume = true;
         Set::Scalar eta_refinement_threshold = NAN;
-        Set::Scalar phi_refinement_threshold = NAN;
         Set::Scalar gradient_alpha_refinement_threshold = NAN;
+        amrex::BoxArray prev_finest_ba;
+        int prev_finest_level = -1;
     } agglom;
 };
 }

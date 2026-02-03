@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cmath>
 #include <utility>
 
 #include "Agglomeration.H"
@@ -23,6 +22,7 @@
 #include "AMReX_MFIter.H"
 #include "AMReX_MultiFab.H"
 #include "AMReX_MultiFabUtil.H"
+#include "AMReX_ParallelDescriptor.H"
 #include "AMReX_TagBox.H"
 
 namespace Integrator
@@ -30,6 +30,7 @@ namespace Integrator
 void
 Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 {
+    BL_PROFILE("Integrator::Agglomeration::Agglomeration()")
     pp.queryclass<Flame>("flame", &value);
 
     // Interface energy
@@ -41,8 +42,6 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     pp.query_default("L_0_agglom", value.agglom.L_0_agglom, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
     // Free-flow reaction mobility parameter
     pp.query_default("L_0_reaction", value.agglom.L_0_reaction, "1.0_m^3/J/s", Unit::Volume() / Unit::Energy() / Unit::Time());
-    // Agglomeration mobility exponent
-    pp.query_default("n", value.agglom.n, "1.0", Unit::Less());
 
     // Lagrangian multiplier for the agglomerate volume constraint
     pp.query_default("lambda", value.agglom.lambda, "1.0_J/m^3", Unit::Energy() / Unit::Volume());
@@ -57,8 +56,6 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
 
     // If eta is larger than this value, do NOT refine/regrid alpha
     pp.query_default("eta_refinement_threshold", value.agglom.eta_refinement_threshold, "1.0", Unit::Less());
-    // If eta is greater than `eta_refinement_threshold` and phi is smaller than this value, refine/regrid alpha
-    pp.query_default("phi_refinement_threshold", value.agglom.phi_refinement_threshold, "1.0", Unit::Less());
     // If the gradient of alpha is larger than this value and eta is smaller than `eta_refinement_threshold`, refine/regrid alpha
     pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1.0", Unit::Less());
 
@@ -70,11 +67,13 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     value.RegisterNewFab(value.agglom.alpha_0, value.agglom.alpha_bc, 1, 1, "agglom.alpha_0", false);
     value.RegisterNewFab(value.agglom.alpha_old, value.agglom.alpha_bc, 1, 1, "agglom.alpha_old", false);
     value.RegisterNewFab(value.agglom.alpha, value.agglom.alpha_bc, 1, 1, "agglom.alpha", true);
-    value.RegisterNewFab(value.agglom.alphadot_agglom, value.agglom.alpha_bc, 1, 1, "agglom.alphadot_agglom", false);
-    value.RegisterNewFab(value.agglom.alphadot_reaction, value.agglom.alpha_bc, 1, 1, "agglom.alphadot_reaction", false);
+    value.RegisterNewFab(value.agglom.dalpha_agglom, value.agglom.alpha_bc, 1, 1, "agglom.dalpha_agglom", true);
+    value.RegisterNewFab(value.agglom.dalpha_reaction, value.agglom.alpha_bc, 1, 1, "agglom.dalpha_reaction", true);
 
     value.RegisterIntegratedVariable(&value.agglom.V, "agglom.V", false);
     value.RegisterIntegratedVariable(&value.agglom.V_0, "agglom.V_0", false);
+    value.RegisterIntegratedVariable(&value.agglom.dV, "agglom.dV", false);
+    value.RegisterIntegratedVariable(&value.agglom.dV_0, "agglom.dV_0", false);
 }
 
 Set::Scalar
@@ -135,6 +134,7 @@ Agglomeration::CalculateInitialVolume(int target_resolution_level)
 void
 Agglomeration::ScaleByComplement(MultiFab &dst, const MultiFab &src, int srccomp, int dstcomp, int numcomp, int nghost)
 {
+    BL_PROFILE("Integrator::Agglomeration::ScaleByComplement")
     int nCompSrc = src.nComp();
     int nGrowSrc = src.nGrow();
 
@@ -154,6 +154,7 @@ Agglomeration::ScaleByComplement(MultiFab &dst, const MultiFab &src, int srccomp
 void
 Agglomeration::ScaleByPhiComplement(const Set::Field<Set::Scalar> &mf, int lev)
 {
+    BL_PROFILE("Integrator::Agglomeration::ScaleByPhiComplement")
     int nComp = mf[lev]->nComp();
     int nGrow = mf[lev]->nGrow();
     MultiFab cell_based_phi(mf[lev]->boxArray(), mf[lev]->DistributionMap(), nComp, nGrow);
@@ -164,6 +165,7 @@ Agglomeration::ScaleByPhiComplement(const Set::Field<Set::Scalar> &mf, int lev)
 void
 Agglomeration::Initialize(int lev)
 {
+    BL_PROFILE("Integrator::Agglomeration::Initialize")
     Flame::Initialize(lev);
 
     agglom.alpha_old[lev]->setVal(0.0);
@@ -177,66 +179,105 @@ Agglomeration::TimeStepBegin(Set::Scalar a_time, int a_iter)
     BL_PROFILE("Integrator::Agglomeration::TimeStepBegin");
     Flame::TimeStepBegin(a_time, a_iter);
 
-    // Calculate initial volume on first timestep
-    if (a_time == 0.0 && agglom.calculate_initial_volume)
+    if (a_time == 0.0)
     {
-        agglom.V_0 = CalculateInitialVolume(max_level);
+        if (agglom.calculate_initial_volume)
+            agglom.V_0 = CalculateInitialVolume(max_level);
         agglom.V = agglom.V_0;
-        Util::Message(INFO, "agglom.V_0 dynamically set to ", agglom.V_0);
+        agglom.prev_finest_ba = grids[finest_level];
+        agglom.prev_finest_level = finest_level;
+        Util::Message(INFO, "agglom.V_0 = ", agglom.V_0, ", agglom.V = ", agglom.V);
     }
+
+    agglom.dV = 0.0;
+    agglom.dV_0 = 0.0;
 }
 
 void
 Agglomeration::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
+    BL_PROFILE("Integrator::Agglomeration::Advance")
     Flame::Advance(lev, time, dt);
 
     std::swap(agglom.alpha_old[lev], agglom.alpha[lev]);
     const Set::Scalar *dx = geom[lev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);
 
+    amrex::BoxArray cfba;
+    if (lev < finest_level)
+        cfba = amrex::coarsen(grids[lev + 1], refRatio(lev));
+
     for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
         Set::Patch<const Set::Scalar> alpha_old = agglom.alpha_old.Patch(lev, mfi);
         Set::Patch<Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> alphadot_agglom = agglom.alphadot_agglom.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> alphadot_reaction = agglom.alphadot_reaction.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> dalpha_agglom = agglom.dalpha_agglom.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> dalpha_reaction = agglom.dalpha_reaction.Patch(lev, mfi);
         Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev, mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // calculate the Laplacian of alpha
             Set::Scalar laplacian_alpha = Numeric::Laplacian(alpha_old, i, j, k, 0, dx);
 
-            // calculate the variational derivative
             Set::Scalar free_energy_derivative = 2 * agglom.sigma / agglom.epsilon * alpha_old(i, j, k) * (1 - alpha_old(i, j, k)) * (1 - 2 * alpha_old(i, j, k)) - agglom.sigma * agglom.epsilon * laplacian_alpha;
 
-            // calculate effective agglomeration mobility L
-            Set::Scalar eta_scale = std::pow(1 - eta(i, j, k), agglom.n);
+            Set::Scalar eta_complement = 1 - eta(i, j, k);
+            Set::Scalar eta_scale = eta_complement * eta_complement * eta_complement;
             Set::Scalar L_agglom = agglom.L_0_agglom * eta_scale;
             Set::Scalar L_reaction = agglom.L_0_reaction * eta_scale;
 
-            // constrained Allen-Cahn equation
             Set::Scalar lagrange_term = agglom.lambda * (agglom.V / agglom.V_0 - 1);
-            alphadot_agglom(i, j, k) = -L_agglom * (free_energy_derivative + lagrange_term);
-            alphadot_reaction(i, j, k) = -L_reaction * free_energy_derivative;
-            Set::Scalar alphadot = alphadot_agglom(i, j, k) + alphadot_reaction(i, j, k);
+            dalpha_agglom(i, j, k) = -L_agglom * (free_energy_derivative + lagrange_term) * dt;
+            dalpha_reaction(i, j, k) = -L_reaction * free_energy_derivative * dt;
+            Set::Scalar dalpha = dalpha_agglom(i, j, k) + dalpha_reaction(i, j, k);
 
-            // evolve alpha
-            alpha(i, j, k) = alpha_old(i, j, k) + dt * alphadot;
+            alpha(i, j, k) = alpha_old(i, j, k) + dalpha;
         });
-    }
 
-    // update the volume of agglomerate in the domain using the fluxes
-    Set::Scalar alphadot_agglom = agglom.alphadot_agglom[lev]->sum();
-    Set::Scalar alphadot_reaction = agglom.alphadot_reaction[lev]->sum();
-    agglom.V += dt * alphadot_agglom * dv;
-    agglom.V_0 += dt * alphadot_reaction * dv;
+        // accumulate volume flux using complement to avoid double-counting with finer levels
+        amrex::BoxList boxes_to_integrate;
+        if (lev < finest_level)
+        {
+            amrex::BoxArray comp = amrex::complementIn(bx, cfba);
+            boxes_to_integrate = comp.boxList();
+        }
+        else
+            boxes_to_integrate.push_back(bx);
+
+        // we do a manual loop instead of a ParallelFor to avoid
+        // threading/race conditions resulting from the += operator on
+        // agglom.dV and agglom.dV_0
+        for (const amrex::Box &box : boxes_to_integrate)
+        {
+            const auto lo = amrex::lbound(box);
+            const auto hi = amrex::ubound(box);
+            for (int k = lo.z; k <= hi.z; ++k)
+                for (int j = lo.y; j <= hi.y; ++j)
+                    for (int i = lo.x; i <= hi.x; ++i)
+                    {
+                        agglom.dV += (dalpha_agglom(i, j, k) + dalpha_reaction(i, j, k)) * dv;
+                        agglom.dV_0 += dalpha_reaction(i, j, k) * dv;
+                    }
+        }
+    }
+}
+
+void
+Agglomeration::TimeStepComplete(Set::Scalar a_time, int a_iter)
+{
+    BL_PROFILE("Integrator::Agglomeration::TimeStepComplete");
+    Flame::TimeStepComplete(a_time, a_iter);
+
+    amrex::ParallelDescriptor::ReduceRealSum(agglom.dV);
+    amrex::ParallelDescriptor::ReduceRealSum(agglom.dV_0);
+    agglom.V += agglom.dV;
+    agglom.V_0 += agglom.dV_0;
 }
 
 void
 Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
 {
+    BL_PROFILE("Integrator::Agglomeration::TagCellsForRefinement")
     Flame::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Vector dx(geom[lev].CellSize());
@@ -248,7 +289,6 @@ Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::S
         Set::Patch<char> tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev, mfi);
-        Set::Patch<const Set::Scalar> phi = phi_mf.Patch(lev, mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             if (eta(i, j, k) < agglom.eta_refinement_threshold)
@@ -258,23 +298,29 @@ Agglomeration::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::S
                     tags(i, j, k) = amrex::TagBox::SET;
             }
         });
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            if (eta(i, j, k) > agglom.eta_refinement_threshold && phi(i, j, k) < agglom.phi_refinement_threshold)
-            {
-                tags(i, j, k) = amrex::TagBox::SET;
-            }
-        });
     }
 }
 
 void
 Agglomeration::Regrid(int lev, Set::Scalar time)
 {
+    BL_PROFILE("Integrator::Agglomeration::Regrid")
     Flame::Regrid(lev, time);
+
     agglom.alpha_ic->Initialize(lev, agglom.alpha_0);
     ScaleByPhiComplement(agglom.alpha_0, lev);
 
+    // The goal here is, on regrid, to set the value of the
+    // agglomerate phase to its value based on the IC without
+    // disrupting the agglomerate phase near the regression front or
+    // in the "burned" region of the simulation. The temp and eta
+    // refinement criterion ensure that at the regression front, we'll
+    // be at the finest level, so I only want to do reset the values
+    // based on the IC when we're a.) above the
+    // eta_refinement_threshold and b.) not already on the finest
+    // level. There's one small caveat to b.): if a cell has just been
+    // refined from finest_level - 1 to the finest_level, we do want
+    // to reset it to its value based on the IC.
     for (amrex::MFIter mfi(*agglom.alpha[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
@@ -282,10 +328,28 @@ Agglomeration::Regrid(int lev, Set::Scalar time)
         Set::Patch<Set::Scalar> alpha = agglom.alpha.Patch(lev, mfi);
         Set::Patch<Set::Scalar> eta = eta_mf.Patch(lev, mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // TODO: replace magic number in pow
-            alpha(i, j, k) = alpha(i, j, k) + (alpha_0(i, j, k) - alpha(i, j, k)) * std::pow(eta(i, j, k), 50);
-        });
+        amrex::BoxList boxes_to_update;
+        if (lev == finest_level && agglom.prev_finest_level == finest_level)
+            // only update cells on the finest level that were JUST refined
+            boxes_to_update = amrex::complementIn(bx, agglom.prev_finest_ba).boxList();
+        else
+            // this implies we're on level coarser than the
+            // finest_level, or there is just now a new
+            // finer_level. in either case, all the boxes should be
+            // set based on the IC
+            boxes_to_update.push_back(bx);
+
+        for (const amrex::Box &box : boxes_to_update)
+            amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                if (eta(i, j, k) > agglom.eta_refinement_threshold)
+                    alpha(i, j, k) = alpha_0(i, j, k);
+            });
+    }
+
+    if (lev == finest_level)
+    {
+        agglom.prev_finest_ba = grids[finest_level];
+        agglom.prev_finest_level = finest_level;
     }
 }
 }
