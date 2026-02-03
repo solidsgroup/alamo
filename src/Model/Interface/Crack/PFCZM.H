@@ -88,7 +88,7 @@ public:
     static void Parse(PFCZM & value, IO::ParmParse & pp)
     {
         pp.query_default("czm_order", value.czm_order, 1.0); //Order 1, 1.5, or 2 (Wu 2024, JMPS)
-        pp.query_default("G_c",value._Gc,"1.0e3_Pa", Unit::Pressure()); // Fracture energy in N/m
+        pp.query_default("G_c",value._Gc,"1.0e3_N/m", Unit::SurfaceEnergy()); // Fracture energy in N/m
         pp.query_default("zeta",value.zeta,1.e-5); // Lengthscale regularization in m
 
         Set::Scalar fracture_strength = NAN;

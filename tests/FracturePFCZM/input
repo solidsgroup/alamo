@@ -4,7 +4,9 @@
 #@ args= stop_time=0.02
 
 alamo.program = fracture
-amr.abort_on_nan = 0
+
+system.time = s
+system.length = m
 
 timestep = 5e-5
 stop_time = 0.6
@@ -21,8 +23,8 @@ amr.nsubsteps = 1
 amr.node.any = 0
 amr.cell.all = 1
 
-geometry.prob_lo = -0.125 -0.125
-geometry.prob_hi = 0.125 0.125
+geometry.prob_lo = -0.125_m -0.125_m
+geometry.prob_hi = 0.125_m 0.125_m
 geometry.is_periodic = 0 0
 
 crack.refinement_threshold = 0.1
@@ -34,29 +36,20 @@ crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
 
-crack.model1.G_c = 5.e2
-crack.model1.fracture_strength = 3.16e8
-crack.model1.E = 4.e11
+crack.model1.G_c = 5.e2_N/m
+crack.model1.fracture_strength = 3.16e8_Pa
+crack.model1.E = 4.e11_Pa
 crack.model1.zeta = 2.e-4
 crack.model1.mobility = 5.0e-2
 crack.model1.gtype = wu_linear
 crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
 
-# crack.model2.G_c = 6.5e2
-# crack.model2.fracture_strength = 3.16e7
-# crack.model2.E = 4e11
-# crack.model2.zeta = 2.e-4
-# crack.model2.mobility = 5.0e-2
-# crack.model2.gtype = wu_linear
-# crack.model2.wtype = wu
-# crack.model2.threshold = 1.0
-
 crack.ic.type = notch
-crack.ic.notch.center = -0.125 0
+crack.ic.notch.center = -0.125_m 0_m
 crack.ic.notch.orientation = 1 0
-crack.ic.notch.length = 0.05
-crack.ic.notch.thickness = 2.e-3
+crack.ic.notch.length = 0.05_m
+crack.ic.notch.thickness = 2.e-3_m
 
 crack.ic.notch.eps = 5.e-4
 crack.ic.notch.mollifier = erf
@@ -66,32 +59,24 @@ crack.bc.type.xlo = NEUMANN
 crack.bc.type.yhi = NEUMANN
 crack.bc.type.ylo = NEUMANN
 
-# material.ic.type = expression
-# material.ic.expression.constant.eps = 0.001
-# material.ic.expression.region0 = "(0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
-# material.ic.expression.region1 = "1.0 - (0.5+0.5*erf(-(x+y-0.02)/eps)) * (0.5+0.5*erf((x+y+0.02)/eps)) * (0.5+0.5*erf((-x+y+0.02)/eps))  * (0.5+0.5*erf(-(-x+y-0.02)/eps))"
-
 material.model1.E = 4.0    # inclusion
-material.model1.nu = 0.21
-
-# material.model2.E = 2.0
-# material.model2.nu = 0.28
+material.model1.nu = 0.28
 
 material.refinement_threshold = 100 #1.e-1
 
 ### Mode-I test
 bc.type = constant
 bc.constant.type.xloylo = disp disp
-bc.constant.type.xlo    = trac trac
+bc.constant.type.xlo    = disp trac
 bc.constant.type.xloyhi = disp disp
 bc.constant.type.ylo    = disp disp
 bc.constant.type.yhi    = disp disp
 bc.constant.type.xhi    = disp trac
 bc.constant.type.xhiylo = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi =       0.0 8.e-5
-bc.constant.val.xloyhi =    0.0 8.e-5
-bc.constant.val.xhiyhi =    0.0 8.e-5
+bc.constant.val.yhi =       0.0 8.e-5_m
+bc.constant.val.xloyhi =    0.0 8.e-5_m
+bc.constant.val.xhiyhi =    0.0 8.e-5_m
 
 #
 # Solver inputs

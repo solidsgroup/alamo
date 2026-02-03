@@ -289,7 +289,7 @@ public:
 
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
                 amrex::Array4<Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix> const &stress = stress_mf[lev]->array(mfi);
