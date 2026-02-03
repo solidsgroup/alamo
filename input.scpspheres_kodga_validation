@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_voids
+plot_file = output.scpspheres_voids_4
 
 system.length = mm
 system.time = s
@@ -28,14 +28,14 @@ amr.max_level = 5
 
 # Quarter size
 amr.n_cell = 32 8 32
-geometry.prob_lo = 0.1_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
+geometry.prob_lo = 0.0_mm 0.075_mm 0.0_mm
+geometry.prob_hi = 0.1_mm 0.1_mm 0.1_mm
 
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 7.5e-8_s # [s]
-stop_time = 0.05_s
+timestep = 2e-8_s # [s]
+stop_time = 0.03_s
 
 small = 1.0e-10
 pf.eps = 0.25_um #0.0005 # [m]
@@ -64,7 +64,7 @@ pf.eta.ic.psread.invert = 1
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
 phi.ic.psread.file.name = all_datasets/Test_Files/porous_80_by_weight_1_AP.xyzr
-phi.ic.psread.eps = 4_um
+phi.ic.psread.eps = 2_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -111,7 +111,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =      9.5_um
+propellant.fullfeedback.phi.zeta =      4.75_um
 propellant.fullfeedback.Pref     =      1.0_MPa
 
 # Thermal transport parameters
