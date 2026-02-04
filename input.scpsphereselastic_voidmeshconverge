@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.scpsphereselastic
+plot_file = output.scpspheres_mesh_converge_amr3
 
 system.length = mm
 system.time = s
