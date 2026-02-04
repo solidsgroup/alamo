@@ -1,15 +1,15 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_mesh_converge_amr3
+plot_file = output.scpspheres_mesh_converge_amr6
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
 amr.plot_dt = 1e-3_s
-amr.max_grid_size = 2
-amr.blocking_factor = 2
+amr.max_grid_size = 4
+amr.blocking_factor = 4
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.05
@@ -19,17 +19,17 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 3
+amr.max_level = 6
 
 # Full size
-amr.n_cell = 16 16 16
-geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
+# amr.n_cell = 8 8 8
+# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+# geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
 # Quarter size
-# amr.n_cell = 8 8 8 
-# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-# geometry.prob_hi = 0.3_mm 0.3_mm 0.5_mm
+amr.n_cell = 8 8 8 
+geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+geometry.prob_hi = 0.3_mm 0.3_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -45,8 +45,8 @@ pf.lambda = 0.001_J/m^2
 
 pf.eta.ic.type = psread
 pf.eta.ic.psread.file.unit = m
-pf.eta.ic.psread.file.name = 2d.xyr
-pf.eta.ic.psread.eps = 5_um
+pf.eta.ic.psread.file.name = all_datasets/mesh_converge/eta.ic.xyr
+pf.eta.ic.psread.eps = 1.5_um
 pf.eta.ic.psread.invert = 1
 
 #pf.eta.ic.type = constant 
@@ -63,8 +63,8 @@ pf.eta.ic.psread.invert = 1
 ## Phi initial condition (spheres)
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
-phi.ic.psread.file.name = /home/mungerct/research/papers/RegressionWithVoidsFullFeedback/results/kogha_paper_no_voids_validation/setC_xyzrs/uni_R240um_AP6498_10.xyzr
-phi.ic.psread.eps = 5_um
+phi.ic.psread.file.name = all_datasets/mesh_converge/phi.ic.xyzr
+phi.ic.psread.eps = 1.5_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -75,13 +75,13 @@ pf.w0         = 0.0_1
 # Eta boundary conditions
 pf.eta.bc.type = constant
 pf.eta.bc.constant.type.xlo = dirichlet
-pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.xhi = neumann
 pf.eta.bc.constant.type.ylo = neumann
 pf.eta.bc.constant.type.yhi = neumann
 pf.eta.bc.constant.type.zlo = neumann
 pf.eta.bc.constant.type.zhi = neumann
 pf.eta.bc.constant.val.xlo = 0.0
-pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.xhi = 0.0
 pf.eta.bc.constant.val.ylo = 0.0
 pf.eta.bc.constant.val.yhi = 0.0
 pf.eta.bc.constant.val.zlo = 0.0

@@ -17,5 +17,6 @@ echo "======================================================"
 
 module load openmpi_hpc
 # srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_kodga_validation phi.ic.psread.file.name="setC_xyzrs/uni_R240um_AP6499_10.xyzr" plot_file="output.scpsphereselastic_set10_phi_eps_8"
-srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_kodga_validation
+# srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_kodga_validation
 # srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_arbitary_geometry
+srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_voidmeshconverge
