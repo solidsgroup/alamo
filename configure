@@ -23,7 +23,7 @@ except ImportError as e:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.12"
+amrex_current_version = "26.02"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
