@@ -375,9 +375,30 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
+void Flame::TimeStepComplete(Set::Scalar a_time, int /*a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
+
+    Util::Message(INFO, "MONITOR thermal.on=", thermal.on);
+    if (thermal.on)
+    {
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            Set::Scalar max_temp = temp_mf[lev]->max(0);
+            Set::Scalar min_temp = temp_mf[lev]->min(0);
+            Set::Scalar max_mdot = mdot_mf[lev]->max(0);
+            Set::Scalar max_heatflux = heatflux_mf[lev]->max(0);
+            Set::Scalar max_L = L_mf[lev]->max(0);
+            Set::Scalar min_eta = eta_mf[lev]->min(0);
+            Util::Message(INFO, "t=", a_time, " lev=", lev,
+                " T=[", Unit::Temperature(min_temp), ",", Unit::Temperature(max_temp), "]",
+                " mdot_max=", max_mdot,
+                " heatflux_max=", max_heatflux,
+                " L_max=", max_L,
+                " eta_min=", min_eta);
+        }
+    }
+
     if (variable_pressure)
     {
         auto [new_pressure, current_dpdt] = chamber.model.Advance(timestep, chamber.mdot, chamber.volume, chamber.pressure);
