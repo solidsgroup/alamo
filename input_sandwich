@@ -3,23 +3,24 @@ alamo.program = fracture
 system.length = m
 system.time = s
 
-timestep = 5e-5_s
+timestep = 5e-6_s
 stop_time = 1_s
 
-plot_file = output_fracture
-amr.plot_int = 50
+plot_file = output_sandwich
+amr.plot_int = 100
 amr.max_level = 5
 amr.n_cell = 128 128
 amr.blocking_factor = 32
 amr.regrid_int = 10
 amr.grid_eff = 0.9
 amr.thermo.int = 1
+amr.thermo.plot_int = 1
 amr.nsubsteps = 1
 amr.node.any = 0
 amr.cell.all = 1
 
-geometry.prob_lo = -2_mm -2.5_mm
-geometry.prob_hi = 2_mm 2.5_mm
+geometry.prob_lo = -2_mm -2.5_mm #-0.125_m -0.125_m
+geometry.prob_hi = 2_mm 2.5_mm #0.125_m 0.125_m
 geometry.is_periodic = 0 0
 
 crack.refinement_threshold = 0.1
@@ -31,7 +32,7 @@ crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
 
-crack.model1.G_c = 2_N/m
+crack.model1.G_c = 2.e2_N*m/m^2
 crack.model1.fracture_strength = 3.16e8_Pa
 crack.model1.E = 4.e11_Pa
 crack.model1.zeta = 2.e-4
@@ -40,7 +41,7 @@ crack.model1.gtype = wu_linear
 crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
 
-crack.model2.G_c = 5.e2_N/m
+crack.model2.G_c = 5.e2_N*m/m^2
 crack.model2.fracture_strength = 3.16e7_Pa
 crack.model2.E = 4.e11_Pa
 crack.model2.zeta = 2.e-4
@@ -51,17 +52,17 @@ crack.model2.threshold = 1.0
 
 # Tension notch testing
 crack.ic.type = notch
-crack.ic.notch.center = -1.75_mm 0_mm
+crack.ic.notch.center = -2_mm 0 #-0.125_m 0_m
 crack.ic.notch.orientation = 1 0
-crack.ic.notch.length = 0.5_mm
-crack.ic.notch.thickness = 2.e-4_mm
+crack.ic.notch.length = 0.5_mm #0.035_m
+crack.ic.notch.thickness = 8.e-5_m #2.e-3_m
+
+crack.ic.notch.eps = 3.e-5 #5.e-4
+crack.ic.notch.mollifier = erf
 
 # No notch testing
 #crack.ic.type = constant
 #crack.ic.constant.value = 1.0
-
-crack.ic.notch.eps = 5.e-5
-crack.ic.notch.mollifier = erf
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
@@ -70,37 +71,33 @@ crack.bc.type.ylo = NEUMANN
 
 material.ic.type = png
 material.ic.png.filename = "sandwich.png"
-material.ic.png.fit = coord
-material.ic.png.coord.lo = -2_mm -2.5_mm
-material.ic.png.coord.hi = 2_mm 2.5_mm
-material.ic.png.channel = r
+material.ic.png.fit = stretch
+material.ic.png.channel = b
 
 #material.model1.type = isotropic
-material.model1.E = 15.3e9 # inclusion
-material.model1.nu = 0.32
+material.model1.E = 5.0 # inclusion
+material.model1.nu = 0.21
 
 #material.model2.type = isotropic
-material.model2.E = 5.0e6
-material.model2.nu = 0.5
+material.model2.E = 2.0
+material.model2.nu = 0.28
 
 material.refinement_threshold = 100 #1.e-1
 
 ### Mode-I test
 # Tension testing
 bc.type = expression
-bc.expression.type.xloylo = disp disp
+bc.expression.type.xloylo = disp trac
 bc.expression.type.xlo    = disp trac
 bc.expression.type.xloyhi = disp disp
 bc.expression.type.ylo    = disp disp
 bc.expression.type.yhi    = disp disp
 bc.expression.type.xhi    = disp trac
-bc.expression.type.xhiylo = disp disp
+bc.expression.type.xhiylo = disp trac
 bc.expression.type.xhiyhi = disp disp
-bc.expression.val.yhi =       0.0 "3.33e-6 * t"
-bc.expression.val.xloyhi =    0.0 "3.33e-6 * t"
-bc.expression.val.xhiyhi =    0.0 "3.33e-6 * t"
-
-#
+bc.expression.val.yhi =       0.0 "3e-6*t"
+bc.expression.val.xloyhi =    0.0 "3e-6*t"
+bc.expression.val.xhiyhi =    0.0 "3e-6*t"
 # Solver inputs
 #
 elasticop.small=1.e-3

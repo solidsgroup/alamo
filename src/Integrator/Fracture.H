@@ -70,8 +70,8 @@
 
 namespace Integrator
 {
-using brittle_model = Model::Solid::Linear::Isotropic;
-//using brittle_model = Model::Solid::Finite::NeoHookean;
+//using brittle_model = Model::Solid::Linear::Isotropic;
+using brittle_model = Model::Solid::Finite::NeoHookean;
 using pfczm_crack_type = Model::Interface::Crack::PFCZM;
 
 class Fracture : virtual public Base::Mechanics<brittle_model>
