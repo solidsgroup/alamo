@@ -31,7 +31,7 @@ public:
     void set_pressure(const Set::Scalar P) 
     {
         this->Pbar = P/P_reference;
-        k4 = h1 * P + h2;
+        k4 = h1 * Pbar + h2;
     }
     
     virtual Set::Scalar get_qdot(const Set::Scalar mdot, const Set::Scalar phi) 
@@ -40,7 +40,7 @@ public:
 
         Set::Scalar qflux = k4 * phi;
         Set::Scalar mdota = fabs(mdot);
-        Set::Scalar mbase = tanh(1250 * mdota);
+        Set::Scalar mbase = tanh(4.0 * mdota / (mlocal + 1.e-20));
 
         qdot = mbase * qflux;
 
@@ -126,7 +126,7 @@ public:
         pp.query_default("P_reference", value.P_reference, "1_MPa",Unit::Pressure()); 
 
         // AP mass flux reference value 
-        pp.query_default("mlocal_prop", value.mlocal, "0.0_kg/m^2/s", 
+        pp.query_default("mlocal_prop", value.mlocal, "5e-1_kg/m^2/s",
                          Unit::Mass()/Unit::Area()/Unit::Time()); 
         
         // Prop Pre-exponential factor for Arrhenius Law
