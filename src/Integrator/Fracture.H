@@ -275,7 +275,7 @@ public:
 
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
                 amrex::Array4<Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix> const &stress = stress_mf[lev]->array(mfi);
@@ -565,6 +565,8 @@ public:
                     Set::Scalar Zeta = 0.0;
                     Set::Scalar Threshold = 0.0;
                     Set::Scalar Mobility = 0.0;
+                    Set::Scalar dg_dphi = 0.0;
+                    Set::Scalar dw_dphi = 0.0;
                     Set::Scalar _temp_product = 1.0, _temp_product2 = 1.0;
 
                     for (int m = 0; m < material.num_mat; m++)
@@ -573,6 +575,8 @@ public:
                         Zeta += eta(i, j, k, m) * crack.cracktype[m].Zeta(c_old(i, j, k, 0));
                         Threshold += eta(i, j, k, m) * crack.cracktype[m].DrivingForceThreshold(c_old(i, j, k, 0));
                         Mobility += eta(i, j, k, m) * crack.cracktype[m].Mobility(c_old(i, j, k, 0));
+                        dg_dphi += eta(i,j,k,m) * crack.cracktype[m].Dg_phi(c_old(i,j,k));
+                        dw_dphi += eta(i,j,k,m) * crack.cracktype[m].Dw_phi(c_old(i,j,k), 0.0);
                         _temp_product *= eta(i, j, k, m);
                         _temp_product2 *= 0.5;
                     }
@@ -583,15 +587,15 @@ public:
                     // Set::Scalar en_cell = energy(i, j, k, 0); // set but not used
                     if (!crack.cracktype[0].mixed_mode())
                     {
-                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)) * crack.el_mult / Gc;
+                        df(i, j, k, 0) = dg_dphi * (energy(i, j, k, 0) + energy(i, j, k, 1)) * crack.el_mult / Gc;
                     }
                     else
                     {
-                        df(i, j, k, 0) = crack.cracktype[0].Dg_phi(c_old(i, j, k)) * (energy(i, j, k, 0) + energy(i, j, k, 1)); // * crack.el_mult;
+                        df(i, j, k, 0) = dg_dphi * (energy(i, j, k, 0) + energy(i, j, k, 1)); // * crack.el_mult;
                     }
                     rhs += df(i, j, k, 0);
 
-                    df(i, j, k, 1) = crack.cracktype[0].Dw_phi(c_old(i, j, k, 0), 0.0) / (Zeta);
+                    df(i, j, k, 1) = dw_dphi / Zeta;
                     rhs += df(i, j, k, 1);
 
                     df(i, j, k, 2) = 2.0 * Zeta * laplacian * crack.mult_lap;
