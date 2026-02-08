@@ -57,15 +57,15 @@ public:
     Set::Scalar DrivingForceThreshold (Set::Scalar /*theta*/) {return threshold;}
 
 private:
-    Set::Scalar _Gc = 1.0e3; 
+    Set::Scalar _Gc = NAN; 
     Set::Scalar _c_alpha = pi; // scaling factor.
     Set::Scalar _l_w = 1.e-5; //irwing length
-    Set::Scalar zeta = 1.e-5;
-    Set::Scalar mobility = 1.e-2;
-    Set::Scalar threshold = 0.0;
+    Set::Scalar zeta = NAN;
+    Set::Scalar mobility = NAN;
+    Set::Scalar threshold = NAN;
 
     Set::Scalar czm_a0 = 1.0;
-    Set::Scalar czm_order = 1.0;
+    Set::Scalar czm_order = NAN;
     
     bool _mixed_mode = false;
     FSType _failure_surface = FSType::WANG2023;
@@ -74,41 +74,41 @@ private:
     Set::Scalar _GcII_bar = 1.e3;
 
     // Parameters specific to WANG 2023 failure surface
-    Set::Scalar _chi = 1.0;
+    Set::Scalar _chi = NAN;
     Set::Scalar k1 = 1.0;
     Set::Scalar _beta_bar = -1.0;
     Set::Scalar _sig_t = 1.0;
     Set::Scalar _tau_s = 1.0;
 
     // Parameters specific to MC failure surface
-    Set::Scalar _cohesion = 1.0;
-    Set::Scalar _friction = 0.5;
+    Set::Scalar _cohesion = NAN;
+    Set::Scalar _friction = NAN;
 
 public:
     static void Parse(PFCZM & value, IO::ParmParse & pp)
     {
-        pp.query("czm_order", value.czm_order); //Order 1, 1.5, or 2 (Wu 2024, JMPS)
-        pp.query("G_c",value._Gc); // Fracture energy in N/m
-        pp.query("zeta",value.zeta); // Lengthscale regularization in m
+        pp.query_default("czm_order", value.czm_order, 1.0); //Order 1, 1.5, or 2 (Wu 2024, JMPS)
+        pp.query_default("G_c",value._Gc,1.0e3); // Fracture energy in N/m
+        pp.query_default("zeta",value.zeta,1.e-5); // Lengthscale regularization in m
 
-        Set::Scalar fracture_strength = 1.e6;
+        Set::Scalar fracture_strength = NAN;
         
-        Set::Scalar youngs = 2.e11;
-        Set::Scalar nu = 0.3;
+        Set::Scalar youngs = NAN;
+        Set::Scalar nu = NAN;
         Set::Scalar tensile_strength = 2.e8;
         Set::Scalar shear_strength = 1.41e8;
-        Set::Scalar compressive_strength = 4.e8;
+        Set::Scalar compressive_strength = NAN;
 
         // Toggle to determine mixed mode
-        pp.query("mixed_mode", value._mixed_mode);
+        pp.query_default("mixed_mode", value._mixed_mode, false);
 
         if (value._mixed_mode)
         {
             // Young's modulus
-            pp.query("E", youngs);
+            pp.query_default("E", youngs, 2.e11);
             
             // Poisson's ratio $\nu$
-            pp.query("nu", nu);
+            pp.query_default("nu", nu, 0.3);
 
             // shear modulus
             Set::Scalar mu = 0.5 * youngs / (1. + nu);
@@ -126,13 +126,13 @@ public:
             if (value._failure_surface == FSType::WANG2023)
             {
                 // Fracture strength
-                pp.query("fracture_strength", fracture_strength);
+                pp.query_default("fracture_strength", fracture_strength, 1.e6);
                 
                 // $\chi$ value
-                pp.query("chi", value._chi);
+                pp.query_default("chi", value._chi, 1.0);
                 
                 // Compressive strength
-                pp.query("compressive_strength", compressive_strength);
+                pp.query_default("compressive_strength", compressive_strength,4.e8);
                 value.k1 = ( value._chi < 1/std::sqrt(2) ) ? ( 2 * value._chi * std::sqrt(1.0 - value._chi*value._chi) ) : 1.0;
 
                 tensile_strength = fracture_strength / value.k1;
@@ -159,8 +159,10 @@ public:
             }
             else if (value._failure_surface == FSType::MC)
             {
-                pp.query("cohesion", value._cohesion);
-                pp.query("friction", value._friction);
+                // cohesion coefficient for MC FS type
+                pp.query_default("cohesion", value._cohesion, 1.0);
+                // friction coefficient for MC FS type
+                pp.query_default("friction", value._friction, 0.5);
                 
                 Set::Scalar phi = std::atan(value._friction);
                 fracture_strength = 2.0 * value._cohesion * std::cos(phi) / (1.0 + std::sin(phi));
@@ -170,9 +172,9 @@ public:
         else
         {
             // Young's modulus
-            pp.query("E", youngs); 
+            pp.query_default("E", youngs, 2.e11);
             // fracture strength beyond which softening starts [Pa]
-            pp.query("fracture_strength", fracture_strength);   
+            pp.query_default("fracture_strength", fracture_strength,1.e6);   
         }
         
         Set::Scalar irwing_length = youngs * value._Gc / (fracture_strength * fracture_strength);
@@ -182,8 +184,8 @@ public:
 
         if (value.zeta > 0.33 * irwing_length) Util::Warning(INFO, "Zeta value is greater than irwing length. Consider reducing it.");
 
-        pp.query("mobility",value.mobility); // Mobility (speed)
-        pp.query("threshold", value.threshold); // Threshold
+        pp.query_default("mobility",value.mobility,1.0e-2); // Mobility (speed)
+        pp.query_default("threshold", value.threshold,0.0); // Threshold
 
         std::string gtype = "";
         std::string wtype = "";

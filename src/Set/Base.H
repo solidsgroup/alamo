@@ -114,7 +114,7 @@ bool operator == (const Quaternion a, const Quaternion b)
 }
 
 
-static Scalar Garbage = NAN;
+[[maybe_unused]] static Scalar Garbage = NAN;
 
 AMREX_FORCE_INLINE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
@@ -191,15 +191,5 @@ Vector Volume(const int &i, const int &j, const int &k, const amrex::Geometry &g
     return Set::Vector::Zero(); 
 }
 
-enum Sym {None,Major,Minor,MajorMinor,Diagonal,Full,Isotropic};
-template<int dim,int sym> class Matrix4{};
-template<int dim, int sym>
-std::ostream&
-operator<< (std::ostream& os, const Matrix4<dim,sym>& b)
-{
-    Matrix4<dim,sym> bcopy = b;
-        bcopy.Print(os);
-    return os;
-}
 }
 #endif

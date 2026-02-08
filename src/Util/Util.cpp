@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <stdexcept>
 
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
@@ -154,6 +155,97 @@ void Initialize (int argc, char* argv[])
         file_overwrite = Util::CreateCleanDirectory(filename, false);
         IO::WriteMetaData(filename);
     }
+
+    IO::ParmParse pp;
+    std::string length, time, mass, temperature, current, amount, luminousintensity;
+    // Set the system length unit
+    pp.query_default("system.length",length,"m");
+    // Set the system time unit
+    pp.query_default("system.time",time,"s");
+    // Set the system mass unit
+    pp.query_default("system.mass",mass,"kg");
+    // Set the system temperature unit
+    pp.query_default("system.temperature",temperature,"K");
+    // Set the system current unit
+    pp.query_default("system.current",current,"A");
+    // Set the system amount unit
+    pp.query_default("system.amount",amount,"mol");
+    // Set the system luminous intensity unit
+    pp.query_default("system.luminousintensity",luminousintensity,"cd");
+    try
+    {
+        Unit::setLengthUnit(length);
+        Unit::setTimeUnit(time);
+        Unit::setMassUnit(mass);
+        Unit::setTemperatureUnit(temperature);
+        Unit::setCurrentUnit(current);
+        Unit::setAmountUnit(amount);
+        Unit::setLuminousIntensityUnit(luminousintensity);
+
+        // Update Constants to desired system units
+        Set::Constant::SetGlobalConstants();
+    }
+    catch (std::runtime_error &e)
+    {
+        Util::Exception(INFO, "Error in setting system units: ", e.what());
+    }
+
+    //
+    // This is some logic to unit-ize the geometry.prob_lo, geometry.prob_hi input variables/
+    // We also do some checking to make sure the geometry is valid.
+    //
+    // Note that here, unlike most places, we actually **replace and overwrite** the 
+    // geom.prob_* variables, since they are read deep inside amrex infrastructure.
+    //
+    {
+        IO::ParmParse pp("geometry");
+        
+        if (pp.contains("prob_lo"))
+        {
+            std::vector<Set::Scalar> prob_lo, prob_hi;
+            // Location of the lower+left+bottom corner
+            pp.queryarr("prob_lo", prob_lo, Unit::Length());
+            // Location of the upper_right_top corner
+            pp.queryarr("prob_hi", prob_hi, Unit::Length());
+            pp.remove("prob_lo");
+            pp.remove("prob_hi");
+
+            Util::Assert(   INFO,TEST(prob_lo[0] < prob_hi[0]),
+                            "Invalid domain specified: ", prob_lo[0], " < x < ", prob_hi[0], " is incorrect.");
+            Util::Assert(   INFO,TEST(prob_lo[1] < prob_hi[1]),
+                            "Invalid domain specified: ", prob_lo[0], " < y < ", prob_hi[0], " is incorrect.");
+#if AMREX_SPACEDIM>2
+            Util::Assert(   INFO,TEST(prob_lo[2] < prob_hi[2]),
+                            "Invalid domain specified: ", prob_lo[0], " < z < ", prob_hi[0], " is incorrect.");
+#endif
+
+            Util::DebugMessage(INFO,"Domain lower left corner: ", Set::Vector(prob_lo.data()).transpose());
+            Util::DebugMessage(INFO,"Domain upper right corenr: ", Set::Vector(prob_hi.data()).transpose());
+
+            pp.addarr("prob_lo",prob_lo);
+            pp.addarr("prob_hi",prob_hi);
+        }
+    }
+
+
+    // This allows the user to ignore certain arguments that
+    // would otherwise cause problems.
+    // Most generally this is used in the event of a "above inputs
+    // specified but not used" error.
+    // The primary purpose of this was to fix those errors that arise
+    // in regression tests.
+
+    {
+        IO::ParmParse pp;
+        std::vector<std::string> ignore;
+        if (pp.contains("ignore")) Util::Message(INFO, "Ignore directive detected");
+        pp.queryarr("ignore", ignore); // Space-separated list of entries to ignore
+        for (unsigned int i = 0; i < ignore.size(); i++)
+        {
+            Util::Message(INFO, "ignoring ", ignore[i]);
+            pp.remove(ignore[i].c_str());
+        }
+    }
 }
 
 void Finalize()
@@ -270,6 +362,23 @@ int SubMessage(std::string testname, int failed)
             << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
     }
     return failed;
+}
+void SubWarning(std::string testname)
+{
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        std::stringstream ss;
+        ss << "[" << Color::FG::LightYellow << Color::Bold << "WARN" << Color::Reset << "]";
+
+        int terminalwidth = 80; 
+
+        std::cout << std::left
+            << "  ├ "
+            << testname 
+            << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
+    }
 }
 int SubFinalMessage(int failed)
 {

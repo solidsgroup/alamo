@@ -55,7 +55,6 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
         const amrex::MFIter& mfi, const amrex::Box& box) override;
     void UpdateModel(int a_step, Set::Scalar a_time) override;
-private:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
@@ -98,7 +97,7 @@ private:
     // Thermal transport variables
     struct {
         bool on = 0;
-        Set::Scalar hc = NAN, w1 = NAN;
+        Set::Scalar hc = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;

@@ -54,6 +54,7 @@
 
 #include "Model/Solid/Solid.H"
 #include "IO/ParmParse.H"
+#include "Set/Matrix4_Isotropic.H"
 
 namespace Model
 {
@@ -65,56 +66,38 @@ class Isotropic : public Solid<Set::Sym::Isotropic>
 {
 public:
 
-    Isotropic() {};
+    Isotropic() = default;
     Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
         Define(a_mu,a_lambda);
     };
-    virtual ~Isotropic() {};
+    ~Isotropic() = default;
 
     void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
     {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
     }
 
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    Set::Scalar W(const Set::Matrix & gradu) const 
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    Set::Matrix DW(const Set::Matrix & gradu) const 
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(const Set::Matrix & /*gradu*/) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(const Set::Matrix & /*gradu*/) const 
     {
         return ddw;
     }
-    virtual void Print(std::ostream &out) const override 
+    void Print(std::ostream &out) const
     {
         out << ddw;
     }
 
-    // Set::Scalar W2(const Set::Matrix & stress)
-    // {
-    //     return ( 0.5 * stress.transpose() * (ddw_inv * stress) ).trace();
-    // }
-    // Set::Matrix DW2(const Set::Matrix & stress) 
-    // {
-    //     return ddw_inv * stress;
-    // }
-    // Set::Scalar Wvol(const Set::Scalar eps_tr)
-    // {
-    //     return 0.5*ddw.Lambda()*eps_tr*eps_tr;
-    // }
-    // Set::Scalar Wdev(const Set::Matrix eps)
-    // {
-    //     return ddw.Mu()*std::max((eps*eps).trace(),0.0);
-    // }
-
 public:
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw;
-    // Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw_inv;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:
@@ -208,6 +191,9 @@ public:
     #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"
+
+
+
 }
 }
 }
@@ -244,8 +230,8 @@ void Set::Field<Model::Solid::Linear::Isotropic>::Copy(int a_lev, amrex::MultiFa
                     dst(i, j, k, a_dstcomp + 1) = src(i, j, k).ddw.Mu();
                 });
             }
-}
-}
+        }
+    }
 }
 
 #endif

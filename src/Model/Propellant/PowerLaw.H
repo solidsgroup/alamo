@@ -35,9 +35,9 @@ public:
     void set_pressure(const Set::Scalar P) 
     {
         // for the pressure power law option
-        fmod_ap = r_ap * pow(P, n_ap);
-        fmod_htpb = r_htpb * pow(P, n_htpb);
-        fmod_comb = r_comb * pow(P, n_comb);
+        fmod_ap = r_ap * pow(P/P_1MPa, n_ap);
+        fmod_htpb = r_htpb * pow(P/P_1MPa, n_htpb);
+        fmod_comb = r_comb * pow(P/P_1MPa, n_comb);
 
         // a_fit = -1.16582 * sin(P) - 0.681788 * cos(P) + 3.3563;
         // b_fit = -0.708225 * sin(P) + 0.548067 * cos(P) + 1.55985;
@@ -79,22 +79,24 @@ public:
     static void Parse(PowerLaw& value, IO::ParmParse& pp)
     {
         Util::Message(INFO,pp.getPrefix());
-        // Scaling factor for mobility
-        pp_query_required("gamma", value.gamma);   
+        // Shape constant for mobility calculation
+        pp.query_required("gamma", value.gamma, Unit::Less());   
         // AP power pressure law parameter (r*P^n)
-        pp_query_required("r_ap", value.r_ap);
+        pp.query_required("r_ap", value.r_ap, Unit::Velocity());
         // HTPB power pressure law parameter (r*P^n)
-        pp_query_required("r_htpb", value.r_htpb);
+        pp.query_required("r_htpb", value.r_htpb, Unit::Velocity());
         // AP/HTPB power pressure law parameter (r*P^n)
-        pp_query_required("r_comb", value.r_comb);
+        pp.query_required("r_comb", value.r_comb, Unit::Velocity());
         // AP power pressure law parameter (r*P^n)
-        pp_query_required("n_ap", value.n_ap);
+        pp.query_required("n_ap", value.n_ap, Unit::Less());
         // HTPB power pressure law parameter (r*P^n)
-        pp_query_required("n_htpb", value.n_htpb);
+        pp.query_required("n_htpb", value.n_htpb, Unit::Less());
         // AP/HTPB power pressure law parameter (r*P^n)
-        pp_query_required("n_comb", value.n_comb); 
+        pp.query_required("n_comb", value.n_comb, Unit::Less()); 
         // jump in chemical potential
-        pp_query_default("deltaw", value.deltaw, 1.0); 
+        pp.query_default("deltaw", value.deltaw, 1.0); 
+        // pressure normilization factor, by default always normalized to 1 MPa regardless of units (MPa will be converted to required unit)
+        pp.query_default("P_1MPA",value.P_1MPa, "1_MPa",Unit::Pressure());
     }
 
     Set::Scalar gamma = NAN;
@@ -102,6 +104,7 @@ public:
     Set::Scalar n_ap = NAN, n_htpb = NAN, n_comb = NAN;
     Set::Scalar fmod_ap = NAN, fmod_htpb = NAN, fmod_comb = NAN;
     Set::Scalar deltaw = NAN;
+    Set::Scalar P_1MPa = NAN;
 };
 }
 }

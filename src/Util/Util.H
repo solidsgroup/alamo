@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <complex>
 #include <stdlib.h>
+#include <string_view>
 
 #include <string>
 #include "Util/String.H"
@@ -16,6 +17,7 @@
 #include "AMReX.H"
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
+#include <AMReX_iMultiFab.H>
 
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
@@ -145,6 +147,39 @@ void Message (std::string file, std::string func, int line, Args const &... args
     }
 }
 
+#ifdef AMREX_DEBUG
+template<typename... Args>
+void DebugMessage (std::string file, std::string func, int line, Args const &... args)
+{
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        std::ostringstream infostream;
+        infostream << globalprefix;
+        infostream << Color::Bold << Color::FG::Blue << "MESSAGE" << Color::Reset << ": ";
+        infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
+        infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+        std::string info = infostream.str();
+
+        std::ostringstream messagestream;
+        using List= int[];
+        (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+        std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+
+        Util::String::ReplaceAll(message,'\n',"\n"+info);
+
+        std::cout << info << message << std::endl;
+    }
+}
+#else
+template<typename... Args>
+void DebugMessage (std::string, std::string, int, Args const &... )
+{
+}
+#endif
+
+
+
+
 template<typename... Args>
 void ParallelMessage (std::string file, std::string func, int line, Args const &... args)
 {
@@ -246,7 +281,6 @@ void AssertException (std::string file, std::string func, int line, std::string 
 
 template<typename... Args>
 void ParmParseException (   std::string file, std::string func, int line,
-                            std::string file2, std::string /*func2*/, int line2,
                             std::string fullname,
                             Args const &... args)
 {
@@ -269,10 +303,6 @@ void ParmParseException (   std::string file, std::string func, int line,
         if (nargs) messagestream << "\n";
         if (fullname != "")
             messagestream << "while reading " << Color::FG::Yellow << fullname << Color::Reset;
-        if (line2 >= 0)
-        {
-            messagestream << " at " << file2 << ":" << line2;
-        }
 
         std::string message = messagestream.str();
 
@@ -295,6 +325,7 @@ namespace Test
 int Message(std::string testname);
 int Message(std::string testname, int passed);
 int SubMessage(std::string testname, int passed);
+void SubWarning(std::string testname);
 int SubFinalMessage(int failed);
 }
 
@@ -304,17 +335,21 @@ int SubFinalMessage(int failed);
 //
 template<class T>
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/, const int nghost=2)
 {
+    // We want the default to setMultiGhost(true) if nghost isn't explicitly passed, so nghost should default to a number greater than 1
     BL_PROFILE("Util::RealFillBoundary");
-    a_mf.setMultiGhost(true);
+    if (nghost <= 1) {}
+    else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/, const int nghost=2)
 {
+    // We want the default to setMultiGhost(true) if nghost isn't explicitly passed, so nghost should default to a number greater than 1
     BL_PROFILE("Util::RealFillBoundary");
-    a_mf.setMultiGhost(true);
+    if (nghost <= 1) {}
+    else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
 

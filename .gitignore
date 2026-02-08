@@ -59,4 +59,6 @@ report.tar.gz
 alamo.egg-info
 alamo
 setup.py
+alamo.py
+.alamo
 
