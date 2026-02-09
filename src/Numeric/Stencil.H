@@ -4,6 +4,15 @@
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
 #include "Set/Set.H"
+#include "Set/Base.H"
+#include "Set/Matrix3.H"
+#include "Set/Matrix4.H"
+
+#include "Set/Matrix4_Major.H"
+#include "Set/Matrix4_MajorMinor.H"
+#include "Set/Matrix4_Isotropic.H"
+#include "Set/Matrix4_Diagonal.H"
+#include "Set/Matrix4_Full.H"
 
 /// \brief This namespace contains some numerical tools
 namespace Numeric
