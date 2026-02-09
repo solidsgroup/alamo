@@ -274,8 +274,11 @@ public:
         if (!elastic_do_solve_now)
         {
             crack.crack_prop_iter++;
+            StopClock();
             return;
         }
+
+        RestartClock();
 
         // Doing an elastic solve
         Base::Mechanics<brittle_model>::TimeStepBegin((double)loadstep, a_step);
