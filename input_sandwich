@@ -3,7 +3,7 @@ alamo.program = fracture
 system.length = m
 system.time = s
 
-timestep = 5e-6_s
+timestep = 5e-9_s
 stop_time = 1_s
 
 plot_file = output_sandwich
