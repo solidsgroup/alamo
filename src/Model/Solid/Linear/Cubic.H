@@ -19,9 +19,9 @@ class Cubic : public Solid<Set::Sym::MajorMinor>
 {
 public:
 
-    Cubic() {};
+    Cubic() = default;
     Cubic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
-    virtual ~Cubic() {};
+    ~Cubic() = default;
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
@@ -33,19 +33,19 @@ public:
     {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,R);
     }
-    Set::Scalar W(const Set::Matrix & gradu) const override
+    Set::Scalar W(const Set::Matrix & gradu) const 
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(const Set::Matrix & gradu) const override
+    Set::Matrix DW(const Set::Matrix & gradu) const 
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const 
     {
         return ddw;
     }
-    virtual void Print(std::ostream &out) const override 
+    void Print(std::ostream &out) const 
     {
         out << ddw;
     }

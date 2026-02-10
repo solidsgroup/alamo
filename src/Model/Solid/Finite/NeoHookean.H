@@ -13,11 +13,11 @@ namespace Finite
 class NeoHookean : public Solid<Set::Sym::Major>
 {
 public:
-    NeoHookean() {};
+    NeoHookean() = default;
     NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
-    virtual ~NeoHookean() {};
+    ~NeoHookean() = default;
 
-    Set::Scalar W(const Set::Matrix& a_F) const override
+    Set::Scalar W(const Set::Matrix& a_F) const 
     {
 #if AMREX_SPACEDIM==2
         Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
@@ -36,7 +36,7 @@ public:
         w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
         return w;
     }
-    Set::Matrix DW(const Set::Matrix& a_F) const override
+    Set::Matrix DW(const Set::Matrix& a_F) const 
     {
 #if AMREX_SPACEDIM==2
         Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
@@ -68,7 +68,7 @@ public:
         return dw;
 #endif
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& a_F) const override
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& a_F) const 
     {
 #if AMREX_SPACEDIM==2
         Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
@@ -116,7 +116,7 @@ public:
         return ddw;
 #endif
     }
-    virtual void Print(std::ostream& out) const override
+    void Print(std::ostream& out) const 
     {
         out << "mu = " << mu << " kappa = " << kappa;
     }

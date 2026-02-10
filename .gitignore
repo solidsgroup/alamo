@@ -60,7 +60,7 @@ alamo.egg-info
 alamo
 setup.py
 alamo.py
-.amrex
+.alamo
 ## DELETE BEFORE MERGING
 *.zip
 bisect.log

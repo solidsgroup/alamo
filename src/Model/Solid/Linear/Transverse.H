@@ -24,10 +24,10 @@ namespace Linear
 class Transverse : public Solid<Set::Sym::MajorMinor>
 {
 public:
-    Transverse(){};
+    Transverse() = default;
     Transverse(Solid<Set::Sym::MajorMinor> base)
         : Solid<Set::Sym::MajorMinor>(base){};
-    virtual ~Transverse(){};
+    ~Transverse() = default;
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
@@ -43,22 +43,22 @@ public:
             C11, C12, C13, C33, C44, R);
     }
     Set::Scalar
-    W(const Set::Matrix &gradu) const override
+    W(const Set::Matrix &gradu) const 
     {
         return (0.5 * gradu.transpose() * (ddw * gradu)).trace();
     }
     Set::Matrix
-    DW(const Set::Matrix &gradu) const override
+    DW(const Set::Matrix &gradu) const 
     {
         return ddw * gradu;
     }
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::MajorMinor>
-    DDW(const Set::Matrix & /*gradu*/) const override
+    DDW(const Set::Matrix & /*gradu*/) const 
     {
         return ddw;
     }
-    virtual void
-    Print(std::ostream &out) const override
+    void
+    Print(std::ostream &out) const 
     {
         out << ddw;
     }
