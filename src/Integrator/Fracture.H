@@ -240,7 +240,7 @@ public:
                 amrex::Array4<const Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     for (int n = 0; n < material.num_mat; n++)
-                        psi(i,j,k,0) += eta(i,j,k,n) * crack.cracktype[n].g_phi(c(i,j,k,0));
+                        psi(i,j,k,0) = eta(i,j,k,n) * crack.cracktype[n].g_phi(c(i,j,k,0));
                     // psi(i, j, k, 0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c, i, j, k, 0));
                 });
             }
