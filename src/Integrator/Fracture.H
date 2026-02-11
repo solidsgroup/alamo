@@ -123,7 +123,8 @@ public:
 
         // This is the fab that stores the material field.
         // For a simple, single material simulation, this will be a uniform field with value 1 everywhere
-        value.RegisterNodalFab(value.material.eta_mf, value.material.num_mat, 2, "eta", true);
+
+        value.RegisterNewFab(value.material.eta_mf, &value.bc_nothing, value.material.num_mat, 3, "eta", true);
 
         // Crack related parsing
         pp.query_default("crack.refinement_threshold", value.crack.refinement_threshold, 0.0001); // mesh refinement criteria
@@ -535,7 +536,7 @@ public:
             for (amrex::MFIter mfi(c_old_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 // Get the box (index dimensions) for this patch
-                const amrex::Box &bx = mfi.validbox();
+                const amrex::Box &bx = mfi.tilebox();
 
                 // Get an array-accessible handle to the data on this patch.
                 Set::Patch<const Set::Scalar>  c_old    = c_old_mf.array(mfi);
@@ -905,6 +906,7 @@ protected:
 
     BC::BC<Set::Scalar> *bc_psi = nullptr;
     BC::BC<Set::Scalar> *bc_df = nullptr;
+    BC::Nothing bc_nothing;
 
     using Base::Mechanics<brittle_model>::m_type;
     using Base::Mechanics<brittle_model>::finest_level;
