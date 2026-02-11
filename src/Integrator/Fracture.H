@@ -244,7 +244,7 @@ public:
     }
 
     void
-    TimeStepBegin(Set::Scalar /*a_time*/, int a_step) override
+    TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         // Deciding whether to do an elastic solve or not
         Util::Message(INFO, crack.driving_force_norm, " ", crack.driving_force_reference, " ", crack.driving_force_reference_prev, " ", crack.tol_rel);
@@ -274,15 +274,14 @@ public:
         if (!elastic_do_solve_now)
         {
             crack.crack_prop_iter++;
-            StopClock();
+            //StopClock();
             return;
         }
 
-        RestartClock();
+        //RestartClock();
 
         // Doing an elastic solve
-        Base::Mechanics<brittle_model>::TimeStepBegin((double)loadstep, a_step);
-
+        Base::Mechanics<brittle_model>::TimeStepBegin(a_time/*(double)loadstep*/, a_step);
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {

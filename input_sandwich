@@ -3,7 +3,7 @@ alamo.program = fracture
 system.length = m
 system.time = s
 
-timestep = 5e-9_s
+timestep = 5e-7_s
 stop_time = 1_s
 
 plot_file = output_sandwich
@@ -98,6 +98,7 @@ bc.expression.type.xhiyhi = disp disp
 bc.expression.val.yhi =       0.0 "3e-6*t"
 bc.expression.val.xloyhi =    0.0 "3e-6*t"
 bc.expression.val.xhiyhi =    0.0 "3e-6*t"
+
 # Solver inputs
 #
 elasticop.small=1.e-3
