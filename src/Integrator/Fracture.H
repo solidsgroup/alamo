@@ -581,6 +581,9 @@ public:
                     Set::Scalar en_cell_0 = Numeric::Interpolate::NodeToCellAverage(energy, i, j, k, 0);
                     Set::Scalar en_cell_1 = Numeric::Interpolate::NodeToCellAverage(energy, i, j, k, 1);
 
+                    rhs(i,j,k) = 0.0;
+
+
                     if (!crack.cracktype[0].mixed_mode())
                         df(i, j, k, 0) = dg_dphi * (en_cell_0 + en_cell_1) * crack.el_mult / Gc;
                     else
