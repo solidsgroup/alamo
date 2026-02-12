@@ -40,6 +40,7 @@
 #ifndef INTEGRATOR_INTEGRATOR_H
 #define INTEGRATOR_INTEGRATOR_H
 
+#include "IO/ParmParse.H"
 #include <chrono>
 #include <ctime>
 #include <string>
@@ -78,6 +79,8 @@ public:
     /// This is the constructor for the intetgrator class, which reads timestep information,
     /// simulation output and AMR, initialized time substep, and creates a new directory.
     Integrator();
+
+    static void Parse(Integrator &, IO::ParmParse &);
 
     /// Virtual destructure; make sure delete any pointers that you create here.
     virtual ~Integrator();

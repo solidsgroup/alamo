@@ -23,7 +23,7 @@ except ImportError as e:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.12"
+amrex_current_version = "26.02"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -176,8 +176,10 @@ if pre_args.save:
 #
 if args.github_mode == "ssh":
     GITHUB_REMOTE = "git@github.com:"
+    GITLAB_REMOTE = "git@gitlab.com:"
 elif args.github_mode in ["http","https"]:
     GITHUB_REMOTE = "https://github.com/"
+    GITLAB_REMOTE = "https://gitlab.com/"
 else:
     raise Exception(error(f"Github mode must be ssh, http or https but got {args.github_mode}"))
 
@@ -307,7 +309,7 @@ if args.buildamrex and not args.amrex:
     postfix_amrex = postfix+"-"+amrexdescribe
     
     args.amrex = f"ext/{args.amrexfork}/amrex/{postfix_amrex}"
-    f.write(f"AMREX = ext/{args.amrexfork}/amrex/" + postfix_amrex + "/\n")
+    f.write(f"AMREX_ROOT = ext/{args.amrexfork}/amrex\n")
     f.write(f"AMREX_TARGET = ext/{args.amrexfork}/amrex/" + postfix_amrex + "\n")
     f.write(f'AMREX_SRC := $(shell find ext/{args.amrexfork}/amrex/Src -name "*.H") $(shell find ext/{args.amrexfork}/amrex/Src -name "*.cpp")' + "\n")
     
@@ -386,10 +388,13 @@ if (args.geteigen):
     if not os.path.isdir("ext/libeigen/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
         #p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
-        p = subprocess.Popen((f"git clone {GITHUB_REMOTE}libeigen/eigen.git eigen3").split(),
+        p = subprocess.Popen((f"git clone {GITLAB_REMOTE}libeigen/eigen.git libeigen/eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
-        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
-        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
+        p.wait()
+        if p.returncode == 0:
+            for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
+        else:
+            for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
         #subprocess.run("mv eigen-git-mirror eigen3".split())
     message("Eigen-Directory","ext/libeigen/")
     f.write("EIGEN = ./ext/libeigen/\n")

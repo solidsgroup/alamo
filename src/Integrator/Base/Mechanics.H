@@ -136,6 +136,13 @@ public:
 
         // Time to start doing the elastic solve (by default, start immediately)
         pp.query_default("tstart", value.tstart,-1.0,Unit::Time());
+
+
+        // Relative tolerance in mechanics solve
+        pp.query_default("tol_rel",value.tol_rel,1E-8);
+
+        // Absolute tolerance in mechanics solve
+        pp.query_default("tol_abs",value.tol_abs,1E-8);
     }
 
 protected:
@@ -517,6 +524,8 @@ protected:
 
 
     Set::Scalar tstart = -1;
+
+    Set::Scalar tol_rel=NAN, tol_abs=NAN;
 };
 }
 }
