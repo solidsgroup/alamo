@@ -25,6 +25,7 @@ void Compare(
     amrex::Box domain, int /*ngrow*/)
 {
     IO::ParmParse pp;
+    // Switch to enableor disable debug comparisons.
     pp.query_default("util.debug.compare",Compare_on,false);
     if (!Compare_on) return;
 
