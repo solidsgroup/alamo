@@ -239,7 +239,6 @@ public:
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
-                bx = bx & domain;
 
                 amrex::Array4<MODEL> const& model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const& eta = eta_mf[lev]->array(mfi);
