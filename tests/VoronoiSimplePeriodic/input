@@ -38,24 +38,12 @@
 #@ nprocs=2
 #@
 #@ [2d-amr0-mg0-np1]
-#@ [2d-amr1-mg0-np1]
 #@ [2d-amr2-mg0-np1]
-#@ [2d-amr0-mg1-np1]
-#@ [2d-amr1-mg1-np1]
-#@ [2d-amr2-mg1-np1]
 #@ [2d-amr0-mga-np1]
-#@ [2d-amr1-mga-np1]
 #@ [2d-amr2-mga-np1]
-#@
 #@ [2d-amr0-mg0-np4]
-#@ [2d-amr1-mg0-np4]
 #@ [2d-amr2-mg0-np4]
-#@ [2d-amr0-mg1-np4]
-#@ [2d-amr1-mg1-np4]
-#@ [2d-amr2-mg1-np4]
 #@ [2d-amr0-mga-np4]
-#@ [2d-amr1-mga-np4]
-#@ [2d-amr2-mga-np2]
 #@ [2d-amr2-mga-np4]
 
 

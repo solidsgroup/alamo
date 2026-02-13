@@ -60,10 +60,6 @@ public:
     ///
     void SetBC (::BC::Operator::Elastic::Elastic *a_bc) 
     {
-        if (this->Geom(0).isAnyPeriodic()) 
-        {
-            Util::Warning(INFO,"Looks like you're using a periodic domain. \nThat is currently VERY DANGEROUS when using linear elastic solver!!!");
-        }
         m_bc = a_bc;
         m_bc_set = true;
     };

@@ -58,12 +58,8 @@ private:
     {
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
             domain.convert(amrex::IntVect::TheNodeVector());
-
-            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,1);
-            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,1);
-
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
@@ -102,8 +98,6 @@ private:
                 });
             }
 
-            //a_dw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
-            //a_ddw_mf[lev]->FillBoundary(m_elastic->Periodicity(lev));
             Util::RealFillBoundary(*a_dw_mf[lev], m_elastic->Geom(lev));
             Util::RealFillBoundary(*a_ddw_mf[lev], m_elastic->Geom(lev));
         }
@@ -112,13 +106,9 @@ private:
 
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(1));
             domain.convert(amrex::IntVect::TheNodeVector());
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
-
-            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,1);
-            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,1);
-
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
             {
@@ -160,12 +150,8 @@ private:
     {
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
-
-            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,2);
-            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,2);
-
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             Set::Vector DX(linop->Geom(lev).CellSize());
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
@@ -210,12 +196,8 @@ private:
 
         for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
         {
-            amrex::Box domain(linop->Geom(lev).Domain());
+            amrex::Box domain(linop->Geom(lev).growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
-
-            if (linop->Geom(lev).isPeriodic(0)) domain.grow(0,2);
-            if (linop->Geom(lev).isPeriodic(1)) domain.grow(1,2);
-
             const Set::Scalar* dx = linop->Geom(lev).CellSize();
             const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)

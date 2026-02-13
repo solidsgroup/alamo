@@ -63,8 +63,6 @@ Elastic<SYM>::SetModel(MATRIX4& a_model)
         amrex::Box domain(m_geom[amrlev][0].Domain());
         domain.convert(amrex::IntVect::TheNodeVector());
 
-        int nghost = m_ddw_mf[amrlev][0]->nGrow();
-
         for (MFIter mfi(*m_ddw_mf[amrlev][0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             Box bx = mfi.grownnodaltilebox();
@@ -100,8 +98,6 @@ Elastic<SYM>::SetModel(int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4>
     if (a_model.nComp() != m_ddw_mf[amrlev][0]->nComp()) Util::Abort(INFO, "Inconsistent # of components - should be ", m_ddw_mf[amrlev][0]->nComp());
     if (a_model.nGrow() != m_ddw_mf[amrlev][0]->nGrow()) Util::Abort(INFO, "Inconsistent # of ghost nodes, should be ", m_ddw_mf[amrlev][0]->nGrow());
 
-
-    int nghost = m_ddw_mf[amrlev][0]->nGrow();
 
     for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -833,28 +829,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel(int amrlev)
                     fdata(i, j, k) / 8.0;
 
 #ifdef AMREX_DEBUG
-                if (cdata(I, J, K).contains_nan())
-                {
-                    Util::Warning(INFO,"course lo ",lo);
-                    Util::Warning(INFO, "coarse hi ",hi);
-                    Util::Warning(INFO, "coarse box ",bx);
-                    Util::Warning(INFO);
-                    Util::Warning(INFO,"i=",i,", j=",j);
-                    Util::Warning(INFO);
-                    Util::Warning(INFO,i-1," ",j-1,":\t",fdata(i-1,j-1,k));
-                    Util::Warning(INFO,i-1," ",j,":\t",fdata(i-1,j,k));
-                    Util::Warning(INFO,i-1," ",j+1,":\t",fdata(i-1,j+1,k));
-
-                    Util::Warning(INFO,i," ",j-1,":\t",fdata(i,j-1,k));
-                    Util::Warning(INFO,i," ",j,":\t",fdata(i,j,k));
-                    Util::Warning(INFO,i," ",j+1,":\t",fdata(i,j+1,k));
-
-                    Util::Warning(INFO,i+1," ",j-1,":\t",fdata(i+1,j-1,k));
-                    Util::Warning(INFO,i+1," ",j,":\t",fdata(i+1,j,k));
-                    Util::Warning(INFO,i+1," ",j+1,":\t",fdata(i+1,j+1,k));
-                    
-                    Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
-                }
+                if (cdata(I, J, K).contains_nan()) Util::Abort(INFO, "restricted model is nan at crse coordinates (I=", I, ",J=", J, ",K=", k, "), amrlev=", amrlev, " interpolating from mglev", mglev - 1, " to ", mglev);
 #endif
             });
         }
