@@ -131,4 +131,4 @@ void Compare(
 }
 }
 }
-// LCOV_EXCL_START
+// LCOV_EXCL_STOP
