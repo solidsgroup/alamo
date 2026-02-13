@@ -3,6 +3,9 @@
 
 #include "Util/Util.H"
 
+// This code is for debugging purposes only
+// LCOV_EXCL_START
+
 namespace Util
 {
 namespace Debug
@@ -173,5 +176,7 @@ void Compare(
 
 }
 }
+// LCOV_EXCL_STOP
+
 
 #endif

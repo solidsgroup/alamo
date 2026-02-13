@@ -646,7 +646,6 @@ public:
         #endif
 
     }
-
 };
 }
 }

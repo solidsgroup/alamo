@@ -551,8 +551,6 @@ void Operator<Grid::Node>::reflux(int crse_amrlev,
 
     amrex::iMultiFab nodemask(amrex::coarsen(fba, 2), fdm, 1, 2);
     nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev], 0, 0, 1, 0, 0, cgeom.periodicity());
-    // nodemask.setMultiGhost(true); /*Uncommented*/
-    // nodemask.FillBoundaryAndSync(cgeom.periodicity()); /*Uncommented*/
 
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {

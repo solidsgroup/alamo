@@ -259,8 +259,7 @@ public:
 
     virtual void FillBoundary(const int lev, Set::Scalar time) override
     {
-        if (m_field[lev]->nComp() > 1) m_field[lev]->setMultiGhost(true);
-        m_field[lev]->FillBoundary(m_geom[lev].periodicity());
+        Util::RealFillBoundary(*m_field[lev],m_geom[lev]);
         if (m_gridtype == Set::Hypercube::Cell)
         {
             m_bc->define(m_geom[lev]);

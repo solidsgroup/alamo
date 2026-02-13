@@ -68,7 +68,7 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "103320.0"
+pressure.ic.expression.region0 = "103320.0 - 103320.0"
 pref = 103320.0
 
 ### ETA BC  ###

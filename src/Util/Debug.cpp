@@ -7,6 +7,9 @@
 #include <filesystem>
 
 
+// This code is not included in coverage count since it is for debugging purposes only
+// LCOV_EXCL_START
+
 namespace Util
 {
 namespace Debug
@@ -19,9 +22,10 @@ int Compare_cnt = 0;
 void Compare(
     std::string file, std::string func, int line,
     const amrex::MultiFab &a_mf, std::string desc,
-    amrex::Box domain, int ngrow)
+    amrex::Box domain, int /*ngrow*/)
 {
     IO::ParmParse pp;
+    // Switch to enableor disable debug comparisons.
     pp.query_default("util.debug.compare",Compare_on,false);
     if (!Compare_on) return;
 
@@ -127,3 +131,4 @@ void Compare(
 }
 }
 }
+// LCOV_EXCL_STOP
