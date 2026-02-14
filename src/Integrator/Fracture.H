@@ -219,8 +219,10 @@ public:
                     amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         model(i, j, k) = brittle_model::Zero();
-                        for (int n = 0; n < material.num_mat; n++)
-                            model(i, j, k) += eta(i, j, k, n) * material.models[n];
+                        for (int n = 0; n < material.num_mat; n++){
+                            // model(i, j, k) += eta(i, j, k, n) * material.models[n];
+                            model(i, j, k) += Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n) * material.models[n];
+                        }
                     });
                 }
                 Util::RealFillBoundary(*model_mf[lev], geom[lev]);
@@ -239,8 +241,9 @@ public:
                 amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    psi(i,j,k,0) = 0.0;
                     for (int n = 0; n < material.num_mat; n++)
-                        psi(i,j,k,0) = eta(i,j,k,n) * crack.cracktype[n].g_phi(c(i,j,k,0));
+                        psi(i,j,k,0) += eta(i,j,k,n) * crack.cracktype[n].g_phi(c(i,j,k,0));
                     // psi(i, j, k, 0) = crack.cracktype[0].g_phi(Numeric::Interpolate::NodeToCellAverage(c, i, j, k, 0));
                 });
             }
@@ -361,8 +364,10 @@ public:
                                 eps_n += eValues(n) * (eVectors.col(n) * eVectors.col(n).transpose());
                         }
 
-                        for (int n = 0; n < material.num_mat; n++)
-                            energy(i, j, k, 0) += eta(i, j, k, n) * material.models[n].W(eps_p);
+                        for (int n = 0; n < material.num_mat; n++){
+                            // energy(i, j, k, 0) += eta(i, j, k, n) * material.models[n].W(eps_p);
+                            energy(i, j, k, 0) += Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n) * material.models[n].W(eps_p);
+                        }
 
                         if (energy(i, j, k, 0) > history_var(i, j, k, 0))
                             history_var(i, j, k, 0) = energy(i, j, k, 0);
@@ -617,6 +622,17 @@ public:
         // We must update the boundaries here and apply boundary conditions 
         timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, Set::Scalar time) 
         {
+            for (amrex::MFIter mfi(stage_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box &bx = mfi.tilebox();
+                Set::Patch<Set::Scalar>  c    = stage_mf.array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    if (c(i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
+                    else if (c(i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
+                });
+            }
+
             // bc_psi->FillBoundary(stage_mf,0,1,time,0);   
             stage_mf.FillBoundary();
 
