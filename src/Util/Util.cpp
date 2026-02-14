@@ -1,4 +1,7 @@
 #include "Util.H"
+#include "AMReX_Config.H"
+#include "AMReX_DistributionMapping.H"
+#include "AMReX_VisMF.H"
 #include "Color.H"
 
 #include <chrono>
@@ -14,6 +17,8 @@
 #include "IO/FileNameParse.H"
 #include "Color.H"
 #include "Numeric/Stencil.H"
+#include "Util/MPI.H"
+#include "mpi.h"
 
 namespace Util
 {
