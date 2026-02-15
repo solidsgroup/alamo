@@ -123,8 +123,9 @@ public:
 
         // This is the fab that stores the material field.
         // For a simple, single material simulation, this will be a uniform field with value 1 everywhere
-
-        value.RegisterNewFab(value.material.eta_mf, &value.bc_nothing, value.material.num_mat, 3, "eta", true);
+        // plotting parameters for eta field
+        pp.query_default("material.plot_eta", value.material.plot_eta, false);
+        value.RegisterNewFab(value.material.eta_mf, &value.bc_nothing, value.material.num_mat, 3, "eta", value.material.plot_eta);
 
         // Crack related parsing
         pp.query_default("crack.refinement_threshold", value.crack.refinement_threshold, 0.0001); // mesh refinement criteria
@@ -135,6 +136,9 @@ public:
         pp.query_default("crack.df.mult_Gc", value.crack.mult_Gc, 1.0);                           // constant multiplier for controlling fracture energy of interface
         pp.query_default("crack.df.mult_lap", value.crack.mult_lap, 1.0);                         // constant multiplier for second order model with laplacian
         pp.query_default("crack.df.el_mult", value.crack.el_mult, 1.0);                           // unit conversion multiplier between elastic problem and crack problem
+        pp.query_default("crack.plot_df", value.crack.plot_df, false);
+        pp.query_default("crack.plot_energy", value.crack.plot_energy, false);
+        pp.query_default("crack.plot_crack_old", value.crack.plot_crack_old, false);
 
         // Let's figure out if there is an initial crack or void
         pp.select_enumerate<IC::Constant,IC::Notch, IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
@@ -142,8 +146,8 @@ public:
         // value.RegisterNodalFab(value.crack.c_mf, 1, 2, "crack", true);
         // value.RegisterNodalFab(value.crack.c_old_mf, 1, 2, "crack_old", true);
         // value.RegisterNodalFab(value.crack.driving_force_mf, 5, 2, "driving_force", true);
-        value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", true);
-        value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", true);
+        value.RegisterNodalFab(value.crack.energy_pristine_mf, 3, 2, "energy_pristine", value.crack.plot_energy);
+        value.RegisterNodalFab(value.crack.history_var_mf, 3, 2, "history_variable", value.crack.plot_energy);
         value.RegisterIntegratedVariable(&(value.crack.driving_force_norm), "driving_force_norm");
         value.RegisterIntegratedVariable(&(value.crack.crack_l2_err), "crack_l2_err");
         value.RegisterIntegratedVariable(&(value.crack.crack_norm), "crack_norm");
@@ -154,8 +158,8 @@ public:
         value.bc_df = new BC::Constant(5, pp, "crack.bc"); // boundary conditions for crack
         
         value.RegisterNewFab(value.crack.c_mf, value.bc_psi, 1, 2, "crack", true);
-        value.RegisterNewFab(value.crack.c_old_mf, value.bc_psi, 1, 2, "crack_old", true);
-        value.RegisterNewFab(value.crack.driving_force_mf,value.bc_df, 5, 2, "driving_force", true);
+        value.RegisterNewFab(value.crack.c_old_mf, value.bc_psi, 1, 2, "crack_old", value.crack.plot_crack_old);
+        value.RegisterNewFab(value.crack.driving_force_mf,value.bc_df, 5, 2, "driving_force", value.crack.plot_df);
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
 
         // This is needed for the specific crack model we are implementing
@@ -906,6 +910,10 @@ protected:
         Set::Scalar crack_prop_iter = 0;
 
         Set::Scalar beta = NAN;
+
+        bool plot_df = false;
+        bool plot_energy = false;
+        bool plot_crack_old = false;
     } crack;
     struct
     {
@@ -915,6 +923,7 @@ protected:
         IC::IC<Set::Scalar> *ic;
         bool is_ic = false;
         int num_mat = 1;
+        bool plot_eta = false;
     } material;
 
     bool elastic_do_solve_now = true;
@@ -933,6 +942,7 @@ protected:
     using Base::Mechanics<brittle_model>::model_mf;
     using Base::Mechanics<brittle_model>::psi_mf;
     using Base::Mechanics<brittle_model>::psi_on;
+    using Base::Mechanics<brittle_model>::plot_psi;
 };
 }
 
