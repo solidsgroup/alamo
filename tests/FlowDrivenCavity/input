@@ -66,7 +66,7 @@ gas.thermo.cpconstant.Tref = 0.0_K
 
 gas.transport.type = mixture_averaged
 gas.transport.mixture_averaged.type = constant
-gas.transport.mixture_averaged.mu = 20.0_Pa*s
+gas.transport.mixture_averaged.mu = 15.0_Pa*s
 gas.transport.mixture_averaged.k = 0.023_W/m/K
 
 gas.eos.type = cpg
@@ -83,7 +83,7 @@ velocity.ic.expression.region0 = "0.0"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
-pressure.ic.expression.region0 = "103320.0"
+pressure.ic.expression.region0 = "1.0e5"
 
 ### ETA BC  ###
 
@@ -99,7 +99,8 @@ pf.eta.bc.constant.type.zhi = neumann
 density.bc.constant.type.xhi = neumann
 density.bc.constant.type.xlo = neumann
 density.bc.constant.type.ylo = neumann
-density.bc.constant.type.yhi = neumann
+density.bc.constant.type.yhi = dirichlet
+density.bc.constant.val.yhi =  1.54771291
 
 energy.bc.constant.type.xhi = neumann
 energy.bc.constant.type.xlo = neumann
@@ -113,12 +114,13 @@ momentum.bc.constant.type.yhi = dirichlet dirichlet
 momentum.bc.constant.val.xhi = 0.0 0.0
 momentum.bc.constant.val.xlo = 0.0 0.0
 momentum.bc.constant.val.ylo = 0.0 0.0
-momentum.bc.constant.val.yhi = 500.0 0.0
+momentum.bc.constant.val.yhi = 300.0 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
 eta_refinement_criterion = 1.1
 omega_refinement_criterion = 10.55
+#gradu_refinement_criterion = 0.1
 
 #TODO
 
@@ -126,6 +128,6 @@ omega_refinement_criterion = 10.55
 solid.density.ic.constant.value = 1.2
 solid.momentum.ic.constant.value = 0.0
 solid.energy.ic.constant.value = 0.0
-m0.ic.constant.value = 1.0
+m0.ic.constant.value = 0.0
 u0.ic.constant.value = 0.0
 
