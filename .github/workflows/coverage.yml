@@ -43,6 +43,12 @@ jobs:
           --coverage --no-backspace
       - name: Generate Coverage Report
         run: make cov-report
+      - name: upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./cov
       - name: Generate Documentation
         run: make docs
       - name: Compile GitHub Pages

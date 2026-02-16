@@ -1,4 +1,7 @@
 #include "Util.H"
+#include "AMReX_Config.H"
+#include "AMReX_DistributionMapping.H"
+#include "AMReX_VisMF.H"
 #include "Color.H"
 
 #include <chrono>
@@ -14,6 +17,8 @@
 #include "IO/FileNameParse.H"
 #include "Color.H"
 #include "Numeric/Stencil.H"
+#include "Util/MPI.H"
+#include "mpi.h"
 
 namespace Util
 {
@@ -181,6 +186,9 @@ void Initialize (int argc, char* argv[])
         Unit::setCurrentUnit(current);
         Unit::setAmountUnit(amount);
         Unit::setLuminousIntensityUnit(luminousintensity);
+
+        // Update Constants to desired system units
+        Set::Constant::SetGlobalConstants();
     }
     catch (std::runtime_error &e)
     {
@@ -221,6 +229,26 @@ void Initialize (int argc, char* argv[])
 
             pp.addarr("prob_lo",prob_lo);
             pp.addarr("prob_hi",prob_hi);
+        }
+    }
+
+
+    // This allows the user to ignore certain arguments that
+    // would otherwise cause problems.
+    // Most generally this is used in the event of a "above inputs
+    // specified but not used" error.
+    // The primary purpose of this was to fix those errors that arise
+    // in regression tests.
+
+    {
+        IO::ParmParse pp;
+        std::vector<std::string> ignore;
+        if (pp.contains("ignore")) Util::Message(INFO, "Ignore directive detected");
+        pp.queryarr("ignore", ignore); // Space-separated list of entries to ignore
+        for (unsigned int i = 0; i < ignore.size(); i++)
+        {
+            Util::Message(INFO, "ignoring ", ignore[i]);
+            pp.remove(ignore[i].c_str());
         }
     }
 }
@@ -339,6 +367,23 @@ int SubMessage(std::string testname, int failed)
             << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
     }
     return failed;
+}
+void SubWarning(std::string testname)
+{
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        std::stringstream ss;
+        ss << "[" << Color::FG::LightYellow << Color::Bold << "WARN" << Color::Reset << "]";
+
+        int terminalwidth = 80; 
+
+        std::cout << std::left
+            << "  ├ "
+            << testname 
+            << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
+    }
 }
 int SubFinalMessage(int failed)
 {

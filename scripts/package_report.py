@@ -4,10 +4,16 @@ import tarfile
 import re
 from pathlib import Path
 import shutil
+import argparse
+
+parser = argparse.ArgumentParser(description='Bundle report into a single directory');
+parser.add_argument('--name',default="report.tar.gz",help='Name of output. If ends in .tar.gz, output will be taball.')
+args=parser.parse_args()
+
 
 REPORT_HTML = Path("report.html")
 REPORT_DIR = REPORT_HTML.parent
-TARBALL = Path("report.tar.gz")
+
 
 # Regex to find image and link paths
 IMG_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']')
@@ -37,6 +43,18 @@ def create_tarball(files, output_path):
             arcname = file.relative_to(REPORT_DIR.absolute())
             tar.add(file, arcname=arcname)
 
+def copy_to_directory(files, output_path):
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    for file in files:
+        # Preserve the relative path (same as your tarball version)
+        rel = file.relative_to(REPORT_DIR.parent)
+        dest = output_path / rel
+        # Ensure parent directories exist
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        # Copy file
+        shutil.copy2(file, dest)
+
 def main():
     if not REPORT_HTML.exists():
         print("No report found.")
@@ -47,8 +65,12 @@ def main():
 
     for f in files: print(f)
 
-    print(f"Found {len(files)} files. Creating {TARBALL}...")
-    create_tarball(files, TARBALL)
+    print(f"Found {len(files)} files. Creating {args.name}...")
+    if args.name.endswith(".tar.gz"):
+        create_tarball(files, args.name)
+    else:
+        copy_to_directory(files,args.name)
+    
 
     print("Done.")
 

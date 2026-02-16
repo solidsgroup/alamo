@@ -584,6 +584,7 @@ def append_html(record):
             for img in images:
                 f.write(f"<a href='../{img}'><img src='../{img}' class='thumbnail'></a>\n")
             f.write("</div>\n")
+
         f.write("</div>\n")
 
     write_master_html()

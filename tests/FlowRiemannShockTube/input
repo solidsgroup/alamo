@@ -2,6 +2,11 @@
 #@ exe=hydro
 #@ dim=2
 
+#@ [hllc]
+#@ exe=hydro
+#@ dim=2
+#@ args = solver.type=hllc
+
 #@ [roe-rk4]
 #@ exe=hydro
 #@ dim=2
