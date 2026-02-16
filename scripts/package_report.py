@@ -46,9 +46,14 @@ def create_tarball(files, output_path):
 def copy_to_directory(files, output_path):
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
+    base_dir = REPORT_DIR.resolve()
     for file in files:
         # Preserve the relative path (same as your tarball version)
-        rel = file.relative_to(REPORT_DIR.parent)
+        try:
+            rel = file.relative_to(base_dir)
+        except ValueError:
+            # Fallback: place files outside the base at the top level.
+            rel = file.name
         dest = output_path / rel
         # Ensure parent directories exist
         dest.parent.mkdir(parents=True, exist_ok=True)
