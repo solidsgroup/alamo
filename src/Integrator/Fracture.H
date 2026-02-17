@@ -256,40 +256,49 @@ public:
     }
 
     void
-    TimeStepBegin(Set::Scalar /*a_time*/, int a_step) override
+    TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         // Deciding whether to do an elastic solve or not
         Util::Message(INFO, crack.driving_force_norm, " ", crack.driving_force_reference, " ", crack.driving_force_reference_prev, " ", crack.tol_rel);
-        if ((crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) || crack.crack_prop_iter > crack.max_iter)
+        
+        // there are basically two types of simulations
+        // 1. "Static" simulations where load steps are increased slowly.
+        //      In this case, we solve static mechanics problems and quasi-static crack evolution.
+        // 2. "Dynamic" simulations where loading rate is specified
+        //      In this case, we solve dynamic mechanics problem and quasi-static crack evolution.
+
+        // This decides if the crack solver has converged. If it has, we can do one of the following things
+        //      1. Static simulations - Just do elastic solve with no loadstep increase. Clock needs to stay off in this case.
+        //      2. Dynamic simulations - Turn on the clock and let the load increase.
+        if (    (crack.driving_force_norm / crack.driving_force_reference < crack.tol_rel) ||
+                (crack.driving_force_norm < crack.tol_abs) || 
+                (crack.crack_prop_iter > crack.max_iter))
         {
+            // This means that the crack solver has converged. 
+            // Now we need to do elastic solve. 
             crack.crack_prop_iter = 0;
             elastic_do_solve_now = true;
-        }
-        if ((crack.driving_force_norm < crack.tol_abs) || crack.crack_prop_iter > crack.max_iter)
-        {
-            elastic_do_solve_now = true;
-            crack.crack_prop_iter = 0;
-        }
-        if (increase_load_step)
-        {
-            Util::Message(INFO, "Load step = ", loadstep + 1);
-            elastic_do_solve_now = true;
-            crack.crack_prop_iter = 0;
-            increase_load_step = false;
-            set_new_reference = true;
-            // if (loadstep == 0) set_initial_df_once = true;
-            loadstep++;
+
+            if (    (m_type == Base::Mechanics<brittle_model>::Type::Static && increase_load_step) || 
+                    (m_type == Base::Mechanics<brittle_model>::Type::Dynamic) )
+            {
+                increase_load_step = false;
+                set_new_reference = true;
+                RestartClock();
+            }
         }
 
         // This means that the crack field has not converged.
         if (!elastic_do_solve_now)
         {
             crack.crack_prop_iter++;
+            StopClock();
             return;
         }
 
         // Doing an elastic solve
-        Base::Mechanics<brittle_model>::TimeStepBegin((double)loadstep, a_step);
+        Util::Message(INFO, "Calling elastic solver");
+        Base::Mechanics<brittle_model>::TimeStepBegin(a_time, a_step);
 
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
@@ -522,6 +531,7 @@ public:
     void
     Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
+        if (elastic_do_solve_now)  Base::Mechanics<brittle_model>::Advance(a_lev, a_time, a_dt);
 
         #if AMREX_SPACEDIM != 2
             Util::Abort(INFO, "This does not work for 1D or 3D yet.");
@@ -614,17 +624,12 @@ public:
 
                     df(i, j, k, 4) = std::max(0., rhs(i,j,k) - Threshold);
                     rhs(i,j,k) = - df(i, j, k, 4) * Mobility;
-                    
-                    // Do the physics!
-                    // Note that Numeric::Laplacian is an inlined function so there is no overhead.
-                    // You can calculate the derivatives yourself if you want.
-                    // rhs(i,j,k) = alpha * Numeric::Laplacian(temp, i, j, k, 0, DX);
                 });
             }
         });
 
         // We must update the boundaries here and apply boundary conditions 
-        timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, Set::Scalar time) 
+        timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, Set::Scalar /*time*/) 
         {
             for (amrex::MFIter mfi(stage_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
@@ -646,128 +651,6 @@ public:
 
         // Do the update
         timeintegrator.advance(*crack.c_old_mf[a_lev], *crack.c_mf[a_lev], a_time, a_dt);
-
-//         const Set::Scalar *DX = geom[a_lev].CellSize();
-//         amrex::Box domain(geom[a_lev].Domain());
-//         domain.convert(amrex::IntVect::TheNodeVector());
-//         const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
-
-//         // Trying out the predictor corrector approach.
-//         //======================================================================
-//         // Predictor step
-//         //======================================================================
-//         for (amrex::MFIter mfi(*crack.c_mf[a_lev], true); mfi.isValid(); ++mfi)
-//         {
-//             amrex::Box bx = mfi.tilebox();
-//             // bx.grow(1);
-//             // bx = bx & domain;
-
-//             amrex::Array4<const Set::Scalar> const &c_old = crack.c_old_mf[a_lev]->array(mfi);
-//             amrex::Array4<const Set::Scalar> const &energy = crack.history_var_mf[a_lev]->array(mfi);
-//             amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[a_lev]->array(mfi);
-
-//             amrex::Array4<Set::Scalar> const &c = crack.c_mf[a_lev]->array(mfi);
-//             amrex::Array4<Set::Scalar> const &df = crack.driving_force_mf[a_lev]->array(mfi);
-
-//             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-// #if AMREX_SPACEDIM != 2
-//                 Util::Abort(INFO, "This does not work for 1D or 3D yet.");
-// #endif
-
-//                 if (i == lo.x && j == lo.y)
-//                     c(i, j, k, 0) = c(i + 1, j + 1, k, 0);
-//                 else if (i == lo.x && j == hi.y)
-//                     c(i, j, k, 0) = c(i + 1, j - 1, k, 0);
-//                 else if (i == hi.x && j == lo.y)
-//                     c(i, j, k, 0) = c(i - 1, j + 1, k, 0);
-//                 else if (i == hi.x && j == hi.y)
-//                     c(i, j, k, 0) = c(i - 1, j - 1, k, 0);
-//                 else if (i == lo.x)
-//                     c(i, j, k) = c(i + 1, j, k, 0);
-//                 else if (j == lo.y)
-//                     c(i, j, k) = c(i, j + 1, k, 0);
-//                 else if (i == hi.x)
-//                     c(i, j, k) = c(i - 1, j, k, 0);
-//                 else if (j == hi.y)
-//                     c(i, j, k) = c(i, j - 1, k, 0);
-
-//                 // Next, we are doing crack evolution
-//                 else
-//                 {
-//                     Set::Scalar rhs = 0.0;
-//                     Set::Scalar bilap = 0.0;
-//                     if (crack.beta > 0.0)
-//                     {
-//                         bilap = Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old, i, j, k, 0, DX) + Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old, i, j, k, 0, DX) * 2.0 + Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old, i, j, k, 0, DX);
-//                     }
-
-//                     // if (std::isnan(bilap))  Util::Message(INFO, "Bilaplacian is nan at (",i,", ",j,")");
-
-//                     Set::Scalar laplacian = Numeric::Laplacian(c_old, i, j, k, 0, DX);
-//                     if (std::isnan(laplacian))
-//                         Util::Message(INFO, "Laplacian is nan at (", i, ", ", j, ")");
-
-//                     Set::Scalar Gc = 0.0;
-//                     Set::Scalar Zeta = 0.0;
-//                     Set::Scalar Threshold = 0.0;
-//                     Set::Scalar Mobility = 0.0;
-//                     Set::Scalar dg_dphi = 0.0;
-//                     Set::Scalar dw_dphi = 0.0;
-//                     Set::Scalar _temp_product = 1.0, _temp_product2 = 1.0;
-
-//                     for (int m = 0; m < material.num_mat; m++)
-//                     {
-//                         Gc += eta(i, j, k, m) * crack.cracktype[m].Gc(c_old(i, j, k, 0));
-//                         Zeta += eta(i, j, k, m) * crack.cracktype[m].Zeta(c_old(i, j, k, 0));
-//                         Threshold += eta(i, j, k, m) * crack.cracktype[m].DrivingForceThreshold(c_old(i, j, k, 0));
-//                         Mobility += eta(i, j, k, m) * crack.cracktype[m].Mobility(c_old(i, j, k, 0));
-//                         dg_dphi += eta(i,j,k,m) * crack.cracktype[m].Dg_phi(c_old(i,j,k));
-//                         dw_dphi += eta(i,j,k,m) * crack.cracktype[m].Dw_phi(c_old(i,j,k), 0.0);
-//                         _temp_product *= eta(i, j, k, m);
-//                         _temp_product2 *= 0.5;
-//                     }
-//                     if (material.num_mat > 1)
-//                         Gc *= (1.0 - _temp_product * (1. - crack.mult_Gc) / _temp_product2);
-
-//                     // =====================================================================
-//                     // Set::Scalar en_cell = energy(i, j, k, 0); // set but not used
-//                     if (!crack.cracktype[0].mixed_mode())
-//                     {
-//                         df(i, j, k, 0) = dg_dphi * (energy(i, j, k, 0) + energy(i, j, k, 1)) * crack.el_mult / Gc;
-//                     }
-//                     else
-//                     {
-//                         df(i, j, k, 0) = dg_dphi * (energy(i, j, k, 0) + energy(i, j, k, 1)); // * crack.el_mult;
-//                     }
-//                     rhs += df(i, j, k, 0);
-
-//                     df(i, j, k, 1) = dw_dphi / Zeta;
-//                     rhs += df(i, j, k, 1);
-
-//                     df(i, j, k, 2) = 2.0 * Zeta * laplacian * crack.mult_lap;
-//                     if (std::isnan(df(i, j, k, 2)))
-//                         Util::Message(INFO, "DF(2) is nan at (", i, ",", j, ")");
-//                     rhs -= df(i, j, k, 2);
-
-//                     df(i, j, k, 3) = crack.beta * (0.5 * Zeta * Zeta * Zeta) * bilap;
-//                     if (std::isnan(df(i, j, k, 3)))
-//                         Util::Message(INFO, "DF(3) is nan at (", i, ",", j, ")");
-//                     rhs += df(i, j, k, 3);
-
-//                     df(i, j, k, 4) = std::max(0., rhs - Threshold);
-//                     c(i, j, k, 0) = c_old(i, j, k, 0) - a_dt * df(i, j, k, 4) * Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
-
-//                     if (c(i, j, k, 0) < 0.0)
-//                         c(i, j, k, 0) = 0.0;
-//                     if (c(i, j, k, 0) > 1.0)
-//                         c(i, j, k, 0) = 1.0;
-//                 }
-//             });
-//         }
-//         crack.c_mf[a_lev]->FillBoundary();
-//         crack.driving_force_mf[a_lev]->FillBoundary();
-
-        Base::Mechanics<brittle_model>::Advance(a_lev, a_time, a_dt);
     }
 
     void
@@ -852,25 +735,27 @@ public:
     void
     TimeStepComplete(Set::Scalar /*time*/, int /* iter*/) override
     {
+        // if we did an elastic solve, it means that the crack solver converged in TimeStepBegin
         if (elastic_do_solve_now)
             crack.driving_force_reference = crack.driving_force_norm;
+
+        if (m_type == Base::Mechanics<brittle_model>::Type::Static)
+        {
+            if (crack.driving_force_reference / crack.driving_force_reference_prev < 0.1 || crack.driving_force_reference < 1.e-12)
+                increase_load_step = true;
+
+            if (set_new_reference)
+            {
+                crack.driving_force_reference_prev = crack.driving_force_reference;
+                set_new_reference = false;
+            }
+        }
 
         if (set_initial_df_once)
         {
             Util::Message(INFO, "First setting the reference value");
             crack.driving_force_reference_prev = crack.driving_force_reference;
             set_initial_df_once = false;
-        }
-
-        if (crack.driving_force_reference / crack.driving_force_reference_prev < 0.1)
-        {
-            increase_load_step = true;
-            // crack.driving_force_reference_prev = crack.driving_force_reference;
-        }
-        if (set_new_reference)
-        {
-            crack.driving_force_reference_prev = crack.driving_force_reference;
-            set_new_reference = false;
         }
 
         elastic_do_solve_now = false;

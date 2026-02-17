@@ -1072,7 +1072,9 @@ Integrator::Evolve()
         TimeStep(lev, cur_time, iteration);
         if (integrate_variables_after_advance) IntegrateVariables(cur_time, step);
         TimeStepComplete(cur_time, step);
-        cur_time += dt[0];
+
+        if (clock_running)
+            cur_time += dt[0];
 
         if (amrex::ParallelDescriptor::IOProcessor()) {
             std::cout << "STEP " << step + 1 << " ends."
