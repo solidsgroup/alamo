@@ -643,7 +643,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
 
 
-            Set::Scalar mdot0 = -m0(i,j,k)*grad_eta_mag;
+            Set::Scalar mdot0 = m0(i,j,k)*grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
