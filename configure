@@ -23,7 +23,7 @@ except ImportError as e:
 #
 
 # This is the current Alamo-supported version of AMReX. 
-amrex_current_version = "25.12"
+amrex_current_version = "26.02"
 # Required minimum mpich version - ignore unless using ASan
 mpich_minimum_version = "0.0.0"
 # Python versions
@@ -309,7 +309,7 @@ if args.buildamrex and not args.amrex:
     postfix_amrex = postfix+"-"+amrexdescribe
     
     args.amrex = f"ext/{args.amrexfork}/amrex/{postfix_amrex}"
-    f.write(f"AMREX = ext/{args.amrexfork}/amrex/" + postfix_amrex + "/\n")
+    f.write(f"AMREX_ROOT = ext/{args.amrexfork}/amrex\n")
     f.write(f"AMREX_TARGET = ext/{args.amrexfork}/amrex/" + postfix_amrex + "\n")
     f.write(f'AMREX_SRC := $(shell find ext/{args.amrexfork}/amrex/Src -name "*.H") $(shell find ext/{args.amrexfork}/amrex/Src -name "*.cpp")' + "\n")
     

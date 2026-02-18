@@ -18,6 +18,7 @@
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_iMultiFab.H>
+#include <AMReX_Reduce.H>
 
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
@@ -352,7 +353,6 @@ void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/, 
     else a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
-
 
 void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);
 

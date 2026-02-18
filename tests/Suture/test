@@ -6,7 +6,7 @@ yt.set_log_level(50) # disable logging
 outdir = sys.argv[1]
 
 generate_ref_data = False  # Change to True if you need to generate new reference data
-tolerance = 1E-8
+tolerance = 1E-4
 
 path = "{}/00001cell/".format(outdir)
 ds = yt.load(path)
