@@ -82,6 +82,17 @@ ul.nav-tabs > li {
 
 .card-title {
     text-decoration: none;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+/* Allow long headings (templates, namespaces) to wrap instead of overflow */
+h1, h2, h3, h4, h5, h6,
+div.headertitle, div.headertitle *, div.title, .card-header, .card-header * {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
 }
 
 /* Adjust the card header to eliminate extra space */
