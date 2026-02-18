@@ -184,24 +184,18 @@ public:
             for (unsigned int i = 0 ; i < value.m_ncomp; i++)
             {
                 value.m_bc_func_parser[face].push_back( amrex::Parser(val[i].c_str()) );
-                {
-                    auto add_constants = [&](amrex::Parser &parser, const std::string &prefix)
-                    {
-                        std::set<std::string> entries = pp.getEntries(prefix + ".constant");
-                        for (const auto &fullname : entries)
-                        {
-                            IO::ParmParse pp_constant;
-                            Unit cval;
-                            pp_constant.queryunit(fullname.c_str(), cval);
-                            size_t dot = fullname.find_last_of('.');
-                            std::string name = (dot == std::string::npos) ? fullname : fullname.substr(dot + 1);
-                            parser.setConstant(name, cval.normalized_value());
-                        }
-                    };
 
-                    std::string base_prefix = pp.getPrefix();
-                    add_constants(value.m_bc_func_parser[face][i], base_prefix);
-                    add_constants(value.m_bc_func_parser[face][i], base_prefix + "." + querystr);
+                std::string prefix = pp.getPrefix();
+                std::set<std::string> entries = pp.getEntries(prefix + ".constant");//"constant");
+                std::set<std::string>::iterator entry;
+                for (entry = entries.begin(); entry != entries.end(); entry++)
+                {
+                    IO::ParmParse pp;
+                    std::string fullname = *entry;
+                    Unit val;
+                    pp.queryunit(fullname.data(),val);
+                    std::string name = Util::String::Split(fullname,'.').back();
+                    value.m_bc_func_parser[face].back().setConstant(name,val.normalized_value());
                 }
                 value.m_bc_func_parser[face][i].registerVariables({"x","y","z","t"});
                 value.m_bc_func[face].push_back( value.m_bc_func_parser[face][i].compile<4>() );
