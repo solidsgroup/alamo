@@ -32,7 +32,7 @@ amr.regrid_int = 100
 amr.grid_eff = 0.8
 
 amr.max_level = 2
-timestep  = 0.5e-3
+timestep  = 1.0e-3
 amr.n_cell = 32 32
 
 ### DIMENSIONS ###
