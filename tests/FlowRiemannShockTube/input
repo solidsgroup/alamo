@@ -44,7 +44,6 @@ plot_file = ./tests/FlowRiemannShockTube/output
 
 ### MESHING ###
 
-#amr.plot_dt = 0.1
 amr.plot_int = 1000
 amr.max_level = 0
 amr.max_grid_size = 500000
@@ -73,16 +72,11 @@ stop_time = 0.01
 
 ### ETA IC ###
 
-#Ldot_0 = 0.0
-
 m0.ic.constant.value = 0.0 
 u0.ic.constant.value = 0.0 
 
 q.ic.type = constant
 q.ic.constant.value = 0.0
-
-#deltapInterface.ic.type = expression
-#deltapInterface.ic.expression.region0 = "0.0"
 
 eta.ic.type = constant
 eta.ic.constant.value  = 1.0
