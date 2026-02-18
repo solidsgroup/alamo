@@ -43,8 +43,8 @@
 // #. :code:`void TimeStepComplete(Set::Scalar /*time*/, int /* iter*/)`
 //    Checks whether the solver should work on crack problem or elastic problem.
 //
-#ifndef INTEGRATOR_FRACTURE_H
-#define INTEGRATOR_FRACTURE_H
+#ifndef INTEGRATOR_DUCTILEFRACTURE_H
+#define INTEGRATOR_DUCTILEFRACTURE_H
 
 // AMReX Includes
 #include "AMReX_Array4.H"
@@ -58,7 +58,6 @@
 #include "Integrator/Base/Mechanics.H"
 
 #include "Model/Interface/Crack/PFCZM.H"
-#include "Model/Solid/Linear/Isotropic.H"
 #include "Model/Solid/Affine/J2Plastic.H"
 
 #include "BC/Constant.H"
@@ -79,24 +78,24 @@
 
 namespace Integrator
 {
-using brittle_model = Model::Solid::Linear::Isotropic;
-using pfczm_crack_type = Model::Interface::Crack::PFCZM;
+using ductile_model = Model::Solid::Affine::J2Plastic;
+using crack_type = Model::Interface::Crack::PFCZM;
 
-class Fracture : virtual public Base::Mechanics<brittle_model>
+class DuctileFracture : virtual public Base::Mechanics<ductile_model>
 {
 public:
     static constexpr const char *name = "fracture";
-    Fracture() : Base::Mechanics<brittle_model>() {}
+    DuctileFracture() : Base::Mechanics<ductile_model>() {}
 
-    Fracture(IO::ParmParse &pp) : Base::Mechanics<brittle_model>()
+    DuctileFracture(IO::ParmParse &pp) : Base::Mechanics<ductile_model>()
     {
         Parse(*this, pp);
     }
 
     static void
-    Parse(Fracture &value, IO::ParmParse &pp)
+    Parse(DuctileFracture &value, IO::ParmParse &pp)
     {
-        Base::Mechanics<brittle_model>::Parse(value, pp);
+        Base::Mechanics<ductile_model>::Parse(value, pp);
 
         // Material field related parsing
         pp.query("material.refinement_threshold", value.material.m_eta_ref_threshold);
@@ -118,7 +117,7 @@ public:
         }
 
         // Let's query material properties for different materials in the system
-        pp.queryclass_enumerate<brittle_model>("material.model", value.material.models);
+        pp.queryclass_enumerate<ductile_model>("material.model", value.material.models);
         value.material.num_mat = value.material.models.size();
         Util::Assert(INFO, TEST(value.material.models.size() > 0));
 
@@ -164,14 +163,14 @@ public:
         value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
 
         // This is needed for the specific crack model we are implementing
-        pp.queryclass_enumerate<pfczm_crack_type>("crack.model",value.crack.cracktype);
+        pp.queryclass_enumerate<crack_type>("crack.model",value.crack.cracktype);
         Util::Assert(INFO, TEST(value.material.models.size() > 0));
     }
 
     void
     Initialize(int lev) override
     {
-        Base::Mechanics<brittle_model>::Initialize(lev);
+        Base::Mechanics<ductile_model>::Initialize(lev);
 
         crack.driving_force_mf[lev]->setVal(0.0);
         crack.c_mf[lev]->setVal(1.0);
@@ -206,7 +205,7 @@ public:
     virtual void
     UpdateModel(int a_step, Set::Scalar /*a_time*/) override
     {
-        if (m_type == Base::Mechanics<brittle_model>::Type::Disable)
+        if (m_type == Base::Mechanics<ductile_model>::Type::Disable)
             return;
 
         // This sets the model field for the very first time step
@@ -220,10 +219,10 @@ public:
                 for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.grownnodaltilebox();
-                    amrex::Array4<brittle_model> const &model = model_mf[lev]->array(mfi);
+                    amrex::Array4<ductile_model> const &model = model_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Scalar> const &eta = material.eta_mf[lev]->array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        model(i, j, k) = brittle_model::Zero();
+                        model(i, j, k) = ductile_model::Zero();
                         for (int n = 0; n < material.num_mat; n++){
                             // model(i, j, k) += eta(i, j, k, n) * material.models[n];
                             model(i, j, k) += Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n) * material.models[n];
@@ -280,8 +279,8 @@ public:
             crack.crack_prop_iter = 0;
             elastic_do_solve_now = true;
 
-            if (    (m_type == Base::Mechanics<brittle_model>::Type::Static && increase_load_step) || 
-                    (m_type == Base::Mechanics<brittle_model>::Type::Dynamic) )
+            if (    (m_type == Base::Mechanics<ductile_model>::Type::Static && increase_load_step) || 
+                    (m_type == Base::Mechanics<ductile_model>::Type::Dynamic) )
             {
                 increase_load_step = false;
                 set_new_reference = true;
@@ -299,7 +298,7 @@ public:
 
         // Doing an elastic solve
         Util::Message(INFO, "Calling elastic solver");
-        Base::Mechanics<brittle_model>::TimeStepBegin(a_time, a_step);
+        Base::Mechanics<ductile_model>::TimeStepBegin(a_time, a_step);
 
         // Computing pristine energy based on eigen value decomposition
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
@@ -380,7 +379,8 @@ public:
 
                         for (int n = 0; n < material.num_mat; n++){
                             // energy(i, j, k, 0) += eta(i, j, k, n) * material.models[n].W(eps_p);
-                            energy(i, j, k, 0) += Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n) * material.models[n].W(eps_p);
+                            energy(i, j, k, 0) += Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n) * ( 
+                                                    material.models[n].W(eps_p) + material.models[n].PlasticEnergy());
                         }
 
                         if (energy(i, j, k, 0) > history_var(i, j, k, 0))
@@ -388,135 +388,7 @@ public:
                     }
                     else
                     {
-                        // Here we implement the 2023 model by Wang et al (DOI: 10.1016/j.apm.2022.12.006)
-                        Set::Vector crack_grad = Numeric::Gradient(c, i, j, k, 0, DX.data());
-                        if (crack_grad.lpNorm<2>() > 1.e-4)
-                        {
-
-                            // perform eigenvalue decomposition of stress tensor.
-                            Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(sig);
-                            Set::Vector eValues = eigensolver.eigenvalues();
-                            Set::Matrix eVectors = eigensolver.eigenvectors();
-
-                            // Let's order the evalues
-                            Set::Scalar sig1 = 0., sig2 = 0.;
-                            Set::Vector vec1 = Set::Vector::Zero(), vec2 = Set::Vector::Zero();
-                            if (eValues(0) > eValues(1))
-                            {
-                                sig1 = eValues(0);
-                                sig2 = eValues(1);
-                                vec1 = eVectors.col(0);
-                                vec2 = eVectors.col(1);
-                            }
-                            else
-                            {
-                                sig1 = eValues(1);
-                                sig2 = eValues(0);
-                                vec1 = eVectors.col(1);
-                                vec2 = eVectors.col(0);
-                            }
-
-                            Set::Scalar irwing_length = crack.cracktype[0].l_w();
-                            Set::Scalar c_alpha = crack.cracktype[0].c_alpha();
-
-                            Set::Scalar mohr_center = 0.5 * (sig1 + sig2);
-                            Set::Scalar mohr_radius = 0.5 * std::abs(sig1 - sig2);
-
-                            Set::Scalar f_theta = 0.0;
-
-                            if (crack.cracktype[0].failure_surface() == Model::Interface::Crack::PFCZM::FSType::WANG2023)
-                            {
-                                // Storing useful quantities for later.
-                                Set::Scalar sig_t = crack.cracktype[0].sig_t();
-                                Set::Scalar tau_f = crack.cracktype[0].tau_s();
-                                Set::Scalar chi = crack.cracktype[0].chi();
-                                Set::Scalar beta_bar = crack.cracktype[0].beta_bar();
-
-                                Set::Scalar beta = 1.0;
-                            
-                                // Now let's compute a candidate theta
-                                // Ideally, theta = 0 is always a valid solution and corresponds to sig_nn = sig1, tau_nm = 0
-                                // Set::Scalar theta = 0.0; // removed because: set but not used
-                                beta = sig1 < 0 ? beta_bar : 1.0;
-                                f_theta = (beta * (crack.el_mult * crack.el_mult * sig1 * sig1 / (sig_t * sig_t))) - 1;
-                                
-                                // Now we check for other feasible solutions. First we check for beta = 1.
-                                Set::Scalar sig_nn1 = 0., tau_nm1 = 0.;
-                                Set::Scalar theta_candidate1 = 0.0, f_candidate1 = 0.;
-                                Set::Scalar temp = std::abs((mohr_center / mohr_radius) * (chi * chi / (1.0 - (chi * chi))));
-                                if (temp >= 0.0 && temp <= 1.0)
-                                {
-                                    theta_candidate1 = 0.5 * std::acos(temp);
-
-                                    // Now check if this actually leas to a positive sig_nn value
-                                    sig_nn1 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate1));
-                                    tau_nm1 = mohr_radius * std::sin(2.0 * theta_candidate1);
-
-                                    if (sig_nn1 >= 0.0)
-                                    {
-                                        f_candidate1 = (crack.el_mult * crack.el_mult * sig_nn1 * sig_nn1 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm1 * tau_nm1 / (tau_f * tau_f)) - 1.0;
-
-                                        // We only use this solution if the value of the failure surface is larger.
-                                        if (f_candidate1 > f_theta)
-                                        {
-                                            f_theta = f_candidate1;
-                                            beta = 1.0;
-                                        }
-                                    }
-                                }
-
-                                // Now we check for the third feasible solution for beta = beta_bar.
-                                Set::Scalar sig_nn2 = 0., tau_nm2 = 0.;
-                                Set::Scalar theta_candidate2 = 0.0, f_candidate2 = 0.;
-                                temp = std::abs((mohr_center / mohr_radius) * (beta_bar * chi * chi / (1.0 - (beta_bar * chi * chi))));
-                                if (temp >= 0.0 && temp <= 1.0)
-                                {
-                                    theta_candidate2 = 0.5 * std::acos(temp);
-
-                                    // Now check if this actually leas to a negative sig_nn value
-                                    sig_nn2 = mohr_center + (mohr_radius * std::cos(2.0 * theta_candidate2));
-                                    tau_nm2 = mohr_radius * std::sin(2.0 * theta_candidate2);
-
-                                    if (sig_nn2 <= 0.0)
-                                    {
-                                        f_candidate2 = (beta_bar * crack.el_mult * crack.el_mult * sig_nn2 * sig_nn2 / (sig_t * sig_t)) + (crack.el_mult * crack.el_mult * tau_nm2 * tau_nm2 / (tau_f * tau_f)) - 1.0;
-
-                                        // We only use this solution if the value of the failure surface is larger.
-                                        if (f_candidate2 > f_theta)
-                                        {
-                                            f_theta = f_candidate2;
-                                            beta = beta_bar;
-                                        }
-                                    }
-                                }
-                            }
-                            else if (crack.cracktype[0].failure_surface() == Model::Interface::Crack::PFCZM::FSType::MC)
-                            {
-                                Set::Scalar cohesion = crack.cracktype[0].cohesion();
-                                Set::Scalar friction = crack.cracktype[0].friction();
-                                // In this case, the angle theta is straightforward.
-                                // theta = (pi / 4) - (\phi / 2)
-                                Set::Scalar sig_nn = 0., tau_nm = 0.;
-                                Set::Scalar theta = std::atan(1) - std::atan(friction);
-
-                                sig_nn = crack.el_mult * (mohr_center + (mohr_radius * std::cos(2.0 * theta)));
-                                tau_nm = crack.el_mult * (mohr_radius * std::sin(2.0 * theta));
-
-                                f_theta = (tau_nm + (friction * sig_nn)) * (tau_nm + (friction * sig_nn)) / (cohesion * cohesion);
-                                f_theta = f_theta - 1.0;
-
-                                // Util::Message(INFO, "sig1 = ", sig1, ", sig2 = ", sig2, ", f_theta = ", f_theta);
-                            }
-
-                            energy(i,j,k,0) = (f_theta > 0) ? (c_alpha / (2.0 * irwing_length)) * ((f_theta)) : 0.0;
-                            energy(i,j,k,1) = 0.0;
-
-                            if (energy(i, j, k, 0) + energy(i, j, k, 1) > history_var(i, j, k, 0) + history_var(i, j, k, 1))
-                            {
-                                history_var(i, j, k, 0) = energy(i, j, k, 0);
-                                history_var(i, j, k, 1) = energy(i, j, k, 1);
-                            }
-                        }
+                        Util::Abort(INFO, "Mixed mode fracture is not supported in ductile fracture");
                     }
                     //=====================================================================
                 });
@@ -532,7 +404,7 @@ public:
     void
     Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
-        if (elastic_do_solve_now)  Base::Mechanics<brittle_model>::Advance(a_lev, a_time, a_dt);
+        if (elastic_do_solve_now)  Base::Mechanics<ductile_model>::Advance(a_lev, a_time, a_dt);
 
         #if AMREX_SPACEDIM != 2
             Util::Abort(INFO, "This does not work for 1D or 3D yet.");
@@ -657,7 +529,7 @@ public:
     void
     TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override
     {
-        Base::Mechanics<brittle_model>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
+        Base::Mechanics<ductile_model>::TagCellsForRefinement(lev, a_tags, a_time, a_ngrow);
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
@@ -730,7 +602,7 @@ public:
             crack.driving_force_norm += df(i, j, k, 4) * DV;
         });
 
-        Base::Mechanics<brittle_model>::Integrate(amrlev, time, step, mfi, a_box);
+        Base::Mechanics<ductile_model>::Integrate(amrlev, time, step, mfi, a_box);
     }
 
     void
@@ -740,7 +612,7 @@ public:
         if (elastic_do_solve_now)
             crack.driving_force_reference = crack.driving_force_norm;
 
-        if (m_type == Base::Mechanics<brittle_model>::Type::Static)
+        if (m_type == Base::Mechanics<ductile_model>::Type::Static)
         {
             if (crack.driving_force_reference / crack.driving_force_reference_prev < 0.1 || crack.driving_force_reference < 1.e-12)
                 increase_load_step = true;
@@ -771,7 +643,7 @@ protected:
         Set::Field<Set::Scalar> energy_pristine_mf;
         Set::Field<Set::Scalar> history_var_mf;
         Set::Field<Set::Scalar> driving_force_mf;
-        std::vector<pfczm_crack_type> cracktype;
+        std::vector<crack_type> cracktype;
 
         std::vector<std::string> ic_type;
         std::vector<IC::IC<Set::Scalar> *> ic;
@@ -805,7 +677,7 @@ protected:
     {
         Set::Field<Set::Scalar> eta_mf;
         Set::Scalar m_eta_ref_threshold = 0.01;
-        std::vector<brittle_model> models;
+        std::vector<ductile_model> models;
         IC::IC<Set::Scalar> *ic;
         bool is_ic = false;
         int num_mat = 1;
@@ -822,13 +694,13 @@ protected:
     BC::BC<Set::Scalar> *bc_df = nullptr;
     BC::Nothing bc_nothing;
 
-    using Base::Mechanics<brittle_model>::m_type;
-    using Base::Mechanics<brittle_model>::finest_level;
-    using Base::Mechanics<brittle_model>::geom;
-    using Base::Mechanics<brittle_model>::model_mf;
-    using Base::Mechanics<brittle_model>::psi_mf;
-    using Base::Mechanics<brittle_model>::psi_on;
-    using Base::Mechanics<brittle_model>::plot_psi;
+    using Base::Mechanics<ductile_model>::m_type;
+    using Base::Mechanics<ductile_model>::finest_level;
+    using Base::Mechanics<ductile_model>::geom;
+    using Base::Mechanics<ductile_model>::model_mf;
+    using Base::Mechanics<ductile_model>::psi_mf;
+    using Base::Mechanics<ductile_model>::psi_on;
+    using Base::Mechanics<ductile_model>::plot_psi;
 };
 }
 

@@ -80,6 +80,8 @@ public:
         }
         if (value.m_type == Type::Dynamic)
         {
+            pp_queryclass("solver", value.solver);
+
             value.RegisterGeneralFab(value.vel_mf, 1, 2, "vel",true);
             value.RegisterGeneralFab(value.disp_old_mf, 1, 2, "dispold");
             value.RegisterGeneralFab(value.vel_old_mf, 1, 2, "velold");
@@ -183,7 +185,7 @@ protected:
         bc->SetTime(a_time);
         bc->Init(rhs_mf, geom);
 
-        if (m_type != Mechanics<MODEL>::Type::Static) return;
+        if (m_type != Mechanics<MODEL>::Type::Static && a_step > 0) return;
         if (a_time < tstart) return;
         if (m_interval && a_step % m_interval) return;
 
