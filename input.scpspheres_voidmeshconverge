@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_mesh_converge_amr6
+plot_file = output.scpspheres_eta_eps_study.eta.eps.7.0
 
 system.length = mm
 system.time = s
@@ -17,9 +17,10 @@ amr.refinement_criterion_temp = 10.0_K
 amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 #amr.node.all = 1
+amr.max_plot_level = 5
 
 # Geometry and base grid size
-amr.max_level = 6
+amr.max_level = 5
 
 # Full size
 # amr.n_cell = 8 8 8
@@ -46,7 +47,7 @@ pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = psread
 pf.eta.ic.psread.file.unit = m
 pf.eta.ic.psread.file.name = all_datasets/mesh_converge/eta.ic.xyr
-pf.eta.ic.psread.eps = 1.5_um
+pf.eta.ic.psread.eps = 7_um
 pf.eta.ic.psread.invert = 1
 
 #pf.eta.ic.type = constant 

@@ -1,13 +1,13 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_full_domain_A1_1_novoid_2
+plot_file = output.strand_burn_A4_mesh_3
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 2e-3_s
+amr.plot_dt = 5e-5_s
 amr.max_grid_size = 8
 amr.blocking_factor = 8
 amr.base_regrid_int = 10
@@ -16,26 +16,26 @@ amr.refinement_criterion = 0.5
 amr.refinement_criterion_temp = 0.5_K
 # amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
-amr.max_plot_level = 4
+# amr.max_plot_level = 4
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 5
+amr.max_level = 4
 
 # Full size
-amr.n_cell = 32 32 32
-geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
+# amr.n_cell = 32 32 32
+# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+# geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
 # Quarter size
-# amr.n_cell = 32 8 32
-# geometry.prob_lo = 0.0_mm 0.075_mm 0.0_mm
-# geometry.prob_hi = 0.1_mm 0.1_mm 0.1_mm
+amr.n_cell = 96 24 32
+geometry.prob_lo = 0.0_mm 0.075_mm 0.0_mm
+geometry.prob_hi = 0.1_mm 0.1_mm 0.1_mm
 
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 5e-8_s # [s]
+timestep = 1e-8_s # [s]
 stop_time = 0.4_s
 
 small = 1.0e-10
@@ -44,14 +44,14 @@ pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
-# pf.eta.ic.psread.file.name = all_datasets/A4/setA4_xyzrs/A4_1_void.xyzr
-# pf.eta.ic.psread.eps = 0.75_um
-# pf.eta.ic.psread.invert = 1
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
+pf.eta.ic.psread.file.name = all_datasets/Test_Files/porous_80_by_weight_1_void.xyzr
+pf.eta.ic.psread.eps = 0.75_um
+pf.eta.ic.psread.invert = 1
 
-pf.eta.ic.type = constant 
-pf.eta.ic.constant.value = 1.0 
+# pf.eta.ic.type = constant 
+# pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
 # pf.eta.ic.expression.constant.x0 = 30.0_um
@@ -64,8 +64,8 @@ pf.eta.ic.constant.value = 1.0
 ## Phi initial condition (spheres)
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
-phi.ic.psread.file.name = all_datasets/A1/setA1_xyzrs/setA1_1_AP.xyzr
-phi.ic.psread.eps = 4_um
+phi.ic.psread.file.name = all_datasets/Test_Files/porous_80_by_weight_1_AP.xyzr
+phi.ic.psread.eps = 2_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -147,8 +147,8 @@ laser.ic.type = expression
 laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
-laser.ic.expression.constant.eps = 20.0_um
-laser.ic.expression.constant.x0 = 40.0_um
+laser.ic.expression.constant.eps = 2.0_um
+laser.ic.expression.constant.x0 = 4.0_um
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
