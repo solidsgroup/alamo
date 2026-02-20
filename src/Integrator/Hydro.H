@@ -158,6 +158,7 @@ protected:
     Set::Scalar cutoff=NAN;
     Set::Scalar lagrange=NAN;
     Set::Scalar lagrange_m0=NAN;
+    Set::Scalar mu_factor=NAN;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 

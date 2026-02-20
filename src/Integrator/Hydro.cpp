@@ -89,6 +89,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
+        pp_query_default("mu_factor",value.mu_factor,1.0); // Coefficient for effective solid viscosity
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
@@ -664,17 +665,18 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
+            Set::Scalar mu_solid = mu_factor*mu;
+            Set::Scalar mu_eff = mu * eta + mu_solid * (1.0 - eta);
             for (int p = 0; p<2; p++)
                 for (int q = 0; q<2; q++)
                     for (int r = 0; r<2; r++)
                         for (int s = 0; s<2; s++)
                         {
                             Set::Scalar Mpqrs = 0.0;
-                            if (p==r && q==s) Mpqrs += 0.5 * mu;
-                            if (p==s && q==r) Mpqrs += 0.5 * mu;
+                            if (p==r && q==s) Mpqrs += mu_eff;
 
-                            Ldot0(p) += 0.25*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            div_tau(p) += 1.0*Mpqrs * hess_u(r,s,q);
+                            Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
+                            div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
                         }
 
             Source(i,j, k, 0) = mdot0;
