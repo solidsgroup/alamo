@@ -11,11 +11,14 @@
 #@ args = eta.ic.expression.constant.eps=0.1
 #@ check-file = reference/eps0.10.dat
 #@
-#@ [eps0.05]
+#@ [eps0.07]
 #@ exe=hydro
 #@ dim=2
-#@ args = eta.ic.expression.constant.eps=0.05
+#@ nprocs=4
+#@ args = eta.ic.expression.constant.eps=0.07
 #@ args = amr.max_level=2
+#@ args = amr.n_cell=8 128 0
+#@ args = timestep=1e-4
 #@ check-file = reference/eps0.05.dat
 #@
 
@@ -49,7 +52,7 @@ amr.plot_dt = 0.5
 amr.max_level = 1
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
-#amr.regrid_int = 100
+amr.regrid_int = 100
 amr.grid_eff = 0.8
 amr.n_cell = 4 64 0
 
@@ -61,13 +64,12 @@ geometry.is_periodic = 1 0 0
 ### TIME STEP ###
 
 timestep  = 1.0e-3
-stop_time = 30.0
+stop_time = 10.0
 
 ### HYDRO PARAM ###
 
 cfl   = 0.4
-small = 1e-8
-lagrange = 1000
+lagrange = 1e3
 
 ### ETA IC ###
 
@@ -90,7 +92,7 @@ density.ic.type = expression
 density.ic.expression.region0 = "100.0"
 
 velocity.ic.type = expression
-velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region0 = "0.001*(y>1.5)"
 velocity.ic.expression.region1 = "0.0"
 
 pressure.ic.type = expression
