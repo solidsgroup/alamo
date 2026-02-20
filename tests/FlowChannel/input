@@ -41,10 +41,10 @@ plot_file = ./output
 
 amr.plot_dt = 1.0
 #amr.plot_int = 10
-amr.max_level = 1
+amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
-amr.regrid_int = 100
+amr.regrid_int = 10
 amr.grid_eff = 0.8
 amr.n_cell = 120 40 0
 #amr.abort_on_nan=0
@@ -58,7 +58,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 5.0e-4
+timestep  = 2.5e-4
 stop_time = 10.0
 
 ### HYDRO PARAM ###
@@ -67,8 +67,8 @@ stop_time = 10.0
 cfl   = 0.4
 
 small=1E-8
-cutoff=1E-5
-lagrange=1E4
+#cutoff=1E-5
+#lagrange=1E4
 
 ### ETA IC ###
 
@@ -135,14 +135,16 @@ density.bc.constant.val.xlo = 100.0
 density.bc.constant.val.ylo = 0.0
 density.bc.constant.val.yhi = 0.0
 
-energy.bc.constant.type.xhi = neumann
-energy.bc.constant.type.xlo = neumann
-energy.bc.constant.type.ylo = neumann
-energy.bc.constant.type.yhi = neumann
-energy.bc.constant.val.xhi = 0.0
-energy.bc.constant.val.xlo = 0.0
-energy.bc.constant.val.ylo = 0.0 
-energy.bc.constant.val.yhi = 0.0
+energy.bc.type = expression
+energy.bc.expression.constant.eps = 0.1
+energy.bc.expression.type.xhi = dirichlet
+energy.bc.expression.type.xlo = dirichlet
+energy.bc.expression.type.ylo = neumann
+energy.bc.expression.type.yhi = neumann
+energy.bc.expression.val.xhi = "49.85 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+energy.bc.expression.val.xlo = "50.0 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+energy.bc.expression.val.ylo = "0.0 "
+energy.bc.expression.val.yhi = "0.0"
 
 momentum.bc.type = expression
 momentum.bc.expression.type.xlo = dirichlet dirichlet
@@ -156,9 +158,6 @@ momentum.bc.expression.val.yhi = "0.0" "0.0"
 
 ### HYDRO REFINEMENT CRITERIA ###
 
-#r_refinement_criterion   = 0.1
-#e_refinement_criterion   = 0.1
-#m_refinement_criterion   = 0.1
 eta_refinement_criterion = 0.1
 omega_refinement_criterion = 0.1
 gradu_refinement_criterion = 0.1
