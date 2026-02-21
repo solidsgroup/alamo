@@ -31,9 +31,9 @@ amr.blocking_factor = 2
 amr.regrid_int = 100
 amr.grid_eff = 0.8
 
-amr.max_level = 2
-timestep  = 1.0e-3
-amr.n_cell = 32 32
+amr.max_level = 1
+timestep  = 5.0e-4
+amr.n_cell = 64 64
 
 ### DIMENSIONS ###
 geometry.prob_lo = -12.0 -12.0 0.0 # [ m ]
@@ -66,7 +66,7 @@ gas.thermo.cpconstant.Tref = 0.0_K
 
 gas.transport.type = mixture_averaged
 gas.transport.mixture_averaged.type = constant
-gas.transport.mixture_averaged.mu = 15.0_Pa*s
+gas.transport.mixture_averaged.mu = 10.0_Pa*s
 gas.transport.mixture_averaged.k = 0.023_W/m/K
 
 gas.eos.type = cpg
@@ -76,7 +76,7 @@ gas.eos.type = cpg
 cfl   = 0.4
 
 density.ic.type = expression
-density.ic.expression.region0 = "1.2" 
+density.ic.expression.region0 = "3.5" 
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"
@@ -100,7 +100,7 @@ density.bc.constant.type.xhi = neumann
 density.bc.constant.type.xlo = neumann
 density.bc.constant.type.ylo = neumann
 density.bc.constant.type.yhi = dirichlet
-density.bc.constant.val.yhi =  1.54771291
+density.bc.constant.val.yhi =  5.0 #54771291
 
 energy.bc.constant.type.xhi = neumann
 energy.bc.constant.type.xlo = neumann
@@ -108,7 +108,7 @@ energy.bc.constant.type.ylo = neumann
 energy.bc.constant.type.yhi = neumann
 
 momentum.bc.type = expression
-momentum.bc.expression.constant.lidvelocity = 300.0
+momentum.bc.expression.constant.lidvelocity = 100.0
 momentum.bc.expression.type.xhi = dirichlet dirichlet
 momentum.bc.expression.type.xlo = dirichlet dirichlet
 momentum.bc.expression.type.ylo = dirichlet dirichlet
