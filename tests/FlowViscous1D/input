@@ -31,7 +31,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 5.0e-4
+timestep  = 2.5e-4
 stop_time = 0.5
 
 ### ETA IC ###
@@ -75,8 +75,6 @@ gas.eos.type = cpg
 ### HYDRO PARAM ###
 
 cfl   = 0.4
-small = 1e-8
-#cutoff = 0.01
 lagrange = 150
 
 density.ic.type = expression
