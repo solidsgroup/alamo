@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.strand_burn_A4_mesh_5
+plot_file = output.strand_burn_A4_mesh_6
 
 system.length = mm
 system.time = s
@@ -20,7 +20,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 4
+amr.max_level = 2
 
 # Full size
 # amr.n_cell = 32 32 32
