@@ -18,12 +18,10 @@ testlib.validate(path=path,
                  coord = 'y',
                  vars=["momentumx","density","pressure"],
                  tolerance=[tol, tol, tol],
-                 abs_tolerance=100, # basically ignore absolute tolerance
+                 abs_tolerance=1e-2,
                  generate_ref_data = False,
                  tight_layout=False,
 )
-
-testlib.warning("WARNING: currently using fairly generous tolerances.")
 
 exit(0)
 
