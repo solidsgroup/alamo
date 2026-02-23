@@ -158,7 +158,7 @@ chamber.pressure = 1.0_MPa  ## [MPa]
 amr.abort_on_nan = 1
 
 # Disable elasticity
-# elastic.type = static
+elastic.type = disable
 # Thermoelasticity
 # elastic.on = 0
 # elastic.interval = 1000
