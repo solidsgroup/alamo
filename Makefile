@@ -47,8 +47,8 @@ LINKER_FLAGS += -Bsymbolic-functions -lstdc++fs
 #LINKER_FLAGS      += --param inline-unit-growth=100 --param  max-inline-insns-single=1200
 
 
-ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     += ${AMREX}/lib/libamrex.a -lpthread
+ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX_TARGET}, -isystem ${AMREX_TARGET}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+LIB     += ${AMREX_TARGET}/lib/libamrex.a -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
@@ -97,16 +97,16 @@ clean: tidy
 
 realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING AMREX $(RESET)\n" 
-	-make -C ext/amrex realclean
-	git -C ext/amrex reset --hard
-	git -C ext/amrex clean -fd
-	git -C ext/amrex clean -fx
-	rm -rf ext/amrex/1d* ext/amrex/2d* ext/amrex/3d*
+	-make -C ${AMREX_ROOT} realclean
+	git -C ${AMREX_ROOT} reset --hard
+	git -C ${AMREX_ROOT} clean -fd
+	git -C ${AMREX_ROOT} clean -fx
+	rm -rf ${AMREX_ROOT}/1d* ${AMREX_ROOT}/2d* ${AMREX_ROOT}/3d*
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -rf Makefile.conf Makefile.amrex.conf .make
 
-py: python_ok lib/libalamo-$(POSTFIX).so ${AMREX}/lib/libamrex.so
-	@python3 ./scripts/make_alamo_package.py --postfix=$(POSTFIX) --amrex=$(AMREX)
+py: python_ok lib/libalamo-$(POSTFIX).so ${AMREX_TARGET}/lib/libamrex.so
+	@python3 ./scripts/make_alamo_package.py --postfix=$(POSTFIX) --amrex=$(AMREX_TARGET)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
 info:
@@ -234,7 +234,7 @@ lib/libalamo-$(POSTFIX).so: ${OBJ}
 	$(QUIET)mkdir -p lib
 	$(QUIET)$(CC) -shared -fPIC -o $@ $^
 
-${AMREX}/lib/libamrex.so : ${AMREX}/lib/libamrex.a
+${AMREX_TARGET}/lib/libamrex.so : ${AMREX_TARGET}/lib/libamrex.a
 	@printf "$(B_ON)$(FG_ORANGE)LIBAMREX$(RESET)             $@\n" 	
 	$(QUIET)$(CC) -shared -fPIC -o $@ -Wl,--whole-archive $< -Wl,--no-whole-archive
 
