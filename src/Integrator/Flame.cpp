@@ -601,6 +601,8 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
             
             if (df_deta < 0) {
+                // Prevent eta from increasing/healing. A bug was found where if the diffuse thickness was too large compared to a void
+                // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
                 df_deta = 0.0;
             }
                 
