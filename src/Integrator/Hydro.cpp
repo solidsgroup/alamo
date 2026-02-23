@@ -18,12 +18,10 @@
 #include "Model/Gas/Gas.H"
 #include "Model/Gas/Thermo/Thermo.H"
 #include "Model/Gas/Thermo/CpConstant.H"
-#include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Transport/Transport.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
 #include "Model/Gas/EOS/EOS.H"
 #include "Model/Gas/EOS/CPG.H"
-#include "Model/Gas/EOS/TPG.H"
 
 namespace Integrator
 {
