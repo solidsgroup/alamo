@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 5e-6_s
+amr.plot_dt = 1e-8_s
 amr.max_grid_size = 2
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
@@ -35,7 +35,7 @@ geometry.prob_hi = 0.1_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 5e-9_s # [s]
+timestep = 1e-8_s # [s]
 stop_time = 0.4_s
 
 small = 1.0e-10
@@ -118,7 +118,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 # Thermal transport parameters
 thermal.on = 1  
 #thermal.Tfluid = 300.0_K
-thermal.Tref = 289.0_K
+thermal.Tref = 400_K
 
 # Temperature field initial condition
 temp.ic.type = constant
@@ -147,8 +147,8 @@ laser.ic.type = expression
 laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
-laser.ic.expression.constant.eps = 2.0_um
-laser.ic.expression.constant.x0 = 4.0_um
+laser.ic.expression.constant.eps = 1.0_um
+laser.ic.expression.constant.x0 = 2.0_um
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
