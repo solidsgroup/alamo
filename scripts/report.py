@@ -70,8 +70,7 @@ def append_html(record):
         if check_status:
             f.write(f" &nbsp; Check: <span class='status {check_class}'>{check_status.upper()}</span>")
         f.write("</p>\n")
-        f.write(f"<code>{record.get('cmd_test','--')}</code>")
-        f.write(f"<p><a href='{stdout_path}'>stdout</a> | <a href='{stderr_path}'>stderr</a></p>\n")
+        f.write(f"<p><a href='../{stdout_path}'>stdout</a> | <a href='../{stderr_path}'>stderr</a></p>\n")
 
         # Images
         image_extensions = {".svg", ".png", ".jpg", ".jpeg"}
@@ -81,6 +80,8 @@ def append_html(record):
             for img in images:
                 f.write(f"<a href='{img}'><img src='{img}' class='thumbnail'></a>\n")
             f.write("</div>\n")
+
+        f.write("</div>\n")
 
         f.write("</div>\n")
 

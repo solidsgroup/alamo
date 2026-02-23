@@ -100,15 +100,14 @@ public:
     virtual void
     Init(amrex::FabArray<amrex::BaseFab<Set::Vector>> *a_rhs,
         const amrex::Geometry &a_geom,
-        bool a_homogeneous = false) const
+        bool a_homogeneous = false) const override
     {
-            amrex::Box domain(a_geom.Domain());
+            amrex::Box domain(a_geom.growPeriodicDomain(2));
             domain.convert(amrex::IntVect::TheNodeVector());
             const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
             for (amrex::MFIter mfi(*a_rhs, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.tilebox();
-                bx.grow(2);
+                amrex::Box bx = mfi.grownnodaltilebox();
                 bx = bx & domain;
                 amrex::Array4<Set::Vector> const& rhs       = a_rhs->array(mfi);
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -162,6 +161,26 @@ public:
 
                     #endif
 
+                    if (a_geom.isPeriodic(0) && a_geom.isPeriodic(1))
+                    {
+                        if (face == Face::XLO || face == Face::XHI ||
+                            face == Face::YLO || face == Face::YHI) continue;
+                    }
+                    if (a_geom.isPeriodic(0))
+                    {
+                        if (face == Face::XLO || face==Face::XHI) continue;
+                    }
+                    if (a_geom.isPeriodic(1))
+                    {
+                        if (face == Face::YLO || face==Face::YHI) continue;
+                    }
+                    #if AMREX_SPACEDIM == 3
+                    if (a_geom.isPeriodic(2))
+                    {
+                        if (face == Face::ZLO || face==Face::ZHI) continue;
+                    }
+                    #endif
+
                     if (!(face == Face::INT))
                     {
                         if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
@@ -178,7 +197,7 @@ public:
     virtual void
     Init(amrex::MultiFab * a_rhs,
         const amrex::Geometry &a_geom,
-        bool a_homogeneous = false) const
+        bool a_homogeneous = false) const override
     {
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
@@ -239,6 +258,20 @@ public:
                     else if (k==hi.z) face = Face::ZHI;
 
                     #endif
+                    
+                    if (a_geom.isPeriodic(0) && a_geom.isPeriodic(1))
+                    {
+                        if (face == Face::XLO || face == Face::XHI ||
+                            face == Face::YLO || face == Face::YHI) continue;
+                    }
+                    if (a_geom.isPeriodic(0))
+                    {
+                        if (face == Face::XLO || face==Face::XHI) continue;
+                    }
+                    if (a_geom.isPeriodic(1))
+                    {
+                        if (face == Face::YLO || face==Face::YHI) continue;
+                    }
 
                     if (!(face == Face::INT))
                     {
@@ -255,7 +288,7 @@ public:
     virtual
     std::array<Type,AMREX_SPACEDIM> getType (
                 const int &i, const int &j, [[maybe_unused]] const int &k,
-                const amrex::Box &domain)
+                const amrex::Box &domain) override
     {
         amrex::IntVect m(AMREX_D_DECL(i,j,k));
         const amrex::Dim3 lo = amrex::lbound(domain), hi = amrex::ubound(domain);
@@ -313,7 +346,7 @@ public:
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,
                 const int &i, const int &j, const int &k,
-                const amrex::Box &domain)
+                const amrex::Box &domain) override
     {
         (void)i; (void)j; (void)k; // Suppress "unused variable" warnings
         //Set::Vector f;
@@ -385,7 +418,7 @@ public:
                 f(i) = (sigma*n)(i);
             else if (bc_type[i] == Type::Neumann)
                 f(i) = (gradu*n)(i);
-            else if (bc_type[i] == Periodic)
+            else
                 continue;
         }
         return f;
