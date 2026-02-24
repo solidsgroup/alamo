@@ -3,7 +3,7 @@ alamo.program = fracture
 system.length = m
 system.time = s
 
-timestep = 5e-7_s
+timestep = 5e-6_s
 stop_time = 1_s
 
 plot_file = output_sandwich
@@ -32,19 +32,19 @@ crack.df.mult_lap = 1.0
 crack.df.beta = 0.0
 crack.df.el_mult = 1.e11
 
-crack.model1.G_c = 2.e2_N*m/m^2
+crack.model1.G_c = 3_N*m/m^2
 crack.model1.fracture_strength = 3.16e8_Pa
 crack.model1.E = 4.e11_Pa
-crack.model1.zeta = 2.e-4
+crack.model1.zeta = 2.e-5_m
 crack.model1.mobility = 5.0e-2
 crack.model1.gtype = wu_linear
 crack.model1.wtype = wu
 crack.model1.threshold = 1.0 
 
-crack.model2.G_c = 5.e2_N*m/m^2
+crack.model2.G_c = 5_N*m/m^2
 crack.model2.fracture_strength = 3.16e7_Pa
 crack.model2.E = 4.e11_Pa
-crack.model2.zeta = 2.e-4
+crack.model2.zeta = 2.e-5_m
 crack.model2.mobility = 5.0e-2
 crack.model2.gtype = wu_linear
 crack.model2.wtype = wu
@@ -75,11 +75,11 @@ material.ic.png.fit = stretch
 material.ic.png.channel = b
 
 #material.model1.type = isotropic
-material.model1.E = 5.0 # inclusion
+material.model1.E = 10.0 # inclusion
 material.model1.nu = 0.21
 
 #material.model2.type = isotropic
-material.model2.E = 2.0
+material.model2.E = 5.0
 material.model2.nu = 0.28
 
 material.refinement_threshold = 100 #1.e-1
@@ -87,17 +87,17 @@ material.refinement_threshold = 100 #1.e-1
 ### Mode-I test
 # Tension testing
 bc.type = expression
-bc.expression.type.xloylo = disp trac
+bc.expression.type.xloylo = disp disp
 bc.expression.type.xlo    = disp trac
 bc.expression.type.xloyhi = disp disp
 bc.expression.type.ylo    = disp disp
 bc.expression.type.yhi    = disp disp
 bc.expression.type.xhi    = disp trac
-bc.expression.type.xhiylo = disp trac
+bc.expression.type.xhiylo = disp disp
 bc.expression.type.xhiyhi = disp disp
-bc.expression.val.yhi =       0.0 "3e-6*t"
-bc.expression.val.xloyhi =    0.0 "3e-6*t"
-bc.expression.val.xhiyhi =    0.0 "3e-6*t"
+bc.expression.val.yhi =       "0.0" "t*(3.33e-6)"
+bc.expression.val.xloyhi =    "0.0" "t*(3.33e-6)"
+bc.expression.val.xhiyhi =    "0.0" "t*(3.33e-6)"
 
 # Solver inputs
 #
