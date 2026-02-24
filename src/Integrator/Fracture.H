@@ -632,26 +632,26 @@ public:
         // We must update the boundaries here and apply boundary conditions 
         timeintegrator.set_post_stage_action([&](amrex::MultiFab & stage_mf, Set::Scalar /*time*/) 
         {
-            for (amrex::MFIter mfi(stage_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box &bx = mfi.tilebox();
-                Set::Patch<Set::Scalar>  c    = stage_mf.array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    if (c(i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
-                    else if (c(i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
-                });
-            }
-
             // bc_psi->FillBoundary(stage_mf,0,1,time,0);   
             stage_mf.FillBoundary();
 
             // bc_df->FillBoundary(*crack.driving_force_mf[a_lev],0,5,time,0);   
             crack.driving_force_mf[a_lev]->FillBoundary();
         });
-
         // Do the update
         timeintegrator.advance(*crack.c_old_mf[a_lev], *crack.c_mf[a_lev], a_time, a_dt);
+
+        for (amrex::MFIter mfi(*crack.c_mf[a_lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box &bx = mfi.tilebox();
+            Set::Patch<Set::Scalar>  c   = crack.c_mf[a_lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (c(i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
+                else if (c(i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
+            });
+        }
+        crack.c_mf[a_lev]->FillBoundary();
     }
 
     void

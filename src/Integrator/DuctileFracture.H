@@ -314,6 +314,7 @@ public:
                 amrex::Array4<Set::Scalar> const &c = crack.c_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix> const &stress = stress_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix> const &strain = strain_mf[lev]->array(mfi);
+                amrex::Array4<ductile_model> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &energy = crack.energy_pristine_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &history_var = crack.history_var_mf[lev]->array(mfi);
 
@@ -379,8 +380,9 @@ public:
 
                         for (int n = 0; n < material.num_mat; n++){
                             // energy(i, j, k, 0) += eta(i, j, k, n) * material.models[n].W(eps_p);
-                            energy(i, j, k, 0) += Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n) * ( 
-                                                    material.models[n].W(eps_p) + material.models[n].PlasticEnergy());
+                            energy(i, j, k, 0) += Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n) *  material.models[n].W(eps_p);
+                            energy(i, j, k, 0) += model(i,j,k).PlasticEnergy();
+                            energy(i, j, k, 1) += model(i,j,k).EquivalentPlasticStrain();
                         }
 
                         if (energy(i, j, k, 0) > history_var(i, j, k, 0))
@@ -456,13 +458,16 @@ public:
                     Set::Scalar dw_dphi = 0.0;
                     Set::Scalar _temp_product = 1.0, _temp_product2 = 1.0;
 
+                    Set::Scalar en_cell_0 = Numeric::Interpolate::NodeToCellAverage(energy, i, j, k, 0);
+                    Set::Scalar en_cell_1 = Numeric::Interpolate::NodeToCellAverage(energy, i, j, k, 1);
+
                     for (int m = 0; m < material.num_mat; m++)
                     {
                         Gc          += eta(i, j, k, m) * crack.cracktype[m].Gc(c_old(i, j, k, 0));
                         Zeta        += eta(i, j, k, m) * crack.cracktype[m].Zeta(c_old(i, j, k, 0));
                         Threshold   += eta(i, j, k, m) * crack.cracktype[m].DrivingForceThreshold(c_old(i, j, k, 0));
                         Mobility    += eta(i, j, k, m) * crack.cracktype[m].Mobility(c_old(i, j, k, 0));
-                        dg_dphi     += eta(i, j, k, m) * crack.cracktype[m].Dg_phi(c_old(i,j,k));
+                        dg_dphi     += eta(i, j, k, m) * crack.cracktype[m].Dg_phi(c_old(i,j,k), en_cell_1);
                         dw_dphi     += eta(i, j, k, m) * crack.cracktype[m].Dw_phi(c_old(i,j,k), 0.0);
                         _temp_product *= eta(i, j, k, m);
                         _temp_product2 *= 0.5;
@@ -470,16 +475,13 @@ public:
                     if (material.num_mat > 1)
                         Gc *= (1.0 - _temp_product * (1. - crack.mult_Gc) / _temp_product2);
 
-                    Set::Scalar en_cell_0 = Numeric::Interpolate::NodeToCellAverage(energy, i, j, k, 0);
-                    Set::Scalar en_cell_1 = Numeric::Interpolate::NodeToCellAverage(energy, i, j, k, 1);
-
                     rhs(i,j,k) = 0.0;
 
 
-                    if (!crack.cracktype[0].mixed_mode())
-                        df(i, j, k, 0) = dg_dphi * (en_cell_0 + en_cell_1) * crack.el_mult / Gc;
-                    else
-                        df(i, j, k, 0) = dg_dphi * (en_cell_0 + en_cell_1); // * crack.el_mult;
+                    if (crack.cracktype[0].mixed_mode())
+                        Util::Abort(INFO, "Mixed Mode should not be used for ductile fracture");
+                    
+                    df(i, j, k, 0) = dg_dphi * (en_cell_0) * crack.el_mult / Gc;
                     rhs(i,j,k) += df(i,j,k,0);
 
                     df(i, j, k, 1) = dw_dphi / Zeta;
@@ -524,6 +526,18 @@ public:
 
         // Do the update
         timeintegrator.advance(*crack.c_old_mf[a_lev], *crack.c_mf[a_lev], a_time, a_dt);
+
+        for (amrex::MFIter mfi(*crack.c_mf[a_lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box &bx = mfi.tilebox();
+            Set::Patch<Set::Scalar>  c   = crack.c_mf[a_lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                if (c(i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
+                else if (c(i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
+            });
+        }
+        crack.c_mf[a_lev]->FillBoundary();
     }
 
     void

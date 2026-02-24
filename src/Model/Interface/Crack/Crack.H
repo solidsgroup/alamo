@@ -16,9 +16,9 @@ namespace Crack
 class Crack
 {
     public:
-    enum GType  {GSQUARE, GMULTIWELL, GPHI4C3, GCUBICM, GSQUAREP, GSQUAREPM, GWULINEAR};
+    enum GType  {GSQUARE, GMULTIWELL, GPHI4C3, GCUBICM, GSQUAREP, GSQUAREPM, GWULINEAR, GRATIONAL};
     enum G2Type {G2WULINEAR};
-    enum WType  {WSQUARE, WMULTIWELL, WMULTIWELL2, WPHI4C3, WU};
+    enum WType  {WLINEAR, WSQUARE, WMULTIWELL, WMULTIWELL2, WPHI4C3, WU};
     
     Crack() {};
     
@@ -35,7 +35,7 @@ class Crack
             case WMULTIWELL2:   return (1.+c)*(1.+c)*(1.-c)*(1.-c);
             case WPHI4C3:       return 1. - 4.*c*c*c + 3.*c*c*c*c;
             case WU:            return 2.0*(1.-c) - (1.-c)*(1.-c);
-            
+            case WLINEAR:       return (1-c);
             default:            return (1.-c)*(1.-c);
         }
     }
@@ -48,8 +48,9 @@ class Crack
             case GMULTIWELL:    return (2.-c)*(2.-c)*c*c;
             case GPHI4C3:       return 4.*c*c*c - 3.*c*c*c*c;
             case GSQUAREP:      return std::pow(c,2.*p);
-            case GSQUAREPM:     return std::pow(c,2.*(std::pow(p,m_d_exponent)));
+            case GSQUAREPM:     return std::pow(c,2.*(std::pow(p/m_alpha_crit,m_d_exponent)));
             case GCUBICM:       return m_d_exponent*(c*c*c - c*c) + 3.*c*c - 2.*c*c*c;
+            case GRATIONAL:     return (c*c) / ((1 + m_rational*(1.-c))*(1 + m_rational*(1.-c)));
             case GWULINEAR:     {
                                     // this is for a linear softening curve for the CZM model
                                     // Obtain from Wu 2018 CMAME
@@ -82,6 +83,7 @@ class Crack
             case WMULTIWELL2:       return 4.*c*c*c - 4.*c;
             case WPHI4C3:           return 12.*(c-1.)*c*c;
             case WU:                return -2.*c;
+            case WLINEAR:           return -1.0;
             
             default:            return -2.*(1.-c);
         }
@@ -93,10 +95,11 @@ class Crack
         {
             case GSQUARE:        return 2.*c;
             case GMULTIWELL:     return 4.*c*c*c - 12.*c*c + 8.*c;
-            case GPHI4C3:         return 12.*(1.-c)*c*c;
-            case GSQUAREP:        return 2.*p*std::pow(c,2*p -1.);
-            case GSQUAREPM:        return 2.*std::pow(p,m_d_exponent)*(std::pow(c, 2*std::pow(p,m_d_exponent)-1));
+            case GPHI4C3:        return 12.*(1.-c)*c*c;
+            case GSQUAREP:       return 2.*p*std::pow(c,2*p -1.);
+            case GSQUAREPM:      return 2.*std::pow(p/m_alpha_crit,m_d_exponent)*(std::pow(c, 2*std::pow(p/m_alpha_crit,m_d_exponent)-1));
             case GCUBICM:        return m_d_exponent*(3.*c*c - 2.*c) + 6.*c - 6.*c*c;
+            case GRATIONAL:      return 2*c*(1+m_rational)/((1 + m_rational*(1.-c))*(1 + m_rational*(1.-c))*(1 + m_rational*(1.-c)));
             case GWULINEAR:      {
                                     // Derivative of c^2 / (c^2 + Q(c))
                                     // 2c / (c^2 + Q(c)) - c^2 (2c + Q'(c)) / (c^2+Q(c))^2
@@ -162,15 +165,11 @@ class Crack
     {
         w_type = a_type;
     }
-
-    void SetG2Type (const G2Type /*a_type*/)
-    {
-
-    }
     
-    void SetDuctileExponent(const Set::Scalar m)
+    void SetDuctileConstants(const Set::Scalar m, const Set::Scalar alpha_crit)
     {
         m_d_exponent = m;
+        m_alpha_crit = alpha_crit;
     }
 
     void SetPFCZMConstants(const Set::Scalar a_pf_czm_order, const Set::Scalar a_pf_czm_a0)
@@ -179,14 +178,21 @@ class Crack
         m_pf_czm_a0 = a_pf_czm_a0;
     }
 
+    void SetGRationalConstants(const Set::Scalar a_rational)
+    {
+        m_rational = a_rational;
+    }
+
 protected:
     static constexpr Set::Scalar pi = 3.14159265359;
     GType g_type = GType::GSQUARE;
     G2Type g2_type = G2Type::G2WULINEAR;
     WType w_type = WType::WSQUARE;
     Set::Scalar m_d_exponent = 1.;
+    Set::Scalar m_alpha_crit = 0.2;
     Set::Scalar m_pf_czm_order = 1.;
     Set::Scalar m_pf_czm_a0 = 1.0;
+    Set::Scalar m_rational = 1.0;
 };
 }
 }

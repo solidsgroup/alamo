@@ -90,6 +90,8 @@ public:
         pp.query_default("czm_order", value.czm_order, 1.0); //Order 1, 1.5, or 2 (Wu 2024, JMPS)
         pp.query_default("G_c",value._Gc,1.0e3); // Fracture energy in N/m
         pp.query_default("zeta",value.zeta,1.e-5); // Lengthscale regularization in m
+        pp.query_default("mobility",value.mobility,1.0e-2); // Mobility (speed)
+        pp.query_default("threshold", value.threshold,0.0); // Threshold
 
         Set::Scalar fracture_strength = NAN;
         
@@ -184,32 +186,62 @@ public:
 
         if (value.zeta > 0.33 * irwing_length) Util::Warning(INFO, "Zeta value is greater than irwing length. Consider reducing it.");
 
-        pp.query_default("mobility",value.mobility,1.0e-2); // Mobility (speed)
-        pp.query_default("threshold", value.threshold,0.0); // Threshold
-
         std::string gtype = "";
         std::string wtype = "";
-        pp.query_validate("gtype", gtype, {"wu_linear","square","4c3"}); // degradation function. For now, we only have linear softening
-        pp.query_validate("wtype", wtype, {"wu","square","4c3"}); // geometric function. no choice except for the optimal one for now.
-        
+        pp.query_validate("gtype", gtype, {"wu_linear","square","4c3","squarepexp","rational"}); // degradation function. For now, we only have linear softening
+        pp.query_validate("wtype", wtype, {"wu","square","4c3","linear"}); // geometric function. no choice except for the optimal one for now.
         std::map<std::string,Model::Interface::Crack::Crack::GType>  g_map;
-        g_map["wu_linear"] = Model::Interface::Crack::Crack::GType::GWULINEAR;
-        g_map["4c3"] = Model::Interface::Crack::Crack::GType::GPHI4C3;
-        g_map["square"] = Model::Interface::Crack::Crack::GType::GSQUARE;
+        g_map["wu_linear"]  = Model::Interface::Crack::Crack::GType::GWULINEAR;
+        g_map["4c3"]        = Model::Interface::Crack::Crack::GType::GPHI4C3;
+        g_map["square"]     = Model::Interface::Crack::Crack::GType::GSQUARE;
+        g_map["squarepexp"] = Model::Interface::Crack::Crack::GType::GSQUAREPM;
+        g_map["rational"]   = Model::Interface::Crack::Crack::GType::GRATIONAL;
         
         std::map<std::string,Model::Interface::Crack::Crack::WType>  w_map;
-        w_map["wu"] = Model::Interface::Crack::Crack::WType::WU;
-        w_map["4c3"] = Model::Interface::Crack::Crack::WType::WPHI4C3;
+        w_map["wu"]     = Model::Interface::Crack::Crack::WType::WU;
+        w_map["4c3"]    = Model::Interface::Crack::Crack::WType::WPHI4C3;
         w_map["square"] = Model::Interface::Crack::Crack::WType::WSQUARE;
+        w_map["linear"] = Model::Interface::Crack::Crack::WType::WLINEAR;
 
         value.SetGType(g_map[gtype]);
         value.SetWType(w_map[wtype]);
 
         if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WU) value._c_alpha = pi;
-        else if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WSQUARE) value._c_alpha = 4.0/3.0;
+        else if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WSQUARE) value._c_alpha = 2.0;
+        else if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WLINEAR) value._c_alpha = 8.0/3.0;
         else if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WPHI4C3) value._c_alpha = 12.0/5.0;
 
+        Set::Scalar ductile_exponent = 1.;
+        Set::Scalar alpha_crit = 0.2;
+        if(gtype == "squarepexp"|| gtype == "cubicm") 
+        {
+            pp.query("exponent",ductile_exponent);
+            pp.query("alpha_crit",alpha_crit);
+        }
+
+        Set::Scalar zi = 1.0;
+        if (wtype == "4c3" && gtype == "rational") Util::Abort(INFO, "4c3 for wtype is not compatible with rational for gtype. Choose linear, square, or wu for wtype");
+        if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WU)              zi = 2.0;
+        else if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WSQUARE)    zi = 0.0;
+        else if (w_map[wtype] == Model::Interface::Crack::Crack::WType::WLINEAR)    zi = 1.0;
+        
+        Set::Scalar psi_c = 1.0;
+        Set::Scalar m_rational = 0.6;
+        psi_c = zi * value._Gc / (2.0 * value._c_alpha * value.zeta * (m_rational + 1.0));
+        if (gtype == "rational")
+        {
+            pp.query("psi_c", psi_c);
+        
+            m_rational = zi * value._Gc / (2.0 * value._c_alpha * value.zeta * psi_c);
+            m_rational -= 1;
+            Util::Message(INFO, "m_rational = ", m_rational, ", psi_c = ", psi_c);
+            if (m_rational < 0.0) Util::Abort(INFO, "m_rational value is less than zero. Try changing psi_c to proceed.");
+            if (value.zeta > value._Gc/(2.0*value._c_alpha*psi_c)) Util::Abort(INFO, "zeta is larger than 3 Gc/ 2 c_0 psi_c ", value.zeta, " ", value._Gc/(2.0*value._c_alpha*psi_c));
+        }
+        
+        value.SetGRationalConstants(m_rational);
         value.SetPFCZMConstants(value.czm_order, value.czm_a0);
+        value.SetDuctileConstants(ductile_exponent, alpha_crit);
     }
 };
 }

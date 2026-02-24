@@ -34,6 +34,11 @@ public:
         return (yield_strength*alpha + 0.5*hardening_modulus*alpha*alpha);
     }
 
+    Set::Scalar EquivalentPlasticStrain()
+    {
+        return alpha;
+    }
+
     void Advance(Set::Scalar /*dt*/, Set::Matrix eps, Set::Matrix /*sig*/, Set::Scalar /*time*/) 
     {
         Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));
@@ -65,7 +70,7 @@ public:
         }
     }
 
-public:
+private:
     Set::Matrix beta = Set::Matrix::Zero();
     Set::Matrix strain_prev = Set::Matrix::Zero();
     Set::Scalar alpha = 0.0;
