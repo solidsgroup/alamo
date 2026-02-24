@@ -136,6 +136,13 @@ public:
 
         // Time to start doing the elastic solve (by default, start immediately)
         pp_query_default("tstart", value.tstart,-1.0);
+
+
+        // Relative tolerance in mechanics solve
+        pp.query_default("tol_rel",value.tol_rel,1E-8);
+
+        // Absolute tolerance in mechanics solve
+        pp.query_default("tol_abs",value.tol_abs,1E-8);
     }
 
 protected:
@@ -167,7 +174,6 @@ protected:
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
             rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev, rhs_mf);
         }
@@ -191,10 +197,12 @@ protected:
         IO::ParmParse pp("elasticop");
         pp_queryclass(elastic_op);
 
-        Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-
         solver.Define(elastic_op);
         if (psi_on) solver.setPsi(psi_mf);
+
+        for (int lev = 0; lev <= finest_level; ++lev)
+            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
+
         solver.solve(disp_mf, rhs_mf, model_mf, tol_rel, tol_abs);
         if (m_print_residual) solver.compLinearSolverResidual(res_mf, disp_mf, rhs_mf);
         solver.Clear();
@@ -233,8 +241,10 @@ protected:
                     }
                 });
             }
-            Util::RealFillBoundary(*stress_mf[lev], geom[lev]);
-            Util::RealFillBoundary(*strain_mf[lev], geom[lev]);
+            stress_mf[lev]->setMultiGhost(true);
+            stress_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
+            strain_mf[lev]->setMultiGhost(true);
+            strain_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
         }
     }
 
@@ -373,8 +383,9 @@ protected:
                 model(i, j, k).Advance(dt, eps(i, j, k), sig(i, j, k),time);
             });
         }
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-
+        
+        model_mf[lev]->setMultiGhost(true);
+        model_mf[lev]->FillBoundaryAndSync(geom[lev].periodicity());
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
@@ -518,6 +529,8 @@ protected:
 
 
     Set::Scalar tstart = -1;
+
+    Set::Scalar tol_rel=NAN, tol_abs=NAN;
 };
 }
 }
