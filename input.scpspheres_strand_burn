@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 5e-8_s
+amr.plot_dt = 5e-5_s
 amr.max_grid_size = 2
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
