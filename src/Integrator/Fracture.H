@@ -130,7 +130,7 @@ public:
 
         // Let's figure out if there is an initial crack or void
         if (pp.contains("crack.ic.type")) {
-            pp.select_enumerate<IC::Constant,IC::Notch,IC::Ellipse, IC::Expression>("crack.ic", value.crack.ic, value.geom);
+            pp.select_enumerate<IC::Constant,IC::Notch,IC::Ellipse, IC::Expression, IC::PNG>("crack.ic", value.crack.ic, value.geom);
             value.crack.is_ic = true;
         }
         else {
