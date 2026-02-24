@@ -1,15 +1,15 @@
 
 alamo.program = flame
 
-plot_file = output.strand_burn_A4_mesh_3
+plot_file = output.strand_burn_A4_pf_2_mesh_3
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
 amr.plot_dt = 5e-5_s
-amr.max_grid_size = 2
-amr.blocking_factor = 2
+amr.max_grid_size = 1
+amr.blocking_factor = 1
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.5
@@ -39,7 +39,7 @@ timestep = 1e-8_s # [s]
 stop_time = 0.01_s
 
 small = 1.0e-10
-pf.eps = 1.0_um #0.0005 # [m]
+pf.eps = 2.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
@@ -118,7 +118,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 # Thermal transport parameters
 thermal.on = 1  
 #thermal.Tfluid = 300.0_K
-thermal.Tref = 400_K
+thermal.Tref = 300_K
 
 # Temperature field initial condition
 temp.ic.type = constant

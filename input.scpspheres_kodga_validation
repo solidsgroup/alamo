@@ -1,15 +1,15 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_full_domain_A1_1_novoid_2
+plot_file = output.scpspheres_full_domain_A4_1_void_1
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
 amr.plot_dt = 2e-3_s
-amr.max_grid_size = 8
-amr.blocking_factor = 8
+amr.max_grid_size = 4
+amr.blocking_factor = 4
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.5
@@ -20,10 +20,10 @@ amr.max_plot_level = 4
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 5
+amr.max_level = 4
 
 # Full size
-amr.n_cell = 32 32 32
+amr.n_cell = 144 144 144
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
@@ -39,16 +39,16 @@ timestep = 5e-8_s # [s]
 stop_time = 0.4_s
 
 small = 1.0e-10
-pf.eps = 0.5_um #0.0005 # [m]
+pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
-# pf.eta.ic.psread.file.name = all_datasets/A4/setA4_xyzrs/A4_1_void.xyzr
-# pf.eta.ic.psread.eps = 0.75_um
-# pf.eta.ic.psread.invert = 1
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
+pf.eta.ic.psread.file.name = all_datasets/A4/setA4_xyzrs/A4_1_void.xyzr
+pf.eta.ic.psread.eps = 2.0_um
+pf.eta.ic.psread.invert = 1
 
 pf.eta.ic.type = constant 
 pf.eta.ic.constant.value = 1.0 
@@ -65,7 +65,7 @@ pf.eta.ic.constant.value = 1.0
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
 phi.ic.psread.file.name = all_datasets/A1/setA1_xyzrs/setA1_1_AP.xyzr
-phi.ic.psread.eps = 4_um
+phi.ic.psread.eps = 3_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
