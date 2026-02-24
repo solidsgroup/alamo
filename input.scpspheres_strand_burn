@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.test_eta_heal
+plot_file = output.strand_burn_A4_mesh_3
 
 system.length = mm
 system.time = s
@@ -28,18 +28,18 @@ amr.max_level = 2
 # geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
 # Quarter size
-amr.n_cell = 24 6 32
+amr.n_cell = 40 10 40
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 geometry.prob_hi = 0.1_mm 0.025_mm 0.1_mm
 
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2e-8_s # [s]
-stop_time = 0.4_s
+timestep = 1e-8_s # [s]
+stop_time = 0.01_s
 
 small = 1.0e-10
-pf.eps = 0.5_um #0.0005 # [m]
+pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
@@ -47,7 +47,7 @@ pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = psread
 pf.eta.ic.psread.file.unit = m
 pf.eta.ic.psread.file.name = all_datasets/Test_Files/porous_80_by_weight_1_void.xyzr
-pf.eta.ic.psread.eps = 1.5_um
+pf.eta.ic.psread.eps = 2.0_um
 pf.eta.ic.psread.invert = 1
 
 # pf.eta.ic.type = constant 

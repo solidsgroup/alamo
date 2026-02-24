@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-#SBATCH --time=6:00:00
+#SBATCH --time=3:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 #SBATCH --mem-per-cpu=15000
-#SBATCH --job-name="strand_m5"
+#SBATCH --job-name="strand_m3"
 #SBATCH --output="%x-%j-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
