@@ -1,0 +1,92 @@
+# Simulation output
+plot_file =fix64
+# Simulation length
+
+timestep = 0.0001
+stop_time = 0.25
+max_step = 20
+
+# AMR parameters
+amr.plot_int = 1
+amr.max_level = 0
+amr.n_cell = 64 64 16   # Coarse resolution: 32 cells in x,y and 16 in z #31,7,7
+amr.blocking_factor = 1
+amr.regrid_int = -1
+amr.grid_eff = 0.7
+amr.max_grid_size = 32
+amr.n_error_buf = 1
+
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0  # Domain extends from -0.25 to 0.25 in z
+geometry.prob_hi = 1 0.5 1
+geometry.is_periodic = 0 0 0  # periodic in all directions
+
+#SolverType
+SolverType = SolveCompressibleEuler
+
+#cflNumber
+cflNumber = 0.1
+#TimeSteppingScheme
+TimeSteppingScheme = ForwardEuler
+
+#FluxMethod
+FluxScheme = HLLC
+
+#FluxReconstruction
+FluxReconstruction = FirstOrder
+#WenoVariant
+WenoVariant = WENOZ5
+
+#Reconstruction Mode
+ReconstructionMode = Characteristic
+
+# Shock configuration
+ic.shock.count = 1
+ic.shock.positions = 0.5 
+ic.shock.direction = xdir
+
+# Enable expression-based initialization
+ic.shock.use_expressions = 1
+
+# Add constants for the expressions
+ic.shock.expressions.constant.Lx = 1.0    # Domain length in x
+ic.shock.expressions.constant.Lz = 0.5    # Domain length in z
+ic.shock.expressions.constant.pi = 3.14159265358979
+ic.shock.expressions.constant.eps1 = 0.01  # Perturbation amplitude for y-velocity
+ic.shock.expressions.constant.eps2 = 0.005 # Perturbation amplitude for z-velocity
+
+# Primitive Variable Vector = [Density, Uvelocity, VVelocity, WVelocity, Internal Energy]
+ic.pvec.type = shock
+
+# Define expression arrays for each zone (bottom, middle, top)
+ic.shock.expressions.pvec.density = "1.0" "0.125" 
+ic.shock.expressions.pvec.uvel = "0" "0" 
+ic.shock.expressions.pvec.vvel = "0" "0" 
+ic.shock.expressions.pvec.wvel = "0" "0"
+
+# Pressure
+ic.pressure.type      = shock
+ic.shock.expressions.pressure = "1" "0.1" 
+
+# Boundary conditions (periodic in all directions)
+bc.pvec.type.xhi = neumann neumann neumann neumann neumann
+bc.pvec.type.xlo = neumann neumann neumann neumann neumann
+bc.pvec.type.yhi = neumann neumann neumann neumann neumann
+bc.pvec.type.ylo = neumann neumann neumann neumann neumann
+bc.pvec.type.zhi = neumann neumann neumann neumann neumann
+bc.pvec.type.zlo = neumann neumann neumann neumann neumann
+
+bc.pressure.type.xhi = neumann
+bc.pressure.type.xlo = neumann
+bc.pressure.type.yhi = neumann
+bc.pressure.type.ylo = neumann
+bc.pressure.type.zhi = neumann
+bc.pressure.type.zlo = neumann
+
+# Refinement criteria
+enable_vorticity_refinement = true
+vorticity_refinement_criterion = 0.02  # Refine where vorticity exceeds this value
+
+enable_velocity_refinement = true
+velocity_refinement_criterion = 0.05  # Refine where velocity gradient exceeds this value

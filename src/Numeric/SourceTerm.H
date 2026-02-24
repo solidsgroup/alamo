@@ -59,10 +59,10 @@ void ComputeSourceTerm(int lev, IntegratorDerivedClass* solver) const {
 #endif	
 
     // Loop through the grid
-    for (amrex::MFIter mfi(*solver->SourceTermVec[lev], false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(*solver->SourceTermVec[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 
-        const amrex::Box& bx_with_ghosts = mfi.growntilebox(nghosts);
-        //const amrex::Box& bx_with_ghosts = mfi.validbox();
+        //const amrex::Box& bx_with_ghosts = mfi.growntilebox(nghosts);
+        const amrex::Box& bx_with_ghosts = mfi.tilebox();
 
         // Get arrays for pArr and shear stress output
         auto const& pArr = solver->PVec_mf.Patch(lev, mfi);  

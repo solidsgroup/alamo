@@ -1,0 +1,6 @@
+#ifndef SCIMITARX_INTEGRATOR_DEBUGPROBE_H_
+#define SCIMITARX_INTEGRATOR_DEBUGPROBE_H_
+
+#include "Numeric/DebugProbe.H"
+
+#endif

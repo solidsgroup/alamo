@@ -30,6 +30,8 @@
 #include "Numeric/SourceTerm.H"
 #include "Numeric/WENOReconstruction.H"
 #include "Numeric/TimeStepper.H"
+#include <AMReX_Gpu.H>
+
 
 namespace Numeric {
     template<typename IntegratorDerivedClass> class FluxHandler;
@@ -343,12 +345,50 @@ protected:
 			    });
 
 		    }
-
+            // QVec_mf[lev]->FillBoundary();
 	    }
+        static void ProbeCC_NoTiling(const amrex::MultiFab& mf,
+            int i, int j, int k,
+            int comp,
+            const std::string& name,
+            const std::string& ctx)
+        {
+        amrex::MFItInfo info;
+        info.EnableTiling(); // must be deterministic
+
+        for (amrex::MFIter mfi(mf, info); mfi.isValid(); ++mfi) {
+        const amrex::Box& fb = mfi.fabbox(); // includes ghosts for this FAB
+        if (!fb.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
+
+        auto const& arr = mf.const_array(mfi);
+
+        Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+        i, j, k, arr(i,j,k,comp),
+        name, ctx,
+        /*abort_if_nan=*/false,
+        /*component=*/comp,
+        /*enableDebug=*/true
+        );
+        return;
+        }
+
+        Util::Message(INFO, "ProbeCC_NoTiling: index not found in any fabbox: (" +
+        std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k) +
+        ") for '" + name + "' in ctx '" + ctx + "'");
+        }
 
 	    // Template function for updating conservative variables to primitive variables
 	    template <SolverType solverType>
 		    void UpdateSolutions(int lev) {
+                const int i0 = 32, j0 = 7;
+                const int k0 = (AMREX_SPACEDIM == 3) ? 7 : 0;
+                const int rho = variableIndex.DENS;
+
+                Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(i0, j0, k0, true);
+
+                ProbeCC_NoTiling(*(QVec_mf[lev]), i0,j0,k0, rho, "Q(rho)", "UPD: ENTER UpdateSolutions Q");
+                ProbeCC_NoTiling(*(PVec_mf[lev]), i0,j0,k0, rho, "P(rho)", "UPD: ENTER UpdateSolutions P");
+
 			    //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 			    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 				    const amrex::Box& bx = mfi.validbox();
@@ -397,11 +437,18 @@ protected:
 						    p_arr(i, j, k, variableIndex.IE) = internal_energy;
 
 						    pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
+                            
 
 
 				    });
+                    // ---- reliable host print probe (no GPU helpers) ----
+
+  
 
 			    }
+                PVec_mf[lev]->FillBoundary(geom[lev].periodicity());
+                Pressure_mf[lev]->FillBoundary(geom[lev].periodicity()); 
+         
 		    }
 
 		    // Method to get solver capabilities (centralized)

@@ -49,7 +49,7 @@ CompressibleEulerVariableAccessor::getRequiredGhostCells(
         case FluxReconstructionType::FirstOrder:
             return 1;
         case FluxReconstructionType::WENO:
-            return 4;  // WENO5 requires 3 ghost cells
+            return 3;  // WENO5 requires 3 ghost cells
         default:
             return total_ghost_cells;
     }
@@ -86,6 +86,38 @@ CompressibleEulerVariableAccessor::CopyVariables(
         default:
             Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
     }
+}
+static void ProbeMF_CC_NoTiling(const amrex::MultiFab& mf,
+    int i, int j, int k,
+    int comp,
+    const std::string& field,
+    const std::string& ctx,
+    bool enableDebug)
+{
+if (!enableDebug) return;
+
+amrex::MFItInfo info;
+info.EnableTiling(); 
+
+for (amrex::MFIter mfi(mf, info); mfi.isValid(); ++mfi) {
+const amrex::Box& bx = mfi.fabbox(); // includes ghosts owned by this FAB
+if (!bx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
+
+auto const& arr = mf.const_array(mfi);
+Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+i, j, k, arr(i,j,k,comp),
+field, ctx,
+/*abort_if_nan=*/false,
+/*component=*/comp,
+/*enableDebug=*/enableDebug
+);
+return;
+}
+
+
+Util::Message(INFO, "ProbeMF_CC_NoTiling: (" +
+std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k) +
+") not contained in any fabbox for field '" + field + "' context '" + ctx + "'");
 }
 
 void 
@@ -180,6 +212,22 @@ CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
     amrex::MultiFab& VariableBuffer
 ) const {
     // Copy from PVec_mf to working buffer
+    
+    const bool dbg = true; // or tie to runtime flag
+    const int i0 = 32, j0 = 7, k0 = 7;
+    const int rho = solver->variableIndex.DENS;
+
+    // target location for DebugValuesIfTarget
+    Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(i0, j0, k0, dbg);
+
+    // 1) BEFORE copy: check source Q and destination VarBuffer
+    ProbeMF_CC_NoTiling(VariableBuffer, i0, j0+1, k0, rho, "VB(rho)", "COPY: POST Copy VB ghost(j+1)", dbg);
+    // also probe a ghost cell to the left of i=32 (this is the one that matters)
+    ProbeMF_CC_NoTiling(*(solver->QVec_mf[lev]), i0,j0+1,k0, rho, "Q(rho)",  "COPY: PRE Q ghost(j+1)", dbg);
+    ProbeMF_CC_NoTiling(VariableBuffer,          i0,j0+1,k0, rho, "VB(rho)", "COPY: PRE VB ghost(j+1)", dbg);
+
+    
+    
     amrex::MultiFab::Copy(
         VariableBuffer, 
         *(solver->QVec_mf[lev]),
@@ -187,8 +235,19 @@ CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
         solver->number_of_components, 
         VariableBuffer.nGrow()
     );
+   
+
+    // 3) AFTER copy: check again
+    ProbeMF_CC_NoTiling(VariableBuffer, i0,j0,k0, rho, "VB(rho)", "COPY: POST Copy VB valid", dbg);
+    ProbeMF_CC_NoTiling(VariableBuffer, i0, j0+1, k0, rho, "VB(rho)", "COPY: POST Copy VB ghost(j+1)", dbg);
+
+   
+    // 5) AFTER FillBoundary: check again
+ 
 
     VariableBuffer.FillBoundary();
+    ProbeMF_CC_NoTiling(VariableBuffer, i0,j0,k0, rho, "VB(rho)", "COPY: POST FillBoundary VB valid", dbg);
+    ProbeMF_CC_NoTiling(VariableBuffer, i0,j0+1,k0, rho, "VB(rho)", "COPY: POST FillBoundary VB ghost(j+1)", dbg);
 }
 
 
@@ -297,11 +356,11 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
 
-    const int nghosts = solver->number_of_ghost_cells; 
+    // const int nghosts = solver->number_of_ghost_cells; 
 
     for (amrex::MFIter mfi(AverageStateBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
-        auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
+        const amrex::Box& face_bx = mfi.tilebox();
+        auto const& p_arr = solver->PVec_mf.Patch(lev, mfi); // Cell-centered
         auto const& W_arr  = AverageStateBuffer.array(mfi);
         
         // Retrieve variable indices for better GPU performance
@@ -316,46 +375,62 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
         int w_idx   = solver->variableIndex.WVEL;   // z-momentum
 #endif
         
-        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+        amrex::ParallelFor(face_bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
-            // Construct index arrays with correct number of components
-            int index[3];
-            int left_index[3];
-            int right_index[3];
-            int lower_bounds[3];
-            int upper_bounds[3];
+            // // Construct index arrays with correct number of components
+            // int index[3];
+            // int left_index[3];
+            // int right_index[3];
+            // int lower_bounds[3];
+            // int upper_bounds[3];
 
-            // Set up indices
-            index[0] = iface; index[1] = jface; index[2] = kface;
-            left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
-            right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+            // // Set up indices
+            // index[0] = iface; index[1] = jface; index[2] = kface;
+            // left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+            // right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
 
 
-            // Define bounds including ghost cells
-            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-            lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
-            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
-            upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+            // // Define bounds including ghost cells
+            // lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+            // lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+            // lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+            // upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+            // upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+            // upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
       
-            // Clamp the main index
-            ClampIndices(index, lower_bounds, upper_bounds);
+            // // Clamp the main index
+            // ClampIndices(index, lower_bounds, upper_bounds);
       
-            // Shift and clamp for left and right indices
-            int left_offset[3] = {0, 0, 0};
-            int right_offset[3] = {0, 0, 0};
-            left_offset[direction] = 0;  // Shift left
-            right_offset[direction] = 1;  // Shift right
+            // // Shift and clamp for left and right indices
+            // int left_offset[3] = {0, 0, 0};
+            // int right_offset[3] = {0, 0, 0};
+            // left_offset[direction] = 0;  // Shift left
+            // right_offset[direction] = 1;  // Shift right
       
-            ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-            ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+            // ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+            // ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+
+            // Create branchless masks for left (i-1) and right (i) indices for each face based on direction
+            int dx = (direction == 0);
+            int dy = (direction == 1);
+            int dz = (direction == 2);
+
+            // Compute left/right indices with no branching
+            int iL = iface - dx;
+            int iR = iface;
+
+            int jL = jface - dy;
+            int jR = jface;
+
+            int kL = kface - dz;
+            int kR = kface;
+
                 
             // Extract original left state primitive variables
-            Set::MultiVector UL = Numeric::FieldToMultiVector(p_arr, left_index[0], left_index[1], left_index[2], solver_components);
+            Set::MultiVector UL = Numeric::FieldToMultiVector(p_arr, iL, jL, kL, solver_components);
                         
             // Extract original right state primitive variables
-            Set::MultiVector UR = Numeric::FieldToMultiVector(p_arr, right_index[0], right_index[1], right_index[2], solver_components);
+            Set::MultiVector UR = Numeric::FieldToMultiVector(p_arr, iR, jR, kR, solver_components);
 
             Set::MultiVector WL(num_components);
             Set::MultiVector WR(num_components);            
@@ -386,19 +461,19 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
                 
             Wavg = CompressibleEulerVariableAccessor::ComputeRoeAverages(WL, WR, num_components);
 
-            W_arr(index[0], index[1], index[2], rho_idx) = Wavg(0);  // density 
-            W_arr(index[0], index[1], index[2], u_idx)   = Wavg(1);  // x-momentum
-            W_arr(index[0], index[1], index[2], v_idx)   = Wavg(2);  // y-momentum
+            W_arr(iface, jface, kface, rho_idx) = Wavg(0);  // density 
+            W_arr(iface, jface, kface, u_idx)   = Wavg(1);  // x-momentum
+            W_arr(iface, jface, kface, v_idx)   = Wavg(2);  // y-momentum
 #if AMREX_SPACEDIM == 3
-            W_arr(index[0], index[1], index[2], w_idx)   = Wavg(3);  // z-momentum
+            W_arr(iface, jface, kface, w_idx)   = Wavg(3);  // z-momentum
 #endif
-            W_arr(index[0], index[1], index[2],ie_idx)   = Wavg(4);  // Total Enthalpy 
+            W_arr(iface, jface, kface, ie_idx)   = Wavg(4);  // Total Enthalpy 
                         
         });
     }
 
 
-    AverageStateBuffer.FillBoundary();
+    // AverageStateBuffer.FillBoundary();
 }
 
 Set::MultiMatrix
@@ -538,11 +613,13 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
     // Cast the void pointer to ScimitarX pointer
     auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
 
-    const int nghosts = solver->number_of_ghost_cells;
+    // const int nghosts = solver->number_of_ghost_cells;
     const int num_components = solver->number_of_components; 
 
     for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
+        const amrex::Box& bx = mfi.tilebox();
+        // const amrex::Box& bx = mfi.tilebox()
+        // const amrex::Box& vbx = mfi.validbox();
         auto const& TotalFlux_arr = SummedFlux.array(mfi);
         auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
                                 (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
@@ -551,34 +628,87 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
         
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
 
-    
+
             // Construct index arrays with correct number of components
-            int index[3];
-            int lower_bounds[3];
-            int upper_bounds[3];
+            // int index[3];
+            // int lower_bounds[3];
+            // int upper_bounds[3];
 
-            // Set up indices
-            index[0] = iface; index[1] = jface; index[2] = kface;
+            // // Set up indices
+            // index[0] = iface; index[1] = jface; index[2] = kface;
 
-            // Define bounds including ghost cells
-            lower_bounds[0] = bx.smallEnd(0); 
-            lower_bounds[1] = bx.smallEnd(1); 
-            lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx.smallEnd(2) : 0;
-            upper_bounds[0] = bx.bigEnd(0) - 1;
-            upper_bounds[1] = bx.bigEnd(1) - 1;
-            upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx.bigEnd(2) - 1 : 0;
+            // // Define bounds including ghost cells
+            // lower_bounds[0] = bx.smallEnd(0); 
+            // lower_bounds[1] = bx.smallEnd(1); 
+            // lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx.smallEnd(2) : 0;
+            // upper_bounds[0] = bx.bigEnd(0) - 1;
+            // upper_bounds[1] = bx.bigEnd(1) - 1;
+            // upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx.bigEnd(2) - 1 : 0;
+
+            // lower_bounds[0] = vbx.smallEnd(0); 
+            // lower_bounds[1] = vbx.smallEnd(1); 
+            // lower_bounds[2] = AMREX_SPACEDIM == 3 ? vbx.smallEnd(2): 0;
+            // upper_bounds[0] = vbx.bigEnd(0);
+            // upper_bounds[1] = vbx.bigEnd(1);
+            // upper_bounds[2] = AMREX_SPACEDIM == 3 ? vbx.bigEnd(2) : 0;
                   
       
-            // Clamp the main index
-            ClampIndices(index, lower_bounds, upper_bounds);
+            // // Clamp the main index
+            // ClampIndices(index, lower_bounds, upper_bounds);
 
             for (int n = 0; n < num_components; ++n) { 
-            flux_arr(index[0], index[1], index[2], n) = TotalFlux_arr(index[0], index[1], index[2], n);
+            flux_arr(iface, jface, kface, n) = TotalFlux_arr(iface, jface, kface, n);
             }
+            if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface,jface,kface))
+{
+    for (int n = 0; n < solver->number_of_components; ++n)
+    {
+        if (direction == Directions::Xdir)
+        {
+            Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                iface,jface,kface,
+                flux_arr(iface,jface,kface,n),
+                "XFlux(n)", "STORE", false, n, true);
 
+            // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+            //     iface,jface,kface,
+            //     flux_arr(iface-1,jface,kface,n),
+            //     "XFlux(n)", "STORE (i-1)", false, n, true);
+        }
+
+        if (direction == Directions::Ydir)
+        {
+            Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                iface,jface,kface,
+                flux_arr(iface,jface,kface,n),
+                "YFlux(n)", "STORE", false, n, true);
+
+            // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+            //     iface,jface,kface,
+            //     flux_arr(iface,jface-1,kface,n),
+            //     "YFlux(n)", "STORE (j-1)", false, n, true);
+        }
+
+        if (direction == Directions::Zdir)
+        {
+            Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                iface,jface,kface,
+                flux_arr(iface,jface,kface,n),
+                "ZFlux(n)", "STORE", false, n, true);
+
+            // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+            //     iface,jface,kface,
+            //     flux_arr(iface,jface,kface-1,n),
+            //     "ZFlux(n)", "STORE (k-1)", false, n, true);
+        }
+    }
+}
+
+            
+            
         });
-
     } 
+    // SummedFlux.FillBoundary();
 }
 
 
