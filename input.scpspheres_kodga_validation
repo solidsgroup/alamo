@@ -8,8 +8,8 @@ system.time = s
 
 # AMR and output parameters
 amr.plot_dt = 1e-3_s
-amr.max_grid_size = 4
-amr.blocking_factor = 4
+amr.max_grid_size = 2
+amr.blocking_factor = 2
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.5

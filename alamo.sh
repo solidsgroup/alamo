@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --time=80:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks-per-node=128
 #SBATCH --mem-per-cpu=15000
 #SBATCH --job-name="A4_void_2"
 #SBATCH --output="%x-%j-log.txt"
