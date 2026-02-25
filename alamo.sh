@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-#SBATCH --time=84:00:00
+#SBATCH --time=8:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=128
+#SBATCH --ntasks-per-node=1
 #SBATCH --mem-per-cpu=15000
-#SBATCH --job-name="A4_voids"
+#SBATCH --job-name="strand_m6"
 #SBATCH --output="%x-%j-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --constraint=nova25
 
 echo "======================================================"
 echo " Job '$SLURM_JOB_NAME' (ID: $SLURM_JOB_ID) is starting"
@@ -17,7 +18,7 @@ echo "======================================================"
 
 module load openmpi_hpc
 # srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_kodga_validation phi.ic.psread.file.name="setC_xyzrs/uni_R240um_AP6499_10.xyzr" plot_file="output.scpsphereselastic_set10_phi_eps_8"
-srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_kodga_validation
+# srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_kodga_validation
 # srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_arbitary_geometry
 # srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_voidmeshconverge
-# srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_strand_burn
+srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_strand_burn

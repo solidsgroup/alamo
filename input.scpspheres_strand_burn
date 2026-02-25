@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.strand_burn_A4_pf_2_mesh_3
+plot_file = output.strand_burn_A4_pf_1_mesh_6
 
 system.length = mm
 system.time = s
@@ -28,7 +28,7 @@ amr.max_level = 2
 # geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
 # Quarter size
-amr.n_cell = 40 10 40
+amr.n_cell = 48 12 48
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 geometry.prob_hi = 0.1_mm 0.025_mm 0.1_mm
 
@@ -39,7 +39,7 @@ timestep = 1e-8_s # [s]
 stop_time = 0.01_s
 
 small = 1.0e-10
-pf.eps = 2.0_um #0.0005 # [m]
+pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
@@ -118,7 +118,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 # Thermal transport parameters
 thermal.on = 1  
 #thermal.Tfluid = 300.0_K
-thermal.Tref = 300_K
+thermal.Tref = 400_K
 
 # Temperature field initial condition
 temp.ic.type = constant
