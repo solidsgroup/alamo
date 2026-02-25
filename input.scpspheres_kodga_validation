@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_full_domain_A4_1_void_2
+plot_file = output.scpspheres_full_domain_A4_1_void_3
 
 system.length = mm
 system.time = s
@@ -16,14 +16,14 @@ amr.refinement_criterion = 0.5
 amr.refinement_criterion_temp = 0.5_K
 # amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
-amr.max_plot_level = 6
+amr.max_plot_level = 5
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 7
+amr.max_level = 6
 
 # Full size
-amr.n_cell = 18 18 18
+amr.n_cell = 36 36 36
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
