@@ -145,7 +145,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref);
 
         // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
-        pp.query_default("thermal.Tcutoff", value.thermal.Tcutoff, 0.0);
+        pp.query_default("thermal.Tcutoff", value.thermal.Tcutoff, "0.0", Unit::Temperature());
 
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());

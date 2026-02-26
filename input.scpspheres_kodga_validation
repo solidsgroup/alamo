@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_Tcutoff0
+plot_file = output.scpspheres_Tcutoff800
 
 system.length = mm
 system.time = s
@@ -119,7 +119,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 thermal.on = 1  
 thermal.Tfluid = 288.0
 thermal.Tref = 300.0_K
-thermal.Tcutoff = 0.0
+thermal.Tcutoff = 800.0
 
 # Temperature field initial condition
 temp.ic.type = constant
