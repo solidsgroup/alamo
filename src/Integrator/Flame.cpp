@@ -141,8 +141,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
 
-        // Effective fluid temperature
-        pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
+        // Effective fluid temperature, temp of the eta = 0 (fluid) region
+        pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref);
+
+        // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
+        pp.query_default("thermal.Tcutoff", value.thermal.Tcutoff, 0.0);
 
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
@@ -605,8 +608,12 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
                 df_deta = 0.0;
             }
-                
 
+            if (thermal.on && T < thermal.Tcutoff) {
+                // If the temperature is lower then the cutoff temperature don't evolve the eta field
+                df_deta = 0.0;
+            }
+                
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
             
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
