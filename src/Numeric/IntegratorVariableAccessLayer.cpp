@@ -214,7 +214,7 @@ CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
     // Copy from PVec_mf to working buffer
     
     const bool dbg = true; // or tie to runtime flag
-    const int i0 = 32, j0 = 7, k0 = 7;
+    const int i0 = 32, j0 = 32, k0 = 8;
     const int rho = solver->variableIndex.DENS;
 
     // target location for DebugValuesIfTarget
@@ -661,47 +661,47 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
             }
             if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface,jface,kface))
 {
-    for (int n = 0; n < solver->number_of_components; ++n)
-    {
-        if (direction == Directions::Xdir)
-        {
-            Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                iface,jface,kface,
-                flux_arr(iface,jface,kface,n),
-                "XFlux(n)", "STORE", false, n, true);
+    // for (int n = 0; n < solver->number_of_components; ++n)
+    // {
+    //     if (direction == Directions::Xdir)
+    //     {
+    //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+    //             iface,jface,kface,
+    //             flux_arr(iface,jface,kface,n),
+    //             "XFlux(n)", "STORE", false, n, true);
 
-            // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-            //     iface,jface,kface,
-            //     flux_arr(iface-1,jface,kface,n),
-            //     "XFlux(n)", "STORE (i-1)", false, n, true);
-        }
+    //         // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+    //         //     iface,jface,kface,
+    //         //     flux_arr(iface-1,jface,kface,n),
+    //         //     "XFlux(n)", "STORE (i-1)", false, n, true);
+    //     }
 
-        if (direction == Directions::Ydir)
-        {
-            Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                iface,jface,kface,
-                flux_arr(iface,jface,kface,n),
-                "YFlux(n)", "STORE", false, n, true);
+    //     if (direction == Directions::Ydir)
+    //     {
+    //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+    //             iface,jface,kface,
+    //             flux_arr(iface,jface,kface,n),
+    //             "YFlux(n)", "STORE", false, n, true);
 
-            // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-            //     iface,jface,kface,
-            //     flux_arr(iface,jface-1,kface,n),
-            //     "YFlux(n)", "STORE (j-1)", false, n, true);
-        }
+    //         // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+    //         //     iface,jface,kface,
+    //         //     flux_arr(iface,jface-1,kface,n),
+    //         //     "YFlux(n)", "STORE (j-1)", false, n, true);
+    //     }
 
-        if (direction == Directions::Zdir)
-        {
-            Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                iface,jface,kface,
-                flux_arr(iface,jface,kface,n),
-                "ZFlux(n)", "STORE", false, n, true);
+    //     if (direction == Directions::Zdir)
+    //     {
+    //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+    //             iface,jface,kface,
+    //             flux_arr(iface,jface,kface,n),
+    //             "ZFlux(n)", "STORE", false, n, true);
 
-            // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-            //     iface,jface,kface,
-            //     flux_arr(iface,jface,kface-1,n),
-            //     "ZFlux(n)", "STORE (k-1)", false, n, true);
-        }
-    }
+    //         // Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+    //         //     iface,jface,kface,
+    //         //     flux_arr(iface,jface,kface-1,n),
+    //         //     "ZFlux(n)", "STORE (k-1)", false, n, true);
+    //     }
+    // }
 }
 
             

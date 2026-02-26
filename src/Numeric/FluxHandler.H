@@ -271,36 +271,37 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
     variable_accessor->CopyVariables(direction, lev, solver, VariableBuffer, 
                                         mode, validationResult);
 
-    if (direction == 2) {
-    const int rho = solver->variableIndex.DENS;
-    ProbeCellCC("[PROBE] PRE-RECON VBUF rho @ (32,6,7)", VariableBuffer, lev, 32,6,7, rho);
-    ProbeCellCC("[PROBE] PRE-RECON VBUF rho @ (32,7,7)", VariableBuffer, lev, 32,7,7, rho);
-    ProbeCellCC("[PROBE] PRE-RECON VBUF rho @ (32,8,7)", VariableBuffer, lev, 32,8,7, rho);
-    }
+    // if (direction == 0) {
+    // const int rho = solver->variableIndex.DENS;
+    // ProbeCellCC("[PROBE] PRE-RECON VBUF rho @ (31,32,8)", VariableBuffer, lev, 31,32,8, rho);
+    // ProbeCellCC("[PROBE] PRE-RECON VBUF rho @ (32,32,8)", VariableBuffer, lev, 32,32,8, rho);
+    // ProbeCellCC("[PROBE] PRE-RECON VBUF rho @ (33,32,8)", VariableBuffer, lev, 33,32,8, rho);
+    // }
 
 
 
-    if (direction == 2) {
-        const int i=32, j=7, k=7;
-        const int dens = solver->variableIndex.DENS;
+    // if (direction == 0) {
+    //     const int i=32, j=32, k=8;
+    //     const int dens = solver->variableIndex.DENS;
 
 
-        for (amrex::MFIter mfi(VariableBuffer); mfi.isValid(); ++mfi) {
-            const amrex::Box& bx = VariableBuffer[mfi].box();   // use FAB box, not tilebox
-            if (!bx.contains(amrex::IntVect(i,j,k)) ||
-                !bx.contains(amrex::IntVect(i,j+1,k))) continue;
+    //     for (amrex::MFIter mfi(VariableBuffer); mfi.isValid(); ++mfi) {
+    //         const amrex::Box& bx = VariableBuffer[mfi].box();   // use FAB box, not tilebox
+    //         if (!bx.contains(amrex::IntVect(i-1,j,k)) ||
+    //             !bx.contains(amrex::IntVect(i,j,k)) ||
+    //             !bx.contains(amrex::IntVect(i+1,j,k))) continue;
 
-            auto const& V = VariableBuffer.const_array(mfi);
+    //         auto const& V = VariableBuffer.const_array(mfi);
 
-            amrex::AllPrint()
-                << "\n[PRE-RECON BUF] stage=" 
-                << " cell(32,6,7) DENS=" << V(i,j-1,k,dens)
-                << " cell(32,7,7) DENS=" << V(i,j,k,dens)
-                << " cell(32,8,7) DENS=" << V(i,j+1,k,dens)
-                << "\n";
-            break;
-        }
-    }
+    //         amrex::AllPrint()
+    //             << "\n[PRE-RECON BUF] stage=" 
+    //             << " cell(31,32,8) DENS=" << V(i-1,j,k,dens)
+    //             << " cell(32,32,8) DENS=" << V(i  ,j,k,dens)
+    //             << " cell(33,32,8) DENS=" << V(i+1,j,k,dens)
+    //             << "\n";
+    //         break;
+    //     }
+    // }
 
 
 
@@ -340,58 +341,58 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
             (mode == ReconstructionMode::Characteristic) ? &AverageStateBuffer : nullptr);
 
 
-    if (direction == 2) {
-    const int rho = solver->variableIndex.DENS;
-    ProbeFace("[PROBE] POST-RECON L rho @ face(32,7,7)", LeftStates,  lev, 2, 32,7,7, rho);
-    ProbeFace("[PROBE] POST-RECON R rho @ face(32,7,7)", RightStates, lev, 2, 32,7,7, rho);
-    }
+    // if (direction == 0) {
+    // const int rho = solver->variableIndex.DENS;
+    // ProbeFace("[PROBE] POST-RECON L rho @ face(32,32,8)", LeftStates,  lev, 0, 32,32,8, rho);
+    // ProbeFace("[PROBE] POST-RECON R rho @ face(32,32,8)", RightStates, lev, 0, 32,32,8, rho);
+    // }
 
 
-    if (direction == 2) {
-        const int pi = 32, pj = 7, pk = 7;
-        for (amrex::MFIter mfi(LeftStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    // if (direction == 0) {
+    //     const int pi = 32, pj = 32, pk = 8;
+    //     for (amrex::MFIter mfi(LeftStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         
-            const amrex::Box& bx = mfi.tilebox();
+    //         const amrex::Box& bx = mfi.tilebox();
 
-            if (bx.contains(amrex::IntVect(pi, pj, pk))) {
-                auto L = LeftStates.array(mfi);
-                auto R = RightStates.array(mfi);
+    //         if (bx.contains(amrex::IntVect(pi, pj, pk))) {
+    //             auto L = LeftStates.array(mfi);
+    //             auto R = RightStates.array(mfi);
 
-                amrex::Print() << "PROBE1 Left/Right DENS @ (32,7,7): "
-                            << L(pi,pj,pk, solver->variableIndex.DENS) << "  "
-                            << R(pi,pj,pk, solver->variableIndex.DENS) << "\n";
+    //             amrex::Print() << "PROBE1 Left/Right DENS @ (32,32,8): "
+    //                         << L(pi,pj,pk, solver->variableIndex.DENS) << "  "
+    //                         << R(pi,pj,pk, solver->variableIndex.DENS) << "\n";
 
-                amrex::Print() << "PROBE1 Left/Right DENS @ (32,8,7): "
-                            << L(pi,pj+1,pk, solver->variableIndex.DENS) << "  "
-                            << R(pi,pj+1,pk, solver->variableIndex.DENS) << "\n";
-                break;
-            }
-        }
-    }
+    //             // amrex::Print() << "PROBE1 Left/Right DENS @ (33,32,8): "
+    //             //             << L(pi+1,pj,pk, solver->variableIndex.DENS) << "  "
+    //             //             << R(pi+1,pj,pk, solver->variableIndex.DENS) << "\n";
+    //             break;
+    //         }
+    //     }
+    // }
 
     
-        const int ii = 32, jj = 7, kk = 7;
-
-        for (amrex::MFIter mfi(LeftStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& tbx = mfi.tilebox();
-            if (!tbx.contains(amrex::IntVect(ii,jj,kk))) continue;
-    
-            auto const& LS = LeftStates.const_array(mfi);
-            auto const& RS = RightStates.const_array(mfi);
-
-                amrex::Print() << "\n[POST-RECON] dir=" << direction
-                            << " face=(" << ii << "," << jj << "," << kk << ")"
-                            << " tilebox=" << tbx << "\n";
-
-
-                for (int n = 0; n < solver->number_of_components; ++n) {
-                    amrex::Print() << "  n=" << n
-                                << " Left State=" << LS(ii,jj,kk,n)
-                                << " Right State=" << RS(ii,jj,kk,n) << "\n";
-                }
-        }
+    //     const int ii = 32, jj = 32, kk = 8;
+    //     if (direction == 0) {
+    //         for (amrex::MFIter mfi(LeftStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    //             const amrex::Box& tbx = mfi.tilebox();
+    //             if (!tbx.contains(amrex::IntVect(ii,jj,kk))) continue;
         
+    //             auto const& LS = LeftStates.const_array(mfi);
+    //             auto const& RS = RightStates.const_array(mfi);
 
+    //                 amrex::Print() << "\n[POST-RECON] dir=" << direction
+    //                             << " face=(" << ii << "," << jj << "," << kk << ")"
+    //                             << " tilebox=" << tbx << "\n";
+
+
+    //                 for (int n = 0; n < solver->number_of_components; ++n) {
+    //                     amrex::Print() << "  n=" << n
+    //                                 << " Left State=" << LS(ii,jj,kk,n)
+    //                                 << " Right State=" << RS(ii,jj,kk,n) << "\n";
+    //                 }
+    //         }
+
+    //     }
 
     // 6. Create MultiFab for the computed flux
     amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
@@ -401,77 +402,80 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
     flux_method->ComputeFluxes(direction, lev, solver, 
                             LeftStates, RightStates, SummedFlux);
 
-    if (direction == 2) {
-    const int comp_to_watch = 3; // pick the comp you know is nonzero (your log shows n=3 is 0.1)
-    ProbeFace("[PROBE] POST-FLUX SF comp3 @ face(32,7,7)", SummedFlux, lev, 2, 32,7,7, comp_to_watch);
-    }
+    // if (direction == 0) {
+    // const int comp_to_watch = 0; // pick the comp you know is nonzero (your log shows n=3 is 0.1)
+    // ProbeFace("[PROBE] POST-FLUX SF comp0 @ face(32,32,8)", SummedFlux, lev, 0, 32,32,8, comp_to_watch);
+    // }
 
 
 
 
                         
-    const int iii=32, jjj=7, kkk=7;
+    // const int iii=32, jjj=32, kkk=8;
 
-    // 1) Point probe
-    for (amrex::MFIter mfi(SummedFlux); mfi.isValid(); ++mfi) {
-        const amrex::Box& vbx = mfi.validbox();
-        if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(iii,jjj,kkk)))) continue;
+    // // 1) Point probe
+    // if (direction == 0) {
+    //     for (amrex::MFIter mfi(SummedFlux); mfi.isValid(); ++mfi) {
+    //         const amrex::Box& vbx = mfi.validbox();
+    //         if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(iii,jjj,kkk)))) continue;
 
-        auto const& F = SummedFlux.const_array(mfi);
+    //         auto const& F = SummedFlux.const_array(mfi);
 
-        amrex::Print()
-          << "\n[POST-FLUX POINT] dir=" << direction
-          << " F("<<iii<<","<<jjj<<","<<kkk<<",:)\n";
-        for (int n=0; n<solver->number_of_components; ++n) {
-            amrex::Print() << "  n="<<n<<" F="<<F(iii,jjj,kkk,n) << "\n";
-        }
-        break;
-    }
+    //         amrex::Print()
+    //         << "\n[POST-FLUX POINT] dir=" << direction
+    //         << " F("<<iii<<","<<jjj<<","<<kkk<<",:)\n";
+    //         for (int n=0; n<solver->number_of_components; ++n) {
+    //             amrex::Print() << "  n="<<n<<" F="<<F(iii,jjj,kkk,n) << "\n";
+    //         }
+    //         break;
+    //     }
+    // }
+
 
     // 7. Store fluxes in the appropriate directional flux arrays
     variable_accessor->StoreDirectionalFlux(direction, lev, solver, 
                                         SummedFlux);
 
 
-    if (direction == 2) {
-    const int comp_to_watch = 3;
-    ProbeFace("[PROBE] POST-STORE SF comp3 @ face(32,7,7)", SummedFlux, lev, 2, 32,7,7, comp_to_watch);
-    ProbeFace("[PROBE] POST-STORE YF comp3 @ face(32,7,7)", *solver->YFlux_mf[lev], lev, 2, 32,7,7, comp_to_watch);
-    }
+    // if (direction == 0) {
+    // const int comp_to_watch = 0;
+    // ProbeFace("[PROBE] POST-STORE SF comp0 @ face(32,32,8)", SummedFlux, lev, 0, 32,32,8, comp_to_watch);
+    // ProbeFace("[PROBE] POST-STORE XF comp0 @ face(32,32,8)", *solver->XFlux_mf[lev], lev, 0, 32,32,8, comp_to_watch);
+    // }
 
 
     
 
-    if (direction == 2)
-    {
-        const int ii=32, jj=7, kk=7;
-        const int n = 2;
+    // if (direction == 0)
+    // {
+    //     const int ii=32, jj=32, kk=8;
+    //     const int n = 0;
 
-        amrex::MultiFab& YF = *solver->YFlux_mf[lev]; 
-        amrex::MultiFab& XF = *solver->XFlux_mf[lev]; 
-        amrex::MultiFab& ZF = *solver->ZFlux_mf[lev];   // unique_ptr -> deref
+    //     amrex::MultiFab& YF = *solver->YFlux_mf[lev]; 
+    //     amrex::MultiFab& XF = *solver->XFlux_mf[lev]; 
+    //     amrex::MultiFab& ZF = *solver->ZFlux_mf[lev];   // unique_ptr -> deref
 
 
-        for (amrex::MFIter mfi(SummedFlux); mfi.isValid(); ++mfi) {
-            const amrex::Box& vb = mfi.validbox();
-            if (!vb.contains(amrex::IntVect(AMREX_D_DECL(ii,jj,kk)))) continue;
+    //     for (amrex::MFIter mfi(SummedFlux); mfi.isValid(); ++mfi) {
+    //         const amrex::Box& bx = SummedFlux[mfi].box();
+    //         if (!bx.contains(amrex::IntVect(AMREX_D_DECL(ii,jj,kk)))) continue;
 
-            auto const& SF = SummedFlux.const_array(mfi);
-            auto const& DF2 = YF.const_array(mfi);
-            auto const& DF1 = XF.const_array(mfi);
-            auto const& DF3 = ZF.const_array(mfi);
+    //         auto const& SF = SummedFlux.const_array(mfi);
+    //         auto const& DF2 = YF.const_array(mfi);
+    //         auto const& DF1 = XF.const_array(mfi);
+    //         auto const& DF3 = ZF.const_array(mfi);
 
-            amrex::Real a = SF(ii,jj,kk,n);
-            amrex::Real b = DF1(ii,jj,kk,n);
-            amrex::Real c = DF2(ii,jj,kk,n);
-            amrex::Real d = DF3(ii,jj,kk,n);
+    //         amrex::Real a = SF(ii,jj,kk,n);
+    //         amrex::Real b = DF1(ii,jj,kk,n);
+    //         amrex::Real c = DF2(ii,jj,kk,n);
+    //         amrex::Real d = DF3(ii,jj,kk,n);
 
-            amrex::Print() << "[POST-STORE] stage Y="
-                        << " face=("<<ii<<","<<jj<<","<<kk<<") comp="<<n
-                        << " SF="<<a<<" XF="<<b<<" YF="<<c << "ZF="<<d<<"\n";
-            break;
-        }
-    }
+    //         amrex::Print() << "[POST-STORE] stage Y="
+    //                     << " face=("<<ii<<","<<jj<<","<<kk<<") comp="<<n
+    //                     << " SF="<<a<<" XF="<<b<<" YF="<<c << "ZF="<<d<<"\n";
+    //         break;
+    //     }
+    // }
   
 
 

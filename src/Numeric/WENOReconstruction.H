@@ -825,7 +825,7 @@ void ReconstructVariables(
     const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
     const amrex::MultiFab* AverageStateBuffer
 ) const override {
-    const int nghosts = solver->number_of_ghost_cells;
+    // const int nghosts = solver->number_of_ghost_cells;
     const int num_components = solver->number_of_components;
     const bool enableDebug = false;  // Enable detailed debugging
 
@@ -833,12 +833,12 @@ void ReconstructVariables(
     // Create a bool to check for ReconstructionMode and if AverageStateBuffer is not null pointer
     bool useCharacteristic = (mode == ReconstructionMode::Characteristic && AverageStateBuffer != nullptr);
 
-    // Create average state vector once outside the loop if needed
-    Set::MultiVector avg_state;
-    if (useCharacteristic) {
-        //Initialize the average state outside the component loop
-        avg_state.resize(num_components);
-    }    
+    // // Create average state vector once outside the loop if needed
+    // Set::MultiVector avg_state;
+    // if (useCharacteristic) {
+    //     //Initialize the average state outside the component loop
+    //     avg_state.resize(num_components);
+    // }    
 
     //Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(101, 10, 0);  // Set target to cell (10,10,0)
     // Only log the variant when debug is enabled
@@ -847,8 +847,8 @@ void ReconstructVariables(
     }
 
     // First pass: Compute left states using WENO reconstruction
-    for (amrex::MFIter mfi(VariableBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+    for (amrex::MFIter mfi(LeftStates, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& face_bx = mfi.tilebox();
 
         auto const& Var_arr = VariableBuffer.const_array(mfi);
         auto const& LeftStates_arr = LeftStates.array(mfi);
@@ -860,25 +860,40 @@ void ReconstructVariables(
             Avg_arr = AverageStateBuffer->const_array(mfi);
         }
 
-        amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-            // Construct index arrays
-            int index[3];
-            int lower_bounds[3];
-            int upper_bounds[3];
+        amrex::ParallelFor(face_bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+            // // Construct index arrays
+            // int index[3];
+            // int lower_bounds[3];
+            // int upper_bounds[3];
 
-            // Set up indices
-            index[0] = iface; index[1] = jface; index[2] = kface;
+            // // Set up indices
+            // index[0] = iface; index[1] = jface; index[2] = kface;
 
-            // Define bounds including ghost cells
-            lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-            lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-            lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-            upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
-            upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
-            upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+            // // Define bounds including ghost cells
+            // lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+            // lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+            // lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+            // upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+            // upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+            // upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
 
-            // Clamp the main index
-            ClampIndices(index, lower_bounds, upper_bounds);
+            // // Clamp the main index
+            // ClampIndices(index, lower_bounds, upper_bounds);
+
+            // Create branchless masks for left (i-1) and right (i) indices for each face based on direction
+            int dx = (direction == 0);
+            int dy = (direction == 1);
+            int dz = (direction == 2);
+
+            // Compute left/right indices with no branching
+            int iL = iface - dx;
+            int iR = iface;
+
+            int jL = jface - dy;
+            int jR = jface;
+
+            int kL = kface - dz;
+            int kR = kface;
 
             // store average state buffer in vector form  
             Set::MultiVector avg_state(num_components);
@@ -889,29 +904,39 @@ void ReconstructVariables(
             leftvalue_reconstructed.setZero();
 
             if (useCharacteristic) {
-                avg_state = Numeric::FieldToMultiVector(Avg_arr, index[0], index[1], index[2], num_components);    
+                avg_state = Numeric::FieldToMultiVector(Avg_arr, iface, jface, kface, num_components);    
             }   
 
             // Create Stencil Matrix Where each row represents a full state vector
             Set::MultiMatrix stencil_matrix(Traits::TotalPoints, num_components);
 
+            // Assume TotalPoints is odd and the "center" stencil index is:
+            constexpr int half = Traits::TotalPoints / 2;  // e.g., 5 -> 2, 3 -
+
             //Fill stencil matrix with state vectors from each stencil point 
             for (int s = 0; s < Traits::TotalPoints; ++s) {
-                    // Calculate stencil point index with proper offset
-                    int stencil_idx[3] = {index[0], index[1], index[2]};
+                    // // Calculate stencil point index with proper offset
+                    // int stencil_idx[3] = {index[0], index[1], index[2]};
 
-                    // Apply offset in the reconstruction direction
-                    // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
-                    int offset = s - Traits::TotalPoints/2;
-                    stencil_idx[direction] += offset;
+                    // // Apply offset in the reconstruction direction
+                    // // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
+                    // int offset = s - Traits::TotalPoints/2;
+                    // stencil_idx[direction] += offset;
 
-                    // Clamp indices to ensure they're within bounds
-                    ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                    // // Clamp indices to ensure they're within bounds
+                    // ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+
+                    // offset along reconstruction direction (e.g. -2,-1,0,1,2 for 5-point
+                    int offset = s - half;
+                    
+                    // Apply offset ONLY in 'direction' using masks (branchless)
+                    int iC = iL + dx * offset;
+                    int jC = jL + dy * offset;
+                    int kC = kL + dz * offset;
 
                     for (int n = 0; n < num_components; ++n) {
-                    // Extract data value for this stencil point
-                    stencil_matrix(s, n) = Var_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
-
+                        // Extract data value for this stencil point
+                        stencil_matrix(s, n) = Var_arr(iC, jC, kC, n);
                     }
             }
 
@@ -922,10 +947,10 @@ void ReconstructVariables(
             // Conditionally transform to characteristic space (branch happens once for all threads)
             if (useCharacteristic && variable_accessor) {
                 input_stencil = variable_accessor->TransformStencilToCharacteristic(
-                index[0], index[1], index[2], stencil_matrix, direction, avg_state);
+                iface, jface, kface, stencil_matrix, direction, avg_state);
             }
 
-            leftvalue_reconstructed = Policy::ReconstructValue(input_stencil, index[0], index[1], index[2], direction, enableDebug);
+            leftvalue_reconstructed = Policy::ReconstructValue(input_stencil, iface, jface, kface, direction, enableDebug);
 
             // Conditionally transform back to physical space (branch happens once for all threads)
             if (useCharacteristic && variable_accessor) {
@@ -936,7 +961,7 @@ void ReconstructVariables(
             // Process each component
             for (int n = 0; n < num_components; ++n) {                
                 // Store reconstructed left state
-                LeftStates_arr(index[0], index[1], index[2], n) = leftvalue_reconstructed(n);
+                LeftStates_arr(iface, jface, kface, n) = leftvalue_reconstructed(n);
             }
 
             // ********** CHANGE - BEGIN **************
@@ -944,13 +969,22 @@ void ReconstructVariables(
             //  Compute Right State (q_R) at face 'iface' 
             Set::MultiMatrix stencil_R_matrix(Traits::TotalPoints, num_components);
             for (int s = 0; s < Traits::TotalPoints; ++s) {
-                int stencil_idx[3] = {iface, jface, kface};
+                // int stencil_idx[3] = {iface, jface, kface};
+                // // Stencil for right state at face 'iface' is {i-1, i, i+1, i+2, i+3} where i = iface
+                // int offset = s - 1; 
+                // stencil_idx[direction] += offset;
+                // ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+
                 // Stencil for right state at face 'iface' is {i-1, i, i+1, i+2, i+3} where i = iface
-                int offset = s - 1; 
-                stencil_idx[direction] += offset;
-                ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                int offset = s - half;
+                
+                // Apply offset ONLY in 'direction' using masks (branchless)
+                int iC = iR + dx * offset;
+                int jC = jR + dy * offset;
+                int kC = kR + dz * offset;
+
                 for (int n = 0; n < num_components; ++n) {
-                    stencil_R_matrix(s, n) = Var_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                    stencil_R_matrix(s, n) = Var_arr(iC, jC, kC, n);
                 }
             }
 
@@ -960,24 +994,24 @@ void ReconstructVariables(
             if (useCharacteristic) {
                 // The transform should be on the original, non-reversed stencil data for physical correctness.
                 Set::MultiMatrix temp_transform_stencil = stencil_R_matrix;
-                input_stencil_R = variable_accessor->TransformStencilToCharacteristic(index[0], index[1], index[2], temp_transform_stencil, direction, avg_state);
+                input_stencil_R = variable_accessor->TransformStencilToCharacteristic(iface, jface, kface, temp_transform_stencil, direction, avg_state);
                 input_stencil_R.colwise().reverseInPlace();
             }
 
-            Set::MultiVector right_reconstructed = Policy::ReconstructValue(input_stencil_R, index[0], index[1], index[2], direction, enableDebug);
+            Set::MultiVector right_reconstructed = Policy::ReconstructValue(input_stencil_R, iface, jface, kface, direction, enableDebug);
             if (useCharacteristic) {
                 right_reconstructed = variable_accessor->TransformFromCharacteristic(right_reconstructed, direction, avg_state);
             }
             for (int n = 0; n < num_components; ++n) {
-                RightStates_arr(index[0], index[1], index[2], n) = right_reconstructed(n);
+                RightStates_arr(iface, jface, kface, n) = right_reconstructed(n);
             }
 
         });
     }
 
 
-    LeftStates.FillBoundary();
-    RightStates.FillBoundary();
+    // LeftStates.FillBoundary();
+    // RightStates.FillBoundary();
 }
 
 };          // ********** CHANGE - END ************

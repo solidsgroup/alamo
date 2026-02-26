@@ -146,116 +146,116 @@ public:
                     Set::Scalar q_old = q_old_arr(i, j, k, n);
                     q_arr(i, j, k, n) = q_old - dt * (flux_div - sourceTerm_arr(i, j, k, n));
 
-                    //Debug output
-                    debug.DebugEulerForwardStep(i, j, k, xflux_arr(i+1,j,k,n), xflux_arr(i,j,k,n),
-                                                yflux_arr(i,j+1,k,n), yflux_arr(i,j,k,n),
-                                                0.0,
-                                                0.0,
-                                                q_old, dt, "Euler Forward Substep", true); 
+                    // //Debug output
+                    // debug.DebugEulerForwardStep(i, j, k, xflux_arr(i+1,j,k,n), xflux_arr(i,j,k,n),
+                    //                             yflux_arr(i,j+1,k,n), yflux_arr(i,j,k,n),
+                    //                             0.0,
+                    //                             0.0,
+                    //                             q_old, dt, "Euler Forward Substep", true); 
 
                                     // Only print at target cell
-if (Util::ScimitarX_Util::Debug::IsTargetLocation(i,j,k))
-{
-    // ===================== comp 0 =====================
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i+1,j,k,0), "XFlux(0)@i+1",   "EULER: flux faces", false, 0, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i  ,j,k,0), "XFlux(0)@i", "EULER: flux faces", false, 0, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j+1,k,0), "YFlux(0)@j+1",   "EULER: flux faces", false, 0, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j  ,k,0), "YFlux(0)@j", "EULER: flux faces", false, 0, true);
-#if (AMREX_SPACEDIM == 3)
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k+1,0), "ZFlux(0)@k+1",   "EULER: flux faces", false, 0, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k  ,0), "ZFlux(0)@k", "EULER: flux faces", false, 0, true);
-#endif
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, flux_div, "flux_div(0)", "EULER: divergence", false, 0, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, q_arr(i,j,k,0), "Qnew(0)", "EULER: update", false, 0, true);
+// if (Util::ScimitarX_Util::Debug::IsTargetLocation(i,j,k))
+// {
+//     // ===================== comp 0 =====================
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i+1,j,k,0), "XFlux(0)@i+1",   "EULER: flux faces", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i  ,j,k,0), "XFlux(0)@i", "EULER: flux faces", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j+1,k,0), "YFlux(0)@j+1",   "EULER: flux faces", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j  ,k,0), "YFlux(0)@j", "EULER: flux faces", false, 0, true);
+// #if (AMREX_SPACEDIM == 3)
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k+1,0), "ZFlux(0)@k+1",   "EULER: flux faces", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k  ,0), "ZFlux(0)@k", "EULER: flux faces", false, 0, true);
+// #endif
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, flux_div, "flux_div(0)", "EULER: divergence", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, q_arr(i,j,k,0), "Qnew(0)", "EULER: update", false, 0, true);
 
-    // ===================== comp 1 =====================
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i+1,j,k,1), "XFlux(1)@i+1",   "EULER: flux faces", false, 1, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i  ,j,k,1), "XFlux(1)@i", "EULER: flux faces", false, 1, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j+1,k,1), "YFlux(1)@j+1",   "EULER: flux faces", false, 1, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j  ,k,1), "YFlux(1)@j", "EULER: flux faces", false, 1, true);
-#if (AMREX_SPACEDIM == 3)
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k+1,1), "ZFlux(1)@k+1",   "EULER: flux faces", false, 1, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k  ,1), "ZFlux(1)@k", "EULER: flux faces", false, 1, true);
-#endif
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, flux_div, "flux_div(1)", "EULER: divergence", false, 1, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, q_arr(i,j,k,1), "Qnew(1)", "EULER: update", false, 1, true);
+//     // ===================== comp 1 =====================
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i+1,j,k,1), "XFlux(1)@i+1",   "EULER: flux faces", false, 1, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i  ,j,k,1), "XFlux(1)@i", "EULER: flux faces", false, 1, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j+1,k,1), "YFlux(1)@j+1",   "EULER: flux faces", false, 1, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j  ,k,1), "YFlux(1)@j", "EULER: flux faces", false, 1, true);
+// #if (AMREX_SPACEDIM == 3)
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k+1,1), "ZFlux(1)@k+1",   "EULER: flux faces", false, 1, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k  ,1), "ZFlux(1)@k", "EULER: flux faces", false, 1, true);
+// #endif
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, flux_div, "flux_div(1)", "EULER: divergence", false, 1, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, q_arr(i,j,k,1), "Qnew(1)", "EULER: update", false, 1, true);
 
-    // ===================== comp 2 =====================
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i+1,j,k,2), "XFlux(2)@i+1",   "EULER: flux faces", false, 2, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i  ,j,k,2), "XFlux(2)@i", "EULER: flux faces", false, 2, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j+1,k,2), "YFlux(2)@j+1",   "EULER: flux faces", false, 2, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j  ,k,2), "YFlux(2)@j", "EULER: flux faces", false, 2, true);
-#if (AMREX_SPACEDIM == 3)
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k+1,2), "ZFlux(2)@k+1",   "EULER: flux faces", false, 2, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k  ,2), "ZFlux(2)@k", "EULER: flux faces", false, 2, true);
-#endif
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, flux_div, "flux_div(2)", "EULER: divergence", false, 2, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, q_arr(i,j,k,2), "Qnew(2)", "EULER: update", false, 2, true);
+//     // ===================== comp 2 =====================
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i+1,j,k,2), "XFlux(2)@i+1",   "EULER: flux faces", false, 2, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i  ,j,k,2), "XFlux(2)@i", "EULER: flux faces", false, 2, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j+1,k,2), "YFlux(2)@j+1",   "EULER: flux faces", false, 2, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j  ,k,2), "YFlux(2)@j", "EULER: flux faces", false, 2, true);
+// #if (AMREX_SPACEDIM == 3)
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k+1,2), "ZFlux(2)@k+1",   "EULER: flux faces", false, 2, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k  ,2), "ZFlux(2)@k", "EULER: flux faces", false, 2, true);
+// #endif
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, flux_div, "flux_div(2)", "EULER: divergence", false, 2, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, q_arr(i,j,k,2), "Qnew(2)", "EULER: update", false, 2, true);
 
-    // ===================== comp 3 =====================
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i+1,j,k,3), "XFlux(3)@i+1",   "EULER: flux faces", false, 3, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i  ,j,k,3), "XFlux(3)@i", "EULER: flux faces", false, 3, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j+1,k,3), "YFlux(3)@j+1",   "EULER: flux faces", false, 3, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j  ,k,3), "YFlux(3)@j", "EULER: flux faces", false, 3, true);
-#if (AMREX_SPACEDIM == 3)
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k+1,3), "ZFlux(3)@k+1",   "EULER: flux faces", false, 3, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k  ,3), "ZFlux(3)@k", "EULER: flux faces", false, 3, true);
-#endif
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, flux_div, "flux_div(3)", "EULER: divergence", false, 3, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, q_arr(i,j,k,3), "Qnew(3)", "EULER: update", false, 3, true);
+//     // ===================== comp 3 =====================
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i+1,j,k,3), "XFlux(3)@i+1",   "EULER: flux faces", false, 3, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i  ,j,k,3), "XFlux(3)@i", "EULER: flux faces", false, 3, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j+1,k,3), "YFlux(3)@j+1",   "EULER: flux faces", false, 3, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j  ,k,3), "YFlux(3)@j", "EULER: flux faces", false, 3, true);
+// #if (AMREX_SPACEDIM == 3)
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k+1,3), "ZFlux(3)@k+1",   "EULER: flux faces", false, 3, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k  ,3), "ZFlux(3)@k", "EULER: flux faces", false, 3, true);
+// #endif
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, flux_div, "flux_div(3)", "EULER: divergence", false, 3, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, q_arr(i,j,k,3), "Qnew(3)", "EULER: update", false, 3, true);
 
-    // ===================== comp 4 =====================
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i+1,j,k,4), "XFlux(4)@i+1",   "EULER: flux faces", false, 4, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, xflux_arr(i  ,j,k,4), "XFlux(4)@i", "EULER: flux faces", false, 4, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j+1,k,4), "YFlux(4)@j+1",   "EULER: flux faces", false, 4, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, yflux_arr(i,j  ,k,4), "YFlux(4)@j", "EULER: flux faces", false, 4, true);
-#if (AMREX_SPACEDIM == 3)
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k+1,4), "ZFlux(4)@k+1",   "EULER: flux faces", false, 4, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, zflux_arr(i,j,k  ,4), "ZFlux(4)@k", "EULER: flux faces", false, 4, true);
-#endif
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, flux_div, "flux_div(4)", "EULER: divergence", false, 4, true);
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        i,j,k, q_arr(i,j,k,4), "Qnew(4)", "EULER: update", false, 4, true);
-}
+//     // ===================== comp 4 =====================
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i+1,j,k,4), "XFlux(4)@i+1",   "EULER: flux faces", false, 4, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, xflux_arr(i  ,j,k,4), "XFlux(4)@i", "EULER: flux faces", false, 4, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j+1,k,4), "YFlux(4)@j+1",   "EULER: flux faces", false, 4, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, yflux_arr(i,j  ,k,4), "YFlux(4)@j", "EULER: flux faces", false, 4, true);
+// #if (AMREX_SPACEDIM == 3)
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k+1,4), "ZFlux(4)@k+1",   "EULER: flux faces", false, 4, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, zflux_arr(i,j,k  ,4), "ZFlux(4)@k", "EULER: flux faces", false, 4, true);
+// #endif
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, flux_div, "flux_div(4)", "EULER: divergence", false, 4, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         i,j,k, q_arr(i,j,k,4), "Qnew(4)", "EULER: update", false, 4, true);
+// }
 
                 }
             });
@@ -296,7 +296,7 @@ public:
 #if (AMREX_SPACEDIM == 3)
             auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
 #endif
-            auto const& sourceTerm_arr = solver->SourceTermVec.Patch(lev, mfi);  // Source-term derivatives from Viscous stres
+            auto const& sourceTerm_arr = solver->SourceTermVec.Patch(lev, mfi);  // Source-term derivatives from Viscous stress
 
             {
                 const int ic=32, jc=7, kc=7;
@@ -308,15 +308,15 @@ public:
                 
                 if (tbx.contains(iv)) {
                 
-                    const auto FxR = xflux_arr(ic, jc, kc, nprobe);
-                    const auto FxL = xflux_arr(ic-1, jc, kc, nprobe);
+                    const auto FxR = xflux_arr(ic+1, jc, kc, nprobe);
+                    const auto FxL = xflux_arr(ic  , jc, kc, nprobe);
 
-                    const auto FyT = yflux_arr(ic, jc, kc, nprobe);
-                    const auto FyB = yflux_arr(ic, jc-1, kc, nprobe);
+                    const auto FyT = yflux_arr(ic, jc+1, kc, nprobe);
+                    const auto FyB = yflux_arr(ic, jc  , kc, nprobe);
 
             #if (AMREX_SPACEDIM == 3)
-                    const auto FzF = zflux_arr(ic, jc, kc, nprobe);
-                    const auto FzB = zflux_arr(ic, jc, kc-1, nprobe);
+                    const auto FzF = zflux_arr(ic, jc, kc+1, nprobe);
+                    const auto FzB = zflux_arr(ic, jc, kc  , nprobe);
             #endif
 
                     amrex::AllPrint()
@@ -348,21 +348,21 @@ public:
 #endif
 
                     // X-direction flux divergence
-                        xflux_right = xflux_arr(i, j, k, n);  // Right face flux
-                        xflux_left = xflux_arr(i-1, j, k, n);  // Left face flux
+                        xflux_right = xflux_arr(i+1, j, k, n);  // Right face flux
+                        xflux_left  = xflux_arr(i  , j, k, n);  // Left face flux
                         flux_div += (xflux_right - xflux_left) / DX[0];
 
                     // Y-direction flux divergence (if 2D or 3D)
-                        yflux_top = yflux_arr(i, j, k, n);  // Top face flux
-                        yflux_bottom = yflux_arr(i, j-1, k, n);  // Bottom face flux
+                        yflux_top    = yflux_arr(i, j+1, k, n);  // Top face flux
+                        yflux_bottom = yflux_arr(i, j  , k, n);  // Bottom face flux
                         flux_div += (yflux_top - yflux_bottom) / DX[1];
 
                         
 
                     // Z-direction flux divergence (if 3D)
 #if (AMREX_SPACEDIM == 3)
-                        zflux_front = zflux_arr(i, j, k, n);  // Front face flux
-                        zflux_back = zflux_arr(i, j, k-1, n);  // Back face flux
+                        zflux_front = zflux_arr(i, j, k+1, n);  // Front face flux
+                        zflux_back  = zflux_arr(i, j, k  , n);  // Back face flux
                         flux_div += (zflux_front - zflux_back) / DX[2];
 #endif
 
