@@ -755,7 +755,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::Abort(INFO);
             }
-
+                
 
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
@@ -796,12 +796,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 g(1)*rho(i,j,k) +
                 Source(i, j, k, 2);
 
-            Util::Message(INFO, "dmYf_dt ", dMyf_dt);
-            Util::Message(INFO, "flux_x ", (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0]);
-            Util::Message(INFO, "flux_y ", (flux_ylo.momentum_normal  - flux_yhi.momentum_normal) / DX[1]);
-            Util::Message(INFO, "div_tau ", div_tau(1) * eta);
-            Util::Message(INFO, "g ", g(1)*rho(i,j,k));
-            Util::Message(INFO, "source ", Source(i, j, k, 2));
+            //Util::Message(INFO, "dmYf_dt ", dMyf_dt);
+            //Util::Message(INFO, "flux_x ", (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0]);
+            //Util::Message(INFO, "flux_y ", (flux_ylo.momentum_normal  - flux_yhi.momentum_normal) / DX[1]);
+            //Util::Message(INFO, "div_tau ", div_tau(1) * eta);
+            //Util::Message(INFO, "g ", g(1)*rho(i,j,k));
+            //Util::Message(INFO, "source ", Source(i, j, k, 2));
                 
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +

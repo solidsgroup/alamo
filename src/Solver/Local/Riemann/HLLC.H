@@ -78,6 +78,7 @@ public:
                 T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
                 p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
+                p_L = p_R;
                 break;
             case 3: // yhi
                 T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
@@ -86,6 +87,7 @@ public:
                 T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k));
                 p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j+1, k));
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
+                p_R = p_L;
                 break;
             case 4: // zlo
                 T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1));
