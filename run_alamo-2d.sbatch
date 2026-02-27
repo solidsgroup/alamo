@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 
 #SBATCH --account=brunnels
-#SBATCH --chdir=/work/brunnels/jstocker/alamo
+#SBATCH --chdir=/work/brunnels/jstocker/alamo/reg_with_voids
 #SBATCH --constraint=nova25
 #SBATCH --cpus-per-task=1
 #SBATCH --job-name=alamo-2d-reg_with_voids
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=mungerct@iastate.edu
+#SBATCH --mail-user=jstocker@iastate.edu
 #SBATCH --mem-per-cpu=1G
 #SBATCH --nodes=1
-#SBATCH --ntasks=64
+#SBATCH --ntasks=32
 #SBATCH --output=%x-%j.log
 #SBATCH --partition=nova
-#SBATCH --time=6:00:00
+#SBATCH --time=24:00:00
 
 HOST="$(hostname)"
 START_TIME=$(date +%s)
 
-INPUT_FILE="/work/brunnels/mungerct/alamo/input.scpspheres_kodga_validation"
-OUTPUT_DIR="/work/brunnels/mungerct/alamo/reg_with_voids-2d-$SLURM_JOB_ID"
+INPUT_FILE="/work/brunnels/jstocker/alamo/reg_with_voids/input.scpspheres_arbitrary_with_voids"
+OUTPUT_DIR="/work/brunnels/jstocker/alamo/reg_with_voids/output.reg_with_voids_2d-arb_geo$SLURM_JOB_ID"
 LOG_FILE="$(dirname $OUTPUT_DIR)/log-$(basename "$OUTPUT_DIR").txt"
 
 echo "=================================================================================="
@@ -56,7 +56,7 @@ echo "Simulation output will be written to: $LOG_FILE"
     echo ""
     mkdir -p "$OUTPUT_DIR"
     # Run the actual simulation
-    srun --mpi=pmix bin/alamo-2d-g++ $INPUT_FILE plot_file="$OUTPUT_DIR"
+    srun --mpi=pmix ../bin/alamo-2d-g++ $INPUT_FILE plot_file="$OUTPUT_DIR"
 } > "$LOG_FILE" 2>&1
 SIMULATION_EXIT_CODE=$?
 
