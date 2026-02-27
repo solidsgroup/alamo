@@ -110,6 +110,7 @@ protected:
         Set::Scalar hc = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
+        Set::Scalar Tcutoff = NAN;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
