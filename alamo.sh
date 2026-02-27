@@ -3,10 +3,10 @@
 # -----------------------
 # User-defined job name
 # -----------------------
-JOB_NAME="A4_void_2"
+JOB_NAME="A_1_void_m2"
 PLOT_FILE="output.${JOB_NAME}"
 
-#SBATCH --time=80:00:00
+#SBATCH --time=8:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=128
 #SBATCH --mem-per-cpu=15000
