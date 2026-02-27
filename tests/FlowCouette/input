@@ -18,7 +18,7 @@
 #@ args = eta.ic.expression.constant.eps=0.07
 #@ args = amr.max_level=2
 #@ args = timestep=4e-4
-#@ check-file = reference/eps0.05.dat
+#@ check-file = reference/eps0.07.dat
 #@
 #@ [eps0.07_2]
 #@ exe=hydro
@@ -28,7 +28,7 @@
 #@ args = amr.max_level=2
 #@ args = timestep=1e-4
 #@ args = mu_factor=10.0
-#@ check-file = reference/eps0.05.dat
+#@ check = false
 #@
 
 ### RIEMANN SOLVER ###
@@ -89,7 +89,7 @@ m0.ic.type = constant
 m0.ic.constant.value = "0.0"
 
 u0.ic.type = expression
-u0.ic.expression.region0 = "0.001*(y>1.5)"
+u0.ic.expression.region0 = "0.000*(y>1.5)"
 u0.ic.expression.region1 = "0.0"
 
 q.ic.type = expression

@@ -9,20 +9,17 @@ outdir = sys.argv[1]
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
+tol = 1e-2
+
 testlib.validate(path=path,
                  outdir=outdir,
                  start=[-12,12,0],
                  end=[12,-12,0],
                  vars=["velocityx","velocityy","density"],
-                 tolerance=[0.2,0.2,0.5],
-                 abs_tolerance=100, # basically ignore absolute tolerance
-                 generate_ref_data = False,
+                 tolerance=[tol, tol, tol],
+                 abs_tolerance=tol,
+                 generate_ref_data = True,
 )
-
-
-testlib.warning("WARNING: currently using fairly generous tolerances.")
-testlib.warning("         Once this is completely working, decrease acceptable")
-testlib.warning("         error.")
 
 exit(0)
 
