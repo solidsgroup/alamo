@@ -97,8 +97,9 @@ clean: tidy
 
 clean-tests:
 	@printf "$(B_ON)$(FG_RED)CLEANING TEST OUTPUT DIRECTORIES $(RESET)\n"
-	rm -rf tests/subfolder/*/output*
+	rm -rf tests/*/output*
 	rm -r report/*
+	rm report.html
 
 realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING AMREX $(RESET)\n" 
