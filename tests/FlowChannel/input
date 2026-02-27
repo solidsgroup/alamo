@@ -5,6 +5,26 @@
 #@ args = stop_time=2.5
 #@ check-file = reference/reference-2d.csv
 
+#@ [fully-developed]
+#@ exe = hydro
+#@ dim = 2
+#@ nprocs = 4
+#@ args = amr.max_level = 2
+#@ args = amr.plot_dt = 0.5
+#@ args = timestep = 2.5e-4
+#@ args = stop_time=20
+#@ args = eta.ic.expression.constant.eps = 0.07
+#@ args = velocity.ic.expression.region0 = "0.0"
+#@ args = pressure.ic.expression.region0 = "100 - 0.06*x"
+#@ args = density.bc.constant.type.xhi=dirichlet
+#@ args = density.bc.constant.val.xhi=100.0
+#@ args = momentum.bc.expression.type.xlo=neumann dirichlet
+#@ args = momentum.bc.expression.type.xhi=neumann dirichlet
+#@ args = momentum.bc.expression.val.xlo="0" "0"
+#@ args = momentum.bc.expression.val.xhi="0" "0"
+#@ args = energy.bc.expression.constant.eps = 0.07
+#@ args = energy.bc.expression.val.xhi = "49.73 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+
 #@ [parallel]
 #@ exe = hydro
 #@ dim = 2
@@ -12,6 +32,8 @@
 #@ args = amr.plot_dt = 1.0
 #@ args = stop_time=10
 #@ check = false
+
+# Re = 0.01, Le ~= 1.26 (Chen, et al.)
 
 ### RIEMANN SOLVER ###
 solver.type = hllc
@@ -141,7 +163,7 @@ energy.bc.expression.type.xhi = dirichlet
 energy.bc.expression.type.xlo = dirichlet
 energy.bc.expression.type.ylo = neumann
 energy.bc.expression.type.yhi = neumann
-energy.bc.expression.val.xhi = "49.85 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
+energy.bc.expression.val.xhi = "49.97 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 energy.bc.expression.val.xlo = "50.0 * (0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 energy.bc.expression.val.ylo = "0.0 "
 energy.bc.expression.val.yhi = "0.0"
@@ -159,10 +181,10 @@ momentum.bc.expression.val.yhi = "0.0" "0.0"
 ### HYDRO REFINEMENT CRITERIA ###
 
 eta_refinement_criterion = 0.1
-omega_refinement_criterion = 0.1
-gradu_refinement_criterion = 0.1
-p_refinement_criterion   = 0.1
-rho_refinement_criterion   = 0.1
+omega_refinement_criterion = 0.2
+gradu_refinement_criterion = 0.2
+p_refinement_criterion   = 0.5
+rho_refinement_criterion   = 0.5
 
 #TODO
 #
