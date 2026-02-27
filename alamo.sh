@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
 
-# -----------------------
-# User-defined job name
-# -----------------------
-JOB_NAME="A_1_void_m2"
-PLOT_FILE="output.${JOB_NAME}"
-
-#SBATCH --time=8:00:00
+#SBATCH --time=4:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=128
 #SBATCH --mem-per-cpu=15000
-#SBATCH --job-name=${JOB_NAME}
+#SBATCH --job-name="A_1_void_m1"
 #SBATCH --output="%x-%j-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --constraint=nova25
+# #SBATCH --constraint=nova25
+
+JOB_NAME="A_1_void_M1"
+PLOT_FILE="output.${JOB_NAME}"
 
 echo "======================================================"
 echo " Job '$SLURM_JOB_NAME' (ID: $SLURM_JOB_ID) is starting"
