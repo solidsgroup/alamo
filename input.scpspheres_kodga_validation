@@ -1,13 +1,13 @@
 
 alamo.program = flame
 
-plot_file = output.scpspheres_Tcutoff800
+plot_file = output.scpspheres_A_1
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 1e-5_s
+amr.plot_dt = 5e-5_s
 amr.max_grid_size = 4
 amr.blocking_factor = 4
 amr.base_regrid_int = 10
@@ -17,7 +17,7 @@ amr.refinement_criterion_temp = 0.5_K
 # amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 
-amr.max_plot_level = -1
+amr.max_plot_level = 2
 #amr.node.all = 1
 
 # Geometry and base grid size
@@ -28,11 +28,10 @@ amr.max_level = 2
 # geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 # geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
-
 # Quarter size
-amr.n_cell = 32 32 32
+amr.n_cell = 128 16 64
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.05_mm 0.05_mm 0.1_mm
+geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -48,8 +47,8 @@ pf.lambda = 0.001_J/m^2
 
 pf.eta.ic.type = psread
 pf.eta.ic.psread.file.unit = m
-pf.eta.ic.psread.file.name = all_datasets/A4/setA4_xyzrs/A4_1_void.xyzr
-pf.eta.ic.psread.eps = 2.0_um
+pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
+pf.eta.ic.psread.eps = 1.5_um
 pf.eta.ic.psread.invert = 1
 
 # pf.eta.ic.type = constant 
@@ -66,8 +65,8 @@ pf.eta.ic.psread.invert = 1
 ## Phi initial condition (spheres)
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
-phi.ic.psread.file.name = all_datasets/A4/setA4_xyzrs/A4_1_AP.xyzr
-phi.ic.psread.eps = 3.0_um
+phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
+phi.ic.psread.eps = 2.0_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -121,7 +120,7 @@ propellant.fullfeedback.Pref     =      1.0_MPa
 thermal.on = 1  
 thermal.Tfluid = 288.0
 thermal.Tref = 300.0_K
-thermal.Tcutoff = 800.0
+thermal.Tcutoff = 640.0_K
 
 # Temperature field initial condition
 temp.ic.type = constant
