@@ -10,8 +10,8 @@
 #include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "IC/PNG.H"
-#include "Solver/Local/Riemann/Roe.H"
-#include "Solver/Local/Riemann/HLLE.H"
+//#include "Solver/Local/Riemann/Roe.H"
+//#include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
 #include "AMReX_TimeIntegrator.H"
 
@@ -182,8 +182,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<IC::Constant,IC::Expression>("q.ic",value.ic_q,value.geom);
 
     // Riemann solver
-    pp.select_default<  Solver::Local::Riemann::Roe,
-                        Solver::Local::Riemann::HLLE,
+    pp.select_default<  //Solver::Local::Riemann::Roe,
+                        //Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
     // Gas model (Thermo, Transport, and EOS)
@@ -742,12 +742,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, eta_patch, molef, i, j, k, 0, small) * eta;
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, eta_patch, molef, i, j, k, 2, small) * eta;
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, eta_patch, molef, i, j, k, 1, small) * eta;
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, eta_patch, molef, i, j, k, 3, small) * eta;
             }
             catch(...)
             {

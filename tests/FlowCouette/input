@@ -18,6 +18,7 @@
 #@ args = eta.ic.expression.constant.eps=0.07
 #@ args = amr.max_level=1
 #@ args = timestep=5e-4
+#@ args = small=1e-12
 #@ check-file = reference/eps0.07.dat
 #@
 #@ [eps0.05]
@@ -27,6 +28,7 @@
 #@ args = eta.ic.expression.constant.eps=0.05
 #@ args = amr.max_level=1
 #@ args = timestep=5e-4
+#@ args = small=1e-12
 ####@ check = false
 #@ check-file = reference/eps0.05.dat
 #@
