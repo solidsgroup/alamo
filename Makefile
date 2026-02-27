@@ -95,6 +95,11 @@ clean: tidy
 	rm -rf docs/build docs/doxygen docs/html docs/latex
 	rm -f amrex.build.log
 
+clean-tests:
+	@printf "$(B_ON)$(FG_RED)CLEANING TEST OUTPUT DIRECTORIES $(RESET)\n"
+	rm -rf tests/subfolder/*/output*
+	rm -r report/*
+
 realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING AMREX $(RESET)\n" 
 	-make -C ${AMREX_ROOT} realclean
