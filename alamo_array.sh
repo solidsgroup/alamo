@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-#SBATCH --time=14:00:00
+#SBATCH --time=2:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=16
-#SBATCH --mem-per-cpu=10000
-#SBATCH --job-name="alamo"
-#SBATCH --array=2-10
+#SBATCH --ntasks-per-node=128
+#SBATCH --mem-per-cpu=15000
+#SBATCH --job-name="zeta_study"
+#SBATCH --array=0-5
 #SBATCH --output="%x-%A_%a-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -20,16 +20,24 @@ echo "======================================================"
 
 module load openmpi_hpc
 
-# IC file index from array task ID
+# -------------------------------------------------
+# Define array of zeta values (non-integers allowed)
+# -------------------------------------------------
+zeta_values=(5.0, 10.0, 15.0, 20.0, 25.0, 30.0)
+
+# Get value corresponding to this array task
+zeta=${zeta_values[$SLURM_ARRAY_TASK_ID]}
+
+echo "Running simulation with zeta = ${zeta}"
+
+# Optional: still use IC index if needed
 i=${SLURM_ARRAY_TASK_ID}
 
-echo "Running simulation with IC file ${i}"
-
 srun --mpi=pmix ./bin/alamo-2d-g++ input.scpspheres_kodga_validation \
-    phi.ic.psread.file.name="all_datasets/C/setC_xyzrs/setC_${i}_AP.xyzr" \
-    plot_file="output.scpspheres_novoids_set${i}"
+    plot_file="output.A_0_novoid_zeta_${zeta}" \
+    propellant.fullfeedback.phi.zeta=${zeta}
 
 echo "======================================================"
-echo " Simulation ${i} completed"
+echo " Simulation with zeta=${zeta} completed"
 echo " End time: $(date)"
 echo "======================================================"
