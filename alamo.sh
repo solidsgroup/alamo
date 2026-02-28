@@ -4,13 +4,13 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=128
 #SBATCH --mem-per-cpu=15000
-#SBATCH --job-name="A_1_void_m1"
+#SBATCH --job-name="A_1_void_m3"
 #SBATCH --output="%x-%j-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
 # #SBATCH --constraint=nova25
 
-JOB_NAME="A_1_void_M1"
+JOB_NAME="A_1_void_M3"
 PLOT_FILE="output.${JOB_NAME}"
 
 echo "======================================================"
