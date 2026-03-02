@@ -14,7 +14,7 @@ amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.5
 amr.refinement_criterion_temp = 0.5_K
-# amr.phi_refinement_criterion = 0.5
+amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 
 amr.max_plot_level = 2
@@ -29,7 +29,7 @@ amr.max_level = 2
 # geometry.prob_hi = 1.2_mm 1.2_mm 1.2_mm
 
 # Quarter size
-amr.n_cell = 128 16  64
+amr.n_cell = 128 16 64
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 
@@ -115,7 +115,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =      9.5_um
+# propellant.fullfeedback.phi.zeta =    25.0_um
 propellant.fullfeedback.Pref     =      1.1_MPa
 
 # Thermal transport parameters
