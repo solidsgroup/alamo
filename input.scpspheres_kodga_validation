@@ -67,7 +67,7 @@ pf.eta.ic.psread.invert = 1
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
 # phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
-pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B/B_00_AP.xyzr
+phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B/B_00_AP.xyzr
 phi.ic.psread.eps = 1.5_um
 
 # Phase field parameters
