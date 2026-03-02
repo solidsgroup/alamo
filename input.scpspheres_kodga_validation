@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.B_0_void_1
+plot_file = output.C_vf_7_0_void_2
 
 system.length = mm
 system.time = s
@@ -21,7 +21,7 @@ amr.max_plot_level = 2
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 2
+amr.max_level = 4
 
 # Full size
 # amr.n_cell = 18 18 18
@@ -48,7 +48,7 @@ pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = psread
 pf.eta.ic.psread.file.unit = m
 # pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
-pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B/B_00_void.xyzr
+pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/D_vf_7/D_00_void.xyzr
 pf.eta.ic.psread.eps = 1.0_um
 pf.eta.ic.psread.invert = 1
 
@@ -67,7 +67,7 @@ pf.eta.ic.psread.invert = 1
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
 # phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
-phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B/B_00_AP.xyzr
+phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/D_vf_7/D_00_AP.xyzr
 phi.ic.psread.eps = 1.5_um
 
 # Phase field parameters
