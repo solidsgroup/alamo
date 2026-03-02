@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --time=2:00:00
+#SBATCH --time=3:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=128
 #SBATCH --mem-per-cpu=15000
@@ -23,7 +23,7 @@ module load openmpi_hpc
 # -------------------------------------------------
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
-zeta_values=(5.0, 10.0, 15.0, 20.0, 25.0, 30.0)
+zeta_values=(5.0_um 10.0_um 15.0_um 20.0_um 25.0_um 30.0_um)
 
 # Get value corresponding to this array task
 zeta=${zeta_values[$SLURM_ARRAY_TASK_ID]}

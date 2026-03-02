@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.A_1_m3
+plot_file = output.A_0_void_1
 
 system.length = mm
 system.time = s
@@ -14,7 +14,7 @@ amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.5
 amr.refinement_criterion_temp = 0.5_K
-# amr.phi_refinement_criterion = 0.5
+amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 
 amr.max_plot_level = 2
@@ -45,14 +45,14 @@ pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
-# pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
-# pf.eta.ic.psread.eps = 1.0_um
-# pf.eta.ic.psread.invert = 1
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
+pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
+pf.eta.ic.psread.eps = 1.0_um
+pf.eta.ic.psread.invert = 1
 
-pf.eta.ic.type = constant 
-pf.eta.ic.constant.value = 1.0 
+# pf.eta.ic.type = constant 
+# pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
 # pf.eta.ic.expression.constant.x0 = 30.0_um
@@ -113,7 +113,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =      9.5_um
+# propellant.fullfeedback.phi.zeta =    25.0_um
 propellant.fullfeedback.Pref     =      1.1_MPa
 
 # Thermal transport parameters
