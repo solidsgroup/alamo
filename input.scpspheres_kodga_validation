@@ -45,14 +45,15 @@ pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
 # pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
-# pf.eta.ic.psread.eps = 1.0_um
-# pf.eta.ic.psread.invert = 1
+pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/A/A_00_void.xyzr
+pf.eta.ic.psread.eps = 1.0_um
+pf.eta.ic.psread.invert = 1
 
-pf.eta.ic.type = constant 
-pf.eta.ic.constant.value = 1.0 
+# pf.eta.ic.type = constant 
+# pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
 # pf.eta.ic.expression.constant.x0 = 30.0_um
@@ -65,7 +66,8 @@ pf.eta.ic.constant.value = 1.0
 ## Phi initial condition (spheres)
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
-phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
+# phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
+pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/A/A_00_AP.xyzr
 phi.ic.psread.eps = 1.5_um
 
 # Phase field parameters
