@@ -699,7 +699,7 @@ public:
 
         // Process each grid patch
         for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+            const amrex::Box& face_bx= mfi.tilebox();
 
             auto const& FluxNeg_arr = Flux_Negative.const_array(mfi);
             auto const& FluxPos_arr = Flux_Positive.const_array(mfi);
@@ -713,24 +713,39 @@ public:
 
             // Process each cell in the valid box
             amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                // Construct index arrays with correct number of components
-                int index[3];
-                int lower_bounds[3];
-                int upper_bounds[3];
+                // // Construct index arrays with correct number of components
+                // int index[3];
+                // int lower_bounds[3];
+                // int upper_bounds[3];
 
-                // Set up indices and bounds
-                index[0] = iface; index[1] = jface; index[2] = kface;
+                // // Set up indices and bounds
+                // index[0] = iface; index[1] = jface; index[2] = kface;
 
-                // Define bounds including ghost cells
-                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-                lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) -1;
-                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) -1;
-                upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+                // // Define bounds including ghost cells
+                // lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+                // lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+                // lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+                // upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) -1;
+                // upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) -1;
+                // upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
 
-                // Clamp the main index to ensure it's within bounds
-                ClampIndices(index, lower_bounds, upper_bounds);
+                // // Clamp the main index to ensure it's within bounds
+                // ClampIndices(index, lower_bounds, upper_bounds);
+
+                // Create branchless masks for left (i-1) and right (i) indices for each face based on direction
+                int dx = (direction == 0);
+                int dy = (direction == 1);
+                int dz = (direction == 2);
+
+                // Compute left/right indices with no branching
+                int iL = iface - dx;
+                int iR = iface;
+
+                int jL = jface - dy;
+                int jR = jface;
+
+                int kL = kface - dz;
+                int kR = kface;
 
                 // Store average state buffer in Vector Form
                 Set::MultiVector avg_state(num_components);

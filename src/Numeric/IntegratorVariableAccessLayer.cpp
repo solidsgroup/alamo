@@ -54,6 +54,49 @@ CompressibleEulerVariableAccessor::getRequiredGhostCells(
             return total_ghost_cells;
     }
 }
+
+// int
+// CompressibleEulerVariableAccessor::getRequiredGhostCells(
+//     ReconstructionMode mode,
+//     FluxReconstructionType reconstructionType,
+//     FluxScheme fluxScheme,
+//     ReconstructionTarget target) const
+// {
+//     //
+//     // First-order reconstruction
+//     //
+//     if (reconstructionType == FluxReconstructionType::FirstOrder)
+//     {
+//         // Variable-based reconstruction requires only 1 ghost.
+//         if (target == ReconstructionTarget::Variables)
+//             return 1;
+
+//         // Flux-based reconstruction depends on flux scheme:
+//         // LLF (local Lax-Friedrichs) needs 2 because of face->cell mapping:
+//         //    iface = ihi+1 -> iR = iface = ihi+1 must be written in SplitFluxes.
+//         if (target == ReconstructionTarget::Fluxes)
+//         {
+//             if (fluxScheme == FluxScheme::LocalLaxFriedrichs)
+//                 return 2;     // mathematically required
+//             else
+//                 return 1;     // upwind / centered first-order schemes
+//         }
+//     }
+
+//     //
+//     // WENO or any high-order scheme
+//     //
+//     if (reconstructionType == FluxReconstructionType::WENO)
+//     {
+//         // WENO5 needs 3 stencil points on each side
+//         return 3;
+//     }
+
+//     //
+//     // Default fallback
+//     //
+//     return total_ghost_cells;
+// }
     
 
 // Add these implementations to IntegratorVariableAccessLayer.cpp
@@ -217,14 +260,14 @@ CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
     const int i0 = 32, j0 = 32, k0 = 8;
     const int rho = solver->variableIndex.DENS;
 
-    // target location for DebugValuesIfTarget
-    Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(i0, j0, k0, dbg);
+    // // target location for DebugValuesIfTarget
+    // Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(i0, j0, k0, dbg);
 
-    // 1) BEFORE copy: check source Q and destination VarBuffer
-    ProbeMF_CC_NoTiling(VariableBuffer, i0, j0+1, k0, rho, "VB(rho)", "COPY: POST Copy VB ghost(j+1)", dbg);
-    // also probe a ghost cell to the left of i=32 (this is the one that matters)
-    ProbeMF_CC_NoTiling(*(solver->QVec_mf[lev]), i0,j0+1,k0, rho, "Q(rho)",  "COPY: PRE Q ghost(j+1)", dbg);
-    ProbeMF_CC_NoTiling(VariableBuffer,          i0,j0+1,k0, rho, "VB(rho)", "COPY: PRE VB ghost(j+1)", dbg);
+    // // 1) BEFORE copy: check source Q and destination VarBuffer
+    // ProbeMF_CC_NoTiling(VariableBuffer, i0, j0+1, k0, rho, "VB(rho)", "COPY: POST Copy VB ghost(j+1)", dbg);
+    // // also probe a ghost cell to the left of i=32 (this is the one that matters)
+    // ProbeMF_CC_NoTiling(*(solver->QVec_mf[lev]), i0,j0+1,k0, rho, "Q(rho)",  "COPY: PRE Q ghost(j+1)", dbg);
+    // ProbeMF_CC_NoTiling(VariableBuffer,          i0,j0+1,k0, rho, "VB(rho)", "COPY: PRE VB ghost(j+1)", dbg);
 
     
     
@@ -237,17 +280,17 @@ CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
     );
    
 
-    // 3) AFTER copy: check again
-    ProbeMF_CC_NoTiling(VariableBuffer, i0,j0,k0, rho, "VB(rho)", "COPY: POST Copy VB valid", dbg);
-    ProbeMF_CC_NoTiling(VariableBuffer, i0, j0+1, k0, rho, "VB(rho)", "COPY: POST Copy VB ghost(j+1)", dbg);
+    // // 3) AFTER copy: check again
+    // ProbeMF_CC_NoTiling(VariableBuffer, i0,j0,k0, rho, "VB(rho)", "COPY: POST Copy VB valid", dbg);
+    // ProbeMF_CC_NoTiling(VariableBuffer, i0, j0+1, k0, rho, "VB(rho)", "COPY: POST Copy VB ghost(j+1)", dbg);
 
    
     // 5) AFTER FillBoundary: check again
  
 
     VariableBuffer.FillBoundary();
-    ProbeMF_CC_NoTiling(VariableBuffer, i0,j0,k0, rho, "VB(rho)", "COPY: POST FillBoundary VB valid", dbg);
-    ProbeMF_CC_NoTiling(VariableBuffer, i0,j0+1,k0, rho, "VB(rho)", "COPY: POST FillBoundary VB ghost(j+1)", dbg);
+    // ProbeMF_CC_NoTiling(VariableBuffer, i0,j0,k0, rho, "VB(rho)", "COPY: POST FillBoundary VB valid", dbg);
+    // ProbeMF_CC_NoTiling(VariableBuffer, i0,j0+1,k0, rho, "VB(rho)", "COPY: POST FillBoundary VB ghost(j+1)", dbg);
 }
 
 

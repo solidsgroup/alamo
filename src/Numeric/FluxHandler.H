@@ -396,7 +396,7 @@ void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
 
     // 6. Create MultiFab for the computed flux
     amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
-                            solver->number_of_components, ghost_cells);
+                            solver->number_of_components, 0);
 
     // 7. Compute fluxes from reconstructed states
     flux_method->ComputeFluxes(direction, lev, solver, 
@@ -556,7 +556,7 @@ void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
     if (mode == ReconstructionMode::Characteristic) {
     // 3a. Create intermediate buffers for storing cell centered variables
     AverageStateBuffer = variable_accessor->CreateWorkingBuffer(
-        face_ba, solver->dmap[lev], solver->number_of_components, ghost_cells);
+        face_ba, solver->dmap[lev], solver->number_of_components, 0);
 
     // 3b. Compute average state buffers
     variable_accessor->PopulateAverageStates(direction, lev, solver, AverageStateBuffer);  
@@ -565,7 +565,7 @@ void FluxHandler<IntegratorDerivedClass>::ProcessFluxBasedReconstruction(
 
     // 9. Create MultiFab for the reconstructed summed flux
     amrex::MultiFab SummedFlux(face_ba, solver->dmap[lev], 
-                            solver->number_of_components, ghost_cells);
+                            solver->number_of_components, 0);
 
     // 10. Perform reconstruction on fluxes
     reconstruction->ReconstructFluxes(
@@ -591,11 +591,11 @@ public:
                         [[maybe_unused]] const std::shared_ptr<GenericVariableAccessor>& variable_accessor,
                         [[maybe_unused]] const amrex::MultiFab* AverageStateBuffer = nullptr) const override {
 
-        const int nghosts = solver->number_of_ghost_cells; 
+        // const int nghosts = solver->number_of_ghost_cells; 
 
         // Loop through face-centered indices for flux reconstruction
         for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& face_bx_with_ghosts = mfi.grownnodaltilebox(direction, nghosts);
+            const amrex::Box& face_bx = mfi.tilebox();
 
             auto const& FluxNeg_arr = Flux_Negative.array(mfi);  // Left reconstructed state
             auto const& FluxPos_arr = Flux_Positive.array(mfi);  // Right reconstructed state
@@ -603,44 +603,59 @@ public:
 
             const int num_components = solver->number_of_components;  // Number of components
 
-            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
-                // Construct index arrays with correct number of components
-                int index[3];
-                int left_index[3];
-                int right_index[3];
-                int lower_bounds[3];
-                int upper_bounds[3];
+            amrex::ParallelFor(face_bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+                // // Construct index arrays with correct number of components
+                // int index[3];
+                // int left_index[3];
+                // int right_index[3];
+                // int lower_bounds[3];
+                // int upper_bounds[3];
 
-                // Set up indices
-                index[0] = iface; index[1] = jface; index[2] = kface;
-                left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
-                right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
+                // // Set up indices
+                // index[0] = iface; index[1] = jface; index[2] = kface;
+                // left_index[0] = iface; left_index[1] = jface; left_index[2] = kface;
+                // right_index[0] = iface; right_index[1] = jface; right_index[2] = kface;
 
-                // Define bounds including ghost cells
-                lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
-                lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
-                lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
-                upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
-                upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
-                upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
+                // // Define bounds including ghost cells
+                // lower_bounds[0] = face_bx_with_ghosts.smallEnd(0); 
+                // lower_bounds[1] = face_bx_with_ghosts.smallEnd(1); 
+                // lower_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.smallEnd(2) : 0;
+                // upper_bounds[0] = face_bx_with_ghosts.bigEnd(0) - 1;
+                // upper_bounds[1] = face_bx_with_ghosts.bigEnd(1) - 1;
+                // upper_bounds[2] = AMREX_SPACEDIM == 3 ? face_bx_with_ghosts.bigEnd(2) - 1 : 0;
 
-                // Clamp the main index
-                ClampIndices(index, lower_bounds, upper_bounds);
+                // // Clamp the main index
+                // ClampIndices(index, lower_bounds, upper_bounds);
 
-                // Shift and clamp for left and right indices
-                int left_offset[3] = {0, 0, 0};
-                int right_offset[3] = {0, 0, 0};
-                left_offset[direction] = 0;  // Shift left
-                right_offset[direction] = 1;  // Shift right
+                // // Shift and clamp for left and right indices
+                // int left_offset[3] = {0, 0, 0};
+                // int right_offset[3] = {0, 0, 0};
+                // left_offset[direction] = 0;  // Shift left
+                // right_offset[direction] = 1;  // Shift right
 
-                ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-                ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                // ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+                // ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+                
+                // Create branchless masks for left (i-1) and right (i) indices for each face based on direction
+                int dx = (direction == 0);
+                int dy = (direction == 1);
+                int dz = (direction == 2);
+
+                // Compute left/right indices with no branching
+                int iL = iface - dx;
+                int iR = iface;
+
+                int jL = jface - dy;
+                int jR = jface;
+
+                int kL = kface - dz;
+                int kR = kface;
 
                 for (int n = 0; n < num_components; ++n) {
-                    const Set::Scalar FL = FluxNeg_arr(left_index[0], left_index[1], left_index[2], n);
-                    const Set::Scalar FR = FluxPos_arr(right_index[0], right_index[1], right_index[2], n);  
+                    const Set::Scalar FL = FluxPos_arr(iL, jL, kL, n);
+                    const Set::Scalar FR = FluxNeg_arr(iR, jR, kR, n);  
                     // Assign values to the stencil arrays
-                    TotalFlux_arr(index[0], index[1], index[2], n) = FL + FR;
+                    TotalFlux_arr(iface, jface, kface, n) = FL + FR;
                 }
             });
         }
@@ -742,75 +757,75 @@ public:
                 int kL = kface - dz;
                 int kR = kface;
 
-                if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface))
-                {
-                    // 1) Print indices before/after
-                    // Util::ScimitarX_Util::Debug::DebugIndicesAndBounds(
-                    //     index[0], index[1], index[2],
-                    //     index,
-                    //     left_index_pre, right_index_pre,   
-                    //     lower_bounds, upper_bounds,
-                    //     "RECON: indices PRE shift+clamp", true);
+                // if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface))
+                // {
+                //     // 1) Print indices before/after
+                //     // Util::ScimitarX_Util::Debug::DebugIndicesAndBounds(
+                //     //     index[0], index[1], index[2],
+                //     //     index,
+                //     //     left_index_pre, right_index_pre,   
+                //     //     lower_bounds, upper_bounds,
+                //     //     "RECON: indices PRE shift+clamp", true);
 
-                    // Util::ScimitarX_Util::Debug::DebugIndicesAndBounds(
-                    //     index[0], index[1], index[2],
-                    //     index,
-                    //     left_index, right_index,           
-                    //     lower_bounds, upper_bounds,
-                    //     "RECON: indices POST shift+clamp", true);
+                //     // Util::ScimitarX_Util::Debug::DebugIndicesAndBounds(
+                //     //     index[0], index[1], index[2],
+                //     //     index,
+                //     //     left_index, right_index,           
+                //     //     lower_bounds, upper_bounds,
+                //     //     "RECON: indices POST shift+clamp", true);
 
-                    const int rho = solver->variableIndex.DENS;
-                    const int u   = solver->variableIndex.UVEL;   
-                    const int v   = solver->variableIndex.VVEL;
-                #if (AMREX_SPACEDIM == 3)
-                    const int w   = solver->variableIndex.WVEL;
-                #endif
+                //     const int rho = solver->variableIndex.DENS;
+                //     const int u   = solver->variableIndex.UVEL;   
+                //     const int v   = solver->variableIndex.VVEL;
+                // #if (AMREX_SPACEDIM == 3)
+                //     const int w   = solver->variableIndex.WVEL;
+                // #endif
                       
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, rho),
-                        "PVec[rho]@left_index", "RECON: source left", false, rho, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, rho),
+                //         "PVec[rho]@left_index", "RECON: source left", false, rho, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, rho),
-                        "PVec[rho]@right_index", "RECON: source right", false, rho, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, rho),
+                //         "PVec[rho]@right_index", "RECON: source right", false, rho, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, u),
-                        "PVec[u]@left_index", "RECON: source left", false, u, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, u),
+                //         "PVec[u]@left_index", "RECON: source left", false, u, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, u),
-                        "PVec[u]@right_index", "RECON: source right", false, u, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, u),
+                //         "PVec[u]@right_index", "RECON: source right", false, u, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, v),
-                        "PVec[v]@left_index", "RECON: source left", false, v, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, v),
+                //         "PVec[v]@left_index", "RECON: source left", false, v, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, v),
-                        "PVec[v]@right_index", "RECON: source right", false, v, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, v),
+                //         "PVec[v]@right_index", "RECON: source right", false, v, true);
 
-                #if (AMREX_SPACEDIM == 3)
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, w),
-                        "PVec[w]@left_index", "RECON: source left", false, w, true);
+                // #if (AMREX_SPACEDIM == 3)
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, w),
+                //         "PVec[w]@left_index", "RECON: source left", false, w, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iL, jL, kL,
-                        Var_arr(iR, jR, kR, w),
-                        "PVec[w]@right_index", "RECON: source right", false, w, true);
-                #endif
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iL, jL, kL,
+                //         Var_arr(iR, jR, kR, w),
+                //         "PVec[w]@right_index", "RECON: source right", false, w, true);
+                // #endif
 
                    
-                }
+                // }
 
 
             
@@ -823,119 +838,119 @@ public:
                         Var_arr(iR, jR, kR, n);
                 }
                 // === PROBE: after reconstruction write (face states) ===
-                if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface))
-                {
-                    // Util::ScimitarX_Util::Debug::DebugIndicesAndBounds(
-                    //     index[0], index[1], index[2],
-                    //     index, left_index, right_index,
-                    //     lower_bounds, upper_bounds,
-                    //     "RECON: indices/bounds (after clamp/shift)", true);
+                // if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface))
+                // {
+                //     // Util::ScimitarX_Util::Debug::DebugIndicesAndBounds(
+                //     //     index[0], index[1], index[2],
+                //     //     index, left_index, right_index,
+                //     //     lower_bounds, upper_bounds,
+                //     //     "RECON: indices/bounds (after clamp/shift)", true);
 
-                    // -------- component 0 --------
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, 0),
-                        "VarBuffer(0)@left_index", "RECON: source left", false, 0, true);
+                //     // -------- component 0 --------
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, 0),
+                //         "VarBuffer(0)@left_index", "RECON: source left", false, 0, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, 0),
-                        "VarBuffer(0)@right_index", "RECON: source right", false, 0, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, 0),
+                //         "VarBuffer(0)@right_index", "RECON: source right", false, 0, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        LeftStates_arr(iface, jface, kface, 0),
-                        "LeftStates(0)", "RECON: wrote LeftStates", false, 0, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         LeftStates_arr(iface, jface, kface, 0),
+                //         "LeftStates(0)", "RECON: wrote LeftStates", false, 0, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        RightStates_arr(iface, jface, kface, 0),
-                        "RightStates(0)", "RECON: wrote RightStates", false, 0, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         RightStates_arr(iface, jface, kface, 0),
+                //         "RightStates(0)", "RECON: wrote RightStates", false, 0, true);
 
-                    // -------- component 1 --------
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, 1),
-                        "VarBuffer(1)@left_index", "RECON: source left", false, 1, true);
+                //     // -------- component 1 --------
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, 1),
+                //         "VarBuffer(1)@left_index", "RECON: source left", false, 1, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, 1),
-                        "VarBuffer(1)@right_index", "RECON: source right", false, 1, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, 1),
+                //         "VarBuffer(1)@right_index", "RECON: source right", false, 1, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        LeftStates_arr(iface, jface, kface, 1),
-                        "LeftStates(1)", "RECON: wrote LeftStates", false, 1, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         LeftStates_arr(iface, jface, kface, 1),
+                //         "LeftStates(1)", "RECON: wrote LeftStates", false, 1, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iL, jL, kL,
-                        RightStates_arr(iface, jface, kface, 1),
-                        "RightStates(1)", "RECON: wrote RightStates", false, 1, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iL, jL, kL,
+                //         RightStates_arr(iface, jface, kface, 1),
+                //         "RightStates(1)", "RECON: wrote RightStates", false, 1, true);
 
-                    // -------- component 2 --------
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, 2),
-                        "VarBuffer(2)@left_index", "RECON: source left", false, 2, true);
+                //     // -------- component 2 --------
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, 2),
+                //         "VarBuffer(2)@left_index", "RECON: source left", false, 2, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, 2),
-                        "VarBuffer(2)@right_index", "RECON: source right", false, 2, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, 2),
+                //         "VarBuffer(2)@right_index", "RECON: source right", false, 2, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        LeftStates_arr(iface, jface, kface, 2),
-                        "LeftStates(2)", "RECON: wrote LeftStates", false, 2, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         LeftStates_arr(iface, jface, kface, 2),
+                //         "LeftStates(2)", "RECON: wrote LeftStates", false, 2, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        RightStates_arr(iface, jface, kface, 2),
-                        "RightStates(2)", "RECON: wrote RightStates", false, 2, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         RightStates_arr(iface, jface, kface, 2),
+                //         "RightStates(2)", "RECON: wrote RightStates", false, 2, true);
 
-                    // -------- component 3 --------
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, 3),
-                        "VarBuffer(3)@left_index", "RECON: source left", false, 3, true);
+                //     // -------- component 3 --------
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, 3),
+                //         "VarBuffer(3)@left_index", "RECON: source left", false, 3, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, 3),
-                        "VarBuffer(3)@right_index", "RECON: source right", false, 3, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, 3),
+                //         "VarBuffer(3)@right_index", "RECON: source right", false, 3, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        LeftStates_arr(iface, jface, kface, 3),
-                        "LeftStates(3)", "RECON: wrote LeftStates", false, 3, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         LeftStates_arr(iface, jface, kface, 3),
+                //         "LeftStates(3)", "RECON: wrote LeftStates", false, 3, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        RightStates_arr(iface, jface, kface, 3),
-                        "RightStates(3)", "RECON: wrote RightStates", false, 3, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         RightStates_arr(iface, jface, kface, 3),
+                //         "RightStates(3)", "RECON: wrote RightStates", false, 3, true);
 
-                    // -------- component 4 --------
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iL, jL, kL, 4),
-                        "VarBuffer(4)@left_index", "RECON: source left", false, 4, true);
+                //     // -------- component 4 --------
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iL, jL, kL, 4),
+                //         "VarBuffer(4)@left_index", "RECON: source left", false, 4, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        Var_arr(iR, jR, kR, 4),
-                        "VarBuffer(4)@right_index", "RECON: source right", false, 4, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         Var_arr(iR, jR, kR, 4),
+                //         "VarBuffer(4)@right_index", "RECON: source right", false, 4, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        LeftStates_arr(iface, jface, kface, 4),
-                        "LeftStates(4)", "RECON: wrote LeftStates", false, 4, true);
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         LeftStates_arr(iface, jface, kface, 4),
+                //         "LeftStates(4)", "RECON: wrote LeftStates", false, 4, true);
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        iface, jface, kface,
-                        RightStates_arr(iface, jface, kface, 4),
-                        "RightStates(4)", "RECON: wrote RightStates", false, 4, true);
-                }
+                //     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         iface, jface, kface,
+                //         RightStates_arr(iface, jface, kface, 4),
+                //         "RightStates(4)", "RECON: wrote RightStates", false, 4, true);
+                // }
 
                 // if (i == 32 && j == 25 && (k == 7 || k == 8)) {
                 //     const int rho = solver->variableIndex.DENS;
@@ -968,6 +983,19 @@ public:
 
         const Set::Scalar gamma = 1.4;  // Ratio of specific heats
 
+        // **Direction to velocity and energy mapping**
+        int normal = direction;                 // Normal velocity component
+        int trans1 = (direction + 1) % AMREX_SPACEDIM;  // First transverse velocity
+#if AMREX_SPACEDIM == 3                                                              
+        int trans2 = (direction + 2) % AMREX_SPACEDIM;  // Second transverse velocity (3D only)
+#endif
+        // **Direction to velocity mapping**
+        int velocity_component[3] = {
+            solver->variableIndex.UVEL,  // X-direction -> UVEL
+            solver->variableIndex.VVEL,  // Y-direction -> VVEL
+            solver->variableIndex.WVEL   // Z-direction -> WVEL
+        };
+
         //for (amrex::MFIter mfi(QL_stencil, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         for (amrex::MFIter mfi(Flux_Negative, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 
@@ -983,139 +1011,143 @@ public:
             auto const& q_arr  = VariableBuffer.array(mfi);
             auto const& flux_arr  = CellFluxBuffer.array(mfi);
 
-            // **Direction to velocity and energy mapping**
-            int normal = direction;                 // Normal velocity component
-            int trans1 = (direction + 1) % AMREX_SPACEDIM;  // First transverse velocity
-#if AMREX_SPACEDIM == 3                                                              
-            int trans2 = (direction + 2) % AMREX_SPACEDIM;  // Second transverse velocity (3D only)
-#endif
-            // **Direction to velocity mapping**
-            int velocity_component[3] = {
-                solver->variableIndex.UVEL,  // X-direction -> UVEL
-                solver->variableIndex.VVEL,  // Y-direction -> VVEL
-                solver->variableIndex.WVEL   // Z-direction -> WVEL
-            };
-
         amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            // // Construct index arrays with correct number of components
+            // int index[3];
+            // int left_index[3];
+            // int right_index[3];
+            // int lower_bounds[3];
+            // int upper_bounds[3];
 
+            // // Set up indices
+            // index[0] = i; index[1] = j; index[2] = k;
+            // left_index[0] = i; left_index[1] = j; left_index[2] = k;
+            // right_index[0] = i; right_index[1] = j; right_index[2] = k;
 
-            // Construct index arrays with correct number of components
-            int index[3];
-            int left_index[3];
-            int right_index[3];
-            int lower_bounds[3];
-            int upper_bounds[3];
+            // // Define bounds including ghost cells
+            // lower_bounds[0] = bx_with_ghosts.smallEnd(0); 
+            // lower_bounds[1] = bx_with_ghosts.smallEnd(1); 
+            // lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.smallEnd(2) : 0;
+            // upper_bounds[0] = bx_with_ghosts.bigEnd(0);
+            // upper_bounds[1] = bx_with_ghosts.bigEnd(1);
+            // upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.bigEnd(2) : 0;
 
-            // Set up indices
-            index[0] = i; index[1] = j; index[2] = k;
-            left_index[0] = i; left_index[1] = j; left_index[2] = k;
-            right_index[0] = i; right_index[1] = j; right_index[2] = k;
+            // // Clamp the main index
+            // ClampIndices(index, lower_bounds, upper_bounds);
 
-            // Define bounds including ghost cells
-            lower_bounds[0] = bx_with_ghosts.smallEnd(0); 
-            lower_bounds[1] = bx_with_ghosts.smallEnd(1); 
-            lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.smallEnd(2) : 0;
-            upper_bounds[0] = bx_with_ghosts.bigEnd(0);
-            upper_bounds[1] = bx_with_ghosts.bigEnd(1);
-            upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx_with_ghosts.bigEnd(2) : 0;
-
-            // Clamp the main index
-            ClampIndices(index, lower_bounds, upper_bounds);
-
-            // Shift and clamp for left and right indices
-            int left_offset[3] = {0, 0, 0};
-            int right_offset[3] = {0, 0, 0};
-            left_offset[direction] = 0;  // Shift left
-            right_offset[direction] = 1;  // Shift right
+            // // Shift and clamp for left and right indices
+            // int left_offset[3] = {0, 0, 0};
+            // int right_offset[3] = {0, 0, 0};
+            // left_offset[direction] = 0;  // Shift left
+            // right_offset[direction] = 1;  // Shift right
 
             
 
-            ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
-            ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
+            // ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
+            // ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
 
             // **Left and right primitive variables (QL and QR)**
-            Set::Scalar rho_L = p_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.DENS);
-            Set::Scalar rho_R = p_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.DENS);
+            Set::Scalar rho = p_arr(i, j, k, solver->variableIndex.DENS);
+            // Set::Scalar rho_R = p_arr(iR, jR, kR, solver->variableIndex.DENS);
 
             // **Left and right primitive variables (QL and QR)**
-            Set::Scalar pressure_L = pres_arr(left_index[0], left_index[1], left_index[2]);
-            Set::Scalar pressure_R = pres_arr(right_index[0], right_index[1], right_index[2]);
+            Set::Scalar pressure = pres_arr(i, j, k);
+            // Set::Scalar pressure_R = pres_arr(iR, jR, kR);
 
-            Set::Scalar vel_L[3] = {0.0, 0.0, 0.0};
-            Set::Scalar vel_R[3] = {0.0, 0.0, 0.0};
+            Set::Scalar vel[3] = {0.0, 0.0, 0.0};
+            // Set::Scalar vel_R[3] = {0.0, 0.0, 0.0};
 
-            vel_L[normal] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[normal]);
-            vel_R[normal] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[normal]);
+            vel[normal] = p_arr(i, j, k, velocity_component[normal]);
+            // vel_R[normal] = p_arr(iR, jR, kR, velocity_component[normal]);
 
             // **Speed of sound**
-            Set::Scalar c_L = std::sqrt(gamma * std::max(pressure_L, 1e-8) / std::max(rho_L, 1e-8));
-            Set::Scalar c_R = std::sqrt(gamma * std::max(pressure_R, 1e-8) / std::max(rho_R, 1e-8));
+            Set::Scalar c = std::sqrt(gamma * std::max(pressure, 1e-8) / std::max(rho, 1e-8));
+            // Set::Scalar c_R = std::sqrt(gamma * std::max(pressure_R, 1e-8) / std::max(rho_R, 1e-8));
 
             // **Maximum wave speed (lambda_max)**
-            Set::Scalar lambda_max = std::max(std::abs(vel_L[normal]) + c_L, std::abs(vel_R[normal]) + c_R);
+            Set::Scalar lambda_max = std::abs(vel[normal]) + c;
+            // Set::Scalar lambda_max = std::max(std::abs(vel_L[normal]) + cL, std::abs(vel_R[normal]) + c_R);
 
             // **Flux arrays**
             int num_components = solver->number_of_components;
-            std::vector<Set::Scalar> FL(num_components, 0.0);
-            std::vector<Set::Scalar> FR(num_components, 0.0);
+            std::vector<Set::Scalar> F(num_components, 0.0);
+            // std::vector<Set::Scalar> FR(num_components, 0.0);
 
             // Mass flux
-            FL[solver->variableIndex.DENS] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.DENS);
-            FR[solver->variableIndex.DENS] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.DENS);
+            F[solver->variableIndex.DENS] = flux_arr(i, j, k, solver->variableIndex.DENS);
+            // FR[solver->variableIndex.DENS] = flux_arr(iR, jR, kR, solver->variableIndex.DENS);
 
             // Momentum fluxes
-            FL[solver->variableIndex.UVEL + normal] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.UVEL + normal);
-            FR[solver->variableIndex.UVEL + normal] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.UVEL + normal);
+            F[solver->variableIndex.UVEL + normal] = flux_arr(i, j, k, solver->variableIndex.UVEL + normal);
+            // FR[solver->variableIndex.UVEL + normal] = flux_arr(iR, jR, kR, solver->variableIndex.UVEL + normal);
 
 #if AMREX_SPACEDIM >= 2
-            FL[solver->variableIndex.UVEL + trans1] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.UVEL + trans1);
-            FR[solver->variableIndex.UVEL + trans1] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.UVEL + trans1);
+            F[solver->variableIndex.UVEL + trans1] = flux_arr(i, j, k, solver->variableIndex.UVEL + trans1);
+            // FR[solver->variableIndex.UVEL + trans1] = flux_arr(iR, jR, kR, solver->variableIndex.UVEL + trans1);
 #endif
 #if AMREX_SPACEDIM == 3
-            FL[solver->variableIndex.UVEL + trans2] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.UVEL + trans2);
-            FR[solver->variableIndex.UVEL + trans2] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.UVEL + trans2);
+            F[solver->variableIndex.UVEL + trans2] = flux_arr(i, j, k, solver->variableIndex.UVEL + trans2);
+            // FR[solver->variableIndex.UVEL + trans2] = flux_arr(iR, jR, kR, solver->variableIndex.UVEL + trans2);
 #endif
 
             // Energy flux
-            FL[solver->variableIndex.IE] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE);
-            FR[solver->variableIndex.IE] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE);
+            F[solver->variableIndex.IE] = flux_arr(i, j, k, solver->variableIndex.IE);
+            // FR[solver->variableIndex.IE] = flux_arr(iR, jR, kR, solver->variableIndex.IE);
 
 
             // **Conservative state vectors (left and right)**
-            std::vector<Set::Scalar> QL_cons(num_components, 0.0);
-            std::vector<Set::Scalar> QR_cons(num_components, 0.0);
+            std::vector<Set::Scalar> Q_cons(num_components, 0.0);
+            // std::vector<Set::Scalar> QR_cons(num_components, 0.0);
 
             // **Convert primitive variables to conservative variables**
-            QL_cons[solver->variableIndex.DENS] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.DENS); //rho_L;  // Density
-            QR_cons[solver->variableIndex.DENS] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.DENS); //rho_R;
+            Q_cons[solver->variableIndex.DENS] = q_arr(i, j, k, solver->variableIndex.DENS); //rho_L;  // Density
+            // QR_cons[solver->variableIndex.DENS] = q_arr(iR, jR, kR, solver->variableIndex.DENS); //rho_R;
 
-            QL_cons[solver->variableIndex.UVEL + normal] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.UVEL + normal);//rho_L * vel_L[normal];  // Momentum in normal direction
-            QR_cons[solver->variableIndex.UVEL + normal] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.UVEL + normal); //rho_R * vel_R[normal];
+            Q_cons[solver->variableIndex.UVEL + normal] = q_arr(i, j, k, solver->variableIndex.UVEL + normal);//rho_L * vel_L[normal];  // Momentum in normal direction
+            // QR_cons[solver->variableIndex.UVEL + normal] = q_arr(iR, jR, kR, solver->variableIndex.UVEL + normal); //rho_R * vel_R[normal];
 
 #if AMREX_SPACEDIM >= 2
-            QL_cons[solver->variableIndex.UVEL + trans1] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.UVEL + trans1);//rho_L * vel_L[trans1];  // Momentum in first transverse direction
-            QR_cons[solver->variableIndex.UVEL + trans1] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.UVEL + trans1); //rho_R * vel_R[trans1];
+            Q_cons[solver->variableIndex.UVEL + trans1] = q_arr(i, j, k, solver->variableIndex.UVEL + trans1);//rho_L * vel_L[trans1];  // Momentum in first transverse direction
+            // QR_cons[solver->variableIndex.UVEL + trans1] = q_arr(iR, jR, kR, solver->variableIndex.UVEL + trans1); //rho_R * vel_R[trans1];
 #endif
 
 #if AMREX_SPACEDIM == 3
-            QL_cons[solver->variableIndex.UVEL + trans2] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.UVEL + trans2);//rho_L * vel_L[trans2];  // Momentum in second transverse direction
-            QR_cons[solver->variableIndex.UVEL + trans2] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.UVEL + trans2); //rho_R * vel_R[trans2];
+            Q_cons[solver->variableIndex.UVEL + trans2] = q_arr(i, j, k, solver->variableIndex.UVEL + trans2);//rho_L * vel_L[trans2];  // Momentum in second transverse direction
+            // QR_cons[solver->variableIndex.UVEL + trans2] = q_arr(iR, jR, kR, solver->variableIndex.UVEL + trans2); //rho_R * vel_R[trans2];
 #endif
 
-            QL_cons[solver->variableIndex.IE] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE);//rho_L * E_L;  // Total energy
-            QR_cons[solver->variableIndex.IE] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE); //rho_R * E_R;
+            Q_cons[solver->variableIndex.IE] = q_arr(i, j, k, solver->variableIndex.IE);//rho_L * E_L;  // Total energy
+            // QR_cons[solver->variableIndex.IE] = q_arr(iR, jR, kR, solver->variableIndex.IE); //rho_R * E_R;
 
 
             // **Local Lax-Friedrichs flux calculation**
             for (int n = 0; n < num_components; ++n) {
-            FluxPos_arr(index[0], index[1], index[2], n) =  0.5 * FL[n] + 0.5 * lambda_max * QL_cons[n];
-            FluxNeg_arr(index[0], index[1], index[2], n) =  0.5 * FR[n] - 0.5 * lambda_max * QR_cons[n];
+            FluxPos_arr(i, j, k, n) =  0.5 * F[n] + 0.5 * lambda_max * Q_cons[n];
+            FluxNeg_arr(i, j, k, n) =  0.5 * F[n] - 0.5 * lambda_max * Q_cons[n];
             }
 
         });
 
 
         }
+        Flux_Negative.FillBoundary();
+        Flux_Positive.FillBoundary();
+
+        
+        // #ifdef AMREX_DEBUG
+        // for (int n = 0; n < Flux_Positive.nComp(); ++n) {
+        //     amrex::Real mnP = Flux_Positive.min(n, 0, true);
+        //     amrex::Real mxP = Flux_Positive.max(n, 0, true);
+        //     amrex::Real mnN = Flux_Negative.min(n, 0, true);
+        //     amrex::Real mxN = Flux_Negative.max(n, 0, true);
+
+        //     amrex::Print() << "After SplitFluxes: FluxPos comp " << n
+        //                 << " min=" << mnP << " max=" << mxP << "\n";
+        //     amrex::Print() << "After SplitFluxes: FluxNeg comp " << n
+        //                 << " min=" << mnN << " max=" << mxN << "\n";
+        // }
+        // #endif
+
 
     }
 
@@ -1411,89 +1443,89 @@ void ComputeFluxes(int direction, int lev [[maybe_unused]], IntegratorDerivedCla
                 TotalFlux_arr(iface, jface, kface, n) = HLLC_flux;
 
                 
-                if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface))
-{
-    // -------- component 0 --------
+//                 if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface, jface, kface))
+// {
+//     // -------- component 0 --------
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Left_arr(iface, jface, kface, 0),
-        "LeftStates(0)", "FLUX: input left", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Left_arr(iface, jface, kface, 0),
+//         "LeftStates(0)", "FLUX: input left", false, 0, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Right_arr(iface, jface, kface, 0),
-        "RightStates(0)", "FLUX: input right", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Right_arr(iface, jface, kface, 0),
+//         "RightStates(0)", "FLUX: input right", false, 0, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        TotalFlux_arr(iface, jface, kface, 0),
-        "SummedFlux(0)", "FLUX: output", false, 0, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         TotalFlux_arr(iface, jface, kface, 0),
+//         "SummedFlux(0)", "FLUX: output", false, 0, true);
 
-    // -------- component 1 --------
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Left_arr(iface, jface, kface, 1),
-        "LeftStates(1)", "FLUX: input left", false, 1, true);
+//     // -------- component 1 --------
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Left_arr(iface, jface, kface, 1),
+//         "LeftStates(1)", "FLUX: input left", false, 1, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Right_arr(iface, jface, kface, 1),
-        "RightStates(1)", "FLUX: input right", false, 1, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Right_arr(iface, jface, kface, 1),
+//         "RightStates(1)", "FLUX: input right", false, 1, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        TotalFlux_arr(iface, jface, kface, 1),
-        "SummedFlux(1)", "FLUX: output", false, 1, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         TotalFlux_arr(iface, jface, kface, 1),
+//         "SummedFlux(1)", "FLUX: output", false, 1, true);
 
-    // -------- component 2 --------
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Left_arr(iface, jface, kface, 2),
-        "LeftStates(2)", "FLUX: input left", false, 2, true);
+//     // -------- component 2 --------
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Left_arr(iface, jface, kface, 2),
+//         "LeftStates(2)", "FLUX: input left", false, 2, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Right_arr(iface, jface, kface, 2),
-        "RightStates(2)", "FLUX: input right", false, 2, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Right_arr(iface, jface, kface, 2),
+//         "RightStates(2)", "FLUX: input right", false, 2, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        TotalFlux_arr(iface, jface, kface, 2),
-        "SummedFlux(2)", "FLUX: output", false, 2, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         TotalFlux_arr(iface, jface, kface, 2),
+//         "SummedFlux(2)", "FLUX: output", false, 2, true);
 
-    // -------- component 3 --------
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Left_arr(iface, jface, kface, 3),
-        "LeftStates(3)", "FLUX: input left", false, 3, true);
+//     // -------- component 3 --------
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Left_arr(iface, jface, kface, 3),
+//         "LeftStates(3)", "FLUX: input left", false, 3, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Right_arr(iface, jface, kface, 3),
-        "RightStates(3)", "FLUX: input right", false, 3, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Right_arr(iface, jface, kface, 3),
+//         "RightStates(3)", "FLUX: input right", false, 3, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        TotalFlux_arr(iface, jface, kface, 3),
-        "SummedFlux(3)", "FLUX: output", false, 3, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         TotalFlux_arr(iface, jface, kface, 3),
+//         "SummedFlux(3)", "FLUX: output", false, 3, true);
 
-    // -------- component 4 --------
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Left_arr(iface, jface, kface, 4),
-        "LeftStates(4)", "FLUX: input left", false, 4, true);
+//     // -------- component 4 --------
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Left_arr(iface, jface, kface, 4),
+//         "LeftStates(4)", "FLUX: input left", false, 4, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        Right_arr(iface, jface, kface, 4),
-        "RightStates(4)", "FLUX: input right", false, 4, true);
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         Right_arr(iface, jface, kface, 4),
+//         "RightStates(4)", "FLUX: input right", false, 4, true);
 
-    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-        iface, jface, kface,
-        TotalFlux_arr(iface, jface, kface, 4),
-        "SummedFlux(4)", "FLUX: output", false, 4, true);
-}
+//     Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+//         iface, jface, kface,
+//         TotalFlux_arr(iface, jface, kface, 4),
+//         "SummedFlux(4)", "FLUX: output", false, 4, true);
+// }
 
 
 
