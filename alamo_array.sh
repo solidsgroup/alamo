@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-#SBATCH --time=10:00:00
+#SBATCH --time=16:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=128
-#SBATCH --mem-per-cpu=15000
+#SBATCH --ntasks-per-node=40
+#SBATCH --mem-per-cpu=10000
 #SBATCH --job-name="propellant_study"
-#SBATCH --array=3-4
+#SBATCH --array=0-7
 #SBATCH --output="%x-%A_%a-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -20,8 +20,8 @@ module load openmpi_hpc
 # -------------------------------------------------
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
-ind=1
-num=2
+ind=00
+num=6
 AP_arr=(
     "A_vf_11/A_${ind}_AP.xyzr"
     "B_vf_6/B_${ind}_AP.xyzr"
