@@ -23,10 +23,12 @@ module load openmpi_hpc
 # -------------------------------------------------
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
-# zeta_values=(5.0_um 10.0_um 15.0_um 20.0_um 25.0_um 30.0_um)
-AP_arr=(D_vf_7/D_00_AP.xyzr E_vf_7/E_00_AP.xyzr F_vf_6/F_00_AP.xyzr G_vf_14/G_00_AP.xyzr H_vf_13/H_00_AP.xyzr)
-eta_arr=(D_vf_7/D_00_void.xyzr E_vf_7/E_00_void.xyzr F_vf_6/F_00_void.xyzr G_vf_14/G_00_void.xyzr H_vf_13/H_00_void.xyzr)
-plot_file_arr=(D_vf_7_0_void_1 E_vf_7_0_void_1 F_vf_6_0_void_1 G_vf_14_0_void_1 H_vf_13_0_void_1)
+ind=1
+num=2
+
+AP_arr=(A_vf_11/A_$(ind)_AP.xyzr B_vf_6/B_00_AP.xyzr C_vf_6/C_00_AP.xyzr D_vf_7/D_00_AP.xyzr E_vf_7/E_00_AP.xyzr F_vf_6/F_00_AP.xyzr G_vf_14/G_00_AP.xyzr H_vf_13/H_00_AP.xyzr)
+eta_arr=(A_vf_11/A_$(ind)_void.xyzr B_vf_6/B_00_void.xyzr C_vf_6/C_00_void.xyzr D_vf_7/D_00_void.xyzr E_vf_7/E_00_void.xyzr F_vf_6/F_00_void.xyzr G_vf_14/G_00_void.xyzr H_vf_13/H_00_void.xyzr)
+plot_file_arr=(A_vf_11_$(ind)_void_$(num) B_vf_6_00_void_1 C_vf_6_00_void_1 D_vf_7_00_void_1 E_vf_7_00_void_1 F_vf_6_00_void_1 G_vf_14_00_void_1 H_vf_13_00_void_1)
 
 # Get value corresponding to this array task
 # zeta=${zeta_values[$SLURM_ARRAY_TASK_ID]}
