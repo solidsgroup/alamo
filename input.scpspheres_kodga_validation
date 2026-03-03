@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.C_vf_7_0_void_2
+plot_file = output.G_vf_14_0_void_1
 
 system.length = mm
 system.time = s
@@ -36,7 +36,7 @@ geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2e-7_s # [s]
+timestep = 5e-7_s # [s]
 stop_time = 0.08_s
 
 small = 1.0e-10
@@ -48,11 +48,11 @@ pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = psread
 pf.eta.ic.psread.file.unit = m
 # pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
-pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/D_vf_7/D_00_void.xyzr
+pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_void.xyzr
 pf.eta.ic.psread.eps = 1.0_um
 pf.eta.ic.psread.invert = 1
 
-# pf.eta.ic.type = constant 
+# pf.eta.ic.type = constant
 # pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
@@ -67,7 +67,7 @@ pf.eta.ic.psread.invert = 1
 phi.ic.type = psread
 phi.ic.psread.file.unit = m
 # phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
-phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/D_vf_7/D_00_AP.xyzr
+phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_AP.xyzr
 phi.ic.psread.eps = 1.5_um
 
 # Phase field parameters
@@ -115,7 +115,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =    25.0_um
+propellant.fullfeedback.phi.zeta =    40.0_um
 propellant.fullfeedback.Pref     =      1.1_MPa
 
 # Thermal transport parameters
