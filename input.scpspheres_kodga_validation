@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.G_vf_14_0_void_1
+plot_file = output.B_vf_6_00_void_5
 
 system.length = mm
 system.time = s
@@ -36,7 +36,7 @@ geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 5e-7_s # [s]
+timestep = 2.5e-7_s # [s]
 stop_time = 0.08_s
 
 small = 1.0e-10
