@@ -699,7 +699,7 @@ public:
 
         // Process each grid patch
         for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& face_bx= mfi.tilebox();
+            const amrex::Box& face_bx = mfi.tilebox();
 
             auto const& FluxNeg_arr = Flux_Negative.const_array(mfi);
             auto const& FluxPos_arr = Flux_Positive.const_array(mfi);
@@ -712,7 +712,7 @@ public:
             }
 
             // Process each cell in the valid box
-            amrex::ParallelFor(face_bx_with_ghosts, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+            amrex::ParallelFor(face_bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
                 // // Construct index arrays with correct number of components
                 // int index[3];
                 // int lower_bounds[3];
@@ -760,7 +760,7 @@ public:
                 Ftotal_reconstructed.setZero();
 
                 if (useCharacteristic) {
-                avg_state = Numeric::FieldToMultiVector(Avg_arr, index[0], index[1], index[2], num_components);
+                avg_state = Numeric::FieldToMultiVector(Avg_arr, iface, jface, kface, num_components);
                 }    
 
                 //Create Stencil Matrix where each row represents a full state vector
@@ -769,23 +769,38 @@ public:
                 stencilpos_matrix.setZero();
                 stencilneg_matrix.setZero();
 
+                // Assume TotalPoints is odd and the "center" stencil index is:
+                constexpr int half = Traits::TotalPoints / 2;  // e.g., 5 -> 2, 3 -
+
                 //Fill stencil matrix with state vectors from each stencil point 
                 for (int s = 0; s < Traits::TotalPoints; ++s) {
-                    // Calculate stencil point index with proper offset
-                    int stencil_idx[3] = {index[0], index[1], index[2]};
+                    // // Calculate stencil point index with proper offset
+                    // int stencil_idx[3] = {index[0], index[1], index[2]};
 
-                    // Apply offset in the reconstruction direction
-                    // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
-                    int offset = s - Traits::TotalPoints/2;
-                    stencil_idx[direction] += offset;
+                    // // Apply offset in the reconstruction direction
+                    // // Map s to range [-(TotalPoints/2), +(TotalPoints/2)]
+                    // int offset = s - Traits::TotalPoints/2;
+                    // stencil_idx[direction] += offset;
 
-                    // Clamp indices to ensure they're within bounds
-                    ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+                    // // Clamp indices to ensure they're within bounds
+                    // ClampIndices(stencil_idx, lower_bounds, upper_bounds);
+
+                    // offset along reconstruction direction (e.g. -2,-1,0,1,2 for 5-point
+                    int offset = s - half;
+                    
+                    // Apply offset ONLY in 'direction' using masks (branchless)
+                    int iLC = iL + dx * offset;
+                    int jLC = jL + dy * offset;
+                    int kLC = kL + dz * offset;
+
+                    int iRC = iR + dx * offset;
+                    int jRC = jR + dy * offset;
+                    int kRC = kR + dz * offset;
 
                     for (int n = 0; n < num_components; ++n) {
                     // Extract data value for this stencil point
-                    stencilneg_matrix(s, n) = FluxNeg_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
-                    stencilpos_matrix(s, n) = FluxPos_arr(stencil_idx[0], stencil_idx[1], stencil_idx[2], n);
+                    stencilneg_matrix(s, n) = FluxNeg_arr(iRC, jRC, kRC, n);
+                    stencilpos_matrix(s, n) = FluxPos_arr(iLC, jLC, kLC, n);
 
                     }
                 }
@@ -798,14 +813,14 @@ public:
                 // Conditionally transform to characteristic space (branch happens once for all threads)
                 if (useCharacteristic && variable_accessor) {
                     stencilneg = variable_accessor->TransformStencilToCharacteristic(    
-                        index[0], index[1], index[2], stencilneg_matrix, direction, avg_state);
+                        iface, jface, kface, stencilneg_matrix, direction, avg_state);
                     stencilpos = variable_accessor->TransformStencilToCharacteristic(    
-                        index[0], index[1], index[2], stencilpos_matrix, direction, avg_state);
+                        iface, jface, kface, stencilpos_matrix, direction, avg_state);
                 }
 
                 // Reconstruct Flux Positive and Negative at interface using WENO
-                Fpos_reconstructed = Policy::ReconstructValue(stencilpos, index[0], index[1], index[2], direction, enableDebug);
-                Fneg_reconstructed = Policy::ReconstructValue(stencilneg, index[0], index[1], index[2], direction, enableDebug);
+                Fpos_reconstructed = Policy::ReconstructValue(stencilpos, iface, jface, kface, direction, enableDebug);
+                Fneg_reconstructed = Policy::ReconstructValue(stencilneg, iface, jface, kface, direction, enableDebug);
 
                 // Compute final summed flux at face center
                 for (int n = 0; n < solver->number_of_components; ++n) {
@@ -820,13 +835,13 @@ public:
 
                 // Compute final summed flux at face center
                 for (int n = 0; n < solver->number_of_components; ++n) {
-                    TotalFlux_arr(index[0], index[1], index[2], n) = Ftotal_reconstructed(n);
+                    TotalFlux_arr(iface, jface, kface, n) = Ftotal_reconstructed(n);
                 }
 
             });
         }
 
-    SummedFlux.FillBoundary();
+    // SummedFlux.FillBoundary();
 
     }    
 
