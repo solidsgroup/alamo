@@ -36,7 +36,7 @@ geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2.5e-7_s # [s]
+timestep = 4e-7_s # [s]
 stop_time = 0.08_s
 
 small = 1.0e-10
