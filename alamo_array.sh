@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-#SBATCH --time=16:00:00
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=40
+#SBATCH --ntasks-per-node=64
 #SBATCH --mem-per-cpu=10000
 #SBATCH --job-name="propellant_study"
 #SBATCH --array=0-7

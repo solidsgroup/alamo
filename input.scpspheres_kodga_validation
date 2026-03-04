@@ -36,8 +36,8 @@ geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 4e-7_s # [s]
-stop_time = 0.08_s
+timestep = 2.0e-7_s # [s]
+stop_time = 0.07_s
 
 small = 1.0e-10
 pf.eps = 1.0_um #0.0005 # [m]
@@ -115,7 +115,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =    60.0_um
+propellant.fullfeedback.phi.zeta =    50.0_um
 propellant.fullfeedback.Pref     =      1.1_MPa
 
 # Thermal transport parameters
