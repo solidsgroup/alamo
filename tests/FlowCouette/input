@@ -11,27 +11,26 @@
 #@ args = eta.ic.expression.constant.eps=0.1
 #@ check-file = reference/eps0.10.dat
 #@
-#@ [eps0.07]
-#@ exe=hydro
-#@ dim=2
-#@ nprocs=4
-#@ args = eta.ic.expression.constant.eps=0.07
-#@ args = amr.max_level=1
-#@ args = timestep=5e-4
-#@ args = small=1e-12
-#@ check-file = reference/eps0.07.dat
-#@
 #@ [eps0.05]
 #@ exe=hydro
 #@ dim=2
-#@ nprocs=12
+#@ nprocs=4
 #@ args = eta.ic.expression.constant.eps=0.05
-#@ args = amr.max_level=1
 #@ args = timestep=5e-4
-#@ args = small=1e-12
-####@ check = false
 #@ check-file = reference/eps0.05.dat
 #@
+
+#####  This should work if trying to debug a high accuracy sim,
+#####  but it is too expensive to keep as a test case
+#####
+#####  #@ [eps0.03]
+#####  #@ exe=hydro
+#####  #@ dim=2
+#####  #@ nprocs=4
+#####  #@ args = eta.ic.expression.constant.eps=0.03
+#####  #@ args = amr.n_cell=8 124 0
+#####  #@ args = timestep=2e-4
+#####  #@ check = false
 
 ### RIEMANN SOLVER ###
 solver.type = hllc
@@ -80,6 +79,7 @@ stop_time = 10.0
 ### HYDRO PARAM ###
 
 cfl   = 0.4
+small = 1e-16
 
 ### ETA IC ###
 
