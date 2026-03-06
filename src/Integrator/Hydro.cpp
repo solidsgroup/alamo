@@ -11,7 +11,7 @@
 #include "IC/BMP.H"
 #include "IC/PNG.H"
 #include "Solver/Local/Riemann/Roe.H"
-//#include "Solver/Local/Riemann/HLLE.H"
+#include "Solver/Local/Riemann/HLLE.H"
 #include "Solver/Local/Riemann/HLLC.H"
 #include "AMReX_TimeIntegrator.H"
 
@@ -183,7 +183,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 
     // Riemann solver
     pp.select_default<  Solver::Local::Riemann::Roe,
-                        //Solver::Local::Riemann::HLLE,
+                        Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
     // Gas model (Thermo, Transport, and EOS)
