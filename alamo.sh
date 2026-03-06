@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
-#SBATCH --time=30:00:00
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 #SBATCH --mem-per-cpu=15000
-#SBATCH --job-name="A_vf_11_00_r078"
+#SBATCH --job-name="A_vf_11_r20"
 #SBATCH --output="%x-%j-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --constraint=nova25
 
-JOB_NAME="A_vf_11_00_r078"
+JOB_NAME="A_vf_11_r20"
 PLOT_FILE="output.${JOB_NAME}"
 
 echo "======================================================"

@@ -117,7 +117,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =     20.0_um
+propellant.fullfeedback.phi.zeta =     50.0_um
 propellant.fullfeedback.Pref     =      1.1_MPa
 
 # Thermal transport parameters
