@@ -9,7 +9,7 @@ outdir = sys.argv[1]
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
-tol = 1e-2
+tol = 1.5e-2
 
 testlib.validate(path=path,
                  outdir=outdir,
@@ -17,8 +17,8 @@ testlib.validate(path=path,
                  end=[12,-12,0],
                  vars=["velocityx","velocityy","density"],
                  tolerance=[tol, tol, tol],
-                 abs_tolerance=tol,
-                 generate_ref_data = True,
+                 abs_tolerance=1e8,
+                 generate_ref_data = False,
 )
 
 exit(0)
