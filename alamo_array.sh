@@ -21,7 +21,7 @@ module load openmpi_hpc
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
 ind=00
-num=6
+num=8
 AP_arr=(
     "A_vf_11/A_${ind}_AP.xyzr"
     "B_vf_6/B_${ind}_AP.xyzr"
