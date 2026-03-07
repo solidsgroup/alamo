@@ -37,19 +37,19 @@ public:
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
         value.nspecies = value.MW.size();
 
-        // thermo model
         delete value.thermo;
         value.thermo = nullptr;
+        // thermo model
         pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
 
-        // transport model
         delete value.transport;
         value.transport = nullptr;
+        // transport model
         pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
 
-        // eos model
         delete value.eos;
         value.eos = nullptr;
+        // eos model
         pp.select<EOS::CPG>("eos", value.eos, &value);
     }
     
