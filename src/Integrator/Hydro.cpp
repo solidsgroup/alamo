@@ -87,7 +87,6 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
-        pp_query_default("mu_factor",value.mu_factor,1.0); // Coefficient for effective solid viscosity
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
 
@@ -657,30 +656,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
-            Set::Scalar mu_solid = mu_factor*mu;
-            Set::Scalar mu_eff = mu * eta + mu_solid * (1.0 - eta);
-            Set::Scalar lambda_eff = 0.0; //-2.0/3.0*mu_eff;
+            Set::Scalar lambda = 0.0; //-2.0/3.0*mu_eff;
             for (int p = 0; p<2; p++)
                 for (int q = 0; q<2; q++)
                     for (int r = 0; r<2; r++)
                         for (int s = 0; s<2; s++)
                         {
-                            //Set::Scalar Mpqrs = 0.0;
-                            //if (p==r && q==s) Mpqrs += 0.5 * mu_eff;
-                            //if (p==s && q==r) Mpqrs += 0.5 * mu_eff;
-
-                            //Ldot0(p) += 0.25*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            //div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
-
-                            Ldot0(p) += 0.25 * (mu_eff * ((p==r && q==s) + (p==s && q==r)) + lambda_eff * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
-                            //Ldot0(p) += 1.0 * (mu_eff * ((p==r && q==s) + (p==s && q==r)) + lambda_eff * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
-                            //if (Ldot0(1) > 1e-2)
-                            //{
-                            //    Util::Message(INFO, "pqrs ", p, q, r, s);
-                            //    Util::Message(INFO, "u ", u(r), " u0 ", u0(r));
-                            //    Util::Abort(INFO);
-                            //}
-                            div_tau(p) += 0.5 * (mu_eff * ((p==r && q==s) + (p==s && q==r)) + lambda_eff * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
+                            Ldot0(p) += 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
+                            div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
 
                         }
 
@@ -791,13 +774,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 g(1)*rho(i,j,k) +
                 Source(i, j, k, 2);
 
-            //Util::Message(INFO, "dmYf_dt ", dMyf_dt);
-            //Util::Message(INFO, "flux_x ", (flux_xlo.momentum_tangent - flux_xhi.momentum_tangent) / DX[0]);
-            //Util::Message(INFO, "flux_y ", (flux_ylo.momentum_normal  - flux_yhi.momentum_normal) / DX[1]);
-            //Util::Message(INFO, "div_tau ", div_tau(1) * eta);
-            //Util::Message(INFO, "g ", g(1)*rho(i,j,k));
-            //Util::Message(INFO, "source ", Source(i, j, k, 2));
-                
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
                 //( 
