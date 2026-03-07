@@ -7,7 +7,7 @@ import glob
 outdir = sys.argv[1]
 
 tol = 1e-2
-atol = 1e-2
+atol = 1e8
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 

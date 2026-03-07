@@ -3,7 +3,6 @@
 #@ exe=hydro
 #@ dim=2
 #@
-#@
 #@ [2d-serial-rk4]
 #@ exe=hydro
 #@ dim=2
@@ -100,7 +99,7 @@ density.bc.constant.type.xhi = neumann
 density.bc.constant.type.xlo = neumann
 density.bc.constant.type.ylo = neumann
 density.bc.constant.type.yhi = dirichlet
-density.bc.constant.val.yhi =  5.0 #54771291
+density.bc.constant.val.yhi =  5.0
 
 energy.bc.constant.type.xhi = neumann
 energy.bc.constant.type.xlo = neumann
@@ -108,7 +107,7 @@ energy.bc.constant.type.ylo = neumann
 energy.bc.constant.type.yhi = neumann
 
 momentum.bc.type = expression
-momentum.bc.expression.constant.lidvelocity = 100.0
+momentum.bc.expression.constant.lidvelocity = 300.0
 momentum.bc.expression.type.xhi = dirichlet dirichlet
 momentum.bc.expression.type.xlo = dirichlet dirichlet
 momentum.bc.expression.type.ylo = dirichlet dirichlet
