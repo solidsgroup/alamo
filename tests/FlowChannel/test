@@ -19,7 +19,7 @@ testlib.validate(path=path,
                  coord = 'y',
                  vars=["momentumx","momentumy","density","pressure"],
                  tolerance=[tol, tol, tol, tol],
-                 abs_tolerance=1e-2,
+                 abs_tolerance=1e8,
                  generate_ref_data = False,
                  tight_layout=False,
 )

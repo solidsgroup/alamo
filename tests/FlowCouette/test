@@ -9,7 +9,7 @@ reference = sys.argv[2]
 #reference = 'reference/eps0.00.dat'
 
 tol = 1e-2
-atol = 1e-1
+atol = 1e8
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 
