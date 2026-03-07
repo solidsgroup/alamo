@@ -65,8 +65,7 @@ public:
             Util::Warning(INFO,"The entropy fix is experimental and should be used with caution. Has previously caused errors with FlowDrivenCavity regression test");
     }
 
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& eta,
-                       Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
+    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
         Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
@@ -81,7 +80,7 @@ public:
 
         // This is a modification to Laney allowing for an arbitrary equation of state
         //////////////////////////////////////////////////////////////////////////////////////////////////
-        Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0, R_L=0, R_R=0, deta=0;
+        Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
             case 0: // xlo
                 T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k);
@@ -90,14 +89,6 @@ public:
                 T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
                 p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
-                // Prevent artificial delta P across diffuse interface (unphysical normal momentum)
-                deta = eta(i-1, j, k) - eta(i, j, k);
-                if (deta > small)
-                {
-                    R_L = gas.R(X, i-1, j, k);
-                    R_R = gas.R(X, i, j, k);
-                    p_L -= deta * (rho_L * (R_L * (T_L - T_R)/deta + (R_L - R_R)/deta * T_L) + (rho_L - rho_R)/deta * R_L * T_L);
-                }
                 break;
             case 1: // xhi
                 T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
@@ -106,14 +97,6 @@ public:
                 T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k);
                 p_R = gas.ComputeP(rho_R, T_R, X, i+1, j, k);
                 gamma_R = gas.gamma(T_R, X, i+1, j, k);
-                // Prevent artificial delta P across diffuse interface (unphysical normal momentum)
-                deta = eta(i+1, j, k) - eta(i, j, k);
-                if (deta > small)
-                {
-                    R_L = gas.R(X, i, j, k);
-                    R_R = gas.R(X, i+1, j, k);
-                    p_R -= deta * (rho_R * (R_R * (T_R - T_L)/deta + (R_R - R_L)/deta * T_R) + (rho_R - rho_L)/deta * R_R * T_R);
-                }
                 break;
             case 2: // ylo
                 T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k);
@@ -122,14 +105,6 @@ public:
                 T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
                 p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
-                // Prevent artificial delta P across diffuse interface (unphysical normal momentum)
-                deta = eta(i, j-1, k) - eta(i, j, k);
-                if (deta > small)
-                {
-                    R_L = gas.R(X, i, j-1, k);
-                    R_R = gas.R(X, i, j, k);
-                    p_L -= deta * (rho_L * (R_L * (T_L - T_R)/deta + (R_L - R_R)/deta * T_L) + (rho_L - rho_R)/deta * R_L * T_L);
-                }
                 break;
             case 3: // yhi
                 T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
@@ -138,14 +113,6 @@ public:
                 T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k);
                 p_R = gas.ComputeP(rho_R, T_R, X, i, j+1, k);
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
-                // Prevent artificial delta P across diffuse interface (unphysical normal momentum)
-                deta = eta(i, j+1, k) - eta(i, j, k);
-                if (deta > small)
-                {
-                    R_L = gas.R(X, i, j, k);
-                    R_R = gas.R(X, i, j+1, k);
-                    p_R -= deta * (rho_R * (R_R * (T_R - T_L)/deta + (R_R - R_L)/deta * T_R) + (rho_R - rho_L)/deta * R_R * T_R);
-                }
                 break;
             case 4: // zlo
                 T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1);
@@ -154,14 +121,6 @@ public:
                 T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
                 p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
-                // Prevent artificial delta P across diffuse interface (unphysical normal momentum)
-                deta = eta(i, j, k-1) - eta(i, j, k);
-                if (deta > small)
-                {
-                    R_L = gas.R(X, i, j, k-1);
-                    R_R = gas.R(X, i, j, k);
-                    p_L -= deta * (rho_L * (R_L * (T_L - T_R)/deta + (R_L - R_R)/deta * T_L) + (rho_L - rho_R)/deta * R_L * T_L);
-                }
                 break;
             case 5: // zhi
                 T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
@@ -170,14 +129,6 @@ public:
                 T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1);
                 p_R = gas.ComputeP(rho_R, T_R, X, i, j, k+1);
                 gamma_R = gas.gamma(T_R, X, i, j, k+1);
-                // Prevent artificial delta P across diffuse interface (unphysical normal momentum)
-                deta = eta(i, j, k+1) - eta(i, j, k);
-                if (deta > small)
-                {
-                    R_L = gas.R(X, i, j, k);
-                    R_R = gas.R(X, i, j, k+1);
-                    p_R -= deta * (rho_R * (R_R * (T_R - T_L)/deta + (R_R - R_L)/deta * T_R) + (rho_R - rho_L)/deta * R_R * T_R);
-                }
                 break;
             default:
                 Util::Abort(INFO, "Unknown side in Riemann solver, ",side);

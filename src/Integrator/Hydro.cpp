@@ -518,23 +518,17 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            // Compute primitives from mixed values
-            //gas.ComputeLocalFractions(rho, Y, X, i, j, k);
-            //Set::Scalar density = gas.ComputeD(rho, i, j, k);
-            //T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
-            //p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
-            //v(i,j,k,0) = M(i,j,k,0)/density;
-            //v(i,j,k,1) = M(i,j,k,1)/density;
+            // Compute T and P primitives from mixed values
+            Set::Scalar density = gas.ComputeD(rho, i, j, k);
+            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
 
-            // Compute primitives from fluid values
+            // Compute velocity from fluid values
             scratch(i,j,k) = (rho(i,j,k) - rho_solid(i,j,k)*(1.0 - eta))/(eta + small);
             gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
             Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
             Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
             Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
-            Set::Scalar E_fluid = (E(i,j,k) - E_solid(i,j,k)*(1.0 - eta))/(eta + small);
-            T(i,j,k) = gas.ComputeT(density_fluid, Mx_fluid, My_fluid, E_fluid, T(i,j,k), X, i, j, k);
-            p(i,j,k) = gas.ComputeP(density_fluid, T(i,j,k), X, i, j, k);
             v(i,j,k,0) = Mx_fluid/density_fluid;
             v(i,j,k,1) = My_fluid/density_fluid;
 
@@ -679,6 +673,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                             //div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
 
                             Ldot0(p) += 0.25 * (mu_eff * ((p==r && q==s) + (p==s && q==r)) + lambda_eff * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
+                            //Ldot0(p) += 1.0 * (mu_eff * ((p==r && q==s) + (p==s && q==r)) + lambda_eff * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
                             //if (Ldot0(1) > 1e-2)
                             //{
                             //    Util::Message(INFO, "pqrs ", p, q, r, s);
@@ -742,12 +737,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, eta_patch, molef, i, j, k, 0, small) * eta;
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, eta_patch, molef, i, j, k, 2, small) * eta;
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, eta_patch, molef, i, j, k, 1, small) * eta;
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, eta_patch, molef, i, j, k, 3, small) * eta;
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
             }
             catch(...)
             {
