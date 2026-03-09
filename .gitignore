@@ -61,4 +61,6 @@ alamo
 setup.py
 alamo.py
 .alamo
-
+*.zip
+bisect.log
+auto-bisect.sh
