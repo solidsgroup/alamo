@@ -3,6 +3,8 @@
 
 #include "Set/Base.H"
 #include "Set/Set.H"
+#include "Model/Gas/Gas.H"
+#include <memory>
 
 namespace Solver
 {
@@ -170,7 +172,7 @@ struct Flux {
 class Riemann 
 {
 public:
-    virtual Flux Solve(State lo, State hi, Set::Scalar gamma, Set::Scalar p_ref, Set::Scalar small) = 0;
+    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) = 0;
     virtual ~Riemann() = default;
 };
 
