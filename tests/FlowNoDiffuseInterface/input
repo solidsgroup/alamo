@@ -46,13 +46,29 @@ eta.ic.expression.constant.vel_x = 0.0
 eta.ic.expression.constant.vel_y = 0.0 
 eta.ic.expression.region0        = "1.0"
 
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+gas.mw = 28.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 29.1_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0
+gas.thermo.cpconstant.s0 = 0.0
+gas.thermo.cpconstant.Tref = 0.0_K
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 0.0_Pa*s
+gas.transport.mixture_averaged.k = 0.023_W/m/K
+
+gas.eos.type = cpg
+
 ### HYDRO PARAM ###
 
-gamma = 1.4
 cfl   = 0.6
-mu    = 0.0
-pref = 0.0
-
 
 velocity.ic.type = expression
 velocity.ic.expression.region0 = "0.0"
