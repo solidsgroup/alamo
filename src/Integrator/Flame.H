@@ -60,6 +60,29 @@ protected:
 
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt) override;
 
+    // void InitializeFrozenEta()
+    // {
+    // // Only initialize once, at the finest level, and never again
+    // if (eta_frozen_initialized) return;
+    
+    // // Only proceed once we have reached the finest level
+    // if (finest_level < maxLevel()) return;
+
+    // eta_mf_frozen.resize(finest_level + 1);
+    // for (int lev = 0; lev <= finest_level; lev++)
+    // {
+    //     eta_mf_frozen[lev] = std::make_unique<amrex::MultiFab>(
+    //         grids[lev], dmap[lev], 1, eta_mf[lev]->nGrow());
+    //     eta_mf_frozen[lev]->setVal(1.0); // default to matrix value
+    //     ic_eta->Initialize(lev, eta_mf_frozen, 0.0); // always t=0
+    // }
+
+    // eta_frozen_initialized = true;
+    // amrex::Print() << "Frozen eta IC initialized at finest_level=" 
+    //                << finest_level << std::endl;
+    // }
+
+
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;
@@ -70,6 +93,7 @@ protected:
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar> eta_0_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
@@ -94,6 +118,12 @@ protected:
     int variable_pressure = -1;
     int use_with_Hydro = 0;
     Real velocity_mult = 0;
+
+    amrex::BoxArray prev_finest_ba;
+    int prev_finest_level = -1;
+
+    Set::Field<Set::Scalar> eta_mf_frozen;
+    bool eta_frozen_initialized = false;
 
     // Phase field model variables
     struct {

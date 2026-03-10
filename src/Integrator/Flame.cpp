@@ -116,7 +116,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
-    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", value.plot_field);
+
+    // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
+    // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
+    value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", value.plot_field);
 
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
@@ -134,7 +138,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Reference temperature
     // Used to set all other reference temperatures by default.
-    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature()); 
+    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature());
 
     if (value.thermal.on) {
 
@@ -158,9 +162,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-        value.RegisterNewFab(value.rho_htpb_gas_mf, value.bc_temp, 1, 0, "rho_HTPB_gas", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
-        value.RegisterNewFab(value.rho_AP_gas_mf, value.bc_temp, 1, 0, "rho_AP_gas", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
-        value.RegisterNewFab(value.rho_tot_gas_mf, value.bc_temp, 1, 0, "rho_tot_gas", value.plot_field); // Density of total gaseous field
+        // value.RegisterNewFab(value.rho_htpb_gas_mf, value.bc_temp, 1, 0, "rho_HTPB_gas", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
+        // value.RegisterNewFab(value.rho_AP_gas_mf, value.bc_temp, 1, 0, "rho_AP_gas", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
+        // value.RegisterNewFab(value.rho_tot_gas_mf, value.bc_temp, 1, 0, "rho_tot_gas", value.plot_field); // Density of total gaseous field
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -507,6 +511,12 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
     }
+
+    if (a_time == 0.0)
+    {
+        prev_finest_ba = grids[finest_level];
+        prev_finest_level = finest_level;
+    }
 }
 
 void Flame::TimeStepComplete(Set::Scalar a_time, int a_iter)
@@ -709,11 +719,12 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction && temp(i,j,k) > 400)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
@@ -752,15 +763,88 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             });
         }
     }
+
+        // Refine at start
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < 2e-6)
+                tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
 }
+
+// void Flame::Regrid(int lev, Set::Scalar time)
+// {
+//     BL_PROFILE("Integrator::Flame::Regrid");
+//     //if (lev < finest_level) return;
+//     //phi_mf[lev]->setVal(0.0);
+//     ic_phi->Initialize(lev, phi_mf, time);
+//     //ic_phicell->Initialize(lev, phi_mf, time);
+// }
 
 void Flame::Regrid(int lev, Set::Scalar time)
 {
     BL_PROFILE("Integrator::Flame::Regrid");
-    //if (lev < finest_level) return;
-    //phi_mf[lev]->setVal(0.0);
+
+    // Initialize phi from IC (existing behavior)
     ic_phi->Initialize(lev, phi_mf, time);
-    //ic_phicell->Initialize(lev, phi_mf, time);
+
+    // Re-initialize eta from IC on regrid, but only where:
+    // a.) T < Tcutoff — cell is in the unburned region (eta not yet evolving)
+    // b.) the cell is newly refined or on a coarser-than-finest level
+    // Cells where T > Tcutoff are at the regression front or burned —
+    // those are guaranteed to be at finest_level by tagging, so we leave them alone.
+
+    if (time < 2e-6) // TODO make input for time cutoff
+    {
+        ic_eta->Initialize(lev, eta_0_mf, time);
+        return;
+    }
+    // ic_eta->Initialize(lev, eta_0_mf, time);
+
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> eta_ic = eta_0_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> phi    = phi_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
+
+        Set::Scalar Tcutoff = thermal.Tcutoff; // unburned if T < Tcutoff
+
+        amrex::BoxList boxes_to_update;
+        if (lev == finest_level && prev_finest_level == finest_level)
+            // Only update cells on finest level that were JUST refined
+            boxes_to_update = amrex::complementIn(bx, prev_finest_ba).boxList();
+        else
+            // Coarser than finest, or a new finest level just appeared:
+            // reset all boxes to IC
+            boxes_to_update.push_back(bx);
+
+        for (const amrex::Box &box : boxes_to_update)
+            amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                // Only reset in the unburned region where T < Tcutoff.
+                // If T >= Tcutoff, eta is actively regressing — do not overwrite.
+                if (temp(i, j, k) < Tcutoff)
+                {
+                    eta(i, j, k) = eta_ic(i, j, k);
+                }
+            });
+    }
+
+    if (lev == finest_level)
+    {
+        prev_finest_ba    = grids[finest_level];
+        prev_finest_level = finest_level;
+    }
 }
 
 void Flame::Integrate(int amrlev, Set::Scalar time, int step,
@@ -804,5 +888,3 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
-
-
