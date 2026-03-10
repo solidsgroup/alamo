@@ -1,13 +1,13 @@
 
 alamo.program = flame
 
-plot_file = output.test_refinement_cutoff
+plot_file = output.test_refinement_cutoff_long_run
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 1e-4_s
+amr.plot_dt = 2e-3_s
 amr.max_grid_size = 8
 amr.blocking_factor = 8
 amr.base_regrid_int = 10
