@@ -20,8 +20,8 @@ amr.max_level = 4
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 2.5e-7
-stop_time = 1.0
+timestep = 1e-7
+stop_time = 0.125
 
 # Phase field parameters
 flame.pf.eps = 1e-6
@@ -122,11 +122,11 @@ flame.elastic.phirefinement = 0
 
 # Agglomeration parameters
 calculate_initial_volume = true
-sigma = 1e0
+sigma = 1.0
 epsilon = 5.5e-6
-lambda = 1e5
+lambda = 5e4
 L_0_agglom = 2.5e1
-L_0_reaction = 0
+L_0_reaction = 5e-3
 
 # Agglomerate order parameter initial condition
 alpha.ic.type = constant
