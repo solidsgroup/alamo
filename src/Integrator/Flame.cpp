@@ -122,6 +122,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", value.plot_field);
 
+    value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
+
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
 
@@ -789,53 +791,113 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //     //ic_phicell->Initialize(lev, phi_mf, time);
 // }
 
+// void Flame::Regrid(int lev, Set::Scalar time)
+// {
+//     BL_PROFILE("Integrator::Flame::Regrid");
+
+//     // Initialize phi from IC (existing behavior)
+//     ic_phi->Initialize(lev, phi_mf, time);
+
+//     // Re-initialize eta from IC on regrid, but only where:
+//     // a.) T < Tcutoff — cell is in the unburned region (eta not yet evolving)
+//     // b.) the cell is newly refined or on a coarser-than-finest level
+//     // Cells where T > Tcutoff are at the regression front or burned —
+//     // those are guaranteed to be at finest_level by tagging, so we leave them alone.
+
+//     if (time < 2e-6) // TODO make input for time cutoff
+//     {
+//         ic_eta->Initialize(lev, eta_0_mf, time);
+//         return;
+//     }
+//     // ic_eta->Initialize(lev, eta_0_mf, time);
+
+//     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+//     {
+//         const amrex::Box &bx = mfi.tilebox();
+//         Set::Patch<Set::Scalar> eta_ic = eta_0_mf.Patch(lev, mfi);
+//         Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
+//         Set::Patch<Set::Scalar> phi    = phi_mf.Patch(lev, mfi);
+//         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
+
+//         Set::Scalar Tcutoff = thermal.Tcutoff; // unburned if T < Tcutoff
+
+//         amrex::BoxList boxes_to_update;
+//         if (lev == finest_level && prev_finest_level == finest_level)
+//             // Only update cells on finest level that were JUST refined
+//             boxes_to_update = amrex::complementIn(bx, prev_finest_ba).boxList();
+//         else
+//             // Coarser than finest, or a new finest level just appeared:
+//             // reset all boxes to IC
+//             boxes_to_update.push_back(bx);
+
+//         for (const amrex::Box &box : boxes_to_update)
+//             amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+//             {
+//                 // Only reset in the unburned region where T < Tcutoff.
+//                 // If T >= Tcutoff, eta is actively regressing — do not overwrite.
+//                 if (temp(i, j, k) < Tcutoff)
+//                 {
+//                     eta(i, j, k) = eta_ic(i, j, k);
+//                 }
+//             });
+//     }
+
+//     if (lev == finest_level)
+//     {
+//         prev_finest_ba    = grids[finest_level];
+//         prev_finest_level = finest_level;
+//     }
+// }
+
 void Flame::Regrid(int lev, Set::Scalar time)
 {
     BL_PROFILE("Integrator::Flame::Regrid");
 
-    // Initialize phi from IC (existing behavior)
     ic_phi->Initialize(lev, phi_mf, time);
 
-    // Re-initialize eta from IC on regrid, but only where:
-    // a.) T < Tcutoff — cell is in the unburned region (eta not yet evolving)
-    // b.) the cell is newly refined or on a coarser-than-finest level
-    // Cells where T > Tcutoff are at the regression front or burned —
-    // those are guaranteed to be at finest_level by tagging, so we leave them alone.
+    // Try to initialize frozen eta — will only actually run once
+    // when finest_level is first reached
+    InitializeFrozenEta();
 
-    if (time < 2e-6) // TODO make input for time cutoff
+    if (time < 1e-14)
     {
         ic_eta->Initialize(lev, eta_0_mf, time);
         return;
     }
-    // ic_eta->Initialize(lev, eta_0_mf, time);
+
+    ic_eta->Initialize(lev, eta_0_mf, time);
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> eta_ic = eta_0_mf.Patch(lev, mfi);
         Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> phi    = phi_mf.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
 
-        Set::Scalar Tcutoff = thermal.Tcutoff; // unburned if T < Tcutoff
+        Set::Scalar Tcutoff = thermal.Tcutoff;
+
+        // Use frozen IC if available, fall back to eta_mf_ic if not yet initialized
+        bool use_frozen = eta_frozen_initialized;
+        Set::Patch<const Set::Scalar> eta_ref = use_frozen
+            ? eta_mf_frozen.Patch(lev, mfi)
+            : eta_0_mf.Patch(lev, mfi);
 
         amrex::BoxList boxes_to_update;
         if (lev == finest_level && prev_finest_level == finest_level)
-            // Only update cells on finest level that were JUST refined
             boxes_to_update = amrex::complementIn(bx, prev_finest_ba).boxList();
         else
-            // Coarser than finest, or a new finest level just appeared:
-            // reset all boxes to IC
             boxes_to_update.push_back(bx);
 
         for (const amrex::Box &box : boxes_to_update)
             amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                // Only reset in the unburned region where T < Tcutoff.
-                // If T >= Tcutoff, eta is actively regressing — do not overwrite.
                 if (temp(i, j, k) < Tcutoff)
                 {
-                    eta(i, j, k) = eta_ic(i, j, k);
+                    // Matrix region: snap back to 1 if frozen ref is 1
+                    if (eta(i, j, k) < 1.0 - 1e-8 && eta_ref(i, j, k) > 1.0 - 1e-8)
+                        eta(i, j, k) = 1.0;
+                    // Sphere interface: use the frozen reference directly
+                    else if (eta_ref(i, j, k) < 1.0 - 1e-8)
+                        eta(i, j, k) = eta_ref(i, j, k);
                 }
             });
     }
