@@ -857,7 +857,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
 
     // Try to initialize frozen eta — will only actually run once
     // when finest_level is first reached
-    InitializeFrozenEta();
+    // InitializeFrozenEta();
 
     if (time < 1e-14)
     {
