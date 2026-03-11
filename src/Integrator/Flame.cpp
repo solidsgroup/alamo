@@ -519,6 +519,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
         if (!end_initial_refine) {
             for (int lev = 0; lev <= finest_level; ++lev)
                 Flame::Regrid(lev, a_time);
+            end_initial_refine = 1;
         }
 
         prev_finest_ba = grids[finest_level];
