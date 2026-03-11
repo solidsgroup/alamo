@@ -122,7 +122,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", value.plot_field);
 
-    value.RegisterNewFab(value.has_exceeded_Tcutoff, 0, 1, 2, "exceeded_Tcutoff", value.plot_field);
+    value.RegisterNewFab(value.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", value.plot_field);
 
     // value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
 
@@ -427,6 +427,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Call the pressure from the Hydro integrator
         Set::Patch<Set::Scalar> u0 = Hydro::u0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
 
         Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
         Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
@@ -441,6 +442,9 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> solidM    = Hydro::solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u0_patch  = Hydro::u0_mf.Patch(lev,mfi);
+
+        Set::Patch<Set::Scalar> exceeded_Tcutoff = has_exceeded_Tcutoff.Patch(lev, mfi);
+        Set::Scalar Tcutoff = thermal.Tcutoff;
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -459,7 +463,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
 
-                Set::Vector u0;
+            Set::Vector u0;
             u0(0) = hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi);
             u0(1) = 0.0; 
             #if AMREX_SPACEDIM == 3
@@ -596,6 +600,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar> exceeded_Tcutoff = has_exceeded_Tcutoff.Patch(lev, mfi);
+        Set::Scalar Tcutoff = thermal.Tcutoff;
+
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -658,6 +665,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
+
+                if (temp(i,j,k) > Tcutoff)
+                {
+                    exceeded_Tcutoff(i,j,k) = 1;
+                }
 
             }
 
@@ -823,10 +835,10 @@ void Flame::Regrid(int lev, Set::Scalar time)
         for (const amrex::Box &box : boxes_to_update)
             amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (temp(i,j,k) > Tcutoff)
-                {
-                    exceeded_Tcutoff(i,j,k) = 1;
-                }
+                // if (temp(i,j,k) > Tcutoff)
+                // {
+                //     exceeded_Tcutoff(i,j,k) = 1;
+                // }
 
                 if (!exceeded_Tcutoff(i,j,k) && temp(i,j,k) < Tcutoff)
                 {
