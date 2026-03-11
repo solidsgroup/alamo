@@ -855,10 +855,6 @@ void Flame::Regrid(int lev, Set::Scalar time)
 
     ic_phi->Initialize(lev, phi_mf, time);
 
-    // Try to initialize frozen eta — will only actually run once
-    // when finest_level is first reached
-    // InitializeFrozenEta();
-
     // if (time < 1e-14)
     // {
     //     ic_eta->Initialize(lev, eta_0_mf, time);
@@ -876,12 +872,6 @@ void Flame::Regrid(int lev, Set::Scalar time)
 
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
-        // // Use frozen IC if available, fall back to eta_mf_ic if not yet initialized
-        // bool use_frozen = eta_frozen_initialized;
-        // Set::Patch<const Set::Scalar> eta_ref = use_frozen
-        //     ? eta_mf_frozen.Patch(lev, mfi)
-        //     : eta_0_mf.Patch(lev, mfi);
-
         amrex::BoxList boxes_to_update;
         if (lev == finest_level && prev_finest_level == finest_level)
             boxes_to_update = amrex::complementIn(bx, prev_finest_ba).boxList();
@@ -893,11 +883,6 @@ void Flame::Regrid(int lev, Set::Scalar time)
             {
                 if (temp(i, j, k) < Tcutoff)
                 {
-                    // Matrix region: snap back to 1 if frozen ref is 1
-                    if (eta(i, j, k) < 1.0 - 1e-8 && eta_0(i, j, k) > 1.0 - 1e-8)
-                        eta(i, j, k) = 1.0;
-                    // Sphere interface: use the frozen reference directly
-                    else if (eta_0(i, j, k) < 1.0 - 1e-8)
                         eta(i, j, k) = eta_0(i, j, k);
                 }
             });
