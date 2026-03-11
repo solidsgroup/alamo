@@ -100,6 +100,7 @@ protected:
     amrex::BoxArray prev_finest_ba;
     int prev_finest_level = -1;
     int end_initial_refine = 0;
+    Set::Field<Set::Scalar> has_exceeded_Tcutoff;
 
     // Phase field model variables
     struct {

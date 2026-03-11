@@ -122,6 +122,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", value.plot_field);
 
+    value.RegisterNewFab(value.has_exceeded_Tcutoff, 0, 1, 2, "exceeded_Tcutoff", value.plot_field);
+
     // value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
 
     // phase field initial condition
@@ -808,6 +810,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
         Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> eta_0 = eta_0_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> exceeded_Tcutoff = has_exceeded_Tcutoff.Patch(lev, mfi);
 
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
@@ -820,7 +823,12 @@ void Flame::Regrid(int lev, Set::Scalar time)
         for (const amrex::Box &box : boxes_to_update)
             amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (temp(i, j, k) < Tcutoff)
+                if (temp(i,j,k) > Tcutoff)
+                {
+                    exceeded_Tcutoff(i,j,k) = 1;
+                }
+
+                if (!exceeded_Tcutoff(i,j,k) && temp(i,j,k) < Tcutoff)
                 {
                         eta(i, j, k) = eta_0(i, j, k);
                 }
