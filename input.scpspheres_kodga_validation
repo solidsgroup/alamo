@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.test_refinement_cutoff
+plot_file = output.test_regrid
 
 system.length = mm
 system.time = s

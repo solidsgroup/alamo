@@ -516,11 +516,11 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 
     if (a_time > 2e-6)
     {   
-        // if (!end_initial_refine) {
-        //     for (int lev = 0; lev <= finest_level; ++lev)
-        //         Flame::Regrid(lev, a_time);
-        //     end_initial_refine = 1;
-        // }
+        if (!end_initial_refine) {
+            for (int lev = 0; lev <= finest_level; ++lev)
+                Flame::Regrid(lev, a_time);
+            end_initial_refine = 1;
+        }
 
         prev_finest_ba = grids[finest_level];
         prev_finest_level = finest_level;
