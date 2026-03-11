@@ -122,8 +122,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", value.plot_field);
 
-    value.RegisterNewFab(value.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", value.plot_field);
-
     // value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
 
     // phase field initial condition
@@ -173,6 +171,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
+
+        value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", value.plot_field); // Used to determine where regression has started
 
         // laser initial condition
         pp.select_default<  IC::Constant,
@@ -443,9 +443,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> m0        = Hydro::m0_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> u0_patch  = Hydro::u0_mf.Patch(lev,mfi);
 
-        Set::Patch<Set::Scalar> exceeded_Tcutoff = has_exceeded_Tcutoff.Patch(lev, mfi);
-        Set::Scalar Tcutoff = thermal.Tcutoff;
-
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
             Set::Scalar eta_hydro = 1 - eta(i,j,k) * eta(i,j,k);
@@ -600,7 +597,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
-        Set::Patch<Set::Scalar> exceeded_Tcutoff = has_exceeded_Tcutoff.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
 
@@ -817,7 +814,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
         Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> eta_0 = eta_0_mf.Patch(lev, mfi);
-        Set::Patch<Set::Scalar> exceeded_Tcutoff = has_exceeded_Tcutoff.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
 
         Set::Scalar Tcutoff = thermal.Tcutoff; // TODO only do when thermal is on
 

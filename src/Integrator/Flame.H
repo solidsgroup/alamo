@@ -101,7 +101,6 @@ protected:
     int prev_finest_level = -1;
     int end_initial_refine = 0;
     Real end_initial_refine_time = 0;
-    Set::Field<Set::Scalar> has_exceeded_Tcutoff;
 
     // Phase field model variables
     struct {
@@ -119,6 +118,7 @@ protected:
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
         Set::Scalar Tcutoff = NAN;
+        Set::Field<Set::Scalar> has_exceeded_Tcutoff;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
