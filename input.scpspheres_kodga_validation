@@ -14,7 +14,7 @@ amr.blocking_factor = 8
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.5
-amr.refinement_criterion_temp = 1.0_K
+amr.refinement_criterion_temp = 4.0_K
 # amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
 
