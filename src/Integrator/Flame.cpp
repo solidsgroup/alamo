@@ -116,11 +116,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
-    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", value.plot_field);
+    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", 0);
 
     // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
-    value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", value.plot_field);
+    value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
 
     // value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
 
