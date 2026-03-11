@@ -504,7 +504,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
     Util::RealFillBoundary(*u0_mf[lev],geom[lev]);
 }
 
-void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter, int lev)
+void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
@@ -517,7 +517,8 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter, int lev)
     if (a_time > 2e-6)
     {   
         if (!end_initial_refine) {
-            Flame::Regrid(lev, a_time);
+            for (int lev = 0; lev <= finest_level; ++lev)
+                Flame::Regrid(lev, a_time);
         }
 
         prev_finest_ba = grids[finest_level];

@@ -49,7 +49,7 @@ public:
 
 protected:
     void Initialize(int lev) override;
-    void TimeStepBegin(Set::Scalar a_time, int a_iter, int lev) override;
+    void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override;
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
