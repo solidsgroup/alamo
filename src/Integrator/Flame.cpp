@@ -807,13 +807,6 @@ void Flame::Regrid(int lev, Set::Scalar time)
     BL_PROFILE("Integrator::Flame::Regrid");
 
     ic_phi->Initialize(lev, phi_mf, time);
-
-    // if (time < 1e-14)
-    // {
-    //     ic_eta->Initialize(lev, eta_0_mf, time);
-    //     return;
-    // }
-
     ic_eta->Initialize(lev, eta_0_mf, time);
 
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
@@ -824,7 +817,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
         Set::Patch<const Set::Scalar> eta_0 = eta_0_mf.Patch(lev, mfi);
         Set::Patch<Set::Scalar> exceeded_Tcutoff = has_exceeded_Tcutoff.Patch(lev, mfi);
 
-        Set::Scalar Tcutoff = thermal.Tcutoff;
+        Set::Scalar Tcutoff = thermal.Tcutoff; // TODO only do when thermal is on
 
         amrex::BoxList boxes_to_update;
         if (lev == finest_level && prev_finest_level == finest_level)
@@ -835,10 +828,6 @@ void Flame::Regrid(int lev, Set::Scalar time)
         for (const amrex::Box &box : boxes_to_update)
             amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                // if (temp(i,j,k) > Tcutoff)
-                // {
-                //     exceeded_Tcutoff(i,j,k) = 1;
-                // }
 
                 if (!exceeded_Tcutoff(i,j,k) && temp(i,j,k) < Tcutoff)
                 {
