@@ -122,8 +122,8 @@ protected:
     amrex::BoxArray prev_finest_ba;
     int prev_finest_level = -1;
 
-    Set::Field<Set::Scalar> eta_mf_frozen;
-    bool eta_frozen_initialized = false;
+    // Set::Field<Set::Scalar> eta_mf_frozen;
+    // bool eta_frozen_initialized = false;
 
     // Phase field model variables
     struct {

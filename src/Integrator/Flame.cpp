@@ -122,7 +122,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
     value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", value.plot_field);
 
-    value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
+    // value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
 
     // phase field initial condition
     pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
