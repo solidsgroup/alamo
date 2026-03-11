@@ -153,7 +153,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
         pp.query_default("thermal.Tcutoff", value.thermal.Tcutoff, "0.0", Unit::Temperature());
 
-        // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
+        // Switch time of the improved regridding where eta and the temperature field are both used. It is recommended to make this time ~10x the timestep
+        // Before this the refinement is based on the gradient of eta which helps the laser IC start correctly. A regrid is forced when this time is reached.
         pp.query_default("thermal.end_initial_refine_time", value.thermal.end_initial_refine_time, "0.0", Unit::Time());
 
         //Temperature boundary condition
@@ -175,7 +176,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
         
-        // Time to switch on the improved regridding to only refine 
         value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", 0); // Used to determine where regression has started
 
         // laser initial condition
