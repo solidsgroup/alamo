@@ -776,7 +776,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < 2e-6)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < -2e-6)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
@@ -859,11 +859,11 @@ void Flame::Regrid(int lev, Set::Scalar time)
     // when finest_level is first reached
     // InitializeFrozenEta();
 
-    if (time < 1e-14)
-    {
-        ic_eta->Initialize(lev, eta_0_mf, time);
-        return;
-    }
+    // if (time < 1e-14)
+    // {
+    //     ic_eta->Initialize(lev, eta_0_mf, time);
+    //     return;
+    // }
 
     ic_eta->Initialize(lev, eta_0_mf, time);
 
@@ -872,14 +872,15 @@ void Flame::Regrid(int lev, Set::Scalar time)
         const amrex::Box &bx = mfi.tilebox();
         Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> eta_0 = eta_0_mf.Patch(lev, mfi);
 
         Set::Scalar Tcutoff = thermal.Tcutoff;
 
-        // Use frozen IC if available, fall back to eta_mf_ic if not yet initialized
-        bool use_frozen = eta_frozen_initialized;
-        Set::Patch<const Set::Scalar> eta_ref = use_frozen
-            ? eta_mf_frozen.Patch(lev, mfi)
-            : eta_0_mf.Patch(lev, mfi);
+        // // Use frozen IC if available, fall back to eta_mf_ic if not yet initialized
+        // bool use_frozen = eta_frozen_initialized;
+        // Set::Patch<const Set::Scalar> eta_ref = use_frozen
+        //     ? eta_mf_frozen.Patch(lev, mfi)
+        //     : eta_0_mf.Patch(lev, mfi);
 
         amrex::BoxList boxes_to_update;
         if (lev == finest_level && prev_finest_level == finest_level)
@@ -893,11 +894,11 @@ void Flame::Regrid(int lev, Set::Scalar time)
                 if (temp(i, j, k) < Tcutoff)
                 {
                     // Matrix region: snap back to 1 if frozen ref is 1
-                    if (eta(i, j, k) < 1.0 - 1e-8 && eta_ref(i, j, k) > 1.0 - 1e-8)
+                    if (eta(i, j, k) < 1.0 - 1e-8 && eta_0(i, j, k) > 1.0 - 1e-8)
                         eta(i, j, k) = 1.0;
                     // Sphere interface: use the frozen reference directly
-                    else if (eta_ref(i, j, k) < 1.0 - 1e-8)
-                        eta(i, j, k) = eta_ref(i, j, k);
+                    else if (eta_0(i, j, k) < 1.0 - 1e-8)
+                        eta(i, j, k) = eta_0(i, j, k);
                 }
             });
     }
