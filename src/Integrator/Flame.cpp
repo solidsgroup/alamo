@@ -153,6 +153,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
         pp.query_default("thermal.Tcutoff", value.thermal.Tcutoff, "0.0", Unit::Temperature());
 
+        // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
+        pp.query_default("thermal.end_initial_refine_time", value.thermal.end_initial_refine_time, "0.0", Unit::Time());
+
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
             
@@ -172,7 +175,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
 
-        value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", value.plot_field); // Used to determine where regression has started
+        value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", 0); // Used to determine where regression has started
 
         // laser initial condition
         pp.select_default<  IC::Constant,
@@ -517,7 +520,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
             ic_laser->Initialize(lev, laser_mf, a_time);
     }
 
-    if (a_time > 2e-6)
+    if (a_time > thermal.end_initial_refine_time)
     {   
         if (!end_initial_refine) {
             for (int lev = 0; lev <= finest_level; ++lev)
@@ -793,7 +796,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < 2e-6)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < thermal.end_initial_refine_time)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
