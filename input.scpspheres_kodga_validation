@@ -1,12 +1,13 @@
 
 alamo.program = flame
 
-plot_file = output.test_refinement_cutoff
+plot_file = output.test_regrid
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
+
 amr.plot_dt = 1e-3_s
 amr.max_grid_size = 8
 amr.blocking_factor = 8
@@ -21,7 +22,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 4
+amr.max_level = 3
 
 # Full size
 # amr.n_cell = 18 18 18

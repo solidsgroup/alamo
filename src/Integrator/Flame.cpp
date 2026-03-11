@@ -514,8 +514,14 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
             ic_laser->Initialize(lev, laser_mf, a_time);
     }
 
-    if (a_time == 0.0)
-    {
+    if (a_time > 2e-6)
+    {   
+        if (!end_initial_refine) {
+            for (int lev = 0; lev <= finest_level; ++lev)
+                Flame::Regrid(lev, a_time);
+            end_initial_refine = 1;
+        }
+
         prev_finest_ba = grids[finest_level];
         prev_finest_level = finest_level;
     }
@@ -776,78 +782,11 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < -2e-6)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < 2e-6)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
 }
-
-// void Flame::Regrid(int lev, Set::Scalar time)
-// {
-//     BL_PROFILE("Integrator::Flame::Regrid");
-//     //if (lev < finest_level) return;
-//     //phi_mf[lev]->setVal(0.0);
-//     ic_phi->Initialize(lev, phi_mf, time);
-//     //ic_phicell->Initialize(lev, phi_mf, time);
-// }
-
-// void Flame::Regrid(int lev, Set::Scalar time)
-// {
-//     BL_PROFILE("Integrator::Flame::Regrid");
-
-//     // Initialize phi from IC (existing behavior)
-//     ic_phi->Initialize(lev, phi_mf, time);
-
-//     // Re-initialize eta from IC on regrid, but only where:
-//     // a.) T < Tcutoff — cell is in the unburned region (eta not yet evolving)
-//     // b.) the cell is newly refined or on a coarser-than-finest level
-//     // Cells where T > Tcutoff are at the regression front or burned —
-//     // those are guaranteed to be at finest_level by tagging, so we leave them alone.
-
-//     if (time < 2e-6) // TODO make input for time cutoff
-//     {
-//         ic_eta->Initialize(lev, eta_0_mf, time);
-//         return;
-//     }
-//     // ic_eta->Initialize(lev, eta_0_mf, time);
-
-//     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
-//     {
-//         const amrex::Box &bx = mfi.tilebox();
-//         Set::Patch<Set::Scalar> eta_ic = eta_0_mf.Patch(lev, mfi);
-//         Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
-//         Set::Patch<Set::Scalar> phi    = phi_mf.Patch(lev, mfi);
-//         Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
-
-//         Set::Scalar Tcutoff = thermal.Tcutoff; // unburned if T < Tcutoff
-
-//         amrex::BoxList boxes_to_update;
-//         if (lev == finest_level && prev_finest_level == finest_level)
-//             // Only update cells on finest level that were JUST refined
-//             boxes_to_update = amrex::complementIn(bx, prev_finest_ba).boxList();
-//         else
-//             // Coarser than finest, or a new finest level just appeared:
-//             // reset all boxes to IC
-//             boxes_to_update.push_back(bx);
-
-//         for (const amrex::Box &box : boxes_to_update)
-//             amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-//             {
-//                 // Only reset in the unburned region where T < Tcutoff.
-//                 // If T >= Tcutoff, eta is actively regressing — do not overwrite.
-//                 if (temp(i, j, k) < Tcutoff)
-//                 {
-//                     eta(i, j, k) = eta_ic(i, j, k);
-//                 }
-//             });
-//     }
-
-//     if (lev == finest_level)
-//     {
-//         prev_finest_ba    = grids[finest_level];
-//         prev_finest_level = finest_level;
-//     }
-// }
 
 void Flame::Regrid(int lev, Set::Scalar time)
 {
