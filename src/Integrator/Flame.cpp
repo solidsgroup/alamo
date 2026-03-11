@@ -809,6 +809,8 @@ void Flame::Regrid(int lev, Set::Scalar time)
     ic_phi->Initialize(lev, phi_mf, time);
     ic_eta->Initialize(lev, eta_0_mf, time);
 
+    if (thermal.on) {
+
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
@@ -840,6 +842,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
     {
         prev_finest_ba    = grids[finest_level];
         prev_finest_level = finest_level;
+    }
     }
 }
 
