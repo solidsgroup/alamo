@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-#SBATCH --time=24:00:00
+#SBATCH --time=12:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 #SBATCH --mem-per-cpu=10000
 #SBATCH --job-name="propellant_study"
-#SBATCH --array=0-7
+#SBATCH --array=0-1
 #SBATCH --output="%x-%A_%a-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --constraint="nova25|nova24|nova26" 
 echo "======================================================"
 echo " Job '$SLURM_JOB_NAME'"
 echo " Job ID: $SLURM_JOB_ID"
@@ -21,7 +22,7 @@ module load openmpi_hpc
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
 ind=00
-num=8
+num=16
 AP_arr=(
     "A_vf_11/A_${ind}_AP.xyzr"
     "B_vf_6/B_${ind}_AP.xyzr"
