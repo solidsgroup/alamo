@@ -118,10 +118,10 @@ public:
         pp.query_required("cp_prop", value.cp_prop,Unit::SpecificHeatCapacity());
 
 
-        // Surgate heat flux model paramater - Homogenized
-        pp.query_default("h1", value.h1, "1.81_J/m/K",Unit::HeatFlux()); 
-        // Surgate heat flux model paramater - Homogenized
-        pp.query_default("h2", value.h2, "1.34_J/m/K",Unit::HeatFlux()); 
+        // Surrogate heat flux model parameter - Homogenized
+        pp.query_default("h1", value.h1, "1.81_W/m^2",Unit::HeatFlux());
+        // Surrogate heat flux model parameter - Homogenized
+        pp.query_default("h2", value.h2, "1.34_W/m^2",Unit::HeatFlux()); 
         // Reference pressure
         pp.query_default("P_reference", value.P_reference, "1_MPa",Unit::Pressure()); 
 

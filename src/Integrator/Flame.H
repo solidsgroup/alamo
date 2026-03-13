@@ -100,6 +100,7 @@ private:
         Set::Scalar kappa = NAN;
         Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
         Set::Scalar min_eta = 0.001;
+        int relax_steps = 0;
     } pf;
 
     // Thermal transport variables
@@ -134,6 +135,12 @@ private:
 
     } chamber;
 
+    // Thermo output diagnostics (filled in TimeStepComplete, written to thermo.dat)
+    Set::Scalar thermo_max_temp     = 0.0;
+    Set::Scalar thermo_mdot_max     = 0.0;
+    Set::Scalar thermo_heatflux_max = 0.0;
+    Set::Scalar thermo_L_max        = 0.0;
+    Set::Scalar thermo_eta_min      = 1.0;
 
     // Propellant model
     Model::Propellant::Propellant<

@@ -13,15 +13,15 @@ model = alamo.Model.Chamber.Ballistic()
 
 
 
-model.At = alamo.Unit.Parse("0.00007_m^2").normalized_value()
+model.At = alamo.Unit.Parse("4.5e-4_m^2").normalized_value()
 model.R = alamo.Unit.Parse("287_J/kg/K").normalized_value()
 model.gamma = 1.25
 model.T0 = alamo.Unit.Parse("1500_K").normalized_value()
-model.pressure = alamo.Unit.Parse("2.0_MPa").normalized_value()
+model.pressure = alamo.Unit.Parse("7.0_MPa").normalized_value()
 
 
-dt = 0.001
-mdot = alamo.Unit.Parse("0.26_kg/s").normalized_value()
+dt = 0.0005
+mdot = alamo.Unit.Parse("3.26_kg/s").normalized_value()
 
 t = [0.0]
 p = [model.pressure]

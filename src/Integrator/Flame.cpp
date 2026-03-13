@@ -109,7 +109,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Barrier energy
     pp.query_default("pf.w12", value.pf.w12, "0.0", Unit::Less());  
     // Burned rest energy
-    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());    
+    pp.query_default("pf.w0", value.pf.w0, "0.0",Unit::Less());
+    // Number of pure Allen-Cahn steps run at initialization to relax BMP sharp interface to equilibrium tanh profile
+    pp.query_default("pf.relax_steps", value.pf.relax_steps, 0);
 
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
@@ -162,6 +164,11 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.mdot, "mass_flux");
+        value.RegisterIntegratedVariable(&value.thermo_max_temp,     "max_temp",      false);
+        value.RegisterIntegratedVariable(&value.thermo_mdot_max,     "mdot_max",      false);
+        value.RegisterIntegratedVariable(&value.thermo_heatflux_max, "heatflux_max",  false);
+        value.RegisterIntegratedVariable(&value.thermo_L_max,        "L_max",         false);
+        value.RegisterIntegratedVariable(&value.thermo_eta_min,      "eta_min",       false);
 
         // laser initial condition
         pp.select_default<  IC::Constant,
@@ -259,6 +266,52 @@ void Flame::Initialize(int lev)
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
+
+    if (pf.relax_steps > 0)
+    {
+        const Set::Scalar* DX = geom[lev].CellSize();
+        Set::Scalar dx_min = DX[0];
+        for (int d = 1; d < AMREX_SPACEDIM; d++) dx_min = std::min(dx_min, DX[d]);
+        const Set::Scalar L_relax = 1.0;
+        const Set::Scalar dt_relax = 0.5 * dx_min * dx_min / (4.0 * L_relax * pf.eps * pf.kappa);
+
+        Util::Message(INFO, "pf.relax_steps=", pf.relax_steps, " lev=", lev, " dt_relax=", dt_relax);
+
+        for (int s = 0; s < pf.relax_steps; s++)
+        {
+            // Use plain FillBoundary (not bc_eta) because bc_eta geometry is not yet defined
+            // at the time Initialize(lev) is called — bc_eta->define(geom[lev]) happens AFTER
+            // Initialize returns. Using bc_eta->FillBoundary here would apply the Dirichlet BC
+            // using a wrong/empty geometry, overwriting ALL valid cells with η=1.
+            eta_mf[lev]->FillBoundary(geom[lev].periodicity());
+            std::swap(eta_old_mf[lev], eta_mf[lev]);
+
+            for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& bx = mfi.tilebox();
+                Set::Patch<Set::Scalar>       etanew = eta_mf.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> eta    = eta_old_mf.Patch(lev, mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Scalar eta_val = eta(i, j, k);
+                    Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
+                    // Use symmetric double-well w_sym = eta^2*(1-eta)^2 for pre-relax.
+                    // The simulation's w(eta) has w(0)=0 != w(1)=1 (asymmetric), which would
+                    // drive the grain (eta=1) to be consumed by the gas (eta=0) during pre-relax.
+                    // w_sym has equal minima at eta=0 and eta=1, so neither phase is preferentially grown.
+                    Set::Scalar dw_sym = 2.0 * eta_val * (1.0 - eta_val) * (1.0 - 2.0 * eta_val);
+                    Set::Scalar df_deta = (pf.lambda / pf.eps) * dw_sym - pf.eps * pf.kappa * eta_lap;
+                    etanew(i, j, k) = eta_val - L_relax * dt_relax * df_deta;
+                    if (etanew(i, j, k) < small) etanew(i, j, k) = small;
+                    if (etanew(i, j, k) > 1.0)   etanew(i, j, k) = 1.0;
+                });
+            }
+        }
+        // Sync eta_old to the relaxed eta so both start consistent
+        amrex::MultiFab::Copy(*eta_old_mf[lev], *eta_mf[lev], 0, 0, 1, eta_mf[lev]->nGrow());
+    }
+
     ic_phi->Initialize(lev, phi_mf);
     //ic_phicell->Initialize(lev, phicell_mf);
 
@@ -382,6 +435,11 @@ void Flame::TimeStepComplete(Set::Scalar a_time, int /*a_iter*/)
     Util::Message(INFO, "MONITOR thermal.on=", thermal.on);
     if (thermal.on)
     {
+        thermo_max_temp     = 0.0;
+        thermo_mdot_max     = 0.0;
+        thermo_heatflux_max = 0.0;
+        thermo_L_max        = 0.0;
+        thermo_eta_min      = 1.0;
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             Set::Scalar max_temp = temp_mf[lev]->max(0);
@@ -390,12 +448,19 @@ void Flame::TimeStepComplete(Set::Scalar a_time, int /*a_iter*/)
             Set::Scalar max_heatflux = heatflux_mf[lev]->max(0);
             Set::Scalar max_L = L_mf[lev]->max(0);
             Set::Scalar min_eta = eta_mf[lev]->min(0);
-            Util::Message(INFO, "t=", a_time, " lev=", lev,
-                " T=[", Unit::Temperature(min_temp), ",", Unit::Temperature(max_temp), "]",
-                " mdot_max=", max_mdot,
-                " heatflux_max=", max_heatflux,
-                " L_max=", max_L,
-                " eta_min=", min_eta);
+            thermo_max_temp     = std::max(thermo_max_temp,     max_temp);
+            thermo_mdot_max     = std::max(thermo_mdot_max,     max_mdot);
+            thermo_heatflux_max = std::max(thermo_heatflux_max, max_heatflux);
+            thermo_L_max        = std::max(thermo_L_max,        max_L);
+            thermo_eta_min      = std::min(thermo_eta_min,      min_eta);
+            Util::Message(INFO, "t=", std::setw(10), std::setprecision(4), std::fixed, a_time,
+            " lev=", std::setw(2), lev,
+            " T=[", std::setw(8), std::setprecision(2), Unit::Temperature(min_temp),
+            ",", std::setw(8), std::setprecision(2), Unit::Temperature(max_temp), "]",
+            " mdot_max=", std::setw(10), std::setprecision(4), max_mdot,
+            " heatflux_max=", std::setw(10), std::setprecision(4), max_heatflux,
+            " L_max=", std::setw(10), std::setprecision(4), max_L,
+            " eta_min=", std::setw(10), std::setprecision(4), min_eta);
         }
     }
 
@@ -675,7 +740,7 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
     if (variable_pressure) {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            chamber.volume += eta(i, j, k, 0) * dv;
+            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;
@@ -687,14 +752,14 @@ void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
             //chamber.massflux += dm;
 
             // new - chamber model
-            chamber.mdot += mdot(i, j, k, 0) * dv; 
+            chamber.mdot += mdot(i, j, k, 0) * dv;
             //chamber.volume += volume;
         });
     }
     else {
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            chamber.volume += eta(i, j, k, 0) * dv;
+            chamber.volume += (1.0 - eta(i, j, k, 0)) * dv;
             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar normgrad = grad.lpNorm<2>();
             Set::Scalar da = normgrad * dv;

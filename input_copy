@@ -1,11 +1,5 @@
 #working input file with chamber model/variable pressure
-#SIM017: k_prop=1.5, h1=0, h2=8e6, At=2.5e-4, double_circle (annular BATES grain) — target ~8 MPa static
-#SIM016: k_prop=1.5, h1=0, h2=8e6, At=2.75e-4, double_circle (annular BATES grain) — target ~7 MPa static
-#SIM015: k_prop=1.5, h1=0, h2=8e6, At=3.0e-4, double_circle (annular BATES grain) — target ~6 MPa static
-#   double_circle geometry: annular gas port, inner r=0.033m, outer r=0.046m, perim=0.446m (2.49x simple_circle)
-#   Annular burn: inner perimeter shrinks + outer perimeter grows at equal rates → constant total area → static P
-#SIM014: k_prop=1.5, h1=0, h2=8e6, At=1e-4 — Pspike=5.05MPa, Pt10=8.63MPa (rising)
-#SIM013: k_prop=1.5, h1=0, h2=8e6, At=1.5e-4 — Pspike=3.13MPa, Pt10=5.33MPa (rising)
+#SIM013: k_prop=1.5, h1=0, h2=8e6, At=1.5e-4, simple_circle.bmp, pf.relax_steps=0, stop_time=10.0s (higher P range)
 #SIM012: k_prop=1.5, h1=0, h2=8e6, At=3e-4 — Pspike=1.42MPa, Pt10=2.34MPa (rising, grain burnback)
 #SIM011: k_prop=1.5, h1=0, h2=8e6, At=2e-4, simple_circle — Ppeak=2.26MPa, Pt5=2.48MPa, Pt10=3.79MPa RISING (correct)
 #SIM010: k_prop=1.5, h1=0, h2=8e6, At=2e-4, simple_circle — Ppeak=2.26MPa, Pt5=2.48MPa RISING (correct)
@@ -13,10 +7,10 @@
 #Key: sim007-009 INVALID — multifin2.bmp caused curvature-driven shape change, not real combustion
 
 alamo.program = flame
-plot_file = output
-amr.plot_dt = 0.1
+plot_file = output_highK_highK
+amr.plot_dt = 0.001
 #amr.plot_int = 1
-amr.max_level = 3
+amr.max_level = 2
 amr.nsubsteps = 4 # 4x time substepping
 amr.blocking_factor = 4
 amr.base_regrid_int = 100
@@ -37,11 +31,11 @@ system.length = m
 system.time = s
 
 # Timestep and duration
-timestep = 2.0e-4_s
-stop_time = 7.0_s
+timestep = 5.0e-5_s # [s]
+stop_time = 10.0_s # [s]
 
 # Phase field parameters
-pf.eps = 1.667e-4_m
+pf.eps = 0.0005_m # [m]
 pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = bmp
 pf.eta.ic.bmp.filename = simple_circle.bmp
@@ -52,7 +46,7 @@ phi.ic.bmp.filename = base_circle0.bmp
 phi.ic.bmp.fit = stretch
 phi.ic.bmp.channel = g
 pf.kappa = 1.0_J/m^2
-pf.relax_steps = 0 # Allen-Cahn pre-relax: disabled (BMP IC gives correct interface width at fine level)
+pf.relax_steps = 0 # Allen-Cahn pre-relax: disabled (set >0 to enable; requires symmetric dw in code)
 pf.w1 = 1.0_1
 pf.w12 = 2.0_1
 pf.w0 = 0.0_1
@@ -78,15 +72,15 @@ propellant.homogenize.dispersion2 = 1.2_kg/m^3   # rho_gas (air-like density)
 propellant.homogenize.dispersion3 = 1000_J/kg/K  # cp_gas (air-like heat capacity)
 
 # h1=0: removes pressure-dependent heat flux (stable by construction with n=0.373<1)
-propellant.homogenize.h1 = 5.0e5_W/m^2
-propellant.homogenize.h2 = 8.0e6_W/m^2
+propellant.homogenize.h1        = 0_W/m^2
+propellant.homogenize.h2        = 8.0e6_W/m^2
 
 propellant.homogenize.P_reference = 1_MPa
 
 propellant.homogenize.rho_prop = 1745.0_kg/m^3 # density
-propellant.homogenize.k_prop = 1.5000_W/m/K
+propellant.homogenize.k_prop = 1.5000e1_W/m/K # thermal conductivity (10x for faster surface heating)
 propellant.homogenize.cp_prop = 1476.0_J/kg/K # specific heat
-propellant.homogenize.m_prop = 1.2e3_cm/s
+propellant.homogenize.m_prop = 8.0e2_cm/s # pre-exponential factor for Arrhenius Law
 propellant.homogenize.mlocal_prop = 0.05_kg/m^2/s # [???] kg/s
 propellant.homogenize.E_prop = 2800.0_K # activation energy for Arrhenius Law
 propellant.homogenize.mob_prop = true # bool - whether to include pressure in arrhenius law
@@ -123,7 +117,7 @@ thermal.hc = 1.0 # [ ???] This converts kW/cm^2 to W/m^2 (so units of (W cm^2) /
 # Pressure
 variable_pressure = 1
 chamber.pressure = 1.0_MPa # Initial pressure
-chamber.ballistic.At = 2.0e-4_m^2
+chamber.ballistic.At = 1.5e-4_m^2 # [?] m^2
 chamber.ballistic.T0 = 3200_K # [?] K
 chamber.ballistic.R = 287_J/kg/K #[?] J/kg/K
 chamber.ballistic.gamma = 1.25
