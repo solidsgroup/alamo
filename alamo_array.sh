@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-#SBATCH --time=12:00:00
+#SBATCH --time=8:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 #SBATCH --mem-per-cpu=10000
 #SBATCH --job-name="propellant_study"
-#SBATCH --array=0-1
+#SBATCH --array=6-7
 #SBATCH --output="%x-%A_%a-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --constraint="nova25|nova24|nova26" 
+#SBATCH --constraint="nova25|nova24"
 echo "======================================================"
 echo " Job '$SLURM_JOB_NAME'"
 echo " Job ID: $SLURM_JOB_ID"
 echo " Array Task ID: $SLURM_ARRAY_TASK_ID"
 echo " Submitted by: $SLURM_JOB_USER"
 echo " Running on node(s): $SLURM_NODELIST"
+echo " Simulation with plot file=${plot_file_name} started"
 echo " Start time: $(date)"
 echo "======================================================"
 module load openmpi_hpc
@@ -22,7 +23,7 @@ module load openmpi_hpc
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
 ind=00
-num=16
+num=18
 AP_arr=(
     "A_vf_11/A_${ind}_AP.xyzr"
     "B_vf_6/B_${ind}_AP.xyzr"
