@@ -538,7 +538,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
                 df_deta = 0.0;
             }
-	    
             if (thermal.on && T < thermal.Tcutoff) {
                 // If the temperature is lower then the cutoff temperature don't evolve the eta field
                 df_deta = 0.0;
