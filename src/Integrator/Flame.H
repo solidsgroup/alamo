@@ -11,6 +11,7 @@
 #include "IO/ParmParse.H"
 
 #include "Base/Mechanics.H"
+#include "Hydro.H"
 
 #include "Model/Propellant/PowerLaw.H"
 #include "Model/Propellant/FullFeedback.H"
@@ -20,7 +21,8 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator,
-    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
+                virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>,
+                virtual public Hydro
 {
 
     using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
@@ -60,8 +62,13 @@ protected:
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> temps_mf;
 
+    Set::Field<Set::Scalar> rho_htpb_gas_mf; // Density field of Hydroxyl-terminated polybutadiene (HTPB)
+    Set::Field<Set::Scalar> rho_AP_gas_mf; // Density field of Ammonium perchlorate (AP)
+    Set::Field<Set::Scalar> rho_tot_gas_mf; // Total density field of the AP and HTPB mixture
+
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar> eta_0_mf;
     Set::Field<Set::Scalar> mdot_mf;
 
     Set::Field<Set::Scalar> phi_mf;
@@ -84,6 +91,12 @@ protected:
     IC::IC<Set::Scalar>* ic_eta = nullptr;
     bool plot_field = true;
     int variable_pressure = -1;
+    int use_with_Hydro = 0;
+    Real velocity_mult = 0;
+
+    amrex::BoxArray prev_finest_ba;
+    int prev_finest_level = -1;
+    int end_initial_refine = 0;
 
     // Phase field model variables
     struct {
@@ -100,6 +113,9 @@ protected:
         Set::Scalar hc = NAN;
         Set::Scalar Tref = NAN;
         Set::Scalar Tfluid = NAN;
+        Set::Scalar Tcutoff = NAN;
+        Set::Scalar end_initial_refine_time = NAN;
+        Set::Field<Set::Scalar> has_exceeded_Tcutoff;
         IC::IC<Set::Scalar>* ic_temp = nullptr;
     } thermal;
 
@@ -107,10 +123,19 @@ protected:
     struct {
         int on = 0;
         Set::Scalar Telastic = NAN;
+        Set::Scalar pressure_mult = NAN;
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
     } elastic;
+
+    struct {
+        int on = 0;
+        Set::Scalar tstart = NAN;
+
+        Set::Scalar rho_ap = NAN, rho_htpb = NAN;
+        Set::Scalar u0_ap = NAN, u0_htpb = NAN;
+    } hydro;
 
     // Chamber state variables (not inputs)
     struct {
