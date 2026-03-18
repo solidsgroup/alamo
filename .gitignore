@@ -65,3 +65,5 @@ alamo.py
 *.zip
 bisect.log
 auto-bisect.sh
+SCPGrainElastic
+SCPSolidElastic
