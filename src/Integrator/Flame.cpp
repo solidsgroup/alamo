@@ -20,8 +20,7 @@ namespace Integrator
 {
 
 Flame::Flame() : 
-    Base::Mechanics<model_type>(), 
-    Hydro(eta_mf, eta_old_mf, true)
+    Base::Mechanics<model_type>(),
 {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
@@ -168,9 +167,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.alpha_mf, value.bc_temp, 1, 0, "alpha", value.plot_field);
         value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 0, "heatflux", value.plot_field);
         value.RegisterNewFab(value.laser_mf, value.bc_temp, 1, 0, "laser", value.plot_field);
-        // value.RegisterNewFab(value.rho_htpb_gas_mf, value.bc_temp, 1, 0, "rho_HTPB_gas", value.plot_field); // Density of gaseous Hydroxyl-terminated polybutadiene (HTPB)
-        // value.RegisterNewFab(value.rho_AP_gas_mf, value.bc_temp, 1, 0, "rho_AP_gas", value.plot_field); // Density of gaseous Ammonium perchlorate (AP)
-        // value.RegisterNewFab(value.rho_tot_gas_mf, value.bc_temp, 1, 0, "rho_tot_gas", value.plot_field); // Density of total gaseous field
 
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
@@ -197,14 +193,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
-
-    // Flag to use Flame with or without Hydro. If Hydro is off the pressure traction from Hydro is not calculated (see UpdateModel function)
-    pp_query_default("use_with_Hydro", value.use_with_Hydro, false);
-
-    if (value.use_with_Hydro == 1) {
-        //Scalar value to reduce the velocity of the products from regression in interface region being ejected into Hydro to improve Hydro stability
-        pp.query_default("velocity_mult", value.velocity_mult, 1.0);
-    }
 
     // Refinement criterion for eta field   
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
@@ -235,9 +223,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Body force
     pp_query_default("elastic.traction", value.elastic.traction, 0.0); 
-    
-    // Scalar value to reduce the pressure being applied in the traction boundaay condition. If a linear elastic solve is used, results can be scaled appropriately to recover correct solution
-    pp.query_default("elastic.pressure_mult", value.elastic.pressure_mult, 1.0);
 
     // Phi refinement criteria 
     pp_query_default("elastic.phirefinement", value.elastic.phirefinement, 1); 
@@ -259,31 +244,6 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.solver.setPsi(value.eta_mf);
     }
 
-    // Determines if hydro is on, by default hydro starts off and turns on a small time into the simulation to aid hydro initilization
-    pp.query_default("hydro.on",value.hydro.on,false);
-    if (value.hydro.on)
-    {   
-        // Time value when hydro starts, recommended to be set slightly larger than the start of the simulation to help integrators start correctly
-        pp.query_default("hydro.tstart", value.hydro.tstart, 0.0);
-
-        // Density of the gaseous products of Ammonium perchlorate
-        pp.query_default("hydro.rho_ap",value.hydro.rho_ap,1.0);
-
-        // Density of the gaseous products of Hydroxyl-terminated Polybutadiene
-        pp.query_default("hydro.rho_htpb",value.hydro.rho_htpb,1.0);
-
-        // Velocity source term of gaseous AP products, default value is only needed for the first step of hydro after mixing, 
-        // after conservation of mass is used to calculate these terms
-        pp.query_default("hydro.u0_ap",value.hydro.u0_ap, 0.0);
-
-        // Velocity source term of gaseous HTPB products, default value is only needed for the first step of hydro after mixing, 
-        // after conservation of mass is used to calculate these terms
-        pp.query_default("hydro.u0_htpb",value.hydro.u0_htpb, 0.0);
-
-        pp.queryclass<Hydro>("hydro", value);
-    }
-
-
     bool allow_unused;
     // Set this to true to allow unused inputs without error.
     // (Not recommended.)
@@ -300,7 +260,6 @@ void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
-    if (hydro.on) Hydro::Initialize(lev);
 
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
@@ -352,9 +311,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<model_type>        model = model_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar>       psi   = Mechanics::psi_mf.Patch(lev, mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
-            Set::Patch<Set::Scalar> pressure = Hydro::pressure_mf.Patch(lev,mfi); // Pressure from Hydro to use as traction force at solid/fluid interface
 
             if (elastic.on)
             {
