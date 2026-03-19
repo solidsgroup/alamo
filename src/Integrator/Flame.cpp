@@ -359,7 +359,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
     }
 }
 
-void Flame::TimeStepBegin(Set::Scalar /*a_time*/, /*int a_iter*/)
+void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
@@ -381,7 +381,7 @@ void Flame::TimeStepBegin(Set::Scalar /*a_time*/, /*int a_iter*/)
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar a_time, int a_iter)
+void Flame::TimeStepComplete(Set::Scalar /*a_time*/, /*int a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure) {
