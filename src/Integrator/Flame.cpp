@@ -320,19 +320,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
 
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                    Set::Vector pres_reg;
 
-                    // psi(i,j,k) = eta(i,j,k);
-                    
-                    if (use_with_Hydro) {
-                        pres_reg = elastic.pressure_mult*pressure(i,j,k) * grad_eta ; // Add pressure to effect the regression rate
-                    } else {
-                        // If not using hydro to find the pressure on the regressing surface, set the pressure traction term to 0.0
-                        pres_reg = -1*grad_eta;
-                    }
-
-                    rhs(i, j, k) = 0.0*grad_eta;
-                    rhs(i, j, k) = (elastic.traction) * grad_eta - pres_reg;
+                    rhs(i, j, k) = (elastic.traction) * grad_eta;
 
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -370,7 +359,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
     }
 }
 
-void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
+void Flame::TimeStepBegin(Set::Scalar /*a_time*/, /*int a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
@@ -582,7 +571,6 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
     Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
-    if (hydro.on && time >= hydro.tstart) Hydro::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
