@@ -374,7 +374,6 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
-    if (hydro.on && a_time >= hydro.tstart) Hydro::TimeStepBegin(a_time, a_iter);
     if (thermal.on) {
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
@@ -396,7 +395,6 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 void Flame::TimeStepComplete(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
-    if (hydro.on && a_time >= hydro.tstart) Hydro::TimeStepComplete(a_time,a_iter);
     if (variable_pressure) {
         //Set::Scalar x_len = geom[0].ProbDomain().length(0);
         //Set::Scalar y_len = geom[0].ProbDomain().length(1);
@@ -410,10 +408,6 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
     Base::Mechanics<model_type>::Advance(lev, time, dt);
-    if (hydro.on && time >= hydro.tstart) 
-    {
-        Hydro::Advance(lev,time,dt);
-    }
     const Set::Scalar* DX = geom[lev].CellSize();
 
     std::swap(eta_old_mf[lev], eta_mf[lev]);
@@ -720,7 +714,6 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     BL_PROFILE("Flame::Integrate");
     
     Base::Mechanics<model_type>::Integrate(amrlev,time,timestep,mfi,box);
-    //if (hydro.on && time >= hydro.tstart) Hydro::Integrate(amrlev, time, step, mfi, box);
 
     const Set::Scalar* DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
