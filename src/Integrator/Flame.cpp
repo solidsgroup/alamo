@@ -652,14 +652,20 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 }
 
 void Flame::Regrid(int lev, Set::Scalar time)
-{
+{   
     BL_PROFILE("Integrator::Flame::Regrid");
 
     ic_phi->Initialize(lev, phi_mf, time);
     ic_eta->Initialize(lev, eta_0_mf, time);
 
     if (thermal.on) {
-
+    /* 
+    This regrid function works by making a using the "has_exceeded_Tcutoff" field. If the temperature in a cell is greater than Tcutoff,
+    eta will change and when regruding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital 
+    eta field condition. This gives at leat a 4x speed improvement in 2D when doing regression with voids. This is because orgioanlly
+    there was a bug where when regridding, the orgional eta field wouldn't be applied, so there would be "sqaures" of voids instead of
+    circles/spheres when using .xyzr files as the inital condition.
+    */
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
@@ -668,7 +674,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
         Set::Patch<const Set::Scalar> eta_0 = eta_0_mf.Patch(lev, mfi);
         Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
 
-        Set::Scalar Tcutoff = thermal.Tcutoff; // TODO only do when thermal is on
+        Set::Scalar Tcutoff = thermal.Tcutoff;
 
         amrex::BoxList boxes_to_update;
         if (lev == finest_level && prev_finest_level == finest_level)
