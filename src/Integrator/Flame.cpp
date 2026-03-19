@@ -381,7 +381,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     }
 }
 
-void Flame::TimeStepComplete(Set::Scalar /*a_time*/, /*int a_iter*/)
+void Flame::TimeStepComplete(Set::Scalar /*a_time*/, int /*a_iter*/)
 {
     BL_PROFILE("Integrator::Flame::TimeStepComplete");
     if (variable_pressure) {
@@ -736,3 +736,4 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
+
