@@ -20,8 +20,7 @@ namespace Integrator
 {
 
 Flame::Flame() : 
-    Base::Mechanics<model_type>(),
-{}
+    Base::Mechanics<model_type>() {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
 {
@@ -696,7 +695,7 @@ void Flame::Regrid(int lev, Set::Scalar time)
     }
 }
 
-void Flame::Integrate(int amrlev, Set::Scalar time, int step,
+void Flame::Integrate(int amrlev, Set::Scalar time, int /*step*/,
     const amrex::MFIter& mfi, const amrex::Box& box)
 {
     BL_PROFILE("Flame::Integrate");
