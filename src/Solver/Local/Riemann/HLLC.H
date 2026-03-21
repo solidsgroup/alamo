@@ -34,18 +34,27 @@ public:
     virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
         // get densities (and regularize)
-        Set::Scalar rho_L = std::max(lo.rho, small);
-        Set::Scalar rho_R = std::max(hi.rho, small);
+        std::vector<double> rho_L = lo.rho;
+        std::vector<double> rho_R = hi.rho;
+        Set::Scalar rho_sum_L = 0.0;
+        Set::Scalar rho_sum_R = 0.0;
+        for (int n=0; n<gas.nspecies; ++n)
+        {
+            rho_L[n] = std::max(rho_L[n], small);
+            rho_R[n] = std::max(rho_R[n], small);
+            rho_sum_L += rho_L[n];
+            rho_sum_R += rho_R[n];
+        }
         // density average
-        Set::Scalar rhobar = 0.5*(rho_L + rho_R);
+        Set::Scalar rhobar = 0.5*(rho_sum_L + rho_sum_R);
         // density ratio
         /*Set::Scalar Rrho = std::sqrt(rho_R / rho_L);*/
 
         // primitive velocities
-        Set::Scalar u_L = lo.M_normal / rho_L;
-        Set::Scalar u_R = hi.M_normal / rho_R;
-        Set::Scalar v_L = lo.M_tangent / rho_L;
-        Set::Scalar v_R = hi.M_tangent / rho_R;
+        Set::Scalar u_L = lo.M_normal / rho_sum_L;
+        Set::Scalar u_R = hi.M_normal / rho_sum_R;
+        Set::Scalar v_L = lo.M_tangent / rho_sum_L;
+        Set::Scalar v_R = hi.M_tangent / rho_sum_R;
         // roe average velocity
         /*Set::Scalar ubar = (u_L + u_R*Rrho) / (1.0 + Rrho);*/
 
@@ -56,51 +65,51 @@ public:
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
             case 0: // xlo
-                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k));
-                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i-1, j, k));
+                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i-1, j, k));
                 gamma_L = gas.gamma(T_L, X, i-1, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
-                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k));
+                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 1: // xhi
-                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
-                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k));
+                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k));
-                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i+1, j, k));
+                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i+1, j, k));
                 gamma_R = gas.gamma(T_R, X, i+1, j, k);
                 break;
             case 2: // ylo
-                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k));
-                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j-1, k));
+                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k));
+                p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j-1, k));
                 gamma_L = gas.gamma(T_L, X, i, j-1, k);
-                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
-                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k));
+                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 3: // yhi
-                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
-                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k));
+                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k));
-                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j+1, k));
+                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k));
+                p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j+1, k));
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
                 break;
             case 4: // zlo
-                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1));
-                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k-1));
+                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1));
+                p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k-1));
                 gamma_L = gas.gamma(T_L, X, i, j, k-1);
-                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
-                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k));
+                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k));
+                p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k));
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 5: // zhi
-                T_L = std::max(small, gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
-                p_L = std::max(small, gas.ComputeP(rho_L, T_L, X, i, j, k));
+                T_L = std::max(small, gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k));
+                p_L = std::max(small, gas.ComputeP(rho_sum_L, T_L, X, i, j, k));
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = std::max(small, gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1));
-                p_R = std::max(small, gas.ComputeP(rho_R, T_R, X, i, j, k+1));
+                T_R = std::max(small, gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1));
+                p_R = std::max(small, gas.ComputeP(rho_sum_R, T_R, X, i, j, k+1));
                 gamma_R = gas.gamma(T_R, X, i, j, k+1);
                 break;
             default:
@@ -114,8 +123,8 @@ public:
         //Util::Message(INFO, "Right: rho/u/v/E/p/T: ", rho_R, " ", u_R, " " , v_R, " ", E_R, " ", p_R, " ", T_R);
  
         // sound speeds
-        Set::Scalar a_L = std::sqrt(gamma_L*p_L / rho_L);
-        Set::Scalar a_R = std::sqrt(gamma_R*p_R / rho_R);
+        Set::Scalar a_L = std::sqrt(gamma_L*p_L / rho_sum_L);
+        Set::Scalar a_R = std::sqrt(gamma_R*p_R / rho_sum_R);
         // sound speed average
         Set::Scalar abar = 0.5*(a_L + a_R);
 
@@ -134,62 +143,73 @@ public:
 
         // intermediate speed
         Set::Scalar Sstar =
-            (p_R - p_L + rho_L*u_L*(S_L-u_L) - rho_R*u_R*(S_R-u_R)) /
-            (      rho_L*(S_L-u_L)  - rho_R*(S_R - u_R)           );
-        
+            (p_R - p_L + rho_sum_L*u_L*(S_L-u_L) - rho_sum_R*u_R*(S_R-u_R)) /
+            (      rho_sum_L*(S_L-u_L)  - rho_sum_R*(S_R - u_R)           );
+
+        std::vector<double> rhoYu_L(gas.nspecies);
+        std::vector<double> rhoYu_R(gas.nspecies);
+        std::vector<double> rhostar_L(gas.nspecies);
+        std::vector<double> rhostar_R(gas.nspecies);
+        double factor_L = (S_L - u_L) / (S_L - Sstar);
+        double factor_R = (S_R - u_R) / (S_R - Sstar);
+        for (int n=0; n<gas.nspecies; ++n) {
+            rhoYu_L[n] = u_L*rho_L[n];
+            rhoYu_R[n] = u_R*rho_R[n];
+            rhostar_L[n] = rho_L[n] * factor_L;
+            rhostar_R[n] = rho_R[n] * factor_R;
+        }
 
         if (0.0 < S_L) // F_L region
         {
-            Flux F_L (  rho_L*u_L, 
-                        rho_L*u_L*u_L + p_L,
-                        rho_L*u_L*v_L,
+            Flux F_L (  rhoYu_L, 
+                        rho_sum_L*u_L*u_L + p_L,
+                        rho_sum_L*u_L*v_L,
                         u_L * (E_L + p_L) );
             return F_L;
         }
         else if (S_L <= 0.0 && 0.0 < Sstar)  // Fstar_L region
         {
-            Flux F_L (  rho_L*u_L, 
-                        rho_L*u_L*u_L + p_L,
-                        rho_L*u_L*v_L,
+            Flux F_L (  rhoYu_L, 
+                        rho_sum_L*u_L*u_L + p_L,
+                        rho_sum_L*u_L*v_L,
                         u_L * (E_L + p_L) );
             State U_L ( rho_L,
-                        rho_L*u_L,
-                        rho_L*v_L,
+                        rho_sum_L*u_L,
+                        rho_sum_L*v_L,
                         E_L);
 
-            State Ustar_L ( 1.0,
+            State Ustar_L ( std::vector<double>(gas.nspecies, 1.0),
                             Sstar,
                             v_L,
-                            (E_L/rho_L) + (Sstar-u_L) * (Sstar + p_L/(rho_L*(S_L-u_L))));
-            Ustar_L *= rho_L*(S_L - u_L)/(S_L-Sstar);
+                            (E_L/rho_sum_L) + (Sstar-u_L) * (Sstar + p_L/(rho_sum_L*(S_L-u_L))));
+            Ustar_L *= rho_sum_L * factor_L;
 
             return F_L + S_L*(Ustar_L - U_L);
         }
         else if (Sstar <= 0.0 && 0.0 <= S_R )
         {
-            Flux F_R (  rho_R*u_R, 
-                        rho_R*u_R*u_R + p_R,
-                        rho_R*u_R*v_R,
+            Flux F_R (  rhoYu_R, 
+                        rho_sum_R*u_R*u_R + p_R,
+                        rho_sum_R*u_R*v_R,
                         u_R * (E_R + p_R) );
             State U_R ( rho_R,
-                        rho_R*u_R,
-                        rho_R*v_R,
+                        rho_sum_R*u_R,
+                        rho_sum_R*v_R,
                         E_R);
 
-
-            State Ustar_R ( 1.0,
+            State Ustar_R ( std::vector<double>(gas.nspecies, 1.0),
                             Sstar,
                             v_R,
-                            (E_R/rho_R) + (Sstar - u_R)*(Sstar + p_R/(rho_R*(S_R-u_R))));
-            Ustar_R *= rho_R*(S_R-u_R)/(S_R-Sstar);
+                            (E_R/rho_sum_R) + (Sstar - u_R)*(Sstar + p_R/(rho_sum_R*(S_R-u_R))));
+            Ustar_R *= rho_sum_R * factor_R;
 
             return F_R + S_R*(Ustar_R - U_R);
         }
         else if (S_R < 0.0)
         {
-            Flux F_R (  rho_R*u_R, 
-                        rho_R*u_R*u_R + p_R,
-                        rho_R*u_R*v_R,
+            Flux F_R (  rhoYu_R, 
+                        rho_sum_R*u_R*u_R + p_R,
+                        rho_sum_R*u_R*v_R,
                         u_R * (E_R + p_R) );
             return F_R;
         }
@@ -199,7 +219,7 @@ public:
         Util::Message(INFO,Sstar);
         Util::Message(INFO,S_L);
         Util::Exception(INFO);
-        return Flux(NAN,NAN,NAN,NAN);
+        return Flux(std::vector<double>(gas.nspecies,NAN),NAN,NAN,NAN);
     }
 };
 

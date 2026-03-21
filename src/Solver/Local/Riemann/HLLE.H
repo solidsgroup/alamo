@@ -44,76 +44,83 @@ public:
     virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
         // Grab and label the input states
-        Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
+        std::vector<double> rho_L = lo.rho;
+        std::vector<double> rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
         //Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
 
         // Ensure no negative densities
-        rho_L = std::max(small,rho_L);
-        rho_R = std::max(small,rho_R);
-
+        Set::Scalar rho_sum_L = 0.0;
+        Set::Scalar rho_sum_R = 0.0;
+        for (int n=0; n<gas.nspecies; ++n)
+        {
+            rho_L[n] = std::max(small,rho_L[n]);
+            rho_R[n] = std::max(small,rho_R[n]);
+            rho_sum_L += rho_L[n];
+            rho_sum_R += rho_R[n];
+        }
 
         // Calculate primitives
-        Set::Scalar u_L   = Mn_L/(rho_L+small),  u_R   = Mn_R/(rho_R+small);
-        Set::Scalar v_L   = Mn_L/(rho_L+small),  v_R   = Mn_R/(rho_R+small);
+        Set::Scalar u_L   = Mn_L/(rho_sum_L),  u_R   = Mn_R/(rho_sum_R);
+        //Set::Scalar v_L   = Mt_L/(rho_sum_L),  v_R   = Mt_R/(rho_sum_R);
 
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
             case 0: // xlo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i-1, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i-1, j, k);
                 gamma_L = gas.gamma(T_L, X, i-1, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 1: // xhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i+1, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i+1, j, k);
                 gamma_R = gas.gamma(T_R, X, i+1, j, k);
                 break;
             case 2: // ylo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j-1, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j-1, k);
                 gamma_L = gas.gamma(T_L, X, i, j-1, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 3: // yhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j+1, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j+1, k);
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
                 break;
             case 4: // zlo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k-1);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k-1);
                 gamma_L = gas.gamma(T_L, X, i, j, k-1);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 5: // zhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k+1);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k+1);
                 gamma_R = gas.gamma(T_R, X, i, j, k+1);
                 break;
             default:
                 Util::Abort(INFO, "Unknown side in Riemann solver, ",side);
         }
 
-        Set::Scalar c_L = std::sqrt(gamma_L * p_L / (rho_L + small));
-        Set::Scalar c_R = std::sqrt(gamma_R * p_R / (rho_R + small));
+        Set::Scalar c_L = std::sqrt(gamma_L * p_L / (rho_sum_L + small));
+        Set::Scalar c_R = std::sqrt(gamma_R * p_R / (rho_sum_R + small));
 
         // Max wave speeds
         Set::Scalar S_L = std::min(u_L-c_L, u_R - c_R);
@@ -131,17 +138,22 @@ public:
         }
 
         Flux F_L (
-            lo.M_normal,
+            rho_L,
             lo.M_normal * u_L + p_L,
             lo.M_tangent * u_L,
             u_L * (lo.E + p_L)
             );
         Flux F_R (
-            hi.M_normal,
+            rho_R,
             hi.M_normal * u_R + p_R,
             hi.M_tangent * u_R,
             u_R * (hi.E + p_R)
             );
+        for (int n=0; n<gas.nspecies; ++n)
+        {
+            F_L.mass[n] *= u_L;
+            F_R.mass[n] *= u_R;
+        }
 
         if (S_L >= 0.0)
         {
