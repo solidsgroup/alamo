@@ -116,7 +116,7 @@ if os.path.exists(pre_args.config):
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
-parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
+parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc (or a path to one of these executables)')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
 parser.add_argument('--build-amrex-fork', dest="amrexfork",default="AMReX-Codes", help='Specify an AMReX fork')
@@ -153,13 +153,15 @@ parser.set_defaults(**defaults)
 #
 
 args=parser.parse_args()
+comp_basename = os.path.basename(args.comp)
+comp_basename = re.sub(r"-\d+(\.\d+)*$", "", comp_basename)  # strip off version numbers (like g++-15)
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 
     raise(Exception(error("To use memcheck you must also add the --debug flag")))
 if args.memcheck and args.coverage: 
     raise(Exception(error("Cannot run memcheck and coverage at the same time currently")))
-if args.memcheck and args.memcheck_tool == "msan" and not args.comp=="clang++":
+if args.memcheck and args.memcheck_tool == "msan" and not comp_basename=="clang++":
     raise(Exception(error("MSan only works with clang, use --comp=clang++")))
 
 if pre_args.save:
@@ -221,7 +223,7 @@ if args.memcheck:
 if args.profile: postfix += "-profile"
 if args.perf: postfix += "-perf"
 if args.coverage: postfix += "-coverage"
-postfix += "-" + args.comp
+postfix += "-" + comp_basename
 f.write("POSTFIX = " + postfix + '\n')
 
 #
@@ -316,9 +318,9 @@ if args.buildamrex and not args.amrex:
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix_amrex
-    if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
-    elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
-    elif args.comp == "icc":     amrex_configure += ' --comp=intel'
+    if   comp_basename == "g++":     amrex_configure += ' --comp=gnu'
+    elif comp_basename == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
+    elif comp_basename == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes --enable-pic=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
@@ -427,11 +429,11 @@ if args.link:
 #
 # CHECK COMPILER AND SET OPTIONS
 #
-if   (args.comp == "g++"):     f.write("COMP = GCC\n")
-elif (args.comp == "clang++"): f.write("COMP = CLANG\n")
-elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
+if   (comp_basename == "g++"):     f.write("COMP = GCC\n")
+elif (comp_basename == "clang++"): f.write("COMP = CLANG\n")
+elif (comp_basename == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
-message("Comp-Type", str(args.comp))
+message("Comp-Type", comp_basename)
 shellmessage("Comp-Version",args.comp+" --version")
 
 
@@ -456,8 +458,8 @@ message("mpi implementation", mpidist)
 if mpidist == "openmpi":
     compmpicmd = shellmessage("openmpi comp flags", "mpicxx --showme:compiler").stdout.decode('utf-8').replace('\n','')
     compmpicmd = args.comp + " " + compmpicmd
-    shellmessage("openmpi c++ link"   , "mpicxx --showme:link".format(args.comp))
-    shellmessage("openmpi fort link"   , "mpifort --showme:link".format(args.comp))
+    shellmessage("openmpi c++ link"   , "mpicxx --showme:link")
+    shellmessage("openmpi fort link"   , "mpifort --showme:link")
     shellmessage("openmpi version", "mpicxx --showme:version")
     env = os.environ.copy()
     env.update({'OMPI_CXX': args.comp})
@@ -520,7 +522,7 @@ if args.perf:
 #   note: this must come after the MPI section, otherwise the order of
 #         flags may cause linker to fail!
 #
-if args.comp == 'g++':
+if comp_basename == 'g++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.coverage:
@@ -543,7 +545,7 @@ if args.comp == 'g++':
     else:
         f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
         f.write("LINKER_FLAGS += -flto\n")
-if args.comp == 'clang++':
+if comp_basename == 'clang++':
     f.write("MPI_LIB += -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug:
@@ -554,7 +556,7 @@ if args.comp == 'clang++':
     else:
         f.write("CXX_COMPILE_FLAGS += -O3\n")
         f.write("LINKER_FLAGS += -flto \n")    
-if args.comp == 'icc':
+if comp_basename == 'icc':
     f.write("MPI_LIB += -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # 
@@ -594,7 +596,7 @@ f2.write(f"\t$(QUIET)git diff > $@\n")
 # PYTHON CHECKING
 #
 f2.write(f"python_ok:\n")
-if args.comp == 'g++' and args.debug:
+if comp_basename == 'g++' and args.debug:
     f2.write(f"\n")
 else:
     f2.write(f"""\t$(error $(error Python module requires configuration with --comp=g++ and --debug))\n""")
