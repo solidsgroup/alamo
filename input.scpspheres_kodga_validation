@@ -43,7 +43,7 @@ geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2.0e-7_s # [s]
+timestep = 1.0e-7_s # [s]
 stop_time = 0.08_s
 
 small = 1.0e-10
@@ -125,7 +125,7 @@ propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
 propellant.fullfeedback.phi.zeta =     25.0_um
-propellant.fullfeedback.Pref     =      1.1_MPa
+propellant.fullfeedback.Pref     =     1.1_MPa
 
 # Thermal transport parameters
 thermal.on = 1  
@@ -166,7 +166,7 @@ laser.ic.expression.constant.x0 = 4.0_um
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
-chamber.pressure = 1.10_MPa  ## [MPa]
+chamber.pressure = 1.1_MPa  ## [MPa]
 
 # Disable NAN checking
 amr.abort_on_nan = 1

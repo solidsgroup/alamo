@@ -15,6 +15,7 @@ echo " Job ID: $SLURM_JOB_ID"
 echo " Array Task ID: $SLURM_ARRAY_TASK_ID"
 echo " Submitted by: $SLURM_JOB_USER"
 echo " Running on node(s): $SLURM_NODELIST"
+echo " Simulation with plot file=${plot_file_name} started"
 echo " Start time: $(date)"
 echo "======================================================"
 module load openmpi_hpc
@@ -22,7 +23,7 @@ module load openmpi_hpc
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
 ind=00
-num=19
+num=29
 AP_arr=(
     "I/I_${ind}_AP.xyzr"
     "J/J_${ind}_AP.xyzr"
