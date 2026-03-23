@@ -647,7 +647,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= 0.5) && time < thermal.end_initial_refine_time)
+            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= 0.01) && time < thermal.end_initial_refine_time)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
