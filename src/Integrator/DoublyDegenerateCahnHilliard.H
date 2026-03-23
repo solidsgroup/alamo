@@ -1,0 +1,56 @@
+#ifndef INTEGRATOR_CAHNHILLIARD_H
+#define INTEGRATOR_CAHNHILLIARD_H
+
+#include <AMReX.H>
+#include <AMReX_MLMG.H>
+
+#include "BC/BC.H"
+#include "IC/IC.H"
+#include "IO/ParmParse.H"
+#include "Integrator/Integrator.H"
+
+namespace Integrator
+{
+
+class CahnHilliard : public Integrator
+{
+public:
+    static constexpr const char *name = "cahnhilliard";
+
+    /// Basic constructor (don't use)
+    CahnHilliard();
+
+    /// Destroy pointers defined in Parse
+    ~CahnHilliard();
+
+    /// Use this constructor
+    CahnHilliard(IO::ParmParse &pp) : CahnHilliard()
+    {
+        Parse(*this, pp);
+    }
+
+    /// Scan input values and initialize fields
+    static void Parse(CahnHilliard &value, IO::ParmParse &pp);
+
+protected:
+    /// Set values in fields
+    void Initialize(int lev) override;
+    /// Integrate eta over one timestep on lev
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
+    /// Mark any cells that need to be refined
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray &tags, amrex::Real time, int ngrow) override;
+
+private:
+    Set::Field<Set::Scalar> etanew_mf;    /// The new value for eta this timestep
+    Set::Field<Set::Scalar> etaold_mf;    /// Last timestep's value for eta
+    Set::Field<Set::Scalar> intermediate; /// Intermediate field used for CH kinetics
+
+    BC::BC<Set::Scalar> *bc; /// eta's bc object
+    IC::IC<Set::Scalar> *ic; /// eta's ic object
+
+    Set::Scalar gamma = NAN;
+    Set::Scalar L = NAN;
+    Set::Scalar refinement_threshold = NAN;
+};
+}
+#endif
