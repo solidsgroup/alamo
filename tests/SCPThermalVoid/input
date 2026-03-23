@@ -1,7 +1,7 @@
 #@ [2d-serial]
 #@ dim = 2
 #@ check = true
-#@ check-file = reference/serial.dat
+#@ check-file = reference/reference-2d-serial.csv
 #@ args = stop_time=0.01001_s
 #@ args = amr.plot_dt=0.01_s
 #@ 
@@ -11,7 +11,7 @@
 #@ check = true
 #@ args = stop_time=0.05001_s
 #@ args = amr.plot_dt=0.05_s
-#@ check-file = reference/reference.csv
+#@ check-file = reference/reference-2d-parallel.csv
 
 
 alamo.program = flame
