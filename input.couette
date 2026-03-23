@@ -53,8 +53,9 @@ eta.ic.type = expression
 eta.ic.expression.constant.eps   = 0.10
 eta.ic.expression.region0        = "(0.5*tanh((y - 0.5)/eps) - 0.5*tanh((y - 2.5)/eps))"
 
-m0.ic.type = constant
-m0.ic.constant.value = "0.0" "0.0"
+m0.ic.type = expression
+m0.ic.expression.region0 = "0.0"
+m0.ic.expression.region1 = "0.0"
 
 u0.ic.type = expression
 u0.ic.expression.region0 = "0.001*(y>1.5)"

@@ -275,7 +275,7 @@ public:
             Set::Scalar Y_L = rho_L[n] / rho_sum_L;
             Set::Scalar Y_R = rho_R[n] / rho_sum_R;
             Set::Scalar Y_face = (mixed_mass_flux >= 0.0) ? Y_L : Y_R;
-            fl.mass[n] = mixed_mass_flux * Y_face;
+            fl.mass.push_back(mixed_mass_flux * Y_face);
         }
         
         if (fl.mass != fl.mass)

@@ -182,7 +182,10 @@ public:
                             Sstar,
                             v_L,
                             (E_L/rho_sum_L) + (Sstar-u_L) * (Sstar + p_L/(rho_sum_L*(S_L-u_L))));
-            Ustar_L *= rho_sum_L * factor_L;
+            for (int n=0; n<gas.nspecies; ++n) { Ustar_L.rho[n] *= rho_L[n] * factor_L; }
+            Ustar_L.M_normal  *= rho_sum_L * factor_L;
+            Ustar_L.M_tangent *= rho_sum_L * factor_L;
+            Ustar_L.E         *= rho_sum_L * factor_L;
 
             return F_L + S_L*(Ustar_L - U_L);
         }
@@ -201,7 +204,10 @@ public:
                             Sstar,
                             v_R,
                             (E_R/rho_sum_R) + (Sstar - u_R)*(Sstar + p_R/(rho_sum_R*(S_R-u_R))));
-            Ustar_R *= rho_sum_R * factor_R;
+            for (int n=0; n<gas.nspecies; ++n) { Ustar_R.rho[n] *= rho_R[n] * factor_R; }
+            Ustar_R.M_normal  *= rho_sum_R * factor_R;
+            Ustar_R.M_tangent *= rho_sum_R * factor_R;
+            Ustar_R.E         *= rho_sum_R * factor_R;
 
             return F_R + S_R*(Ustar_R - U_R);
         }

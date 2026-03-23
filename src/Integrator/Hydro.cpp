@@ -849,8 +849,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             for (int n=0; n<gas.nspecies; ++n)
             {
                 drhof_dt = 
-                    //(flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
-                    //(flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
+                    (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
+                    (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
                     Source(i, j, k, n);
                 if (gas.nspecies > 1)
                 {
