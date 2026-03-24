@@ -26,9 +26,9 @@ amr.cell.all = 1
 amr.max_level = 3
 
 # Quarter size
-amr.n_cell = 32 16 64
+amr.n_cell = 16 16 64
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.05_mm 0.025_mm 0.1_mm
+geometry.prob_hi = 0.025_mm 0.025_mm 0.1_mm
 
 geometry.is_periodic = 0 0 0
 
