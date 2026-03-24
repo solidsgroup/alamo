@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-#SBATCH --time=2:00:00
+#SBATCH --time=1:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=128
 #SBATCH --mem-per-cpu=15000
-#SBATCH --job-name="test_regrid_new"
+#SBATCH --job-name="arb_geo"
 #SBATCH --output="%x-%j-log.txt"
 #SBATCH --mail-user=mungerct@iastate.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --constraint=nova25
 
-JOB_NAME="test_regrid_new"
-PLOT_FILE="output.${JOB_NAME}"
+JOB_NAME="arb_geo"
+PLOT_FILE="output.arb_geo_Kohga2006"
 
 echo "======================================================"
 echo " Job '$SLURM_JOB_NAME' (ID: $SLURM_JOB_ID) is starting"
@@ -23,7 +23,7 @@ echo "======================================================"
 module load openmpi_hpc
 
 srun --mpi=pmix ./bin/alamo-2d-g++ \
-    input.scpspheres_kodga_validation \
+    input.scpspheres_arbitary_geometry \
     plot_file="${PLOT_FILE}"
 
 echo "======================================================"
