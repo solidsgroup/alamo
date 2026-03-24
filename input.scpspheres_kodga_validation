@@ -23,7 +23,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 4
+amr.max_level = 3
 
 # Full size
 # amr.n_cell = 18 18 18
@@ -43,25 +43,25 @@ geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 1.0e-7_s # [s]
+timestep = 2.0e-7_s # [s]
 stop_time = 0.08_s
 
-small = 1.0e-10
-pf.eps = 1.0e-5_um #0.0005 # [m]
+small = 1.0e-8
+pf.eps = 0.5_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-pf.eta.ic.type = psread
-pf.eta.ic.psread.file.unit = m
+# pf.eta.ic.type = psread
+# pf.eta.ic.psread.file.unit = m
 # pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
-pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_void.xyzr
+# pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_void.xyzr
 # pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/small_pores/A/A_00_void_r20.xyzr
-pf.eta.ic.psread.eps = 1.0e-5_um
-pf.eta.ic.psread.invert = 1
+# pf.eta.ic.psread.eps = 1.0_um
+# pf.eta.ic.psread.invert = 1
 
-# pf.eta.ic.type = constant
-# pf.eta.ic.constant.value = 1.0 
+pf.eta.ic.type = constant
+pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
 # pf.eta.ic.expression.constant.x0 = 30.0_um
@@ -77,7 +77,7 @@ phi.ic.psread.file.unit = m
 # phi.ic.psread.file.name = new_datasets/A/A_00_AP.xyzr
 phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_AP.xyzr
 # phi.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/small_pores/A/A_00_AP_r20.xyzr
-phi.ic.psread.eps = 1.5e-5_um
+phi.ic.psread.eps = 1.5_um
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2

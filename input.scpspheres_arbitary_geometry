@@ -33,7 +33,7 @@ timestep = 1e-6_s # [s]
 stop_time = 1.501_s
 
 small = 1.0e-8
-pf.eps = 0.25_um #0.0005 # [m]
+pf.eps = 5.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
@@ -125,6 +125,7 @@ thermal.on = 1
 #thermal.Tfluid = 300.0_K
 thermal.Tref = 289.0_K
 thermal.Tcutoff = 640_K
+thermal.end_initial_refine_time = 1e-5_s
 
 # Temperature field initial condition
 temp.ic.type = constant
@@ -153,8 +154,8 @@ laser.ic.type = expression
 laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
-laser.ic.expression.constant.eps = 20.0_um
-laser.ic.expression.constant.x0 = 30.0_um
+laser.ic.expression.constant.eps = 30.0_um
+laser.ic.expression.constant.x0 = 60.0_um
 # laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(1 - (erf(1000*(x-0.5)**2+1000*(y-0.5)**2)))"
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
