@@ -12,25 +12,25 @@
 namespace Integrator
 {
 
-class CahnHilliard : public Integrator
+class DoublyDegenerateCahnHilliard : public Integrator
 {
 public:
     static constexpr const char *name = "cahnhilliard";
 
     /// Basic constructor (don't use)
-    CahnHilliard();
+    DoublyDegenerateCahnHilliard();
 
     /// Destroy pointers defined in Parse
-    ~CahnHilliard();
+    ~DoublyDegenerateCahnHilliard();
 
     /// Use this constructor
-    CahnHilliard(IO::ParmParse &pp) : CahnHilliard()
+    DoublyDegenerateCahnHilliard(IO::ParmParse &pp) : DoublyDegenerateCahnHilliard()
     {
         Parse(*this, pp);
     }
 
     /// Scan input values and initialize fields
-    static void Parse(CahnHilliard &value, IO::ParmParse &pp);
+    static void Parse(DoublyDegenerateCahnHilliard &value, IO::ParmParse &pp);
 
 protected:
     /// Set values in fields
@@ -43,13 +43,18 @@ protected:
 private:
     Set::Field<Set::Scalar> etanew_mf;    /// The new value for eta this timestep
     Set::Field<Set::Scalar> etaold_mf;    /// Last timestep's value for eta
-    Set::Field<Set::Scalar> intermediate; /// Intermediate field used for CH kinetics
+    Set::Field<Set::Scalar> grad_etaold_mf;
+    Set::Field<Set::Scalar> lap_etaold_mf;
 
     BC::BC<Set::Scalar> *bc; /// eta's bc object
     IC::IC<Set::Scalar> *ic; /// eta's ic object
 
+    Set::Scalar epsilon = NAN;
+    Set::Scalar omega = NAN;
     Set::Scalar gamma = NAN;
-    Set::Scalar L = NAN;
+    // Set::Scalar p = NAN;
+    Set::Scalar alpha = NAN;
+    Set::Scalar mu = NAN;
     Set::Scalar refinement_threshold = NAN;
 };
 }
