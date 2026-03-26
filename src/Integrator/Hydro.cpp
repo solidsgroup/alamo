@@ -711,9 +711,9 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             #endif
 
             Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
-            Set::Vector gradrho      = Numeric::Gradient(rho,i,j,k,0,DX);
-            Set::Matrix hess_rho     = Numeric::Hessian(rho,i,j,k,0,DX,sten);
-            Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho(i,j,k);
+            Set::Vector gradrho      = Numeric::Gradient(rho_sum,i,j,k,0,DX);
+            Set::Matrix hess_rho     = Numeric::Hessian(rho_sum,i,j,k,0,DX,sten);
+            Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho_sum(i,j,k);
 
             Set::Vector grad_mixed_kTx  = Numeric::Gradient(mixed_kT,i,j,k,0,DX);
             Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX);
@@ -759,7 +759,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     {
                         hess_u(r,p,q) =
                             (hess_M(r,p,q) - gradu(r,q)*gradrho(p) - gradu(r,p)*gradrho(q) - u(r)*hess_rho(p,q))
-                            / rho(i,j,k);
+                            / rho_sum(i,j,k);
                     }
 
             Set::Vector Ldot0 = Set::Vector::Zero();
@@ -772,8 +772,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         {
                             Ldot0(p) += 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
                             div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
-
                         }
+
 
             for (int n=0; n<gas.nspecies; ++n)
             {
@@ -931,7 +931,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     etadot(i,j,k)*(E(i,j,k) - E_solid(i,j,k)) / (eta+small)
                 // ) * dt;
                 ;
-            
+
 #ifdef AMREX_DEBUG
             if ((rho_rhs(i,j,k) != rho_rhs(i,j,k)) ||
                 (M_rhs(i,j,k,0) != M_rhs(i,j,k,0)) ||

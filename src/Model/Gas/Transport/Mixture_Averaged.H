@@ -207,7 +207,7 @@ public:
             for (int b = 0; b < nspecies; ++b) {
                 if (a == b) continue;
 
-                double sigmaAB = 0.5 * (val1[a] + val1[b]);
+                double sigmaAB = 0.5 * (val1[a] + val1[b]) * 1.0e10; // in angstroms
                 double epsAB   = sqrt(val2[a] * val2[b]);
                 double Tstar   = T / epsAB;
 
