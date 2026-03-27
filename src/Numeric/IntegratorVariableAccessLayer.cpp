@@ -2,6 +2,8 @@
 #include "Numeric/SymmetryPreservingRoeAveragingOperations.H"
 #include "Integrator/ScimitarX.H"
 #include "Numeric/Stencil.H"
+#include "Model/Fluid/ElastoPlastic.H"
+
 
 namespace Numeric {
 
@@ -897,5 +899,414 @@ CompressibleEulerVariableAccessor::ComputeRoeAverages(
 }        
 
 } // namespace CompressibleEuler
+
+
+namespace ElastoPlastic {    
+
+ElastoPlasticVariableAccessor::ElastoPlasticVariableAccessor(
+    int total_ghosts,
+    ReconstructionMode mode
+) : current_mode(mode), total_ghost_cells(total_ghosts) {}
+
+std::shared_ptr<SolverCapabilities> 
+ElastoPlasticVariableAccessor::getSolverCapabilities() const {
+    // Create a detailed solver capabilities object for ElastoPlastic solver
+    return std::make_shared<ElastoPlastic::ElastoPlasticCapabilities>();
+}
+
+amrex::MultiFab 
+ElastoPlasticVariableAccessor::CreateWorkingBuffer(
+    const amrex::BoxArray& baseGrids, 
+    const amrex::DistributionMapping& dm, 
+    const int num_components, 
+    const int ghost_cells
+) const {
+
+    return amrex::MultiFab(
+        baseGrids, 
+        dm, 
+        num_components, 
+        ghost_cells
+    );
+}
+
+// Implementations of other methods remain similar to previous version
+// with added validation and more flexible handling
+
+int 
+ElastoPlasticVariableAccessor::getRequiredGhostCells(
+    ReconstructionMode mode [[maybe_unused]], 
+    FluxReconstructionType reconstructionType
+) const {
+    switch(reconstructionType) {
+        case FluxReconstructionType::FirstOrder:
+            return 1;
+        case FluxReconstructionType::WENO:
+            return 4;  // WENO5 requires 3 ghost cells
+        default:
+            return total_ghost_cells;
+    }
+}
+    
+
+// Add these implementations to IntegratorVariableAccessLayer.cpp
+
+void 
+ElastoPlasticVariableAccessor::CopyVariables(
+    int direction [[maybe_unused]],
+    int lev, 
+    void* solver_void,
+    amrex::MultiFab& VariableBuffer,
+    ReconstructionMode mode, 
+    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
+) const {
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    
+    // Handle different reconstruction modes
+    switch(mode) {
+        case ReconstructionMode::Primitive:
+            // Copy primitive variables and fluxes to the working buffer
+            CopyPrimitiveVariablesToVariableBuffer(lev, solver, VariableBuffer);
+            break;
+            
+        case ReconstructionMode::Conservative:
+        case ReconstructionMode::Characteristic:
+            // Copy conservative variables to the working buffer
+            CopyConservativeVariablesToVariableBuffer(lev, solver, VariableBuffer);
+            break;
+                        
+        default:
+            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
+    }
+}
+
+void 
+ElastoPlasticVariableAccessor::CopyFluxes(
+    int direction,
+    int lev, 
+    void* solver_void,
+    amrex::MultiFab& CellFluxBuffer,
+    ReconstructionMode mode, 
+    const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
+) const {
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    
+    // Handle different reconstruction modes
+    switch(mode) {
+        case ReconstructionMode::Primitive:
+            // Copy primitive variables and fluxes to the working buffer
+            //CopyPrimitiveFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
+            break;
+            
+        case ReconstructionMode::Conservative:
+            // Copy conservative variables to the working buffer
+            CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
+            break;
+
+        case ReconstructionMode::Characteristic:
+            // Copy conservative variables to the working buffer
+            CopyConservativeFluxesToCellFluxBuffer(direction, lev, solver, CellFluxBuffer);
+            break;
+
+        default:
+            Util::Abort(__FILE__, __func__, __LINE__, "Unsupported reconstruction mode");
+    }
+}
+
+/*void CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& VariableBuffer
+) const {
+    // Copy from PVec_mf to working buffer
+    amrex::MultiFab::Copy(
+        VariableBuffer, 
+        *(solver->PVec_mf[lev]),
+        0, 0, 
+        solver->number_of_components, 
+        VariableBuffer.nGrow()
+    );
+
+    VariableBuffer.FillBoundary();
+}*/
+
+void 
+ElastoPlasticVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& VariableBuffer
+) const {
+    // Loop through all valid regions of the MultiFab
+    for (amrex::MFIter mfi(VariableBuffer); mfi.isValid(); ++mfi) {
+        const amrex::Box& box = mfi.validbox();
+        
+        // Get data arrays for the primitive variables, pressure, and the destination buffer
+        auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);   // Primitive variables
+        auto const& press_arr = solver->Pressure_mf.Patch(lev, mfi); // Pressure
+        auto var_arr = VariableBuffer.array(mfi);             // Destination buffer
+        
+        // Get number of components
+        int num_components = solver->number_of_components;
+        
+        // Parallel loop over the valid box
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            // Copy primitive variables (density, velocity components)
+            for (int n = 0; n < num_components - 1; ++n) {
+                var_arr(i, j, k, n) = p_arr(i, j, k, n);
+            }
+            
+            // Copy pressure as the last component
+            var_arr(i, j, k, num_components - 1) = press_arr(i, j, k);
+        });
+    }
+
+    VariableBuffer.FillBoundary();
+}
+
+
+void 
+ElastoPlasticVariableAccessor::CopyConservativeVariablesToVariableBuffer(
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& VariableBuffer
+) const {
+    // Copy from PVec_mf to working buffer
+    amrex::MultiFab::Copy(
+        VariableBuffer, 
+        *(solver->QVec_mf[lev]),
+        0, 0, 
+        solver->number_of_components, 
+        VariableBuffer.nGrow()
+    );
+
+    VariableBuffer.FillBoundary();
+}
+
+
+/*void CompressibleEulerVariableAccessor::CopyPrimitiveFluxVariablesToWorkingBuffer(
+    int direction,    
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& CellFluxBuffer
+) const {
+
+    //Requires Primitive Flux Variable Implementation Here   
+    CellFluxBuffer.FillBoundary();
+}*/
+
+void 
+ElastoPlasticVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
+    int direction,    
+    int lev,
+    Integrator::ScimitarX* solver,
+    amrex::MultiFab& CellFluxBuffer
+) const {
+
+//        Util::ScimitarX_Util::Debug debug;
+
+//        debug.SetTargetDebugLocationIndices(3, 3, 0);
+    for (amrex::MFIter mfi(CellFluxBuffer, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& box = mfi.growntilebox();
+        auto const& p_arr = solver->PVec_mf.Patch(lev, mfi);
+        // auto const& pres_arr = solver->Pressure_mf.Patch(lev, mfi);
+        auto const& W_arr  = CellFluxBuffer.array(mfi);
+        
+        // Retrieve variable indices for better GPU performance
+        int num_components = solver->number_of_components;   
+
+        int rho_idx = solver->variableIndex.DENS;   // density
+        int ie_idx  = solver->variableIndex.IE;     // energy
+        int u_idx   = solver->variableIndex.UVEL;   // x-momentum
+
+        // **Direction to velocity and energy mapping**
+        int normal = direction;                 // Normal velocity component
+        int trans1 = (direction + 1) % AMREX_SPACEDIM;  // First transverse velocity
+#if AMREX_SPACEDIM == 3                                                              
+        int trans2 = (direction + 2) % AMREX_SPACEDIM;  // Second transverse velocity (3D only)
+#endif
+        // **Direction to velocity mapping**
+        int velocity_component[3] = {
+		solver->variableIndex.UVEL,  // X-direction -> UVEL
+                solver->variableIndex.VVEL,  // Y-direction -> VVEL
+                solver->variableIndex.WVEL   // Z-direction -> WVEL
+	};
+
+	int sxx_idx = solver->variableIndex.SXX;
+	int syy_idx = solver->variableIndex.SYY;
+	int szz_idx = solver->variableIndex.SZZ;
+	int sxy_idx = solver->variableIndex.SXY;
+#if AMREX_SPACEDIM == 3
+	int sxz_idx = solver->variableIndex.SXZ;
+	int syz_idx = solver->variableIndex.SYZ;
+#endif
+	int epsbar_idx = solver->variableIndex.EPSBAR;
+	int ie_elastic_idx = solver->variableIndex.IE_ELASTIC;
+
+
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+			
+	       Set::Scalar rho = p_arr(i, j, k, rho_idx);
+	       Set::Scalar vel[3] = {0.0, 0.0, 0.0};
+	       vel[normal] = p_arr(i, j, k, velocity_component[normal]);
+	       vel[trans1] = p_arr(i, j, k, velocity_component[trans1]);
+#if AMREX_SPACEDIM == 3
+	       vel[trans2] = p_arr(i, j, k, velocity_component[trans2]);
+#endif
+
+            Set::Scalar KE = 0.5 * (vel[0]*vel[0] + vel[1]*vel[1] + vel[2]*vel[2]);
+
+            Set::Scalar IE = p_arr(i, j, k, ie_idx);
+
+            Set::Scalar E = IE + KE;
+
+	    Set::Scalar pressure = Model::ElastoPlastic::ElastoPlastic().ComputePressureFromDensityAndInternalEnergy(rho, IE);
+
+
+	    Set::Scalar sxx = p_arr(i, j, k, sxx_idx);
+	    Set::Scalar syy = p_arr(i, j, k, syy_idx);
+	    Set::Scalar szz = p_arr(i, j, k, szz_idx);
+	    Set::Scalar sxy = p_arr(i, j, k, sxy_idx);
+#if AMREX_SPACEDIM == 3
+	    Set::Scalar sxz = p_arr(i, j, k, sxz_idx);
+	    Set::Scalar syz = p_arr(i, j, k, syz_idx);
+#endif
+	    Set::Scalar epsbar = p_arr(i, j, k, epsbar_idx);
+	    Set::Scalar ie_elastic = p_arr(i, j, k, ie_elastic_idx);
+
+/*
+                debug.DebugValuesIfTarget(i, j, k, rho, "Density", "Variable access", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, vel[normal], "UVEL", "Variable access", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, vel[trans1], "UVEL", "Variable access", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, pressure, "Pressure", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, IE, "internal_energy", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, sxx, "SXX", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, syy, "SYY", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, sxy, "SXY", "UpdateSolutions", false, -1, true);
+*/
+            Set::MultiVector Flux_Vector(num_components);
+            Flux_Vector.setZero();
+
+            Flux_Vector(rho_idx) = rho * vel[normal];
+            Flux_Vector(u_idx + normal) = rho * vel[normal] * vel[normal] + pressure;
+#if AMREX_SPACEDIM >= 2                
+            Flux_Vector(u_idx + trans1) = rho * vel[normal] * vel[trans1];
+#endif
+#if AMREX_SPACEDIM == 3
+            Flux_Vector(u_idx + trans2) = rho * vel[normal] * vel[trans2]; 
+#endif            
+            Flux_Vector(ie_idx) = (rho * E + pressure) * vel[normal];
+
+	    //Elastoplastic
+	    Flux_Vector(sxx_idx) = rho * vel[normal] * sxx;
+	    Flux_Vector(syy_idx) = rho * vel[normal] * syy;
+	    Flux_Vector(sxy_idx) = rho * vel[normal] * sxy;
+	    Flux_Vector(szz_idx) = rho * vel[normal] * szz;
+#if AMREX_SPACEDIM == 3
+	    Flux_Vector(sxz_idx) = rho * vel[normal] * sxz;
+	    Flux_Vector(syz_idx) = rho * vel[normal] * syz;
+#endif
+	    Flux_Vector(epsbar_idx) = 0.0;
+	    Flux_Vector(ie_elastic_idx) = 0.0;
+
+            for (int n = 0; n < num_components; ++n) {
+
+                W_arr(i, j, k, n) = Flux_Vector(n);
+
+            }
+                        
+        });
+    }
+
+    
+    CellFluxBuffer.FillBoundary();
+}
+
+
+void 
+ElastoPlasticVariableAccessor::PopulateAverageStates(
+    int direction, 
+    int lev, 
+    void* solver_void, 
+    amrex::MultiFab& AverageStateBuffer
+) const {
+
+}
+
+
+Set::MultiMatrix
+ElastoPlasticVariableAccessor::TransformStencilToCharacteristic(
+    int i, int j, int k,    
+    const Set::MultiMatrix& stencil_matrix,
+    int direction,
+    const Set::MultiVector& avg_state
+) const {
+}
+
+
+Set::MultiVector
+ElastoPlasticVariableAccessor::TransformFromCharacteristic(
+    const Set::MultiVector& char_vec,
+    int direction,
+    const Set::MultiVector& avg_state
+) const {
+}
+
+void 
+ElastoPlasticVariableAccessor::StoreDirectionalFlux(
+    int direction, 
+    int lev, 
+    void* solver_void,
+    amrex::MultiFab& SummedFlux
+) const {
+
+    // Cast the void pointer to ScimitarX pointer
+    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+
+    const int nghosts = solver->number_of_ghost_cells;
+    const int num_components = solver->number_of_components; 
+
+    for (amrex::MFIter mfi(SummedFlux, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.grownnodaltilebox(direction, nghosts);
+        auto const& TotalFlux_arr = SummedFlux.array(mfi);
+        auto const& flux_arr = (direction == Directions::Xdir) ? solver->XFlux_mf.Patch(lev, mfi) :
+                                (direction == Directions::Ydir) ? solver->YFlux_mf.Patch(lev, mfi) :
+                                solver->ZFlux_mf.Patch(lev, mfi);
+        
+        
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int iface, int jface, int kface) noexcept {
+
+    
+            // Construct index arrays with correct number of components
+            int index[3];
+            int lower_bounds[3];
+            int upper_bounds[3];
+
+            // Set up indices
+            index[0] = iface; index[1] = jface; index[2] = kface;
+
+            // Define bounds including ghost cells
+            lower_bounds[0] = bx.smallEnd(0); 
+            lower_bounds[1] = bx.smallEnd(1); 
+            lower_bounds[2] = AMREX_SPACEDIM == 3 ? bx.smallEnd(2) : 0;
+            upper_bounds[0] = bx.bigEnd(0) - 1;
+            upper_bounds[1] = bx.bigEnd(1) - 1;
+            upper_bounds[2] = AMREX_SPACEDIM == 3 ? bx.bigEnd(2) - 1 : 0;
+                  
+      
+            // Clamp the main index
+            ClampIndices(index, lower_bounds, upper_bounds);
+
+            for (int n = 0; n < num_components; ++n) { 
+            flux_arr(index[0], index[1], index[2], n) = TotalFlux_arr(index[0], index[1], index[2], n);
+            }
+
+        });
+
+    } 
+}
+
+} // namespace ElastoPlastic
 
 }  // namespace Numeric 

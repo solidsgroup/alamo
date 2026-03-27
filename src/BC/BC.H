@@ -23,6 +23,8 @@
 #include <AMReX_Mask.H>
 #include <AMReX_Periodicity.H>
 
+#include "Util/Util.H"
+#include "Set/Set.H"
 
 /// \brief Collection of boundary condition (BC) objects
 namespace BC

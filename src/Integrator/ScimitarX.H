@@ -15,6 +15,7 @@
 #include "IO/ParmParse.H"
 #include "BC/BC.H"
 #include "BC/Nothing.H"
+#include "Model/Fluid/ElastoPlastic.H"
 #include "IC/IC.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
@@ -27,6 +28,7 @@
 #include "Numeric/SolverCapabilities.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/FluxHandler.H"
+#include "Numeric/ElastoPlasticSourceTerm.H"
 #include "Numeric/WENOReconstruction.H"
 #include "Numeric/TimeStepper.H"
 
@@ -142,7 +144,7 @@ public:
 
     SolverTypeManager() {
         // Initialize the vectors of variables for each solver type
-        initializeEulerVariables();
+        initializeEulerVariables(); //Pradeep
         initializeElastoPlasticVariables();
     }
 
@@ -264,7 +266,7 @@ public:
     }
 
     // Member variables
-    std::vector<EulerFieldVariables> eulerVariables;
+    std::vector<EulerFieldVariables> eulerVariables; 
     std::vector<ElastoPlasticFieldVariables> elastoPlasticVariables;
 
     };
@@ -305,8 +307,10 @@ protected:
 
     // Template methods for solver-type specific operations
     template <SolverType solverType>
+/*
     void ComputeConservedVariables(int lev){
 
+    	Util::Warning(INFO, "I'm in Euler Conserved Variables");
     //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
     for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         const amrex::Box& bx_with_ghosts = mfi.growntilebox();
@@ -344,9 +348,90 @@ protected:
     }
 
 }
+*/
+//Elastoplastic
+void ComputeConservedVariables(int lev) {
+//    Util::Message(INFO, "Starting GetFluxVectors for SolverType-specific computation");
+
+//        Util::ScimitarX_Util::Debug debug;
+
+        //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
+  //      debug.SetTargetDebugLocationIndices(1, 3, 0);
+
+    for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx_with_ghosts = mfi.growntilebox();
+        auto const& p_arr = PVec_mf.Patch(lev, mfi);
+        auto const& q_arr = QVec_mf.Patch(lev, mfi);
+
+        amrex::ParallelFor(bx_with_ghosts, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            Set::Scalar rho = p_arr(i, j, k, variableIndex.DENS);
+            Set::Scalar uvel = p_arr(i, j, k, variableIndex.UVEL);
+            Set::Scalar vvel = p_arr(i, j, k, variableIndex.VVEL);
+#if (AMREX_SPACEDIM == 3)
+            Set::Scalar wvel = p_arr(i, j, k, variableIndex.WVEL);
+#endif
+            Set::Scalar internal_energy = p_arr(i, j, k, variableIndex.IE);
+
+            // Total internal energy
+            Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
+#if (AMREX_SPACEDIM == 3)
+                                            + wvel * wvel
+#endif
+                                            );
+            Set::Scalar total_internal_energy = internal_energy + kinetic_energy;
+
+            //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "ComputeConservedVariables", false);
+            //debug.DebugValuesIfTarget(i, j, k, vvel, "v-velocity", "ComputeConservedVariables", false);
+
+	    Set::Scalar sxx = p_arr(i, j, k, variableIndex.SXX);
+	    Set::Scalar sxy = p_arr(i, j, k, variableIndex.SXY);
+	    Set::Scalar syy = p_arr(i, j, k, variableIndex.SYY);
+	    Set::Scalar szz = p_arr(i, j, k, variableIndex.SZZ);
+#if (AMREX_SPACEDIM == 3)
+	    Set::Scalar sxz = p_arr(i, j, k, variableIndex.SXZ);
+            Set::Scalar syz = p_arr(i, j, k, variableIndex.SYZ);
+#endif
+	    Set::Scalar ie_elastic = p_arr(i, j, k, variableIndex.IE_ELASTIC);
+	    Set::Scalar epsbar = p_arr(i, j, k, variableIndex.EPSBAR);
+/*
+                debug.DebugValuesIfTarget(i, j, k, rho, "Density", "ComputeCOnservedVariables", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, uvel, "UVEL", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, vvel, "VVEL", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal_energy", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, sxx, "SXX", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, syy, "SYY", "UpdateSolutions", false, -1, true);
+                debug.DebugValuesIfTarget(i, j, k, sxy, "SXY", "UpdateSolutions", false, -1, true);
+*/
+            // Set Q vector components (solver-type-specific handling can go here)
+            q_arr(i, j, k, variableIndex.DENS) = rho;
+            q_arr(i, j, k, variableIndex.UVEL) = rho * uvel;
+            q_arr(i, j, k, variableIndex.VVEL) = rho * vvel;
+#if (AMREX_SPACEDIM == 3)
+            q_arr(i, j, k, variableIndex.WVEL) = rho * wvel;
+#endif
+            q_arr(i, j, k, variableIndex.IE) = rho * total_internal_energy;
+	    q_arr(i, j, k, variableIndex.SXX) = rho * sxx;
+	    q_arr(i, j, k, variableIndex.SXY) = rho * sxy;
+	    q_arr(i, j, k, variableIndex.SYY) = rho * syy;
+	    q_arr(i, j, k, variableIndex.SZZ) = rho * szz;
+#if (AMREX_SPACEDIM == 3)
+	    q_arr(i, j, k, variableIndex.SXZ) = rho * sxz;
+            q_arr(i, j, k, variableIndex.SYZ) = rho * syz;
+#endif
+	    q_arr(i, j, k, variableIndex.IE_ELASTIC) = rho * ie_elastic;
+	    q_arr(i, j, k, variableIndex.EPSBAR) = epsbar;
+
+        });
+
+    }
+
+    //Util::Message(INFO, "Flux Vectors computed successfully for SolverType-specific routine");
+}
+
 
     // Template function for updating conservative variables to primitive variables
     template <SolverType solverType>
+/*    
     void UpdateSolutions(int lev) {
     //for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
@@ -401,6 +486,103 @@ protected:
 
         }
     }
+*/
+    //Elastoplastic
+    void UpdateSolutions(int lev) {
+//        Util::ScimitarX_Util::Debug debug;
+
+        //debug.SetTargetDebugLocation(0.5, 0.2, 0.0, geom[lev]);
+//        debug.SetTargetDebugLocationIndices(1, 3, 0);
+
+        for (amrex::MFIter mfi(*QVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            const amrex::Box& bx = mfi.validbox();
+
+            auto const& q_arr = QVec_mf.Patch(lev, mfi);  // Conservative variables array (QVec)
+            auto const& p_arr = PVec_mf.Patch(lev, mfi);  // Primitive variables array (PVec)
+            auto const& pressure_arr = Pressure_mf.Patch(lev, mfi);  // Pressure array
+
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                // Extract conservative variables from QVec
+                Set::Scalar rho = q_arr(i, j, k, variableIndex.DENS);      // Density
+
+                //debug.CheckNaNAndAbort(i, j, k, rho, "Density", "UpdateSolutions", true);
+
+                Set::Scalar uvel = q_arr(i, j, k, variableIndex.UVEL) / rho;  // Velocity in x-direction
+                Set::Scalar vvel = q_arr(i, j, k, variableIndex.VVEL) / rho;  // Velocity in y-direction
+#if (AMREX_SPACEDIM == 3)
+                Set::Scalar wvel = q_arr(i, j, k, variableIndex.WVEL) / rho;  // Velocity in z-direction
+#endif
+
+                //debug.DebugValuesIfTarget(i, j, k, uvel, "u-velocity", "UpdateSolutions", false);
+
+                Set::Scalar total_internal_energy = q_arr(i, j, k, variableIndex.IE) / rho;  // Total specific energy
+
+                // Compute kinetic energy
+                Set::Scalar kinetic_energy = 0.5 * (uvel * uvel + vvel * vvel
+#if (AMREX_SPACEDIM == 3)
+                                                + wvel * wvel
+#endif
+                                                );
+
+                // Compute internal energy
+                Set::Scalar internal_energy = (total_internal_energy - kinetic_energy);
+
+/*
+                debug.DebugValuesIfTarget(i, j, k, rho, "Density", "UpdateSolutions", false, -1, false);
+
+                debug.DebugValuesIfTarget(i, j, k, uvel, "UVEL", "UpdateSolutions", false, -1, false);
+                debug.DebugValuesIfTarget(i, j, k, vvel, "VVEL", "UpdateSolutions", false, -1, false);
+                debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal_energy", "UpdateSolutions", false, -1, false);
+
+                debug.DebugValuesIfTarget(i, j, k, pressure, "Pressure", "UpdateSolutions", false, -1, false);
+*/
+	        
+		Set::Scalar pressure = Model::ElastoPlastic::ElastoPlastic().ComputePressureFromDensityAndInternalEnergy(rho, internal_energy);
+	        Set::Scalar sxx = q_arr(i, j, k, variableIndex.SXX) / rho;
+		Set::Scalar sxy = q_arr(i, j, k, variableIndex.SXY) / rho;
+		Set::Scalar syy = q_arr(i, j, k, variableIndex.SYY) / rho;
+		Set::Scalar szz = q_arr(i, j, k, variableIndex.SZZ) / rho;
+#if (AMREX_SPACEDIM == 3)
+		Set::Scalar sxz = q_arr(i, j, k, variableIndex.SXZ) / rho;
+		Set::Scalar syz = q_arr(i, j, k, variableIndex.SYZ) / rho;
+#endif
+		Set::Scalar ie_elastic = q_arr(i, j, k, variableIndex.IE_ELASTIC) / rho;
+		Set::Scalar epsbar = q_arr(i, j, k, variableIndex.EPSBAR);
+
+//                debug.DebugValuesIfTarget(i, j, k, sxx, "SXX", "UpdateSolutions", false, -1, true);
+ //               debug.DebugValuesIfTarget(i, j, k, syy, "SYY", "UpdateSolutions", false, -1, true);
+   //             debug.DebugValuesIfTarget(i, j, k, sxy, "SXY", "UpdateSolutions", false, -1, true);
+
+                // Update the primitive variables array (PVec)
+                p_arr(i, j, k, variableIndex.DENS) = rho;
+                p_arr(i, j, k, variableIndex.UVEL) = uvel;
+                p_arr(i, j, k, variableIndex.VVEL) = vvel;
+#if (AMREX_SPACEDIM == 3)
+                p_arr(i, j, k, variableIndex.WVEL) = wvel;
+#endif
+                // Also update internal energy
+                p_arr(i, j, k, variableIndex.IE) = internal_energy;
+
+                pressure_arr(i, j, k) = pressure;  // Store pressure in Pressure_mf for post-processing
+
+                //debug.DebugValuesIfTarget(i, j, k, internal_energy, "internal energy", "GetFluxVector", false);
+
+		p_arr(i, j, k, variableIndex.SXX) = sxx;
+		p_arr(i, j, k, variableIndex.SXY) = sxy;
+		p_arr(i, j, k, variableIndex.SYY) = syy;
+		p_arr(i, j, k, variableIndex.SZZ) = szz;
+#if (AMREX_SPAACEDIM == 3)
+		p_arr(i, j, k, variableIndex.SXZ) = sxz;
+		p_arr(i, j, k, variableIndex.SYZ) = syz;
+#endif
+		p_arr(i, j, k, variableIndex.IE_ELASTIC) = ie_elastic;
+		p_arr(i, j, k, variableIndex.EPSBAR) = epsbar;
+
+            });
+
+        }
+    }
 
     // Method to get solver capabilities (centralized)
     std::shared_ptr<Numeric::SolverCapabilities> GetSolverCapabilities() const;
@@ -413,7 +595,10 @@ protected:
     Set::Field<Set::Scalar> YFlux_mf;         // Y-dir Flux Vector
     Set::Field<Set::Scalar> ZFlux_mf;         // Z-dir Flux Vector
     Set::Field<Set::Scalar> PVec_mf;          // Primitive variables
+   // Set::Field<Set::Scalar> Source_mf;        // Source Term Vector
+    Set::Field<Set::Scalar> SourceTermVec;        // Source Term Vector
     Set::Field<Set::Scalar> Pressure_mf;      // Pressure variable
+    Set::Field<Set::Scalar> EPSDOT_mf;   // Multifab for Epsdot
 
     // Core solver parameters
     int number_of_components;                 // Number of components
@@ -438,6 +623,7 @@ protected:
     // Numeric handlers (using shared_ptr for better lifetime management)
     std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
     std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
+    std::shared_ptr<Numeric::ElastoPlasticSourceTerm<ScimitarX>> sourceTermHandler;
     std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
     std::shared_ptr<Numeric::SolverCapabilities> solverCapabilities;
 
@@ -494,6 +680,12 @@ private:
     friend class Numeric::RK3Scheme; 
  
     friend class Numeric::CompressibleEuler::CompressibleEulerVariableAccessor;
+
+    friend class Numeric::ElastoPlastic::ElastoPlasticVariableAccessor;
+
+    template <typename IntegratorDerivedClass>
+    friend class Numeric::ElastoPlasticSourceTerm;
+
             
     
 }; //ScimitarX Class

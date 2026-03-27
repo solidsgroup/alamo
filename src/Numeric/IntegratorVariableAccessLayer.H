@@ -319,8 +319,145 @@ private:
 
 // Placeholder namespaces for other solver-specific variable accessors
 namespace ElastoPlastic {
-    class ElastoPlasticVariableAccessor;
-}
+class ElastoPlasticCapabilities : public SolverCapabilities {
+public:
+    std::string getIdentifier() const override {
+        return "ElastoPlastic";
+    }
+
+    std::string getDescription() const override {
+        return "ElastoPlastic Equations Solver";
+    }
+
+    MethodSupport supportsFluxReconstruction(FluxReconstructionType method) const override;
+    MethodSupport supportsFluxScheme(FluxScheme scheme) const override;
+    MethodSupport supportsTimeSteppingScheme(TimeSteppingSchemeType scheme) const override;
+    MethodSupport supportsReconstructionMode(ReconstructionMode mode) const override;
+    MethodSupport supportsWenoVariant(WenoVariant variant) const override;
+    MethodValidationResult validateMethodCombination(
+        FluxReconstructionType fluxReconstruction,
+        FluxScheme fluxScheme,
+        TimeSteppingSchemeType timeSteppingScheme,
+        ReconstructionMode reconstructionMode,
+        WenoVariant wenoVariant = WenoVariant::WENOJS5
+    ) const override;
+    DefaultConfiguration getDefaultConfiguration() const override;
+    std::shared_ptr<GenericVariableAccessor> createVariableAccessor(
+        ReconstructionMode mode,
+        int numGhostCells = 2
+    ) const override;
+};
+
+class ElastoPlasticVariableAccessor : public GenericVariableAccessor {
+public:
+    ElastoPlasticVariableAccessor(
+        int total_ghosts = 2,
+        ReconstructionMode mode = ReconstructionMode::Primitive
+    );
+
+    // Implement the new virtual methods from base class
+    std::shared_ptr<SolverCapabilities> getSolverCapabilities() const override;
+
+    amrex::MultiFab CreateWorkingBuffer(
+        const amrex::BoxArray& baseGrids,
+        const amrex::DistributionMapping& dm,
+        const int num_components,
+        const int ghost_cells
+    ) const override;
+
+    void CopyVariables(
+        int direction,
+        int lev,
+        void* solver_void,
+        amrex::MultiFab& VariableBuffer,
+        ReconstructionMode mode,
+        const SolverCapabilities::MethodValidationResult& validationResult
+    ) const override;
+
+    void CopyFluxes(
+        int direction,
+        int lev,
+        void* solver_void,
+        amrex::MultiFab& CellFluxBuffer,
+        ReconstructionMode mode,
+        const SolverCapabilities::MethodValidationResult& validationResult
+    ) const override;
+
+        // Populate Average States
+    void PopulateAverageStates(
+        int direction,
+        int lev,
+        void* solver,
+        amrex::MultiFab& AverageStateBuffer
+    ) const override;
+
+    // Transforming Stencils to Characteristic Space
+    Set::MultiMatrix TransformStencilToCharacteristic(
+        int i, int j, int k,
+        const Set::MultiMatrix& stencil_matrix,
+        int direction,
+        const Set::MultiVector& avg_state
+    ) const override;
+
+    //Reverse Transforming From Characteristic Space
+    Set::MultiVector TransformFromCharacteristic(
+        const Set::MultiVector& reconstructed_value,
+        int direction,
+        const Set::MultiVector& avg_state
+    ) const override;
+
+    void StoreDirectionalFlux(
+        int direction,
+        int lev,
+        void* solver_void,
+        amrex::MultiFab& SummedFlux
+    ) const override;
+
+    int getRequiredGhostCells(
+        ReconstructionMode mode,
+        FluxReconstructionType reconstructionType
+    ) const override;
+
+    ReconstructionMode getCurrentReconstructionMode() const override {
+        return current_mode;
+    }
+
+private:
+    // Private helper methods
+    void CopyPrimitiveVariablesToVariableBuffer(
+        int lev,
+        Integrator::ScimitarX* solver,
+        amrex::MultiFab& VariableBuffer
+    ) const;
+
+    void CopyConservativeVariablesToVariableBuffer(
+        int lev,
+        Integrator::ScimitarX* solver,
+        amrex::MultiFab& VariableBuffer
+    ) const;
+
+    void CopyPrimitiveFluxesToCellFluxBuffer(
+        int direction,
+        int lev,
+        Integrator::ScimitarX* solver,
+        amrex::MultiFab& CellFluxBuffer
+    ) const;
+
+    void CopyConservativeFluxesToCellFluxBuffer(
+        int direction,
+        int lev,
+        Integrator::ScimitarX* solver,
+        amrex::MultiFab& CellFluxBuffer
+    ) const;
+
+    ReconstructionMode current_mode;
+    int total_ghost_cells;
+
+    enum Directions { Xdir = 0, Ydir = 1, Zdir = 2 };
+
+};
+
+} // namespace ElastoPlastic
 
 namespace FiveEquationModel {
     class FiveEquationVariableAccessor;

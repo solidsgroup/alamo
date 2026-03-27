@@ -66,6 +66,15 @@ private:
     std::vector<Set::Scalar> wvel_zone;
     // pressure initialization variables
     std::vector<Set::Scalar> pressure_zone;
+    //ElastoPlastic
+    std::vector<Set::Scalar> sxx_zone;
+    std::vector<Set::Scalar> syy_zone;
+    std::vector<Set::Scalar> szz_zone;
+    std::vector<Set::Scalar> sxy_zone;
+    std::vector<Set::Scalar> sxz_zone;
+    std::vector<Set::Scalar> syz_zone;
+    std::vector<Set::Scalar> ie_elastic_zone;
+    std::vector<Set::Scalar> epsbar_zone;
 
     // Expression strings - to store directly from input, similar to density_zone format
     std::vector<std::string> density_expr;
@@ -80,12 +89,30 @@ private:
     std::vector<amrex::Parser> uvel_parser;
     std::vector<amrex::Parser> vvel_parser;
     std::vector<amrex::Parser> wvel_parser;
+    //ElastoPlastic
+    std::vector<amrex::Parser> sxx_parser;
+    std::vector<amrex::Parser> syy_parser;
+    std::vector<amrex::Parser> szz_parser;
+    std::vector<amrex::Parser> sxy_parser;
+    std::vector<amrex::Parser> sxz_parser;
+    std::vector<amrex::Parser> syz_parser;
+    std::vector<amrex::Parser> ie_elastic_parser;
+    std::vector<amrex::Parser> epsbar_parser;
     
     std::vector<amrex::ParserExecutor<4>> density_func;
     std::vector<amrex::ParserExecutor<4>> pressure_func;
     std::vector<amrex::ParserExecutor<4>> uvel_func;
     std::vector<amrex::ParserExecutor<4>> vvel_func;
     std::vector<amrex::ParserExecutor<4>> wvel_func;
+    //ElastoPlastic
+    std::vector<amrex::ParserExecutor<4>> sxx_func;
+    std::vector<amrex::ParserExecutor<4>> syy_func;
+    std::vector<amrex::ParserExecutor<4>> szz_func;
+    std::vector<amrex::ParserExecutor<4>> sxy_func;
+    std::vector<amrex::ParserExecutor<4>> sxz_func;
+    std::vector<amrex::ParserExecutor<4>> syz_func;
+    std::vector<amrex::ParserExecutor<4>> epsbar_func;
+    std::vector<amrex::ParserExecutor<4>> ie_elastic_func;
 
     // Helper method to compile a parser from an expression string
     void SetupParser(std::vector<amrex::Parser>& parser, 

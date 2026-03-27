@@ -538,17 +538,19 @@ public:
 
         for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
             // Safe indicator value to prevent numerical issues
-            Set::Scalar safe_indicator = std::max(indicators[r], 1.0e-15);
+            //Set::Scalar safe_indicator = std::max(indicators[r], 1.0e-15);
 
             // WENO-Z weight computation: α₍ᵣ₎ = d₍ᵣ₎(1 + τ/(β₍ᵣ₎ + ε))^p
             alphas[r] = optimalWeights(r) * 
-                std::pow(1.0 + tau / (safe_indicator + Traits::Epsilon), Traits::Power);
+                (1.0 + std::pow(tau / (indicators[r] + Traits::Epsilon), Traits::Power));
+            //alphas[r] = optimalWeights(r) * 
+            //    std::pow(1.0 + tau / (safe_indicator + Traits::Epsilon), Traits::Power);
 
             alpha_sum += alphas[r];
         }
 
         // Normalize weights with protection against division by zero
-        Set::Scalar inv_alpha_sum = (alpha_sum > 1.0e-15) ? (1.0 / alpha_sum) : 1.0e15;
+        Set::Scalar inv_alpha_sum = 1.0/alpha_sum; //(alpha_sum > 1.0e-15) ? (1.0 / alpha_sum) : 1.0e15;
 
         for (int r = 0; r < Traits::NumCandidateStencils; ++r) {
             weights[r] = alphas[r] * inv_alpha_sum;

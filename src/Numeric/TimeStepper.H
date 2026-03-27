@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 
+
 namespace Numeric {
 
 /*// Helper function to compute face indices for a control volume's flux calculation
@@ -87,9 +88,9 @@ public:
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
         }
 
-        //Util::ScimitarX_Util::Debug debug;
-        //debug.SetTargetDebugLocationIndices(101, 0, 0);
-        //debug.SetTargetDebugLocation(0.49, 0.12, 0.0, solver->geom[lev]);
+      //  Util::ScimitarX_Util::Debug debug;
+       // debug.SetTargetDebugLocationIndices(1, 3, 0);
+        //debug.SetTargetDebugLocation(0.49, 0.012, 0.0, solver->geom[lev]);
 
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing
 
@@ -103,7 +104,8 @@ public:
 #if (AMREX_SPACEDIM == 3)
             auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
 #endif
-
+	    //auto const& sourceTerm_arr = solver->Source_mf.Patch(lev, mfi);  // Source-term
+            auto const& sourceTerm_arr = solver->SourceTermVec.Patch(lev, mfi);  // Source-term
             // Parallel loop over cells in the valid box
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 for (int n = 0; n < solver->number_of_components; ++n) {
@@ -127,14 +129,15 @@ public:
 
                     // Update conserved variable using Euler Forward step
                     Set::Scalar q_old = q_old_arr(i, j, k, n);
-                    q_arr(i, j, k, n) = q_old - dt * flux_div;
+		    q_arr(i, j, k, n) = q_old - dt * (flux_div - sourceTerm_arr(i, j, k, n));
+
 
                     //Debug output
-                    /* debug.DebugEulerForwardStep(i, j, k, xflux_arr(i,j,k,n), xflux_arr(i-1,j,k,n),
-                                                yflux_arr(i,j,k,n), yflux_arr(i,j-1,k,n),
-                                                0.0,
-                                                0.0,
-                                                q_old, dt, "Euler Forward Substep", true); */               
+//                     debug.DebugEulerForwardStep(i, j, k, xflux_arr(i,j,k,n), xflux_arr(i-1,j,k,n),
+  //                                              yflux_arr(i,j,k,n),
+//						yflux_arr(i, j-1, k, n),
+  //                                              0.0, 0.0,
+    //                                            q_old, dt, "Euler Forward Substep", false, true);                
                 }
             });
         }
@@ -173,7 +176,9 @@ public:
 #if (AMREX_SPACEDIM == 3)
             auto const& zflux_arr = solver->ZFlux_mf.Patch(lev, mfi);  // Z-direction flux
 #endif
+	    //auto const& sourceTerm_arr = solver->Source_mf.Patch(lev, mfi);  // Source-term
 
+	    auto const& sourceTerm_arr = solver->SourceTermVec.Patch(lev, mfi);  // Source-term
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
                 for (int n = 0; n < solver->number_of_components; ++n) {
                     // **Flux Divergence Computation**
@@ -204,7 +209,7 @@ public:
                     // **Runge-Kutta 3rd order update formula**
                     q_arr(i, j, k, n) = RK3Constants::a[stage] * q_old_arr(i, j, k, n) +
                                         RK3Constants::b[stage] * q_arr(i, j, k, n) -
-                                        RK3Constants::c[stage] * dt * flux_div;
+                                        RK3Constants::c[stage] * dt * (flux_div - sourceTerm_arr(i, j, k, n));
                 }
             });
         }

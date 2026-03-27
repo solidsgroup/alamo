@@ -6,12 +6,14 @@
 #include "IC/Shock.H"
 #include "IC/Riemann2D.H"
 #include "Model/Fluid/Fluid.H"
+#include "Model/Fluid/ElastoPlastic.H"
 #include "Numeric/Stencil.H"
 #include "Numeric/NumericTypes.H"
 #include "Numeric/NumericFactory.H"
 #include "Numeric/SolverCapabilities.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/FluxHandler.H"
+#include "Numeric/ElastoPlasticSourceTerm.H"
 #include "Numeric/WENOReconstruction.H"
 #include "Numeric/TimeStepper.H"
 #include "Util/Util.H"
@@ -34,6 +36,7 @@ ScimitarX::ScimitarX() : Integrator()
     
     // Initialize handlers with nullptr (will be set up later)
     fluxHandler = nullptr;
+    sourceTermHandler = nullptr;
     timeStepper = nullptr;
     variable_accessor = nullptr;
     solverCapabilities = nullptr;
@@ -54,6 +57,7 @@ ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
 {
 
     fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
+    sourceTermHandler = std::make_shared<Numeric::ElastoPlasticSourceTerm<ScimitarX>>();
     timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
 
     pp.queryclass(*this);
@@ -91,10 +95,8 @@ ScimitarX::GetSolverCapabilities() const {
     switch (solverType) {
         case SolverType::SolveCompressibleEuler:
             return std::make_shared<Numeric::CompressibleEuler::CompressibleEulerCapabilities>();
-        case SolverType::SolveElastoPlastic: {
-            Util::Warning(INFO, "ElastoPlastic solver capabilities not fully implemented");
-            return nullptr;
-        }
+        case SolverType::SolveElastoPlastic:
+	    return std::make_shared<Numeric::ElastoPlastic::ElastoPlasticCapabilities>();
         case SolverType::SolveFiveEquationModel: {
             Util::Warning(INFO, "Five Equation Model solver capabilities not fully implemented");
             // Similar placeholder as ElastoPlastic
@@ -115,6 +117,11 @@ void ScimitarX::SetupNumericComponents()
     if (!fluxHandler) {
         fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
     }
+
+    if (!sourceTermHandler) {
+        sourceTermHandler = std::make_shared<Numeric::ElastoPlasticSourceTerm<ScimitarX>>();
+    }
+
     
     if (!timeStepper) {
         timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
@@ -189,14 +196,9 @@ void ScimitarX::SetupNumericComponents()
     
         break;
         case SolverType::SolveElastoPlastic:
-        // For other solver types, use default configurations
-        Util::Warning(INFO, "SetupNumericComponents: Unsupported solver type. Using defaults.");
-        
         // Create a basic variable accessor if none exists
         if (!variable_accessor) {
-            // This is a placeholder - in a real implementation, you'd create 
-            // appropriate accessors for each solver type
-            variable_accessor = std::make_shared<Numeric::CompressibleEuler::CompressibleEulerVariableAccessor>(
+            variable_accessor = std::make_shared<Numeric::ElastoPlastic::ElastoPlasticVariableAccessor>(
                 number_of_ghost_cells, variable_space);
 
             Numeric::GenericVariableAccessor::VariableIndices accessorIndices;
@@ -226,12 +228,38 @@ void ScimitarX::SetupNumericComponents()
 
         }
         
-        // Update flux handler with accessor
+	// Update the flux handler with the accessor
         fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(variable_accessor);
 
+        // Set up flux reconstruction method based on configuration
+        if (reconstruction_method == Numeric::FluxReconstructionType::WENO) {
+            if (weno_variant == Numeric::WenoVariant::WENOJS3) {
+                Util::Message(INFO, "Creating WENOJS3 reconstruction");
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS3<ScimitarX>>());
+            } else if (weno_variant == Numeric::WenoVariant::WENOJS5) {
+                Util::Message(INFO, "Creating WENOJS5 reconstruction");
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS5<ScimitarX>>());
+            } else {
+                Util::Message(INFO, "Creating WENOZ5 reconstruction");
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOZ5<ScimitarX>>());
+            }
+        } else {
+            fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
+        }
+
+        // Set up flux method
+        if (flux_scheme == Numeric::FluxScheme::LocalLaxFriedrichs) {
+                fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+        }
+
+        // Set up time stepping scheme
+        if (temporal_scheme == Numeric::TimeSteppingSchemeType::ForwardEuler) {
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
+        } else {
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::RK3Scheme<ScimitarX>>());
+        }
+
         break;
-        default:
-        throw std::runtime_error("Invalid SolverType: Setup Numerics");
     } 
         
     // Additional validation logging
@@ -355,6 +383,10 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
                 std::cout << "DEBUG: ScimitarX::variableIndex.NVAR_MAX = " 
                 << ScimitarX::variableIndex.NVAR_MAX << std::endl;
 
+
+                std::cout << "DEBUG: ScimitarX::variableIndex.No of Comp = " 
+                << value.number_of_components << std::endl;
+
                 std::cout << "DEBUG: Variable indices:" << std::endl;
                 for (const auto& [variable, index] : ScimitarX::variableIndex.variableIndexMap) {
                 std::cout << "  Variable: " << variable << ", Index: " << index << std::endl;
@@ -397,9 +429,11 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
 #if AMREX_SPACEDIM == 3
         value.RegisterFaceFab<2>(value.ZFlux_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "zflux", false, {});
 #endif
-//        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", false);
+       // value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceVec", true, {});
+	value.RegisterNewFab(value.SourceTermVec, &value.bc_nothing, value.number_of_components, value.number_of_ghost_cells, "SourceTermVec", false, {});
         value.RegisterNewFab(value.PVec_mf, value.bc_PVec, value.number_of_components, value.number_of_ghost_cells, "PrimitiveVec", true, {}); 
-        value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true, {});
+	value.RegisterNewFab(value.Pressure_mf, value.bc_Pressure, 1, value.number_of_ghost_cells, "Pressure", true, {});
+	value.RegisterNewFab(value.EPSDOT_mf, &value.bc_nothing, 1, value.number_of_ghost_cells, "EPSDOT", true, {});
 
     }
     
@@ -503,9 +537,10 @@ void ScimitarX::Initialize(int lev)
 {
     ic_PVec->Initialize(lev, PVec_mf);
     ic_Pressure->Initialize(lev, Pressure_mf);
-
     ScimitarX::ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+    ScimitarX::ComputeConservedVariables<SolverType::SolveElastoPlastic>(lev); //Pradeep
     std::swap(*QVec_old_mf[lev], *QVec_mf[lev]); 
+
 }
 
 
@@ -656,21 +691,29 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
             for (int stage = 0; stage < numStages; ++stage) {
                 
                 // 1. Compute Conserved Variables
-                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+                //ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+		ComputeConservedVariables<SolverType::SolveElastoPlastic>(lev); //Pradeep
 
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                //ApplyBoundaryConditions(lev, time);
+//                ApplyBoundaryConditions(lev, time);
+
+		// 3. Compute Source Terms
+                sourceTermHandler->ComputeSourceTerm(lev, this);
                 
-                // 3. Compute sub-step using the chosen time-stepping scheme
+                // 4. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
 
-                // 4. Update solution from conservative to primitive variables
-                UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+		// 5. Radial Return
+		sourceTermHandler->RadialReturn(lev, dt, this);
+		//Numeric::ElastoPlasticSourceTerm<ScimitarX>().RadialReturn(lev, dt, this);
 
+                // 6. Update solution from conservative to primitive variables
+                //UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+		UpdateSolutions<SolverType::SolveElastoPlastic>(lev); //Pradeep
 
-                //ApplyBoundaryConditions(lev, time);
+//                ApplyBoundaryConditions(lev, time);
 
             }
             break;
@@ -682,16 +725,25 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
 
             for (int stage = 0; stage < numStages; ++stage) {
                 // 1. Compute Conserved Variables
-                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+                //ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+		ComputeConservedVariables<SolverType::SolveElastoPlastic>(lev); //Pradeep
 
                 // 2. Perform flux reconstruction and compute fluxes in all directions
                 fluxHandler->ConstructFluxes(lev, this);
 
-                // 3. Compute sub-step using the chosen time-stepping scheme
+		// 3. Compute Viscous Terms and Source Term for viscous fluxes
+                sourceTermHandler->ComputeSourceTerm(lev, this);
+
+                // 4. Compute sub-step using the chosen time-stepping scheme
                 timeStepper->ComputeSubStep(lev, dt, stage, this);
 
-                // 4. Update solution from conservative to primitive variables
-                UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+		// 5. Radial Return
+		sourceTermHandler->RadialReturn(lev, dt, this);
+                //Numeric::ElastoPlasticSourceTerm<ScimitarX>().RadialReturn(lev, dt, this);
+
+                // 6. Update solution from conservative to primitive variables
+                //UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
+		UpdateSolutions<SolverType::SolveElastoPlastic>(lev); //Pradeep
 
                 ApplyBoundaryConditions(lev, time);
 
@@ -712,7 +764,8 @@ void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
         Integrator::ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);        
         Integrator:: ApplyPatch(lev, time, Pressure_mf, *Pressure_mf[lev], *bc_Pressure, 0); 
         
-        Integrator::ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], bc_nothing, 0);        
+        Integrator::ApplyPatch(lev, time, QVec_mf, *QVec_mf[lev], bc_nothing, 0);
+        Integrator::ApplyPatch(lev, time, QVec_old_mf, *QVec_old_mf[lev], bc_nothing, 0);	//Pradeep
 /*        
         Integrator::ApplyPatch(lev, time, XFlux_mf, *XFlux_mf[lev],bc_nothing, 0);        
         Integrator::ApplyPatch(lev, time, YFlux_mf, *YFlux_mf[lev], bc_nothing, 0);
@@ -765,9 +818,11 @@ Set::Scalar ScimitarX::GetTimeStep() {
 #if (AMREX_SPACEDIM == 3)
                 Set::Scalar w = pArr(i, j, k, variableIndex.WVEL);
 #endif
-                Set::Scalar gamma = 1.4;
                 Set::Scalar p = std::max(pressure(i, j, k),1e-6);
-                Set::Scalar c = Model::Fluid::Fluid().ComputeWaveSpeed(rho, p, gamma);
+                //Set::Scalar c = Model::Fluid::Fluid().ComputeWaveSpeed(rho, p, gamma);
+		Set::Scalar e = pArr(i, j, k, variableIndex.IE);
+
+		Set::Scalar c = Model::ElastoPlastic::ElastoPlastic().ComputeWaveSpeed(rho, p, e); //Pradeep. Also check the header.
 
                 // Compute the maximum characteristic speed
                 Set::Scalar maxSpeed = std::abs(u) + c;
@@ -779,7 +834,7 @@ Set::Scalar ScimitarX::GetTimeStep() {
 #endif
 
                 // Compute local timestep for this cell
-                Set::Scalar dtLocal = dx[0] / maxSpeed;
+                Set::Scalar dtLocal = dx[0] / maxSpeed; 
 #if (AMREX_SPACEDIM >= 2)
                 dtLocal = std::min(dtLocal, dx[1] / maxSpeed);
 #endif

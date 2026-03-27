@@ -8,6 +8,7 @@
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
 #include "Model/Fluid/Fluid.H" 
+#include "Model/Fluid/ElastoPlastic.H"
 #include "Numeric/Stencil.H" 
 #include "Numeric/NumericTypes.H"
 #include "Numeric/SolverCapabilities.H"
@@ -405,7 +406,7 @@ public:
                 int left_offset[3] = {0, 0, 0};
                 int right_offset[3] = {0, 0, 0};
                 left_offset[direction] = 0;  // Shift left
-                right_offset[direction] = 1;  // Shift right
+                right_offset[direction] = 0;  // Shift right. WENO fix
 
                 ShiftAndClampIndices(left_index, left_offset, lower_bounds, upper_bounds, direction);
                 ShiftAndClampIndices(right_index, right_offset, lower_bounds, upper_bounds, direction);
@@ -577,9 +578,17 @@ public:
             vel_L[normal] = p_arr(left_index[0], left_index[1], left_index[2], velocity_component[normal]);
             vel_R[normal] = p_arr(right_index[0], right_index[1], right_index[2], velocity_component[normal]);
 
+	    //ElastoPlastic
+	    Set::Scalar ie_L = p_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE);
+            Set::Scalar ie_R = p_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE); 
+
             // **Speed of sound**
-            Set::Scalar c_L = std::sqrt(gamma * std::max(pressure_L, 1e-8) / std::max(rho_L, 1e-8));
-            Set::Scalar c_R = std::sqrt(gamma * std::max(pressure_R, 1e-8) / std::max(rho_R, 1e-8));
+            //Set::Scalar c_L = std::sqrt(gamma * std::max(pressure_L, 1e-8) / std::max(rho_L, 1e-8));
+            //Set::Scalar c_R = std::sqrt(gamma * std::max(pressure_R, 1e-8) / std::max(rho_R, 1e-8));
+
+	    Set::Scalar c_L = Model::ElastoPlastic::ElastoPlastic().ComputeWaveSpeed(rho_L, pressure_L, ie_L);
+            Set::Scalar c_R = Model::ElastoPlastic::ElastoPlastic().ComputeWaveSpeed(rho_R, pressure_R, ie_R);
+
 
             // **Maximum wave speed (lambda_max)**
             Set::Scalar lambda_max = std::max(std::abs(vel_L[normal]) + c_L, std::abs(vel_R[normal]) + c_R);
@@ -610,6 +619,28 @@ public:
             FL[solver->variableIndex.IE] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE);
             FR[solver->variableIndex.IE] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE);
 
+	    //Elastoplastic
+	    //Stresses
+	    FL[solver->variableIndex.SXX] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SXX);
+            FR[solver->variableIndex.SXX] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SXX);
+
+	    FL[solver->variableIndex.SYY] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SYY);
+            FR[solver->variableIndex.SYY] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SYY);
+
+	    FL[solver->variableIndex.SZZ] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SZZ);
+            FR[solver->variableIndex.SZZ] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SZZ);
+
+	    FL[solver->variableIndex.SXY] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SXY);
+            FR[solver->variableIndex.SXY] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SXY);
+#if AMREX_SPACEDIM == 3
+	    FL[solver->variableIndex.SXZ] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SXZ);
+            FR[solver->variableIndex.SXZ] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SXZ);
+
+	    FL[solver->variableIndex.SYZ] = flux_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SYZ);
+            FR[solver->variableIndex.SYZ] = flux_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SYZ);
+#endif
+	    //Epsbar and IE_Elastic don't go through WENO
+
 
             // **Conservative state vectors (left and right)**
             std::vector<Set::Scalar> QL_cons(num_components, 0.0);
@@ -634,6 +665,28 @@ public:
 
             QL_cons[solver->variableIndex.IE] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.IE);//rho_L * E_L;  // Total energy
             QR_cons[solver->variableIndex.IE] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.IE); //rho_R * E_R;
+
+	    //Elastoplastic
+            //Stresses
+            QL_cons[solver->variableIndex.SXX] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SXX);
+            QR_cons[solver->variableIndex.SXX] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SXX);
+
+            QL_cons[solver->variableIndex.SYY] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SYY);
+            QR_cons[solver->variableIndex.SYY] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SYY);
+
+            QL_cons[solver->variableIndex.SZZ] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SZZ);
+            QR_cons[solver->variableIndex.SZZ] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SZZ);
+
+            QL_cons[solver->variableIndex.SXY] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SXY);
+            QR_cons[solver->variableIndex.SXY] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SXY);
+#if AMREX_SPACEDIM == 3
+            QL_cons[solver->variableIndex.SXZ] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SXZ);
+            QR_cons[solver->variableIndex.SXZ] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SXZ);
+
+            QL_cons[solver->variableIndex.SYZ] = q_arr(left_index[0], left_index[1], left_index[2], solver->variableIndex.SYZ);
+            QR_cons[solver->variableIndex.SYZ] = q_arr(right_index[0], right_index[1], right_index[2], solver->variableIndex.SYZ);
+#endif
+            //Epsbar and IE_Elastic don't go through WENO
 
 
             // **Local Lax-Friedrichs flux calculation**

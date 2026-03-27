@@ -5,12 +5,13 @@
 #include "Util/ScimitarX_Util.H"
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Model/Fluid/Fluid.H"
+#include "Model/Fluid/ElastoPlastic.H"
 #include "IO/ParmParse.H"
 #include "AMReX_Parser.H"
 
 namespace IC {
 
-using namespace Model::Fluid;
+using namespace Model;//::Fluid;
 
 Shock::Shock(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name,
                     const Numeric::GenericVariableAccessor::VariableIndices& precomputed_indices)
@@ -52,8 +53,25 @@ void Shock::AddConstant(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Sca
 #endif
         int ie_idx = requires_variable_indices ? variable_indices->IE : -1;
 
-        Model::Fluid::Fluid fluid_model;
-        Util::ScimitarX_Util::Debug debug;
+        //Model::Fluid::Fluid fluid_model;
+	//Model::ElastoPlastic modelObj();
+	//auto modelObj = Model::ElastoPlastic();
+        //Util::ScimitarX_Util::Debug debug;
+	
+	//ElastoPlatic
+	int sxx_idx = requires_variable_indices ? variable_indices->SXX : -1;
+	int syy_idx = requires_variable_indices ? variable_indices->SYY : -1;
+	int szz_idx = requires_variable_indices ? variable_indices->SZZ : -1;
+	int sxy_idx = requires_variable_indices ? variable_indices->SXY : -1;
+#if AMREX_SPACEDIM == 3
+	int sxz_idx = requires_variable_indices ? variable_indices->SXZ : -1;
+	int syz_idx = requires_variable_indices ? variable_indices->SYZ : -1;
+#endif
+	int epsbar_idx = requires_variable_indices ? variable_indices->EPSBAR : -1;
+	int ie_elastic_idx = requires_variable_indices ? variable_indices->IE_ELASTIC : -1;
+
+	Util::Warning(INFO, "sxx_idx" + std::to_string(sxx_idx) +
+                    " IE_ELASTIC" + std::to_string(ie_elastic_idx));
 
         Set::Scalar gamma = 1.4;
 
@@ -77,25 +95,55 @@ void Shock::AddConstant(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Sca
                             }
                             else if (n == uvel_idx)
                                 phi(i, j, k, n) = uvel_zone[idx];
-#if AMREX_SPACEDIM >= 2
                             else if (n == vvel_idx)
                                 phi(i, j, k, n) = vvel_zone[idx];
-#endif
+
 #if AMREX_SPACEDIM == 3
                             else if (n == wvel_idx)
                                 phi(i, j, k, n) = wvel_zone[idx];
 #endif
+			    // elastoplastic
+			    else if (n == sxx_idx)
+				phi(i, j, k, n) = 0.0; //sxx_zone[idx];  //line 105
+
+			    else if (n == syy_idx)
+                                phi(i, j, k, n) = 0.0; //syy_zone[idx];
+			    
+			    else if (n == szz_idx)
+                                phi(i, j, k, n) = 0.0; //szz_zone[idx];
+
+			    else if (n == sxy_idx)
+                                phi(i, j, k, n) = 0.0; //sxy_zone[idx];
+#if AMREX_SPACEDIM == 3
+			    else if (n == sxz_idx)
+                                phi(i, j, k, n) =0.0; // sxz_zone[idx];
+
+			    else if (n == syz_idx)
+                                phi(i, j, k, n) = 0.0; //syz_zone[idx];
+#endif
+			    else if (n == epsbar_idx)
+                                phi(i, j, k, n) = 0.0; //epsbar_zone[idx];
+
+			    else if (n == ie_elastic_idx)
+                                phi(i, j, k, n) = 0.0; //ie_elastic_zone[idx];
+
                             else if (n == ie_idx) {
                                 Set::Scalar tmp_density = density_zone[idx];
                                 Set::Scalar tmp_pressure = pressure_zone[idx];
 
-                                phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(
-                                    tmp_density, tmp_pressure, gamma);
+                                //phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(
+                                  //  tmp_density, tmp_pressure, gamma);
+				phi(i, j, k, n) = Model::ElastoPlastic::ElastoPlastic().ComputeInternalEnergyFromDensityAndPressure(
+						tmp_density, tmp_pressure);
 
-                                if (phi(i, j, k, n) == 0.0)
-                                    debug.DebugComputeInternalEnergyFromDensityAndPressure(
-                                        i, j, k, lev, tmp_density, tmp_pressure,
-                                        gamma, true, "print", "Zone " + std::to_string(idx));
+                                //if (phi(i, j, k, n) == 0.0)
+                                  //  debug.DebugComputeInternalEnergyFromDensityAndPressure(
+                                    //    i, j, k, lev, tmp_density, tmp_pressure,
+                                      //  gamma, true, "print", "Zone " + std::to_string(idx));
+				//if (phi(i, j, k, n) == 0.0)
+                                  //  debug.DebugComputeInternalEnergyFromDensityAndPressure(
+                                    //    i, j, k, lev, tmp_density, tmp_pressure,
+                                      //   true, "print", "Zone " + std::to_string(idx));
                             }
                         } else if (mf_name == "ic.shock.pressure") {
                             phi(i, j, k, n) = pressure_zone[idx];
@@ -107,6 +155,7 @@ void Shock::AddConstant(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Sca
         }
     }
 }
+
 
 // Implementation for expression-based initialization
 void Shock::AddExpression(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar time) {
@@ -129,7 +178,8 @@ void Shock::AddExpression(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::S
 #endif
         int ie_idx = requires_variable_indices ? variable_indices->IE : -1;
 
-        Model::Fluid::Fluid fluid_model;
+        //Model::Fluid::Fluid fluid_model;
+	//Model::Fluid fluid_model;
         Set::Scalar gamma = 1.4;
 
         // Use the pre-computed direction index for efficiency
@@ -188,7 +238,7 @@ void Shock::AddExpression(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::S
                                 Set::Scalar tmp_pressure = pressure_func[idx](x(0), x(1), x(2), time);
                                 #endif
 
-                                phi(i, j, k, n) = fluid_model.ComputeInternalEnergyFromDensityAndPressure(
+                                phi(i, j, k, n) = Model::Fluid::Fluid().ComputeInternalEnergyFromDensityAndPressure(
                                     tmp_density, tmp_pressure, gamma);
                             }
                         } else if (mf_name == "ic.shock.pressure") {
