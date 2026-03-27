@@ -96,6 +96,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_query_default("small",value.small,1E-8); // small regularization value
         pp_query_default("cutoff",value.cutoff,-1E100); // cutoff value
         pp_query_default("lagrange",value.lagrange,0.0); // lagrange no-penetration factor
+        pp_query_default("details",value.details,false); // save detailed data (viscosity, heat conductivity, etc.)
 
         pp_forbid("roefix","--> solver.roe.entropy_fix"); // Roe solver entropy fix
     }
@@ -141,6 +142,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.mass_fraction_mf,    &value.bc_nothing, value.gas.nspecies, nghost, "mass_fraction",     true , true);
         value.RegisterNewFab(value.mole_fraction_mf,    &value.bc_nothing, value.gas.nspecies, nghost, "mole_fraction",     true , true);
         value.RegisterNewFab(value.scratch_mf,          &value.bc_nothing, value.gas.nspecies, nghost, "scratch",           false, false);
+
+        if ( value.details )
+        {
+            value.RegisterNewFab(value.viscosity_mf, &value.bc_nothing, 1, nghost, "viscosity", true, true);
+        }
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
@@ -514,6 +520,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     amrex::MultiFab rhoDYy_mf(ba,dm,gas.nspecies,nghost);   // Fickian diffusion, rho*D*dY/dy
     amrex::MultiFab w_mf(ba,dm, gas.nspecies,nghost);       // mass generation/destruction (reaction rate, kg/m^3/s)
 
+    amrex::Array4<Set::Scalar> mu_arr;
+
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
 
@@ -549,6 +557,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>       rhoDYx    = rhoDYx_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoDYy    = rhoDYy_mf.array(mfi);
         Set::Patch<Set::Scalar>       w         = w_mf.array(mfi);
+
+        if (details)
+        {
+            mu_arr    = viscosity_mf.Patch(lev,mfi);
+        }
 
         // First ParallelFor loop to get initial values needed for gradients
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -586,7 +599,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             gas.diffusion_coeffs(DKM, T(i,j,k), p(i,j,k), X, i, j, k);
             mixed_k(i,j,k) = gas.thermal_conductivity(T(i,j,k), X, i, j, k);
             mixed_mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+            Util::Message(INFO, "viscosity: ", mixed_mu(i,j,k));
             mixed_H(i,j,k) = gas.enthalpy_mass(T(i,j,k), X, i, j, k);
+
+            if ( details )
+            {
+                mu_arr(i,j,k) = mixed_mu(i,j,k);
+            }
         });
 
         // Second ParallelFor loop to get first gradients

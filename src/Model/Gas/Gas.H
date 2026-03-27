@@ -98,7 +98,7 @@ public:
         for (int n=0; n<nspecies; ++n) {
             mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
             mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
-            Util::Message(INFO, "Mass fraction[n]: ", n, " ", mass_fraction_mf(i,j,k,n));
+            //Util::Message(INFO, "Mass fraction[n]: ", n, " ", mass_fraction_mf(i,j,k,n));
             Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) <= 1.0), "Error: Mass fraction greater than 1.0");
         }
     }

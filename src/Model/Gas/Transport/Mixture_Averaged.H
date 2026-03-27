@@ -90,7 +90,7 @@ private:
         return S;
     }
     double mu_enskog(double T, int i) const {
-        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
+        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i]*1e10 * val1[i]*1e10 * collision_integral(T / val2[i]));
     }
     double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
     {
