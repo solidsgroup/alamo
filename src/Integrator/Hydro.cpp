@@ -146,6 +146,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         if ( value.details )
         {
             value.RegisterNewFab(value.viscosity_mf, &value.bc_nothing, 1, nghost, "viscosity", true, true);
+            value.RegisterNewFab(value.thermal_conductivity_coeff_mf, &value.bc_nothing, 1, nghost, "thermal_conductivity_coeff", true, true);
         }
     }
 
@@ -520,7 +521,9 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     amrex::MultiFab rhoDYy_mf(ba,dm,gas.nspecies,nghost);   // Fickian diffusion, rho*D*dY/dy
     amrex::MultiFab w_mf(ba,dm, gas.nspecies,nghost);       // mass generation/destruction (reaction rate, kg/m^3/s)
 
+    // Values only to be written if details=true
     amrex::Array4<Set::Scalar> mu_arr;
+    amrex::Array4<Set::Scalar> k_arr;
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
@@ -561,6 +564,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         if (details)
         {
             mu_arr    = viscosity_mf.Patch(lev,mfi);
+            k_arr     = thermal_conductivity_coeff_mf.Patch(lev,mfi);
         }
 
         // First ParallelFor loop to get initial values needed for gradients
@@ -605,6 +609,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             if ( details )
             {
                 mu_arr(i,j,k) = mixed_mu(i,j,k);
+                k_arr(i,j,k) = mixed_k(i,j,k);
             }
         });
 

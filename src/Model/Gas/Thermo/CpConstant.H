@@ -69,6 +69,10 @@ public:
         for (int n=0; n<nspecies; ++n) s += X(i,j,k,n) * (cp_moles[n] * log(T / Tref[n]) + s0[n]);
         return s;
     }
+    double cp_mol_species(double /*T*/, int n) const override {
+        // Specific heat (constant pressure) for species n, J/(kmol-K)
+        return cp_moles[n];
+    }
 
 }; // class CpConstant
 

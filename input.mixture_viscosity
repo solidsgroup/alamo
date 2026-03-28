@@ -13,12 +13,12 @@ gas.thermo.cpconstant.s0 = 0.0 0.0 0.0
 gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K
 
 gas.transport.type = mixture_averaged
-#gas.transport.mixture_averaged.type = constant
-#gas.transport.mixture_averaged.mu = 150.0E-7_Pa*s 150.0E-7_Pa*s
-#gas.transport.mixture_averaged.k = 1.5E-2_W/m/K 1.5E-2_W/m/K
-gas.transport.mixture_averaged.type = LJ
-gas.transport.mixture_averaged.LJdiameter = 3.996_ang 3.433_ang 3.667_ang
-gas.transport.mixture_averaged.LJwelldepth = 190.0_K 113.0_K 99.8_K
+gas.transport.mixture_averaged.type = constant
+gas.transport.mixture_averaged.mu = 1462E-7_g/cm/s 2031E-7_g/cm/s 1754E-7_g/cm/s
+gas.transport.mixture_averaged.k = 383e-7_cal/cm/s/K 612e-7_cal/cm/s/K 627e-7_cal/cm/s/K
+#gas.transport.mixture_averaged.type = LJ
+#gas.transport.mixture_averaged.LJdiameter = 3.996_ang 3.433_ang 3.667_ang
+#gas.transport.mixture_averaged.LJwelldepth = 190.0_K 113.0_K 99.8_K
 
 gas.eos.type = cpg
 

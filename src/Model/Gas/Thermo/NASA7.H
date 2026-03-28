@@ -77,6 +77,10 @@ public:
         for (int n=0; n<nspecies; ++n) s += X(i,j,k,n) * s_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
         return s;
     }
+    double cp_mol_species(double T, int n) const override {
+        // Specific heat (constant pressure) for species n, J/(kmol-K)
+        return cp_R(T, Tranges[n], coeffs[n]) * Set::Constant::Rg;
+    }
 
 }; // class NASA7
 

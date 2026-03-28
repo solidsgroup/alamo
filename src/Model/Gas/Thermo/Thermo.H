@@ -24,6 +24,8 @@ public:
     virtual double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
     // specific entropy, J/(kmol-K)
     virtual double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
+    // Specific heat (constant pressure) for species n, J/(kmol-K)
+    virtual double cp_mol_species(double T, int n) const = 0;
 
 }; // class Thermo
 

@@ -92,11 +92,11 @@ private:
     double mu_enskog(double T, int i) const {
         return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i]*1e10 * val1[i]*1e10 * collision_integral(T / val2[i]));
     }
-    double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
+    double k_eucken(double T, int n) const 
     {
         if (!thermo) Util::Abort(INFO, "[Transport::Mixture_Averaged::k_eucken] Thermo model not set.");
-        double cp = thermo->cp_mol(T, X, i, j, k);
-        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Set::Constant::Rg) / MW[n];
+        double cp = thermo->cp_mol_species(T, n);
+        return mu_enskog(T, n) * (cp + 1.25 * Set::Constant::Rg) / MW[n];
     }
 
 public:
@@ -119,6 +119,7 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i,j,k,b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
+                std::cout << "phi_mu: " << phi << "\n";
                 mu_mix += X(i, j, k, a) * mua / phi;
             }
         }
@@ -137,6 +138,7 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
+                std::cout << "phi_mu: " << phi << "\n";
                 mu_mix += X(i, j, k, a) * mua / phi;
             }
         }
@@ -168,6 +170,7 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
+                std::cout << "mua: " << mua << " phi_k: " << phi << "\n";
                 k_mix += X(i, j, k, a) * val2[a] / phi;
             }
         }
@@ -186,8 +189,10 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                k_mix += X(i, j, k, a) * k_eucken(T, X, i, j, k, a) / phi;
+                std::cout << "mua: " << mua << " phi_k: " << phi << "\n";
+                k_mix += X(i, j, k, a) * k_eucken(T, a) / phi;
             }
+            std::cout << "kmix: " << k_mix << "\n";
         }
         else
         {

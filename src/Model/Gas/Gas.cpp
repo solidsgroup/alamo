@@ -30,6 +30,11 @@ double Gas::entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j
     if (!thermo) Util::Abort(INFO, "[Gas::entropy_mol] No Thermo model attached.");
     return thermo->entropy_mol(T, X, i , j, k);
 }
+double Gas::cp_mol_species(double T, int n) const {
+    // Specific heat (constant pressure) for species n, J/(kmol-K)
+    if (!thermo) Util::Abort(INFO, "[Gas::cp_mol_species] No Thermo model attached.");
+    return thermo->cp_mol_species(T, n);
+}
 
 // Transport quantities
 double Gas::dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
