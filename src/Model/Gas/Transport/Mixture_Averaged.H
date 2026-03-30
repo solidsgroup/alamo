@@ -7,7 +7,7 @@
 #include "Model/Gas/Transport/Transport.H"
 
 // Type: 0,1 determines if per species viscosity and thermal conductivity are 
-//           constant (type=0) or computed using kinetic theory (type=1)
+//           constant (type=constant) or computed using kinetic theory (type=LJ)
 // Either way, mixture averaging is used to compute the mixture values
 //
 // For kinetic theory: Chapman-Enskog is used to compute viscosity
@@ -119,7 +119,6 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i,j,k,b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                std::cout << "phi_mu: " << phi << "\n";
                 mu_mix += X(i, j, k, a) * mua / phi;
             }
         }
@@ -138,7 +137,6 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                std::cout << "phi_mu: " << phi << "\n";
                 mu_mix += X(i, j, k, a) * mua / phi;
             }
         }
@@ -171,7 +169,6 @@ public:
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
                 std::cout << "mua: " << mua << " phi_k: " << phi << "\n";
-                k_mix += X(i, j, k, a) * val2[a] / phi;
             }
         }
         else if ( type == "LJ" )
@@ -189,10 +186,8 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                std::cout << "mua: " << mua << " phi_k: " << phi << "\n";
                 k_mix += X(i, j, k, a) * k_eucken(T, a) / phi;
             }
-            std::cout << "kmix: " << k_mix << "\n";
         }
         else
         {
@@ -225,7 +220,7 @@ public:
                 double DAB = 
                     0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
                     ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
-                DAB /= 1.0e4;
+                DAB /= 1.0e4; // convert cm^2/s to m^2/s
 
                 sumD += X(i, j, k, b) / DAB;
             }

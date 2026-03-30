@@ -28,8 +28,7 @@ plot_file = output.species_diffusion
 
 ### MESHING ###
 
-#amr.plot_dt = 1e-2
-amr.plot_int = 1
+amr.plot_dt = 1e-2
 amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
@@ -66,7 +65,7 @@ density.ic.type = expression
 density.ic.expression.constant.P = 101325.0
 density.ic.expression.constant.T = 300.0
 density.ic.expression.constant.R = 259.83
-density.ic.expression.constant.eps = 0.05
+density.ic.expression.constant.eps = 0.01
 density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-1/2)/eps))"
 density.ic.expression.region1 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
 #density.ic.expression.region0 = "P/R/T * (x<=0.5)"

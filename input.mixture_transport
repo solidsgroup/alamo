@@ -4,7 +4,7 @@ solver.type = hllc
 ### GAS MODEL ###
 system.amount = kmol
 # CO2 O2 N2
-gas.mw = 44.01_g/mol 32.00_g/mol 28.02_g/mol
+#gas.mw = 44.01_g/mol 32.00_g/mol 28.02_g/mol
 
 gas.thermo.type = cpconstant
 gas.thermo.cpconstant.cp_moles = 32.0_J/mol/K 32.0_J/mol/K 32.0_J/mol/K
@@ -13,18 +13,24 @@ gas.thermo.cpconstant.s0 = 0.0 0.0 0.0
 gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K
 
 gas.transport.type = mixture_averaged
-gas.transport.mixture_averaged.type = constant
-gas.transport.mixture_averaged.mu = 1462E-7_g/cm/s 2031E-7_g/cm/s 1754E-7_g/cm/s
-gas.transport.mixture_averaged.k = 383e-7_cal/cm/s/K 612e-7_cal/cm/s/K 627e-7_cal/cm/s/K
+#gas.transport.mixture_averaged.type = constant
+#gas.transport.mixture_averaged.mu = 1462E-7_g/cm/s 2031E-7_g/cm/s 1754E-7_g/cm/s
+#gas.transport.mixture_averaged.k = 383e-7_cal/cm/s/K 612e-7_cal/cm/s/K 627e-7_cal/cm/s/K
 #gas.transport.mixture_averaged.type = LJ
 #gas.transport.mixture_averaged.LJdiameter = 3.996_ang 3.433_ang 3.667_ang
 #gas.transport.mixture_averaged.LJwelldepth = 190.0_K 113.0_K 99.8_K
+
+# CO CO2 N2
+gas.mw = 28.01_g/mol 44.01_g/mol 28.02_g/mol
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter = 3.590_ang 3.996_ang 3.667_ang
+gas.transport.mixture_averaged.LJwelldepth = 100.0_K 190.0_K 99.8_K
 
 gas.eos.type = cpg
 
 ### OUTPUT ###
 
-plot_file = output.mixture_viscosity
+plot_file = output.mixture_transport
 
 ### MESHING ###
 
@@ -65,6 +71,7 @@ q.ic.constant.value = 0.0 0.0
 
 # P = 1 atm, T = 293 K
 density.ic.constant.value = 0.243454875129296 0.0519074926855928 0.964970271235302
+density.ic.constant.value = 0.574470635009588 0.902622372251766 0.0
 velocity.ic.constant.value = 0.0 0.0
 pressure.ic.constant.value = 101325.0
 

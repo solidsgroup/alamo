@@ -603,7 +603,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             gas.diffusion_coeffs(DKM, T(i,j,k), p(i,j,k), X, i, j, k);
             mixed_k(i,j,k) = gas.thermal_conductivity(T(i,j,k), X, i, j, k);
             mixed_mu(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
-            Util::Message(INFO, "viscosity: ", mixed_mu(i,j,k));
             mixed_H(i,j,k) = gas.enthalpy_mass(T(i,j,k), X, i, j, k);
 
             if ( details )
