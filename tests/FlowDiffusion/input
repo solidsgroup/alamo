@@ -14,6 +14,16 @@
 #@ args = gas.transport.mixture_averaged.LJwelldepth = 190.0_K 113.0_K 99.8_K
 #@ check-file = reference/viscous-thermal-LJ.csv
 
+#@ [species-constant]
+#@ exe = hydro
+#@ dim = 2
+#@ args = gas.mw = 28.01_g/mol 44.01_g/mol 28.02_g/mol
+#@ args = gas.transport.mixture_averaged.type = constant
+#@ args = gas.transport.mixture_averaged.mu = 1740E-7_g/cm/s 1462E-7_g/cm/s 1754E-7_g/cm/s
+#@ args = gas.transport.mixture_averaged.k = 554e-7_cal/cm/s/K 383e-7_cal/cm/s/K 627e-7_cal/cm/s/K
+#@ args = density.ic.constant.value = 0.574470635009588 0.902622372251766 0.0
+#@ check-file = reference/species-constant.csv
+
 #@ [species-LJ]
 #@ exe = hydro
 #@ dim = 2
@@ -32,7 +42,7 @@ system.amount = kmol
 # CO2 O2 N2
 gas.mw = 44.01_g/mol 32.00_g/mol 28.02_g/mol
 
-gas.thermo.type = cpconstant
+gas.thermo.type = cpconstant #dummy placeholders
 gas.thermo.cpconstant.cp_moles = 32.0_J/mol/K 32.0_J/mol/K 32.0_J/mol/K
 gas.thermo.cpconstant.h0 = 0.0 0.0 0.0
 gas.thermo.cpconstant.s0 = 0.0 0.0 0.0

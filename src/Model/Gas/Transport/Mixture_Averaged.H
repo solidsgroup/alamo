@@ -204,32 +204,60 @@ public:
             Set::Patch<Set::Scalar>& DKM, double T, double P,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) override
     {
-        // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
-        for (int a = 0; a < nspecies; ++a) {
-            double sumD = 0.0;
-            for (int b = 0; b < nspecies; ++b) {
-                if (a == b) continue;
-
-                double sigmaAB = 0.5 * (val1[a] + val1[b]) / L_1ang; // in angstroms
-                double epsAB   = sqrt(val2[a] * val2[b]);
-                double Tstar   = T / epsAB;
-
-                double omegaAB =
-                    1.06036 / pow(Tstar, 0.15610) +
-                    0.19300 / exp(0.47635 * Tstar) +
-                    1.03587 / exp(1.52996 * Tstar) +
-                    1.76474 / exp(3.89411 * Tstar);
-
-                double DAB = 
-                    0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
-                    ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
-                DAB *= A_1cmsq; // convert cm^2/s to m^2/s
-
-                sumD += X(i, j, k, b) / DAB;
+        if ( type == "constant" )
+        {
+            // Mixture diffusion coefficients based on simple harmonic mean, m^2/s
+            double rho_mix = 0.0;
+            for (int n=0; n<nspecies; ++n)
+                rho_mix += X(i,j,k,n) * MW[n];
+            rho_mix *= P/(Set::Constant::Rg*T);
+            
+            // compute self-diffusion proxies D_n = mu_n/rho_mix
+            std::vector<double> D_self(nspecies);
+            for (int n=0; n<nspecies; ++n)
+                D_self[n] = val1[n] / rho_mix;
+            
+            // compute mixture diffusion coefficients
+            for (int a=0; a<nspecies; ++a) {
+                double sumD = 0.0;
+                for (int b=0; b<nspecies; ++b) {
+                    if (a==b) continue;
+                    double D_ab = 2.0 * D_self[a] * D_self[b] / (D_self[a] + D_self[b]); // harmonic mean
+                    sumD += X(i,j,k,b) / D_ab;
+                }
+                DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
+                if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
             }
+        }
+        else if ( type == "LJ" )
+        {
+            // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
+            for (int a = 0; a < nspecies; ++a) {
+                double sumD = 0.0;
+                for (int b = 0; b < nspecies; ++b) {
+                    if (a == b) continue;
 
-            DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
-            if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+                    double sigmaAB = 0.5 * (val1[a] + val1[b]) / L_1ang; // in angstroms
+                    double epsAB   = sqrt(val2[a] * val2[b]);
+                    double Tstar   = T / epsAB;
+
+                    double omegaAB =
+                        1.06036 / pow(Tstar, 0.15610) +
+                        0.19300 / exp(0.47635 * Tstar) +
+                        1.03587 / exp(1.52996 * Tstar) +
+                        1.76474 / exp(3.89411 * Tstar);
+
+                    double DAB = 
+                        0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
+                        ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
+                    DAB *= A_1cmsq; // convert cm^2/s to m^2/s
+
+                    sumD += X(i, j, k, b) / DAB;
+                }
+
+                DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
+                if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+            }
         }
     }
 
