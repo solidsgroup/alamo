@@ -48,6 +48,7 @@ private:
     std::string type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
+    Set::Scalar P_1atm, L_1ang, A_1cmsq;
 
 public:
     Mixture_Averaged() = delete;
@@ -76,7 +77,9 @@ public:
         {
             Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
         }
-        //pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        pp.query_default("L_1ang", value.L_1ang, "1_ang", Unit::Length());
+        pp.query_default("A_1cmsq", value.A_1cmsq, "1_cm^2", Unit::Area());
 
         Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
         Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
@@ -90,7 +93,7 @@ private:
         return S;
     }
     double mu_enskog(double T, int i) const {
-        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i]*1e10 * val1[i]*1e10 * collision_integral(T / val2[i]));
+        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i]/L_1ang * val1[i]/L_1ang * collision_integral(T / val2[i]));
     }
     double k_eucken(double T, int n) const 
     {
@@ -168,7 +171,7 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                std::cout << "mua: " << mua << " phi_k: " << phi << "\n";
+                k_mix += X(i, j, k, a) * val2[a] / phi;
             }
         }
         else if ( type == "LJ" )
@@ -207,7 +210,7 @@ public:
             for (int b = 0; b < nspecies; ++b) {
                 if (a == b) continue;
 
-                double sigmaAB = 0.5 * (val1[a] + val1[b]) * 1.0e10; // in angstroms
+                double sigmaAB = 0.5 * (val1[a] + val1[b]) / L_1ang; // in angstroms
                 double epsAB   = sqrt(val2[a] * val2[b]);
                 double Tstar   = T / epsAB;
 
@@ -220,7 +223,7 @@ public:
                 double DAB = 
                     0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
                     ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
-                DAB /= 1.0e4; // convert cm^2/s to m^2/s
+                DAB *= A_1cmsq; // convert cm^2/s to m^2/s
 
                 sumD += X(i, j, k, b) / DAB;
             }

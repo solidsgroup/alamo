@@ -105,6 +105,7 @@ protected:
 
     Set::Field<Set::Scalar> viscosity_mf;
     Set::Field<Set::Scalar> thermal_conductivity_coeff_mf;
+    Set::Field<Set::Scalar> diffusion_coeff_mf;
 
     struct {
         Set::Field<Set::Scalar> density_mf;
