@@ -21,6 +21,7 @@
 #@ args = gas.transport.mixture_averaged.type = constant
 #@ args = gas.transport.mixture_averaged.mu = 1740E-7_g/cm/s 1462E-7_g/cm/s 1754E-7_g/cm/s
 #@ args = gas.transport.mixture_averaged.k = 554e-7_cal/cm/s/K 383e-7_cal/cm/s/K 627e-7_cal/cm/s/K
+#@ args = gas.transport.mixture_averaged.d_fact = 1.4
 #@ args = density.ic.constant.value = 0.574470635009588 0.902622372251766 0.0
 #@ check-file = reference/species-constant.csv
 

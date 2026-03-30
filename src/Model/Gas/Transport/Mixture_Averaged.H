@@ -48,6 +48,7 @@ private:
     std::string type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
+    double d_fact; // When type=constant, this is a correction factor such that self diffusion D_n = d_fact * mu_n/rho_mix
     Set::Scalar P_1atm, L_1ang, A_1cmsq;
 
 public:
@@ -67,6 +68,7 @@ public:
         {
             pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
             pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+            pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
         }
         else if (value.type == "LJ")
         {
@@ -215,7 +217,7 @@ public:
             // compute self-diffusion proxies D_n = mu_n/rho_mix
             std::vector<double> D_self(nspecies);
             for (int n=0; n<nspecies; ++n)
-                D_self[n] = val1[n] / rho_mix;
+                D_self[n] = d_fact * val1[n] / rho_mix;
             
             // compute mixture diffusion coefficients
             for (int a=0; a<nspecies; ++a) {
