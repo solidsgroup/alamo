@@ -122,7 +122,7 @@ flame.elastic.phirefinement = 0
 
 # Agglomeration parameters
 calculate_initial_volume = true
-sigma = 1.0
+sigma = 1e-1
 epsilon = 5.5e-6
 lambda = 5e4
 L_0_agglom = 2.5e1
