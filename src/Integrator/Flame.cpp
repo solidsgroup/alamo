@@ -155,6 +155,9 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Before this the refinement is based on the gradient of eta which helps the laser IC start correctly. A regrid is forced when this time is reached.
         pp.query_default("thermal.end_initial_refine_time", value.thermal.end_initial_refine_time, "0.0", Unit::Time());
 
+        // Inital refinement of the phi field based on phi gradient. After time > end_initial_refine_time stops refining at these phi values.
+        pp.query_default("thermal.phi_refinement_criterion_inital", value.thermal.phi_refinement_criterion_inital, 1.0e100);
+
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
             
@@ -193,7 +196,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
 
-    // Refinement criterion for eta field   
+    // Refinement criterion for eta field, if thermal is on, cells will only be tagged for refinement if T>0.9*TCutoff,
+    // and the gradient of eta > m_refinement_criterion at each cell
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
                         Unit::Less());
 
@@ -647,7 +651,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= 0.01) && time < thermal.end_initial_refine_time)
+            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= thermal.phi_refinement_criterion_inital) && time < thermal.end_initial_refine_time)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
