@@ -43,8 +43,7 @@ protected:
 private:
     Set::Field<Set::Scalar> etanew_mf;    /// The new value for eta this timestep
     Set::Field<Set::Scalar> etaold_mf;    /// Last timestep's value for eta
-    Set::Field<Set::Scalar> grad_etaold_mf;
-    Set::Field<Set::Scalar> lap_etaold_mf;
+    Set::Field<Set::Scalar> driving_force_mf; /// The variational derivative of the free energy functional
 
     BC::BC<Set::Scalar> *bc; /// eta's bc object
     IC::IC<Set::Scalar> *ic; /// eta's ic object

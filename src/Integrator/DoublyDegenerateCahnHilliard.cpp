@@ -46,15 +46,13 @@ void DoublyDegenerateCahnHilliard::Parse(DoublyDegenerateCahnHilliard &value, IO
 
     value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, "eta", true);
     value.RegisterNewFab(value.etaold_mf, value.bc, 1, 1, "eta_old", false);
-    value.RegisterNewFab(value.grad_etaold_mf, value.bc, AMREX_SPACEDIM, 1, "grad_eta_old", false, true, { AMREX_D_DECL("x", "y", "z") });
-    value.RegisterNewFab(value.lap_etaold_mf, value.bc, 1, 1, "lap_eta_old", false);
+    value.RegisterNewFab(value.driving_force_mf, value.bc, 1, 1, "driving_Force", false, false);
 }
 
 void
 DoublyDegenerateCahnHilliard::Initialize(int lev)
 {
-    grad_etaold_mf[lev]->setVal(0.0);
-    lap_etaold_mf[lev]->setVal(0.0);
+    driving_force_mf[lev]->setVal(0.0);
     ic->Initialize(lev, etanew_mf);
     ic->Initialize(lev, etaold_mf);
 }
@@ -67,46 +65,42 @@ DoublyDegenerateCahnHilliard::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     for (amrex::MFIter mfi(*etanew_mf[lev], true); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
-        Set::Patch<Set::Scalar> &etanew = etanew_mf[lev]->array(mfi);
         Set::Patch<const Set::Scalar> &etaold = etaold_mf[lev]->array(mfi);
-        Set::Patch<Set::Scalar> &grad_etaold = grad_etaold_mf[lev]->array(mfi);
-        Set::Patch<Set::Scalar> &lap_etaold = lap_etaold_mf[lev]->array(mfi);
+        Set::Patch<Set::Scalar> &driving_force = driving_force_mf[lev]->array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // Set::Scalar lap_eta = Numeric::Laplacian(eta, i, j, k, 0, DX);
-
-            // inter(i, j, k) = eta(i, j, k) * eta(i, j, k) * eta(i, j, k)
-            //                  - eta(i, j, k)
-            //                  - gamma * lap_eta;
-
-            // etanew(i, j, k) = eta(i, j, k) - dt * inter(i, j, k); // Allen Cahn
-
-            Set::Scalar eta = etaold(i, j, k);
-            Set::Scalar g_alpha = 1.0 / sqrt(gamma * gamma * (eta * eta * (1 - eta) * (1 - eta)) + alpha * alpha * epsilon * epsilon);
-            Set::Vector grad_etaold_matrix = g_alpha * Numeric::Gradient(etaold, i, j, k, DX);
-            AMREX_D_TERM(
-                grad_etaold(i, j, k, 0) = grad_etaold_matrix[0];,
-                grad_etaold(i, j, k, 1) = grad_etaold_matrix[1];,
-                grad_etaold(i, j, k, 2) = grad_etaold_matrix[2];
-            )
-        });
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            lap_etaold(i, j, k) = -epsilon * Numeric::Divergence(grad_etaold, i, j, k, 0, DX);
-        });
-
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            // Set::Scalar lap_inter = Numeric::Laplacian(inter, i, j, k, 0, DX);
-
-            // etanew(i, j, k) = eta(i, j, k) + dt * lap_inter;
-
             Set::Scalar eta = etaold(i, j, k);
             Set::Scalar g_alpha = 1.0 / sqrt(gamma * gamma * (eta * eta * (1 - eta) * (1 - eta)) + alpha * alpha * epsilon * epsilon);
             Set::Scalar g_alphaprime_denominator = sqrt(eta * eta * (1 - eta) * (1 - eta) + alpha * alpha * epsilon * epsilon);
             Set::Scalar g_alphaprime = eta * (1 - eta) * (2 * eta - 1) / (gamma * g_alphaprime_denominator * g_alphaprime_denominator * g_alphaprime_denominator);
             Set::Scalar f = omega / 4 * eta * eta * (1 - eta) * (1 - eta);
             Set::Scalar fprime = omega / 2 * eta * (1 - eta) * (1 - 2 * eta);
+            Set::Vector grad_eta = Numeric::Gradient(etaold, i, j, k, 0, DX);
+            Set::Scalar norm_squared_grad_eta = grad_eta.squaredNorm();
+            Set::Scalar lap_eta = Numeric::Laplacian(etaold, i, j, k, 0, DX);
+
+            driving_force(i, j, k) = g_alpha * fprime / epsilon - epsilon * (g_alphaprime * norm_squared_grad_eta + g_alpha * lap_eta) + g_alphaprime * (1 / epsilon * f + epsilon / 2 * norm_squared_grad_eta);
+        });
+    }
+
+    driving_force_mf[lev]->FillBoundary(geom[lev].periodicity());
+
+    for (amrex::MFIter mfi(*etanew_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> &etanew = etanew_mf[lev]->array(mfi);
+        Set::Patch<const Set::Scalar> &etaold = etaold_mf[lev]->array(mfi);
+        Set::Patch<const Set::Scalar> &driving_force = driving_force_mf[lev]->array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            Set::Scalar eta = etaold(i, j, k);
+            Set::Vector grad_eta = Numeric::Gradient(etaold, i, j, k, 0, DX);
             Set::Scalar M_alpha = mu * eta * eta * (1 - eta) * (1 - eta) + alpha * epsilon;
+            Set::Scalar M_alphaprime = 2.0 * mu * eta * (eta - 1) * (2 * eta - 1);
+            Set::Vector grad_driving_force = Numeric::Gradient(driving_force, i, j, k, 0, DX);
+            Set::Scalar lap_driving_force = Numeric::Laplacian(driving_force, i, j, k, 0, DX);
+
+            etanew(i, j, k) = 1.0 / epsilon * (M_alphaprime * grad_eta.dot(grad_driving_force) + M_alpha * lap_driving_force) * dt + etaold(i, j, k);
         });
     }
 }
