@@ -52,7 +52,7 @@ flame.pf.eta.bc.constant.val.zhi = 0.0
 # Phi initial condition (spheres)
 flame.phi.ic.type = psread
 flame.phi.ic.psread.file.unit = m
-flame.phi.ic.psread.file.name = tests/Agglomeration/3d.xyzr
+flame.phi.ic.psread.file.name = tests/Agglomeration/3d-slice.xyzr
 flame.phi.ic.psread.eps = 1.15e-5_m
 
 # Use the full-feedback propellant model
