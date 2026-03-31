@@ -18,12 +18,10 @@
 #include "Model/Gas/Gas.H"
 #include "Model/Gas/Thermo/Thermo.H"
 #include "Model/Gas/Thermo/CpConstant.H"
-#include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Transport/Transport.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
 #include "Model/Gas/EOS/EOS.H"
 #include "Model/Gas/EOS/CPG.H"
-#include "Model/Gas/EOS/TPG.H"
 
 namespace Integrator
 {
@@ -131,11 +129,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
         value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, false, {"x","y"});
 
-        value.neumann_bc_N = new BC::Constant(value.gas.nspecies);
-        *value.neumann_bc_N = BC::Constant::ZeroNeumann(value.gas.nspecies);
+        pp.select_default<BC::Constant,BC::Expression>("bc_D",value.neumann_bc_D, AMREX_SPACEDIM);
+        pp.select_default<BC::Constant,BC::Expression>("bc_1",value.neumann_bc_1, 1);
+        pp.select_default<BC::Constant,BC::Expression>("bc_N",value.neumann_bc_N, value.gas.nspecies);
+
         value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, value.gas.nspecies, nghost, "solid.density", true, false);
-        value.RegisterNewFab(value.solid.momentum_mf, &value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
-        value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
+        value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
+        value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.gas.nspecies+3, 0, "Source", true, false);
 
@@ -449,7 +449,6 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> Y         = mass_fraction_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> rho_new       = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> E_new         = energy_mf.Patch(lev,mfi);
@@ -561,7 +560,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<Set::Scalar>       rhoHDYy   = rhoHDYy_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoDYx    = rhoDYx_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoDYy    = rhoDYy_mf.array(mfi);
-        Set::Patch<Set::Scalar>       w         = w_mf.array(mfi);
 
         if (details)
         {
@@ -691,7 +689,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> molef     = mole_fraction_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> massf     = mass_fraction_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -699,17 +696,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         amrex::Array4<Set::Scalar> const& Source = (*Source_mf[lev]).array(mfi);
 
-        Set::Patch<Set::Scalar>       DKM       = DKM_mf.array(mfi);
         Set::Patch<Set::Scalar>       rho_sum   = rho_sum_mf.array(mfi);
-        Set::Patch<Set::Scalar>       mixed_k   = mixed_k_mf.array(mfi);
-        Set::Patch<Set::Scalar>       mixed_mu  = mixed_mu_mf.array(mfi);
-        Set::Patch<Set::Scalar>       mixed_H   = mixed_H_mf.array(mfi);
         Set::Patch<Set::Scalar>       mixed_kT  = mixed_kT_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoHDYx   = rhoHDYx_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoHDYy   = rhoHDYy_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoDYx    = rhoDYx_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoDYy    = rhoDYy_mf.array(mfi);
-        Set::Patch<Set::Scalar>       w         = w_mf.array(mfi);
 
         // Third and final ParallelFor loop to get 2nd gradients and compute fluxes
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -744,7 +736,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector grad_mixed_kTx  = Numeric::Gradient(mixed_kT,i,j,k,0,DX);
             Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX);
-            Set::Vector grad_mu         = Numeric::Gradient(mixed_mu,i,j,k,0,DX);
             // Gradients of rhoHDY and rhoDY are computed for individual species in for loops later
 
             if (prescribedflowmode == PrescribedFlowMode::Relative)
@@ -938,15 +929,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             if (gas.nspecies > 1)
             {
-                double dh = 0.0;
                 for (int n=0; n<gas.nspecies; ++n)
                 {
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                     Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
                     Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
                     dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]);
-                    //if (reacting_flow) dEf_dt -= eta * rho(i,j,k,n)/rho_sum(i,j,k)*species_h[n]*w(i,j,k,n);
-                    //dh += species_h[n]*w(i,j,k,n);
                 }
             }
 

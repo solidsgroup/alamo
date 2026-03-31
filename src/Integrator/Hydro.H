@@ -63,6 +63,10 @@ public:
         delete solid.energy_ic;
 
         delete riemannsolver;
+
+        delete neumann_bc_1;
+        delete neumann_bc_D;
+        delete neumann_bc_N;
     }
 
 protected:
@@ -148,9 +152,9 @@ protected:
 
     BC::Nothing bc_nothing;
 
-    BC::Constant neumann_bc_1 = BC::Constant::ZeroNeumann(1);
-    BC::Constant neumann_bc_D = BC::Constant::ZeroNeumann(AMREX_SPACEDIM);
-    BC::Constant* neumann_bc_N = nullptr;
+    BC::BC<Set::Scalar>* neumann_bc_1 = nullptr;
+    BC::BC<Set::Scalar>* neumann_bc_D = nullptr;
+    BC::BC<Set::Scalar>* neumann_bc_N = nullptr;
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
