@@ -20,15 +20,8 @@ the inital eta field is used to prevent squares of eta appearing instead of circ
 
 **Notes**
 
--  The domain is :code:`0.0005 x 0.0005`; however, the sphere packing file is
-   defined over a larger domain (:code:`0.001 x 0.001`).
--  The parameters are set to be as course as possible in both space and time without causing instability or solver divergence.
-   This means that the results may or may not be completely accurate.
-   It also may mean that you see some jitter or spurious fluctuation in the elastic solution (especially in the stress and strain fields.)
-   This should go away with increased resolution, so it is recommended that you increase the AMR level and decrease the timestep in order to get properly converged results.
--  The parameter :code:`elastic.solver.fixed_iter` replaces :code:`elastic.solver.max_iter`.
-   This allows the solution to continue even if full convergence is not attained.
-   However, as long as it is inside the Newton solver, the NR convergence check will prevent the solver from continuing unless it is within tolerance.
+-  The entire simulation runs in ~20 minutes locally on 8 cores, the test case doesn't run to completation.
+-  Discussion of the model and the methods can be found in the paper below
 
 **References**
 
