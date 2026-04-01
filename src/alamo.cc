@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iomanip>
 
+#include "Integrator/DoublyDegenerateCahnHilliard.H"
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 #include "IO/FileNameParse.H"
@@ -20,6 +21,7 @@
 
 #include "Integrator/AllenCahn.H"
 #include "Integrator/CahnHilliard.H"
+#include "Integrator/DoublyDegenerateCahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
 #include "Integrator/Flame.H"
@@ -37,7 +39,7 @@ int main (int argc, char* argv[])
     IO::ParmParse pp;
     // This input determines which integrator is used.
     pp.query_validate(  "alamo.program", program,
-                        {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard","pfc"});
+                      {"microstructure", "flame", "heat", "dendrite","allencahn","cahnhilliard", "ddch", "pfc"});
     srand(2);
 
     Integrator::Integrator *integrator = nullptr;
@@ -62,6 +64,7 @@ int main (int argc, char* argv[])
     else if (program == "dendrite")             pp.select_only<Integrator::Dendrite>(integrator);
     else if (program == "allencahn")            pp.select_only<Integrator::AllenCahn>(integrator);
     else if (program == "cahnhilliard")         pp.select_only<Integrator::CahnHilliard>(integrator);
+    else if (program == "ddch")                 pp.select_only<Integrator::DoublyDegenerateCahnHilliard>(integrator);
     else if (program == "pfc")                  pp.select_only<Integrator::PFC>(integrator);
     else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 

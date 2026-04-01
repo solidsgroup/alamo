@@ -1,5 +1,5 @@
-#ifndef INTEGRATOR_CAHNHILLIARD_H
-#define INTEGRATOR_CAHNHILLIARD_H
+#ifndef INTEGRATOR_DOUBLYDEGENERATECAHNHILLIARD_H
+#define INTEGRATOR_DOUBLYDEGENERATECAHNHILLIARD_H
 
 #include <AMReX.H>
 #include <AMReX_MLMG.H>
@@ -15,7 +15,7 @@ namespace Integrator
 class DoublyDegenerateCahnHilliard : public Integrator
 {
 public:
-    static constexpr const char *name = "cahnhilliard";
+    static constexpr const char *name = "doublydegeneratecahnhilliard";
 
     /// Basic constructor (don't use)
     DoublyDegenerateCahnHilliard();

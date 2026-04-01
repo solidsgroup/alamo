@@ -1,11 +1,8 @@
 #include <AMReX_MLPoisson.H>
 
-#ifdef ALAMO_FFT
-#include <AMReX_FFT.H>
-#endif
-
 #include "BC/Constant.H"
 #include "DoublyDegenerateCahnHilliard.H"
+#include "IC/Ellipse.H"
 #include "IC/Random.H"
 #include "IO/ParmParse.H"
 #include "Numeric/Stencil.H"
@@ -40,7 +37,7 @@ void DoublyDegenerateCahnHilliard::Parse(DoublyDegenerateCahnHilliard &value, IO
     pp.query_default("refinement_threshold", value.refinement_threshold, 1e100);
 
     // initial condition for :math:`\eta`
-    pp.select_default<IC::Random>("eta.ic", value.ic, value.geom);
+    pp.select_default<IC::Ellipse, IC::Random>("eta.ic", value.ic, value.geom);
     // boundary condition for :math:`\eta`
     pp.select_default<BC::Constant>("eta.bc", value.bc, 1);
 
@@ -58,7 +55,7 @@ DoublyDegenerateCahnHilliard::Initialize(int lev)
 }
 
 void
-DoublyDegenerateCahnHilliard::Advance(int lev, Set::Scalar time, Set::Scalar dt)
+DoublyDegenerateCahnHilliard::Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
 {
     std::swap(etaold_mf[lev], etanew_mf[lev]);
     const Set::Scalar *DX = geom[lev].CellSize();
