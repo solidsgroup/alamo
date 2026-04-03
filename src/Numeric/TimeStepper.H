@@ -298,42 +298,42 @@ public:
 #endif
             auto const& sourceTerm_arr = solver->SourceTermVec.Patch(lev, mfi);  // Source-term derivatives from Viscous stress
 
-            {
-                const int ic=32, jc=7, kc=7;
-                const int nprobe = 3;  
+            // {
+            //     const int ic=32, jc=7, kc=7;
+            //     const int nprobe = 3;  
 
-                const amrex::IntVect iv(ic,jc,kc);
-                const amrex::Box& tbx = mfi.tilebox();
+            //     const amrex::IntVect iv(ic,jc,kc);
+            //     const amrex::Box& tbx = mfi.tilebox();
 
                 
-                if (tbx.contains(iv)) {
+            //     if (tbx.contains(iv)) {
                 
-                    const auto FxR = xflux_arr(ic+1, jc, kc, nprobe);
-                    const auto FxL = xflux_arr(ic  , jc, kc, nprobe);
+            //         const auto FxR = xflux_arr(ic+1, jc, kc, nprobe);
+            //         const auto FxL = xflux_arr(ic  , jc, kc, nprobe);
 
-                    const auto FyT = yflux_arr(ic, jc+1, kc, nprobe);
-                    const auto FyB = yflux_arr(ic, jc  , kc, nprobe);
+            //         const auto FyT = yflux_arr(ic, jc+1, kc, nprobe);
+            //         const auto FyB = yflux_arr(ic, jc  , kc, nprobe);
 
-            #if (AMREX_SPACEDIM == 3)
-                    const auto FzF = zflux_arr(ic, jc, kc+1, nprobe);
-                    const auto FzB = zflux_arr(ic, jc, kc  , nprobe);
-            #endif
+            // #if (AMREX_SPACEDIM == 3)
+            //         const auto FzF = zflux_arr(ic, jc, kc+1, nprobe);
+            //         const auto FzB = zflux_arr(ic, jc, kc  , nprobe);
+            // #endif
 
-                    amrex::AllPrint()
-                        << "\n[TS PROBE pre] proc=" << amrex::ParallelDescriptor::MyProc()
-                        << " stage=" << stage
-                        << " tile=" << tbx
-                        << " cell=("<<ic<<","<<jc<<","<<kc<<") n="<<nprobe
-                        << "\n  q_old=" << q_old_arr(ic,jc,kc,nprobe)
-                        << "\n  q_cur=" << q_arr(ic,jc,kc,nprobe)
-                        << "\n  FxR=" << FxR << " FxL=" << FxL << " dFx=" << (FxR-FxL)
-                        << "\n  FyT=" << FyT << " FyB=" << FyB << " dFy=" << (FyT-FyB)
-            #if (AMREX_SPACEDIM == 3)
-                        << "\n  FzF=" << FzF << " FzB=" << FzB << " dFz=" << (FzF-FzB)
-            #endif
-                        << "\n";
-                }
-            }
+            //         amrex::AllPrint()
+            //             << "\n[TS PROBE pre] proc=" << amrex::ParallelDescriptor::MyProc()
+            //             << " stage=" << stage
+            //             << " tile=" << tbx
+            //             << " cell=("<<ic<<","<<jc<<","<<kc<<") n="<<nprobe
+            //             << "\n  q_old=" << q_old_arr(ic,jc,kc,nprobe)
+            //             << "\n  q_cur=" << q_arr(ic,jc,kc,nprobe)
+            //             << "\n  FxR=" << FxR << " FxL=" << FxL << " dFx=" << (FxR-FxL)
+            //             << "\n  FyT=" << FyT << " FyB=" << FyB << " dFy=" << (FyT-FyB)
+            // #if (AMREX_SPACEDIM == 3)
+            //             << "\n  FzF=" << FzF << " FzB=" << FzB << " dFz=" << (FzF-FzB)
+            // #endif
+            //             << "\n";
+            //     }
+            // }
                   
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
@@ -440,23 +440,23 @@ public:
             
         
             const int rho = solver->variableIndex.DENS;
-            const amrex::IntVect p7(32, 7, 7);
-            const amrex::IntVect p8(32, 8, 7);
-            const amrex::Box& fabx = (*solver->QVec_mf[lev])[mfi].box();
+            // const amrex::IntVect p7(32, 7, 7);
+            // const amrex::IntVect p8(32, 8, 7);
+            // const amrex::Box& fabx = (*solver->QVec_mf[lev])[mfi].box();
 
-            if (fabx.contains(p7) || fabx.contains(p8)) {
+            // if (fabx.contains(p7) || fabx.contains(p8)) {
 
-                auto print_q = [&](const amrex::IntVect& p, const char* tag) {
-                    if (!fabx.contains(p)) return;
+            //     auto print_q = [&](const amrex::IntVect& p, const char* tag) {
+            //         if (!fabx.contains(p)) return;
 
-                    Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                        32,7,7, q_arr(p[0],p[1],p[2],rho),
-                        std::string("q_new(rho)@") + tag, "TS: POST-UPDATE", false, rho, true);
-                };
+            //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+            //             32,7,7, q_arr(p[0],p[1],p[2],rho),
+            //             std::string("q_new(rho)@") + tag, "TS: POST-UPDATE", false, rho, true);
+            //     };
 
-                print_q(p7, "j7");
-                print_q(p8, "j8");
-}
+            //     print_q(p7, "j7");
+            //     print_q(p8, "j8");
+            // }
 
             
         }
@@ -469,27 +469,27 @@ public:
             const int rho = solver->variableIndex.DENS;
 
         
-            for (amrex::MFIter mfi(*solver->QVec_mf[lev]); mfi.isValid(); ++mfi) {
+            // for (amrex::MFIter mfi(*solver->QVec_mf[lev]); mfi.isValid(); ++mfi) {
 
-                const amrex::Box& fbx = (*solver->QVec_mf[lev])[mfi].box();
-                if (fbx.contains(amrex::IntVect(ic1,jc1,kc1)) ||
-                    fbx.contains(amrex::IntVect(ic2,jc2,kc2))) {
+            //     const amrex::Box& fbx = (*solver->QVec_mf[lev])[mfi].box();
+            //     if (fbx.contains(amrex::IntVect(ic1,jc1,kc1)) ||
+            //         fbx.contains(amrex::IntVect(ic2,jc2,kc2))) {
 
-                    auto const& q = (*solver->QVec_mf[lev]).const_array(mfi);
+            //         auto const& q = (*solver->QVec_mf[lev]).const_array(mfi);
 
-                    if (fbx.contains(amrex::IntVect(ic1,jc1,kc1))) {
-                        amrex::AllPrint()
-                            << "\n[TS SIMPLE] stage=" << stage
-                            << " DENS(32,7,7)=" << q(ic1,jc1,kc1,rho);
-                    }
+            //         if (fbx.contains(amrex::IntVect(ic1,jc1,kc1))) {
+            //             amrex::AllPrint()
+            //                 << "\n[TS SIMPLE] stage=" << stage
+            //                 << " DENS(32,7,7)=" << q(ic1,jc1,kc1,rho);
+            //         }
 
-                    if (fbx.contains(amrex::IntVect(ic2,jc2,kc2))) {
-                        amrex::AllPrint()
-                            << "  DENS(32,8,7)=" << q(ic2,jc2,kc2,rho)
-                            << "\n";
-                    }
-                }
-            }
+            //         if (fbx.contains(amrex::IntVect(ic2,jc2,kc2))) {
+            //             amrex::AllPrint()
+            //                 << "  DENS(32,8,7)=" << q(ic2,jc2,kc2,rho)
+            //                 << "\n";
+            //         }
+            //     }
+            // }
         }
 // ===== END SIMPLE PROBE =====
 

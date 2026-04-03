@@ -734,102 +734,102 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
             
                
 
-            auto ProbePQ = [&](const char* tag, int stage) {
-                const int i1=32, j1=7, k1=7;
-                const int i2=32, j2=8, k2=7;
-                const int rho = this->variableIndex.DENS;
+            // auto ProbePQ = [&](const char* tag, int stage) {
+            //     const int i1=32, j1=7, k1=7;
+            //     const int i2=32, j2=8, k2=7;
+            //     const int rho = this->variableIndex.DENS;
 
                 
 
-                // ---- Probe Q ----
-                for (amrex::MFIter mfi(*QVec_mf[lev]); mfi.isValid(); ++mfi) {
-                    const amrex::Box& b = (*QVec_mf[lev])[mfi].box(); // FAB box
-                    if (!b.contains(amrex::IntVect(i1,j1,k1)) ||
-                        !b.contains(amrex::IntVect(i2,j2,k2))) continue;
+            //     // ---- Probe Q ----
+            //     for (amrex::MFIter mfi(*QVec_mf[lev]); mfi.isValid(); ++mfi) {
+            //         const amrex::Box& b = (*QVec_mf[lev])[mfi].box(); // FAB box
+            //         if (!b.contains(amrex::IntVect(i1,j1,k1)) ||
+            //             !b.contains(amrex::IntVect(i2,j2,k2))) continue;
 
-                    auto const& Q = (*QVec_mf[lev]).const_array(mfi);
-                    amrex::AllPrint()
-                        << "\n" << tag
-                        << " stage=" << stage
-                        << " [Q] rho(32,7,7)=" << Q(i1,j1,k1,rho)
-                        << " rho(32,8,7)=" << Q(i2,j2,k2,rho)
-                        << "\n";
-                    break;
-                }
+            //         auto const& Q = (*QVec_mf[lev]).const_array(mfi);
+            //         amrex::AllPrint()
+            //             << "\n" << tag
+            //             << " stage=" << stage
+            //             << " [Q] rho(32,7,7)=" << Q(i1,j1,k1,rho)
+            //             << " rho(32,8,7)=" << Q(i2,j2,k2,rho)
+            //             << "\n";
+            //         break;
+            //     }
 
-                // ---- Probe P ----
-                for (amrex::MFIter mfi(*PVec_mf[lev]); mfi.isValid(); ++mfi) {
-                    const amrex::Box& b = (*PVec_mf[lev])[mfi].box(); // FAB box
-                    if (!b.contains(amrex::IntVect(i1,j1,k1)) ||
-                        !b.contains(amrex::IntVect(i2,j2,k2))) continue;
+            //     // ---- Probe P ----
+            //     for (amrex::MFIter mfi(*PVec_mf[lev]); mfi.isValid(); ++mfi) {
+            //         const amrex::Box& b = (*PVec_mf[lev])[mfi].box(); // FAB box
+            //         if (!b.contains(amrex::IntVect(i1,j1,k1)) ||
+            //             !b.contains(amrex::IntVect(i2,j2,k2))) continue;
 
-                    auto const& P = (*PVec_mf[lev]).const_array(mfi);
-                    amrex::AllPrint()
-                        << tag
-                        << " stage=" << stage
-                        << " [P] rho(32,7,7)=" << P(i1,j1,k1,rho)
-                        << " rho(32,8,7)=" << P(i2,j2,k2,rho)
-                        << "\n";
-                    break;
-                }
-            };
-            // ======== End probe helper ========
-
-
-            // ======== Where to call it ========
+            //         auto const& P = (*PVec_mf[lev]).const_array(mfi);
+            //         amrex::AllPrint()
+            //             << tag
+            //             << " stage=" << stage
+            //             << " [P] rho(32,7,7)=" << P(i1,j1,k1,rho)
+            //             << " rho(32,8,7)=" << P(i2,j2,k2,rho)
+            //             << "\n";
+            //         break;
+            //     }
+            // };
+            // // ======== End probe helper ========
 
 
-
-                const int ii = DebugProbe::i;
-                const int jj = DebugProbe::j;
-                const int kk = DebugProbe::k;
-                const int rho1 = this->variableIndex.DENS;
-                const int n = rho1;
-                const int iii = 32, kkk = 7;
-                const int jL = 7, jR = 8;
-                const int rho = variableIndex.DENS;
-                ProbePQ("Start of stage", stage);
-
-
-                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
-                // ProbePQ("[AFTER ComputeConservedVariables]", stage);
-                // ProbeCC_AtValidPoint("[PROBE] AFTER CCV Q rho", *QVec_mf[lev], lev, variableIndex.DENS);
-                // amrex::Print() << "[NORMINF] AFTER CCV Q rho = " << QVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
-                ProbeFixedCellValid("[AFTER CCV] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
-                ProbeFixedCellValid("[AFTER CCV] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
+            // // ======== Where to call it ========
 
 
 
-                // 2. Perform flux reconstruction and compute fluxes in all directions
-                fluxHandler->ConstructFluxes(lev, this);
-                // ProbeCC_AtValidPoint("[PROBE] AFTER CONSTRUCTFLUXES P rho", *PVec_mf[lev], lev, variableIndex.DENS);
-                // amrex::Print() << "[NORMINF] AFTER CONSTRUCTFLUXES P rho = " << PVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
-                ProbeFixedCellValid("[AFTER FLUXES] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
-                ProbeFixedCellValid("[AFTER FLUXES] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
+            //     const int ii = DebugProbe::i;
+            //     const int jj = DebugProbe::j;
+            //     const int kk = DebugProbe::k;
+            //     const int rho1 = this->variableIndex.DENS;
+            //     const int n = rho1;
+            //     const int iii = 32, kkk = 7;
+            //     const int jL = 7, jR = 8;
+            //     const int rho = variableIndex.DENS;
+            //     ProbePQ("Start of stage", stage);
+
+
+            //     ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+            //     // ProbePQ("[AFTER ComputeConservedVariables]", stage);
+            //     // ProbeCC_AtValidPoint("[PROBE] AFTER CCV Q rho", *QVec_mf[lev], lev, variableIndex.DENS);
+            //     // amrex::Print() << "[NORMINF] AFTER CCV Q rho = " << QVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
+            //     ProbeFixedCellValid("[AFTER CCV] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
+            //     ProbeFixedCellValid("[AFTER CCV] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
 
 
 
-                {
+            //     // 2. Perform flux reconstruction and compute fluxes in all directions
+            //     fluxHandler->ConstructFluxes(lev, this);
+            //     // ProbeCC_AtValidPoint("[PROBE] AFTER CONSTRUCTFLUXES P rho", *PVec_mf[lev], lev, variableIndex.DENS);
+            //     // amrex::Print() << "[NORMINF] AFTER CONSTRUCTFLUXES P rho = " << PVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
+            //     ProbeFixedCellValid("[AFTER FLUXES] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
+            //     ProbeFixedCellValid("[AFTER FLUXES] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
 
-                    amrex::MultiFab& YF = *YFlux_mf[lev];
 
-                    for (amrex::MFIter mfi(YF); mfi.isValid(); ++mfi) {
-                        const amrex::Box& b = YF[mfi].box();
-                        if (!b.contains(amrex::IntVect(ii,jj,kk)) ||
-                            !b.contains(amrex::IntVect(ii,jj-1,kk))) continue;
 
-                        auto const& Fy = YF.const_array(mfi);
+            //     {
 
-                        amrex::AllPrint()
-                            << "[P1 POST-FLUXSTORE YF] stage=" << stage
-                            << " n=DENS"
-                            << " YF("<<ii<<","<<jj<<","<<kk<<")=" << Fy(ii,jj,kk,n)
-                            << " YF("<<ii<<","<<jj-1<<","<<kk<<")=" << Fy(ii,jj-1,kk,n)
-                            << " dY=" << (Fy(ii,jj,kk,n)-Fy(ii,jj-1,kk,n))
-                            << "\n";
-                        break;
-                    }
-                }
+            //         amrex::MultiFab& YF = *YFlux_mf[lev];
+
+            //         for (amrex::MFIter mfi(YF); mfi.isValid(); ++mfi) {
+            //             const amrex::Box& b = YF[mfi].box();
+            //             if (!b.contains(amrex::IntVect(ii,jj,kk)) ||
+            //                 !b.contains(amrex::IntVect(ii,jj-1,kk))) continue;
+
+            //             auto const& Fy = YF.const_array(mfi);
+
+            //             amrex::AllPrint()
+            //                 << "[P1 POST-FLUXSTORE YF] stage=" << stage
+            //                 << " n=DENS"
+            //                 << " YF("<<ii<<","<<jj<<","<<kk<<")=" << Fy(ii,jj,kk,n)
+            //                 << " YF("<<ii<<","<<jj-1<<","<<kk<<")=" << Fy(ii,jj-1,kk,n)
+            //                 << " dY=" << (Fy(ii,jj,kk,n)-Fy(ii,jj-1,kk,n))
+            //                 << "\n";
+            //             break;
+            //         }
+            //     }
 
                 // 3. Compute Viscous Terms and Source Term for viscous fluxes
                 sourceTermHandler->ComputeSourceTerm(lev, this);
@@ -839,86 +839,86 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
                 // ProbeCC_AtValidPoint("[PROBE] AFTER SUBSTEP Q rho", *QVec_mf[lev], lev, variableIndex.DENS);
                 // amrex::Print() << "[NORMINF] AFTER SUBSTEP Q rho = " << QVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
 
-                ProbeFixedCellValid("[AFTER SUBSTEP] Q rho j=7", *QVec_mf[lev], lev, iii, 7, kkk, rho);
-                ProbeFixedCellValid("[AFTER SUBSTEP] Q rho j=8", *QVec_mf[lev], lev, iii, 8, kkk, rho);
+                // ProbeFixedCellValid("[AFTER SUBSTEP] Q rho j=7", *QVec_mf[lev], lev, iii, 7, kkk, rho);
+                // ProbeFixedCellValid("[AFTER SUBSTEP] Q rho j=8", *QVec_mf[lev], lev, iii, 8, kkk, rho);
                 
         
-                for (amrex::MFIter mfi(*QVec_mf[lev]); mfi.isValid(); ++mfi) {
-                    const amrex::Box& fbx = (*QVec_mf[lev])[mfi].box();
-                    if (!fbx.contains(amrex::IntVect(ii,jj,kk)) ||
-                        !fbx.contains(amrex::IntVect(ii,jj+1,kk))) continue;
+                // for (amrex::MFIter mfi(*QVec_mf[lev]); mfi.isValid(); ++mfi) {
+                //     const amrex::Box& fbx = (*QVec_mf[lev])[mfi].box();
+                //     if (!fbx.contains(amrex::IntVect(ii,jj,kk)) ||
+                //         !fbx.contains(amrex::IntVect(ii,jj+1,kk))) continue;
         
-                    auto const& Q = (*QVec_mf[lev]).const_array(mfi);
-                    amrex::AllPrint()
-                        << "[P2 POST-SUBSTEP Q] stage=" << stage
-                        << " DENS("<<ii<<","<<jj<<","<<kk<<")=" << Q(ii,jj,kk,rho1)
-                        << " DENS("<<ii<<","<<jj+1<<","<<kk<<")=" << Q(ii,jj+1,kk,rho1)
-                        << "\n";
-                    break;
-                }
+                //     auto const& Q = (*QVec_mf[lev]).const_array(mfi);
+                //     amrex::AllPrint()
+                //         << "[P2 POST-SUBSTEP Q] stage=" << stage
+                //         << " DENS("<<ii<<","<<jj<<","<<kk<<")=" << Q(ii,jj,kk,rho1)
+                //         << " DENS("<<ii<<","<<jj+1<<","<<kk<<")=" << Q(ii,jj+1,kk,rho1)
+                //         << "\n";
+                //     break;
+                // }
                 
-                ProbeCC("TS: PRE-UpdateSolutions Q(rho)", *QVec_mf[lev], i0,j0,k0, rho, "Q(rho)");
-                ProbeCC("TS: PRE-UpdateSolutions P(rho)", *PVec_mf[lev], i0,j0,k0, rho, "P(rho)");
+                // ProbeCC("TS: PRE-UpdateSolutions Q(rho)", *QVec_mf[lev], i0,j0,k0, rho, "Q(rho)");
+                // ProbeCC("TS: PRE-UpdateSolutions P(rho)", *PVec_mf[lev], i0,j0,k0, rho, "P(rho)");
                 // 5. Update solution from conservative to primitive variables
                 UpdateSolutions<SolverType::SolveCompressibleEuler>(lev);
                 // ProbeCC_AtValidPoint("[PROBE] AFTER UPDATESOL P rho", *PVec_mf[lev], lev, variableIndex.DENS);
                 // amrex::Print() << "[NORMINF] AFTER UPDATESOL P rho = " << PVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
-                ProbeFixedCellValid("[AFTER UPDATESOL] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
-                ProbeFixedCellValid("[AFTER UPDATESOL] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
-                ProbeCC("TS: POST-UpdateSolutions Q(rho)", *QVec_mf[lev], i0,j0,k0, rho, "Q(rho)");
-                ProbeCC("TS: POST-UpdateSolutions P(rho)", *PVec_mf[lev], i0,j0,k0, rho, "P(rho)");
+                // ProbeFixedCellValid("[AFTER UPDATESOL] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
+                // ProbeFixedCellValid("[AFTER UPDATESOL] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
+                // ProbeCC("TS: POST-UpdateSolutions Q(rho)", *QVec_mf[lev], i0,j0,k0, rho, "Q(rho)");
+                // ProbeCC("TS: POST-UpdateSolutions P(rho)", *PVec_mf[lev], i0,j0,k0, rho, "P(rho)");
 
-                ProbePQ("[AFTER UpdateSolutions]", stage);
-                {
-                    const int i = iii, j = 7, k = kkk;
-                    const int rho = variableIndex.DENS;
-                    Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, true);
-                    for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-                        const amrex::Box& vbx = mfi.validbox();
-                        if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
+                // ProbePQ("[AFTER UpdateSolutions]", stage);
+                // {
+                //     const int i = iii, j = 7, k = kkk;
+                //     const int rho = variableIndex.DENS;
+                //     Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, true);
+                //     for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+                //         const amrex::Box& vbx = mfi.validbox();
+                //         if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
                 
-                        auto const& p = PVec_mf[lev]->const_array(mfi);
+                //         auto const& p = PVec_mf[lev]->const_array(mfi);
                 
-                        Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                            i,j,k, p(i,j,k,rho),
-                            "P(rho)", "TS: AFTER UpdateSolutions",
-                            /*abort_if_nan=*/false, /*component=*/rho,
-                            /*enableDebug=*/true
-                        );
-                        break;
-                    }
-                }
+                //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //             i,j,k, p(i,j,k,rho),
+                //             "P(rho)", "TS: AFTER UpdateSolutions",
+                //             /*abort_if_nan=*/false, /*component=*/rho,
+                //             /*enableDebug=*/true
+                //         );
+                //         break;
+                //     }
+                // }
                 
 
                 ApplyBoundaryConditions(lev, time);
-                ProbeCC("TS: POST-ApplyBC Q(rho)", *QVec_mf[lev], i0,j0,k0, rho, "Q(rho)");
-                ProbeCC("TS: POST-ApplyBC P(rho)", *PVec_mf[lev], i0,j0,k0, rho, "P(rho)");
-                {
-                    const int i = iii, j = 7, k = kkk;
-                    const int rho = variableIndex.DENS;
+                // ProbeCC("TS: POST-ApplyBC Q(rho)", *QVec_mf[lev], i0,j0,k0, rho, "Q(rho)");
+                // ProbeCC("TS: POST-ApplyBC P(rho)", *PVec_mf[lev], i0,j0,k0, rho, "P(rho)");
+                // {
+                //     const int i = iii, j = 7, k = kkk;
+                //     const int rho = variableIndex.DENS;
                 
-                    for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-                        const amrex::Box& vbx = mfi.validbox();
-                        if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
+                //     for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+                //         const amrex::Box& vbx = mfi.validbox();
+                //         if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
                 
-                        auto const& p = PVec_mf[lev]->const_array(mfi);
+                //         auto const& p = PVec_mf[lev]->const_array(mfi);
                 
-                        Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                            i,j,k, p(i,j,k,rho),
-                            "P(rho)", "TS: AFTER ApplyBC",
-                            /*abort_if_nan=*/false, /*component=*/rho,
-                            /*enableDebug=*/true
-                        );
-                        break;
-                    }
-                }
+                //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //             i,j,k, p(i,j,k,rho),
+                //             "P(rho)", "TS: AFTER ApplyBC",
+                //             /*abort_if_nan=*/false, /*component=*/rho,
+                //             /*enableDebug=*/true
+                //         );
+                //         break;
+                //     }
+                // }
 
-                ProbeFixedCellValid("[AFTER APPLYBC] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
-                ProbeFixedCellValid("[AFTER APPLYBC] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
+                // ProbeFixedCellValid("[AFTER APPLYBC] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
+                // ProbeFixedCellValid("[AFTER APPLYBC] P rho j=8", *PVec_mf[lev], lev, iii, 8, kkk, rho);
 
-                // ProbeCC_AtValidPoint("[PROBE] AFTER APPLYBC P rho", *PVec_mf[lev], lev, variableIndex.DENS);
-                // amrex::Print() << "[NORMINF] AFTER APPLYBC P rho = " << PVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
-                ProbePQ("[AFTER ApplyBC]", stage);
+                // // ProbeCC_AtValidPoint("[PROBE] AFTER APPLYBC P rho", *PVec_mf[lev], lev, variableIndex.DENS);
+                // // amrex::Print() << "[NORMINF] AFTER APPLYBC P rho = " << PVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
+                // ProbePQ("[AFTER ApplyBC]", stage);
                 
                 
             }
