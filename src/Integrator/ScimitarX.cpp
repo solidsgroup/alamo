@@ -791,7 +791,7 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
             //     ProbePQ("Start of stage", stage);
 
 
-            //     ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+                ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
             //     // ProbePQ("[AFTER ComputeConservedVariables]", stage);
             //     // ProbeCC_AtValidPoint("[PROBE] AFTER CCV Q rho", *QVec_mf[lev], lev, variableIndex.DENS);
             //     // amrex::Print() << "[NORMINF] AFTER CCV Q rho = " << QVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
@@ -800,8 +800,8 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
 
 
 
-            //     // 2. Perform flux reconstruction and compute fluxes in all directions
-            //     fluxHandler->ConstructFluxes(lev, this);
+                // 2. Perform flux reconstruction and compute fluxes in all directions
+                fluxHandler->ConstructFluxes(lev, this);
             //     // ProbeCC_AtValidPoint("[PROBE] AFTER CONSTRUCTFLUXES P rho", *PVec_mf[lev], lev, variableIndex.DENS);
             //     // amrex::Print() << "[NORMINF] AFTER CONSTRUCTFLUXES P rho = " << PVec_mf[lev]->norminf(variableIndex.DENS,0) << "\n";
             //     ProbeFixedCellValid("[AFTER FLUXES] P rho j=7", *PVec_mf[lev], lev, iii, 7, kkk, rho);
