@@ -33,7 +33,7 @@ public:
 public:
     double ComputeT(double density, double momentumx, double momentumy, double E, double Tguess,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k, double /*rtol=1e-12*/) const override;
-    double ComputeT(double pressure, double density,
+    double ComputeT_from_primitives(double pressure, double density,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;
     double ComputeP(double density, double T,
                     Set::Patch<const Set::Scalar>& X, int i, int j, int k) const override;

@@ -65,10 +65,8 @@ public:
             Util::Warning(INFO,"The entropy fix is experimental and should be used with caution. Has previously caused errors with FlowDrivenCavity regression test");
     }
 
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
+    virtual Flux Solve(const State& lo, const State& hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
-        std::vector<double> rho_L = lo.rho;
-        std::vector<double> rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
         Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
@@ -78,10 +76,8 @@ public:
         Set::Scalar rho_sum_R = 0.0;
         for (int n=0; n<gas.nspecies; ++n)
         {
-            rho_L[n] = std::max(small,rho_L[n]);
-            rho_R[n] = std::max(small,rho_R[n]);
-            rho_sum_L += rho_L[n];
-            rho_sum_R += rho_R[n];
+            rho_sum_L += std::max(small, lo.rho[n]);
+            rho_sum_R += std::max(small, hi.rho[n]);
         }
 
         // STEP 1: Compute fluid primitives
@@ -264,6 +260,7 @@ public:
         // STEP 7: Compute fluxes
         //
         Flux fl;
+        fl.nspecies = gas.nspecies;
 
         Set::Scalar mixed_mass_flux = (0.5*(rho_sum_L*u_L + rho_sum_R*u_R) - 0.5*(
                     r11*fabs(lambda1)*deltav1 +
@@ -272,13 +269,13 @@ public:
         );
         for (int n=0; n<gas.nspecies; ++n)
         {
-            Set::Scalar Y_L = rho_L[n] / rho_sum_L;
-            Set::Scalar Y_R = rho_R[n] / rho_sum_R;
+            Set::Scalar Y_L = std::max(small, lo.rho[n]) / rho_sum_L;
+            Set::Scalar Y_R = std::max(small, hi.rho[n]) / rho_sum_R;
             Set::Scalar Y_face = (mixed_mass_flux >= 0.0) ? Y_L : Y_R;
-            fl.mass.push_back(mixed_mass_flux * Y_face);
+            fl.mass[n] = mixed_mass_flux * Y_face;
         }
         
-        if (fl.mass != fl.mass)
+        if (fl.mass[0] != fl.mass[0]) // check first element for NAN
         {
             if (verbose)
             {

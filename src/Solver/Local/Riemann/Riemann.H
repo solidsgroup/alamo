@@ -5,6 +5,7 @@
 #include "Set/Set.H"
 #include "Model/Gas/Gas.H"
 #include <memory>
+#include <array>
 
 namespace Solver
 {
@@ -13,18 +14,30 @@ namespace Local
 namespace Riemann
 {
 struct State {
-    std::vector<double> rho;
+    std::array<double, NSPECIES_MAX> rho;
+    int nspecies = 0;
     Set::Scalar M_normal = NAN;
     Set::Scalar M_tangent = NAN;
     Set::Scalar E = NAN;
-    // Construtor for convenience
-    State() { rho = std::vector<double>(0); M_normal = 0.0, M_tangent = 0.0; E = 0.0;}
-    State(std::vector<double> a_rho, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E)
-        : rho(a_rho), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E) {}
+
+    // Default constructor
+    State() { rho.fill(0.0); }
+
+    // Move and copy constructors
+    State(const State&) = default;
+    State(State&&) = default;
+    State& operator=(const State&) = default;
+    State& operator=(State&&) = default;
+
+    // Constructors for convenience
+    State(std::array<double, NSPECIES_MAX> a_rho, int a_nspecies, Set::Scalar a_M_normal, Set::Scalar a_M_tangent, Set::Scalar a_E)
+        : rho(a_rho), nspecies(a_nspecies), M_normal(a_M_normal), M_tangent(a_M_tangent), E(a_E) {}
+
     State(Set::Patch<const Set::Scalar>& density_mf, Set::Patch<const Set::Scalar> momentum_mf, Set::Patch<const Set::Scalar> energy_mf, int i, int j, int k, int direction)
     {
-        size_t nspecies = density_mf.nComp();
-        for (size_t n=0; n<nspecies; ++n) { rho.push_back(density_mf(i,j,k,n)); }
+        nspecies = density_mf.nComp();
+        rho.fill(0.0);
+        for (int n=0; n<nspecies; ++n) { rho[n] = density_mf(i,j,k,n); }
         if (direction == 0)
         {
             M_normal = momentum_mf(i,j,k,0);
@@ -45,8 +58,8 @@ struct State {
 
     friend std::ostream &operator<<(std::ostream &os, const State &state) 
     {
-        os << "nspecies=" << state.rho.size() << ", ";
-        for (size_t n=0; n<state.rho.size(); ++n)
+        os << "nspecies=" << state.nspecies << ", ";
+        for (int n=0; n<state.nspecies; ++n)
         {
             os << "rho[" << n << "]=" << state.rho[n] << ", ";
         }
@@ -59,75 +72,89 @@ struct State {
     void operator += (const State &a)
     {
         M_normal += a.M_normal; M_tangent += a.M_tangent; E += a.E;
-        for (size_t n=0; n<rho.size(); ++n) { rho[n] += a.rho[n]; }
+        for (int n=0; n<nspecies; ++n) { rho[n] += a.rho[n]; }
     };
     void operator -= (const State &a)
     {
         M_normal -= a.M_normal; M_tangent -= a.M_tangent; E -= a.E;
-        for (size_t n=0; n<rho.size(); ++n) { rho[n] -= a.rho[n]; }
+        for (int n=0; n<nspecies; ++n) { rho[n] -= a.rho[n]; }
     };
     void operator *= (const Set::Scalar alpha)
     {
         M_normal *= alpha; M_tangent *= alpha; E *= alpha; 
-        for (size_t n=0; n<rho.size(); ++n) { rho[n] *= alpha; }
+        for (int n=0; n<nspecies; ++n) { rho[n] *= alpha; }
     };
     void operator /= (const Set::Scalar alpha)
     {
         M_normal /= alpha; M_tangent /= alpha; E /= alpha; 
-        for (size_t n=0; n<rho.size(); ++n) { rho[n] /= alpha; }
+        for (int n=0; n<nspecies; ++n) { rho[n] /= alpha; }
     };
-    friend State operator + (const State &a, const State &b)
+    friend State operator + (State a, const State &b)
     {
-        std::vector<double> rho_sum(a.rho.size());
-        std::transform(a.rho.begin(), a.rho.end(), b.rho.begin(), rho_sum.begin(), std::plus<double>());
-        return State(rho_sum, a.M_normal+b.M_normal, a.M_tangent+b.M_tangent, a.E+b.E);
+        a += b;
+        return a;
     }
-    friend State operator - (const State &a, const State &b)
+    friend State operator - (State a, const State &b)
     {
-        std::vector<double> rho_diff(a.rho.size());
-        std::transform(a.rho.begin(), a.rho.end(), b.rho.begin(), rho_diff.begin(), std::minus<double>());
-        return State(rho_diff, a.M_normal-b.M_normal, a.M_tangent-b.M_tangent, a.E-b.E);
+        a -= b;
+        return a;
     }
-    friend State operator * (const Set::Scalar alpha, const State &b)
+    friend State operator * (const Set::Scalar alpha, State b)
     {
-        std::vector<double> rho_prod(b.rho.size());
-        std::transform(b.rho.begin(), b.rho.end(), rho_prod.begin(), [alpha](double val){ return val*alpha; });
-        return State(rho_prod, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha);
+        b *= alpha;
+        return b;
     }
-    friend State operator * (const State &b, const Set::Scalar alpha)
+    friend State operator * (State b, const Set::Scalar alpha)
     {
-        std::vector<double> rho_prod(b.rho.size());
-        std::transform(b.rho.begin(), b.rho.end(), rho_prod.begin(), [alpha](double val){ return val*alpha; });
-        return State(rho_prod, b.M_normal*alpha, b.M_tangent*alpha, b.E*alpha);
+        b *= alpha;
+        return b;
     }
-    friend State operator / (const State &b, const Set::Scalar alpha)
+    friend State operator / (State b, const Set::Scalar alpha)
     {
-        std::vector<double> rho_quot(b.rho.size());
-        std::transform(b.rho.begin(), b.rho.end(), rho_quot.begin(), [alpha](double val){ return val/alpha; });
-        return State(rho_quot, b.M_normal/alpha, b.M_tangent/alpha, b.E/alpha);
+        b /= alpha;
+        return b;
     }
 };
 
 struct Flux {
-    std::vector<double> mass;
-    Set::Scalar momentum_normal;
-    Set::Scalar momentum_tangent;
-    Set::Scalar energy;
-    Flux() : mass(std::vector<double>(0)), momentum_normal(0.0), momentum_tangent(0.0), energy(0.0) {}
-    Flux(std::vector<double> a_mass, Set::Scalar a_momentum_normal, Set::Scalar a_momentum_tangent, Set::Scalar a_energy) :
-        mass(a_mass), momentum_normal(a_momentum_normal),
+    std::array<double, NSPECIES_MAX> mass;
+    int nspecies = 0;
+    Set::Scalar momentum_normal = 0.0;
+    Set::Scalar momentum_tangent = 0.0;
+    Set::Scalar energy = 0.0;
+
+    // Default constructor
+    Flux() { mass.fill(0.0); }
+
+    // Move and copy constructors
+    Flux(const Flux&) = default;
+    Flux(Flux&&) = default;
+    Flux& operator=(const Flux&) = default;
+    Flux& operator=(Flux&&) = default;
+
+    // Constructors for convenience
+    Flux(std::array<double, NSPECIES_MAX> a_mass, int a_nspecies, Set::Scalar a_momentum_normal, Set::Scalar a_momentum_tangent, Set::Scalar a_energy) :
+        mass(a_mass), nspecies(a_nspecies), momentum_normal(a_momentum_normal),
         momentum_tangent(a_momentum_tangent), energy(a_energy) {}
 
     Flux(const State &in) :
         mass(in.rho),
+        nspecies(in.nspecies),
+        momentum_normal(in.M_normal),
+        momentum_tangent(in.M_tangent),
+        energy(in.E) {}
+
+    Flux(State &&in) :
+        mass(in.rho),
+        nspecies(in.nspecies),
         momentum_normal(in.M_normal),
         momentum_tangent(in.M_tangent),
         energy(in.E) {}
 
     friend std::ostream &operator<<(std::ostream &os, const Flux &flux) 
     {
-        os << "nspecies=" << flux.mass.size() << ", ";
-        for (size_t n=0; n<flux.mass.size(); ++n) {
+        os << "nspecies=" << flux.nspecies << ", ";
+        for (int n=0; n<flux.nspecies; ++n) {
             os << "mass[" << n << "]=" << flux.mass[n] << ", ";
         }
         os << "Mn=" << flux.momentum_normal << ", ";
@@ -138,64 +165,54 @@ struct Flux {
     }
     void operator += (const Flux &a)
     {
-        for (size_t n=0; n<mass.size(); ++n) { mass[n] += a.mass[n]; }
+        for (int n=0; n<nspecies; ++n) { mass[n] += a.mass[n]; }
         momentum_normal += a.momentum_normal; momentum_tangent += a.momentum_tangent; 
         energy += a.energy;
     }
     void operator -= (const Flux &a)
     {
-        for (size_t n=0; n<mass.size(); ++n) { mass[n] -= a.mass[n]; }
+        for (int n=0; n<nspecies; ++n) { mass[n] -= a.mass[n]; }
         momentum_normal -= a.momentum_normal; momentum_tangent -= a.momentum_tangent; 
         energy -= a.energy;
     }
     void operator *= (const Set::Scalar alpha)
     {
-        for (size_t n=0; n<mass.size(); ++n) { mass[n] *= alpha; }
+        for (int n=0; n<nspecies; ++n) { mass[n] *= alpha; }
         momentum_normal *= alpha;
         momentum_tangent *= alpha;
         energy *= alpha;
     }
     void operator /= (const Set::Scalar alpha)
     {
-        for (size_t n=0; n<mass.size(); ++n) { mass[n] /= alpha; }
+        for (int n=0; n<nspecies; ++n) { mass[n] /= alpha; }
         momentum_normal /= alpha;
         momentum_tangent /= alpha;
         energy /= alpha;
     }
-    friend Flux operator + (const Flux &a, const Flux &b)
+    friend Flux operator + (Flux a, const Flux &b)
     {
-        std::vector<double> mass_sum(a.mass.size());
-        std::transform(a.mass.begin(), a.mass.end(), b.mass.begin(), mass_sum.begin(), std::plus<double>());
-        return Flux(mass_sum, a.momentum_normal+b.momentum_normal,
-                    a.momentum_tangent+b.momentum_tangent, a.energy+b.energy);
+        a += b;
+        return a;
     }
-    friend Flux operator - (const Flux &a, const Flux &b)
+    friend Flux operator - (Flux a, const Flux &b)
     {
-        std::vector<double> mass_diff(a.mass.size());
-        std::transform(a.mass.begin(), a.mass.end(), b.mass.begin(), mass_diff.begin(), std::minus<double>());
-        return Flux(mass_diff, a.momentum_normal-b.momentum_normal,
-                    a.momentum_tangent-b.momentum_tangent, a.energy-b.energy);
+        a -= b;
+        return a;
     }
-    friend Flux operator * (const Flux &a, const Set::Scalar beta)
+    friend Flux operator * (Flux a, const Set::Scalar beta)
     {
-        std::vector<double> mass_prod(a.mass.size());
-        std::transform(a.mass.begin(), a.mass.end(), mass_prod.begin(), [beta](double val){ return val*beta; });
-        return Flux(mass_prod, a.momentum_normal*beta,
-                    a.momentum_tangent*beta, a.energy*beta);
+        a *= beta;
+        return a;
     }
-    friend Flux operator * (const Set::Scalar beta,const Flux &a)
+    friend Flux operator * (const Set::Scalar beta, Flux a)
     {
-        std::vector<double> mass_prod(a.mass.size());
-        std::transform(a.mass.begin(), a.mass.end(), mass_prod.begin(), [beta](double val){ return val*beta; });
-        return Flux(mass_prod, a.momentum_normal*beta,
-                    a.momentum_tangent*beta, a.energy*beta);
+        a *= beta;
+        return a;
     }
-    friend Flux operator / (const Flux &a, const Set::Scalar beta)
+    friend Flux operator / (Flux a, const Set::Scalar beta)
     {
-        std::vector<double> mass_quot(a.mass.size());
-        std::transform(a.mass.begin(), a.mass.end(), mass_quot.begin(), [beta](double val){ return val/beta; });
-        return Flux(mass_quot, a.momentum_normal/beta,
-                    a.momentum_tangent/beta, a.energy/beta);
+        a /= beta;
+        return a;
     }
 
 };
@@ -204,7 +221,7 @@ struct Flux {
 class Riemann 
 {
 public:
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) = 0;
+    virtual Flux Solve(const State& lo, const State& hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) = 0;
     virtual ~Riemann() = default;
 };
 

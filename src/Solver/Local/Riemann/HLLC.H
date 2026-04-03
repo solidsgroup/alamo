@@ -31,32 +31,24 @@ public:
         // pp.query_default("cutoff", value.cutoff, 0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
+    virtual Flux Solve(const State& lo, const State& hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
-        // get densities (and regularize)
-        std::vector<double> rho_L = lo.rho;
-        std::vector<double> rho_R = hi.rho;
+        // compute densities (and regularize)
         Set::Scalar rho_sum_L = 0.0;
         Set::Scalar rho_sum_R = 0.0;
         for (int n=0; n<gas.nspecies; ++n)
         {
-            rho_L[n] = std::max(rho_L[n], small);
-            rho_R[n] = std::max(rho_R[n], small);
-            rho_sum_L += rho_L[n];
-            rho_sum_R += rho_R[n];
+            rho_sum_L += std::max(lo.rho[n], small);
+            rho_sum_R += std::max(hi.rho[n], small);
         }
         // density average
         Set::Scalar rhobar = 0.5*(rho_sum_L + rho_sum_R);
-        // density ratio
-        /*Set::Scalar Rrho = std::sqrt(rho_R / rho_L);*/
 
         // primitive velocities
         Set::Scalar u_L = lo.M_normal / rho_sum_L;
         Set::Scalar u_R = hi.M_normal / rho_sum_R;
         Set::Scalar v_L = lo.M_tangent / rho_sum_L;
         Set::Scalar v_R = hi.M_tangent / rho_sum_R;
-        // roe average velocity
-        /*Set::Scalar ubar = (u_L + u_R*Rrho) / (1.0 + Rrho);*/
 
         // label the energies
         Set::Scalar E_L = lo.E, E_R = hi.E;
@@ -116,12 +108,6 @@ public:
                 Util::Abort(INFO, "Unknown side in Riemann solver, ",side);
         }
 
-        //T_L = std::max(T_L, 1.0e-6);
-        //T_R = std::max(T_R, 1.0e-6);
-        //Util::Message(INFO,"Side: ", side);
-        //Util::Message(INFO, "Left:  rho/u/v/E/p/T: ", rho_L, " ", u_L, " " , v_L, " ", E_L, " ", p_L, " ", T_L);
-        //Util::Message(INFO, "Right: rho/u/v/E/p/T: ", rho_R, " ", u_R, " " , v_R, " ", E_R, " ", p_R, " ", T_R);
- 
         // sound speeds
         Set::Scalar a_L = std::sqrt(gamma_L*p_L / rho_sum_L);
         Set::Scalar a_R = std::sqrt(gamma_R*p_R / rho_sum_R);
@@ -146,78 +132,68 @@ public:
             (p_R - p_L + rho_sum_L*u_L*(S_L-u_L) - rho_sum_R*u_R*(S_R-u_R)) /
             (      rho_sum_L*(S_L-u_L)  - rho_sum_R*(S_R - u_R)           );
 
-        std::vector<double> rhoYu_L(gas.nspecies);
-        std::vector<double> rhoYu_R(gas.nspecies);
-        std::vector<double> rhostar_L(gas.nspecies);
-        std::vector<double> rhostar_R(gas.nspecies);
-        double factor_L = (S_L - u_L) / (S_L - Sstar);
-        double factor_R = (S_R - u_R) / (S_R - Sstar);
-        for (int n=0; n<gas.nspecies; ++n) {
-            rhoYu_L[n] = u_L*rho_L[n];
-            rhoYu_R[n] = u_R*rho_R[n];
-            rhostar_L[n] = rho_L[n] * factor_L;
-            rhostar_R[n] = rho_R[n] * factor_R;
-        }
+        Flux result;
+        result.nspecies = gas.nspecies;
 
         if (0.0 < S_L) // F_L region
         {
-            Flux F_L (  rhoYu_L, 
-                        rho_sum_L*u_L*u_L + p_L,
-                        rho_sum_L*u_L*v_L,
-                        u_L * (E_L + p_L) );
-            return F_L;
+            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(lo.rho[n], small) * u_L;
+            result.momentum_normal = rho_sum_L*u_L*u_L + p_L;
+            result.momentum_tangent = rho_sum_L*u_L*v_L;
+            result.energy = u_L * (E_L + p_L);
+            return result;
         }
         else if (S_L <= 0.0 && 0.0 < Sstar)  // Fstar_L region
         {
-            Flux F_L (  rhoYu_L, 
-                        rho_sum_L*u_L*u_L + p_L,
-                        rho_sum_L*u_L*v_L,
-                        u_L * (E_L + p_L) );
-            State U_L ( rho_L,
-                        rho_sum_L*u_L,
-                        rho_sum_L*v_L,
-                        E_L);
+            double factor_L = (S_L - u_L) / (S_L - Sstar);
+            for (int n=0; n<gas.nspecies; ++n) {
+                Set::Scalar fL_mass = std::max(lo.rho[n], small) * u_L;
+                Set::Scalar Ustar_L_rho = std::max(lo.rho[n], small) * factor_L;
+                result.mass[n] = fL_mass + S_L * (Ustar_L_rho - lo.rho[n]);
+            }
+            Set::Scalar fL_Mn = rho_sum_L*u_L*u_L + p_L;
+            Set::Scalar Ustar_L_Mn = Sstar * rho_sum_L * factor_L;
+            result.momentum_normal = fL_Mn + S_L * (Ustar_L_Mn - rho_sum_L*u_L);
 
-            State Ustar_L ( std::vector<double>(gas.nspecies, 1.0),
-                            Sstar,
-                            v_L,
-                            (E_L/rho_sum_L) + (Sstar-u_L) * (Sstar + p_L/(rho_sum_L*(S_L-u_L))));
-            for (int n=0; n<gas.nspecies; ++n) { Ustar_L.rho[n] *= rho_L[n] * factor_L; }
-            Ustar_L.M_normal  *= rho_sum_L * factor_L;
-            Ustar_L.M_tangent *= rho_sum_L * factor_L;
-            Ustar_L.E         *= rho_sum_L * factor_L;
+            Set::Scalar fL_Mt = rho_sum_L*u_L*v_L;
+            Set::Scalar Ustar_L_Mt = v_L * rho_sum_L * factor_L;
+            result.momentum_tangent = fL_Mt + S_L * (Ustar_L_Mt - rho_sum_L*v_L);
 
-            return F_L + S_L*(Ustar_L - U_L);
+            Set::Scalar fL_E = u_L * (E_L + p_L);
+            Set::Scalar Ustar_L_E = ((E_L/rho_sum_L) + (Sstar-u_L) * (Sstar + p_L/(rho_sum_L*(S_L-u_L)))) * rho_sum_L * factor_L;
+            result.energy = fL_E + S_L * (Ustar_L_E - E_L);
+
+            return result;
         }
         else if (Sstar <= 0.0 && 0.0 <= S_R )
         {
-            Flux F_R (  rhoYu_R, 
-                        rho_sum_R*u_R*u_R + p_R,
-                        rho_sum_R*u_R*v_R,
-                        u_R * (E_R + p_R) );
-            State U_R ( rho_R,
-                        rho_sum_R*u_R,
-                        rho_sum_R*v_R,
-                        E_R);
+            double factor_R = (S_R - u_R) / (S_R - Sstar);
+            for (int n=0; n<gas.nspecies; ++n) {
+                Set::Scalar fR_mass = std::max(hi.rho[n], small) * u_R;
+                Set::Scalar Ustar_R_rho = std::max(hi.rho[n], small) * factor_R;
+                result.mass[n] = fR_mass + S_R * (Ustar_R_rho - hi.rho[n]);
+            }
+            Set::Scalar fR_Mn = rho_sum_R*u_R*u_R + p_R;
+            Set::Scalar Ustar_R_Mn = Sstar * rho_sum_R * factor_R;
+            result.momentum_normal = fR_Mn + S_R * (Ustar_R_Mn - rho_sum_R*u_R);
 
-            State Ustar_R ( std::vector<double>(gas.nspecies, 1.0),
-                            Sstar,
-                            v_R,
-                            (E_R/rho_sum_R) + (Sstar - u_R)*(Sstar + p_R/(rho_sum_R*(S_R-u_R))));
-            for (int n=0; n<gas.nspecies; ++n) { Ustar_R.rho[n] *= rho_R[n] * factor_R; }
-            Ustar_R.M_normal  *= rho_sum_R * factor_R;
-            Ustar_R.M_tangent *= rho_sum_R * factor_R;
-            Ustar_R.E         *= rho_sum_R * factor_R;
+            Set::Scalar fR_Mt = rho_sum_R*u_R*v_R;
+            Set::Scalar Ustar_R_Mt = v_R * rho_sum_R * factor_R;
+            result.momentum_tangent = fR_Mt + S_R * (Ustar_R_Mt - rho_sum_R*v_R);
 
-            return F_R + S_R*(Ustar_R - U_R);
+            Set::Scalar fR_E = u_R * (E_R + p_R);
+            Set::Scalar Ustar_R_E = ((E_R/rho_sum_R) + (Sstar - u_R)*(Sstar + p_R/(rho_sum_R*(S_R-u_R)))) * rho_sum_R * factor_R;
+            result.energy = fR_E + S_R * (Ustar_R_E - E_R);
+
+            return result;
         }
         else if (S_R < 0.0)
         {
-            Flux F_R (  rhoYu_R, 
-                        rho_sum_R*u_R*u_R + p_R,
-                        rho_sum_R*u_R*v_R,
-                        u_R * (E_R + p_R) );
-            return F_R;
+            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(hi.rho[n], small) * u_R;
+            result.momentum_normal = rho_sum_R*u_R*u_R + p_R;
+            result.momentum_tangent = rho_sum_R*u_R*v_R;
+            result.energy = u_R * (E_R + p_R);
+            return result;
         }
         Util::Message(INFO,lo);
         Util::Message(INFO,hi);
@@ -225,7 +201,8 @@ public:
         Util::Message(INFO,Sstar);
         Util::Message(INFO,S_L);
         Util::Exception(INFO);
-        return Flux(std::vector<double>(gas.nspecies,NAN),NAN,NAN,NAN);
+        std::array<double, NSPECIES_MAX> nan_mass; nan_mass.fill(NAN);
+        return Flux(nan_mass, gas.nspecies, NAN, NAN, NAN);
     }
 };
 

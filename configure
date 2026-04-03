@@ -116,6 +116,7 @@ if os.path.exists(pre_args.config):
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
+parser.add_argument('--nspecies-max', dest='nspecies_max', default=20, type=int, help='Maximum number of species [20]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
@@ -235,6 +236,13 @@ shellmessage("Current Hash",   "git log -1 --pretty=format:%H", hidecmd=True)
 #
 f.write("DIM = " + str(args.dim) + "\n")
 message("Dimension",str(args.dim))
+
+#
+# NSPECIES
+#
+f.write("NSPECIES_MAX = " + str(args.nspecies_max) + "\n")
+f.write("CXX_COMPILE_FLAGS += -DNSPECIES_MAX=" + str(args.nspecies_max) + "\n")
+message("NSpecies Max",str(args.nspecies_max))
 
 #
 # COMPILER
@@ -635,7 +643,8 @@ if not args.compile_commands:
     projectdir = os.getcwd()
 
     otherflags = ""
-    if args.fft: otherflags += "-DALAMO_FFT"
+    if args.fft: otherflags += " -DALAMO_FFT"
+    otherflags += f" -DNSPECIES_MAX={args.nspecies_max}"
 
     if args.amrex: otherflags += f" -I{args.amrex}/include"
     else: otherflags += f" -I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"

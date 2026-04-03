@@ -41,29 +41,23 @@ public:
         pp.query_default("cutoff",value.cutoff,0.1);
     }
 
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
+    virtual Flux Solve(const State& lo, const State& hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
         // Grab and label the input states
-        std::vector<double> rho_L = lo.rho;
-        std::vector<double> rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
-        //Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
 
-        // Ensure no negative densities
+        // Ensure no negative densities and compute total densities
         Set::Scalar rho_sum_L = 0.0;
         Set::Scalar rho_sum_R = 0.0;
         for (int n=0; n<gas.nspecies; ++n)
         {
-            rho_L[n] = std::max(small,rho_L[n]);
-            rho_R[n] = std::max(small,rho_R[n]);
-            rho_sum_L += rho_L[n];
-            rho_sum_R += rho_R[n];
+            rho_sum_L += std::max(small, lo.rho[n]);
+            rho_sum_R += std::max(small, hi.rho[n]);
         }
 
-        // Calculate primitives
+        // Calculate primitive velocities
         Set::Scalar u_L   = Mn_L/(rho_sum_L),  u_R   = Mn_R/(rho_sum_R);
-        //Set::Scalar v_L   = Mt_L/(rho_sum_L),  v_R   = Mt_R/(rho_sum_R);
 
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
@@ -119,8 +113,8 @@ public:
                 Util::Abort(INFO, "Unknown side in Riemann solver, ",side);
         }
 
-        Set::Scalar c_L = std::sqrt(gamma_L * p_L / (rho_sum_L + small));
-        Set::Scalar c_R = std::sqrt(gamma_R * p_R / (rho_sum_R + small));
+        Set::Scalar c_L = std::sqrt(gamma_L * p_L / (rho_sum_L));
+        Set::Scalar c_R = std::sqrt(gamma_R * p_R / (rho_sum_R));
 
         // Max wave speeds
         Set::Scalar S_L = std::min(u_L-c_L, u_R - c_R);
@@ -137,37 +131,52 @@ public:
             S_R *= psi;
         }
 
-        Flux F_L (
-            rho_L,
-            lo.M_normal * u_L + p_L,
-            lo.M_tangent * u_L,
-            u_L * (lo.E + p_L)
-            );
-        Flux F_R (
-            rho_R,
-            hi.M_normal * u_R + p_R,
-            hi.M_tangent * u_R,
-            u_R * (hi.E + p_R)
-            );
-        for (int n=0; n<gas.nspecies; ++n)
-        {
-            F_L.mass[n] *= u_L;
-            F_R.mass[n] *= u_R;
-        }
+        Flux result;
+        result.nspecies = gas.nspecies;
 
         if (S_L >= 0.0)
         {
-            return F_L;
+            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(small, lo.rho[n]) * u_L;
+            result.momentum_normal = lo.M_normal * u_L + p_L;
+            result.momentum_tangent = lo.M_tangent * u_L;
+            result.energy = u_L * (lo.E + p_L);
+            return result;
         }
         else if (S_R <= 0.0)
         {
-            return F_R;
+            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(small, hi.rho[n]) * u_R;
+            result.momentum_normal = hi.M_normal * u_R + p_R;
+            result.momentum_tangent = hi.M_tangent * u_R;
+            result.energy = u_R * (hi.E + p_R);
+            return result;
         }
         else
         {
-            State dState = hi - lo;
-            Set::Scalar dS = S_R - S_L;
-            return (S_R*F_L - S_L*F_R + S_L*S_R*Flux(dState)) / dS;
+            Set::Scalar inv_dS = 1.0 / (S_R - S_L);
+            for (int n=0; n<gas.nspecies; ++n)
+            {
+                Set::Scalar fL_mass = std::max(small, lo.rho[n]) * u_L;
+                Set::Scalar fR_mass = std::max(small, hi.rho[n]) * u_R;
+                Set::Scalar d_rho   = hi.rho[n] - lo.rho[n];
+                result.mass[n] = (S_R * fL_mass - S_L * fR_mass + S_L * S_R * d_rho) * inv_dS;
+            }
+            
+            Set::Scalar fL_Mn = lo.M_normal * u_L + p_L;
+            Set::Scalar fR_Mn = hi.M_normal * u_R + p_R;
+            Set::Scalar d_Mn  = hi.M_normal - lo.M_normal;
+            result.momentum_normal = (S_R * fL_Mn - S_L * fR_Mn + S_L * S_R * d_Mn) * inv_dS;
+
+            Set::Scalar fL_Mt = lo.M_tangent * u_L;
+            Set::Scalar fR_Mt = hi.M_tangent * u_R;
+            Set::Scalar d_Mt  = hi.M_tangent - lo.M_tangent;
+            result.momentum_tangent = (S_R * fL_Mt - S_L * fR_Mt + S_L * S_R * d_Mt) * inv_dS;
+
+            Set::Scalar fL_E = u_L * (lo.E + p_L);
+            Set::Scalar fR_E = u_R * (hi.E + p_R);
+            Set::Scalar d_E  = hi.E - lo.E;
+            result.energy = (S_R * fL_E - S_L * fR_E + S_L * S_R * d_E) * inv_dS;
+
+            return result;
         }
     }
 };

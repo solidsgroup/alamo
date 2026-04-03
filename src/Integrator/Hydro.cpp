@@ -291,7 +291,7 @@ void Hydro::Mix(int lev)
             // Except velocity - keep velocity from fluid values only
             gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
             Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
-            T(i,j,k) = gas.ComputeT(p(i,j,k), density, X, i, j, k);
+            T(i,j,k) = gas.ComputeT_from_primitives(p(i,j,k), density, X, i, j, k);
             Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
 
             // Mix
