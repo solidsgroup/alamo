@@ -5,8 +5,10 @@
 #include <AMReX_MultiFab.H>
 #include "Set/Set.H"
 #include "Integrator/ScimitarX.H"
+#include "Integrator/ShockToDet.H"
 #include "Util/Util.H"
 #include "Util/ScimitarX_Util.H"
+#include "Util/ShockToDet_Util.H"
 #include "Model/Fluid/Fluid.H" 
 #include "Numeric/Stencil.H" 
 #include "Numeric/NumericTypes.H"
@@ -234,7 +236,7 @@ private:
 template <typename IntegratorDerivedClass>
 void FluxHandler<IntegratorDerivedClass>::ProcessVariableBasedReconstruction(
     int direction, int lev, IntegratorDerivedClass* solver) const {
-    Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, "true");
+    // Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, "true");
 
     // Validate inputs and components
     if (!reconstruction || !flux_method || !variable_accessor) {

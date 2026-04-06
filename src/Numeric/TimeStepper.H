@@ -87,8 +87,8 @@ public:
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid stage for EulerForward: only one stage exists.");
         }
 
-        Util::ScimitarX_Util::Debug debug;
-        debug.SetTargetDebugLocationIndices(32, 7, 7);
+        // Util::ScimitarX_Util::Debug debug;
+        // debug.SetTargetDebugLocationIndices(32, 7, 7);
         //debug.SetTargetDebugLocation(0.49, 0.12, 0.0, solver->geom[lev]);
 
         const Set::Scalar* DX = solver->geom[lev].CellSize();  // Grid spacing

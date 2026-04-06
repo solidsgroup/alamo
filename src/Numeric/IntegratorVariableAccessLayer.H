@@ -15,7 +15,7 @@
 #include "Numeric/SolverCapabilities.H"
 
 namespace Integrator {
-    class ScimitarX;
+    class ShockToDet;
 }
 
 namespace Numeric {
@@ -24,7 +24,7 @@ class GenericVariableAccessor {
 public:
     virtual ~GenericVariableAccessor() = default;
 
-    // Copy of getVariableIndex struct from ScimitarX_Util.H
+    // Copy of getVariableIndex struct from ShockToDet_Util.H
     struct VariableIndices {
         std::map<int, int> variableIndexMap; // Mapping from variable enums to indices
         int NVAR_MAX = 0;                    // Total number of variables
@@ -45,7 +45,7 @@ public:
         int IE_ELASTIC = -1;             // Index for Elastic Internal Energy  
     };
     
-    // Add a static instance of the struct (similar to ScimitarX's static member)
+    // Add a static instance of the struct (similar to ShockToDet's static member)
     static VariableIndices variableIndices;
     
     // Add method to initialize indices
@@ -269,27 +269,27 @@ private:
     // Private helper methods
     void CopyPrimitiveVariablesToVariableBuffer(
         int lev,
-        Integrator::ScimitarX* solver,
+        Integrator::ShockToDet* solver,
         amrex::MultiFab& VariableBuffer
     ) const;
 
     void CopyConservativeVariablesToVariableBuffer(
         int lev,
-        Integrator::ScimitarX* solver,
+        Integrator::ShockToDet* solver,
         amrex::MultiFab& VariableBuffer
     ) const;
 
     void CopyPrimitiveFluxesToCellFluxBuffer(
         int direction,    
         int lev,
-        Integrator::ScimitarX* solver,
+        Integrator::ShockToDet* solver,
         amrex::MultiFab& CellFluxBuffer
     ) const;
 
     void CopyConservativeFluxesToCellFluxBuffer(
         int direction,    
         int lev,
-        Integrator::ScimitarX* solver,
+        Integrator::ShockToDet* solver,
         amrex::MultiFab& CellFluxBuffer
     ) const;
 

@@ -1,5 +1,5 @@
-#ifndef INTEGRATOR_SCIMITARX_H // Include guards
-#define INTEGRATOR_SCIMITARX_H // 
+#ifndef INTEGRATOR_SHOCKTODET_H // Include guards
+#define INTEGRATOR_SHOCKTODET_H // 
 
 // Standard library includes
 #include <iostream>
@@ -21,7 +21,7 @@
 #include "IC/Shock.H"
 #include "IC/Laminate.H"
 #include "IC/Expression.H"
-#include "Util/ScimitarX_Util.H"
+#include "Util/ShockToDet_Util.H"
 #include "Numeric/NumericTypes.H"
 #include "Numeric/NumericFactory.H"
 #include "Numeric/SolverCapabilities.H"
@@ -49,7 +49,7 @@ namespace Numeric {
 
 namespace Integrator
 {
-class ScimitarX : virtual public Integrator
+class ShockToDet : virtual public Integrator
 {
 public:
     // Enum for Solver Types
@@ -272,15 +272,15 @@ public:
 
     };
 
-    static Numeric::GenericVariableAccessor::VariableIndices variableIndex; //variableIndex is now a static member of ScimitarX 
+    static Numeric::GenericVariableAccessor::VariableIndices variableIndex; //variableIndex is now a static member of ShockToDet 
 
     static IO::ParmParse setupPVecBoundaryConditions(IO::ParmParse& pp, const Numeric::GenericVariableAccessor::VariableIndices& variableIndex);
 
     // Constructors and destructor
-    ScimitarX();
-    ScimitarX(IO::ParmParse& pp);
-    static void Parse(ScimitarX& value, IO::ParmParse& pp);
-    virtual ~ScimitarX()
+    ShockToDet();
+    ShockToDet(IO::ParmParse& pp);
+    static void Parse(ShockToDet& value, IO::ParmParse& pp);
+    virtual ~ShockToDet()
     {
 	    delete bc_PVec;
 	    delete bc_Pressure;
@@ -300,7 +300,7 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
     void Regrid(int lev, Set::Scalar time) override;
 
-    // ScimitarX specific methods
+    // ShockToDet specific methods
     void AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt);
     Set::Scalar GetTimeStep();
     void ComputeAndSetNewTimeStep();
@@ -362,7 +362,7 @@ protected:
 
         auto const& arr = mf.const_array(mfi);
 
-        Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+        Util::ShockToDet_Util::Debug::DebugValuesIfTarget(
         i, j, k, arr(i,j,k,comp),
         name, ctx,
         /*abort_if_nan=*/false,
@@ -384,7 +384,7 @@ protected:
                 const int k0 = (AMREX_SPACEDIM == 3) ? 7 : 0;
                 const int rho = variableIndex.DENS;
 
-                // Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(i0, j0, k0, true);
+                // Util::ShockToDet_Util::Debug::SetTargetDebugLocationIndices(i0, j0, k0, true);
 
                 ProbeCC_NoTiling(*(QVec_mf[lev]), i0,j0,k0, rho, "Q(rho)", "UPD: ENTER UpdateSolutions Q");
                 ProbeCC_NoTiling(*(PVec_mf[lev]), i0,j0,k0, rho, "P(rho)", "UPD: ENTER UpdateSolutions P");
@@ -490,9 +490,9 @@ protected:
 		    bool enable_vorticity_refinement = false;
 
 		    // Numeric handlers (using shared_ptr for better lifetime management)
-		    std::shared_ptr<Numeric::FluxHandler<ScimitarX>> fluxHandler;
-		    std::shared_ptr<Numeric::TimeStepper<ScimitarX>> timeStepper;
-		    std::shared_ptr<Numeric::SourceTerm<ScimitarX>> sourceTermHandler;
+		    std::shared_ptr<Numeric::FluxHandler<ShockToDet>> fluxHandler;
+		    std::shared_ptr<Numeric::TimeStepper<ShockToDet>> timeStepper;
+		    std::shared_ptr<Numeric::SourceTerm<ShockToDet>> sourceTermHandler;
 		    std::shared_ptr<Numeric::GenericVariableAccessor> variable_accessor;
 		    std::shared_ptr<Numeric::SolverCapabilities> solverCapabilities;
 
@@ -557,14 +557,14 @@ private:
     template <typename IntegratorDerivedClass>
     friend class Numeric::SourceTerm;
 
-}; //ScimitarX Class
+}; //ShockToDet Class
 
 // Static member initialization for string to solver type mapping
-inline const std::map<std::string, ScimitarX::SolverType> ScimitarX::stringToSolverType = {
-    {"SolveCompressibleEuler", ScimitarX::SolverType::SolveCompressibleEuler},
-    {"SolveElastoPlastic", ScimitarX::SolverType::SolveElastoPlastic},
-    {"SolveFiveEquationModel", ScimitarX::SolverType::SolveFiveEquationModel}
+inline const std::map<std::string, ShockToDet::SolverType> ShockToDet::stringToSolverType = {
+    {"SolveCompressibleEuler", ShockToDet::SolverType::SolveCompressibleEuler},
+    {"SolveElastoPlastic", ShockToDet::SolverType::SolveElastoPlastic},
+    {"SolveFiveEquationModel", ShockToDet::SolverType::SolveFiveEquationModel}
 };
 
 } // namespace Integrator
-#endif // INTEGRATOR_SCIMITARX_H
+#endif // INTEGRATOR_SHOCKTODET_H

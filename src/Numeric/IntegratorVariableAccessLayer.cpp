@@ -1,6 +1,7 @@
 #include "Numeric/IntegratorVariableAccessLayer.H"
 #include "Numeric/SymmetryPreservingRoeAveragingOperations.H"
-#include "Integrator/ScimitarX.H"
+// #include "Integrator/ScimitarX.H"
+#include "Integrator/ShockToDet.H"
 #include "Numeric/Stencil.H"
 
 namespace Numeric {
@@ -110,8 +111,8 @@ CompressibleEulerVariableAccessor::CopyVariables(
     ReconstructionMode mode, 
     const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
 ) const {
-    // Cast the void pointer to ScimitarX pointer
-    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    // Cast the void pointer to ShockToDet pointer
+    auto solver = static_cast<Integrator::ShockToDet*>(solver_void);
     
     // Handle different reconstruction modes
     switch(mode) {
@@ -147,7 +148,7 @@ const amrex::Box& bx = mfi.fabbox(); // includes ghosts owned by this FAB
 if (!bx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
 
 auto const& arr = mf.const_array(mfi);
-Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+Util::ShockToDet_Util::Debug::DebugValuesIfTarget(
 i, j, k, arr(i,j,k,comp),
 field, ctx,
 /*abort_if_nan=*/false,
@@ -172,8 +173,8 @@ CompressibleEulerVariableAccessor::CopyFluxes(
     ReconstructionMode mode, 
     const SolverCapabilities::MethodValidationResult& validationResult [[maybe_unused]]
 ) const {
-    // Cast the void pointer to ScimitarX pointer
-    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    // Cast the void pointer to ShockToDet pointer
+    auto solver = static_cast<Integrator::ShockToDet*>(solver_void);
     
     // Handle different reconstruction modes
     switch(mode) {
@@ -217,7 +218,7 @@ CompressibleEulerVariableAccessor::CopyFluxes(
 void 
 CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
     int lev,
-    Integrator::ScimitarX* solver,
+    Integrator::ShockToDet* solver,
     amrex::MultiFab& VariableBuffer
 ) const {
     // Loop through all valid regions of the MultiFab
@@ -251,7 +252,7 @@ CompressibleEulerVariableAccessor::CopyPrimitiveVariablesToVariableBuffer(
 void 
 CompressibleEulerVariableAccessor::CopyConservativeVariablesToVariableBuffer(
     int lev,
-    Integrator::ScimitarX* solver,
+    Integrator::ShockToDet* solver,
     amrex::MultiFab& VariableBuffer
 ) const {
     // Copy from PVec_mf to working buffer
@@ -309,7 +310,7 @@ void
 CompressibleEulerVariableAccessor::CopyConservativeFluxesToCellFluxBuffer(
     int direction,    
     int lev,
-    Integrator::ScimitarX* solver,
+    Integrator::ShockToDet* solver,
     amrex::MultiFab& CellFluxBuffer
 ) const {
 
@@ -396,8 +397,8 @@ CompressibleEulerVariableAccessor::PopulateAverageStates(
     amrex::MultiFab& AverageStateBuffer
 ) const {
 
-    // Cast the void pointer to ScimitarX pointer
-    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    // Cast the void pointer to ShockToDet pointer
+    auto solver = static_cast<Integrator::ShockToDet*>(solver_void);
 
     // const int nghosts = solver->number_of_ghost_cells; 
 
@@ -550,7 +551,7 @@ CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
         std_avg_state(4) = avg_state(ie_idx);
 
             // Debug the average state first
-        Util::ScimitarX_Util::Debug::DebugAverageState(
+        Util::ShockToDet_Util::Debug::DebugAverageState(
         i, j, k,  // These will be ignored if not the target location
         Set::MultiVector::Zero(avg_state.size()),  // We don't have WL/WR here
         Set::MultiVector::Zero(avg_state.size()),  // We don't have WL/WR here
@@ -584,7 +585,7 @@ CompressibleEulerVariableAccessor::TransformStencilToCharacteristic(
             char_stencil_matrix(s, ie_idx) = char_vec(4);
        
             // Debug each transformation
-            Util::ScimitarX_Util::Debug::DebugCharacteristicTransformation(
+            Util::ShockToDet_Util::Debug::DebugCharacteristicTransformation(
             i, j, k,  // These will be ignored if not the target location
             stencil_matrix, char_stencil_matrix, L_n, s,
             "Transform Stencil Point " + std::to_string(s), 
@@ -653,8 +654,8 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
     amrex::MultiFab& SummedFlux
 ) const {
 
-    // Cast the void pointer to ScimitarX pointer
-    auto solver = static_cast<Integrator::ScimitarX*>(solver_void);
+    // Cast the void pointer to ShockToDet pointer
+    auto solver = static_cast<Integrator::ShockToDet*>(solver_void);
 
     // const int nghosts = solver->number_of_ghost_cells;
     const int num_components = solver->number_of_components; 
@@ -702,7 +703,7 @@ CompressibleEulerVariableAccessor::StoreDirectionalFlux(
             for (int n = 0; n < num_components; ++n) { 
             flux_arr(iface, jface, kface, n) = TotalFlux_arr(iface, jface, kface, n);
             }
-            if (Util::ScimitarX_Util::Debug::IsTargetLocation(iface,jface,kface))
+            if (Util::ShockToDet_Util::Debug::IsTargetLocation(iface,jface,kface))
 {
     // for (int n = 0; n < solver->number_of_components; ++n)
     // {
@@ -919,7 +920,7 @@ CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
     const Set::Scalar a = std::sqrt(a2);       // Sound speed
     
     // Add debug check
-    Util::ScimitarX_Util::Debug::DebugSoundSpeedComputation(
+    Util::ShockToDet_Util::Debug::DebugSoundSpeedComputation(
         i, j, k,  // These will be ignored if not the target location
         H, Va2, gamma,
         a2, a,    // Pass by reference to allow correction
@@ -1048,7 +1049,7 @@ CompressibleEulerVariableAccessor::ComputeLeftEigenvectorMatrix(
     }
 
     // Debug check on the final matrix
-    Util::ScimitarX_Util::Debug::DebugEigenvectorMatrix(
+    Util::ShockToDet_Util::Debug::DebugEigenvectorMatrix(
         i, j, k,  // These will be ignored if not the target location
         L_n, W, 
         "Left Eigenvector Computation", 

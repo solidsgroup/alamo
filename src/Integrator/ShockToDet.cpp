@@ -1,5 +1,5 @@
 #include "IO/ParmParse.H"
-#include "Integrator/ScimitarX.H"
+#include "Integrator/ShockToDet.H"
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "BC/Constant.H"
@@ -17,17 +17,17 @@
 #include "Numeric/TimeStepper.H"
 #include "DebugProbe.H"
 #include "Util/Util.H"
-#include "Util/ScimitarX_Util.H"
+#include "Util/ShockToDet_Util.H"
 #include "probesnew.H"
 
 namespace Integrator
 {
 
 // Define the static member variable
-Numeric::GenericVariableAccessor::VariableIndices ScimitarX::variableIndex;
+Numeric::GenericVariableAccessor::VariableIndices ShockToDet::variableIndex;
 
 // Default constructor implementation
-ScimitarX::ScimitarX() : Integrator()
+ShockToDet::ShockToDet() : Integrator()
 {
     // Initialize member variables with default values
     number_of_components = 0;
@@ -55,17 +55,17 @@ ScimitarX::ScimitarX() : Integrator()
     // and will be properly set up in Parse or Initialize methods
 }
 
-ScimitarX::ScimitarX(IO::ParmParse& pp):ScimitarX()
+ShockToDet::ShockToDet(IO::ParmParse& pp):ShockToDet()
 {
 
-    fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
-    sourceTermHandler = std::make_shared<Numeric::SourceTerm<ScimitarX>>();
-    timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
+    fluxHandler = std::make_shared<Numeric::FluxHandler<ShockToDet>>(nullptr);
+    sourceTermHandler = std::make_shared<Numeric::SourceTerm<ShockToDet>>();
+    timeStepper = std::make_shared<Numeric::TimeStepper<ShockToDet>>();
 
     pp.queryclass(*this);
 }
 
-void ScimitarX::RegisterSolverCapabilities() {
+void ShockToDet::RegisterSolverCapabilities() {
     // Retrieve solver capabilities
     auto capabilities = GetSolverCapabilities();
     
@@ -87,7 +87,7 @@ void ScimitarX::RegisterSolverCapabilities() {
 }
 
 std::shared_ptr<Numeric::SolverCapabilities> 
-ScimitarX::GetSolverCapabilities() const {
+ShockToDet::GetSolverCapabilities() const {
     // Return cached capabilities if already created
     if (solverCapabilities) {
         return solverCapabilities;
@@ -115,19 +115,19 @@ ScimitarX::GetSolverCapabilities() const {
 
 
 // Implementation of SetupNumericComponents
-void ScimitarX::SetupNumericComponents() 
+void ShockToDet::SetupNumericComponents() 
 {
     // Initialize handlers if they're null
     if (!fluxHandler) {
-        fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(nullptr);
+        fluxHandler = std::make_shared<Numeric::FluxHandler<ShockToDet>>(nullptr);
     }
 
     if (!sourceTermHandler) {
-        sourceTermHandler = std::make_shared<Numeric::SourceTerm<ScimitarX>>();
+        sourceTermHandler = std::make_shared<Numeric::SourceTerm<ShockToDet>>();
     }
     
     if (!timeStepper) {
-        timeStepper = std::make_shared<Numeric::TimeStepper<ScimitarX>>();
+        timeStepper = std::make_shared<Numeric::TimeStepper<ShockToDet>>();
     }
 
     // Create variable accessor based on current solver type
@@ -164,38 +164,38 @@ void ScimitarX::SetupNumericComponents()
         }
         
         // Update the flux handler with the accessor
-        fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(variable_accessor);
+        fluxHandler = std::make_shared<Numeric::FluxHandler<ShockToDet>>(variable_accessor);
         
         // Set up flux reconstruction method based on configuration
         if (reconstruction_method == Numeric::FluxReconstructionType::WENO) {
             if (weno_variant == Numeric::WenoVariant::WENOJS3) {
                 Util::Message(INFO, "Creating WENOJS3 reconstruction");                
-                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS3<ScimitarX>>());
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS3<ShockToDet>>());
             } else if (weno_variant == Numeric::WenoVariant::WENOJS5) {
                 Util::Message(INFO, "Creating WENOJS5 reconstruction");                
-                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS5<ScimitarX>>());
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOJS5<ShockToDet>>());
             } else {
                 Util::Message(INFO, "Creating WENOZ5 reconstruction");                
-                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOZ5<ScimitarX>>());
+                fluxHandler->SetReconstruction(std::make_shared<Numeric::WENOZ5<ShockToDet>>());
             }
         } else {
-            fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ScimitarX>>());
+            fluxHandler->SetReconstruction(std::make_shared<Numeric::FirstOrderReconstruction<ShockToDet>>());
         }
         
         // Set up flux method
         if (flux_scheme == Numeric::FluxScheme::LocalLaxFriedrichs) {
-                fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ScimitarX>>());
+                fluxHandler->SetFluxMethod(std::make_shared<Numeric::LocalLaxFriedrichsMethod<ShockToDet>>());
         } else if (flux_scheme == Numeric::FluxScheme::HLLC){
-                fluxHandler->SetFluxMethod(std::make_shared<Numeric::HLLCMethod<ScimitarX>>());
+                fluxHandler->SetFluxMethod(std::make_shared<Numeric::HLLCMethod<ShockToDet>>());
         } else if (flux_scheme == Numeric::FluxScheme::AUSMup){
-            fluxHandler->SetFluxMethod(std::make_shared<Numeric::AUSMupMethod<ScimitarX>>());
+            fluxHandler->SetFluxMethod(std::make_shared<Numeric::AUSMupMethod<ShockToDet>>());
     }      
         
         // Set up time stepping scheme
         if (temporal_scheme == Numeric::TimeSteppingSchemeType::ForwardEuler) {
-            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ScimitarX>>());
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::EulerForwardScheme<ShockToDet>>());
         } else {
-            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::RK3Scheme<ScimitarX>>());
+            timeStepper->SetTimeSteppingScheme(std::make_shared<Numeric::RK3Scheme<ShockToDet>>());
         }
     
         break;
@@ -238,7 +238,7 @@ void ScimitarX::SetupNumericComponents()
         }
         
         // Update flux handler with accessor
-        fluxHandler = std::make_shared<Numeric::FluxHandler<ScimitarX>>(variable_accessor);
+        fluxHandler = std::make_shared<Numeric::FluxHandler<ShockToDet>>(variable_accessor);
 
         break;
         default:
@@ -260,7 +260,7 @@ void ScimitarX::SetupNumericComponents()
 }
 
 
-void ScimitarX::ValidateAndSetupNumerics() {
+void ShockToDet::ValidateAndSetupNumerics() {
     // Ensure solver capabilities are registered
     if (!solverCapabilities) {
         RegisterSolverCapabilities();
@@ -346,28 +346,28 @@ void ScimitarX::ValidateAndSetupNumerics() {
 
 
 void
-ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
+ShockToDet::Parse(ShockToDet& value, IO::ParmParse& pp)
 {
-    BL_PROFILE("Integrator::ScimitarX::Parse()");
+    BL_PROFILE("Integrator::ShockToDet::Parse()");
     {
-        ScimitarX::SolverTypeManager& setIndex = ScimitarX::SolverTypeManager::getInstance();
+        ShockToDet::SolverTypeManager& setIndex = ShockToDet::SolverTypeManager::getInstance();
 
         std::string solverTypeStr;
 
         if (pp.query("SolverType", solverTypeStr)) 
         {
-            auto it = ScimitarX::stringToSolverType.find(solverTypeStr);
-            if (it != ScimitarX::stringToSolverType.end()) {
+            auto it = ShockToDet::stringToSolverType.find(solverTypeStr);
+            if (it != ShockToDet::stringToSolverType.end()) {
                 value.solverType = it->second;
 
-                ScimitarX::variableIndex = setIndex.computeAndAssignVariableIndices(value.solverType);
-                value.number_of_components = ScimitarX::variableIndex.NVAR_MAX;
+                ShockToDet::variableIndex = setIndex.computeAndAssignVariableIndices(value.solverType);
+                value.number_of_components = ShockToDet::variableIndex.NVAR_MAX;
                
-                std::cout << "DEBUG: ScimitarX::variableIndex.NVAR_MAX = " 
-                << ScimitarX::variableIndex.NVAR_MAX << std::endl;
+                std::cout << "DEBUG: ShockToDet::variableIndex.NVAR_MAX = " 
+                << ShockToDet::variableIndex.NVAR_MAX << std::endl;
 
                 std::cout << "DEBUG: Variable indices:" << std::endl;
-                for (const auto& [variable, index] : ScimitarX::variableIndex.variableIndexMap) {
+                for (const auto& [variable, index] : ShockToDet::variableIndex.variableIndexMap) {
                 std::cout << "  Variable: " << variable << ", Index: " << index << std::endl;
                 }
 
@@ -420,9 +420,9 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
         pp.query("ic.pvec.type", type);  // IC condition type for Primitive Variables
 
         if (type == "shock") {
-            value.ic_PVec = new IC::Shock(value.geom, pp, "ic.shock.pvec", ScimitarX::variableIndex);
+            value.ic_PVec = new IC::Shock(value.geom, pp, "ic.shock.pvec", ShockToDet::variableIndex);
         } else if (type == "riemann2d") {
-            value.ic_PVec = new IC::Riemann2D(value.geom, pp, "ic.riemann2d.pvec", ScimitarX::variableIndex);
+            value.ic_PVec = new IC::Riemann2D(value.geom, pp, "ic.riemann2d.pvec", ShockToDet::variableIndex);
         } else {
             Util::Abort(__FILE__, __func__, __LINE__, "Invalid ic.pvec.type: " + type);
         }
@@ -515,12 +515,12 @@ ScimitarX::Parse(ScimitarX& value, IO::ParmParse& pp)
 
 
 // Initialize the Primitive Variables and Pressure through Initial Condition.
-void ScimitarX::Initialize(int lev)
+void ShockToDet::Initialize(int lev)
 {
     ic_PVec->Initialize(lev, PVec_mf);
     ic_Pressure->Initialize(lev, Pressure_mf);
 
-    ScimitarX::ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
+    ShockToDet::ComputeConservedVariables<SolverType::SolveCompressibleEuler>(lev);
     std::swap(*QVec_old_mf[lev], *QVec_mf[lev]); 
 }
 
@@ -550,7 +550,7 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::
 }
 */
 
-void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, Set::Scalar /*time*/, int /*ngrow*/)
+void ShockToDet::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, Set::Scalar /*time*/, int /*ngrow*/)
 {
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
@@ -629,26 +629,26 @@ void ScimitarX::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, Set::Sc
 }
 
 
-void ScimitarX::TimeStepBegin(Set::Scalar /*time*/, int /*lev*/) {
+void ShockToDet::TimeStepBegin(Set::Scalar /*time*/, int /*lev*/) {
 
 }
 
 
-void ScimitarX::TimeStepComplete(Set::Scalar /*time*/, int lev) {
+void ShockToDet::TimeStepComplete(Set::Scalar /*time*/, int lev) {
 
     if (lev == 0) { 
         ComputeAndSetNewTimeStep(); // Compute dt based on global `minDt`
     } 
 }
 
-void ScimitarX::Regrid(int lev, Set::Scalar /*time*/) {
+void ShockToDet::Regrid(int lev, Set::Scalar /*time*/) {
 
     // Only the finest level performs regridding
     if (lev < finest_level) return;
 
 }
 
-void ScimitarX::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
+void ShockToDet::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
 
         // Advance the solution without stiff source terms
         AdvanceInTimeWithoutStiffTerms(lev, time, dt);
@@ -658,7 +658,7 @@ void ScimitarX::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
 }
 
 // Function to advance hyperbolic balance equations without stiff terms
-void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt) {
+void ShockToDet::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::Scalar dt) {
 
     // Determine the time-stepping scheme
     switch (temporal_scheme) {
@@ -699,36 +699,36 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
 
             for (int stage = 0; stage < numStages; ++stage) {
 
-                // Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, true);
+                // Util::ShockToDet_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, true);
                 // const int i0 = 32, j0 = 7, k0 = 7;
                 
 
-             auto ProbeCC = [&](const char* ctx,
-                    const amrex::MultiFab& mf,
-                    int i, int j, int k,
-                    int comp,
-                    const char* field_name)
-                {
-                    // Force NO TILING for probes, so probe behavior is identical in both runs.
-                    amrex::MFItInfo info;
-                    info.EnableTiling();
+            //  auto ProbeCC = [&](const char* ctx,
+            //         const amrex::MultiFab& mf,
+            //         int i, int j, int k,
+            //         int comp,
+            //         const char* field_name)
+            //     {
+            //         // Force NO TILING for probes, so probe behavior is identical in both runs.
+            //         amrex::MFItInfo info;
+            //         info.EnableTiling();
                 
-                    for (amrex::MFIter mfi(mf, info); mfi.isValid(); ++mfi) {
-                        const amrex::Box& vbx = mfi.validbox();
-                        if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
+            //         for (amrex::MFIter mfi(mf, info); mfi.isValid(); ++mfi) {
+            //             const amrex::Box& vbx = mfi.validbox();
+            //             if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
                 
-                        auto const& arr = mf.const_array(mfi);
+            //             auto const& arr = mf.const_array(mfi);
                 
-                        Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
-                            i, j, k, arr(i,j,k,comp),
-                            field_name, ctx,
-                            /*abort_if_nan=*/false,
-                            /*component=*/comp,
-                            /*enableDebug=*/true
-                        );
-                        break;
-                    }
-                };
+            //             Util::ShockToDet_Util::Debug::DebugValuesIfTarget(
+            //                 i, j, k, arr(i,j,k,comp),
+            //                 field_name, ctx,
+            //                 /*abort_if_nan=*/false,
+            //                 /*component=*/comp,
+            //                 /*enableDebug=*/true
+            //             );
+            //             break;
+            //         }
+            //     };
                    
 
             
@@ -872,14 +872,14 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
                 // {
                 //     const int i = iii, j = 7, k = kkk;
                 //     const int rho = variableIndex.DENS;
-                //     Util::ScimitarX_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, true);
+                //     Util::ShockToDet_Util::Debug::SetTargetDebugLocationIndices(32, 7, 7, true);
                 //     for (amrex::MFIter mfi(*PVec_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
                 //         const amrex::Box& vbx = mfi.validbox();
                 //         if (!vbx.contains(amrex::IntVect(AMREX_D_DECL(i,j,k)))) continue;
                 
                 //         auto const& p = PVec_mf[lev]->const_array(mfi);
                 
-                //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         Util::ShockToDet_Util::Debug::DebugValuesIfTarget(
                 //             i,j,k, p(i,j,k,rho),
                 //             "P(rho)", "TS: AFTER UpdateSolutions",
                 //             /*abort_if_nan=*/false, /*component=*/rho,
@@ -903,7 +903,7 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
                 
                 //         auto const& p = PVec_mf[lev]->const_array(mfi);
                 
-                //         Util::ScimitarX_Util::Debug::DebugValuesIfTarget(
+                //         Util::ShockToDet_Util::Debug::DebugValuesIfTarget(
                 //             i,j,k, p(i,j,k,rho),
                 //             "P(rho)", "TS: AFTER ApplyBC",
                 //             /*abort_if_nan=*/false, /*component=*/rho,
@@ -933,7 +933,7 @@ void ScimitarX::AdvanceInTimeWithoutStiffTerms(int lev, Set::Scalar time, Set::S
 }
 
 
-void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
+void ShockToDet::ApplyBoundaryConditions(int lev, Set::Scalar time) {
         
         Integrator::ApplyPatch(lev, time, PVec_mf, *PVec_mf[lev], *bc_PVec, 0);        
         Integrator:: ApplyPatch(lev, time, Pressure_mf, *Pressure_mf[lev], *bc_Pressure, 0); 
@@ -949,7 +949,7 @@ void ScimitarX::ApplyBoundaryConditions(int lev, Set::Scalar time) {
 }
 
 
-void ScimitarX::ComputeAndSetNewTimeStep() {
+void ShockToDet::ComputeAndSetNewTimeStep() {
     // Compute the minimum time step over the entire domain using GetTimeStep
     Set::Scalar finest_dt = GetTimeStep();  // GetTimeStep already accounts for the CFL number
 
@@ -970,7 +970,7 @@ void ScimitarX::ComputeAndSetNewTimeStep() {
 }
 
 // Function to compute the time step size based on CFL condition
-Set::Scalar ScimitarX::GetTimeStep() {
+Set::Scalar ShockToDet::GetTimeStep() {
     Set::Scalar minDt = std::numeric_limits<Set::Scalar>::max();  // Start with a large value       
      
 
@@ -1008,9 +1008,9 @@ Set::Scalar ScimitarX::GetTimeStep() {
                 // Compute local timestep for this cell
                 //
                 Set::Scalar SMALL = 1.0e-14;
-                Set::Scalar CFL = ScimitarX::cflNumber;                
-                Set::Scalar Fo = ScimitarX::fourierNumber;
-                Set::Scalar mu = ScimitarX::mu;                
+                Set::Scalar CFL = ShockToDet::cflNumber;                
+                Set::Scalar Fo = ShockToDet::fourierNumber;
+                Set::Scalar mu = ShockToDet::mu;                
 
                 Set::Scalar dtLocal = CFL*dx[0] / maxSpeed; // since viscous effect doesn't exist in 1D flows
 #if (AMREX_SPACEDIM >= 2)
@@ -1041,12 +1041,12 @@ Set::Scalar ScimitarX::GetTimeStep() {
     // Reduce across processes to find the global minimum timestep
     amrex::ParallelDescriptor::ReduceRealMin(minDt);
 
-    Set::Scalar B = ScimitarX::adjustableTimeStep;
-    return B*minDt + (1.0-B)*ScimitarX::timestep;  // Return CFL-adjusted time step for the finest level
+    Set::Scalar B = ShockToDet::adjustableTimeStep;
+    return B*minDt + (1.0-B)*ShockToDet::timestep;  // Return CFL-adjusted time step for the finest level
 }
 
 
-IO::ParmParse ScimitarX::setupPVecBoundaryConditions(IO::ParmParse& pp, const Numeric::GenericVariableAccessor::VariableIndices& variableIndex)
+IO::ParmParse ShockToDet::setupPVecBoundaryConditions(IO::ParmParse& pp, const Numeric::GenericVariableAccessor::VariableIndices& variableIndex)
 {
     int n_components = variableIndex.NVAR_MAX;
     std::vector<std::string> component_names(n_components);
