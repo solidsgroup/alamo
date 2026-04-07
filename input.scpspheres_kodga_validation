@@ -14,7 +14,7 @@ amr.blocking_factor = 8
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
 amr.refinement_criterion = 0.2
-amr.refinament_restriction = 0.25
+amr.refinament_restriction = 0.15
 amr.refinement_criterion_temp = 6.0_K
 # amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
@@ -23,7 +23,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 3
+amr.max_level = 4
 
 # Full size
 # amr.n_cell = 18 18 18
@@ -43,25 +43,25 @@ geometry.prob_hi = 0.2_mm 0.025_mm 0.1_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2.0e-7_s # [s]
+timestep = 1.0e-7_s # [s]
 stop_time = 0.08_s
 
 small = 1.0e-8
-pf.eps = 0.5_um #0.0005 # [m]
+pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
 
-# pf.eta.ic.type = psread
-# pf.eta.ic.psread.file.unit = m
+pf.eta.ic.type = psread
+pf.eta.ic.psread.file.unit = m
 # pf.eta.ic.psread.file.name = new_datasets/A/A_00_void.xyzr
 # pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/B_vf_6/B_00_void.xyzr
 # pf.eta.ic.psread.file.name = ../papers/RegressionWithVoidsFullFeedback/results/new_datasets/small_pores/A/A_00_void_r20.xyzr
-# pf.eta.ic.psread.eps = 1.0_um
-# pf.eta.ic.psread.invert = 1
+pf.eta.ic.psread.eps = 1.0_um
+pf.eta.ic.psread.invert = 1
 
-pf.eta.ic.type = constant
-pf.eta.ic.constant.value = 1.0 
+# pf.eta.ic.type = constant
+# pf.eta.ic.constant.value = 1.0 
 # pf.eta.ic.type = expression
 # pf.eta.ic.expression.constant.eps = 10.0_um
 # pf.eta.ic.expression.constant.x0 = 30.0_um
@@ -124,7 +124,7 @@ propellant.fullfeedback.b1       =    0.323_1
 propellant.fullfeedback.b2       =    0.420_1
 propellant.fullfeedback.b3       =   0.3225_1
 propellant.fullfeedback.c1       = -0.09906_1
-propellant.fullfeedback.phi.zeta =     25.0_um
+propellant.fullfeedback.phi.zeta =     23.0_um
 propellant.fullfeedback.Pref     =     1.1_MPa
 
 # Thermal transport parameters
@@ -166,7 +166,7 @@ laser.ic.expression.constant.x0 = 4.0_um
 laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Chamber pressure (used for regression model)
-chamber.pressure = 1.1_MPa  ## [MPa]
+chamber.pressure = 7.1_MPa  ## [MPa]
 
 # Disable NAN checking
 amr.abort_on_nan = 1

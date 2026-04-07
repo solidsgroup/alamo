@@ -34,10 +34,10 @@ geometry.is_periodic = 0 0 0
 
 ## Timestep
 timestep = 2.0e-7_s # [s]
-stop_time = 0.08_s
+stop_time = 0.04_s
 
 small = 1.0e-8
-pf.eps = 0.5_um #0.0005 # [m]
+pf.eps = 0.1_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
