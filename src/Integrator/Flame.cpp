@@ -151,9 +151,12 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
         pp.query_default("thermal.Tcutoff", value.thermal.Tcutoff, "0.0", Unit::Temperature());
 
-        // Switch time of the improved regridding where eta and the temperature field are both used. It is recommended to make this time ~10x the timestep
+        // Switch time of the improved regridding where eta and the temperature field are both used. It is recommended to make this time ~10x the timestep.
         // Before this the refinement is based on the gradient of eta which helps the laser IC start correctly. A regrid is forced when this time is reached.
         pp.query_default("thermal.end_initial_refine_time", value.thermal.end_initial_refine_time, "0.0", Unit::Time());
+
+        // Inital refinement of the phi field based on phi gradient. After time > end_initial_refine_time stops refining at these phi values.
+        pp.query_default("thermal.phi_refinement_criterion_inital", value.thermal.phi_refinement_criterion_inital, 1.0e100);
 
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
@@ -193,7 +196,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Whether to compute the pressure evolution
     pp_query_default("variable_pressure", value.variable_pressure, false);
 
-    // Refinement criterion for eta field   
+    // Refinement criterion for eta field, if thermal is on, cells will only be tagged for refinement if T>0.9*TCutoff,
+    // and the gradient of eta > m_refinement_criterion at each cell
     pp_query_default(   "amr.refinement_criterion", value.m_refinement_criterion, "0.001", 
                         Unit::Less());
 
@@ -647,7 +651,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Vector gradphi = Numeric::Gradient(phi, i, j, k, 0, DX);
-            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= 0.01) && time < thermal.end_initial_refine_time)
+            if ((gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion || gradphi.lpNorm<2>() * dr >= thermal.phi_refinement_criterion_inital) && time < thermal.end_initial_refine_time)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
@@ -662,10 +666,10 @@ void Flame::Regrid(int lev, Set::Scalar time)
 
     if (thermal.on) {
     /* 
-    This regrid function works by making a using the "has_exceeded_Tcutoff" field. If the temperature in a cell is greater than Tcutoff,
-    eta will change and when regruding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital 
-    eta field condition. This gives at leat a 4x speed improvement in 2D when doing regression with voids. This is because orgioanlly
-    there was a bug where when regridding, the orgional eta field wouldn't be applied, so there would be "sqaures" of voids instead of
+    This regrid function works by using the "has_exceeded_Tcutoff" field. If the temperature in a cell is greater than Tcutoff,
+    eta will change and when regridding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital 
+    eta field condition. This gives at leat a 4x speed improvement in 2D when doing regression with voids. This is because orgionally
+    there was a bug where when regridding, the orgional eta field wouldn't be applied, so there would be "squares" of voids instead of
     circles/spheres when using .xyzr files as the inital condition.
     */
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)

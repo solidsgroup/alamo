@@ -28,7 +28,7 @@ amr.max_grid_size = 4
 amr.blocking_factor = 4
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
-amr.refinement_criterion = 0.1
+amr.refinement_criterion = 1.0
 amr.refinement_criterion_temp = 4.0_K
 # amr.phi_refinement_criterion = 0.5
 amr.cell.all = 1
@@ -120,6 +120,7 @@ thermal.Tfluid = 288.0
 thermal.Tref = 300.0_K
 thermal.Tcutoff = 400.0_K
 thermal.end_initial_refine_time = 2e-4_s
+thermal.phi_refinement_criterion_inital = 0.01
 
 # Temperature field initial condition
 temp.ic.type = constant
