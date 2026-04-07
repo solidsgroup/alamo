@@ -5,7 +5,7 @@ sys.path.append('./scripts')
 from report import init_html, append_html, finalize_html, write_master_html
 
 import argparse
-import os, glob, subprocess
+import os, glob, shutil, subprocess
 import configparser, io
 from collections import OrderedDict
 from datetime import datetime
@@ -659,8 +659,9 @@ def test(testdir):
             try:
                 print("  │      Processing profiling data...............................",
                       end="",flush=True)
+                pprof_cmd = "google-pprof" if shutil.which("google-pprof") else "pprof"
                 result = subprocess.run(
-                    ["google-pprof", "--collapsed", exestr, profile_file],
+                    [pprof_cmd, "--collapsed", exestr, profile_file],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     check=True, text=True)
 
