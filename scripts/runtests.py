@@ -109,8 +109,37 @@ def readMetadata(metadatafile):
         metadata[col] = val
     return metadata
 
+def _collapse_pprof_traces(traces_output):
+    """Convert `pprof -traces` output into collapsed stack format for flamegraph.pl"""
+    lines = []
+    current_stack = []
+    current_count = 0
+    for line in traces_output.splitlines():
+        if re.match(r'^-+\+', line):
+            if current_stack:
+                collapsed = ';'.join(reversed(current_stack))
+                lines.append(f'{collapsed} {current_count}')
+            current_stack = []
+            current_count = 0
+            continue
+        m = re.match(r'^\s+(\d+)(m?s)\s+(.*)', line)
+        if m:
+            val = int(m.group(1))
+            if m.group(2) == 's':
+                val *= 1000
+            current_count = val
+            current_stack = [m.group(3).strip()]
+            continue
+        m2 = re.match(r'^\s+(\S.*)', line)
+        if m2 and current_stack:
+            current_stack.append(m2.group(1).strip())
+    if current_stack:
+        collapsed = ';'.join(reversed(current_stack))
+        lines.append(f'{collapsed} {current_count}')
+    return '\n'.join(lines) + '\n'
+
 #
-# Provide some simple command line arguments for filtering the types of 
+# Provide some simple command line arguments for filtering the types of
 # regression tests to run. For instance, if you need to run without
 # mpirun, you can use the --serial flag.
 #
@@ -659,18 +688,30 @@ def test(testdir):
             try:
                 print("  │      Processing profiling data...............................",
                       end="",flush=True)
-                pprof_cmd = "google-pprof" if shutil.which("google-pprof") else "pprof"
-                result = subprocess.run(
-                    [pprof_cmd, "--collapsed", exestr, profile_file],
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    check=True, text=True)
+
+                if shutil.which("google-pprof"):
+                    # Legacy Perl google-pprof supports --collapsed directly
+                    result = subprocess.run(
+                        ["google-pprof", "--collapsed", exestr, profile_file],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        check=True, text=True)
+                    collapsed = result.stdout
+                elif shutil.which("pprof"):
+                    # Go pprof doesn't support --collapsed; use -traces and fold
+                    result = subprocess.run(
+                        ["pprof", "-traces", exestr, profile_file],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        check=True, text=True)
+                    collapsed = _collapse_pprof_traces(result.stdout)
+                else:
+                    raise FileNotFoundError("Neither 'google-pprof' nor 'pprof' found on PATH")
 
                 print("[{}DONE{}]".format(color.boldgreen,color.reset))
                 print("  │      Generating flame plot...................................",
                       end="",flush=True)
 
                 with open("out.folded", "w") as f:
-                    f.write(result.stdout)
+                    f.write(collapsed)
             
                 result = subprocess.run(
                     ["ext/brendangregg/FlameGraph/flamegraph.pl", "out.folded"],
