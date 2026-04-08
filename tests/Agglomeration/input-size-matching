@@ -1,3 +1,91 @@
+#@ [*]
+#@ dim = 2
+#@ check = false
+#@
+#@ [maxlevel0-1proc]
+#@ nprocs = 1
+#@ args = amr.max_level=0
+#@ args = amr.n_cell=128 128 128
+#@ args = timestep=6.25e-9
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel0-2proc]
+#@ nprocs = 2
+#@ args = amr.max_level=0
+#@ args = amr.n_cell=128 128 128
+#@ args = timestep=6.25e-9
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel0-4proc]
+#@ nprocs = 4
+#@ args = amr.max_level=0
+#@ args = amr.n_cell=128 128 128
+#@ args = timestep=6.25e-9
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel0-8proc]
+#@ nprocs = 8
+#@ args = amr.max_level=0
+#@ args = amr.n_cell=128 128 128
+#@ args = timestep=6.25e-9
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel1-1proc]
+#@ nprocs = 1
+#@ args = amr.max_level=1
+#@ args = amr.n_cell=64 64 64
+#@ args = timestep=1.25e-8
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel1-2proc]
+#@ nprocs = 2
+#@ args = amr.max_level=1
+#@ args = amr.n_cell=64 64 64
+#@ args = timestep=1.25e-8
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel1-4proc]
+#@ nprocs = 4
+#@ args = amr.max_level=1
+#@ args = amr.n_cell=64 64 64
+#@ args = timestep=1.25e-8
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel1-8proc]
+#@ nprocs = 8
+#@ args = amr.max_level=1
+#@ args = amr.n_cell=64 64 64
+#@ args = timestep=1.25e-8
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel2-1proc]
+#@ nprocs = 1
+#@ args = amr.max_level=2
+#@ args = amr.n_cell=32 32 32
+#@ args = timestep=2.5e-8
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel2-2proc]
+#@ nprocs = 2
+#@ args = amr.max_level=2
+#@ args = amr.n_cell=32 32 32
+#@ args = timestep=2.5e-8
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel2-4proc]
+#@ nprocs = 4
+#@ args = amr.max_level=2
+#@ args = amr.n_cell=32 32 32
+#@ args = timestep=2.5e-8
+#@ args = stop_time=0.03
+#@
+#@ [maxlevel2-8proc]
+#@ nprocs = 8
+#@ args = amr.max_level=2
+#@ args = amr.n_cell=32 32 32
+#@ args = timestep=2.5e-8
+#@ args = stop_time=0.03
+
 alamo.program = agglomeration
 plot_file = tests/Agglomeration/output
 
@@ -13,14 +101,16 @@ amr.cell.all = 1
 amr.node.all = 1
 
 # Geometry and AMR level specification
-amr.n_cell = 8 8 8
+amr.n_cell = 32 32 32
 geometry.prob_lo = 0.0 0.0 0.0
 geometry.prob_hi = 5.12e-4 5.12e-4 5.12e-4
-amr.max_level = 4
+amr.max_level = 2
+amr.base_regrid_int = 10
+amr.regrid_int = 1
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 1e-7
+timestep = 2.5e-8
 stop_time = 0.09
 
 # Phase field parameters
