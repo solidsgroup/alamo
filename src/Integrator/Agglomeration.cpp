@@ -126,7 +126,10 @@ Agglomeration::CalculateInitialVolume(int target_resolution_level)
     Set::Scalar dv = AMREX_D_TERM(dx[0], *dx[1], *dx[2]);
     Set::Scalar volume = fine_alpha_field[0]->sum() * dv;
 
-    Util::Message(INFO, "Calculated initial volume on fine grid (level ", target_resolution_level, ", ", refined_cells[0], "x", refined_cells[1], "x", refined_cells[2], " cells): V_0 = ", volume);
+    std::string cells_str = std::to_string(refined_cells[0])
+        AMREX_D_TERM(, +"x" + std::to_string(refined_cells[1]), +"x" + std::to_string(refined_cells[2]));
+
+    Util::Message(INFO, "Calculated initial volume on fine grid (level ", target_resolution_level, ", ", cells_str, " cells): V_0 = ", volume);
 
     return volume;
 }
