@@ -1,0 +1,45 @@
+## Simulation output
+plot_file = output_levelset_IC_BC
+# Simulation length
+timestep = 0.01
+stop_time = 1.00
+max_step = 100
+
+# AMR parameters
+amr.plot_int = 10
+amr.max_level = 0
+amr.n_cell = 100 100 100
+amr.blocking_factor = 1
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 1
+geometry.is_periodic = 0 0 0
+
+# Get info on number of levelsets
+ls.number_of_levelsets = 1
+
+# Define IC type
+ls0.ic.type = expression
+
+ls0.ic.expression.constant.r0 = 0.25   # Disk radius
+ls0.ic.expression.constant.xC0 = 0.5  # Disk center x
+ls0.ic.expression.constant.yC0 = 0.5  # Disk center y
+
+ls0.ic.expression.region0 = "sqrt((x - xC0)^2 + (y - yC0)^2) - r0"
+
+ls0.bc.constant.type.xhi = neumann 
+ls0.bc.constant.type.xlo = neumann 
+ls0.bc.constant.type.yhi = neumann 
+ls0.bc.constant.type.ylo = neumann 
+ls0.bc.constant.type.zhi = neumann 
+ls0.bc.constant.type.zlo = neumann 
+
+ls0.bc.constant.val.xhi = 0.0 
+ls0.bc.constant.val.xlo = 0.0 
+ls0.bc.constant.val.yhi = 0.0 
+ls0.bc.constant.val.ylo = 0.0 
+ls0.bc.constant.val.zhi = 0.0  
+ls0.bc.constant.val.zlo = 0.0 
