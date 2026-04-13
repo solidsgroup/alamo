@@ -14,11 +14,9 @@
 
 namespace Model {
 namespace Gas {
-
 class Gas {
 protected:
 public:
-    int nspecies;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo *thermo = nullptr;
     Transport::Transport *transport = nullptr;
@@ -35,24 +33,24 @@ public:
     {
         // number of species
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
-        value.nspecies = value.MW.size();
+        Util::Assert(INFO, TEST(value.MW.size() == NSPECIES), "Error: Runtime species count from input file (", value.MW.size(), ") doesn't match the compile-time NSPECIES (", NSPECIES, ")");
 
         delete value.thermo;
         value.thermo = nullptr;
         // thermo model
-        pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
+        pp.select<Thermo::CpConstant>("thermo", value.thermo);
 
         delete value.transport;
         value.transport = nullptr;
         // transport model
-        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
+        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.MW, value.thermo);
 
         delete value.eos;
         value.eos = nullptr;
         // eos model
         pp.select<EOS::CPG>("eos", value.eos, &value);
     }
-    
+
 public:
     // Thermodynamic quantities
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
@@ -90,11 +88,11 @@ public:
         // has changed, since they are dependent on mole fraction
         double density = 0.0;
         double moles = 0.0;
-        for (int n=0; n<nspecies; ++n) {
+        for (int n=0; n<NSPECIES; ++n) {
             density += density_mf(i,j,k,n);
             moles += density_mf(i,j,k,n) / MW[n];
         }
-        for (int n=0; n<nspecies; ++n) {
+        for (int n=0; n<NSPECIES; ++n) {
             mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
             mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
             //Util::Message(INFO, "Mass fraction[n]: ", n, " ", mass_fraction_mf(i,j,k,n));
@@ -104,13 +102,13 @@ public:
     double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
         double mw = 0.0;
-        for (int n=0; n<nspecies; ++n) mw += X(i,j,k,n) * MW[n];
+        for (int n=0; n<NSPECIES; ++n) mw += X(i,j,k,n) * MW[n];
         return mw;
     }
     double ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
         double rho = 0.0;
-        for (int n=0; n<nspecies; ++n) rho += rhoY(i,j,k,n);
+        for (int n=0; n<NSPECIES; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
     double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 

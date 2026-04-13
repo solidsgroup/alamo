@@ -41,7 +41,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         std::cout << value.gas.thermo->model_name() << "\n";
         std::cout << value.gas.transport->model_name() << "\n";
         std::cout << value.gas.eos->model_name() << "\n";
-        std::cout << value.gas.nspecies << "\n";
+        std::cout << NSPECIES << "\n";
 
         // pp.query_default("r_refinement_criterion",     value.r_refinement_criterion    , 0.01);
         // energy-based refinement
@@ -79,7 +79,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp_forbid("velocity.bc","--> momentum.bc");
 
         // Boundary condition for density
-        pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc,value.gas.nspecies);
+        pp.select_default<BC::Constant,BC::Expression>("density.bc",value.density_bc, NSPECIES);
         // Boundary condition for energy
         pp.select_default<BC::Constant,BC::Expression>("energy.bc",value.energy_bc,1);
         // Boundary condition for momentum
@@ -111,8 +111,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         }
         value.RegisterNewFab(value.etadot_mf,  value.eta_bc, 1, nghost, "etadot",  true, false);
 
-        value.RegisterNewFab(value.density_mf,     value.density_bc, value.gas.nspecies, nghost, "density",     true , true);
-        value.RegisterNewFab(value.density_old_mf, value.density_bc, value.gas.nspecies, nghost, "density_old", false, true);
+        value.RegisterNewFab(value.density_mf,     value.density_bc, NSPECIES, nghost, "density",     true , true);
+        value.RegisterNewFab(value.density_old_mf, value.density_bc, NSPECIES, nghost, "density_old", false, true);
 
         value.RegisterNewFab(value.energy_mf,     value.energy_bc, 1, nghost, "energy",      true ,true);
         value.RegisterNewFab(value.energy_old_mf, value.energy_bc, 1, nghost, "energy_old" , false, true);
@@ -125,29 +125,29 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
 
-        value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, value.gas.nspecies, 0, "m0",  true, false);
+        value.RegisterNewFab(value.m0_mf,           &value.bc_nothing, NSPECIES, 0, "m0",  true, false);
         value.RegisterNewFab(value.u0_mf,           &value.bc_nothing, 2, 0, "u0",  true, false, {"x","y"});
         value.RegisterNewFab(value.q_mf,            &value.bc_nothing, 2, 0, "q",   true, false, {"x","y"});
 
         pp.select_default<BC::Constant,BC::Expression>("bc_D",value.neumann_bc_D, AMREX_SPACEDIM);
         pp.select_default<BC::Constant,BC::Expression>("bc_1",value.neumann_bc_1, 1);
-        pp.select_default<BC::Constant,BC::Expression>("bc_N",value.neumann_bc_N, value.gas.nspecies);
+        pp.select_default<BC::Constant,BC::Expression>("bc_N",value.neumann_bc_N, NSPECIES);
 
-        value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, value.gas.nspecies, nghost, "solid.density", true, false);
+        value.RegisterNewFab(value.solid.density_mf,  value.neumann_bc_N, NSPECIES, nghost, "solid.density", true, false);
         value.RegisterNewFab(value.solid.momentum_mf, value.neumann_bc_D, 2, nghost, "solid.momentum", true, false, {"x","y"});
         value.RegisterNewFab(value.solid.energy_mf,   value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
-        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, value.gas.nspecies+3, 0, "Source", true, false);
+        value.RegisterNewFab(value.Source_mf, &value.bc_nothing, NSPECIES+3, 0, "Source", true, false);
 
-        value.RegisterNewFab(value.mass_fraction_mf,    &value.bc_nothing, value.gas.nspecies, nghost, "mass_fraction",     true , true);
-        value.RegisterNewFab(value.mole_fraction_mf,    &value.bc_nothing, value.gas.nspecies, nghost, "mole_fraction",     true , true);
-        value.RegisterNewFab(value.scratch_mf,          &value.bc_nothing, value.gas.nspecies, nghost, "scratch",           false, false);
+        value.RegisterNewFab(value.mass_fraction_mf,    &value.bc_nothing, NSPECIES, nghost, "mass_fraction",     true , true);
+        value.RegisterNewFab(value.mole_fraction_mf,    &value.bc_nothing, NSPECIES, nghost, "mole_fraction",     true , true);
+        value.RegisterNewFab(value.scratch_mf,          &value.bc_nothing, NSPECIES, nghost, "scratch",           false, false);
 
         if ( value.details )
         {
             value.RegisterNewFab(value.viscosity_mf, &value.bc_nothing, 1, nghost, "viscosity", true, true);
             value.RegisterNewFab(value.thermal_conductivity_coeff_mf, &value.bc_nothing, 1, nghost, "thermal_conductivity_coeff", true, true);
-            value.RegisterNewFab(value.diffusion_coeff_mf, &value.bc_nothing, value.gas.nspecies, nghost, "diffusion_coeff", true, true);
+            value.RegisterNewFab(value.diffusion_coeff_mf, &value.bc_nothing, NSPECIES, nghost, "diffusion_coeff", true, true);
         }
     }
 
@@ -300,7 +300,7 @@ void Hydro::Mix(int lev)
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
-            for (int n=0; n<gas.nspecies; ++n)
+            for (int n=0; n<NSPECIES; ++n)
             {
                 rho(i, j, k, n) = eta * rho(i, j, k, n) + (1.0 - eta) * rho_solid(i, j, k, n);
                 rho_old(i, j, k, n) = rho(i, j, k, n);
@@ -399,13 +399,13 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
     // Organize references to the "new" solution
     amrex::Vector<amrex::MultiFab> solution_new; 
-    solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,gas.nspecies);
+    solution_new.emplace_back(*density_mf[lev].get(),amrex::MakeType::make_alias,0,NSPECIES);
     solution_new.emplace_back(*momentum_mf[lev].get(),amrex::MakeType::make_alias,0,2);
     solution_new.emplace_back(*energy_mf[lev].get(),amrex::MakeType::make_alias,0,1);
 
     // Organize references to the "old" solution
     amrex::Vector<amrex::MultiFab> solution_old;
-    solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,gas.nspecies);
+    solution_old.emplace_back(*density_old_mf[lev].get(),amrex::MakeType::make_alias,0,NSPECIES);
     solution_old.emplace_back(*momentum_old_mf[lev].get(),amrex::MakeType::make_alias,0,2);
     solution_old.emplace_back(*energy_old_mf[lev].get(),amrex::MakeType::make_alias,0,1);
 
@@ -423,7 +423,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Take care of filling boundaries during stages
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
     {
-        density_bc->FillBoundary(stage_mf[0],0,gas.nspecies,time,0);   
+        density_bc->FillBoundary(stage_mf[0],0,NSPECIES,time,0);   
         stage_mf[0].FillBoundary(true);
         momentum_bc->FillBoundary(stage_mf[1],0,2,time,0);  
         stage_mf[1].FillBoundary(true);
@@ -467,7 +467,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             if (eta < cutoff)
             {
-                for (int n=0; n<gas.nspecies; ++n)
+                for (int n=0; n<NSPECIES; ++n)
                 {
                     rho_new(i,j,k,n) = rho_solid(i,j,k,n);
                 }
@@ -483,8 +483,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
             {
                 *dt_max_handle =                          std::fabs(cfl * DX[0] / (u(i,j,k,0)*eta + small));
                 *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl * DX[1] / (u(i,j,k,1)*eta + small)));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,gas.nspecies)+small)));
-                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,gas.nspecies+1)+small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[0]*DX[0] / (Source(i,j,k,NSPECIES)+small)));
+                *dt_max_handle = std::min(*dt_max_handle, std::fabs(cfl_v * DX[1]*DX[1] / (Source(i,j,k,NSPECIES+1)+small)));
             }
         });
     }
@@ -514,12 +514,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     amrex::MultiFab mixed_kT_mf(ba,dm,2,nghost);            // mixture averaged thermal conductivity
     amrex::MultiFab mixed_mu_mf(ba,dm,1,nghost);            // mixture averaged dynamic viscosity
     amrex::MultiFab mixed_H_mf(ba,dm,1,nghost);             // Perfect gas mixture enthalpy, H=cp_mix*T
-    amrex::MultiFab DKM_mf(ba,dm,gas.nspecies,nghost);      // Diffusion coefficent for species k into mixture
-    amrex::MultiFab rhoHDYx_mf(ba,dm,gas.nspecies,nghost);  // species enthalpy diffusion, rho*H*D*dY/dx
-    amrex::MultiFab rhoHDYy_mf(ba,dm,gas.nspecies,nghost);  // species enthalpy diffusion, rho*H*D*dY/dy
-    amrex::MultiFab rhoDYx_mf(ba,dm,gas.nspecies,nghost);   // Fickian diffusion, rho*D*dY/dx
-    amrex::MultiFab rhoDYy_mf(ba,dm,gas.nspecies,nghost);   // Fickian diffusion, rho*D*dY/dy
-    amrex::MultiFab w_mf(ba,dm, gas.nspecies,nghost);       // mass generation/destruction (reaction rate, kg/m^3/s)
+    amrex::MultiFab DKM_mf(ba,dm,NSPECIES,nghost);      // Diffusion coefficent for species k into mixture
+    amrex::MultiFab rhoHDYx_mf(ba,dm,NSPECIES,nghost);  // species enthalpy diffusion, rho*H*D*dY/dx
+    amrex::MultiFab rhoHDYy_mf(ba,dm,NSPECIES,nghost);  // species enthalpy diffusion, rho*H*D*dY/dy
+    amrex::MultiFab rhoDYx_mf(ba,dm,NSPECIES,nghost);   // Fickian diffusion, rho*D*dY/dx
+    amrex::MultiFab rhoDYy_mf(ba,dm,NSPECIES,nghost);   // Fickian diffusion, rho*D*dY/dy
+    amrex::MultiFab w_mf(ba,dm, NSPECIES,nghost);       // mass generation/destruction (reaction rate, kg/m^3/s)
 
     // Values only to be written if details=true
     amrex::Array4<Set::Scalar> mu_arr;
@@ -580,7 +580,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             // Compute velocity from fluid values
             gas.ComputeLocalFractions(rho, Y, X, i, j, k);
-            for (int n=0; n<gas.nspecies; ++n)
+            for (int n=0; n<NSPECIES; ++n)
             {
                 scratch(i,j,k,n) = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
             }
@@ -610,14 +610,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             {
                 mu_arr(i,j,k) = mixed_mu(i,j,k);
                 k_arr(i,j,k) = mixed_k(i,j,k);
-                for (int n=0; n<gas.nspecies; ++n) D_arr(i,j,k,n) = DKM(i,j,k,n);
+                for (int n=0; n<NSPECIES; ++n) D_arr(i,j,k,n) = DKM(i,j,k,n);
             }
         });
 
         // Second ParallelFor loop to get first gradients
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            for (int n=0; n<gas.nspecies; ++n)
+            for (int n=0; n<NSPECIES; ++n)
             {
                 Set::Vector grad_Y;
                 if (i == bx.smallEnd(0)) {
@@ -760,8 +760,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
 
 
-            std::vector<double> mdot0(gas.nspecies);
-            for (int n=0; n<gas.nspecies; ++n ) { mdot0[n] = m0(i,j,k,n)*grad_eta_mag; }
+            std::vector<double> mdot0(NSPECIES);
+            for (int n=0; n<NSPECIES; ++n ) { mdot0[n] = m0(i,j,k,n)*grad_eta_mag; }
             Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
@@ -793,17 +793,17 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         }
 
 
-            for (int n=0; n<gas.nspecies; ++n)
+            for (int n=0; n<NSPECIES; ++n)
             {
                 Source(i,j, k, n) = mdot0[n];
             }
-            Source(i,j, k, gas.nspecies  ) = Pdot0(0) - Ldot0(0);
-            Source(i,j, k, gas.nspecies+1) = Pdot0(1) - Ldot0(1);
-            Source(i,j, k, gas.nspecies+2) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
+            Source(i,j, k, NSPECIES  ) = Pdot0(0) - Ldot0(0);
+            Source(i,j, k, NSPECIES+1) = Pdot0(1) - Ldot0(1);
+            Source(i,j, k, NSPECIES+2) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             // Lagrange terms to enforce no-penetration
-            Source(i,j,k,gas.nspecies  ) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,gas.nspecies+1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
+            Source(i,j,k,NSPECIES  ) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
+            Source(i,j,k,NSPECIES+1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
 
             //Godunov flux
             //states of total fields
@@ -864,13 +864,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
                 
             Set::Scalar drhof_dt = 0.0;
-            for (int n=0; n<gas.nspecies; ++n)
+            for (int n=0; n<NSPECIES; ++n)
             {
                 drhof_dt = 
                     (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
                     (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
                     Source(i, j, k, n);
-                if (gas.nspecies > 1)
+                if (NSPECIES > 1)
                 {
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
                     Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX);
@@ -893,7 +893,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_ylo.momentum_tangent - flux_yhi.momentum_tangent) / DX[1] +
                 div_tau(0) * eta +
                 g(0)*rho_sum(i,j,k) +
-                Source(i, j, k, gas.nspecies);
+                Source(i, j, k, NSPECIES);
 
             M_rhs(i,j,k,0) = 
                 //M_new(i, j, k, 0) = M(i, j, k, 0) +
@@ -909,7 +909,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_ylo.momentum_normal  - flux_yhi.momentum_normal ) / DX[1] +
                 div_tau(1) * eta + 
                 g(1)*rho_sum(i,j,k) +
-                Source(i, j, k, gas.nspecies+1);
+                Source(i, j, k, NSPECIES+1);
 
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
@@ -925,11 +925,11 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
                 eta * (div_tau.dot(u) + (grad_mixed_kTx[0] + grad_mixed_kTy[1])) +
                 rho_sum(i,j,k)*g.dot(u) +
-                Source(i, j, k, gas.nspecies+2);
+                Source(i, j, k, NSPECIES+2);
 
-            if (gas.nspecies > 1)
+            if (NSPECIES > 1)
             {
-                for (int n=0; n<gas.nspecies; ++n)
+                for (int n=0; n<NSPECIES; ++n)
                 {
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
                     Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);

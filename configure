@@ -116,7 +116,7 @@ if os.path.exists(pre_args.config):
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
-parser.add_argument('--nspecies-max', dest='nspecies_max', default=20, type=int, help='Maximum number of species [20]')
+parser.add_argument('--nspecies', dest='nspecies', default=1, type=int, help='Number of species [1]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
@@ -240,9 +240,9 @@ message("Dimension",str(args.dim))
 #
 # NSPECIES
 #
-f.write("NSPECIES_MAX = " + str(args.nspecies_max) + "\n")
-f.write("CXX_COMPILE_FLAGS += -DNSPECIES_MAX=" + str(args.nspecies_max) + "\n")
-message("NSpecies Max",str(args.nspecies_max))
+f.write("NSPECIES = " + str(args.nspecies) + "\n")
+f.write("CXX_COMPILE_FLAGS += -DNSPECIES=" + str(args.nspecies) + "\n")
+message("NSpecies",str(args.nspecies))
 
 #
 # COMPILER
@@ -644,7 +644,7 @@ if not args.compile_commands:
 
     otherflags = ""
     if args.fft: otherflags += " -DALAMO_FFT"
-    otherflags += f" -DNSPECIES_MAX={args.nspecies_max}"
+    otherflags += f" -DNSPECIES={args.nspecies}"
 
     if args.amrex: otherflags += f" -I{args.amrex}/include"
     else: otherflags += f" -I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"

@@ -74,7 +74,7 @@ public:
         // Ensure no negative densities
         Set::Scalar rho_sum_L = 0.0;
         Set::Scalar rho_sum_R = 0.0;
-        for (int n=0; n<gas.nspecies; ++n)
+        for (int n=0; n<NSPECIES; ++n)
         {
             rho_sum_L += std::max(small, lo.rho[n]);
             rho_sum_R += std::max(small, hi.rho[n]);
@@ -260,14 +260,13 @@ public:
         // STEP 7: Compute fluxes
         //
         Flux fl;
-        fl.nspecies = gas.nspecies;
 
         Set::Scalar mixed_mass_flux = (0.5*(rho_sum_L*u_L + rho_sum_R*u_R) - 0.5*(
                     r11*fabs(lambda1)*deltav1 +
                     r21*fabs(lambda2)*deltav2 +
                     r31*fabs(lambda3)*deltav3)
         );
-        for (int n=0; n<gas.nspecies; ++n)
+        for (int n=0; n<NSPECIES; ++n)
         {
             Set::Scalar Y_L = std::max(small, lo.rho[n]) / rho_sum_L;
             Set::Scalar Y_R = std::max(small, hi.rho[n]) / rho_sum_R;

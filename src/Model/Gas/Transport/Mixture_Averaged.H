@@ -2,6 +2,7 @@
 #define MODEL_GAS_TRANSPORT_MIXTURE_AVERAGED_H_
 
 #include <vector>
+#include <array>
 #include <memory>
 #include "IO/ParmParse.H"
 #include "Model/Gas/Transport/Transport.H"
@@ -42,7 +43,6 @@ public:
     virtual const char* model_name() const override { return name; }
 
 private:
-    int nspecies;
     std::vector<double> &MW;
     Thermo::Thermo const * const thermo;
     std::string type;
@@ -53,8 +53,8 @@ private:
 
 public:
     Mixture_Averaged() = delete;
-    Mixture_Averaged(int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo *a_thermo, IO::ParmParse& pp, std::string name)
-        : nspecies(a_nspecies), MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
+    Mixture_Averaged(std::vector<double> &a_MW, Thermo::Thermo *a_thermo, IO::ParmParse& pp, std::string name)
+        : MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
     {
         pp.queryclass(name, *this);
     }
@@ -83,8 +83,8 @@ public:
         pp.query_default("L_1ang", value.L_1ang, "1_ang", Unit::Length());
         pp.query_default("A_1cmsq", value.A_1cmsq, "1_cm^2", Unit::Area());
 
-        Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
-        Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
+        Util::Assert(INFO, TEST(value.val1.size() == (size_t)NSPECIES));
+        Util::Assert(INFO, TEST(value.val2.size() == (size_t)NSPECIES));
     }
 
 private:
@@ -112,11 +112,11 @@ public:
         if ( type == "constant" )
         {
             // dynamic viscosity, mu, is constant per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = val1[a];
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = val1[b];
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -130,11 +130,11 @@ public:
         else if ( type == "LJ" )
         {
             // dynamic viscosity, mu, computed by Chapman-Enskog per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = mu_enskog(T, a);
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = mu_enskog(T, b);
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -161,11 +161,11 @@ public:
         if ( type == "constant" )
         {
             // thermal conductivity coefficient, k, is constant per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = val1[a];
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = val1[b];
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -179,11 +179,11 @@ public:
         else if ( type == "LJ" )
         {
             // thermal conductivity coefficient, k, computed by Eucken relation per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = mu_enskog(T, a);
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = mu_enskog(T, b);
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -210,19 +210,19 @@ public:
         {
             // Mixture diffusion coefficients based on simple harmonic mean, m^2/s
             double rho_mix = 0.0;
-            for (int n=0; n<nspecies; ++n)
+            for (int n=0; n<NSPECIES; ++n)
                 rho_mix += X(i,j,k,n) * MW[n];
             rho_mix *= P/(Set::Constant::Rg*T);
             
             // compute self-diffusion proxies D_n = mu_n/rho_mix
-            std::vector<double> D_self(nspecies);
-            for (int n=0; n<nspecies; ++n)
+            std::array<double, NSPECIES> D_self;
+            for (int n=0; n<NSPECIES; ++n)
                 D_self[n] = d_fact * val1[n] / rho_mix;
             
             // compute mixture diffusion coefficients
-            for (int a=0; a<nspecies; ++a) {
+            for (int a=0; a<NSPECIES; ++a) {
                 double sumD = 0.0;
-                for (int b=0; b<nspecies; ++b) {
+                for (int b=0; b<NSPECIES; ++b) {
                     if (a==b) continue;
                     double D_ab = 2.0 * D_self[a] * D_self[b] / (D_self[a] + D_self[b]); // harmonic mean
                     sumD += X(i,j,k,b) / D_ab;
@@ -234,9 +234,9 @@ public:
         else if ( type == "LJ" )
         {
             // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double sumD = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     if (a == b) continue;
 
                     double sigmaAB = 0.5 * (val1[a] + val1[b]) / L_1ang; // in angstroms

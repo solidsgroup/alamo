@@ -50,7 +50,7 @@ public:
         // Ensure no negative densities and compute total densities
         Set::Scalar rho_sum_L = 0.0;
         Set::Scalar rho_sum_R = 0.0;
-        for (int n=0; n<gas.nspecies; ++n)
+        for (int n=0; n<NSPECIES; ++n)
         {
             rho_sum_L += std::max(small, lo.rho[n]);
             rho_sum_R += std::max(small, hi.rho[n]);
@@ -132,11 +132,10 @@ public:
         }
 
         Flux result;
-        result.nspecies = gas.nspecies;
 
         if (S_L >= 0.0)
         {
-            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(small, lo.rho[n]) * u_L;
+            for (int n=0; n<NSPECIES; ++n) result.mass[n] = std::max(small, lo.rho[n]) * u_L;
             result.momentum_normal = lo.M_normal * u_L + p_L;
             result.momentum_tangent = lo.M_tangent * u_L;
             result.energy = u_L * (lo.E + p_L);
@@ -144,7 +143,7 @@ public:
         }
         else if (S_R <= 0.0)
         {
-            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(small, hi.rho[n]) * u_R;
+            for (int n=0; n<NSPECIES; ++n) result.mass[n] = std::max(small, hi.rho[n]) * u_R;
             result.momentum_normal = hi.M_normal * u_R + p_R;
             result.momentum_tangent = hi.M_tangent * u_R;
             result.energy = u_R * (hi.E + p_R);
@@ -153,7 +152,7 @@ public:
         else
         {
             Set::Scalar inv_dS = 1.0 / (S_R - S_L);
-            for (int n=0; n<gas.nspecies; ++n)
+            for (int n=0; n<NSPECIES; ++n)
             {
                 Set::Scalar fL_mass = std::max(small, lo.rho[n]) * u_L;
                 Set::Scalar fR_mass = std::max(small, hi.rho[n]) * u_R;

@@ -36,7 +36,7 @@ public:
         // compute densities (and regularize)
         Set::Scalar rho_sum_L = 0.0;
         Set::Scalar rho_sum_R = 0.0;
-        for (int n=0; n<gas.nspecies; ++n)
+        for (int n=0; n<NSPECIES; ++n)
         {
             rho_sum_L += std::max(lo.rho[n], small);
             rho_sum_R += std::max(hi.rho[n], small);
@@ -133,11 +133,10 @@ public:
             (      rho_sum_L*(S_L-u_L)  - rho_sum_R*(S_R - u_R)           );
 
         Flux result;
-        result.nspecies = gas.nspecies;
 
         if (0.0 < S_L) // F_L region
         {
-            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(lo.rho[n], small) * u_L;
+            for (int n=0; n<NSPECIES; ++n) result.mass[n] = std::max(lo.rho[n], small) * u_L;
             result.momentum_normal = rho_sum_L*u_L*u_L + p_L;
             result.momentum_tangent = rho_sum_L*u_L*v_L;
             result.energy = u_L * (E_L + p_L);
@@ -146,7 +145,7 @@ public:
         else if (S_L <= 0.0 && 0.0 < Sstar)  // Fstar_L region
         {
             double factor_L = (S_L - u_L) / (S_L - Sstar);
-            for (int n=0; n<gas.nspecies; ++n) {
+            for (int n=0; n<NSPECIES; ++n) {
                 Set::Scalar fL_mass = std::max(lo.rho[n], small) * u_L;
                 Set::Scalar Ustar_L_rho = std::max(lo.rho[n], small) * factor_L;
                 result.mass[n] = fL_mass + S_L * (Ustar_L_rho - lo.rho[n]);
@@ -168,7 +167,7 @@ public:
         else if (Sstar <= 0.0 && 0.0 <= S_R )
         {
             double factor_R = (S_R - u_R) / (S_R - Sstar);
-            for (int n=0; n<gas.nspecies; ++n) {
+            for (int n=0; n<NSPECIES; ++n) {
                 Set::Scalar fR_mass = std::max(hi.rho[n], small) * u_R;
                 Set::Scalar Ustar_R_rho = std::max(hi.rho[n], small) * factor_R;
                 result.mass[n] = fR_mass + S_R * (Ustar_R_rho - hi.rho[n]);
@@ -189,7 +188,7 @@ public:
         }
         else if (S_R < 0.0)
         {
-            for (int n=0; n<gas.nspecies; ++n) result.mass[n] = std::max(hi.rho[n], small) * u_R;
+            for (int n=0; n<NSPECIES; ++n) result.mass[n] = std::max(hi.rho[n], small) * u_R;
             result.momentum_normal = rho_sum_R*u_R*u_R + p_R;
             result.momentum_tangent = rho_sum_R*u_R*v_R;
             result.energy = u_R * (E_R + p_R);
@@ -201,8 +200,8 @@ public:
         Util::Message(INFO,Sstar);
         Util::Message(INFO,S_L);
         Util::Exception(INFO);
-        std::array<double, NSPECIES_MAX> nan_mass; nan_mass.fill(NAN);
-        return Flux(nan_mass, gas.nspecies, NAN, NAN, NAN);
+        std::array<double, NSPECIES> nan_mass; nan_mass.fill(NAN);
+        return Flux(nan_mass, NAN, NAN, NAN);
     }
 };
 
