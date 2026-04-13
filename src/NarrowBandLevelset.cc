@@ -9,6 +9,8 @@ int main (int argc, char* argv[])
 
     {
     Integrator::NarrowBandLevelset integrator(pp);
+    integrator.InitData();
+    integrator.Evolve();
     }
     
     Util::Finalize();

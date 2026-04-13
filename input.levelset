@@ -3,7 +3,7 @@ plot_file = output_levelset_IC_BC
 # Simulation length
 timestep = 0.01
 stop_time = 1.00
-max_step = 100
+max_step = 1
 
 # AMR parameters
 amr.plot_int = 10
@@ -27,8 +27,9 @@ ls0.ic.type = expression
 ls0.ic.expression.constant.r0 = 0.25   # Disk radius
 ls0.ic.expression.constant.xC0 = 0.5  # Disk center x
 ls0.ic.expression.constant.yC0 = 0.5  # Disk center y
+ls0.ic.expression.constant.zC0 = 0.5  # Disk center z
 
-ls0.ic.expression.region0 = "sqrt((x - xC0)^2 + (y - yC0)^2) - r0"
+ls0.ic.expression.region0 = "sqrt((x - xC0)^2 + (y - yC0)^2 + (z - zC0)^2) - r0"
 
 ls0.bc.constant.type.xhi = neumann 
 ls0.bc.constant.type.xlo = neumann 
@@ -43,3 +44,10 @@ ls0.bc.constant.val.yhi = 0.0
 ls0.bc.constant.val.ylo = 0.0 
 ls0.bc.constant.val.zhi = 0.0  
 ls0.bc.constant.val.zlo = 0.0 
+
+# Initial velocity field 
+velocity.ic.type = expression 
+
+velocity.ic.expression.region0 = "1.0"
+velocity.ic.expression.region1 = "0.0"
+velocity.ic.expression.region2 = "0.0"
