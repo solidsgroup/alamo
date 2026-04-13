@@ -128,8 +128,9 @@ L_0_agglom = 2.5e1
 L_0_reaction = 5.0e-4
 
 # Agglomerate order parameter initial condition
-alpha.ic.type = constant
-alpha.ic.constant.value = 0.5
+alpha.ic.type = random
+alpha.ic.random.offset = 0.4
+alpha.ic.random.mult = 0.2
 
 # Agglomerate order parameter boundary conditions
 alpha.bc.type = constant

@@ -7,6 +7,7 @@
 #include "BC/Constant.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
+#include "IC/Random.H"
 #include "IO/ParmParse.H"
 #include "Numeric/Stencil.H"
 #include "Set/Base.H"
@@ -60,7 +61,7 @@ Agglomeration::Parse(Agglomeration &value, IO::ParmParse &pp)
     pp.query_default("gradient_alpha_refinement_threshold", value.agglom.gradient_alpha_refinement_threshold, "1.0", Unit::Less());
 
     // Initial condition for the agglomerate order parameter
-    pp.select_default<IC::Constant, IC::Expression>("alpha.ic", value.agglom.alpha_ic, value.geom);
+    pp.select_default<IC::Constant, IC::Random, IC::Expression>("alpha.ic", value.agglom.alpha_ic, value.geom);
     // Boundary condition for for agglomerate order parameter
     pp.select_default<BC::Constant>("alpha.bc", value.agglom.alpha_bc, 1);
 
