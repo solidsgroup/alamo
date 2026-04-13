@@ -3,8 +3,7 @@ plot_file = tests/Agglomeration/output
 
 # AMR parameters
 amr.plot_dt = 1e-4
-amr.blocking_factor = 4
-amr.grid_eff = 1
+amr.blocking_factor = 16
 amr.thermo.plot_dt = 1e-4
 flame.amr.refinement_criterion = 1e-1
 flame.amr.refinement_criterion_temp = 10.0
@@ -13,15 +12,15 @@ amr.cell.all = 1
 amr.node.all = 1
 
 # Geometry and AMR level specification
-amr.n_cell = 8 8 8
+amr.n_cell = 128 128 128
 geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 5e-4 5e-4 5e-4
-amr.max_level = 4
+geometry.prob_hi = 5.12e-4 5.12e-4 5.12e-4
+amr.max_level = 0
 geometry.is_periodic = 0 0 0
 
 # Timestep and duration
-timestep = 1e-7
-stop_time = 0.125
+timestep = 6.25e-9
+stop_time = 0.09
 
 # Phase field parameters
 flame.pf.eps = 1e-6
@@ -52,7 +51,7 @@ flame.pf.eta.bc.constant.val.zhi = 0.0
 # Phi initial condition (spheres)
 flame.phi.ic.type = psread
 flame.phi.ic.psread.file.unit = m
-flame.phi.ic.psread.file.name = tests/Agglomeration/2d.xyzr
+flame.phi.ic.psread.file.name = tests/Agglomeration/3d-slice.xyzr
 flame.phi.ic.psread.eps = 1.15e-5_m
 
 # Use the full-feedback propellant model
@@ -82,8 +81,8 @@ flame.propellant.fullfeedback.c1 = -0.09906
 flame.propellant.fullfeedback.mlocal_ap = 1e3
 flame.propellant.fullfeedback.mlocal_comb = 0.0
 flame.propellant.fullfeedback.phi.zeta_0 = 1.13e-5
-flame.propellant.fullfeedback.phi.zeta = 1.13e-5 
-flame.propellant.fullfeedback.Pref = 1.0_MPa 
+flame.propellant.fullfeedback.phi.zeta = 1.13e-5
+flame.propellant.fullfeedback.Pref = 1.0_MPa
 
 # Activate thermal transport
 flame.thermal.on = 1
@@ -122,11 +121,11 @@ flame.elastic.phirefinement = 0
 
 # Agglomeration parameters
 calculate_initial_volume = true
-sigma = 1e-1
+sigma = 1.0e-1
 epsilon = 5.5e-6
-lambda = 5e4
+lambda = 5.0e4
 L_0_agglom = 2.5e1
-L_0_reaction = 5e-3
+L_0_reaction = 5.0e-4
 
 # Agglomerate order parameter initial condition
 alpha.ic.type = constant
