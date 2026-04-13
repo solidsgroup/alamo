@@ -639,8 +639,16 @@ if not args.compile_commands:
     otherflags = ""
     if args.fft: otherflags += "-DALAMO_FFT"
 
+    if args.eigen: otherflags += f" -isystem {args.eigen}"
+    elif args.geteigen: otherflags += " -isystem ./ext/libeigen/"
+
     if args.amrex: otherflags += f" -I{args.amrex}/include"
     else: otherflags += f" -I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"
+
+    cplus_include_path = os.environ.get("CPLUS_INCLUDE_PATH", "")
+    if cplus_include_path:
+        for pth in cplus_include_path.split(":"):
+            if pth: otherflags += f" -I{pth}"
 
     cc = compmpicmd
     command_objects = []
