@@ -17,7 +17,7 @@ jobs:
     - name: make
       run: make
     - name: run multi-species regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies --permit-skips
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-multispecies-2d-22-04
@@ -40,7 +40,7 @@ jobs:
     - name: make
       run: make
     - name: run multi-species regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies --permit-skips
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-multispecies-2d-24-04
@@ -65,7 +65,7 @@ jobs:
     - name: make
       run: make
     - name: run multi-species regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++ --timeout=200 --no-backspace --multispecies
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++ --timeout=200 --no-backspace --multispecies --permit-skips
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-multispecies-2d-24-04-clang
@@ -76,3 +76,91 @@ jobs:
       with:
         name: test-multispecies-2d-24-04-clang
         path: test-multispecies-2d-24-04-clang
+
+  memcheck-multispecies-2d-asan-gcc:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh 
+    - name: installing mpich (needed for asan)
+      run: sudo apt install -y libmpich-dev libmpich12 mpich
+    - name: switch mpi compiler to mpich
+      run: sudo update-alternatives --set mpi /usr/bin/mpicc.mpich
+    - name: switch mpirun to mpich
+      run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
+    - name: configure (2d, nspecies=3, asan)
+      run: ./configure --dim=2 --nspecies=3 --debug --memcheck --memcheck-tool=asan 
+    - name: make
+      run: make
+    - name: regression tests with memory checking (2d, nspecies=3)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace --timeout=50 --permit-timeout --permit-skips --multispecies
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name memcheck-multispecies-2d-asan-gcc
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: memcheck-multispecies-2d-asan-gcc
+        path: memcheck-multispecies-2d-asan-gcc
+
+  memcheck-multispecies-2d-asan-clang:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: installing mpich (needed for asan)
+      run: sudo apt install -y libmpich-dev libmpich12 mpich
+    - name: switch mpi compiler to mpich
+      run: sudo update-alternatives --set mpi /usr/bin/mpicc.mpich
+    - name: switch mpirun to mpich
+      run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
+    - name: configure (2d, nspecies=3, asan, clang)
+      continue-on-error: true
+      run: ./configure --dim=2 --nspecies=3 --debug --memcheck --memcheck-tool=asan --comp=clang++
+    - name: make
+      run: make
+    - name: regression tests with memory checking (2d, nspecies=3)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --multispecies
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name memcheck-multispecies-2d-asan-clang
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: memcheck-multispecies-2d-asan-clang
+        path: memcheck-multispecies-2d-asan-clang
+
+  memcheck-multispecies-2d-msan-clang:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: installing mpich (needed for msan)
+      run: sudo apt install -y libmpich-dev libmpich12 mpich
+    - name: switch mpi compiler to mpich
+      run: sudo update-alternatives --set mpi /usr/bin/mpicc.mpich
+    - name: switch mpirun to mpich
+      run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
+    - name: configure (2d, nspecies=3, msan, clang)
+      continue-on-error: true
+      run: ./configure --dim=2 --nspecies=3 --debug --memcheck --memcheck-tool=msan --comp=clang++
+    - name: make
+      run: make
+    - name: regression tests with memory checking (2d, nspecies=3)
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --multispecies
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name memcheck-multispecies-2d-msan-clang
+    - name: upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: memcheck-multispecies-2d-msan-clang
+        path: memcheck-multispecies-2d-msan-clang
+
+

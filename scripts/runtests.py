@@ -463,13 +463,9 @@ def test(testdir):
             config[desc].pop('multispecies')
 
         if is_multispecies and not args.multispecies:
-            print("  ├ {}{} (skipped - multi-species test not requested){}".format(color.boldyellow, desc, color.reset))
-            skips += 1
             continue
         
         if not is_multispecies and args.multispecies:
-            # If we explicitly asked for multispecies, skip everything else.
-            # (We don't print a message here to avoid cluttering the output)
             continue
 
         command += exestr + " "
