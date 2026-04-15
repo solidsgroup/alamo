@@ -128,8 +128,8 @@ public:
 
         pp.queryclass_enumerate<MODEL>("model",value.models,nmodels);
 
-        Util::Assert(INFO, TEST((int)nmodels == (int)value.models.size()), 
-                     "nmodels does not the # of specified models");
+        Util::Assert(INFO,   TEST((int)nmodels == (int)value.models.size()), 
+                        "nmodels does not the # of specified models");
 
         Util::Assert(INFO, TEST(value.models.size() > 0));
         value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);
