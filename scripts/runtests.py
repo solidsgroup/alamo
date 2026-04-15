@@ -147,6 +147,7 @@ parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_tru
 parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
 parser.add_argument('--python', default=False,action='store_true', help='Include python tests')
 parser.add_argument('--only-python', default=False,action='store_true', help='Run python tests only')
+parser.add_argument('--multispecies',default=False,action='store_true',help='Run multi-species test cases (e.g., NSPECIES=3)')
 args=parser.parse_args()
 
 if args.coverage and args.no_coverage:
@@ -453,6 +454,23 @@ def test(testdir):
                     skips += 1
                     continue
                 config[desc].pop('skip')
+
+        # Determine if this is a multi-species test
+        is_multispecies = False
+        if 'multispecies' in config[desc].keys():
+            if config[desc]['multispecies'].lower() in ['true', 'yes', '1']:
+                is_multispecies = True
+            config[desc].pop('multispecies')
+
+        if is_multispecies and not args.multispecies:
+            print("  ├ {}{} (skipped - multi-species test not requested){}".format(color.boldyellow, desc, color.reset))
+            skips += 1
+            continue
+        
+        if not is_multispecies and args.multispecies:
+            # If we explicitly asked for multispecies, skip everything else.
+            # (We don't print a message here to avoid cluttering the output)
+            continue
 
             command += exestr + " "
             command += "{}/input ".format(testdir)

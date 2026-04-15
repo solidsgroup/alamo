@@ -1,6 +1,7 @@
 #@ [viscous-thermal-constant]
 #@ exe = hydro
 #@ dim = 2
+#@ multispecies = true
 #@ args = gas.transport.mixture_averaged.type = constant
 #@ args = gas.transport.mixture_averaged.mu = 1462E-7_g/cm/s 2031E-7_g/cm/s 1754E-7_g/cm/s
 #@ args = gas.transport.mixture_averaged.k = 383e-7_cal/cm/s/K 612e-7_cal/cm/s/K 627e-7_cal/cm/s/K
@@ -9,6 +10,7 @@
 #@ [viscous-thermal-LJ]
 #@ exe = hydro
 #@ dim = 2
+#@ multispecies = true
 #@ args = gas.transport.mixture_averaged.type = LJ
 #@ args = gas.transport.mixture_averaged.LJdiameter = 3.996_ang 3.433_ang 3.667_ang
 #@ args = gas.transport.mixture_averaged.LJwelldepth = 190.0_K 113.0_K 99.8_K
@@ -17,6 +19,7 @@
 #@ [species-constant]
 #@ exe = hydro
 #@ dim = 2
+#@ multispecies = true
 #@ args = gas.mw = 28.01_g/mol 44.01_g/mol 28.02_g/mol
 #@ args = gas.transport.mixture_averaged.type = constant
 #@ args = gas.transport.mixture_averaged.mu = 1740E-7_g/cm/s 1462E-7_g/cm/s 1754E-7_g/cm/s
@@ -28,6 +31,7 @@
 #@ [species-LJ]
 #@ exe = hydro
 #@ dim = 2
+#@ multispecies = true
 #@ args = gas.mw = 28.01_g/mol 44.01_g/mol 28.02_g/mol
 #@ args = gas.transport.mixture_averaged.type = LJ
 #@ args = gas.transport.mixture_averaged.LJdiameter = 3.590_ang 3.996_ang 3.667_ang

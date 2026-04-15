@@ -1,0 +1,78 @@
+name: MultiSpeciesTests
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test-multispecies-2d-22-04:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-22.04.sh
+    - name: configure (2d, nspecies=3)
+      run: ./configure --dim=2 --nspecies=3
+    - name: make
+      run: make
+    - name: run multi-species regression tests
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name test-multispecies-2d-22-04
+    - name: upload report
+      if: always()
+      id: upload_report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-multispecies-2d-22-04
+        path: test-multispecies-2d-22-04
+
+  test-multispecies-2d-24-04:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: configure (2d, nspecies=3)
+      run: ./configure --dim=2 --nspecies=3
+    - name: make
+      run: make
+    - name: run multi-species regression tests
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name test-multispecies-2d-24-04
+    - name: upload report
+      if: always()
+      id: upload_report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-multispecies-2d-24-04
+        path: test-multispecies-2d-24-04
+
+  test-multispecies-2d-24-04-clang:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies-ubuntu-24.04.sh
+    - name: installing clang
+      run: sudo apt install clang
+    - name: configure (2d, nspecies=3, clang)
+      run: ./configure --dim=2 --nspecies=3 --comp=clang++
+    - name: make
+      run: make
+    - name: run multi-species regression tests
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++ --timeout=200 --no-backspace --multispecies
+    - name: create report
+      if: always()
+      run: python3 scripts/package_report.py --name test-multispecies-2d-24-04-clang
+    - name: upload report
+      if: always()
+      id: upload_report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-multispecies-2d-24-04-clang
+        path: test-multispecies-2d-24-04-clang
