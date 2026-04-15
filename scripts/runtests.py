@@ -472,10 +472,10 @@ def test(testdir):
             # (We don't print a message here to avoid cluttering the output)
             continue
 
-            command += exestr + " "
-            command += "{}/input ".format(testdir)
-            command += cmdargs
-            record['cmd_test'] = command
+        command += exestr + " "
+        command += "{}/input ".format(testdir)
+        command += cmdargs
+        record['cmd_test'] = command
         
 
 
