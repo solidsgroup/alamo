@@ -23,6 +23,10 @@
 #include "Model/Gas/EOS/EOS.H"
 #include "Model/Gas/EOS/CPG.H"
 
+#include "Model/Chemistry/Chemistry.H"
+#include "Model/Chemistry/Frozen.H"
+#include "Model/Chemistry/Equilibrium.H"
+
 namespace Integrator
 {
 
@@ -148,6 +152,8 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
             value.RegisterNewFab(value.viscosity_mf, &value.bc_nothing, 1, nghost, "viscosity", true, true);
             value.RegisterNewFab(value.thermal_conductivity_coeff_mf, &value.bc_nothing, 1, nghost, "thermal_conductivity_coeff", true, true);
             value.RegisterNewFab(value.diffusion_coeff_mf, &value.bc_nothing, NSPECIES, nghost, "diffusion_coeff", true, true);
+            value.RegisterNewFab(value.wdot_mf, &value.bc_nothing, NSPECIES, nghost, "wdot", true, true);
+            value.RegisterNewFab(value.qdot_mf, &value.bc_nothing, 1, nghost, "qdot", true, true);
         }
     }
 
@@ -201,6 +207,12 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     pp.select_default<  Solver::Local::Riemann::Roe,
                         Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
+
+    // Chemistry Model
+    pp.select<  Model::Chemistry::Frozen,
+                Model::Chemistry::Equilibrium,
+                Model::Chemistry::FiniteRateKinetics,
+                Model::Chemistry::Rocfire>("chemistry",value.chemistry);
 
     std::string prescribedflowmode_str;
     // 
@@ -295,8 +307,8 @@ void Hydro::Mix(int lev)
             Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
 
             // Mix
-            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta +  M_solid(i, j, k, 0)*(1.0-eta);
-            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta +  M_solid(i, j, k, 1)*(1.0-eta);
+            M(i, j, k, 0) = density*v(i, j, k, 0)*eta +  M_solid(i, j, k, 0)*(1.0-eta);
+            M(i, j, k, 1) = density*v(i, j, k, 1)*eta +  M_solid(i, j, k, 1)*(1.0-eta);
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
@@ -519,12 +531,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
     amrex::MultiFab rhoHDYy_mf(ba,dm,NSPECIES,nghost);  // species enthalpy diffusion, rho*H*D*dY/dy
     amrex::MultiFab rhoDYx_mf(ba,dm,NSPECIES,nghost);   // Fickian diffusion, rho*D*dY/dx
     amrex::MultiFab rhoDYy_mf(ba,dm,NSPECIES,nghost);   // Fickian diffusion, rho*D*dY/dy
-    amrex::MultiFab w_mf(ba,dm, NSPECIES,nghost);       // mass generation/destruction (reaction rate, kg/m^3/s)
 
     // Values only to be written if details=true
     amrex::Array4<Set::Scalar> mu_arr;
     amrex::Array4<Set::Scalar> k_arr;
     amrex::Array4<Set::Scalar> D_arr;
+    amrex::Array4<Set::Scalar> wdot_arr;
+    amrex::Array4<Set::Scalar> qdot_arr;
 
     const Set::Scalar* DX = geom[lev].CellSize();
     amrex::Box domain = geom[lev].Domain();
@@ -540,7 +553,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
-        //Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
         Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
 
@@ -566,6 +578,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             mu_arr    = viscosity_mf.Patch(lev,mfi);
             k_arr     = thermal_conductivity_coeff_mf.Patch(lev,mfi);
             D_arr     = diffusion_coeff_mf.Patch(lev,mfi);
+            wdot_arr  = wdot_mf.Patch(lev,mfi);
+            qdot_arr  = qdot_mf.Patch(lev,mfi);
         }
 
         // First ParallelFor loop to get initial values needed for gradients
@@ -574,12 +588,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             // Compute T and P primitives from mixed values
+            gas.ComputeLocalFractions(rho, Y, X, i, j, k);
             Set::Scalar density = gas.ComputeD(rho, i, j, k);
             T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
             p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
 
             // Compute velocity from fluid values
-            gas.ComputeLocalFractions(rho, Y, X, i, j, k);
             for (int n=0; n<NSPECIES; ++n)
             {
                 scratch(i,j,k,n) = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
@@ -689,6 +703,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> molef     = mole_fraction_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> pressure  = pressure_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp      = temperature_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -793,13 +809,24 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                         }
 
 
+            std::array<double, NSPECIES> rhoY;
             for (int n=0; n<NSPECIES; ++n)
             {
                 Source(i,j, k, n) = mdot0[n];
+                rhoY[n] = rho(i,j,k,n);
             }
             Source(i,j, k, NSPECIES  ) = Pdot0(0) - Ldot0(0);
             Source(i,j, k, NSPECIES+1) = Pdot0(1) - Ldot0(1);
             Source(i,j, k, NSPECIES+2) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
+
+            std::array<double, NSPECIES> wdot;
+            Set::Scalar qdot = 0.0;
+            chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY, wdot, qdot);
+            if (details)
+            {
+                qdot_arr(i,j,k) = qdot;
+                for (int n=0; n<NSPECIES; ++n) wdot_arr(i,j,k,n) = wdot[n];
+            }
 
             // Lagrange terms to enforce no-penetration
             Source(i,j,k,NSPECIES  ) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);

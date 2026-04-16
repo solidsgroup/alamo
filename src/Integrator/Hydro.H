@@ -15,6 +15,12 @@
 
 #include "Model/Gas/Gas.H"
 
+#include "Model/Chemistry/Chemistry.H"
+#include "Model/Chemistry/Frozen.H"
+#include "Model/Chemistry/Equilibrium.H"
+#include "Model/Chemistry/FiniteRateKinetics.H"
+#include "Model/Chemistry/Rocfire.H"
+
 namespace Integrator
 {
 class Hydro : virtual public Integrator
@@ -110,6 +116,8 @@ protected:
     Set::Field<Set::Scalar> viscosity_mf;
     Set::Field<Set::Scalar> thermal_conductivity_coeff_mf;
     Set::Field<Set::Scalar> diffusion_coeff_mf;
+    Set::Field<Set::Scalar> wdot_mf;
+    Set::Field<Set::Scalar> qdot_mf;
 
     struct {
         Set::Field<Set::Scalar> density_mf;
@@ -170,6 +178,12 @@ protected:
     Set::Scalar lagrange_m0=NAN;
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
+
+    Model::Chemistry::Chemistry<
+        Model::Chemistry::Frozen,
+        Model::Chemistry::Equilibrium,
+        Model::Chemistry::FiniteRateKinetics,
+        Model::Chemistry::Rocfire> chemistry;
 
     Model::Gas::Gas gas;
     

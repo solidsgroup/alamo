@@ -1,0 +1,146 @@
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+# CO2 O2 N2
+gas.mw = 32.0_g/mol 32.0_g/mol
+
+gas.thermo.type = cpconstant
+gas.thermo.cpconstant.cp_moles = 32000.0_J/kmol/K 32000.0_J/kmol/K
+gas.thermo.cpconstant.h0 = 0.0 0.0
+gas.thermo.cpconstant.s0 = 0.0 0.0
+gas.thermo.cpconstant.Tref = 0.0_K 0.0_K
+
+gas.transport.type = mixture_averaged
+#gas.transport.mixture_averaged.type = constant
+#gas.transport.mixture_averaged.mu = 150.0E-7_Pa*s 150.0E-7_Pa*s
+#gas.transport.mixture_averaged.k = 1.5E-2_W/m/K 1.5E-2_W/m/K
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter = 3.5e-2_ang 3.5e-2_ang #3.667_ang
+gas.transport.mixture_averaged.LJwelldepth = 100.0_K 100.0_K #99.8_K
+
+gas.eos.type = cpg
+
+chemistry.type = equilibrium
+chemistry.equilibrium.yaml = h2o2.yaml
+
+### OUTPUT ###
+
+plot_file = output.species_diffusion
+
+### MESHING ###
+
+amr.plot_dt = 1e-2
+amr.max_level = 3
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.regrid_int = 10
+amr.grid_eff = 0.7
+amr.n_cell = 256 8 0
+
+### DIMENSIONS ###
+geometry.prob_lo = 0.0 -0.3 0.0 # [ m ] 
+geometry.prob_hi = 1.0  0.3 0.0 # [ m ]
+geometry.is_periodic = 0 1 0
+
+### TIME STEP ###
+
+timestep  = 1.0e-6
+stop_time = 0.5
+
+### HYDRO PARAM ###
+
+details = true
+cfl   = 10.0
+small = 1e-16
+cutoff = 0.2
+
+### ETA IC ###
+
+eta.ic.type = expression
+eta.ic.expression.region0        = "1.0"
+
+m0.ic.constant.value = 0.0 0.0
+u0.ic.constant.value = 0.0 0.0
+q.ic.constant.value = 0.0 0.0
+
+density.ic.type = expression
+density.ic.expression.constant.P = 101325.0
+density.ic.expression.constant.T = 300.0
+density.ic.expression.constant.R = 259.83
+density.ic.expression.constant.eps = 0.01
+density.ic.expression.region0 = "P/R/T * 0.5 * (1.0 - erf((x-1/2)/eps))"
+density.ic.expression.region1 = "P/R/T * (1.0 - 0.5 * (1.0 - erf((x-1/2)/eps)))"
+#density.ic.expression.region0 = "P/R/T * (x<=0.5)"
+#density.ic.expression.region1 = "P/R/T * (x>0.5)"
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.eps   = 0.1
+velocity.ic.expression.constant.x0    = -2.0
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.constant.gamma = 1.4
+pressure.ic.expression.constant.E_solid = 5.0
+pressure.ic.expression.region0 = "101325.0" #"(gamma - 1.0) * E_solid" # / x^2"
+
+solid.density.ic.constant.value = 40.0 40.0
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.energy.ic.constant.value = 0.0
+
+### ETA BC  ###
+
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+
+density.bc.constant.type.xhi = dirichlet dirichlet
+density.bc.constant.type.xlo = dirichlet dirichlet
+density.bc.constant.type.yhi = periodic periodic
+density.bc.constant.type.ylo = periodic periodic
+density.bc.constant.val.xhi = 0.0 1.299887089
+density.bc.constant.val.xlo = 1.299887089 0.0
+density.bc.constant.val.yhi = 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0
+
+momentum.bc.constant.type.xhi = dirichlet dirichlet
+momentum.bc.constant.type.xlo = dirichlet dirichlet
+momentum.bc.constant.type.ylo = periodic periodic
+momentum.bc.constant.type.yhi = periodic periodic
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.constant.type.xhi = dirichlet
+energy.bc.constant.type.xlo = dirichlet
+energy.bc.constant.type.ylo = periodic
+energy.bc.constant.type.yhi = periodic
+energy.bc.constant.val.xhi = 288646.20678914
+energy.bc.constant.val.xlo = 288646.20678914
+energy.bc.constant.val.ylo = 0.0
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion   = 10000000
+
+prescribedflowmode = relative
+
+#TODO
