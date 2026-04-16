@@ -23,8 +23,10 @@ struct Equilibrium
         pp_queryclass(name,*this); 
     } 
 
+#ifdef ALAMO_YAML
     std::string yaml;
     CanteraYAML::CanteraKinetics kinetics;
+#endif
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     void compute(
@@ -46,11 +48,15 @@ struct Equilibrium
     static void Parse(Equilibrium& value, IO::ParmParse& pp)
     {
         Util::Message(INFO,pp.getPrefix());
+#ifdef ALAMO_YAML
         pp_query_required("yaml", value.yaml);
         value.kinetics = CanteraYAML::ParseYaml(value.yaml);
         Util::Message(INFO, value.yaml);
         for (int n=0; n<NSPECIES; ++n) Util::Message(INFO, value.kinetics.species[n].name);
-        
+#else
+        (void)value;
+        Util::Abort(INFO, "Alamo was not built with YAML support, but Equilibrium chemistry was requested.");
+#endif
     }
 
 };
