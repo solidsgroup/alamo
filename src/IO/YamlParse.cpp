@@ -4,6 +4,7 @@
 #include "Util/Util.H"
 
 CanteraYAML::CanteraKinetics CanteraYAML::ParseYaml(std::string &filename) {
+#ifdef ALAMO_YAML
     CanteraYAML::CanteraKinetics kinetics;
     CanteraYAML::CanteraParser parser;
 
@@ -84,4 +85,9 @@ CanteraYAML::CanteraKinetics CanteraYAML::ParseYaml(std::string &filename) {
 #endif
 
     return kinetics;
+#else
+    (void)filename;
+    Util::Abort(INFO, "Alamo was not built with YAML support (ALAMO_YAML was not defined).");
+    return CanteraYAML::CanteraKinetics();
+#endif
 }

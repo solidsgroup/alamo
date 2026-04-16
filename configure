@@ -155,6 +155,8 @@ parser.set_defaults(**defaults)
 #
 
 args=parser.parse_args()
+if args.nspecies > 1:
+    args.yaml = True
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 
@@ -460,7 +462,7 @@ if args.yaml:
     # expose to build system
     f.write(f"YAML_CPP_DIR = {yaml_dir}\n")
     f.write(f"YAML_CPP_LIB = {lib_path}\n")
-    f.write(f"CXX_COMPILE_FLAGS += -I{include_dir}\n")
+    f.write(f"CXX_COMPILE_FLAGS += -I{include_dir} -DALAMO_YAML\n")
     f.write(f"LIB += {lib_path}\n")
 
 #
@@ -699,7 +701,7 @@ if not args.compile_commands:
     if args.amrex: otherflags += f" -I{args.amrex}/include"
     else: otherflags += f" -I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"
 
-    if args.yaml: otherflags += f" -I./ext/yaml-cpp/include"
+    if args.yaml: otherflags += f" -I./ext/yaml-cpp/include -DALAMO_YAML"
 
     cc = compmpicmd
     command_objects = []

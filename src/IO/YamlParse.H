@@ -9,7 +9,10 @@
 #include <sstream>
 #include <stdexcept>
 #include <regex>
+
+#ifdef ALAMO_YAML
 #include <yaml-cpp/yaml.h>
+#endif
 
 namespace CanteraYAML {
 
@@ -70,6 +73,7 @@ struct CanteraKinetics {
 // Utility functions
 // ---------------------------
 
+#ifdef ALAMO_YAML
 // Convert a YAML node to double safely
 inline double asDoubleSafe(const YAML::Node& node) {
     if (!node) return 0.0;
@@ -108,6 +112,7 @@ inline std::vector<double> parseDoubleList(const YAML::Node& node) {
     }
     return result;
 }
+#endif
 
 // Helper: trim whitespace
 inline std::string trim(const std::string& s) {
@@ -186,6 +191,7 @@ auto parseSide = [](const std::string& side) -> std::map<std::string, double> {
     return species;
 };
 
+#ifdef ALAMO_YAML
 // ---------------------------
 // Main parser class
 // ---------------------------
@@ -346,6 +352,7 @@ public:
         return result;
     }
 };
+#endif
 
 CanteraKinetics ParseYaml(std::string &filename);
 

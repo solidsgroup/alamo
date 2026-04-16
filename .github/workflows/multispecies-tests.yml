@@ -13,7 +13,7 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-22.04.sh
     - name: configure (2d, nspecies=3)
-      run: ./configure --dim=2 --nspecies=3
+      run: ./configure --dim=2 --nspecies=3 --yaml
     - name: make
       run: make
     - name: run multi-species regression tests
@@ -36,7 +36,7 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies-ubuntu-24.04.sh
     - name: configure (2d, nspecies=3)
-      run: ./configure --dim=2 --nspecies=3
+      run: ./configure --dim=2 --nspecies=3 --yaml
     - name: make
       run: make
     - name: run multi-species regression tests
@@ -61,7 +61,7 @@ jobs:
     - name: installing clang
       run: sudo apt install clang
     - name: configure (2d, nspecies=3, clang)
-      run: ./configure --dim=2 --nspecies=3 --comp=clang++
+      run: ./configure --dim=2 --nspecies=3 --yaml --comp=clang++
     - name: make
       run: make
     - name: run multi-species regression tests
@@ -90,7 +90,7 @@ jobs:
     - name: switch mpirun to mpich
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d, nspecies=3, asan)
-      run: ./configure --dim=2 --nspecies=3 --debug --memcheck --memcheck-tool=asan 
+      run: ./configure --dim=2 --nspecies=3 --yaml --debug --memcheck --memcheck-tool=asan 
     - name: make
       run: make
     - name: regression tests with memory checking (2d, nspecies=3)
@@ -119,7 +119,7 @@ jobs:
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d, nspecies=3, asan, clang)
       continue-on-error: true
-      run: ./configure --dim=2 --nspecies=3 --debug --memcheck --memcheck-tool=asan --comp=clang++
+      run: ./configure --dim=2 --nspecies=3 --yaml --debug --memcheck --memcheck-tool=asan --comp=clang++
     - name: make
       run: make
     - name: regression tests with memory checking (2d, nspecies=3)
@@ -148,7 +148,7 @@ jobs:
       run: sudo update-alternatives --set mpirun /usr/bin/mpirun.mpich
     - name: configure (2d, nspecies=3, msan, clang)
       continue-on-error: true
-      run: ./configure --dim=2 --nspecies=3 --debug --memcheck --memcheck-tool=msan --comp=clang++
+      run: ./configure --dim=2 --nspecies=3 --yaml --debug --memcheck --memcheck-tool=msan --comp=clang++
     - name: make
       run: make
     - name: regression tests with memory checking (2d, nspecies=3)
