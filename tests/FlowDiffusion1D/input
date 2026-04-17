@@ -1,7 +1,7 @@
 #@ [fickian-diffusion]
 #@ exe = hydro
 #@ dim = 2
-#@ multispecies = true
+#@ nspecies = 3
 #@ check-file = reference/fickian-diffusion-analytic.csv
 
 ### RIEMANN SOLVER ###
