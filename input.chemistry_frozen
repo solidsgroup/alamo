@@ -22,12 +22,11 @@ gas.transport.mixture_averaged.LJwelldepth = 100.0_K 100.0_K 100.0_K
 
 gas.eos.type = cpg
 
-chemistry.type = equilibrium
-chemistry.equilibrium.yaml = h2o2.yaml
+chemistry.type = frozen
 
 ### OUTPUT ###
 
-plot_file = output.chemistry_equilibrium
+plot_file = output.chemistry_frozen
 
 ### MESHING ###
 

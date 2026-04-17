@@ -218,6 +218,7 @@ if args.verbose:
 #
 postfix = ""
 postfix += str(args.dim)+"d"
+if args.nspecies > 1: postfix += f"-{args.nspecies}species"
 if args.debug: postfix += "-debug"
 if args.memcheck:
     if args.memcheck_tool == "asan": postfix += "-asan"
