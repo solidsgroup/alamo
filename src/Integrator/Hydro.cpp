@@ -427,7 +427,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Set the time integrator RHS - in this case, just relay to our current RHS function
     timeintegrator.set_rhs([&](amrex::Vector<amrex::MultiFab> & rhs_mf, amrex::Vector<amrex::MultiFab> & solution_mf, const Set::Scalar time)
     {
-        RHS(lev, time,
+        RHS(lev, time, dt,
             rhs_mf[0], rhs_mf[1], rhs_mf[2],
             solution_mf[0],solution_mf[1],solution_mf[2]);
     });
@@ -510,7 +510,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 }//end Advance
 
 
-void Hydro::RHS(int lev, Set::Scalar /*time*/, 
+void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 
                 amrex::MultiFab &M_rhs_mf, 
                 amrex::MultiFab &E_rhs_mf,
@@ -821,7 +821,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             std::array<double, NSPECIES> wdot;
             Set::Scalar qdot = 0.0;
-            chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY, wdot, qdot);
+            chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY, wdot, qdot, dt, &gas);
+
             if (details)
             {
                 qdot_arr(i,j,k) = qdot;
@@ -904,6 +905,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                     Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX);
                     drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
                 }
+                drhof_dt += eta * wdot[n];
 
                 rho_rhs(i,j,k,n) = 
                     // rho_new(i, j, k) = rho(i, j, k) + 
@@ -952,7 +954,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 (flux_ylo.energy - flux_yhi.energy) / DX[1] +
                 eta * (div_tau.dot(u) + (grad_mixed_kTx[0] + grad_mixed_kTy[1])) +
                 rho_sum(i,j,k)*g.dot(u) +
-                Source(i, j, k, NSPECIES+2);
+                Source(i, j, k, NSPECIES+2) +
+                eta * qdot;
 
             if (NSPECIES > 1)
             {

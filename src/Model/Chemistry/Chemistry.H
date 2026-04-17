@@ -18,6 +18,7 @@
 
 #include "AMReX_Extension.H"
 #include "IO/ParmParse.H"
+#include "Model/Gas/Gas.H"
 
 namespace Model
 {
@@ -37,12 +38,12 @@ public:
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     void compute (const Set::Scalar P, const Set::Scalar T, const std::array<double,NSPECIES>& rhoY,
-                std::array<double,NSPECIES>& wdot, Set::Scalar qdot)
+                std::array<double,NSPECIES>& wdot, Set::Scalar& qdot, Set::Scalar dt, const Model::Gas::Gas* gas = nullptr)
     {
         if constexpr (I < sizeof...(OBJ))
         {
-            if (selected == I) return std::get<I>(obj).compute(P,T,rhoY,wdot,qdot);
-            else return compute<I+1>(P,T,rhoY,wdot,qdot);
+            if (selected == I) return std::get<I>(obj).compute(P,T,rhoY,wdot,qdot,dt,gas);
+            else return compute<I+1>(P,T,rhoY,wdot,qdot,dt,gas);
         }
         else Util::Abort(INFO,selected);
     }

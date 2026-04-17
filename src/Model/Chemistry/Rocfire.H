@@ -25,7 +25,9 @@ struct Rocfire
         const Set::Scalar /*T*/,
         const std::array<double, NSPECIES>& /*rhoY*/,
         std::array<double, NSPECIES>& wdot,
-        Set::Scalar& qdot)
+        Set::Scalar& qdot,
+        Set::Scalar /*dt*/,
+        const Model::Gas::Gas* /*gas*/ = nullptr)
     {
         // No chemistry: species are frozen
 

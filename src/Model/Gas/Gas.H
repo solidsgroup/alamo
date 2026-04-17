@@ -57,6 +57,8 @@ public:
     double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double cp_mol_species(double T, int n) const;
+    double enthalpy_mol_species(double T, int n) const;
+    double entropy_mol_species(double T, int n) const;
 
     // Transport quantities
     double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;

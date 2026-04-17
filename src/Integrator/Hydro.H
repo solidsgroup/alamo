@@ -88,7 +88,7 @@ protected:
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
     
-    void RHS(   int lev, Set::Scalar time, 
+    void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 
                 amrex::MultiFab &M_rhs_mf, 
                 amrex::MultiFab &E_rhs_mf,
