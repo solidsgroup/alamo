@@ -1,4 +1,4 @@
-name: MultiSpeciesTests
+name: Multispecies
 
 on: [push, pull_request]
 
@@ -17,7 +17,7 @@ jobs:
     - name: make
       run: make
     - name: run multi-species regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies --permit-skips
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --nspecies=3 --permit-skips
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-multispecies-2d-22-04
@@ -40,7 +40,7 @@ jobs:
     - name: make
       run: make
     - name: run multi-species regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --multispecies --permit-skips
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github  --timeout=200 --no-backspace --nspecies=3 --permit-skips
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-multispecies-2d-24-04
@@ -65,7 +65,7 @@ jobs:
     - name: make
       run: make
     - name: run multi-species regression tests
-      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++ --timeout=200 --no-backspace --multispecies --permit-skips
+      run: scripts/runtests.py --serial --no-coverage --dim=2 --benchmark=github --comp=clang++ --timeout=200 --no-backspace --nspecies=3 --permit-skips
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name test-multispecies-2d-24-04-clang
@@ -94,7 +94,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests with memory checking (2d, nspecies=3)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace --timeout=50 --permit-timeout --permit-skips --multispecies
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace --timeout=50 --permit-timeout --permit-skips --nspecies=3
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-multispecies-2d-asan-gcc
@@ -123,7 +123,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests with memory checking (2d, nspecies=3)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --multispecies
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --nspecies=3
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-multispecies-2d-asan-clang
@@ -152,7 +152,7 @@ jobs:
     - name: make
       run: make
     - name: regression tests with memory checking (2d, nspecies=3)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --multispecies
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace --timeout=50 --permit-timeout --permit-skips --nspecies=3
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-multispecies-2d-msan-clang
