@@ -20,23 +20,22 @@ struct FiniteRateKinetics
     }
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    void compute(
+    std::pair<std::array<double,NSPECIES>,Set::Scalar>
+    compute(
         const Set::Scalar /*P*/,
         const Set::Scalar /*T*/,
         const std::array<double, NSPECIES>& /*rhoY*/,
-        std::array<double, NSPECIES>& wdot,
-        Set::Scalar& qdot,
-        Set::Scalar /*dt*/,
+        const Set::Scalar /*dt*/,
         const Model::Gas::Gas* /*gas*/) const
     {
         // No chemistry: species are frozen
-
+        std::array<double, NSPECIES> wdot;
         for (int n = 0; n < NSPECIES; ++n)
         {
             wdot[n] = 0.0;
         }
 
-        qdot = 0.0;
+        return {wdot, 0.0};
     }
 
     static void Parse(FiniteRateKinetics& /*value*/, IO::ParmParse& pp)

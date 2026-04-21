@@ -821,7 +821,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
 
             std::array<double, NSPECIES> wdot;
             Set::Scalar qdot = 0.0;
-            chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY, wdot, qdot, dt, &gas);
+            std::tie(wdot, qdot) = chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY, dt, &gas);
 
             if (details)
             {

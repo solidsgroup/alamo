@@ -33,16 +33,15 @@ struct Equilibrium
 #endif
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    void compute(
+    std::pair<std::array<double,NSPECIES>,Set::Scalar>
+    compute(
         const Set::Scalar /*P_orig*/,
         const Set::Scalar T_orig,
         const std::array<double, NSPECIES>& rhoY,
-        std::array<double, NSPECIES>& wdot,
-        Set::Scalar& qdot,
-        Set::Scalar dt,
+        const Set::Scalar dt,
         const Model::Gas::Gas* gas) const
     {
-        if (dt <= 0) return;
+        if (dt <= 0) return {};
         const double R = Set::Constant::Rg;
         const double P0 = 101325.0; // Standard pressure
 
@@ -144,6 +143,7 @@ struct Equilibrium
         }
 
         // 3. Output results
+        std::array<double, NSPECIES> wdot;
         Eigen::VectorXd n_eq(NSPECIES);
         for (int i = 0; i < NSPECIES; ++i) {
             double mu0 = gas->enthalpy_mol_species(T, i) - T * gas->entropy_mol_species(T, i);
@@ -153,12 +153,14 @@ struct Equilibrium
             wdot[i] = (n_eq(i) * gas->MW[i] - rhoY[i]) / dt;
         }
         
-        qdot = 0.0;
+        Set::Scalar qdot = 0.0;
         for (int i = 0; i < NSPECIES; ++i) {
             double h_i = gas->enthalpy_mol_species(T_orig, i);
             double e_i = (h_i - R * T_orig) / gas->MW[i]; // J/kg
             qdot -= wdot[i] * e_i;
         }
+
+        return {wdot, qdot};
     }
 
     static void Parse(Equilibrium& value, IO::ParmParse& pp)

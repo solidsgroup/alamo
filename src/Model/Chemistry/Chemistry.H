@@ -37,15 +37,20 @@ public:
 
     template<int I = 0>
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
-    void compute (const Set::Scalar P, const Set::Scalar T, const std::array<double,NSPECIES>& rhoY,
-                std::array<double,NSPECIES>& wdot, Set::Scalar& qdot, Set::Scalar dt, const Model::Gas::Gas* gas = nullptr)
+    std::pair<std::array<double,NSPECIES>,Set::Scalar>
+    compute (const Set::Scalar P, const Set::Scalar T, const std::array<double,NSPECIES>& rhoY,
+                const Set::Scalar dt, const Model::Gas::Gas* gas = nullptr)
     {
         if constexpr (I < sizeof...(OBJ))
         {
-            if (selected == I) return std::get<I>(obj).compute(P,T,rhoY,wdot,qdot,dt,gas);
-            else return compute<I+1>(P,T,rhoY,wdot,qdot,dt,gas);
+            if (selected == I) return std::get<I>(obj).compute(P,T,rhoY,dt,gas);
+            else return compute<I+1>(P,T,rhoY,dt,gas);
         }
-        else Util::Abort(INFO,selected);
+        else 
+        {
+            Util::Abort(INFO,selected);
+            return {};
+        }
     }
 };
 }
