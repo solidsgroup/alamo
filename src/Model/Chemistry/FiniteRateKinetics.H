@@ -11,7 +11,7 @@ namespace Chemistry
 
 struct FiniteRateKinetics
 {
-    static constexpr const char* name = "frozen";
+    static constexpr const char* name = "finite_rate";
 
     FiniteRateKinetics() = default;
     FiniteRateKinetics(IO::ParmParse &pp, std::string name)
@@ -25,7 +25,9 @@ struct FiniteRateKinetics
         const Set::Scalar /*T*/,
         const std::array<double, NSPECIES>& /*rhoY*/,
         std::array<double, NSPECIES>& wdot,
-        Set::Scalar& qdot)
+        Set::Scalar& qdot,
+        Set::Scalar /*dt*/,
+        const Model::Gas::Gas* /*gas*/) const
     {
         // No chemistry: species are frozen
 

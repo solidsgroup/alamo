@@ -11,7 +11,7 @@ namespace Chemistry
 
 struct Rocfire
 {
-    static constexpr const char* name = "frozen";
+    static constexpr const char* name = "rocfire";
 
     Rocfire() = default;
     Rocfire(IO::ParmParse &pp, std::string name)
@@ -27,7 +27,7 @@ struct Rocfire
         std::array<double, NSPECIES>& wdot,
         Set::Scalar& qdot,
         Set::Scalar /*dt*/,
-        const Model::Gas::Gas* /*gas*/ = nullptr)
+        const Model::Gas::Gas* /*gas*/) const
     {
         // No chemistry: species are frozen
 
