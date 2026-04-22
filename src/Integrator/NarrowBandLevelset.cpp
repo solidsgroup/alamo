@@ -7,32 +7,81 @@
 #include "BC/Nothing.H"
 #include "BC/Expression.H"
 
-// Structures
-
-// -------------------------------
-// Per-level narrowband container
-// -------------------------------
-struct NarrowBandLevel
+// Inline helper functions
+AMREX_GPU_DEVICE 
+AMREX_FORCE_INLINE
+bool is_interface (int i, int j, int k,
+                   amrex::Array4<const amrex::Real> const& phi)
 {
-    amrex::Box bbox;
-    amrex::BoxArray ba;
-    amrex::DistributionMapping dm;
+    const amrex::Real phi0 = phi(i,j,k);
 
-    amrex::MultiFab real_mf;
-    std::array<amrex::MultiFab, AMREX_SPACEDIM> flux_mf;
+    if (phi0 == amrex::Real(0.0)) return true;
 
-    amrex::iMultiFab int_mf;
-};
+    const bool pos = (phi0 > 0.0);
 
-// -------------------------------
-// Narrowband (AMR-aware)
-// -------------------------------
-struct NarrowBandData
+    if ((phi(i-1,j,k) > 0.0) != pos) return true;
+    if ((phi(i+1,j,k) > 0.0) != pos) return true;
+
+#if (AMREX_SPACEDIM >= 2)
+    if ((phi(i,j-1,k) > 0.0) != pos) return true;
+    if ((phi(i,j+1,k) > 0.0) != pos) return true;
+#endif
+
+#if (AMREX_SPACEDIM >= 3)
+    if ((phi(i,j,k-1) > 0.0) != pos) return true;
+    if ((phi(i,j,k+1) > 0.0) != pos) return true;
+#endif
+
+    return false;
+}
+
+
+AMREX_GPU_DEVICE
+AMREX_FORCE_INLINE
+bool has_tube_neighbor (int i, int j, int k,
+                        amrex::Array4<const amrex::Real> const& phi,
+                        amrex::Real tube_cutoff)
 {
-    // One narrowband per AMR level
-    amrex::Vector<NarrowBandLevel> leveldata;
+    using amrex::Math::abs;
 
-    struct NarrowBandTubeType
+    if (abs(phi(i-1,j,k)) < tube_cutoff) return true;
+    if (abs(phi(i+1,j,k)) < tube_cutoff) return true;
+
+#if (AMREX_SPACEDIM >= 2)
+    if (abs(phi(i,j-1,k)) < tube_cutoff) return true;
+    if (abs(phi(i,j+1,k)) < tube_cutoff) return true;
+#endif
+
+#if (AMREX_SPACEDIM == 3)
+    if (abs(phi(i,j,k-1)) < tube_cutoff) return true;
+    if (abs(phi(i,j,k+1)) < tube_cutoff) return true;
+#endif
+
+    return false;
+}
+
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+Set::Scalar to_scalar(int v)
+{
+    return static_cast<Set::Scalar>(v);
+}
+
+
+namespace NarrowBandData
+{
+    struct TubeIdx
+    {
+        static constexpr int NB_MASK   = 0;  // 0/1: in narrow band
+        static constexpr int Zero_ID   = 1;  // zero level set id
+        static constexpr int OBJ_ID    = 2;  // object id
+        static constexpr int TUBE_TYPE = 3;  // enum below
+
+        static constexpr int NCOMP     = 4;
+    };
+
+    struct TubeType
     {
         static constexpr int INTERFACE   = 0;
         static constexpr int INNERBAND   = 1;
@@ -40,60 +89,46 @@ struct NarrowBandData
         static constexpr int EDGEPOINT   = 3;
         static constexpr int OUTSIDETUBE = 4;
     };
-
-    struct NBRealIdx
-    {
-        static constexpr int LS = 0;
-
-        static constexpr int VEL_START = 1;
-        static constexpr int VEL_SIZE  = AMREX_SPACEDIM;
-
-        static constexpr int ACC_START = VEL_START + VEL_SIZE;
-        static constexpr int ACC_SIZE  = AMREX_SPACEDIM;
-
-        static constexpr int NORM_START = ACC_START + ACC_SIZE;
-        static constexpr int NORM_SIZE  = AMREX_SPACEDIM;
-
-        static constexpr int KAPPA = NORM_START + NORM_SIZE;
-
-        static constexpr int NCOMP = KAPPA + 1;
-    };
-
-    struct NBIntIdx
-    {
-        enum {
-            NB_MASK = 0,
-            TUBE_TYPE,
-            NCOMP
-        };
-    };
 };
 
-// -------------------------------
-// Object metadata
-// -------------------------------
+// =====================================
+// Per-object per-level metadata
+// =====================================
+struct ObjectMetaLevel
+{
+    amrex::Box bbox;  // bounding box for this object at this AMR level
+    amrex::Box prev_bbox; // bounding box from previous time step (for tracking movement in tube update)
+};
+
+// =====================================
+// Object metadata (global)
+// =====================================
 struct ObjectMeta
 {
     int id = -1;
-    int material_id = -1;
+
+    amrex::Vector<ObjectMetaLevel> leveldata; // size = number of AMR levels
+
+    // --- Setup helpers ---
+    void resize_leveldata(int finest_level)
+    {
+        leveldata.resize(finest_level + 1);
+    }
 
     bool active = true;
     bool moving = true;
     bool needs_reinit = false;
 
-    amrex::Box bbox;
-
-    Set::Scalar volume = 0.0;
-    Set::Scalar centroid[AMREX_SPACEDIM] = {0.0};
+    amrex::Real volume = 0.0;
+    amrex::Real centroid[AMREX_SPACEDIM] = {0.0};
 };
 
-// -------------------------------
+// =====================================
+// Level set object
+// =====================================
 struct LevelSetObject
 {
     ObjectMeta meta;
-    NarrowBandData nb;
-
-    void mark_for_reinit() { meta.needs_reinit = true; }
 };
 
 // -------------------------------
@@ -101,38 +136,198 @@ struct LevelSetObject
 // -------------------------------
 struct LevelSetField
 {
+    // Define Field data
     Set::Field<Set::Scalar> LS;
     Set::Field<Set::Scalar> LSold;
 
-    Set::Field<Set::Scalar> LSvel;
-    Set::Field<Set::Scalar> LSnormal;
+    Set::Field<Set::Vector> LSvel;
+    Set::Field<Set::Vector> LSnormal;
+
     Set::Field<Set::Scalar> LSkappa;
 
-    Set::Field<Set::Scalar> TUBE_int;
+    Set::Field<Set::Scalar> TUBE;
 
-    std::vector<LevelSetObject> objects;
+    // Store collection of objects in this level set field
+    amrex::Vector<LevelSetObject> objects; // Number of objects per field (global)
 
-    std::unique_ptr<IC::IC<Set::Scalar>> ic_LS;
-    std::unique_ptr<BC::BC<Set::Scalar>> bc_LS;
-    std::unique_ptr<BC::BC<Set::Scalar>> bc_nothing;
+    // Store IC/BC for level set field
+    std::unique_ptr<IC::IC<Set::Scalar>> ic_LS = nullptr;
+    std::unique_ptr<BC::BC<Set::Scalar>> bc_LS = nullptr;
 
+    // Store bandwidth constants
+    const Set::Scalar HALFINNERTUBE = 4.0;
+    const Set::Scalar TUBECUTOFF    = 6.0;
+
+    // Save boolean to force reinitialization of entire level set field
     bool force_reinit_all = false;
 
-    void clip_phi(int lev, const amrex::Geometry& geom) {
-        // Define the value to clip to based on 6.0*min_dx
+    // Helper function for connected component analysis (Placeholder)
+    int GetNumObjects() {
+        return 1;
+    }
+
+    // Helper function to update narrowband tube
+    void update_Tube(int lev, const amrex::Geometry& geom, bool init=false)
+    {
+        BL_PROFILE("LevelSetField::update_Tube");
+
+        // ----------------------------------------------------------
+        // Cutoffs
+        // ----------------------------------------------------------
         const Set::Scalar* DX = geom.CellSize();
-        Set::Scalar max_phi = 6.0 * std::min({DX[0], DX[1], DX[2]});
+        Set::Scalar min_dx = *std::min_element(DX, DX + AMREX_SPACEDIM);
 
-        for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            const amrex::Box& gbox = mfi.growntilebox();
+        const Set::Scalar inner_cutoff = HALFINNERTUBE * min_dx;
+        const Set::Scalar outer_cutoff = TUBECUTOFF * min_dx;
 
-            Set::Patch<Set::Scalar> phi_arr = LS.Patch(lev, mfi);
+        const amrex::Box& domain = geom.Domain();
+        const int Ng = LS[lev]->nGrow();
 
-            amrex::ParallelFor(gbox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                Set::Scalar& phi = phi_arr(i, j, k, 0);
+        // ----------------------------------------------------------
+        // Loop objects (you planned for multi-object)
+        // ----------------------------------------------------------
+        for (LevelSetObject& obj : objects)
+        {
+            ObjectMetaLevel &meta = obj.meta.leveldata[lev];
 
-                phi = std::clamp(phi, -max_phi, max_phi);
-            });
+            // Save previous bbox
+            meta.prev_bbox = meta.bbox;
+            meta.bbox = amrex::Box();
+
+            // ------------------------------------------------------
+            // Build search region
+            // ------------------------------------------------------
+            amrex::Box search_box = meta.prev_bbox;
+
+            if (!search_box.ok())
+                search_box = domain;
+
+            search_box.grow(Ng);
+            search_box &= domain;
+
+            // ------------------------------------------------------
+            // Initialize bbox reduction
+            // ------------------------------------------------------
+            amrex::IntVect lo(AMREX_D_DECL(INT_MAX, INT_MAX, INT_MAX));
+            amrex::IntVect hi(AMREX_D_DECL(INT_MIN, INT_MIN, INT_MIN));
+
+            // ------------------------------------------------------
+            // Tile loop
+            // ------------------------------------------------------
+            for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& tilebox = mfi.tilebox();
+
+                // Skip irrelevant tiles
+                if (!tilebox.intersects(search_box)) continue;
+
+                const amrex::Box workbox = tilebox & search_box;
+                if (!workbox.ok()) continue;
+
+                auto const& phi_arr  = LS[lev]->array(mfi);
+                auto const& tube_arr = TUBE[lev]->array(mfi);
+
+                // Local bbox
+                amrex::IntVect local_lo = lo;
+                amrex::IntVect local_hi = hi;
+
+                // --------------------------------------------------
+                // GPU kernel
+                // --------------------------------------------------
+                amrex::ParallelFor(workbox,
+                [=, &local_lo, &local_hi] AMREX_GPU_DEVICE (int i, int j, int k)
+                {
+                    Set::Scalar& phi = phi_arr(i,j,k);
+
+                    if (init)
+                        phi = amrex::Clamp(phi, -outer_cutoff, outer_cutoff);
+
+                    const Set::Scalar abs_phi = amrex::Math::abs(phi);
+
+                    // --------------------------------------------------
+                    // Classification (same logic as your original)
+                    // --------------------------------------------------
+                    bool inside = (abs_phi < outer_cutoff);
+                    bool inner  = (abs_phi < inner_cutoff);
+                    bool inside_tube = inside && (!inner);
+
+                    bool edge = false;
+                    if (!inside)
+                        edge = has_tube_neighbor(i,j,k,phi_arr,outer_cutoff);
+
+                    bool interface = inner && is_interface(i,j,k,phi_arr);
+
+                    int tube_type = NarrowBandData::TubeType::OUTSIDETUBE;
+
+                    if (edge)         tube_type = NarrowBandData::TubeType::EDGEPOINT;
+                    if (inside_tube)  tube_type = NarrowBandData::TubeType::INSIDETUBE;
+                    if (inner)        tube_type = NarrowBandData::TubeType::INNERBAND;
+                    if (interface)    tube_type = NarrowBandData::TubeType::INTERFACE;
+
+                    // --------------------------------------------------
+                    // Write data
+                    // --------------------------------------------------
+                    tube_arr(i,j,k,NarrowBandData::TubeIdx::TUBE_TYPE) = to_scalar(tube_type);
+
+                    int nb_mask = (tube_type != NarrowBandData::TubeType::OUTSIDETUBE);
+                    tube_arr(i,j,k,NarrowBandData::TubeIdx::NB_MASK) = to_scalar(nb_mask);
+
+                    int obj_id = (phi < 0.0) ? obj.meta.id : -1;
+                    tube_arr(i,j,k,NarrowBandData::TubeIdx::OBJ_ID) = to_scalar(obj_id);
+
+                    int zero_id = (tube_type == NarrowBandData::TubeType::INTERFACE) ? obj.meta.id : -1;
+                    tube_arr(i,j,k,NarrowBandData::TubeIdx::Zero_ID) = to_scalar(zero_id);
+
+                    // --------------------------------------------------
+                    // Update bbox (only if in narrowband)
+                    // --------------------------------------------------
+                    if (nb_mask)
+                    {
+                        amrex::Gpu::Atomic::Min(&local_lo[0], i);
+
+    #if AMREX_SPACEDIM >= 2
+                        amrex::Gpu::Atomic::Min(&local_lo[1], j);
+    #endif
+
+    #if AMREX_SPACEDIM == 3
+                        amrex::Gpu::Atomic::Min(&local_lo[2], k);
+    #endif
+
+                        amrex::Gpu::Atomic::Max(&local_hi[0], i);
+
+    #if AMREX_SPACEDIM >= 2
+                        amrex::Gpu::Atomic::Max(&local_hi[1], j);
+    #endif
+
+    #if AMREX_SPACEDIM == 3
+                        amrex::Gpu::Atomic::Max(&local_hi[2], k);
+    #endif
+                    }
+                });
+
+                lo = amrex::min(lo, local_lo);
+                hi = amrex::max(hi, local_hi);
+            }
+
+            // ------------------------------------------------------
+            // MPI reduction
+            // ------------------------------------------------------
+            amrex::ParallelDescriptor::ReduceIntMin(lo.getVect(), AMREX_SPACEDIM);
+            amrex::ParallelDescriptor::ReduceIntMax(hi.getVect(), AMREX_SPACEDIM);
+
+            // ------------------------------------------------------
+            // Final bbox update
+            // ------------------------------------------------------
+            if (hi[0] >= lo[0])
+            {
+                meta.bbox = amrex::Box(lo, hi);
+            }
+            else
+            {
+                meta.bbox = amrex::Box(); // empty
+            }
+
+            amrex::Print() << "bbox: " << meta.bbox << "\n";
         }
     }
 };
@@ -142,23 +337,27 @@ struct LevelSetField
 // ======================================
 struct SimulationDomain
 {
+    // Store reference to integrator
     Integrator::Integrator* integrator = nullptr;
 
+    // Save ghost cell width (3 for 5th order WENO)
     int nghost = 3;
 
-    std::vector<std::unique_ptr<LevelSetField>> fields;
+    // Store collection of level set fields
+    amrex::Vector<std::unique_ptr<LevelSetField>> fields;
 
-    Set::Field<Set::Scalar> velocity;
+    // Store velocity field (will copy from flow domain in future)
+    Set::Field<Set::Vector> Flowvel;
 
-    std::unique_ptr<IC::IC<Set::Scalar>> ic_Vel;
-    std::unique_ptr<BC::BC<Set::Scalar>> bc_Vel = std::make_unique<BC::Nothing>();
+    std::unique_ptr<IC::IC<Set::Vector>> ic_Vel;
 
+    // Define function to attach integrator to retrieve geometry information
     void Define(Integrator::Integrator* _integrator)
     {
         integrator = _integrator;
     }
 
-    // -------- AMR-safe accessors --------
+    // Define helper functions to retrieve geometry information from intergrator
     const amrex::Geometry& Geom(int lev) const
     {
         return integrator->Geom(lev);
@@ -205,6 +404,31 @@ namespace Integrator
 
         // Attach integrator
         value.domain_->Define(&value);
+
+        // -------------------------
+        // Initialize velocity field (Will pull from flow domain in future)
+        // -------------------------
+        IC::IC<Set::Vector>* ic_vel_tmp = nullptr;
+
+        pp.select_default<IC::Constant, IC::Expression>(
+            "velocity.ic",
+            ic_vel_tmp,
+            value.geom
+        );
+
+        value.domain_->ic_Vel =
+            std::unique_ptr<IC::IC<Set::Vector>>(ic_vel_tmp);
+
+        value.AddField<Set::Vector, Set::Hypercube::Cell>(
+            value.domain_->Flowvel,          // Set::Field<Set::Vector>
+            nullptr,                         // BC::BC<Set::Vector>*
+            /* ncomp   */ 1,                 // ONE vector per cell
+            /* nghost  */ 0,                 // No ghost communication
+            /* name    */ "Flowvel",         // plotfile base name
+            /* writeout*/ false,             // include in plotfiles
+            /* evolving*/ false              // evolves in time
+
+        );
         
         // -------------------------
         // Number of level sets
@@ -227,7 +451,6 @@ namespace Integrator
 
             ls.ic_LS = nullptr;
             ls.bc_LS = nullptr;
-            ls.bc_nothing = std::make_unique<BC::Nothing>();
 
             IC::IC<Set::Scalar>* ic_tmp = nullptr;
             BC::BC<Set::Scalar>* bc_tmp = nullptr;
@@ -257,32 +480,16 @@ namespace Integrator
             // -------------------------
             value.RegisterOneField(ls, prefix);
         }
-
-        // Initialize velocity field (Will pull from flow domain in future)
-        IC::IC<Set::Scalar>* ic_vel_tmp = nullptr;
-
-        pp.select_default<IC::Constant, IC::Expression>(
-            "velocity.ic",
-            ic_vel_tmp,
-            value.geom
-        );
-
-        value.domain_->ic_Vel =
-            std::unique_ptr<IC::IC<Set::Scalar>>(ic_vel_tmp);
-
-        value.RegisterNewFab(value.domain_->velocity, value.domain_->bc_Vel.get(), AMREX_SPACEDIM, 0, "LSvel", true);
     }
 
-    // Wrapper function for registering fields
     void NarrowBandLevelset::RegisterOneField(
         LevelSetField& ls,
         const std::string& prefix)
     {
-        // ============================
-        // Register each field ========
-        // ============================
+        // ====================================================
+        // Evolving level set fields (PDE state)
+        // ====================================================
 
-        // Register LS and LSold
         RegisterNewFab(
             ls.LS,
             ls.bc_LS.get(),
@@ -301,49 +508,60 @@ namespace Integrator
             true
         );
 
-        // Register geometry fields (nothing BC)
-        RegisterNewFab(
+        // ====================================================
+        // Derived / diagnostic fields (non-evolving, no BCs)
+        // ====================================================
+
+        // Level-set velocity (vector)
+        AddField<Set::Vector, Set::Hypercube::Cell>(
             ls.LSvel,
-            ls.bc_nothing.get(),
-            AMREX_SPACEDIM,
-            domain_->nghost,
+            nullptr,          // no BCs
+            1,                // one vector per cell
+            domain_->nghost,                // 
             prefix + "_LSvel",
-            true
+            true,             // plot
+            false             // NOT evolving
         );
 
-        RegisterNewFab(
+        // Level-set normal (vector)
+        AddField<Set::Vector, Set::Hypercube::Cell>(
             ls.LSnormal,
-            ls.bc_nothing.get(),
-            AMREX_SPACEDIM,
-            domain_->nghost,
-            prefix + "_LSnormal",
-            true
-        );
-
-        RegisterNewFab(
-            ls.LSkappa,
-            ls.bc_nothing.get(),
+            nullptr,
             1,
             domain_->nghost,
-            prefix + "_LSkappa",
-            true
+            prefix + "_LSnormal",
+            true,
+            false
         );
 
-        // Register int field
-        RegisterNewFab(
-            ls.TUBE_int,
-            ls.bc_nothing.get(),
-            3, // narrowband flag, tube type, and object id
+        // Curvature (scalar)
+        AddField<Set::Scalar, Set::Hypercube::Cell>(
+            ls.LSkappa,
+            nullptr,
+            1,
+            0,
+            prefix + "_LSkappa",
+            true,
+            false
+        );
+
+        // Tube data (int flags packed as scalars)
+        AddField<Set::Scalar, Set::Hypercube::Cell>(
+            ls.TUBE,
+            nullptr,
+            NarrowBandData::TubeIdx::NCOMP,                
             domain_->nghost,
-            prefix + "_TUBE_int",
-            true
+            prefix + "_TUBE",
+            true,
+            false
         );
     }
+
 
     // Placeholder override functions
     void NarrowBandLevelset::Initialize(int lev) {
         // Initialize global velocity field (will use flow domain in future)
-        domain_->ic_Vel->Initialize(lev, domain_->velocity);
+        domain_->ic_Vel->Initialize(lev, domain_->Flowvel);
 
         // Loop over all level set fields and initialize
         for (auto& ls_ptr : domain_->fields)
@@ -351,19 +569,28 @@ namespace Integrator
             // Get the pointer to the current level set field
             LevelSetField& ls = *ls_ptr;
 
+            // If first level, size all vector data
+            if (lev == 0) {
+                // Get number of objects and resize
+                int num_obj = ls.GetNumObjects();
+                ls.objects.resize(num_obj);
+
+                // Resize metalevel data
+                for (int i = 0; i < num_obj; ++i) {
+                    ObjectMeta& meta = ls.objects[lev].meta;
+
+                    meta.id = i;
+                    meta.resize_leveldata(domain_->FinestLevel());
+                }
+            }
+
             // Initialize LS from IC
-            if (ls.ic_LS)
-            {
-                ls.ic_LS->Initialize(lev, ls.LS);
-            }
-            else
-            {
-                amrex::Abort("IC for level set is not defined!");
-            }
+            ls.ic_LS->Initialize(lev, ls.LS);
 
-            // Clip phi to |phi| <= 6.0 * min(dx) to track interface
-            ls.clip_phi(lev, domain_->Geom(lev));
+            // Build the tube
+            ls.update_Tube(lev, domain_->Geom(lev), true);
 
+            // Copy LS to LSold
             amrex::MultiFab::Copy(*ls.LSold[lev],
                 *ls.LS[lev],
                 0,
@@ -373,16 +600,15 @@ namespace Integrator
             );
 
             // Copy domain velocity to level set velocity
-            amrex::MultiFab::Copy(*ls.LSvel[lev], *domain_->velocity[lev], 0, 0, AMREX_SPACEDIM, 0);
+            amrex::Copy(
+                *ls.LSvel[lev],
+                *domain_->Flowvel[lev],
+                0, 0, 1, 0
+            );
 
             // Set all real fields to 0
-            ls.LSnormal[lev]->setVal(0.0);
+            ls.LSnormal[lev]->setVal(Set::Vector::Zero());
             ls.LSkappa[lev]->setVal(0.0);
-
-            // Initialize int fields
-            ls.TUBE_int[lev]->setVal(0.0, 0, 1, 0); // narrowband flag
-            ls.TUBE_int[lev]->setVal(static_cast<Set::Scalar>(NarrowBandData::NarrowBandTubeType::OUTSIDETUBE), 1, 1, 0); // tube type
-            ls.TUBE_int[lev]->setVal(-1.0, 2, 1, 0); // object id
         }
     }
 
