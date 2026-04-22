@@ -18,7 +18,7 @@
 #include "Model/Chemistry/Chemistry.H"
 #include "Model/Chemistry/Frozen.H"
 #include "Model/Chemistry/Equilibrium.H"
-#include "Model/Chemistry/FiniteRateKinetics.H"
+#include "Model/Chemistry/FiniteRate.H"
 #include "Model/Chemistry/Rocfire.H"
 
 namespace Integrator
@@ -184,7 +184,7 @@ protected:
     Model::Chemistry::Chemistry<
         Model::Chemistry::Frozen,
         Model::Chemistry::Equilibrium,
-        Model::Chemistry::FiniteRateKinetics,
+        Model::Chemistry::FiniteRate,
         Model::Chemistry::Rocfire> chemistry;
 
     Model::Gas::Gas gas;

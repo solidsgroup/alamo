@@ -211,7 +211,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     // Chemistry Model
     pp.select<  Model::Chemistry::Frozen,
                 Model::Chemistry::Equilibrium,
-                Model::Chemistry::FiniteRateKinetics,
+                Model::Chemistry::FiniteRate,
                 Model::Chemistry::Rocfire>("chemistry",value.chemistry);
 
     std::string prescribedflowmode_str;
