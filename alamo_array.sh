@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --time=8:00:00
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 #SBATCH --mem-per-cpu=10000
@@ -23,7 +23,7 @@ module load openmpi_hpc
 # Define array of zeta values (non-integers allowed)
 # -------------------------------------------------
 ind=00
-num=18
+num=49
 AP_arr=(
     "A_vf_11/A_${ind}_AP.xyzr"
     "B_vf_6/B_${ind}_AP.xyzr"
