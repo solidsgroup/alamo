@@ -5,8 +5,10 @@
 #include <cmath>
 #include <memory>
 #include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
 #include "Model/Gas/EOS/CPG.H"
+#include "Model/Gas/EOS/TPG.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
@@ -38,7 +40,7 @@ public:
         delete value.thermo;
         value.thermo = nullptr;
         // thermo model
-        pp.select<Thermo::CpConstant>("thermo", value.thermo);
+        pp.select<Thermo::CpConstant, Thermo::NASA7>("thermo", value.thermo);
 
         delete value.transport;
         value.transport = nullptr;
@@ -48,7 +50,7 @@ public:
         delete value.eos;
         value.eos = nullptr;
         // eos model
-        pp.select<EOS::CPG>("eos", value.eos, &value);
+        pp.select<EOS::CPG, EOS::TPG>("eos", value.eos, &value);
     }
 
 public:

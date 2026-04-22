@@ -99,14 +99,47 @@ struct Equilibrium
             // n_i = (P0 / RT) * exp( sum_k A_ki * gamma_k - g_i^0(T) / RT )
 
             Eigen::VectorXd gamma = Eigen::VectorXd::Zero(NE);
-            // Initial guess for gamma: rough estimate from total moles
-            double n_tot_guess = n_orig.sum();
-            for (int k=0; k<NE; ++k) gamma(k) = std::log(std::max(b(k), 1e-10) / std::max(n_tot_guess, 1e-10)); 
+            {
+                int n_active_species = 0;
+                for (int i = 0; i < NSPECIES; ++i)
+                {
+                    if (n_orig(i) > 1.0e-30) ++n_active_species;
+                }
+
+                if (n_active_species >= NE)
+                {
+                    Eigen::MatrixXd A_ls(n_active_species, NE);
+                    Eigen::VectorXd rhs_ls(n_active_species);
+                    int row = 0;
+                    for (int i = 0; i < NSPECIES; ++i)
+                    {
+                        if (n_orig(i) <= 1.0e-30) continue;
+                        double mu0_i = gas->enthalpy_mol_species(T_orig, i) - T_orig * gas->entropy_mol_species(T_orig, i);
+                        rhs_ls(row) = std::log(std::max(n_orig(i) * R * T_orig / P0, 1.0e-300)) + mu0_i / (R * T_orig);
+                        for (int k = 0; k < NE; ++k) A_ls(row, k) = atom_matrix(k, i);
+                        ++row;
+                    }
+                    gamma = A_ls.colPivHouseholderQr().solve(rhs_ls);
+                    if (!std::isfinite(gamma.norm())) gamma.setZero();
+                }
+                else
+                {
+                    double n_tot_guess = n_orig.sum();
+                    for (int k = 0; k < NE; ++k)
+                        gamma(k) = std::log(std::max(b(k), 1e-10) / std::max(n_tot_guess, 1e-10));
+                }
+            }
 
             double T = T_orig;
-            const int max_iter = 100;
+            const int max_iter = 200;
             const double tolerance = 1e-10;
             bool finite_state = true;
+            bool converged = false;
+            bool best_state_valid = false;
+            double initial_residual_norm = -1.0;
+            double best_residual_norm = std::numeric_limits<double>::infinity();
+            Eigen::VectorXd best_gamma = gamma;
+            double best_T = T;
 
             for (int iter = 0; iter < max_iter; ++iter) {
                 Eigen::VectorXd n(NSPECIES);
@@ -134,8 +167,18 @@ struct Equilibrium
                 for (int i = 0; i < NSPECIES; ++i) e_total += n(i) * (gas->enthalpy_mol_species(T, i) - R * T);
                 f(NE) = (e_total - e_total_0) / (R * T_orig); 
 
-                if (f.norm() < tolerance)
+                double residual_norm = f.norm();
+                if (initial_residual_norm < 0.0) initial_residual_norm = residual_norm;
+                if (std::isfinite(residual_norm) && residual_norm < best_residual_norm)
                 {
+                    best_residual_norm = residual_norm;
+                    best_gamma = gamma;
+                    best_T = T;
+                    best_state_valid = true;
+                }
+                if (residual_norm < tolerance)
+                {
+                    converged = true;
                     break;
                 }
 
@@ -174,23 +217,86 @@ struct Equilibrium
                     break;
                 }
 
-                double alpha = 1.0; 
-                // Damping to prevent excessive temperature changes
+                double alpha = 1.0;
                 if (std::abs(step(NE)) > 0.5) alpha = 0.5 / std::abs(step(NE));
-                
-                gamma += alpha * step.head(NE);
-                T *= std::exp(alpha * step(NE));
-                T = std::clamp(T, 200.0, 6000.0);
 
-                if (!std::isfinite(gamma.norm()) || !std::isfinite(T))
+                bool accepted = false;
+                Eigen::VectorXd gamma_trial(NE);
+                Eigen::VectorXd n_trial(NSPECIES);
+                Eigen::VectorXd f_trial(NE + 1);
+                double T_trial = T;
+
+                for (int line_iter = 0; line_iter < 12; ++line_iter)
+                {
+                    gamma_trial = gamma + alpha * step.head(NE);
+                    T_trial = std::clamp(T * std::exp(alpha * step(NE)), 200.0, 6000.0);
+
+                    if (!std::isfinite(gamma_trial.norm()) || !std::isfinite(T_trial))
+                    {
+                        alpha *= 0.5;
+                        continue;
+                    }
+
+                    for (int i = 0; i < NSPECIES; ++i)
+                    {
+                        double mu0_i = gas->enthalpy_mol_species(T_trial, i) - T_trial * gas->entropy_mol_species(T_trial, i);
+                        double arg = - mu0_i / (R * T_trial);
+                        for (int k = 0; k < NE; ++k) arg += atom_matrix(k, i) * gamma_trial(k);
+                        n_trial(i) = (P0 / (R * T_trial)) * std::exp(std::clamp(arg, -100.0, 100.0));
+                    }
+
+                    f_trial.setZero();
+                    for (int k = 0; k < NE; ++k)
+                    {
+                        for (int i = 0; i < NSPECIES; ++i) f_trial(k) += atom_matrix(k, i) * n_trial(i);
+                        f_trial(k) -= b(k);
+                    }
+                    double e_total_trial = 0.0;
+                    for (int i = 0; i < NSPECIES; ++i)
+                        e_total_trial += n_trial(i) * (gas->enthalpy_mol_species(T_trial, i) - R * T_trial);
+                    f_trial(NE) = (e_total_trial - e_total_0) / (R * T_orig);
+
+                    double trial_residual_norm = f_trial.norm();
+                    if (std::isfinite(trial_residual_norm) && trial_residual_norm < best_residual_norm)
+                    {
+                        best_residual_norm = trial_residual_norm;
+                        best_gamma = gamma_trial;
+                        best_T = T_trial;
+                        best_state_valid = true;
+                    }
+
+                    if (std::isfinite(trial_residual_norm) && trial_residual_norm < residual_norm)
+                    {
+                        accepted = true;
+                        break;
+                    }
+
+                    alpha *= 0.5;
+                }
+
+                if (!accepted)
                 {
                     finite_state = false;
                     break;
                 }
-                if (alpha * step.norm() < 1e-12) break; 
+
+                gamma = gamma_trial;
+                T = T_trial;
+
+                if (alpha * step.norm() < 1e-12) break;
             }
 
-            if (!finite_state)
+            if (!converged)
+            {
+                double acceptable_residual_norm = std::max(1.0e-8, 1.0e-6 * std::max(initial_residual_norm, 1.0));
+                if (!best_state_valid || !std::isfinite(best_residual_norm) || best_residual_norm > acceptable_residual_norm)
+                {
+                    return {wdot, 0.0};
+                }
+                gamma = best_gamma;
+                T = best_T;
+            }
+            else if (!finite_state)
             {
                 return {wdot, 0.0};
             }

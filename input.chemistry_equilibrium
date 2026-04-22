@@ -7,13 +7,16 @@ system.amount = kmol
 # Species: [H2, H, O, O2, OH, H2O, HO2, H2O2, AR, N2]
 gas.mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.948 28.013
 
-gas.thermo.type = cpconstant
-# Approximated average Cp values in J/kmol/K
-gas.thermo.cpconstant.cp_moles = 30000.0 20786.0 20786.0 34000.0 31000.0 45000.0 45000.0 60000.0 20786.0 33000.0
-# Standard enthalpies of formation at 298.15K in J/kmol
-gas.thermo.cpconstant.h0 = 0.0 217.97e6 249.17e6 0.0 38.99e6 -241.82e6 3.3e6 -136.3e6 0.0 0.0
-gas.thermo.cpconstant.s0 = 130.0 114.0 161.0 205.0 183.0 188.0 229.0 232.0 154.0 191.0
-gas.thermo.cpconstant.Tref = 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15
+#gas.thermo.type = cpconstant
+## Approximated average Cp values in J/kmol/K
+#gas.thermo.cpconstant.cp_moles = 30000.0 20786.0 20786.0 34000.0 31000.0 45000.0 45000.0 60000.0 20786.0 33000.0
+## Standard enthalpies of formation at 298.15K in J/kmol
+#gas.thermo.cpconstant.h0 = 0.0 217.97e6 249.17e6 0.0 38.99e6 -241.82e6 3.3e6 -136.3e6 0.0 0.0
+#gas.thermo.cpconstant.s0 = 130.0 114.0 161.0 205.0 183.0 188.0 229.0 232.0 154.0 191.0
+#gas.thermo.cpconstant.Tref = 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15
+gas.thermo.type = nasa7
+gas.thermo.nasa7.type = yaml
+gas.thermo.nasa7.yaml = h2o2.yaml
 
 gas.transport.type = mixture_averaged
 gas.transport.mixture_averaged.type = LJ
@@ -21,7 +24,7 @@ gas.transport.mixture_averaged.type = LJ
 gas.transport.mixture_averaged.LJdiameter  = 2.92_ang 2.05_ang 2.75_ang 3.458_ang 2.75_ang 2.605_ang 3.458_ang 3.458_ang 3.33_ang 3.621_ang
 gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_K 572.4_K 107.4_K 107.4_K 136.5_K 97.53_K
 
-gas.eos.type = cpg
+gas.eos.type = tpg
 
 chemistry.type = equilibrium
 chemistry.equilibrium.yaml = h2o2.yaml
