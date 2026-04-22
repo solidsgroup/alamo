@@ -83,10 +83,12 @@ protected:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
+    void PreparePlotFileData() override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
+    void RefreshDerivedPlotFields(int lev);
     
     void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 

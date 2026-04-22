@@ -509,6 +509,118 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
 }//end Advance
 
+void Hydro::PreparePlotFileData()
+{
+    BL_PROFILE("Integrator::Hydro::PreparePlotFileData");
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        RefreshDerivedPlotFields(lev);
+    }
+}
+
+void Hydro::RefreshDerivedPlotFields(int lev)
+{
+    BL_PROFILE("Integrator::Hydro::RefreshDerivedPlotFields");
+
+    const Set::Scalar* DX = geom[lev].CellSize();
+
+    for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox();
+
+        amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_mf)[lev]).array(mfi);
+
+        Set::Patch<const Set::Scalar> rho       = density_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> M         = momentum_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> E         = energy_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
+
+        Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> v               = velocity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> p               = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> T               = temperature_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> Y               = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> X               = mole_fraction_mf.Patch(lev,mfi);
+
+        amrex::Array4<Set::Scalar> mu_arr;
+        amrex::Array4<Set::Scalar> k_arr;
+        amrex::Array4<Set::Scalar> D_arr;
+        amrex::Array4<Set::Scalar> wdot_arr;
+        amrex::Array4<Set::Scalar> qdot_arr;
+        if (details)
+        {
+            mu_arr    = viscosity_mf.Patch(lev,mfi);
+            k_arr     = thermal_conductivity_coeff_mf.Patch(lev,mfi);
+            D_arr     = diffusion_coeff_mf.Patch(lev,mfi);
+            wdot_arr  = wdot_mf.Patch(lev,mfi);
+            qdot_arr  = qdot_mf.Patch(lev,mfi);
+        }
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+
+            gas.ComputeLocalFractions(rho, Y, X, i, j, k);
+            Set::Scalar density = gas.ComputeD(rho, i, j, k);
+            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
+
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                scratch(i,j,k,n) = (rho(i,j,k,n) - rho_solid(i,j,k,n)*(1.0 - eta))/(eta + small);
+            }
+            Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
+            Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
+            Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
+            v(i,j,k,0) = Mx_fluid / density_fluid;
+            v(i,j,k,1) = My_fluid / density_fluid;
+
+            if (eta < small)
+            {
+                v(i,j,k,0) *= eta;
+                v(i,j,k,1) *= eta;
+            }
+
+            if (details)
+            {
+                D_arr(i,j,k,0) = 0.0;
+                gas.diffusion_coeffs(D_arr, T(i,j,k), p(i,j,k), X, i, j, k);
+                k_arr(i,j,k) = gas.thermal_conductivity(T(i,j,k), X, i, j, k);
+                mu_arr(i,j,k) = gas.dynamic_viscosity(T(i,j,k), X, i, j, k);
+
+                std::array<double, NSPECIES> rhoY;
+                for (int n=0; n<NSPECIES; ++n) rhoY[n] = rho(i,j,k,n);
+
+                std::array<double, NSPECIES> wdot;
+                Set::Scalar qdot = 0.0;
+                std::tie(wdot, qdot) = chemistry.compute(p(i,j,k), T(i,j,k), rhoY, dt[lev], &gas);
+                qdot_arr(i,j,k) = qdot;
+                for (int n=0; n<NSPECIES; ++n)
+                {
+                    wdot_arr(i,j,k,n) = wdot[n];
+                }
+            }
+        });
+    }
+
+    for (amrex::MFIter mfi(*vorticity_mf[lev], false); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+
+        Set::Patch<const Set::Scalar> eta_patch = eta_mf->Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> u         = velocity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar> omega          = vorticity_mf.Patch(lev,mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
+            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX);
+            omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
+        });
+    }
+}
+
 
 void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 

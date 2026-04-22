@@ -48,7 +48,7 @@ geometry.is_periodic = 0 0 0
 ### TIME STEP ###
 
 timestep  = 0.01
-stop_time = 0.02
+stop_time = 0.01
 
 ### HYDRO PARAM ###
 

@@ -18,6 +18,23 @@ struct Equilibrium
 {
     static constexpr const char* name = "equilibrium";
 
+    static bool IsThirdBodyToken(const std::string& token)
+    {
+        return token == "M" || (!token.empty() && token[0] == '+');
+    }
+
+    static bool IsThirdBodySpecies(const CanteraYAML::Reaction& reaction, const std::string& token)
+    {
+        if (!reaction.third_body) return false;
+        if (IsThirdBodyToken(token)) return true;
+
+        std::map<std::string, double>::const_iterator reactant = reaction.reactants.find(token);
+        std::map<std::string, double>::const_iterator product = reaction.products.find(token);
+        if (reactant == reaction.reactants.end()) return false;
+        if (product == reaction.products.end()) return false;
+        return reactant->second == product->second;
+    }
+
     Equilibrium() = default; 
     Equilibrium(IO::ParmParse &pp, std::string name) 
     { 
@@ -41,7 +58,12 @@ struct Equilibrium
         const Set::Scalar dt,
         const Model::Gas::Gas* gas) const
     {
-        if (dt <= 0) return {};
+        if (dt <= 0)
+        {
+            std::array<double, NSPECIES> wdot;
+            for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
+            return {wdot, 0.0};
+        }
         
         if constexpr (NSPECIES <= 1)
         {
@@ -55,6 +77,8 @@ struct Equilibrium
         {
             const double R = Set::Constant::Rg;
             const double P0 = 101325.0; // Standard pressure
+            std::array<double, NSPECIES> wdot;
+            for (int n = 0; n < NSPECIES; ++n) wdot[n] = 0.0;
 
             // 1. Calculate initial element counts and energy
             // n_i is in kmol/m^3 (assuming V=1)
@@ -82,6 +106,7 @@ struct Equilibrium
             double T = T_orig;
             const int max_iter = 100;
             const double tolerance = 1e-10;
+            bool finite_state = true;
 
             for (int iter = 0; iter < max_iter; ++iter) {
                 Eigen::VectorXd n(NSPECIES);
@@ -109,7 +134,10 @@ struct Equilibrium
                 for (int i = 0; i < NSPECIES; ++i) e_total += n(i) * (gas->enthalpy_mol_species(T, i) - R * T);
                 f(NE) = (e_total - e_total_0) / (R * T_orig); 
 
-                if (f.norm() < tolerance) break;
+                if (f.norm() < tolerance)
+                {
+                    break;
+                }
 
                 // Jacobian assembly
                 // J_kl = df_k / d_gamma_l = sum_i A_ki * n_i * A_li
@@ -140,7 +168,11 @@ struct Equilibrium
                 }
 
                 Eigen::VectorXd step = J.colPivHouseholderQr().solve(-f);
-                if (std::isnan(step.norm())) break;
+                if (!std::isfinite(step.norm()))
+                {
+                    finite_state = false;
+                    break;
+                }
 
                 double alpha = 1.0; 
                 // Damping to prevent excessive temperature changes
@@ -150,16 +182,26 @@ struct Equilibrium
                 T *= std::exp(alpha * step(NE));
                 T = std::clamp(T, 200.0, 6000.0);
 
+                if (!std::isfinite(gamma.norm()) || !std::isfinite(T))
+                {
+                    finite_state = false;
+                    break;
+                }
                 if (alpha * step.norm() < 1e-12) break; 
             }
 
+            if (!finite_state)
+            {
+                return {wdot, 0.0};
+            }
+
             // 3. Output results
-            std::array<double, NSPECIES> wdot;
             Eigen::VectorXd n_eq(NSPECIES);
             for (int i = 0; i < NSPECIES; ++i) {
                 double mu0 = gas->enthalpy_mol_species(T, i) - T * gas->entropy_mol_species(T, i);
                 double arg = - mu0 / (R * T);
                 for (int k = 0; k < NE; ++k) arg += atom_matrix(k, i) * gamma(k);
+                if (!std::isfinite(arg)) return {wdot, 0.0};
                 n_eq(i) = (P0 / (R * T)) * std::exp(std::clamp(arg, -100.0, 100.0));
                 wdot[i] = (n_eq(i) * gas->MW[i] - rhoY[i]) / dt;
             }
@@ -197,39 +239,94 @@ struct Equilibrium
             int NR = value.kinetics.reaction.size();
             value.nu.resize(NS, NR);
             value.nu.setZero();
+
+            Util::Assert(INFO, TEST(!value.kinetics.phase.empty()),
+                "Equilibrium chemistry YAML must define at least one phase.");
+            Util::Assert(INFO, TEST((int)value.kinetics.phase[0].species.size() == NS),
+                "Equilibrium chemistry active phase species count (", value.kinetics.phase[0].species.size(),
+                ") does not match NSPECIES (", NS, ").");
+
+            std::array<int, NSPECIES> yaml_species_idx;
+            for (int i = 0; i < NS; ++i) yaml_species_idx[i] = -1;
             
-            // Build mapping from YAML species names to simulation species indices
-            std::map<std::string, int> species_map;
-            for (int i = 0; i < (int)value.kinetics.species.size(); ++i) {
-                species_map[value.kinetics.species[i].name] = i;
+            // Map active phase ordering onto the top-level YAML species table once at parse time.
+            for (int i = 0; i < NS; ++i) {
+                const std::string& simulation_species_name = value.kinetics.phase[0].species[i];
+                int match = -1;
+                for (int j = 0; j < (int)value.kinetics.species.size(); ++j) {
+                    if (value.kinetics.species[j].name == simulation_species_name) {
+                        Util::Assert(INFO, TEST(match < 0),
+                            "Species '", simulation_species_name, "' appears multiple times in the YAML species list.");
+                        match = j;
+                    }
+                }
+                Util::Assert(INFO, TEST(match >= 0),
+                    "Species '", simulation_species_name, "' from the active phase is missing from the YAML species table.");
+
+                for (int j = 0; j < i; ++j) {
+                    Util::Assert(INFO, TEST(value.kinetics.phase[0].species[j] != simulation_species_name),
+                        "Species '", simulation_species_name, "' appears multiple times in the active phase list.");
+                }
+
+                yaml_species_idx[i] = match;
             }
             
             // Populate stoichiometric matrix
             for (int r = 0; r < NR; ++r) {
-                for (auto const& [name, coeff] : value.kinetics.reaction[r].reactants) {
-                    if (species_map.count(name) && species_map[name] < NS) value.nu(species_map[name], r) -= coeff;
+                for (const std::pair<const std::string, double>& reactant : value.kinetics.reaction[r].reactants) {
+                    if (IsThirdBodySpecies(value.kinetics.reaction[r], reactant.first)) continue;
+                    int species_idx = -1;
+                    for (int i = 0; i < NS; ++i) {
+                        if (value.kinetics.phase[0].species[i] == reactant.first) {
+                            species_idx = i;
+                            break;
+                        }
+                    }
+                    Util::Assert(INFO, TEST(species_idx >= 0),
+                        "Reaction '", value.kinetics.reaction[r].equation, "' references reactant species '",
+                        reactant.first, "' that is not present in the active phase species list.");
+                    value.nu(species_idx, r) -= reactant.second;
                 }
-                for (auto const& [name, coeff] : value.kinetics.reaction[r].products) {
-                    if (species_map.count(name) && species_map[name] < NS) value.nu(species_map[name], r) += coeff;
+                for (const std::pair<const std::string, double>& product : value.kinetics.reaction[r].products) {
+                    if (IsThirdBodySpecies(value.kinetics.reaction[r], product.first)) continue;
+                    int species_idx = -1;
+                    for (int i = 0; i < NS; ++i) {
+                        if (value.kinetics.phase[0].species[i] == product.first) {
+                            species_idx = i;
+                            break;
+                        }
+                    }
+                    Util::Assert(INFO, TEST(species_idx >= 0),
+                        "Reaction '", value.kinetics.reaction[r].equation, "' references product species '",
+                        product.first, "' that is not present in the active phase species list.");
+                    value.nu(species_idx, r) += product.second;
                 }
             }
 
             // Build element list and atom matrix
             std::set<std::string> element_set;
             for (int i = 0; i < NS; ++i) {
-                for (auto const& [el, count] : value.kinetics.species[i].composition) {
-                    element_set.insert(el);
+                Util::Assert(INFO, TEST(yaml_species_idx[i] >= 0 && yaml_species_idx[i] < (int)value.kinetics.species.size()),
+                    "Internal species index mapping failed for equilibrium chemistry species ", i, ".");
+                const CanteraYAML::Species& species = value.kinetics.species[yaml_species_idx[i]];
+                for (const std::pair<const std::string, double>& composition : species.composition) {
+                    element_set.insert(composition.first);
                 }
             }
             value.NE = element_set.size();
-            std::vector<std::string> elements(element_set.begin(), element_set.end());
+            Util::Assert(INFO, TEST(value.NE > 0),
+                "Equilibrium chemistry YAML did not define any elemental composition for the active phase species.");
             value.atom_matrix.resize(value.NE, NS);
             value.atom_matrix.setZero();
             for (int i = 0; i < NS; ++i) {
-                for (auto const& [el, count] : value.kinetics.species[i].composition) {
-                    auto it = std::find(elements.begin(), elements.end(), el);
-                    int k = std::distance(elements.begin(), it);
-                    value.atom_matrix(k, i) = count;
+                const CanteraYAML::Species& species = value.kinetics.species[yaml_species_idx[i]];
+                for (const std::pair<const std::string, double>& composition : species.composition) {
+                    std::set<std::string>::const_iterator it = element_set.find(composition.first);
+                    Util::Assert(INFO, TEST(it != element_set.end()),
+                        "Element '", composition.first, "' for species '", species.name,
+                        "' was not found while building the atom matrix.");
+                    int k = std::distance(element_set.begin(), it);
+                    value.atom_matrix(k, i) = composition.second;
                 }
             }
 
