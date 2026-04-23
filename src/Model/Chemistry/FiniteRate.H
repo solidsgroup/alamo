@@ -3,9 +3,10 @@
 
 #include "AMReX_Extension.H"
 #include "Model/Chemistry/Chemistry.H"
-#include "IO/YamlParse.H"
+#include "Util/Chemistry.H"
 #include <vector>
 #include <map>
+#include <algorithm>
 #include <cmath>
 
 namespace Model
@@ -17,21 +18,30 @@ struct FiniteRate
 {
     static constexpr const char* name = "finite_rate";
 
-    static bool IsThirdBodyToken(const std::string& token)
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static double EvaluateTroeFactor(
+        const double T,
+        const double Pr,
+        const double alpha,
+        const double T3,
+        const double T1,
+        const double T2)
     {
-        return token == "M" || (!token.empty() && token[0] == '+');
-    }
+        if (!(Pr > 0.0)) return 1.0;
 
-    static bool IsThirdBodySpecies(const CanteraYAML::Reaction& reaction, const std::string& token)
-    {
-        if (!reaction.third_body) return false;
-        if (IsThirdBodyToken(token)) return true;
+        double Fcent = 0.0;
+        if (T3 > 0.0) Fcent += (1.0 - alpha) * std::exp(-T / T3);
+        if (T1 > 0.0) Fcent += alpha * std::exp(-T / T1);
+        if (T2 > 0.0) Fcent += std::exp(-T2 / T);
 
-        std::map<std::string, double>::const_iterator reactant = reaction.reactants.find(token);
-        std::map<std::string, double>::const_iterator product = reaction.products.find(token);
-        if (reactant == reaction.reactants.end()) return false;
-        if (product == reaction.products.end()) return false;
-        return reactant->second == product->second;
+        Fcent = std::max(1.0e-300, std::min(Fcent, 1.0));
+        double logFcent = std::log10(Fcent);
+        double c = -0.4 - 0.67 * logFcent;
+        double n = 0.75 - 1.27 * logFcent;
+        double d = 0.14;
+        double x = std::log10(std::max(Pr, 1.0e-300)) + c;
+        double f1 = x / (n - d * x);
+        return std::pow(10.0, logFcent / (1.0 + f1 * f1));
     }
 
     FiniteRate() = default;
@@ -55,9 +65,14 @@ struct FiniteRate
     std::vector<double> b2;
     std::vector<double> E2;
     std::vector<double> F;
+    std::vector<double> troe_alpha;
+    std::vector<double> troe_T1;
+    std::vector<double> troe_T2;
+    std::vector<double> troe_T3;
     std::vector<int> reversible;
     std::vector<int> third_body;
     std::vector<int> falloff;
+    std::vector<int> troe;
 #endif
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
@@ -79,6 +94,7 @@ struct FiniteRate
         if constexpr (NSPECIES > 1)
         {
             Util::Assert(INFO, TEST(gas != nullptr), "Finite-rate kinetics requires a gas model.");
+            Util::IgnoreUnused(P);
 
             const double R = Set::Constant::Rg;
             const double P0 = 101325.0;
@@ -86,7 +102,6 @@ struct FiniteRate
             double rho = 0.0;
             double total_concentration = 0.0;
             std::array<double, NSPECIES> concentration;
-            std::array<double, NSPECIES> mole_fraction;
             std::array<double, NSPECIES> enthalpy_mol;
             std::array<double, NSPECIES> entropy_mol;
 
@@ -102,11 +117,6 @@ struct FiniteRate
             if (!(rho > 0.0) || !(total_concentration > 0.0))
             {
                 return {wdot, 0.0};
-            }
-
-            for (int n = 0; n < NSPECIES; ++n)
-            {
-                mole_fraction[n] = concentration[n] / total_concentration;
             }
 
             for (int r = 0; r < NR; ++r)
@@ -125,7 +135,13 @@ struct FiniteRate
                     }
                     double Pr = 0.0;
                     if (k_inf > 0.0) Pr = k0 * M_concentration / k_inf;
-                    kf = k_inf * Pr / (1.0 + Pr) * F[r];
+                    double falloff_factor = F[r];
+                    if (troe[r])
+                    {
+                        falloff_factor *= EvaluateTroeFactor(
+                            T, Pr, troe_alpha[r], troe_T3[r], troe_T1[r], troe_T2[r]);
+                    }
+                    kf = k_inf * Pr / (1.0 + Pr) * falloff_factor;
                 }
                 else
                 {
@@ -139,7 +155,7 @@ struct FiniteRate
                 {
                     dnu += nu_net[r][n];
                     dH0 += nu_net[r][n] * enthalpy_mol[n];
-                    dS0 += nu_net[r][n] * (entropy_mol[n] - R * std::log(std::max(P / P0, 1.0e-300)));
+                    dS0 += nu_net[r][n] * entropy_mol[n];
                 }
 
                 double Kc = 1.0;
@@ -191,27 +207,24 @@ struct FiniteRate
                 }
             }
 
-            double rho_total = 0.0;
             for (int n = 0; n < NSPECIES; ++n)
             {
-                rho_total += std::max(rhoY[n], 0.0);
                 wdot[n] = wdot_molar[n] * gas->MW[n];
             }
 
             double mass_source_total = 0.0;
+            double abs_mass_source_total = 0.0;
             for (int n = 0; n < NSPECIES; ++n)
             {
                 mass_source_total += wdot[n];
+                abs_mass_source_total += std::abs(wdot[n]);
             }
 
-            if (std::abs(mass_source_total) > 0.0 && rho_total > 0.0)
-            {
-                for (int n = 0; n < NSPECIES; ++n)
-                {
-                    double Y_n = std::max(rhoY[n], 0.0) / rho_total;
-                    wdot[n] -= Y_n * mass_source_total;
-                }
-            }
+            double mass_source_tol = 1.0e-12 * std::max(1.0, abs_mass_source_total);
+            Util::Assert(INFO, TEST(std::abs(mass_source_total) <= mass_source_tol),
+                "Finite-rate kinetics produced a non-conservative mass source. Residual = ",
+                mass_source_total, ", tolerance = ", mass_source_tol,
+                ". Check species molecular weights and reaction stoichiometry.");
 
             double qdot = 0.0;
             for (int n = 0; n < NSPECIES; ++n)
@@ -288,19 +301,15 @@ struct FiniteRate
         {
             pp_query_required("yaml", value.yaml);
             CanteraYAML::CanteraKinetics kinetics = CanteraYAML::ParseYaml(value.yaml);
+            ChemUtil::PreparedKinetics<NSPECIES> prepared =
+                ChemUtil::PrepareKinetics<NSPECIES>(kinetics, "Finite-rate chemistry");
 
-            Util::Assert(INFO, TEST(!kinetics.phase.empty()),
-                "Finite-rate chemistry YAML must define at least one phase.");
-            Util::Assert(INFO, TEST((int)kinetics.phase[0].species.size() == NSPECIES),
-                "Finite-rate chemistry active phase species count (", kinetics.phase[0].species.size(),
-                ") does not match NSPECIES (", NSPECIES, ").");
-
-            value.NR = kinetics.reaction.size();
-            value.reactant_nu.assign(value.NR, std::array<double, NSPECIES>());
-            value.product_nu.assign(value.NR, std::array<double, NSPECIES>());
-            value.reaction_order.assign(value.NR, std::array<double, NSPECIES>());
-            value.efficiency.assign(value.NR, std::array<double, NSPECIES>());
-            value.nu_net.assign(value.NR, std::array<double, NSPECIES>());
+            value.NR = prepared.NR;
+            value.reactant_nu = prepared.reactant_nu;
+            value.product_nu = prepared.product_nu;
+            value.reaction_order = prepared.reaction_order;
+            value.efficiency = prepared.efficiency;
+            value.nu_net = prepared.nu_net;
             value.A.assign(value.NR, 0.0);
             value.b.assign(value.NR, 0.0);
             value.E.assign(value.NR, 0.0);
@@ -308,38 +317,14 @@ struct FiniteRate
             value.b2.assign(value.NR, 0.0);
             value.E2.assign(value.NR, 0.0);
             value.F.assign(value.NR, 1.0);
+            value.troe_alpha.assign(value.NR, 0.0);
+            value.troe_T1.assign(value.NR, -1.0);
+            value.troe_T2.assign(value.NR, -1.0);
+            value.troe_T3.assign(value.NR, -1.0);
             value.reversible.assign(value.NR, 0);
             value.third_body.assign(value.NR, 0);
             value.falloff.assign(value.NR, 0);
-
-            std::array<int, NSPECIES> yaml_species_idx;
-            for (int n = 0; n < NSPECIES; ++n) yaml_species_idx[n] = -1;
-            for (int n = 0; n < NSPECIES; ++n)
-            {
-                const std::string& simulation_species_name = kinetics.phase[0].species[n];
-                for (int j = 0; j < (int)kinetics.species.size(); ++j)
-                {
-                    if (kinetics.species[j].name == simulation_species_name)
-                    {
-                        yaml_species_idx[n] = j;
-                        break;
-                    }
-                }
-                Util::Assert(INFO, TEST(yaml_species_idx[n] >= 0),
-                    "Species '", simulation_species_name, "' from the active phase is missing from the YAML species table.");
-            }
-
-            for (int r = 0; r < value.NR; ++r)
-            {
-                for (int n = 0; n < NSPECIES; ++n)
-                {
-                    value.reactant_nu[r][n] = 0.0;
-                    value.product_nu[r][n] = 0.0;
-                    value.reaction_order[r][n] = -1.0;
-                    value.efficiency[r][n] = -1.0;
-                    value.nu_net[r][n] = 0.0;
-                }
-            }
+            value.troe.assign(value.NR, 0);
 
             for (int r = 0; r < value.NR; ++r)
             {
@@ -354,54 +339,33 @@ struct FiniteRate
                 value.reversible[r] = reaction.reversible ? 1 : 0;
                 value.third_body[r] = reaction.third_body ? 1 : 0;
                 value.falloff[r] = reaction.falloff ? 1 : 0;
+                value.troe[r] = reaction.Troe.empty() ? 0 : 1;
 
-                for (int n = 0; n < NSPECIES; ++n)
+                Util::Assert(INFO, TEST(!value.troe[r] || value.falloff[r]),
+                    "Finite-rate reaction '", reaction.equation,
+                    "' defines Troe parameters but is not a falloff reaction.");
+
+                if (value.troe[r])
                 {
-                    const std::string& species_name = kinetics.phase[0].species[n];
+                    std::map<std::string, double>::const_iterator alpha = reaction.Troe.find("A");
+                    if (alpha == reaction.Troe.end()) alpha = reaction.Troe.find("alpha");
+                    std::map<std::string, double>::const_iterator T1 = reaction.Troe.find("T1");
+                    std::map<std::string, double>::const_iterator T2 = reaction.Troe.find("T2");
+                    std::map<std::string, double>::const_iterator T3 = reaction.Troe.find("T3");
 
-                    std::map<std::string, double>::const_iterator reactant = reaction.reactants.find(species_name);
-                    if (reactant != reaction.reactants.end() && !IsThirdBodySpecies(reaction, species_name))
-                    {
-                        value.reactant_nu[r][n] = reactant->second;
-                    }
+                    Util::Assert(INFO, TEST(alpha != reaction.Troe.end()),
+                        "Finite-rate Troe reaction '", reaction.equation, "' is missing alpha/A.");
+                    Util::Assert(INFO, TEST(T1 != reaction.Troe.end()),
+                        "Finite-rate Troe reaction '", reaction.equation, "' is missing T1.");
+                    Util::Assert(INFO, TEST(T3 != reaction.Troe.end()),
+                        "Finite-rate Troe reaction '", reaction.equation, "' is missing T3.");
 
-                    std::map<std::string, double>::const_iterator product = reaction.products.find(species_name);
-                    if (product != reaction.products.end() && !IsThirdBodySpecies(reaction, species_name))
-                    {
-                        value.product_nu[r][n] = product->second;
-                    }
-
-                    std::map<std::string, double>::const_iterator order = reaction.orders.find(species_name);
-                    if (order != reaction.orders.end())
-                    {
-                        value.reaction_order[r][n] = order->second;
-                    }
-
-                    std::map<std::string, double>::const_iterator collider = reaction.efficiencies.find(species_name);
-                    if (collider != reaction.efficiencies.end())
-                    {
-                        value.efficiency[r][n] = collider->second;
-                    }
-
-                    value.nu_net[r][n] = value.product_nu[r][n] - value.reactant_nu[r][n];
+                    value.troe_alpha[r] = alpha->second;
+                    value.troe_T1[r] = T1->second;
+                    value.troe_T3[r] = T3->second;
+                    if (T2 != reaction.Troe.end()) value.troe_T2[r] = T2->second;
                 }
-
-                std::map<std::string, double> element_balance;
-                for (int n = 0; n < NSPECIES; ++n)
-                {
-                    const CanteraYAML::Species& species = kinetics.species[yaml_species_idx[n]];
-                    for (const std::pair<const std::string, double>& composition : species.composition)
-                    {
-                        element_balance[composition.first] += value.nu_net[r][n] * composition.second;
-                    }
-                }
-            for (const std::pair<const std::string, double>& element : element_balance)
-            {
-                Util::Assert(INFO, TEST(std::abs(element.second) < 1.0e-12),
-                    "Finite-rate reaction '", reaction.equation, "' does not conserve element '",
-                    element.first, "' after species mapping. Residual = ", element.second);
             }
-        }
 
             Util::Message(INFO, "Finite-rate kinetics initialized from ", value.yaml, " with ", value.NR,
                 " reactions using explicit integration.");
