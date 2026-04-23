@@ -6,6 +6,7 @@
 #include "BC/Constant.H"
 #include "BC/Nothing.H"
 #include "BC/Expression.H"
+#include "Numeric/NBStencil.H"
 
 // Inline helper functions
 AMREX_GPU_DEVICE 
@@ -169,7 +170,7 @@ struct LevelSetField
     // Helper function to update narrowband tube
     void update_Tube(int lev, const amrex::Geometry& geom, bool init=false)
     {
-        BL_PROFILE("LevelSetField::update_Tube");
+        // BL_PROFILE("LevelSetField::update_Tube");
 
         // ----------------------------------------------------------
         // Cutoffs
@@ -224,8 +225,8 @@ struct LevelSetField
                 const amrex::Box workbox = tilebox & search_box;
                 if (!workbox.ok()) continue;
 
-                auto const& phi_arr  = LS[lev]->array(mfi);
-                auto const& tube_arr = TUBE[lev]->array(mfi);
+                Set::Patch<Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
+                Set::Patch<Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
 
                 // Local bbox
                 amrex::IntVect local_lo = lo;
@@ -326,8 +327,51 @@ struct LevelSetField
             {
                 meta.bbox = amrex::Box(); // empty
             }
+        }
+    }
 
-            amrex::Print() << "bbox: " << meta.bbox << "\n";
+    void compute_normal(int lev, const amrex::Geometry& geom) {
+        // Set normal to 0.0
+        LSnormal[lev]->setVal(Set::Vector::Zero());
+
+        // Get dx per dimension outside loop
+        auto const dx = geom.CellSizeArray();
+
+        for (LevelSetObject& obj : objects)
+        {
+            ObjectMetaLevel &meta = obj.meta.leveldata[lev];
+
+            // Build search region
+            const amrex::Box& bbox = meta.bbox;
+
+            for (amrex::MFIter mfi(*LSnormal[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& tilebox = mfi.tilebox();
+
+                // Skip irrelevant tiles
+                if (!tilebox.intersects(bbox)) continue;
+
+                const amrex::Box workbox = tilebox & bbox;
+                if (!workbox.ok()) continue;
+
+                Set::Patch<const Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+                Set::Patch<Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
+
+                amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+                {
+                    // Skip non-narrowband cells
+                    const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
+                    if (bandval == 0) return;
+
+                    // Get the normal gradient
+                    Set::Vector grad = NBStencil::norm_gradient(i, j, k, phi_arr, tube_arr, dx);
+
+                    // Normalize
+                    Set::Scalar mag = grad.norm();
+                    norm_arr(i, j, k) = grad / (mag + 1e-12);
+                });
+            }
         }
     }
 };
@@ -568,6 +612,7 @@ namespace Integrator
         {
             // Get the pointer to the current level set field
             LevelSetField& ls = *ls_ptr;
+            const auto& geom = domain_->Geom(lev);
 
             // If first level, size all vector data
             if (lev == 0) {
@@ -588,7 +633,7 @@ namespace Integrator
             ls.ic_LS->Initialize(lev, ls.LS);
 
             // Build the tube
-            ls.update_Tube(lev, domain_->Geom(lev), true);
+            ls.update_Tube(lev, geom, true);
 
             // Copy LS to LSold
             amrex::MultiFab::Copy(*ls.LSold[lev],
@@ -607,8 +652,10 @@ namespace Integrator
             );
 
             // Set all real fields to 0
-            ls.LSnormal[lev]->setVal(Set::Vector::Zero());
             ls.LSkappa[lev]->setVal(0.0);
+
+            // COmpute normal
+            ls.compute_normal(lev, geom);
         }
     }
 
