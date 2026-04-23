@@ -446,12 +446,19 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
 
+    density_bc->FillBoundary(*density_mf[lev], 0, NSPECIES, time + dt, 0);
+    density_mf[lev]->FillBoundary(true);
+    momentum_bc->FillBoundary(*momentum_mf[lev], 0, 2, time + dt, 0);
+    momentum_mf[lev]->FillBoundary(true);
+    energy_bc->FillBoundary(*energy_mf[lev], 0, 1, time + dt, 0);
+    energy_mf[lev]->FillBoundary(true);
 
     //
     // APPLY CUTOFFS AND DO DYNAMIC TIMESTEP CALCULATION
     //
 
     Set::Scalar dt_max = std::numeric_limits<Set::Scalar>::max();
+    const amrex::Box domain = geom[lev].Domain();
     for (amrex::MFIter mfi(*velocity_mf[lev], false); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.validbox();
@@ -488,7 +495,8 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 E_new(i,j,k,0)   = E_solid(i,j,k,0);
             }
 
-            Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX);
+            auto sten = Numeric::GetStencil(i, j, k, domain);
+            Set::Matrix gradu        = Numeric::Gradient(u, i, j, k, DX, sten);
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
 
             if (dynamictimestep.on)
@@ -523,6 +531,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
     BL_PROFILE("Integrator::Hydro::RefreshDerivedPlotFields");
 
     const Set::Scalar* DX = geom[lev].CellSize();
+    const amrex::Box domain = geom[lev].Domain();
 
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -615,10 +624,13 @@ void Hydro::RefreshDerivedPlotFields(int lev)
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
-            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX);
+            auto sten = Numeric::GetStencil(i, j, k, domain);
+            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, DX, sten);
             omega(i, j, k) = eta * (gradu(1,0) - gradu(0,1));
         });
     }
+
+    vorticity_mf[lev]->FillBoundary(true);
 }
 
 
@@ -743,47 +755,27 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
         // Second ParallelFor loop to get first gradients
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+            auto sten = Numeric::GetStencil(i,j,k,domain);
             for (int n=0; n<NSPECIES; ++n)
             {
-                Set::Vector grad_Y;
-                if (i == bx.smallEnd(0)) {
-                    grad_Y(0) = (Y(i+1,j,k,n) - Y(i,j,k,n))/DX[0];
-                } else if (i == bx.bigEnd(0)) {
-                    grad_Y(0) = (Y(i,j,k,n) - Y(i-1,j,k,n))/DX[0];
-                } else {
-                    grad_Y(0) = (Y(i+1,j,k,n) - Y(i-1,j,k,n))/(2.0*DX[0]);
-                }
-                if (j == bx.smallEnd(1)) {
-                    grad_Y(1) = (Y(i,j+1,k,n) - Y(i,j,k,n))/DX[1];
-                } else if (j == bx.bigEnd(1)) {
-                    grad_Y(1) = (Y(i,j,k,n) - Y(i,j-1,k,n))/DX[1];
-                } else {
-                    grad_Y(1) = (Y(i,j+1,k,n) - Y(i,j-1,k,n))/(2.0*DX[1]);
-                }
+                Set::Vector grad_Y = Numeric::Gradient(Y,i,j,k,n,DX,sten);
                 rhoHDYx(i,j,k,n)    = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Y(0);
                 rhoHDYy(i,j,k,n)    = rho_sum(i,j,k)*mixed_H(i,j,k)*DKM(i,j,k,n)*grad_Y(1);
                 rhoDYx(i,j,k,n)     = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Y(0);
                 rhoDYy(i,j,k,n)     = rho_sum(i,j,k)*DKM(i,j,k,n)*grad_Y(1);
             }
-            Set::Vector gradT;
-            if (i == bx.smallEnd(0)) {
-                gradT(0) = (T(i+1,j,k) - T(i,j,k))/DX[0];
-            } else if (i == bx.bigEnd(0)) {
-                gradT(0) = (T(i,j,k) - T(i-1,j,k))/DX[0];
-            } else {
-                gradT(0) = (T(i+1,j,k) - T(i-1,j,k))/(2.0*DX[0]);
-            }
-            if (j == bx.smallEnd(1)) {
-                gradT(1) = (T(i,j+1,k) - T(i,j,k))/DX[1];
-            } else if (j == bx.bigEnd(1)) {
-                gradT(1) = (T(i,j,k) - T(i,j-1,k))/DX[1];
-            } else {
-                gradT(1) = (T(i,j+1,k) - T(i,j-1,k))/(2.0*DX[1]);
-            }
+            Set::Vector gradT = Numeric::Gradient(T,i,j,k,0,DX,sten);
             mixed_kT(i,j,k,0)       = mixed_k(i,j,k)*gradT(0);
             mixed_kT(i,j,k,1)       = mixed_k(i,j,k)*gradT(1);
         });
     }
+
+    rho_sum_mf.FillBoundary(true);
+    mixed_kT_mf.FillBoundary(true);
+    rhoHDYx_mf.FillBoundary(true);
+    rhoHDYy_mf.FillBoundary(true);
+    rhoDYx_mf.FillBoundary(true);
+    rhoDYy_mf.FillBoundary(true);
 
     for (amrex::MFIter mfi(*(*eta_mf)[lev], false); mfi.isValid(); ++mfi)
     {
@@ -839,9 +831,9 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
             //Diffuse Sources
-            Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX);
+            Set::Vector grad_eta     = Numeric::Gradient(eta_patch, i, j, k, 0, DX, sten);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-            Set::Matrix hess_eta     = Numeric::Hessian(eta_patch, i, j, k, 0, DX);
+            Set::Matrix hess_eta     = Numeric::Hessian(eta_patch, i, j, k, 0, DX, sten);
             if (invert) grad_eta *= -1.0;
             if (invert) hess_eta *= -1.0;
             
@@ -857,13 +849,13 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 Set::Vector q0           = Set::Vector(q(i,j,k,0), q(i,j,k,1), q(i,j,k,2));
             #endif
 
-            Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX);
-            Set::Vector gradrho      = Numeric::Gradient(rho_sum,i,j,k,0,DX);
+            Set::Matrix gradM        = Numeric::Gradient(M, i, j, k, DX, sten);
+            Set::Vector gradrho      = Numeric::Gradient(rho_sum,i,j,k,0,DX, sten);
             Set::Matrix hess_rho     = Numeric::Hessian(rho_sum,i,j,k,0,DX,sten);
             Set::Matrix gradu        = (gradM - u*gradrho.transpose()) / rho_sum(i,j,k);
 
-            Set::Vector grad_mixed_kTx  = Numeric::Gradient(mixed_kT,i,j,k,0,DX);
-            Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX);
+            Set::Vector grad_mixed_kTx  = Numeric::Gradient(mixed_kT,i,j,k,0,DX, sten);
+            Set::Vector grad_mixed_kTy  = Numeric::Gradient(mixed_kT,i,j,k,1,DX, sten);
             // Gradients of rhoHDY and rhoDY are computed for individual species in for loops later
 
             if (prescribedflowmode == PrescribedFlowMode::Relative)
@@ -965,24 +957,25 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
             Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
             Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
 
-            Solver::Local::Riemann::State state_xlo_fluid = invert ? 
-                (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small) :
-                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small);
             Solver::Local::Riemann::State state_x_fluid   = invert ? 
                 (state_x   - (eta_patch(i,j,k)  )*state_x_solid  )   / (1.0 - eta_patch(i,j,k)   + small): 
                 (state_x   - (1.0 - eta_patch(i,j,k)  )*state_x_solid  ) / (eta_patch(i,j,k)   + small);
-            Solver::Local::Riemann::State state_xhi_fluid = invert ? 
-                (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k) + small) : 
-                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small);
-            Solver::Local::Riemann::State state_ylo_fluid = invert ? 
-                (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k) + small): 
-                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small);
             Solver::Local::Riemann::State state_y_fluid =   invert ? 
                 (state_y   - (eta_patch(i,j,k)  )*state_y_solid  )  / (1.0 - eta_patch(i,j,k)   + small): 
                 (state_y   - (1.0 - eta_patch(i,j,k)  )*state_y_solid  ) / (eta_patch(i,j,k)   + small);
-            Solver::Local::Riemann::State state_yhi_fluid = invert ? 
+
+            Solver::Local::Riemann::State state_xlo_fluid = (sten[0] == Numeric::StencilType::Hi) ? state_x_fluid : (invert ? 
+                (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small) :
+                (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small));
+            Solver::Local::Riemann::State state_xhi_fluid = (sten[0] == Numeric::StencilType::Lo) ? state_x_fluid : (invert ? 
+                (state_xhi - (eta_patch(i+1,j,k))*state_xhi_solid) / (1.0 - eta_patch(i+1,j,k) + small) : 
+                (state_xhi - (1.0 - eta_patch(i+1,j,k))*state_xhi_solid) / (eta_patch(i+1,j,k) + small));
+            Solver::Local::Riemann::State state_ylo_fluid = (sten[1] == Numeric::StencilType::Hi) ? state_y_fluid : (invert ? 
+                (state_ylo - (eta_patch(i,j-1,k))*state_ylo_solid) / (1.0 - eta_patch(i,j-1,k) + small): 
+                (state_ylo - (1.0 - eta_patch(i,j-1,k))*state_ylo_solid) / (eta_patch(i,j-1,k) + small));
+            Solver::Local::Riemann::State state_yhi_fluid = (sten[1] == Numeric::StencilType::Lo) ? state_y_fluid : (invert ? 
                 (state_yhi - (eta_patch(i,j+1,k))*state_yhi_solid) / (1.0 - eta_patch(i,j+1,k) + small): 
-                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small);
+                (state_yhi - (1.0 - eta_patch(i,j+1,k))*state_yhi_solid) / (eta_patch(i,j+1,k) + small));
 
             Solver::Local::Riemann::Flux flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
@@ -1013,8 +1006,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 if (NSPECIES > 1)
                 {
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
-                    Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX);
-                    Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX);
+                    Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX,sten);
+                    Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX,sten);
                     drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
                 }
                 drhof_dt += eta * wdot[n];
@@ -1074,8 +1067,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 for (int n=0; n<NSPECIES; ++n)
                 {
                     // Species energy diffusion term: d/dx_i(rho*H*DKM*Y,i)
-                    Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX);
-                    Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX);
+                    Set::Vector grad_rhoHDYx     = Numeric::Gradient(rhoHDYx,i,j,k,n,DX,sten);
+                    Set::Vector grad_rhoHDYy     = Numeric::Gradient(rhoHDYy,i,j,k,n,DX,sten);
                     dEf_dt += eta * (grad_rhoHDYx[0] + grad_rhoHDYy[1]);
                 }
             }

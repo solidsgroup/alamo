@@ -152,34 +152,30 @@ struct FiniteRate
 
                 double C_react = 1.0;
                 double C_prod = 1.0;
-                double third_body_factor = 0.0;
                 for (int n = 0; n < NSPECIES; ++n)
                 {
-                    if (!third_body[r])
+                    if (reactant_nu[r][n] > 0.0)
                     {
-                        if (reactant_nu[r][n] > 0.0)
-                        {
-                            double exponent = reaction_order[r][n] >= 0.0 ? reaction_order[r][n] : reactant_nu[r][n];
-                            C_react *= std::pow(concentration[n], exponent);
-                        }
-                        if (reversible[r] && product_nu[r][n] > 0.0)
-                        {
-                            C_prod *= std::pow(concentration[n], product_nu[r][n]);
-                        }
-                        third_body_factor = 1.0;
+                        double exponent = reaction_order[r][n] >= 0.0 ? reaction_order[r][n] : reactant_nu[r][n];
+                        C_react *= std::pow(concentration[n], exponent);
                     }
-                    else
+                    if (reversible[r] && product_nu[r][n] > 0.0)
                     {
-                        if (reactant_nu[r][n] > 0.0) C_react *= std::pow(concentration[n], reactant_nu[r][n]);
-                        if (reversible[r] && product_nu[r][n] > 0.0) C_prod *= std::pow(concentration[n], product_nu[r][n]);
+                        C_prod *= std::pow(concentration[n], product_nu[r][n]);
+                    }
+                }
 
+                double third_body_factor = 1.0;
+                if (third_body[r] && !falloff[r])
+                {
+                    third_body_factor = 0.0;
+                    for (int n = 0; n < NSPECIES; ++n)
+                    {
                         double collider_efficiency = efficiency[r][n];
                         if (collider_efficiency < 0.0) collider_efficiency = 1.0;
                         third_body_factor += collider_efficiency * concentration[n];
                     }
                 }
-
-                if (falloff[r]) third_body_factor = 1.0;
 
                 double ropf = kf * third_body_factor * C_react;
                 double ropr = 0.0;
@@ -220,9 +216,8 @@ struct FiniteRate
             double qdot = 0.0;
             for (int n = 0; n < NSPECIES; ++n)
             {
-                double Y_n = 0.0;
-                if (rho_total > 0.0) Y_n = std::max(rhoY[n], 0.0) / rho_total;
-                qdot -= Y_n * gas->enthalpy_mol_species(T, n) / gas->MW[n] * wdot[n];
+                double e_n = (gas->enthalpy_mol_species(T, n) - R * T) / gas->MW[n];
+                qdot -= wdot[n] * e_n;
             }
             return {wdot, qdot};
         }
@@ -261,7 +256,6 @@ struct FiniteRate
         }
     }
 
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::pair<std::array<double,NSPECIES>,Set::Scalar>
     compute(
         const Set::Scalar P,
@@ -270,23 +264,20 @@ struct FiniteRate
         const Set::Scalar dt,
         const Model::Gas::Gas* gas) const
     {
-        if (dt <= 0.0)
+        std::pair<std::array<double, NSPECIES>, Set::Scalar> source = evaluate_source(P, T, rhoY, gas);
+        if (dt > 0.0)
         {
-            std::pair<std::array<double, NSPECIES>, Set::Scalar> source = evaluate_source(P, T, rhoY, gas);
             limit_wdot_positivity(source.first, rhoY, dt);
+            // Re-calculate qdot after limiting wdot to maintain energy consistency
+            const double R = Set::Constant::Rg;
             source.second = 0.0;
-            double rho_total = 0.0;
-            for (int n = 0; n < NSPECIES; ++n) rho_total += std::max(rhoY[n], 0.0);
             for (int n = 0; n < NSPECIES; ++n)
             {
-                double Y_n = 0.0;
-                if (rho_total > 0.0) Y_n = std::max(rhoY[n], 0.0) / rho_total;
-                source.second -= Y_n * gas->enthalpy_mol_species(T, n) / gas->MW[n] * source.first[n];
+                double e_n = (gas->enthalpy_mol_species(T, n) - R * T) / gas->MW[n];
+                source.second -= source.first[n] * e_n;
             }
-            return source;
         }
-
-        return evaluate_source(P, T, rhoY, gas);
+        return source;
     }
 
     static void Parse(FiniteRate& value, IO::ParmParse& pp)
