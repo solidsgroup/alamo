@@ -364,12 +364,51 @@ struct LevelSetField
                     const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
                     if (bandval == 0) return;
 
-                    // Get the normal gradient
-                    Set::Vector grad = NBStencil::norm_gradient(i, j, k, phi_arr, tube_arr, dx);
+                    // Get the normal
+                    norm_arr(i,j,k) = NBStencil::normal(i,j,k,phi_arr,tube_arr,dx);
+                });
+            }
+        }
+    }
 
-                    // Normalize
-                    Set::Scalar mag = grad.norm();
-                    norm_arr(i, j, k) = grad / (mag + 1e-12);
+    void compute_curvature(int lev, const amrex::Geometry& geom) {
+        // Set curvature to 0.0
+        LSkappa[lev]->setVal(0.0);
+
+        // Get dx per dimension outside loop
+        auto const dx = geom.CellSizeArray();
+
+        for (LevelSetObject& obj : objects)
+        {
+            ObjectMetaLevel &meta = obj.meta.leveldata[lev];
+
+            // Build search region
+            const amrex::Box& bbox = meta.bbox;
+
+            for (amrex::MFIter mfi(*LSkappa[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& tilebox = mfi.tilebox();
+
+                // Skip irrelevant tiles
+                if (!tilebox.intersects(bbox)) continue;
+
+                const amrex::Box workbox = tilebox & bbox;
+                if (!workbox.ok()) continue;
+
+                Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+                Set::Patch<const Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
+                Set::Patch<Set::Scalar> kappa_arr      = LSkappa.Patch(lev, mfi);
+
+                amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+                {
+                    // Skip non-narrowband cells
+                    const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
+                    if (bandval == 0) return;
+
+                    // Get the curvature
+                    kappa_arr(i,j,k) = NBStencil::curvature(
+                        i,j,k,norm_arr,tube_arr,dx
+                    );
                 });
             }
         }
@@ -583,7 +622,7 @@ namespace Integrator
             ls.LSkappa,
             nullptr,
             1,
-            0,
+            domain_->nghost,
             prefix + "_LSkappa",
             true,
             false
@@ -651,11 +690,11 @@ namespace Integrator
                 0, 0, 1, 0
             );
 
-            // Set all real fields to 0
-            ls.LSkappa[lev]->setVal(0.0);
-
-            // COmpute normal
+            // Compute normal
             ls.compute_normal(lev, geom);
+
+            // Compute curvature
+            ls.compute_curvature(lev, geom);
         }
     }
 
