@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 import sys
+import pathlib
 
-sys.path.append('./scripts')
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+
+sys.path.append(str(SCRIPT_DIR))
 from report import init_html, append_html, finalize_html
 
 import argparse
@@ -12,7 +16,7 @@ from datetime import datetime
 import socket
 import time
 import re
-import pathlib
+import shlex
 import threading
 import signal
 import fnmatch
@@ -20,6 +24,29 @@ import fnmatch
 from sympy import capture
 
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
+
+#
+# Code snippet to suppress the "^C" when user presses control C
+#
+import termios
+import atexit
+def disable_ctrl_echo():
+    if not sys.stdin.isatty():
+        return None
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    new = termios.tcgetattr(fd)
+    new[3] = new[3] & ~termios.ECHOCTL
+    termios.tcsetattr(fd, termios.TCSADRAIN, new)
+    return fd, old
+def restore_ctrl_echo(state):
+    if state is None:
+        return
+    fd, old = state
+    termios.tcsetattr(fd, termios.TCSADRAIN, old)
+_term_state = disable_ctrl_echo()
+atexit.register(lambda: restore_ctrl_echo(_term_state))
 
 class color:
     reset = "\033[0m"
@@ -43,6 +70,66 @@ def clean(text,max_length=60):
     if len(ret) > max_length:
         return ret[:max_length-3] + "..."
     return ret
+
+def shell_join(parts):
+    return ' '.join(shlex.quote(part) for part in parts)
+
+def build_srun_step_prefix(nprocs):
+    prefix = [
+        "srun",
+        *shlex.split(args.srun_flags),
+    ]
+    if args.slurm_mpi:
+        prefix.extend(["--mpi", args.slurm_mpi])
+    if args.slurm_cpus_per_task:
+        prefix.extend(["--cpus-per-task", str(args.slurm_cpus_per_task)])
+    prefix.extend(["-n", str(nprocs)])
+    return prefix
+
+def build_srun_prefix(nprocs, job_name, stdout_path):
+    return [
+        *build_srun_step_prefix(nprocs),
+        "--job-name", job_name,
+        "--output", stdout_path,
+    ]
+
+def build_sbatch_command(nprocs, job_name, stdout_path, wrapped_command):
+    command = [
+        "sbatch",
+        "--parsable",
+        *shlex.split(args.sbatch_flags),
+        "--job-name", job_name,
+        "--output", stdout_path,
+        "--chdir", os.getcwd(),
+    ]
+    if args.slurm_partition:
+        command.extend(["--partition", args.slurm_partition])
+    if args.slurm_time:
+        command.extend(["--time", args.slurm_time])
+    if args.slurm_mem:
+        command.extend(["--mem", args.slurm_mem])
+    if args.slurm_mem_per_cpu:
+        command.extend(["--mem-per-cpu", args.slurm_mem_per_cpu])
+    if args.slurm_constraint:
+        command.extend(["--constraint", args.slurm_constraint])
+    if args.slurm_account:
+        command.extend(["--account", args.slurm_account])
+    if args.slurm_cpus_per_task:
+        command.extend(["--cpus-per-task", str(args.slurm_cpus_per_task)])
+    command.extend([
+        "-n", str(nprocs),
+        "--wrap", wrapped_command,
+    ])
+    return command
+
+def slurm_job_name_for_dir(path):
+    resolved = pathlib.Path(path).resolve()
+    if resolved.name:
+        return resolved.name
+    return "alamo"
+
+def make_slurm_job_name(path, section):
+    return f"{slurm_job_name_for_dir(path)}_{section}"
 
 #
 # Get a unique string ID to label all output files
@@ -113,12 +200,37 @@ parser.add_argument('--permit-skips', dest='permit_skips', default=False, action
 parser.add_argument('--no-backspace',default=False,dest="no_backspace",action='store_true',help="Avoid using backspace (For GH actions)")
 parser.add_argument('--check-mpi',default=False,dest="check_mpi",action='store_true',help="Check if MPI is running correctly")
 parser.add_argument('--mpirun-flags',dest="mpirun_flags",default="",help="Extra arguments to pass to mpirun (like --oversubscribe). All arguments must be in a string.")
+parser.add_argument('--slurm', default=False, action='store_true', help='Submit tests through Slurm using sbatch without waiting for completion')
+parser.add_argument('--nova', default=False, action='store_true', help='Apply Nova-friendly Slurm defaults')
+parser.add_argument('--srun-flags', dest="srun_flags", default="", help="Extra arguments to pass to the inner srun command. All arguments must be in a string.")
+parser.add_argument('--sbatch-flags', dest="sbatch_flags", default="", help="Extra arguments to pass to sbatch. All arguments must be in a string.")
+parser.add_argument('--slurm-mpi', dest="slurm_mpi", default=None, help='MPI plugin to pass to srun, e.g. pmix or pmi2')
+parser.add_argument('--slurm-partition', dest="slurm_partition", default=None, help='Partition to request in sbatch, e.g. nova or scavenger')
+parser.add_argument('--slurm-time', dest="slurm_time", default=None, help='Time limit to request in sbatch, e.g. 4:00:00')
+parser.add_argument('--slurm-mem', dest="slurm_mem", default=None, help='Total memory to request in sbatch, e.g. 64G')
+parser.add_argument('--slurm-mem-per-cpu', dest="slurm_mem_per_cpu", default=None, help='Memory per CPU to request in sbatch, e.g. 5G')
+parser.add_argument('--slurm-account', dest="slurm_account", default=None, help='Account to charge in sbatch')
+parser.add_argument('--slurm-constraint', dest="slurm_constraint", default=None, help='Constraint to request in sbatch, e.g. intel or amd')
+parser.add_argument('--slurm-cpus-per-task', dest="slurm_cpus_per_task", default=None, type=int, help='CPUs per task to request in sbatch and pass to srun')
 parser.add_argument('--fft',dest="fft",default=False,action='store_true',help="Enable fft-based tests")
 parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_true',help="Run fft tests only")
 parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
 parser.add_argument('--python', default=False,action='store_true', help='Include python tests')
 parser.add_argument('--only-python', default=False,action='store_true', help='Run python tests only')
+parser.add_argument('--bin-dir', default="../bin", help='Directory containing ALAMO executables, relative to this script unless absolute (default: %(default)s)')
 args=parser.parse_args()
+
+if args.nova:
+    args.slurm = True
+    if args.slurm_partition is None:
+        args.slurm_partition = "nova"
+    if args.slurm_mem is None and args.slurm_mem_per_cpu is None:
+        args.slurm_mem_per_cpu = "5G"
+
+bin_dir = pathlib.Path(os.path.expanduser(args.bin_dir))
+if not bin_dir.is_absolute():
+    bin_dir = (SCRIPT_DIR / bin_dir).resolve()
+args.bin_dir = str(bin_dir)
 
 if args.coverage and args.no_coverage:
     raise Exception("Cannot specify both --coverage and --no-coverage")
@@ -128,6 +240,8 @@ if args.memcheck and not args.debug:
     raise Exception("Debug must be enabled with memory check")
 if args.memcheck and not args.serial:
     raise Exception("Memory check supported in serial only")
+if args.slurm and args.check_mpi:
+    raise Exception("Check-mpi is not supported with --slurm")
 
 if args.only_python:
     args.python = True
@@ -145,7 +259,8 @@ class DryRunException(Exception):
 
 def test(testdir):
     """
-    Run tests using alamo on the input file stored in "testdir"
+    Run tests using alamo on the input file stored in "testdir", or on a
+    directly specified input file path.
     We assume the following convention: for a test called "MyTest",
 
     test directory:      ./tests/MyTest          # Directory containig all test information
@@ -157,6 +272,8 @@ def test(testdir):
 
     # Counters to track failed tests, skipped tests, passed tests, passed checks
     fails = 0
+    kills = 0
+    submitted = 0
     skips = 0
     tests = 0
     checks = 0
@@ -171,21 +288,48 @@ def test(testdir):
     
     # Formatting strings
     bs = "\b\b\b\b\b\b"
+    env = os.environ.copy()
+
+    target_path = pathlib.Path(testdir)
+    direct_input = target_path.is_file()
+    if direct_input:
+        input_path = str(target_path)
+        testdir = str(target_path.parent)
+        can_check = False
+    else:
+        input_path = os.path.join(testdir, "input")
+        can_check = True
 
 
-    if os.path.isfile(testdir + "/input.py"):
+    if not direct_input and os.path.isfile(testdir + "/input.py"):
         print(f"RUN    {color.bold}{testdir}{color.reset}")
-        cmd = f'python {testdir}/input.py'
-        print("  │      Running test............................................",end="",flush=True)
+        if args.slurm:
+            job_name = slurm_job_name_for_dir(testdir)
+            slurm_stdout = os.path.join(testdir, f"{testid}_stdout")
+            cmd = build_sbatch_command(1, job_name, slurm_stdout, shell_join([*build_srun_step_prefix(1), *["python", f"{testdir}/input.py"]]))
+        else:
+            cmd = ["python", f"{testdir}/input.py"]
+        if args.cmd or (args.dryrun and args.slurm):
+            print("  ├      " + shell_join(cmd))
+        status_label = "Submitting job" if args.slurm else "Running"
+        print(f"  │      {status_label:.<56}",end="",flush=True)
         try:
-            proc = subprocess.Popen(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            if args.dryrun:
+                raise DryRunException()
+            if args.slurm:
+                proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, check=True)
+                job_id = proc.stdout.decode('utf-8').strip().split(';')[0]
+                print(f"[{color.boldgreen}SUBM{color.reset}] ({job_id})")
+                submitted += 1
+                return fails, kills, submitted, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+            proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate(timeout=int(args.timeout))
             retcode = proc.returncode
             if retcode: raise subprocess.CalledProcessError(retcode, proc.args, output=stdout, stderr=stderr)
             print("[{}PASS{}]".format(color.boldgreen,color.reset))
             tests += 1
             print("  └ Python test complete ")
-            return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+            return fails, kills, submitted, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
         except subprocess.CalledProcessError as e:
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
@@ -193,11 +337,14 @@ def test(testdir):
             for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
             for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+        except DryRunException:
+            print("[----]")
+            return fails, kills, submitted, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
         if os.path.isfile(f"{testdir}/input"):
             raise(Exception(f"Test {testdir} cannot have both input and input.py"))
 
-        return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+        return fails, kills, submitted, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
@@ -205,7 +352,7 @@ def test(testdir):
     # The variable "config" is a dict of dicts where each item corresponds to
     # a test configuration.
     cfgfile = io.StringIO()
-    input = open(testdir + "/input")
+    input = open(input_path)
     for line in input.readlines():
         if line.startswith("#@"):
             cfgfile.write(line.replace("#@",""))
@@ -240,7 +387,7 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0,0,0,0,0,[]
+        return 0,0,0,0,0,0,0,0,0,0,[]
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
@@ -262,6 +409,8 @@ def test(testdir):
         record['section'] = desc
         record['testid']  = testid
         record['path'] = "{}/{}_{}".format(testdir,testid,desc)
+        slurm_job_name = make_slurm_job_name(testdir, desc)
+        slurm_stdout = record['path'] + "_stdout"
 
 
         p = subprocess.check_output('git rev-parse --abbrev-ref HEAD'.split(),stderr=subprocess.PIPE)
@@ -269,7 +418,7 @@ def test(testdir):
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
-        check = True
+        check = can_check
         if 'check' in config[desc].keys(): 
             if config[desc]['check'] in {"no","No","false","False","0"}:
                 check = False
@@ -318,10 +467,13 @@ def test(testdir):
         # 2. with 'dim', 'nprocs', 'args', etc keywords. See current tests for
         #    examples
 
-        command = "" # The executable that gets called
+        command = [] # The executable that gets called
         cmdargs = "" # Extra arguments to pass to alamo in addition to input file
+        nprocs = 1
         if 'cmd' in config[desc].keys():
-            command = config[desc]['cmd']
+            command = shlex.split(config[desc]['cmd'])
+            if args.slurm:
+                command = build_sbatch_command(nprocs, slurm_job_name, slurm_stdout, shell_join([*build_srun_step_prefix(nprocs), *command]))
             if len(config[desc].keys()) > 1:
                 raise Exception("If 'cmd' is specified no other parameters can be set. Received " + ",".join(config[desc].keys))
             config[desc].pop('cmd')
@@ -369,11 +521,13 @@ def test(testdir):
             if args.perf:
                 env["CPUPROFILE"] = "profile.prof"
 
-            # If not running in serial, specify mpirun command
-            if nprocs > 1: command += f"mpirun {args.mpirun_flags} -np {nprocs} "
+            if args.slurm:
+                command.extend(build_srun_step_prefix(nprocs))
+            elif nprocs > 1:
+                command.extend(["mpirun", *shlex.split(args.mpirun_flags), "-np", str(nprocs)])
             # Specify alamo command.
             
-            exestr = "./bin/{}-{}d".format(exe,dim)
+            exestr = os.path.join(args.bin_dir, "{}-{}d".format(exe,dim))
             if args.debug: exestr += "-debug"
             if args.memcheck: exestr += "-{}".format(args.memcheck)
             if args.profile: exestr += "-profile"
@@ -424,10 +578,12 @@ def test(testdir):
                     continue
                 config[desc].pop('skip')
 
-            command += exestr + " "
-            command += "{}/input ".format(testdir)
-            command += cmdargs
-            record['cmd_test'] = command
+            command.extend([exestr, input_path])
+            if cmdargs.strip():
+                command.extend(shlex.split(cmdargs))
+            if args.slurm:
+                command = build_sbatch_command(nprocs, slurm_job_name, slurm_stdout, shell_join(command))
+        record['cmd_test'] = shell_join(command)
         
 
 
@@ -436,12 +592,14 @@ def test(testdir):
         #
 
         print("  ├ " + desc)
-        if args.cmd: print("  ├      " + command)
+        if args.cmd or (args.dryrun and args.slurm): print("  ├      " + shell_join(command))
         if args.no_backspace:
-            print("  │      Running test............................................",end="")
+            status_label = "Submitting job" if args.slurm else "Running"
+            print(f"  │      {status_label:.<56}",end="")
             bs = ""
         else:
-            print("  │      Running test............................................[----]",end="",flush=True)
+            status_label = "Submitting job" if args.slurm else "Running"
+            print(f"  │      {status_label:.<56}[----]",end="",flush=True)
             
         # Spawn the process and wait for it to finish before continuing.
         try:
@@ -469,8 +627,36 @@ def test(testdir):
                         True #do nothing
                     time.sleep(1)
 
+            def write_log(stdout, stderr):
+                try:
+                    if stdout is None:
+                        stdout = ""
+                    if isinstance(stdout, bytes):
+                        stdout = stdout.decode('utf-8')
+                    with open("{}/{}_{}/stdout".format(testdir,testid,desc), "w") as fstdout:
+                        fstdout.write(ansi_escape.sub('',stdout))
+                except Exception:
+                    pass
+                try:
+                    if stderr is None:
+                        stderr = ""
+                    if isinstance(stderr, bytes):
+                        stderr = stderr.decode('utf-8')
+                    with open("{}/{}_{}/stderr".format(testdir,testid,desc), "w") as fstderr:
+                        fstderr.write(ansi_escape.sub('',stderr))
+                except Exception:
+                    pass
+
             # Start the run
-            proc = subprocess.Popen(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+            if args.slurm:
+                proc = subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=env, check=True)
+                job_id = proc.stdout.decode('utf-8').strip().split(';')[0]
+                record['runStatus'] = 'SUBMITTED'
+                record['jobId'] = job_id
+                print(bs+"[{}SUBM{}]".format(color.boldgreen,color.reset), f"({job_id})")
+                submitted += 1
+                continue
+            proc = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
                                     env=env)
 
             # Start the check_progress thread
@@ -508,7 +694,13 @@ def test(testdir):
                     slowers += 1
             else: print(")")
 
+            write_log(stdout,stderr)
             tests += 1
+        except KeyboardInterrupt:
+            print(bs+"[{}KILL{}]".format(color.red,color.reset))
+            record['runStatus'] = 'KILL'
+            kills += 1
+            continue
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless permit-timout
         # has been enabled - usually for profiling)
@@ -516,10 +708,16 @@ def test(testdir):
             print(bs+"[{}FAIL{}]".format(color.red,color.reset))
             record['runStatus'] = 'FAIL'
             print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-            for line in e.stdout.decode('utf-8').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
-            for line in e.stderr.decode('utf-8').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
+            stdout = e.stdout
+            if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+            stderr = e.stderr
+            if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+            for line in stdout.split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,clean(line,1000),color.reset))
+            for line in stderr.split('\n'): print("  │      {}STDERR: {}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
+            write_log(stdout,stderr)
             append_html(record)
+            continue
         # If we run out of time we go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error unless --permit-timout is specified)
         except subprocess.TimeoutExpired as e:
@@ -544,7 +742,13 @@ def test(testdir):
             print(bs+"[{}TIME{}]".format(color.lightgray,color.reset))
             record['runStatus'] = 'TIMEOUT'
             try:
-                stdoutlines = e.stdout.decode('utf-8').split('\n')
+                stdout = e.stdout
+                if isinstance(stdout,bytes): stdout = stdout.decode('utf-8')
+                stderr = e.stderr
+                if isinstance(stderr,bytes): stderr = stderr.decode('utf-8')
+                write_log(stdout,stderr)
+                append_html(record)
+                stdoutlines = stdout.split('\n')
                 if len(stdoutlines) < 10:
                     for line in stdoutlines:      print("  │      {}STDOUT: {}{}".format(color.lightgray,clean(line),color.reset))
                 else:
@@ -555,6 +759,7 @@ def test(testdir):
                 for line in str(e1).split('\n'):
                     print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
             timeouts += 1
+            continue
         except DryRunException as e:
             print("")
             record['runStatus'] = '----'
@@ -566,13 +771,7 @@ def test(testdir):
             for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,clean(line,1000),color.reset))
             fails += 1
             append_html(record)
-        
-        fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
-        fstdout.write(ansi_escape.sub('',stdout.decode('utf-8')))
-        fstdout.close()
-        fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
-        fstderr.write(ansi_escape.sub('',stderr.decode('utf-8')))
-        fstderr.close()
+            continue
 
         if record['runStatus'] in ['FAIL','TIMEOUT']:
             continue
@@ -650,7 +849,7 @@ def test(testdir):
         if check and not args.memcheck:
             try:
                 cmd = ["./test","{}_{}".format(testid,desc)]
-                if args.cmd: 
+                if args.cmd and not args.dryrun:
                     print("  ├      " + ' '.join(cmd))
                 print("  │      Checking result.........................................",end="",flush=True)
 
@@ -780,22 +979,26 @@ def test(testdir):
     if tests: sums.append("{}{} tests run{}".format(color.blue,tests,color.reset))
     if checks: sums.append("{}{} checks passed{}".format(color.green,checks,color.reset))
     if warnings: sums.append("{}{} warnings{}".format(color.boldyellow,checks,color.reset))
+    if submitted: sums.append("{}{} jobs submitted{}".format(color.blue,submitted,color.reset))
     if fails: sums.append("{}{} tests failed{}".format(color.red,fails,color.reset))
+    if kills: sums.append("{}{} tests killed{}".format(color.red,kills,color.reset))
     if skips: sums.append("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     if timeouts: sums.append("{}{} tests timed out{}".format(color.lightgray,timeouts,color.reset))
     if post_fails: sums.append("{}{} tests failed to post{}".format(color.lightgray,post_fails,color.reset))
     print(summary + ", ".join(sums))
-    return fails, checks, warnings, tests, skips, fasters, slowers, timeouts, records
+    return fails, kills, submitted, checks, warnings, tests, skips, fasters, slowers, timeouts, records
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
 if args.tests: tests = sorted(args.tests)
-else: tests = sorted(glob.glob("./tests/*"))
+else: tests = sorted(glob.glob(str(REPO_ROOT / "tests" / "*")))
 
 tests = [str(pathlib.Path(f)) for f in tests]
 
 class stats:
     fails = 0   # Number of failed runs - script errors if this is nonzero
+    kills = 0   # Number of jobs killed with Ctrl+C
+    submitted = 0
     skips = 0   # Number of tests that were unexpectedly skipped - script errors if this is nonzero
     checks = 0  # Number of successfully passed checks
     warnings = 0
@@ -808,21 +1011,32 @@ class stats:
 # Iterate through all test directories, running the above "test" function
 # for each.
 for testdir in tests:
-    if (not os.path.isdir(testdir)):
+    target_path = pathlib.Path(testdir)
+    if target_path.is_file():
+        if args.only_python:
+            print(f"{color.darkgray}IGNORE {testdir} (running python tests only){color.reset}")
+            continue
+    elif target_path.is_dir():
+        if os.path.isfile(testdir + "/input") and os.path.isfile(testdir + "/input.py"):
+            print(f"{color.darkgray}IGNORE {testdir} (cannot specify both input and input.py){color.reset}")
+            continue
+        if os.path.isfile(testdir + "/input") and args.only_python:
+            print(f"{color.darkgray}IGNORE {testdir} (running python tests only){color.reset}")
+            continue
+        if os.path.isfile(testdir + "/input.py") and not args.python:
+            print(f"{color.darkgray}IGNORE {testdir} (did not specify --python or --only-python){color.reset}")
+            continue
+        if (not os.path.isfile(testdir + "/input")) and (not os.path.isfile(testdir + "/input.py")):
+            print(f"{color.darkgray}IGNORE {testdir} (no input){color.reset}")
+            continue
+    else:
         print(f"{color.darkgray}IGNORE {testdir} (no input){color.reset}")
         continue
-    if os.path.isfile(testdir + "/input") and os.path.isfile(testdir + "/input.py"):
-        print(f"{color.darkgray}IGNORE {testdir} (cannot specify both input and input.py){color.reset}")
-        continue
-    if os.path.isfile(testdir + "/input") and args.only_python:
-        print(f"{color.darkgray}IGNORE {testdir} (running python tests only){color.reset}")
-        continue
-    if os.path.isfile(testdir + "/input.py") and not args.python:
-        print(f"{color.darkgray}IGNORE {testdir} (did not specify --python or --only-python){color.reset}")
-        continue
 
-    f, c, w, t, s, fa, sl, to, re = test(testdir)
+    f, k, su, c, w, t, s, fa, sl, to, re = test(testdir)
     stats.fails += f
+    stats.kills += k
+    stats.submitted += su
     stats.tests += t
     stats.checks += c
     stats.warnings += w
@@ -834,10 +1048,12 @@ for testdir in tests:
 
 # Print a quick summary of all tests
 print("\nTest Summary")
+if stats.submitted: print("{}{} jobs submitted{}".format(color.blue,stats.submitted,color.reset))
 print("{}{} tests run{}".format(color.blue,stats.tests,color.reset))
 print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.reset))
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))
+if stats.kills: print("{}{} tests killed{}".format(color.red,stats.kills,color.reset))
 if stats.warnings: print("{}{} warnings{}".format(color.boldyellow,stats.warnings,color.reset))
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
