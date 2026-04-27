@@ -236,7 +236,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     {
         // Reference temperature for thermal expansion 
         // (temperature at which the material is strain-free)
-        pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref); 
+        pp_query_default("Telastic", value.elastic.Telastic, value.thermal.Tref);
         // elastic model of AP
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_ap", value.elastic.model_ap);
         // elastic model of HTPB
@@ -315,6 +315,8 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
             Set::Patch<const Set::Scalar> phi   = phi_mf.Patch(lev,mfi);
             Set::Patch<const Set::Scalar> eta   = eta_mf.Patch(lev,mfi);
             Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev,mfi);
+            Set::Patch<Set::Scalar>       temp  = temp_mf.Patch(lev,mfi);
+            Set::Scalar Tcutoff = thermal.Tcutoff;
 
             if (elastic.on)
             {
@@ -324,7 +326,10 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
 
-                    rhs(i, j, k) = (elastic.traction) * grad_eta;
+                    if (temp(i,j,k) > Tcutoff)
+                        rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta;
+                    else
+                        rhs(i, j, k) = 0.0*grad_eta;
 
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
