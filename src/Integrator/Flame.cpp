@@ -327,7 +327,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
 
                     if (temp(i,j,k) > Tcutoff)
-                        rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta/1000;
+                        rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta;
                     else
                         rhs(i, j, k) = 0.0*grad_eta;
 

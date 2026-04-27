@@ -15,7 +15,7 @@ amr.grid_eff = 0.8
 amr.refinement_criterion = 0.05
 amr.refinement_criterion_temp = 8.0_K
 amr.phi_refinement_criterion = 0.5
-thermal.phi_refinement_criterion_inital = 0.1
+thermal.phi_refinement_criterion_inital = 0.01
 amr.cell.all = 1
 #amr.node.all = 1
 
@@ -25,7 +25,8 @@ amr.max_level = 4
 # Full size
 amr.n_cell = 40 40 40
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 0.112_mm 0.083_mm 1.0_mm
+# geometry.prob_hi = 0.112_mm 0.083_mm 1.0_mm
+geometry.prob_hi = 0.0766_mm 0.0766_mm 1.0_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -46,12 +47,14 @@ pf.lambda = 0.001_J/m^2
 # pf.eta.ic.psread.invert = 1
 
 pf.eta.ic.type = png
-pf.eta.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_eta_BW2.png
+# pf.eta.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_eta_BW2.png
+pf.eta.ic.png.filename = all_datasets/arbitrary_geometry/prop_eta_BW3.png
 pf.eta.ic.png.fit = coord
 pf.eta.ic.png.max = 255
 pf.eta.ic.png.min = 0
 pf.eta.ic.png.coord.lo = 0.0_mm 0.0_mm
-pf.eta.ic.png.coord.hi = 0.112_mm 0.083_mm
+# pf.eta.ic.png.coord.hi = 0.112_mm 0.083_mm
+pf.eta.ic.png.coord.hi = 0.0766_mm 0.0766_mm
 
 # pf.eta.ic.type = constant
 # pf.eta.ic.constant.value = 1.0 
@@ -66,12 +69,14 @@ pf.eta.ic.png.coord.hi = 0.112_mm 0.083_mm
 
 ## Phi initial condition (Random Grains)
 phi.ic.type = png
-phi.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_phi_BW2.png
+# phi.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_phi_BW2.png
+phi.ic.png.filename = all_datasets/arbitrary_geometry/prop_phi_BW3.png
 phi.ic.png.fit = coord
 phi.ic.png.max = 255
 phi.ic.png.min = 0
 phi.ic.png.coord.lo = 0.0_mm 0.0_mm
-phi.ic.png.coord.hi = 0.112_mm 0.083_mm
+# phi.ic.png.coord.hi = 0.112_mm 0.083_mm
+phi.ic.png.coord.hi = 0.0766_mm 0.0766_mm
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
@@ -189,7 +194,7 @@ elastic.print_residual = 1
 elastic.bc.type = constant
 elastic.bc.constant.type.xlo = trac trac 
 elastic.bc.constant.type.ylo = trac disp 
-elastic.bc.constant.type.yhi = trac disp 
+elastic.bc.constant.type.yhi = trac disp
 elastic.bc.constant.type.xloylo = trac disp 
 elastic.bc.constant.type.xloyhi = trac disp
 # No traction on free surface
