@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.test_novoid_with_elastic
+plot_file = output.test_void_with_elastic
 
 system.length = mm
 system.time = s
@@ -22,7 +22,7 @@ amr.cell.all = 1
 #amr.node.all = 1
 
 # Geometry and base grid size
-amr.max_level = 4
+amr.max_level = 3
 
 # Full size
 amr.n_cell = 16 16 16
@@ -43,7 +43,7 @@ pf.lambda = 0.001_J/m^2
 pf.eta.ic.type = expression
 pf.eta.ic.expression.constant.eps = 10.0_um
 pf.eta.ic.expression.constant.x0 = 30.0_um
-pf.eta.ic.expression.region0 = "(erf(10*(x-2)**2+10*(y-2)**2))"
+pf.eta.ic.expression.region0 = "(erf(10*(x-0.5)**2+10*(y-0.5)**2))"
 
 ## Phi initial condition (spheres)
 phi.ic.type = expression
