@@ -8,7 +8,7 @@ system.time = s
 
 # AMR and output parameters
 
-amr.plot_dt = 3e-3_s
+amr.plot_dt = 3e-2_s
 amr.max_grid_size = 8
 amr.blocking_factor = 8
 amr.base_regrid_int = 10
@@ -148,7 +148,7 @@ amr.abort_on_nan = 1
 elastic.type = static
 # Thermoelasticity
 elastic.on = 1
-elastic.interval = 500
+elastic.interval = 6000
 # Elastic model params
 model_ap.mu = 14191.376_MPa
 model_ap.kappa = 15162.376_MPa
@@ -158,7 +158,7 @@ model_htpb.kappa = 1368.519_MPa
 model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
 # Elastic solver information
 elastic.solver.verbose = 4
-elastic.solver.fixed_iter = 500
+elastic.solver.fixed_iter = 6000
 elastic.solver.nriters = 1
 elastic.solver.nrtolerance = 1E-5
 elastic.print_model = 1
