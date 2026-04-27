@@ -15,7 +15,7 @@ amr.grid_eff = 0.8
 amr.refinement_criterion = 0.05
 amr.refinement_criterion_temp = 8.0_K
 amr.phi_refinement_criterion = 0.5
-thermal.phi_refinemnet_criterion_inital = 0.1
+thermal.phi_refinement_criterion_inital = 0.1
 amr.cell.all = 1
 #amr.node.all = 1
 
@@ -30,7 +30,7 @@ geometry.prob_hi = 0.112_mm 0.083_mm 1.0_mm
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2.0e-7_s # [s]
+timestep = 5.0e-8_s # [s]
 stop_time = 0.02_s
 
 small = 1.0e-8
