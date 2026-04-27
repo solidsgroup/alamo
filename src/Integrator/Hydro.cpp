@@ -755,7 +755,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
         // Second ParallelFor loop to get first gradients
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-            auto sten = Numeric::GetStencil(i,j,k,domain);
+            auto sten = Numeric::GetStencil(i,j,k,bx);
             for (int n=0; n<NSPECIES; ++n)
             {
                 Set::Vector grad_Y = Numeric::Gradient(Y,i,j,k,n,DX,sten);
@@ -823,6 +823,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
         Set::Patch<Set::Scalar>       rhoDYx    = rhoDYx_mf.array(mfi);
         Set::Patch<Set::Scalar>       rhoDYy    = rhoDYy_mf.array(mfi);
 
+        if (details)
+        {
+            wdot_arr = wdot_mf.Patch(lev,mfi);
+            qdot_arr = qdot_mf.Patch(lev,mfi);
+        }
+
         // Third and final ParallelFor loop to get 2nd gradients and compute fluxes
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {   
@@ -889,7 +895,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
 
             // sten is necessary here because sometimes corner ghost
             // cells don't get filled
-            Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
+            Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX,sten);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
                 for (int q = 0; q < 2; q++)
