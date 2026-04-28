@@ -1,66 +1,15 @@
-#include <array>
-
 #include "NarrowBandLevelset.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "BC/Constant.H"
 #include "BC/Nothing.H"
 #include "BC/Expression.H"
+#include "BC/LevelSetNeumann.H"
 #include "Numeric/NBStencil.H"
+#include "Numeric/NBFluxHandler.H"
+#include "Util/NB_Util.H"
 
-// Inline helper functions
-AMREX_GPU_DEVICE 
-AMREX_FORCE_INLINE
-bool is_interface (int i, int j, int k,
-                   amrex::Array4<const amrex::Real> const& phi)
-{
-    const amrex::Real phi0 = phi(i,j,k);
-
-    if (phi0 == amrex::Real(0.0)) return true;
-
-    const bool pos = (phi0 > 0.0);
-
-    if ((phi(i-1,j,k) > 0.0) != pos) return true;
-    if ((phi(i+1,j,k) > 0.0) != pos) return true;
-
-#if (AMREX_SPACEDIM >= 2)
-    if ((phi(i,j-1,k) > 0.0) != pos) return true;
-    if ((phi(i,j+1,k) > 0.0) != pos) return true;
-#endif
-
-#if (AMREX_SPACEDIM >= 3)
-    if ((phi(i,j,k-1) > 0.0) != pos) return true;
-    if ((phi(i,j,k+1) > 0.0) != pos) return true;
-#endif
-
-    return false;
-}
-
-
-AMREX_GPU_DEVICE
-AMREX_FORCE_INLINE
-bool has_tube_neighbor (int i, int j, int k,
-                        amrex::Array4<const amrex::Real> const& phi,
-                        amrex::Real tube_cutoff)
-{
-    using amrex::Math::abs;
-
-    if (abs(phi(i-1,j,k)) < tube_cutoff) return true;
-    if (abs(phi(i+1,j,k)) < tube_cutoff) return true;
-
-#if (AMREX_SPACEDIM >= 2)
-    if (abs(phi(i,j-1,k)) < tube_cutoff) return true;
-    if (abs(phi(i,j+1,k)) < tube_cutoff) return true;
-#endif
-
-#if (AMREX_SPACEDIM == 3)
-    if (abs(phi(i,j,k-1)) < tube_cutoff) return true;
-    if (abs(phi(i,j,k+1)) < tube_cutoff) return true;
-#endif
-
-    return false;
-}
-
+#include <AMReX_Reduce.H>
 
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
@@ -69,52 +18,12 @@ Set::Scalar to_scalar(int v)
     return static_cast<Set::Scalar>(v);
 }
 
-
-namespace NarrowBandData
+// =====================================
+// Level set object
+// =====================================
+struct LevelSetObject
 {
-    struct TubeIdx
-    {
-        static constexpr int NB_MASK   = 0;  // 0/1: in narrow band
-        static constexpr int Zero_ID   = 1;  // zero level set id
-        static constexpr int OBJ_ID    = 2;  // object id
-        static constexpr int TUBE_TYPE = 3;  // enum below
-
-        static constexpr int NCOMP     = 4;
-    };
-
-    struct TubeType
-    {
-        static constexpr int INTERFACE   = 0;
-        static constexpr int INNERBAND   = 1;
-        static constexpr int INSIDETUBE  = 2;
-        static constexpr int EDGEPOINT   = 3;
-        static constexpr int OUTSIDETUBE = 4;
-    };
-};
-
-// =====================================
-// Per-object per-level metadata
-// =====================================
-struct ObjectMetaLevel
-{
-    amrex::Box bbox;  // bounding box for this object at this AMR level
-    amrex::Box prev_bbox; // bounding box from previous time step (for tracking movement in tube update)
-};
-
-// =====================================
-// Object metadata (global)
-// =====================================
-struct ObjectMeta
-{
-    int id = -1;
-
-    amrex::Vector<ObjectMetaLevel> leveldata; // size = number of AMR levels
-
-    // --- Setup helpers ---
-    void resize_leveldata(int finest_level)
-    {
-        leveldata.resize(finest_level + 1);
-    }
+    int obj_ID; // Global across all ls fields
 
     bool active = true;
     bool moving = true;
@@ -122,14 +31,6 @@ struct ObjectMeta
 
     amrex::Real volume = 0.0;
     amrex::Real centroid[AMREX_SPACEDIM] = {0.0};
-};
-
-// =====================================
-// Level set object
-// =====================================
-struct LevelSetObject
-{
-    ObjectMeta meta;
 };
 
 // -------------------------------
@@ -151,6 +52,8 @@ struct LevelSetField
     // Store collection of objects in this level set field
     amrex::Vector<LevelSetObject> objects; // Number of objects per field (global)
 
+    amrex::Vector<amrex::Vector<char>> tile_has_nb; // [AMR lev][Num tiles]
+
     // Store IC/BC for level set field
     std::unique_ptr<IC::IC<Set::Scalar>> ic_LS = nullptr;
     std::unique_ptr<BC::BC<Set::Scalar>> bc_LS = nullptr;
@@ -167,251 +70,279 @@ struct LevelSetField
         return 1;
     }
 
-    // Helper function to update narrowband tube
-    void update_Tube(int lev, const amrex::Geometry& geom, bool init=false)
-    {
-        // BL_PROFILE("LevelSetField::update_Tube");
+    // Helper to resize tile data
+    void resizeNBTiles(int finest_lev) {
+        tile_has_nb.resize(finest_lev + 1);
+    }
 
-        // ----------------------------------------------------------
-        // Cutoffs
-        // ----------------------------------------------------------
+    // Helper function to initialize OBJ_ID (CTP) flags
+    // ASSUMES SINGLE OBJECT - WILL CHANGE IN FUTURE
+    void initializeObjID(int lev, const amrex::Geometry& geom) {
+        using Tidx = NarrowBandData::TubeIdx;
+
+        const Set::Scalar* DX = geom.CellSize();
+        const Set::Scalar min_dx = *std::min_element(DX, DX + AMREX_SPACEDIM);
+
+        const Set::Scalar outer_cutoff = TUBECUTOFF * min_dx;
+
+        for (const auto& obj : objects) {
+            const Set::Scalar CTP = static_cast<Set::Scalar>(obj.obj_ID);
+
+            for (amrex::MFIter mfi(*TUBE[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+                const amrex::Box& tilebox = mfi.tilebox();
+
+                Set::Patch<Set::Scalar> ls_arr = LS.Patch(lev, mfi);
+                Set::Patch<Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+
+                amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+                {
+                    Set::Scalar& phi = ls_arr(i,j,k);
+                    phi = amrex::Clamp(phi, -outer_cutoff, outer_cutoff);
+
+                    tube_arr(i,j,k,Tidx::OBJ_ID) = phi < 0.0 ? CTP : Set::Scalar(0.0);
+                });
+            }
+        }
+
+        LS[lev]->FillBoundary(geom.periodicity());
+        TUBE[lev]->FillBoundary();
+    }
+
+    // Helper function to update narrowband tube
+    void updateTube(int lev, const amrex::Geometry& geom)
+    {
+        using TT   = NarrowBandData::TubeType;
+        using Tidx = NarrowBandData::TubeIdx;
+
+        // --- Grid spacing ---
         const Set::Scalar* DX = geom.CellSize();
         Set::Scalar min_dx = *std::min_element(DX, DX + AMREX_SPACEDIM);
 
         const Set::Scalar inner_cutoff = HALFINNERTUBE * min_dx;
-        const Set::Scalar outer_cutoff = TUBECUTOFF * min_dx;
+        const Set::Scalar outer_cutoff = TUBECUTOFF    * min_dx;
 
-        const amrex::Box& domain = geom.Domain();
-        const int Ng = LS[lev]->nGrow();
+        // --- Domain bounds ---
+        const amrex::Box domain = geom.Domain();
+        const auto dlo = domain.smallEnd();
+        const auto dhi = domain.bigEnd();
 
-        // ----------------------------------------------------------
-        // Loop objects (you planned for multi-object)
-        // ----------------------------------------------------------
-        for (LevelSetObject& obj : objects)
+        // Reset tile size and index
+        auto& tiles = tile_has_nb[lev];
+        
+        const int ntiles = TUBE[lev]->local_size();
+        tiles.assign(ntiles, 0);
+
+        int tile_idx = 0;
+        
+        for (amrex::MFIter mfi(*TUBE[lev], amrex::TilingIfNotGPU());
+            mfi.isValid(); ++mfi, ++tile_idx)
         {
-            ObjectMetaLevel &meta = obj.meta.leveldata[lev];
+            const amrex::Box& tilebox = mfi.tilebox();
 
-            // Save previous bbox
-            meta.prev_bbox = meta.bbox;
-            meta.bbox = amrex::Box();
+            Set::Patch<const Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
+            Set::Patch<      Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
 
-            // ------------------------------------------------------
-            // Build search region
-            // ------------------------------------------------------
-            amrex::Box search_box = meta.prev_bbox;
+            // -----------------------------
+            // Fused compute + reduction
+            // -----------------------------
+            amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
+            amrex::ReduceData<int> reduce_data(reduce_op);
 
-            if (!search_box.ok())
-                search_box = domain;
+            using ReduceTuple = amrex::GpuTuple<int>;
 
-            search_box.grow(Ng);
-            search_box &= domain;
-
-            // ------------------------------------------------------
-            // Initialize bbox reduction
-            // ------------------------------------------------------
-            amrex::IntVect lo(AMREX_D_DECL(INT_MAX, INT_MAX, INT_MAX));
-            amrex::IntVect hi(AMREX_D_DECL(INT_MIN, INT_MIN, INT_MIN));
-
-            // ------------------------------------------------------
-            // Tile loop
-            // ------------------------------------------------------
-            for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            reduce_op.eval(tilebox, reduce_data,
+            [=] AMREX_GPU_DEVICE (int i, int j, int k) -> ReduceTuple
             {
-                const amrex::Box& tilebox = mfi.tilebox();
+                const Set::Scalar phi_c = phi_arr(i,j,k);
+                const Set::Scalar absphi = amrex::Math::abs(phi_c);
 
-                // Skip irrelevant tiles
-                if (!tilebox.intersects(search_box)) continue;
+                bool inside_tube = absphi < outer_cutoff;
+                bool inner_tube  = absphi < inner_cutoff;
 
-                const amrex::Box workbox = tilebox & search_box;
-                if (!workbox.ok()) continue;
+                // --- neighbors ---
+                Set::Scalar xm = (i != dlo[0]) ? phi_arr(i-1,j,k) : phi_c;
+                Set::Scalar xp = (i != dhi[0]) ? phi_arr(i+1,j,k) : phi_c;
 
-                Set::Patch<Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
-                Set::Patch<Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+    #if AMREX_SPACEDIM >= 2
+                Set::Scalar ym = (j != dlo[1]) ? phi_arr(i,j-1,k) : phi_c;
+                Set::Scalar yp = (j != dhi[1]) ? phi_arr(i,j+1,k) : phi_c;
+    #endif
+    #if AMREX_SPACEDIM == 3
+                Set::Scalar zm = (k != dlo[2]) ? phi_arr(i,j,k-1) : phi_c;
+                Set::Scalar zp = (k != dhi[2]) ? phi_arr(i,j,k+1) : phi_c;
+    #endif
 
-                // Local bbox
-                amrex::IntVect local_lo = lo;
-                amrex::IntVect local_hi = hi;
+                // --- edge detection ---
+                bool is_edge = false;
+                if (!inside_tube) {
+                    is_edge =
+                        (amrex::Math::abs(xm) < outer_cutoff) ||
+                        (amrex::Math::abs(xp) < outer_cutoff);
+    #if AMREX_SPACEDIM >= 2
+                    is_edge |=
+                        (amrex::Math::abs(ym) < outer_cutoff) ||
+                        (amrex::Math::abs(yp) < outer_cutoff);
+    #endif
+    #if AMREX_SPACEDIM == 3
+                    is_edge |=
+                        (amrex::Math::abs(zm) < outer_cutoff) ||
+                        (amrex::Math::abs(zp) < outer_cutoff);
+    #endif
+                }
 
-                // --------------------------------------------------
-                // GPU kernel
-                // --------------------------------------------------
-                amrex::ParallelFor(workbox,
-                [=, &local_lo, &local_hi] AMREX_GPU_DEVICE (int i, int j, int k)
-                {
-                    Set::Scalar& phi = phi_arr(i,j,k);
+                // --- interface detection ---
+                int iface_cpt = 0;
+                const int cpt1 = static_cast<int>(tube_arr(i,j,k,Tidx::OBJ_ID));
 
-                    if (init)
-                        phi = amrex::Clamp(phi, -outer_cutoff, outer_cutoff);
+                if (inner_tube) {
+                    const bool pos  = (phi_c > 0.0);
+                    const bool zero = (phi_c == 0.0);
 
-                    const Set::Scalar abs_phi = amrex::Math::abs(phi);
-
-                    // --------------------------------------------------
-                    // Classification (same logic as your original)
-                    // --------------------------------------------------
-                    bool inside = (abs_phi < outer_cutoff);
-                    bool inner  = (abs_phi < inner_cutoff);
-                    bool inside_tube = inside && (!inner);
-
-                    bool edge = false;
-                    if (!inside)
-                        edge = has_tube_neighbor(i,j,k,phi_arr,outer_cutoff);
-
-                    bool interface = inner && is_interface(i,j,k,phi_arr);
-
-                    int tube_type = NarrowBandData::TubeType::OUTSIDETUBE;
-
-                    if (edge)         tube_type = NarrowBandData::TubeType::EDGEPOINT;
-                    if (inside_tube)  tube_type = NarrowBandData::TubeType::INSIDETUBE;
-                    if (inner)        tube_type = NarrowBandData::TubeType::INNERBAND;
-                    if (interface)    tube_type = NarrowBandData::TubeType::INTERFACE;
-
-                    // --------------------------------------------------
-                    // Write data
-                    // --------------------------------------------------
-                    tube_arr(i,j,k,NarrowBandData::TubeIdx::TUBE_TYPE) = to_scalar(tube_type);
-
-                    int nb_mask = (tube_type != NarrowBandData::TubeType::OUTSIDETUBE);
-                    tube_arr(i,j,k,NarrowBandData::TubeIdx::NB_MASK) = to_scalar(nb_mask);
-
-                    int obj_id = (phi < 0.0) ? obj.meta.id : -1;
-                    tube_arr(i,j,k,NarrowBandData::TubeIdx::OBJ_ID) = to_scalar(obj_id);
-
-                    int zero_id = (tube_type == NarrowBandData::TubeType::INTERFACE) ? obj.meta.id : -1;
-                    tube_arr(i,j,k,NarrowBandData::TubeIdx::Zero_ID) = to_scalar(zero_id);
-
-                    // --------------------------------------------------
-                    // Update bbox (only if in narrowband)
-                    // --------------------------------------------------
-                    if (nb_mask)
+                    auto check_nbr = [&](Set::Scalar phi_n, int nbr_cpt)
                     {
-                        amrex::Gpu::Atomic::Min(&local_lo[0], i);
+                        // Exit early if cpt flag != 0
+                        if (iface_cpt != 0) return; 
 
+                        // Exit early if nbr has same sign
+                        if (!zero && (phi_n > 0.0) == pos) return;
+
+                        iface_cpt = amrex::max(cpt1, nbr_cpt);
+                    };
+
+                    check_nbr(xm, tube_arr(i-1,j,k,Tidx::OBJ_ID));
+                    check_nbr(xp, tube_arr(i+1,j,k,Tidx::OBJ_ID));
     #if AMREX_SPACEDIM >= 2
-                        amrex::Gpu::Atomic::Min(&local_lo[1], j);
+                    check_nbr(ym, tube_arr(i,j-1,k,Tidx::OBJ_ID));
+                    check_nbr(yp, tube_arr(i,j+1,k,Tidx::OBJ_ID));
     #endif
-
     #if AMREX_SPACEDIM == 3
-                        amrex::Gpu::Atomic::Min(&local_lo[2], k);
+                    check_nbr(zm, tube_arr(i,j,k-1,Tidx::OBJ_ID));
+                    check_nbr(zp, tube_arr(i,j,k+1,Tidx::OBJ_ID));
     #endif
+                }
 
-                        amrex::Gpu::Atomic::Max(&local_hi[0], i);
+                // --- tube classification ---
+                int type = TT::OUTSIDETUBE;
+                if (is_edge)      type = TT::EDGEPOINT;
+                if (inside_tube)  type = TT::INSIDETUBE;
+                if (inner_tube)   type = TT::INNERBAND;
+                if (iface_cpt != 0) type = TT::INTERFACE;
 
-    #if AMREX_SPACEDIM >= 2
-                        amrex::Gpu::Atomic::Max(&local_hi[1], j);
-    #endif
+                tube_arr(i,j,k,Tidx::TUBE_TYPE) = type;
 
-    #if AMREX_SPACEDIM == 3
-                        amrex::Gpu::Atomic::Max(&local_hi[2], k);
-    #endif
-                    }
-                });
+                // --- narrowband mask ---
+                int mask = (type != TT::OUTSIDETUBE);
 
-                lo = amrex::min(lo, local_lo);
-                hi = amrex::max(hi, local_hi);
-            }
+                tube_arr(i,j,k,Tidx::NB_MASK) = mask ? 1.0 : 0.0;
 
-            // ------------------------------------------------------
-            // MPI reduction
-            // ------------------------------------------------------
-            amrex::ParallelDescriptor::ReduceIntMin(lo.getVect(), AMREX_SPACEDIM);
-            amrex::ParallelDescriptor::ReduceIntMax(hi.getVect(), AMREX_SPACEDIM);
+                // --- interface id ---
+                tube_arr(i,j,k,Tidx::ZERO_ID) = Set::Scalar(iface_cpt);
 
-            // ------------------------------------------------------
-            // Final bbox update
-            // ------------------------------------------------------
-            if (hi[0] >= lo[0])
-            {
-                meta.bbox = amrex::Box(lo, hi);
-            }
-            else
-            {
-                meta.bbox = amrex::Box(); // empty
-            }
+                // --- reduction contribution ---
+                return {mask};
+            });
+
+            int tile_flag = amrex::get<0>(reduce_data.value());
+            tiles[tile_idx] = static_cast<char>(tile_flag);
         }
+
+        TUBE[lev]->FillBoundary();
     }
 
-    void compute_normal(int lev, const amrex::Geometry& geom) {
-        // Set normal to 0.0
-        LSnormal[lev]->setVal(Set::Vector::Zero());
+    // void compute_normal(int lev, const amrex::Geometry& geom) {
+    //     // Set normal to 0.0
+    //     LSnormal[lev]->setVal(Set::Vector::Zero());
 
-        // Get dx per dimension outside loop
-        auto const dx = geom.CellSizeArray();
+    //     // Get dx per dimension outside loop
+    //     auto const dx = geom.CellSizeArray();
 
-        for (LevelSetObject& obj : objects)
-        {
-            ObjectMetaLevel &meta = obj.meta.leveldata[lev];
+    //     for (LevelSetObject& obj : objects)
+    //     {
+    //         ObjectMetaLevel &meta = obj.meta.leveldata[lev];
 
-            // Build search region
-            const amrex::Box& bbox = meta.bbox;
+    //         // Build search region
+    //         const amrex::Box& bbox = meta.bbox;
 
-            for (amrex::MFIter mfi(*LSnormal[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box& tilebox = mfi.tilebox();
+    //         for (amrex::MFIter mfi(*LSnormal[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    //         {
+    //             const amrex::Box& tilebox = mfi.tilebox();
 
-                // Skip irrelevant tiles
-                if (!tilebox.intersects(bbox)) continue;
+    //             // Skip irrelevant tiles
+    //             if (!tilebox.intersects(bbox)) continue;
 
-                const amrex::Box workbox = tilebox & bbox;
-                if (!workbox.ok()) continue;
+    //             const amrex::Box workbox = tilebox & bbox;
+    //             if (!workbox.ok()) continue;
 
-                Set::Patch<const Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
-                Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
-                Set::Patch<Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
+    //             Set::Patch<const Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
+    //             Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+    //             Set::Patch<Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
 
-                amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
-                {
-                    // Skip non-narrowband cells
-                    const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
-                    if (bandval == 0) return;
+    //             amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+    //             {
+    //                 // Skip non-narrowband cells
+    //                 const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
+    //                 if (bandval == 0) return;
 
-                    // Get the normal
-                    norm_arr(i,j,k) = NBStencil::normal(i,j,k,phi_arr,tube_arr,dx);
-                });
-            }
-        }
-    }
+    //                 // Get the normal
+    //                 norm_arr(i,j,k) = NBStencil::normal(i,j,k,phi_arr,tube_arr,dx);
+    //             });
+    //         }
 
-    void compute_curvature(int lev, const amrex::Geometry& geom) {
-        // Set curvature to 0.0
-        LSkappa[lev]->setVal(0.0);
+    //         // Fill ghosts
+    //         LSnormal[lev]->FillBoundary(geom.periodicity());
+    //     }
+    // }
 
-        // Get dx per dimension outside loop
-        auto const dx = geom.CellSizeArray();
+    // void compute_curvature(int lev, const amrex::Geometry& geom) {
+    //     // Set curvature to 0.0
+    //     LSkappa[lev]->setVal(0.0);
 
-        for (LevelSetObject& obj : objects)
-        {
-            ObjectMetaLevel &meta = obj.meta.leveldata[lev];
+    //     // Get dx per dimension outside loop
+    //     auto const dx = geom.CellSizeArray();
 
-            // Build search region
-            const amrex::Box& bbox = meta.bbox;
+    //     for (LevelSetObject& obj : objects)
+    //     {
+    //         ObjectMetaLevel &meta = obj.meta.leveldata[lev];
 
-            for (amrex::MFIter mfi(*LSkappa[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box& tilebox = mfi.tilebox();
+    //         // Build search region
+    //         const amrex::Box& bbox = meta.bbox;
 
-                // Skip irrelevant tiles
-                if (!tilebox.intersects(bbox)) continue;
+    //         for (amrex::MFIter mfi(*LSkappa[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    //         {
+    //             const amrex::Box& tilebox = mfi.tilebox();
 
-                const amrex::Box workbox = tilebox & bbox;
-                if (!workbox.ok()) continue;
+    //             // Skip irrelevant tiles
+    //             if (!tilebox.intersects(bbox)) continue;
 
-                Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
-                Set::Patch<const Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
-                Set::Patch<Set::Scalar> kappa_arr      = LSkappa.Patch(lev, mfi);
+    //             const amrex::Box workbox = tilebox & bbox;
+    //             if (!workbox.ok()) continue;
 
-                amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
-                {
-                    // Skip non-narrowband cells
-                    const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
-                    if (bandval == 0) return;
+    //             Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+    //             Set::Patch<const Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
+    //             Set::Patch<Set::Scalar> kappa_arr      = LSkappa.Patch(lev, mfi);
 
-                    // Get the curvature
-                    kappa_arr(i,j,k) = NBStencil::curvature(
-                        i,j,k,norm_arr,tube_arr,dx
-                    );
-                });
-            }
-        }
+    //             amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+    //             {
+    //                 // Skip non-narrowband cells
+    //                 const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
+    //                 if (bandval == 0) return;
+
+    //                 // Get the curvature
+    //                 kappa_arr(i,j,k) = NBStencil::curvature(
+    //                     i,j,k,norm_arr,tube_arr,dx
+    //                 );
+    //             });
+    //         }
+    //     }
+    // }
+
+    // void compute_geometry (int lev, const amrex::Geometry& geom) {
+    //     compute_normal(lev, geom);
+    //     compute_curvature(lev, geom);
+    // }
+
+    void updateCTP(int lev) {
+        
     }
 };
 
@@ -551,12 +482,13 @@ namespace Integrator
             // -------------------------
             // BC
             // -------------------------
-            pp_ls.select_default<BC::Constant, BC::Expression>(
-                "bc",
+            pp.select_default<BC::Constant, BC::Expression>(
+                "ls.bc",
                 bc_tmp,
                 1
             );
             ls.bc_LS = std::unique_ptr<BC::BC<Set::Scalar>>(bc_tmp);
+            // ls.bc_LS = std::make_unique<BC::LevelSetNeumann>();
 
             // -------------------------
             // Register fields (AMR handled internally)
@@ -647,6 +579,7 @@ namespace Integrator
         domain_->ic_Vel->Initialize(lev, domain_->Flowvel);
 
         // Loop over all level set fields and initialize
+        int global_obj_id = 0;
         for (auto& ls_ptr : domain_->fields)
         {
             // Get the pointer to the current level set field
@@ -655,24 +588,41 @@ namespace Integrator
 
             // If first level, size all vector data
             if (lev == 0) {
+                const int finest_lev = domain_->FinestLevel();
+
+                // Resize tile vector based on num AMR levels
+                ls.resizeNBTiles(finest_lev);
+
                 // Get number of objects and resize
-                int num_obj = ls.GetNumObjects();
+                const int num_obj = ls.GetNumObjects();
                 ls.objects.resize(num_obj);
 
-                // Resize metalevel data
+                // Loop through objects and assign global ID
                 for (int i = 0; i < num_obj; ++i) {
-                    ObjectMeta& meta = ls.objects[lev].meta;
+                    LevelSetObject& obj = ls.objects[i];
 
-                    meta.id = i;
-                    meta.resize_leveldata(domain_->FinestLevel());
+                    obj.obj_ID = ++global_obj_id;
                 }
             }
 
             // Initialize LS from IC
             ls.ic_LS->Initialize(lev, ls.LS);
 
-            // Build the tube
-            ls.update_Tube(lev, geom, true);
+            // Get the number of tiles for this level and initialize all to 0
+            int ntiles = 0;
+            auto& tiles = ls.tile_has_nb[lev];
+
+            for (amrex::MFIter mfi(*ls.LS[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi) {
+                ++ ntiles;
+            }
+
+            tiles.resize(ntiles, 1);
+
+            // Initialize CTP
+            ls.initializeObjID(lev, geom);
+
+            // Update tube
+            ls.updateTube(lev, geom);
 
             // Copy LS to LSold
             amrex::MultiFab::Copy(*ls.LSold[lev],
@@ -690,11 +640,8 @@ namespace Integrator
                 0, 0, 1, 0
             );
 
-            // Compute normal
-            ls.compute_normal(lev, geom);
-
-            // Compute curvature
-            ls.compute_curvature(lev, geom);
+            // Compute geometry
+            // ls.compute_geometry(lev, geom);
         }
     }
 
@@ -707,7 +654,6 @@ namespace Integrator
     }
 
     void NarrowBandLevelset::Advance(int lev, Set::Scalar time, Set::Scalar dt) {
-        return;
     }
 
     void NarrowBandLevelset::TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) {

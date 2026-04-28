@@ -1,5 +1,5 @@
-#ifndef Numeric_NBStencil_H_
-#define Numeric_NBStencil_H_
+#ifndef NUMERIC_NBSTENCIL_H_
+#define NUMERIC_NBSTENCIL_H_
 
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_Array4.H>
