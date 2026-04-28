@@ -33,7 +33,7 @@ struct FluxHandler
         using DirT = NBStencil::Dir<DIR>;
 
         // Velocity at cell center
-        amrex::Real u = vel(i,j,k)[DIR];
+        amrex::Real u = vel(i,j,k,DIR);
 
         // Upwind direction: dir=-1 means left-biased (u>0), dir=+1 means right-biased (u<0)
         int dir = (u > 0.0) ? -1 : 1;
@@ -41,7 +41,7 @@ struct FluxHandler
         // Load 7-point stencil centered at (i,j,k)
         // NB_MASK aware: stencil clamps at narrowband boundary
         amrex::Real s[7];
-        NBStencil::load_stencil<DirT, NL, NR>(i, j, k, phi, mask, s);
+        NBStencil::load_stencil<DirT, NL, NR>(i, j, k, phi, mask, s, 0);
 
         // Map stencil s[0:6] → Fortran f(-3:3) via f(m) = s[m+3]
         auto f = [&](int m) -> amrex::Real { return s[m + 3]; };
@@ -119,16 +119,16 @@ struct FluxHandler
 
         Set::Scalar rhs = 0.0;
 
-        rhs -= vel(i,j,k)[0] *
+        rhs -= vel(i,j,k,0) *
             weno5_derivative<NBStencil::XDir::value>(i,j,k,phi,mask,vel,dx);
 
     #if (AMREX_SPACEDIM >= 2)
-        rhs -= vel(i,j,k)[1] *
+        rhs -= vel(i,j,k,1) *
             weno5_derivative<NBStencil::YDir::value>(i,j,k,phi,mask,vel,dx);
     #endif
 
     #if (AMREX_SPACEDIM == 3)
-        rhs -= vel(i,j,k)[2] *
+        rhs -= vel(i,j,k,2) *
             weno5_derivative<NBStencil::ZDir::value>(i,j,k,phi,mask,vel,dx);
     #endif
 
@@ -155,7 +155,7 @@ struct FluxHandler
         amrex::Array4<const amrex::Real> const& phi_old,    // phi^n (read-only throughout)
         amrex::Array4<const amrex::Real> const& phi_stage,  // stage input (read for RHS + update)
         amrex::Array4<      amrex::Real> const& phi_out,    // stage output (must differ from phi_stage)
-        amrex::Array4<const Set::Vector> const& vel,
+        amrex::Array4<const Set::Scalar> const& vel,
         amrex::Array4<const amrex::Real> const& mask,
         amrex::GpuArray<amrex::Real,AMREX_SPACEDIM> const& dx,
         amrex::Real dt,
@@ -202,7 +202,7 @@ struct FluxHandler
         Set::Field<Set::Scalar>      & LS,       // current level set (phi^n+1 on exit)
         Set::Field<Set::Scalar> const& LSold,     // phi^n (read-only, never written)
         Set::Field<Set::Scalar> const& TUBE,      // NB_MASK and tube type flags
-        Set::Field<Set::Vector> const& vel,       // advection velocity
+        Set::Field<Set::Scalar> const& vel,       // advection velocity
         Set::Field<Set::Scalar>      & scratch,   // one scratch field, same layout as LS
         BC::BC<Set::Scalar>          & bc,        // physical BC for domain boundary ghosts
         const amrex::Box             & bbox,      // narrowband bounding box for this object

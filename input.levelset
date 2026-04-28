@@ -3,7 +3,7 @@ plot_file = output_levelset_IC_BC
 # Simulation length
 timestep = 0.005
 stop_time = 1.00
-max_step = 5
+max_step = 1
 
 # AMR parameters
 amr.plot_int = 1
@@ -30,6 +30,7 @@ ls0.ic.expression.constant.yC0 = 0.5  # Disk center y
 
 ls0.ic.expression.region0 = "sqrt((x - xC0)^2 + (y - yC0)^2) - r0"
 
+# Define constant Neumann BC for LS/LSkappa
 ls.bc.constant.type.xhi = neumann 
 ls.bc.constant.type.xlo = neumann 
 ls.bc.constant.type.yhi = neumann 
@@ -39,6 +40,16 @@ ls.bc.constant.val.xhi = 0.0
 ls.bc.constant.val.xlo = 0.0 
 ls.bc.constant.val.yhi = 0.0 
 ls.bc.constant.val.ylo = 0.0 
+
+kappa.bc.constant.type.xhi = neumann 
+kappa.bc.constant.type.xlo = neumann 
+kappa.bc.constant.type.yhi = neumann 
+kappa.bc.constant.type.ylo = neumann 
+
+kappa.bc.constant.val.xhi = 0.0 
+kappa.bc.constant.val.xlo = 0.0 
+kappa.bc.constant.val.yhi = 0.0 
+kappa.bc.constant.val.ylo = 0.0 
 
 # Define IC type
 ls1.ic.type = expression
@@ -54,3 +65,13 @@ velocity.ic.type = expression
 
 velocity.ic.expression.region0 = "1.0"
 velocity.ic.expression.region1 = "0.0"
+
+velocity.bc.constant.type.xhi = neumann 
+velocity.bc.constant.type.xlo = neumann 
+velocity.bc.constant.type.yhi = neumann 
+velocity.bc.constant.type.ylo = neumann 
+
+velocity.bc.constant.val.xhi = 0.0 
+velocity.bc.constant.val.xlo = 0.0 
+velocity.bc.constant.val.yhi = 0.0 
+velocity.bc.constant.val.ylo = 0.0 

@@ -71,7 +71,8 @@ namespace NBStencil
     void load_stencil(int i,int j,int k,
         amrex::Array4<const amrex::Real> const& phi,
         amrex::Array4<const amrex::Real> const& mask,
-        amrex::Real (&s)[NL+NR+1])
+        amrex::Real (&s)[NL+NR+1],
+        int comp)
     {
         constexpr int dx = DirMap<DIR::value>::dx;
         constexpr int dy = DirMap<DIR::value>::dy;
@@ -79,7 +80,7 @@ namespace NBStencil
 
         constexpr int C = NL;
 
-        amrex::Real center = phi(i,j,k);
+        amrex::Real center = phi(i,j,k,comp);
         s[C] = center;
 
         // negative
@@ -91,7 +92,7 @@ namespace NBStencil
             for(int n=1;n<=NL;++n){
                 ii-=dx; jj-=dy; kk-=dz;
                 int m = is_nb(mask(ii,jj,kk));
-                amrex::Real val = phi(ii,jj,kk);
+                amrex::Real val = phi(ii,jj,kk,comp);
                 last = m*val + (1-m)*last;
                 s[C-n] = last;
             }
@@ -106,7 +107,7 @@ namespace NBStencil
             for(int n=1;n<=NR;++n){
                 ii+=dx; jj+=dy; kk+=dz;
                 int m = is_nb(mask(ii,jj,kk));
-                amrex::Real val = phi(ii,jj,kk);
+                amrex::Real val = phi(ii,jj,kk,comp);
                 last = m*val + (1-m)*last;
                 s[C+n] = last;
             }
@@ -182,14 +183,14 @@ namespace NBStencil
         Set::Vector g; g.setZero();
 
         amrex::Real s[5];
-        load_stencil<XDir,2,2>(i,j,k,phi,mask,s);
+        load_stencil<XDir,2,2>(i,j,k,phi,mask,s,0);
 
         auto m = get_mask4<XDir>(i,j,k,mask);
 
         g[0] = compute_derivative(s,m.m2m,m.m1m,m.m1p,m.m2p,1.0/dx[0]);
 
 #if AMREX_SPACEDIM>=2
-        load_stencil<YDir,2,2>(i,j,k,phi,mask,s);
+        load_stencil<YDir,2,2>(i,j,k,phi,mask,s,0);
 
         m = get_mask4<YDir>(i,j,k,mask);
 
@@ -197,7 +198,7 @@ namespace NBStencil
 #endif
 
 #if AMREX_SPACEDIM==3
-        load_stencil<ZDir,2,2>(i,j,k,phi,mask,s);
+        load_stencil<ZDir,2,2>(i,j,k,phi,mask,s,0);
 
         m = get_mask4<ZDir>(i,j,k,mask);
 
@@ -226,7 +227,7 @@ namespace NBStencil
     //==================================================
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     amrex::Real curvature(int i,int j,int k,
-        Set::Patch<const Set::Vector> const& n,
+        Set::Patch<const Set::Scalar> const& n,
         amrex::Array4<const amrex::Real> const& mask,
         amrex::GpuArray<amrex::Real,AMREX_SPACEDIM> const& dx)
     {
@@ -237,21 +238,20 @@ namespace NBStencil
         amrex::Real s[5];
 
         // X
-        load_stencil_vec<XDir,2,2,0>(i,j,k,n,s);
-
+        load_stencil<XDir,2,2>(i,j,k,n,mask,s,0);
 
         auto m = get_mask4<XDir>(i,j,k,mask);
         dnx_dx = compute_derivative(s,m.m2m,m.m1m,m.m1p,m.m2p,1.0/dx[0]);
 
 #if AMREX_SPACEDIM>=2
-        load_stencil_vec<YDir,2,2,1>(i,j,k,n,s);
+        load_stencil<YDir,2,2>(i,j,k,n,mask,s,1);
 
         m = get_mask4<YDir>(i,j,k,mask);
         dny_dy = compute_derivative(s,m.m2m,m.m1m,m.m1p,m.m2p,1.0/dx[1]);
 #endif
 
 #if AMREX_SPACEDIM==3
-        load_stencil_vec<ZDir,2,2,2>(i,j,k,n,s);
+        load_stencil<ZDir,2,2>(i,j,k,n,mask,s,2);
 
         m = get_mask4<ZDir>(i,j,k,mask);
         dnz_dz = compute_derivative(s,m.m2m,m.m1m,m.m1p,m.m2p,1.0/dx[2]);

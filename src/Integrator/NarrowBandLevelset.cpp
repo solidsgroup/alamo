@@ -42,8 +42,8 @@ struct LevelSetField
     Set::Field<Set::Scalar> LS;
     Set::Field<Set::Scalar> LSold;
 
-    Set::Field<Set::Vector> LSvel;
-    Set::Field<Set::Vector> LSnormal;
+    Set::Field<Set::Scalar> LSvel;
+    Set::Field<Set::Scalar> LSnormal;
 
     Set::Field<Set::Scalar> LSkappa;
 
@@ -57,6 +57,9 @@ struct LevelSetField
     // Store IC/BC for level set field
     std::unique_ptr<IC::IC<Set::Scalar>> ic_LS = nullptr;
     std::unique_ptr<BC::BC<Set::Scalar>> bc_LS = nullptr;
+
+    std::unique_ptr<BC::BC<Set::Scalar>> bc_LSnormal = nullptr;
+    std::unique_ptr<BC::BC<Set::Scalar>> bc_LSkappa = nullptr;
 
     // Store bandwidth constants
     const Set::Scalar HALFINNERTUBE = 4.0;
@@ -249,97 +252,88 @@ struct LevelSetField
         TUBE[lev]->FillBoundary();
     }
 
-    // void compute_normal(int lev, const amrex::Geometry& geom) {
-    //     // Set normal to 0.0
-    //     LSnormal[lev]->setVal(Set::Vector::Zero());
+    void compute_normal(int lev, const amrex::Geometry& geom) {
+        // Set normal to 0.0
+        LSnormal[lev]->setVal(0.0);
 
-    //     // Get dx per dimension outside loop
-    //     auto const dx = geom.CellSizeArray();
+        // Get dx per dimension outside loop
+        auto const dx = geom.CellSizeArray();
 
-    //     for (LevelSetObject& obj : objects)
-    //     {
-    //         ObjectMetaLevel &meta = obj.meta.leveldata[lev];
+        // Get tileboxes
+        const auto& tiles = tile_has_nb[lev];
 
-    //         // Build search region
-    //         const amrex::Box& bbox = meta.bbox;
+        int tile_idx = 0;
 
-    //         for (amrex::MFIter mfi(*LSnormal[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    //         {
-    //             const amrex::Box& tilebox = mfi.tilebox();
+        for (amrex::MFIter mfi(*LSnormal[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx)
+        {
+            // Skip non-narrowband tiles
+            if (!tiles[tile_idx]) continue;
 
-    //             // Skip irrelevant tiles
-    //             if (!tilebox.intersects(bbox)) continue;
+            const amrex::Box& tilebox = mfi.tilebox();
 
-    //             const amrex::Box workbox = tilebox & bbox;
-    //             if (!workbox.ok()) continue;
+            Set::Patch<const Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+            Set::Patch<Set::Scalar> norm_arr = LSnormal.Patch(lev, mfi);
 
-    //             Set::Patch<const Set::Scalar> phi_arr  = LS.Patch(lev, mfi);
-    //             Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
-    //             Set::Patch<Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
+            amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            {
+                // Skip non-narrowband cells
+                const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
+                if (bandval == 0) return;
 
-    //             amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
-    //             {
-    //                 // Skip non-narrowband cells
-    //                 const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
-    //                 if (bandval == 0) return;
+                // Get the normal
+                Set::Vector normal = NBStencil::normal(i,j,k,phi_arr,tube_arr,dx);
+                for (size_t d = 0; d < AMREX_SPACEDIM; ++d) {
+                    norm_arr(i,j,k,d) = normal[d];
+                } 
+            });
+        }
 
-    //                 // Get the normal
-    //                 norm_arr(i,j,k) = NBStencil::normal(i,j,k,phi_arr,tube_arr,dx);
-    //             });
-    //         }
+        // Fill ghosts
+        LSnormal[lev]->FillBoundary(geom.periodicity());
+    }
 
-    //         // Fill ghosts
-    //         LSnormal[lev]->FillBoundary(geom.periodicity());
-    //     }
-    // }
+    void compute_curvature(int lev, const amrex::Geometry& geom) {
+        // Set curvature to 0.0
+        LSkappa[lev]->setVal(0.0);
 
-    // void compute_curvature(int lev, const amrex::Geometry& geom) {
-    //     // Set curvature to 0.0
-    //     LSkappa[lev]->setVal(0.0);
+        // Get dx per dimension outside loop
+        auto const dx = geom.CellSizeArray();
 
-    //     // Get dx per dimension outside loop
-    //     auto const dx = geom.CellSizeArray();
+        // Get tileboxes
+        const auto& tiles = tile_has_nb[lev];
 
-    //     for (LevelSetObject& obj : objects)
-    //     {
-    //         ObjectMetaLevel &meta = obj.meta.leveldata[lev];
+        int tile_idx = 0;
 
-    //         // Build search region
-    //         const amrex::Box& bbox = meta.bbox;
+        for (amrex::MFIter mfi(*LSkappa[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx)
+        {
+            // Skip non-narrowband tiles
+            if (!tiles[tile_idx]) continue;
 
-    //         for (amrex::MFIter mfi(*LSkappa[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    //         {
-    //             const amrex::Box& tilebox = mfi.tilebox();
+            const amrex::Box& tilebox = mfi.tilebox();
 
-    //             // Skip irrelevant tiles
-    //             if (!tilebox.intersects(bbox)) continue;
+            Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> norm_arr = LSnormal.Patch(lev, mfi);
+            Set::Patch<Set::Scalar> kappa_arr      = LSkappa.Patch(lev, mfi);
 
-    //             const amrex::Box workbox = tilebox & bbox;
-    //             if (!workbox.ok()) continue;
+            amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            {
+                // Skip non-narrowband cells
+                const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
+                if (bandval == 0) return;
 
-    //             Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
-    //             Set::Patch<const Set::Vector> norm_arr = LSnormal.Patch(lev, mfi);
-    //             Set::Patch<Set::Scalar> kappa_arr      = LSkappa.Patch(lev, mfi);
+                // Get the curvature
+                kappa_arr(i,j,k) = NBStencil::curvature(
+                    i,j,k,norm_arr,tube_arr,dx
+                );
+            });
+        }
+    }
 
-    //             amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
-    //             {
-    //                 // Skip non-narrowband cells
-    //                 const int bandval = static_cast<int>(tube_arr(i, j, k, NarrowBandData::TubeIdx::NB_MASK));
-    //                 if (bandval == 0) return;
-
-    //                 // Get the curvature
-    //                 kappa_arr(i,j,k) = NBStencil::curvature(
-    //                     i,j,k,norm_arr,tube_arr,dx
-    //                 );
-    //             });
-    //         }
-    //     }
-    // }
-
-    // void compute_geometry (int lev, const amrex::Geometry& geom) {
-    //     compute_normal(lev, geom);
-    //     compute_curvature(lev, geom);
-    // }
+    void compute_geometry (int lev, const amrex::Geometry& geom) {
+        compute_normal(lev, geom);
+        compute_curvature(lev, geom);
+    }
 
     void updateCTP(int lev) {
         
@@ -361,9 +355,10 @@ struct SimulationDomain
     amrex::Vector<std::unique_ptr<LevelSetField>> fields;
 
     // Store velocity field (will copy from flow domain in future)
-    Set::Field<Set::Vector> Flowvel;
+    Set::Field<Set::Scalar> Flowvel;
 
-    std::unique_ptr<IC::IC<Set::Vector>> ic_Vel;
+    std::unique_ptr<IC::IC<Set::Scalar>> ic_Vel;
+    std::unique_ptr<BC::BC<Set::Scalar>> bc_Vel;
 
     // Define function to attach integrator to retrieve geometry information
     void Define(Integrator::Integrator* _integrator)
@@ -422,7 +417,8 @@ namespace Integrator
         // -------------------------
         // Initialize velocity field (Will pull from flow domain in future)
         // -------------------------
-        IC::IC<Set::Vector>* ic_vel_tmp = nullptr;
+        IC::IC<Set::Scalar>* ic_vel_tmp = nullptr;
+        BC::BC<Set::Scalar>* bc_vel_tmp = nullptr;
 
         pp.select_default<IC::Constant, IC::Expression>(
             "velocity.ic",
@@ -431,12 +427,19 @@ namespace Integrator
         );
 
         value.domain_->ic_Vel =
-            std::unique_ptr<IC::IC<Set::Vector>>(ic_vel_tmp);
+            std::unique_ptr<IC::IC<Set::Scalar>>(ic_vel_tmp);
 
-        value.AddField<Set::Vector, Set::Hypercube::Cell>(
+        pp.select_default<BC::Constant, BC::Expression>(
+            "velocity.bc",
+            bc_vel_tmp,
+            AMREX_SPACEDIM
+        );
+        value.domain_->bc_Vel = std::unique_ptr<BC::BC<Set::Scalar>>(bc_vel_tmp);
+
+        value.AddField<Set::Scalar, Set::Hypercube::Cell>(
             value.domain_->Flowvel,          // Set::Field<Set::Vector>
             nullptr,                         // BC::BC<Set::Vector>*
-            /* ncomp   */ 1,                 // ONE vector per cell
+            AMREX_SPACEDIM,             
             /* nghost  */ 0,                 // No ghost communication
             /* name    */ "Flowvel",         // plotfile base name
             /* writeout*/ false,             // include in plotfiles
@@ -490,16 +493,24 @@ namespace Integrator
             ls.bc_LS = std::unique_ptr<BC::BC<Set::Scalar>>(bc_tmp);
             // ls.bc_LS = std::make_unique<BC::LevelSetNeumann>();
 
+            pp.select_default<BC::Constant, BC::Expression>(
+                "kappa.bc",
+                bc_tmp,
+                1
+            );
+            ls.bc_LSkappa = std::unique_ptr<BC::BC<Set::Scalar>>(bc_tmp);
+
             // -------------------------
             // Register fields (AMR handled internally)
             // -------------------------
-            value.RegisterOneField(ls, prefix);
+            value.RegisterOneField(ls, prefix, value.domain_->bc_Vel);
         }
     }
 
     void NarrowBandLevelset::RegisterOneField(
         LevelSetField& ls,
-        const std::string& prefix)
+        const std::string& prefix,
+        const std::unique_ptr<BC::BC<Set::Scalar>>& bc_vel)
     {
         // ====================================================
         // Evolving level set fields (PDE state)
@@ -528,21 +539,21 @@ namespace Integrator
         // ====================================================
 
         // Level-set velocity (vector)
-        AddField<Set::Vector, Set::Hypercube::Cell>(
+        AddField<Set::Scalar, Set::Hypercube::Cell>(
             ls.LSvel,
-            nullptr,          // no BCs
-            1,                // one vector per cell
-            domain_->nghost,                // 
+            bc_vel.get(),         
+            AMREX_SPACEDIM,     
+            domain_->nghost,  
             prefix + "_LSvel",
             true,             // plot
             false             // NOT evolving
         );
 
         // Level-set normal (vector)
-        AddField<Set::Vector, Set::Hypercube::Cell>(
+        AddField<Set::Scalar, Set::Hypercube::Cell>(
             ls.LSnormal,
             nullptr,
-            1,
+            AMREX_SPACEDIM,
             domain_->nghost,
             prefix + "_LSnormal",
             true,
@@ -552,7 +563,7 @@ namespace Integrator
         // Curvature (scalar)
         AddField<Set::Scalar, Set::Hypercube::Cell>(
             ls.LSkappa,
-            nullptr,
+            ls.bc_LSkappa.get(),
             1,
             domain_->nghost,
             prefix + "_LSkappa",
@@ -608,16 +619,6 @@ namespace Integrator
             // Initialize LS from IC
             ls.ic_LS->Initialize(lev, ls.LS);
 
-            // Get the number of tiles for this level and initialize all to 0
-            int ntiles = 0;
-            auto& tiles = ls.tile_has_nb[lev];
-
-            for (amrex::MFIter mfi(*ls.LS[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi) {
-                ++ ntiles;
-            }
-
-            tiles.resize(ntiles, 1);
-
             // Initialize CTP
             ls.initializeObjID(lev, geom);
 
@@ -634,14 +635,17 @@ namespace Integrator
             );
 
             // Copy domain velocity to level set velocity
-            amrex::Copy(
+            amrex::MultiFab::Copy(
                 *ls.LSvel[lev],
                 *domain_->Flowvel[lev],
-                0, 0, 1, 0
+                0, 
+                0, 
+                ls.LSvel[lev]->nComp(), 
+                0
             );
 
             // Compute geometry
-            // ls.compute_geometry(lev, geom);
+            ls.compute_geometry(lev, geom);
         }
     }
 

@@ -63,7 +63,8 @@ private:
     // Helper functions
     void RegisterOneField(
         LevelSetField& ls,
-        const std::string& prefix
+        const std::string& prefix,
+        const std::unique_ptr<BC::BC<Set::Scalar>>& bc_vel
     );
 
     // ============================================================
