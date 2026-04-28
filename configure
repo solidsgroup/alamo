@@ -145,6 +145,7 @@ parser.add_argument('--fft',default=False,action='store_true',help="Compile with
 parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
+parser.add_argument('--hdf5', default=False,action='store_true',help='Compile with HDF5 support')
 parser.set_defaults(**defaults)
 
 
@@ -221,6 +222,7 @@ if args.memcheck:
 if args.profile: postfix += "-profile"
 if args.perf: postfix += "-perf"
 if args.coverage: postfix += "-coverage"
+if args.hdf5: postfix += "-hdf5"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
 
@@ -323,6 +325,7 @@ if args.buildamrex and not args.amrex:
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     
     if args.fft: amrex_configure += " --enable-fft=yes"
+    if args.hdf5: amrex_configure += " --enable-hdf5=yes"
 
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd=f"ext/{args.amrexfork}/amrex")
@@ -403,6 +406,14 @@ elif (args.eigen != ""):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
     message("Eigen-Directory",args.eigen)
     f.write("EIGEN = " + args.eigen + "\n")
+
+#
+# HDF5
+#
+if args.hdf5:
+    f.write("LIB += -lhdf5 \n")
+    message("HDF5-Enabled",str(args.hdf5))
+    message("HDF5-Home",os.environ["HDF5_HOME"])
 
 
 #
