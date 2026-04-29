@@ -203,9 +203,8 @@ struct FluxHandler
         Set::Field<Set::Scalar> const& LSold,     // phi^n (read-only, never written)
         Set::Field<Set::Scalar> const& TUBE,      // NB_MASK and tube type flags
         Set::Field<Set::Scalar> const& vel,       // advection velocity
-        Set::Field<Set::Scalar>      & scratch,   // one scratch field, same layout as LS
+        amrex::Vector<char>          & tiles,
         BC::BC<Set::Scalar>          & bc,        // physical BC for domain boundary ghosts
-        const amrex::Box             & bbox,      // narrowband bounding box for this object
         const amrex::Geometry        & geom,
         amrex::Real                    time,      // current sim time (needed by bc.FillBoundary)
         amrex::Real                    dt)
@@ -223,6 +222,24 @@ struct FluxHandler
         constexpr amrex::Real a2 = 3.0/4.0,    b2 = 1.0/4.0;
         constexpr amrex::Real a3 = 1.0/3.0,    b3 = 2.0/3.0;
 
+        // Define scratch multifab for RHS initialized to LS
+        amrex::MultiFab scratch;
+        scratch.define(
+            LS[lev]->boxArray(),
+            LS[lev]->DistributionMap(),
+            1,
+            0
+        );
+
+        amrex::MultiFab::Copy(
+            scratch,
+            *LS[lev],
+            0,
+            0,
+            1,
+            0
+        );
+
         // --------------------------------------------------------
         // Stage 1:  phi* = phi^n + dt*L(phi^n)
         //   phi_old   = LSold   (phi^n)
@@ -230,17 +247,19 @@ struct FluxHandler
         //                        phi_out goes to scratch, not LSold)
         //   phi_out   = scratch
         // --------------------------------------------------------
-        for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        int tile_idx = 0;
+        for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx)
         {
-            const amrex::Box workbox = mfi.tilebox() & bbox;
-            if (!workbox.ok()) continue;
+            if (!tiles[tile_idx]) continue;
 
-            auto const phi_old_arr   = LSold[lev]->const_array(mfi);
-            auto const tube_arr      = TUBE [lev]->const_array(mfi);
-            auto const vel_arr       = vel  [lev]->const_array(mfi);
-            auto       scratch_arr   = scratch[lev]->array(mfi);
+            const auto& tilebox = mfi.tilebox();
 
-            amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            Set::Patch<const Set::Scalar> phi_old_arr = LSold.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> tube_arr    = TUBE.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> vel_arr     = vel.Patch(lev, mfi);
+            auto       scratch_arr   = scratch.array(mfi);
+
+            amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {
                 rk_stage_adv(i, j, k,
                     phi_old_arr,    // phi^n
@@ -252,8 +271,8 @@ struct FluxHandler
         }
 
         // Fill interior ghosts (MPI halo exchange), then domain boundary ghosts
-        scratch[lev]->FillBoundary(geom.periodicity());
-        bc.FillBoundary(*scratch[lev], 0, 0, time, 0);
+        scratch.FillBoundary(geom.periodicity());
+        bc.FillBoundary(scratch, 0, 0, time, 0);
 
         // --------------------------------------------------------
         // Stage 2:  phi** = 3/4*phi^n + 1/4*(phi* + dt*L(phi*))
@@ -261,18 +280,20 @@ struct FluxHandler
         //   phi_stage = scratch (phi*)
         //   phi_out   = LS[lev] (phi** written here — distinct from scratch)
         // --------------------------------------------------------
-        for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        tile_idx = 0;
+        for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx)
         {
-            const amrex::Box workbox = mfi.tilebox() & bbox;
-            if (!workbox.ok()) continue;
+            if (!tiles[tile_idx]) continue;
 
-            auto const phi_old_arr   = LSold  [lev]->const_array(mfi);
-            auto const phi_star_arr  = scratch[lev]->const_array(mfi);
-            auto const tube_arr      = TUBE   [lev]->const_array(mfi);
-            auto const vel_arr       = vel    [lev]->const_array(mfi);
-            auto       ls_arr        = LS     [lev]->array(mfi);
+            const auto& tilebox = mfi.tilebox();
 
-            amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            Set::Patch<const Set::Scalar> phi_old_arr  = LSold.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> phi_star_arr = scratch.const_array(mfi);
+            Set::Patch<const Set::Scalar> tube_arr     = TUBE.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> vel_arr      = vel.Patch(lev, mfi);
+            Set::Patch<      Set::Scalar> ls_arr       = LS.Patch(lev, mfi);
+
+            amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {
                 rk_stage_adv(i, j, k,
                     phi_old_arr,    // phi^n
@@ -293,18 +314,20 @@ struct FluxHandler
         //   phi_stage = LS[lev] (phi**)
         //   phi_out   = scratch (phi^n+1 written here — distinct from LS)
         // --------------------------------------------------------
-        for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        tile_idx = 0;
+        for (amrex::MFIter mfi(*LS[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx)
         {
-            const amrex::Box workbox = mfi.tilebox() & bbox;
-            if (!workbox.ok()) continue;
+            if (!tiles[tile_idx]) continue;
 
-            auto const phi_old_arr    = LSold  [lev]->const_array(mfi);
-            auto const phi_dstar_arr  = LS     [lev]->const_array(mfi);
-            auto const tube_arr       = TUBE   [lev]->const_array(mfi);
-            auto const vel_arr        = vel    [lev]->const_array(mfi);
-            auto       scratch_arr    = scratch[lev]->array(mfi);
+            const auto& tilebox = mfi.tilebox();
 
-            amrex::ParallelFor(workbox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            Set::Patch<const Set::Scalar> phi_old_arr   = LSold.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> phi_dstar_arr = LS.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> tube_arr      = TUBE.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> vel_arr       = vel.Patch(lev, mfi);
+            Set::Patch<      Set::Scalar> scratch_arr   = scratch.array(mfi);
+
+            amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {
                 rk_stage_adv(i, j, k,
                     phi_old_arr,    // phi^n
@@ -317,10 +340,10 @@ struct FluxHandler
 
         // phi^n+1 now lives in scratch. Swap so LS[lev] holds the final result.
         // std::swap exchanges the unique_ptr internals — O(1), no data copy.
-        std::swap(LS[lev], scratch[lev]);
+        std::swap(*LS[lev], scratch);
 
-        // Caller should call FillBoundary + bc.FillBoundary on LS[lev],
-        // then update_Tube() and compute_geometry() as needed.
+        LS[lev]->FillBoundary(geom.periodicity());
+        bc.FillBoundary(*LS[lev], 0, 0, time, 0);
     }
 };
 

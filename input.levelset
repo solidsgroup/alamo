@@ -41,15 +41,15 @@ ls.bc.constant.val.xlo = 0.0
 ls.bc.constant.val.yhi = 0.0 
 ls.bc.constant.val.ylo = 0.0 
 
-kappa.bc.constant.type.xhi = neumann 
-kappa.bc.constant.type.xlo = neumann 
-kappa.bc.constant.type.yhi = neumann 
-kappa.bc.constant.type.ylo = neumann 
+normal.bc.constant.type.xhi = neumann 
+normal.bc.constant.type.xlo = neumann 
+normal.bc.constant.type.yhi = neumann 
+normal.bc.constant.type.ylo = neumann 
 
-kappa.bc.constant.val.xhi = 0.0 
-kappa.bc.constant.val.xlo = 0.0 
-kappa.bc.constant.val.yhi = 0.0 
-kappa.bc.constant.val.ylo = 0.0 
+normal.bc.constant.val.xhi = 0.0 
+normal.bc.constant.val.xlo = 0.0 
+normal.bc.constant.val.yhi = 0.0 
+normal.bc.constant.val.ylo = 0.0 
 
 # Define IC type
 ls1.ic.type = expression

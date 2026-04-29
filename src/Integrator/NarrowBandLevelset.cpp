@@ -18,6 +18,48 @@ Set::Scalar to_scalar(int v)
     return static_cast<Set::Scalar>(v);
 }
 
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+amrex::Real upwind_flux_component(
+    amrex::Real dE, amrex::Real dW,
+#if (AMREX_SPACEDIM >= 2)
+    amrex::Real dN, amrex::Real dS,
+#endif
+#if (AMREX_SPACEDIM == 3)
+    amrex::Real dT, amrex::Real dB,
+#endif
+    amrex::Real Sx, amrex::Real Sy,
+#if (AMREX_SPACEDIM == 3)
+    amrex::Real Sz,
+#endif
+    amrex::Real absSx, 
+#if (AMREX_SPACEDIM >= 2)
+    amrex::Real absSy,
+#endif
+#if (AMREX_SPACEDIM == 3)
+    amrex::Real absSz,
+#endif
+    const amrex::GpuArray<amrex::Real,AMREX_SPACEDIM>& dx)
+{
+    amrex::Real flux =
+        (Sx - absSx)*dE/dx[0] +
+        (Sx + absSx)*dW/dx[0];
+
+#if (AMREX_SPACEDIM >= 2)
+    flux += 
+        (Sy - absSy)*dN/dx[1] +
+        (Sy + absSy)*dS/dx[1];
+#endif
+
+#if (AMREX_SPACEDIM == 3)
+    flux +=
+        (Sz - absSz)*dT/dx[2] +
+        (Sz + absSz)*dB/dx[2];
+#endif
+
+    return flux;
+}
+
 // =====================================
 // Level set object
 // =====================================
@@ -59,7 +101,6 @@ struct LevelSetField
     std::unique_ptr<BC::BC<Set::Scalar>> bc_LS = nullptr;
 
     std::unique_ptr<BC::BC<Set::Scalar>> bc_LSnormal = nullptr;
-    std::unique_ptr<BC::BC<Set::Scalar>> bc_LSkappa = nullptr;
 
     // Store bandwidth constants
     const Set::Scalar HALFINNERTUBE = 4.0;
@@ -252,6 +293,86 @@ struct LevelSetField
         TUBE[lev]->FillBoundary();
     }
 
+    void extendVelocityPDE(int lev, const amrex::Geometry& geom) {
+        using Tidx = NarrowBandData::TubeIdx;
+
+        // Create tmp MultiFab for velold
+        amrex::MultiFab vel_old;
+
+        vel_old.define(
+            LSvel[lev]->boxArray(),
+            LSvel[lev]->DistributionMap(),
+            LSvel[lev]->nComp(),
+            1
+        );
+
+        // Get variables
+        const auto& dx = geom.CellSizeArray();
+
+        const auto& tiles = tile_has_nb[lev];
+
+        // Perform 25 timesteps (10 is sufficient for convergence)
+        for (int i = 0; i < 25; ++i) {
+            // Copy new velocity to old velocity
+            amrex::MultiFab::Copy(
+                vel_old,
+                *LSvel[lev],
+                0,
+                0,
+                AMREX_SPACEDIM,
+                1
+            );
+
+            // Fill ghosts
+            vel_old.FillBoundary(geom.periodicity());
+
+            int tile_idx = 0;
+
+            // Perform tile loop
+            for (amrex::MFIter mfi(*LSvel[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx) {
+                // Skip non-narrowband tiles
+                if (!tiles[tile_idx]) continue;
+
+                const auto& tilebox = mfi.tilebox();
+
+                Set::Patch<const Set::Scalar> phi_arr = LS.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> norm_arr = LSnormal.Patch(lev, mfi);
+                Set::Patch<      Set::Scalar> vel_arr  = LSvel.Patch(lev, mfi);
+                Set::Patch<      Set::Scalar> vel_old_arr = vel_old.array(mfi);
+
+                amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
+                {
+                    // Skip non-narrowband cells
+                    if (tube_arr(i,j,k,Tidx::NB_MASK) == 0.0) return;
+
+                    const Set::Scalar H = 
+                        (tube_arr(i,j,k,Tidx::ZERO_ID) != 0.0) ? 0.0 : 1.0;
+
+                    const Set::Scalar sgn = 
+                        phi_arr(i,j,k) >= 0.0 ? 1.0 : -1.0;
+
+                    const Set::Scalar Sx = sgn * norm_arr(i,j,k,0);
+                    const Set::Scalar absSx = amrex::Math::abs(Sx);
+    #if AMREX_SPACEDIM >=2
+                    const Set::Scalar Sy = sgn * norm_arr(i,j,k,1);
+                    const Set::Scalar absSy = amrex::Math::abs(Sy);
+    #endif
+    #if AMREX_SPACEDIM == 3
+                    const Set::Scalar Sz = sgn * norm_arr(i,j,k,2);
+                    const Set::Scalar absSz = amrex::Math::abs(Sz);
+    #endif
+
+                    // X-direction flux
+                    const Set::Scalar u0 = vel_old_arr(i,j,k,0);
+
+                    Set::Scalar DE = vel_old_arr(i+1,j,k,0) - u0;
+                    Set::Scalar DW = u0 - vel_old_arr(i-1,j,k,0);
+                });
+            }
+        }
+    }
+
     void compute_normal(int lev, const amrex::Geometry& geom) {
         // Set normal to 0.0
         LSnormal[lev]->setVal(0.0);
@@ -290,7 +411,7 @@ struct LevelSetField
         }
 
         // Fill ghosts
-        LSnormal[lev]->FillBoundary(geom.periodicity());
+        LSnormal[lev]->FillBoundary();
     }
 
     void compute_curvature(int lev, const amrex::Geometry& geom) {
@@ -312,9 +433,9 @@ struct LevelSetField
 
             const amrex::Box& tilebox = mfi.tilebox();
 
-            Set::Patch<const Set::Scalar> tube_arr = TUBE.Patch(lev, mfi);
-            Set::Patch<const Set::Scalar> norm_arr = LSnormal.Patch(lev, mfi);
-            Set::Patch<Set::Scalar> kappa_arr      = LSkappa.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> tube_arr  = TUBE.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> norm_arr  = LSnormal.Patch(lev, mfi);
+            Set::Patch<      Set::Scalar> kappa_arr = LSkappa.Patch(lev, mfi);
 
             amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {
@@ -328,6 +449,8 @@ struct LevelSetField
                 );
             });
         }
+
+        LSkappa[lev]->FillBoundary();
     }
 
     void compute_geometry (int lev, const amrex::Geometry& geom) {
@@ -335,8 +458,81 @@ struct LevelSetField
         compute_curvature(lev, geom);
     }
 
-    void updateCTP(int lev) {
-        
+    void postfixLSAdvect(int lev, const amrex::Geometry& geom) {
+        using Tidx = NarrowBandData::TubeIdx;
+
+        // Get tiles
+        const auto& tiles = tile_has_nb[lev];
+
+        int tile_idx = 0;
+
+        for (amrex::MFIter mfi(*LSkappa[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx) {
+            // Skip non-narrowband tiles
+            if (!tiles[tile_idx]) continue;
+
+            const amrex::Box& tilebox = mfi.tilebox();
+
+            Set::Patch<const Set::Scalar> Tube_arr  = TUBE.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> LSold_arr = LSold.Patch(lev, mfi);
+            Set::Patch<      Set::Scalar> LS_arr    = LS.Patch(lev, mfi);
+
+            amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k) 
+            {
+                // Skip non-narrowband cells
+                const int band_val = static_cast<int>(Tube_arr(i,j,k, Tidx::NB_MASK));
+                if (band_val == 0) return;
+
+                // Skip cells where phi is positive
+                Set::Scalar& phi = LS_arr(i,j,k);
+                const Set::Scalar phiold = LSold_arr(i,j,k);
+                const int zero = static_cast<int>(Tube_arr(i,j,k,Tidx::ZERO_ID));
+
+                if (phi > 0.0) return;
+
+                const bool false_crossing = (phi * phiold < 0.0) && (zero == 0);
+
+                phi = false_crossing ? phiold : phi;
+            });
+        }
+
+        LS[lev]->FillBoundary(geom.periodicity());
+    }
+
+    void updateCPT(int lev) {
+        using Tidx = NarrowBandData::TubeIdx;
+
+        // Get tiles
+        const auto& tiles = tile_has_nb[lev];
+
+        int tile_idx = 0;
+
+        for (amrex::MFIter mfi(*LSkappa[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi, ++tile_idx) {
+            // Skip non-narrowband tiles
+            if (!tiles[tile_idx]) continue;
+
+            const amrex::Box& tilebox = mfi.tilebox();
+
+            Set::Patch<      Set::Scalar> Tube_arr  = TUBE.Patch(lev, mfi);
+            Set::Patch<const Set::Scalar> LS_arr = LS.Patch(lev, mfi);
+
+            amrex::ParallelFor(tilebox, [=] AMREX_GPU_DEVICE (int i, int j, int k) 
+            {
+                // Skip non-narrowband cells
+                const int band_val = static_cast<int>(Tube_arr(i,j,k, Tidx::NB_MASK));
+                if (band_val == 0) return;
+
+                // Define variables
+                const Set::Scalar phi  = LS_arr(i,j,k);
+                const Set::Scalar zero = Tube_arr(i,j,k,Tidx::ZERO_ID);
+                const Set::Scalar cptold = Tube_arr(i,j,k,Tidx::OBJ_ID);
+                Set::Scalar& cptnew = Tube_arr(i,j,k,Tidx::OBJ_ID);
+
+                cptnew = 
+                    (phi <= 0.0) ? zero :
+                    (cptold == zero) ? 0.0 : 
+                                    cptold;
+            }); 
+        }      
     }
 };
 
@@ -440,9 +636,9 @@ namespace Integrator
             value.domain_->Flowvel,          // Set::Field<Set::Vector>
             nullptr,                         // BC::BC<Set::Vector>*
             AMREX_SPACEDIM,             
-            /* nghost  */ 0,                 // No ghost communication
+            value.domain_->nghost,         
             /* name    */ "Flowvel",         // plotfile base name
-            /* writeout*/ false,             // include in plotfiles
+            /* writeout*/ true,             // include in plotfiles
             /* evolving*/ false              // evolves in time
 
         );
@@ -494,11 +690,11 @@ namespace Integrator
             // ls.bc_LS = std::make_unique<BC::LevelSetNeumann>();
 
             pp.select_default<BC::Constant, BC::Expression>(
-                "kappa.bc",
+                "normal.bc",
                 bc_tmp,
-                1
+                AMREX_SPACEDIM
             );
-            ls.bc_LSkappa = std::unique_ptr<BC::BC<Set::Scalar>>(bc_tmp);
+            ls.bc_LSnormal = std::unique_ptr<BC::BC<Set::Scalar>>(bc_tmp);
 
             // -------------------------
             // Register fields (AMR handled internally)
@@ -552,7 +748,7 @@ namespace Integrator
         // Level-set normal (vector)
         AddField<Set::Scalar, Set::Hypercube::Cell>(
             ls.LSnormal,
-            nullptr,
+            ls.bc_LSnormal.get(),
             AMREX_SPACEDIM,
             domain_->nghost,
             prefix + "_LSnormal",
@@ -563,7 +759,7 @@ namespace Integrator
         // Curvature (scalar)
         AddField<Set::Scalar, Set::Hypercube::Cell>(
             ls.LSkappa,
-            ls.bc_LSkappa.get(),
+            ls.bc_LS.get(),
             1,
             domain_->nghost,
             prefix + "_LSkappa",
@@ -641,7 +837,7 @@ namespace Integrator
                 0, 
                 0, 
                 ls.LSvel[lev]->nComp(), 
-                0
+                ls.LSvel[lev]->nGrow()
             );
 
             // Compute geometry
