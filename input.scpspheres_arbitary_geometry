@@ -7,7 +7,7 @@ system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 1e-4_s
+amr.plot_dt = 5e-5_s
 # amr.plot_dt = 5.0e-6_s
 amr.max_grid_size = 8
 amr.blocking_factor = 8
@@ -27,16 +27,16 @@ amr.max_level = 4
 amr.n_cell = 32 32 32
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 # geometry.prob_hi = 0.112_mm 0.083_mm 1.0_mm
-geometry.prob_hi = 0.0476_mm 0.0476_mm 1.0_mm
+geometry.prob_hi = 0.083_mm 0.083_mm 1.0_mm
 
 geometry.is_periodic = 0 0 0
 
 ## Timestep
-timestep = 2.0e-8_s # [s]
-stop_time = 0.02_s
+timestep = 1.0e-8_s # [s]
+stop_time = 0.01_s
 
 small = 1.0e-8
-pf.eps = 5.0_um #0.0005 # [m]
+pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
@@ -48,8 +48,8 @@ pf.lambda = 0.001_J/m^2
 # pf.eta.ic.psread.invert = 1
 
 pf.eta.ic.type = png
-# pf.eta.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_eta_BW2.png
-pf.eta.ic.png.filename = all_datasets/arbitrary_geometry/prop_eta_BW4.png
+# pf.eta.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_eta_BW5.png
+pf.eta.ic.png.filename = all_datasets/arbitrary_geometry/prop_eta_BW5.png
 pf.eta.ic.png.fit = coord
 pf.eta.ic.png.max = 255
 pf.eta.ic.png.min = 0
@@ -70,8 +70,8 @@ pf.eta.ic.png.coord.hi = 0.0476_mm 0.0476_mm
 
 ## Phi initial condition (Random Grains)
 phi.ic.type = png
-# phi.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_phi_BW2.png
-phi.ic.png.filename = all_datasets/arbitrary_geometry/prop_phi_BW4.png
+# phi.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_phi_BW5.png
+phi.ic.png.filename = all_datasets/arbitrary_geometry/prop_phi_BW5.png
 phi.ic.png.fit = coord
 phi.ic.png.max = 255
 phi.ic.png.min = 0
