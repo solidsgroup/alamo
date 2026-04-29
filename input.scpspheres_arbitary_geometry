@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.arbitary_geo_Kohga2006_4
+plot_file = output.arbitary_geo_Kohga2006_6
 
 system.length = mm
 system.time = s
@@ -27,7 +27,7 @@ amr.max_level = 4
 amr.n_cell = 32 32 32
 geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
 # geometry.prob_hi = 0.112_mm 0.083_mm 1.0_mm
-geometry.prob_hi = 0.083_mm 0.083_mm 1.0_mm
+geometry.prob_hi = 0.0585_mm 0.0585_mm 1.0_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -49,7 +49,7 @@ pf.lambda = 0.001_J/m^2
 
 pf.eta.ic.type = png
 # pf.eta.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_eta_BW5.png
-pf.eta.ic.png.filename = all_datasets/arbitrary_geometry/prop_eta_BW5.png
+pf.eta.ic.png.filename = all_datasets/arbitrary_geometry/prop_eta_BW7.png
 pf.eta.ic.png.fit = coord
 pf.eta.ic.png.max = 255
 pf.eta.ic.png.min = 0
@@ -71,7 +71,7 @@ pf.eta.ic.png.coord.hi = 0.0476_mm 0.0476_mm
 ## Phi initial condition (Random Grains)
 phi.ic.type = png
 # phi.ic.png.filename = ../../jstocker/alamo/all_datasets/arbitrary_geo/A_exp/prop_phi_BW5.png
-phi.ic.png.filename = all_datasets/arbitrary_geometry/prop_phi_BW5.png
+phi.ic.png.filename = all_datasets/arbitrary_geometry/prop_phi_BW7.png
 phi.ic.png.fit = coord
 phi.ic.png.max = 255
 phi.ic.png.min = 0
@@ -186,7 +186,7 @@ model_htpb.kappa = 1368.519_MPa
 model_htpb.eps0 = 51e-7 0.0 0.0 0.0 51e-7 0.0 0.0 0.0 51e-7
 # Elastic solver information
 elastic.solver.verbose = 4
-elastic.solver.fixed_iter = 4000
+elastic.solver.fixed_iter = 5000
 elastic.solver.nriters = 1
 elastic.solver.nrtolerance = 1E-5
 elastic.print_model = 1
@@ -201,4 +201,4 @@ elastic.bc.constant.type.xloyhi = trac disp
 # No traction on free surface
 elastic.traction = 0.0
 #elastic.elastic_ref_threshold = 0.0005
-elastic.zero_out_displacement = false # Zero out the displacement before each elastic solver iternation
+elastic.zero_out_displacement = 0 # Zero out the displacement before each elastic solver iternation
