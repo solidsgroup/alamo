@@ -55,7 +55,7 @@ pf.eta.ic.png.max = 255
 pf.eta.ic.png.min = 0
 pf.eta.ic.png.coord.lo = 0.0_mm 0.0_mm
 # pf.eta.ic.png.coord.hi = 0.112_mm 0.083_mm
-pf.eta.ic.png.coord.hi = 0.0476_mm 0.0476_mm
+pf.eta.ic.png.coord.hi = 0.0585_mm 0.0585_mm
 
 # pf.eta.ic.type = constant
 # pf.eta.ic.constant.value = 1.0 
@@ -77,7 +77,7 @@ phi.ic.png.max = 255
 phi.ic.png.min = 0
 phi.ic.png.coord.lo = 0.0_mm 0.0_mm
 # phi.ic.png.coord.hi = 0.112_mm 0.083_mm
-phi.ic.png.coord.hi = 0.0476_mm 0.0476_mm
+phi.ic.png.coord.hi = 0.0585_mm 0.0585_mm
 
 # Phase field parameters
 pf.kappa      = 5.0_J/m^2
