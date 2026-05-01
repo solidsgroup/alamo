@@ -1,7 +1,7 @@
 
 alamo.program = flame
 
-plot_file = output.arbitary_geo_Kohga2006_6
+plot_file = output.arbitary_geo_Kohga2006_7
 
 system.length = mm
 system.time = s

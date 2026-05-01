@@ -119,6 +119,8 @@ protected:
         model_type model_ap, model_htpb;
         Set::Scalar traction = NAN;
         int phirefinement = -1;
+        Set::Scalar etacutoff = NAN;
+        Set::Scalar apply_chamber_pressure = NAN;
     } elastic;
 
     // Chamber state variables (not inputs)

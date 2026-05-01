@@ -242,6 +242,13 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         // elastic model of HTPB
         pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_htpb", value.elastic.model_htpb);
 
+        // eta cutoff value to stop applying the traction force and/or chamber pressure to the RHS.
+        // Below this vlaue the RHS is set to 0.0
+        pp.query_default("etacutoff",value.elastic.etacutoff, "0", Unit::Less());
+
+        // Boolean value, when not 0 the chamber.pressure value is applied at the diffuse interface where t>Tcutoff
+        pp.query_default("apply_chamber_pressure",value.elastic.apply_chamber_pressure, "0", Unit::Less());
+
         // Use our current eta field as the psi field for the solver
         value.psi_on = false;
         value.solver.setPsi(value.eta_mf);
@@ -326,10 +333,19 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                 {   
                     Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
 
-                    if (temp(i,j,k) > Tcutoff && eta(i,j,k) > 0.25)
-                        rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta;
+                    if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic.etacutoff && elastic.apply_chamber_pressure)
+                        {
+                            rhs(i, j, k) = (elastic.traction) * grad_eta - chamber.pressure*grad_eta;
+                            // std::cout << "Applying chamber pressure" << std::endl;
+                        }
+                    else if (temp(i,j,k) > Tcutoff && eta(i,j,k) > elastic.etacutoff && !elastic.apply_chamber_pressure)
+                        {
+                            rhs(i, j, k) = (elastic.traction) * grad_eta;
+                            // std::cout << "Applying traction" << std::endl;
+                        }
                     else
-                        rhs(i, j, k) = 0.0*grad_eta;
+                            rhs(i, j, k) = 0.0 * grad_eta;
+                            // std::cout << "Applying neither" << std::endl;
 
                 });
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)

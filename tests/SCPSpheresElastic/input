@@ -104,6 +104,7 @@ propellant.fullfeedback.Pref = 1.0_MPa
 
 # Activate thermal transport
 thermal.on = 1
+thermal.end_initial_refine_time = 0.00001_s
 
 # Temperature boundary conditions
 thermal.temp.bc.type = constant
@@ -132,9 +133,9 @@ thermal.hc = 1.0e7_W/m^2
 # Pressure
 chamber.pressure = 4.0_MPa # [MPa]
 
-
 # Thermoelasticity
 elastic.on = 1
+elastic.type = static
 elastic.interval = 100
 # Elastic model params
 model_ap.mu = 140
