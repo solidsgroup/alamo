@@ -271,7 +271,7 @@ struct FluxHandler
         }
 
         // Fill interior ghosts (MPI halo exchange), then domain boundary ghosts
-        scratch.FillBoundary(geom.periodicity());
+        scratch.FillBoundary();
         bc.FillBoundary(scratch, 0, 0, time, 0);
 
         // --------------------------------------------------------
@@ -305,7 +305,7 @@ struct FluxHandler
         }
 
         // Fill interior ghosts (MPI halo exchange), then domain boundary ghosts
-        LS[lev]->FillBoundary(geom.periodicity());
+        LS[lev]->FillBoundary();
         bc.FillBoundary(*LS[lev], 0, 0, time, 0);
 
         // --------------------------------------------------------
@@ -342,8 +342,63 @@ struct FluxHandler
         // std::swap exchanges the unique_ptr internals — O(1), no data copy.
         std::swap(*LS[lev], scratch);
 
-        LS[lev]->FillBoundary(geom.periodicity());
+        LS[lev]->FillBoundary();
         bc.FillBoundary(*LS[lev], 0, 0, time, 0);
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
+    static Set::Scalar minmod(Set::Scalar a, Set::Scalar b)
+    {
+        const Set::Scalar prod  = a * b;
+        const Set::Scalar abs_a = amrex::Math::abs(a);
+        const Set::Scalar abs_b = amrex::Math::abs(b);
+
+        return (prod <= 0.0) ? Set::Scalar(0.0)
+                            : ((abs_a < abs_b) ? a : b);
+    }
+
+    template<typename DIR>
+    AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+    static amrex::Real eno2_flux(
+        int i, int j, int k,
+        const Set::Scalar sgn,
+        amrex::Array4<const amrex::Real> const& reinitold,
+        amrex::Array4<const amrex::Real> const& mask,
+        amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx)
+    {
+        using Set::Scalar;
+
+        constexpr int dim = DIR::value;
+
+        const int comp = 0;
+
+        // --- stencil ---
+        Scalar s[5];
+        NBStencil::load_stencil<DIR,2,2>(i,j,k,reinitold,mask,s,comp);
+
+        // --- spacing ---
+        const Scalar d = dx[dim];
+
+        // --- first derivatives ---
+        Scalar dm = (s[2] - s[1]) / d;
+        Scalar dp = (s[3] - s[2]) / d;
+
+        // --- second derivatives ---
+        Scalar d2c = (s[1] - 2.0*s[2] + s[3]) / (2.0*d);
+        Scalar d2l = (s[0] - 2.0*s[1] + s[2]) / (2.0*d);
+        Scalar d2r = (s[2] - 2.0*s[3] + s[4]) / (2.0*d);
+
+        // --- ENO correction ---
+        dm += 0.5 * d * minmod(d2c, d2l);
+        dp -= 0.5 * d * minmod(d2c, d2r);
+
+        // --- upwinding ---
+        const Scalar dmS = dm * sgn;
+        const Scalar dpS = dp * sgn;
+
+        return (dpS < 0.0 && dmS < -dpS) ? dp :
+            (dmS >= 0.0 && dpS >= -dmS) ? dm : 0.0;
     }
 };
 
