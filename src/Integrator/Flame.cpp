@@ -14,8 +14,8 @@
 #include "Model/Propellant/Propellant.H"
 #include "Model/Propellant/FullFeedback.H"
 #include "Model/Propellant/Homogenize.H"
-
 #include <cmath>
+
 
 namespace Integrator
 {
@@ -117,11 +117,16 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     // Boundary conditions for phase field order params
     pp.select<BC::Constant>("pf.eta.bc", value.bc_eta, 1 ); 
     value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
-    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+    value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", 0);
+
+    // Inital value of eta that doesn't evolve and is used during refiment to set the updated values of eta with voids in the domain.
+    // Used to fix a bug where duirn refinement, a void won't be updated correctly and would be a square, not a circle
+    value.RegisterNewFab(value.eta_0_mf, value.bc_eta, 1, 2, "eta_0", 0);
+
+    // value.RegisterNewFab(value.eta_mf_frozen, value.bc_eta, 1, 2, "eta_frozen", value.plot_field);
 
     // phase field initial condition
-    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG>("pf.eta.ic",value.ic_eta,value.geom); 
-
+    pp.select<IC::Laminate,IC::Constant,IC::Expression,IC::BMP,IC::PNG, IC::PSRead>("pf.eta.ic",value.ic_eta,value.geom); 
 
 
     // Select reduced order model to capture heat feedback
@@ -136,15 +141,22 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     // Reference temperature
     // Used to set all other reference temperatures by default.
-    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature()); 
+    pp_query_default("thermal.Tref", value.thermal.Tref, "300.0_K",Unit::Temperature());
 
     if (value.thermal.on) {
 
         // Used to change heat flux units
         pp_query_default("thermal.hc", value.thermal.hc, "1.0", Unit::Power()/Unit::Area());
 
-        // Effective fluid temperature
-        pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref); 
+        // Effective fluid temperature, temp of the eta = 0 (fluid) region
+        pp_query_default("thermal.Tfluid", value.thermal.Tfluid, value.thermal.Tref);
+
+        // Cutoff value for regression, if T < Tcutoff eta won't evolve/regress
+        pp.query_default("thermal.Tcutoff", value.thermal.Tcutoff, "0.0", Unit::Temperature());
+
+        // Switch time of the improved regridding where eta and the temperature field are both used. It is recommended to make this time ~10x the timestep
+        // Before this the refinement is based on the gradient of eta which helps the laser IC start correctly. A regrid is forced when this time is reached.
+        pp.query_default("thermal.end_initial_refine_time", value.thermal.end_initial_refine_time, "0.0", Unit::Time());
 
         //Temperature boundary condition
         pp.select_default<BC::Constant>("thermal.temp.bc", value.bc_temp, 1, Unit::Temperature());
@@ -164,6 +176,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterIntegratedVariable(&value.chamber.volume, "volume");
         value.RegisterIntegratedVariable(&value.chamber.area, "area");
         value.RegisterIntegratedVariable(&value.chamber.massflux, "mass_flux");
+        
+        value.RegisterNewFab(value.thermal.has_exceeded_Tcutoff, value.bc_temp, 1, 2, "exceeded_Tcutoff", 0); // Used to determine where regression has started
 
         // laser initial condition
         pp.select_default<  IC::Constant,
@@ -212,7 +226,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp_query_default("small", value.small, 1.0e-8); 
 
     // Initial condition for $\phi$ field.
-    pp.select_default<IC::PSRead,IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG>
+    pp.select_default<IC::Laminate,IC::Expression,IC::Constant,IC::BMP,IC::PNG, IC::PSRead>
         ("phi.ic",value.ic_phi,value.geom);
 
     value.RegisterNodalFab(value.phi_mf, 1, 2, "phi", true);
@@ -374,7 +388,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_htpb.F0 *= (temp_avg - elastic.Telastic);
                     model_htpb.F0 += Set::Matrix::Identity();
 
-                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
                 });
             }
             else
@@ -387,7 +401,7 @@ void Flame::UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/)
                     model_ap.F0 *= Set::Matrix::Zero();
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 *= Set::Matrix::Zero();
-                    model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
+                    model(i, j, k) = (model_ap * phi_avg + model_htpb * (1. - phi_avg));
                 });
             }
         }
@@ -418,7 +432,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
         Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
         Real R = 8314; // Ideal gas constant (J/kmol-k)
-        Real Pref = Hydro::pref; // Find the reference temperature from Hydro
         Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation (K)
 
         Real rho_AP_solid = 1950; // kg/m^3 https://en.wikipedia.org/wiki/Ammonium_perchlorate
@@ -438,7 +451,6 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             Set::Vector grad_eta_hydro = -2.0 * eta(i,j,k) * grad_eta;
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
             Set::Vector N = grad_eta_hydro / (grad_eta_mag + small); // Example of finding the normal vector
-            pressure(i,j,k) = pressure(i,j,k) + Pref; // Scale by the reference pressure b/c ideal gas law requires absolute pressure
             rho_AP_gas(i,j,k) = pressure(i,j,k)*M_AP/(R*temp_gas); // Density of AP gaseous products assuming ideal gas
             rho_HTPB_gas(i,j,k) = pressure(i,j,k)*M_HTPB/(R*temp_gas); // Density of HTPB gaseous products assuming ideal gas
             rho_tot_gas(i,j,k) = rho_AP_gas(i,j,k)*phi + rho_HTPB_gas(i,j,k)*(1.0 - phi); // Find the average density of the fluid based on the solid species
@@ -501,6 +513,18 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     if (thermal.on) {
         for (int lev = 0; lev <= finest_level; ++lev)
             ic_laser->Initialize(lev, laser_mf, a_time);
+    }
+
+    if (a_time > thermal.end_initial_refine_time)
+    {   
+        if (!end_initial_refine) {
+            for (int lev = 0; lev <= finest_level; ++lev)
+                Flame::Regrid(lev, a_time);
+            end_initial_refine = 1;
+        }
+
+        prev_finest_ba = grids[finest_level];
+        prev_finest_level = finest_level;
     }
 }
 
@@ -571,6 +595,9 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
         Set::Patch<Set::Scalar> mdot     = mdot_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar> heatflux = heatflux_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
+        Set::Scalar Tcutoff = thermal.Tcutoff;
+
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -597,7 +624,18 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
             Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
             Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
+            
+            if (df_deta < 0) {
+                // Prevent eta from increasing/healing. A bug was found where if the diffuse thickness was too large compared to a void
+                // (region of eta = 0), eta would heal/increase in a non-physcial way, this statement stops that behavior 
+                df_deta = 0.0;
+            }
+            if (thermal.on && T < thermal.Tcutoff) {
+                // If the temperature is lower then the cutoff temperature don't evolve the eta field
+                df_deta = 0.0;
+            }
             etanew(i, j, k) = eta(i, j, k) - L * dt * df_deta;
+            
             if (etanew(i, j, k) <= small) etanew(i, j, k) = small;
 
             if (thermal.on)
@@ -620,6 +658,11 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 
                 Set::Scalar q0 = propellant.get_qdot(mdot(i,j,k), phi_avg);
                 heatflux(i,j,k) = ( thermal.hc*q0 + laser(i,j,k) ) / K;
+
+                if (temp(i,j,k) > Tcutoff)
+                {
+                    exceeded_Tcutoff(i,j,k) = 1;
+                }
 
             }
 
@@ -691,13 +734,24 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<char> const& tags = a_tags.array(mfi);
         Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
 
+        if (thermal.on) {
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction && temp(i,j,k) > thermal.Tcutoff*0.9)
+                tags(i, j, k) = amrex::TagBox::SET;
+        });
+
+        } else {
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
             if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
+        }
     }
 
     // Phi criterion for refinement 
@@ -734,15 +788,71 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
             });
         }
     }
+
+        // Refine at start
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.tilebox();
+        amrex::Array4<char> const& tags = a_tags.array(mfi);
+        Set::Patch<const Set::Scalar> eta = eta_mf.Patch(lev,mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && time < thermal.end_initial_refine_time)
+                tags(i, j, k) = amrex::TagBox::SET;
+        });
+    }
 }
 
 void Flame::Regrid(int lev, Set::Scalar time)
-{
+{   
     BL_PROFILE("Integrator::Flame::Regrid");
-    //if (lev < finest_level) return;
-    //phi_mf[lev]->setVal(0.0);
+
     ic_phi->Initialize(lev, phi_mf, time);
-    //ic_phicell->Initialize(lev, phi_mf, time);
+    ic_eta->Initialize(lev, eta_0_mf, time);
+
+    if (thermal.on) {
+    /* 
+    This regrid function works by making a using the "has_exceeded_Tcutoff" field. If the temperature in a cell is greater than Tcutoff,
+    eta will change and when regruding won't use the initial eta field. If T < T_cutoff, when regriding happens it applies the inital 
+    eta field condition. This gives at leat a 4x speed improvement in 2D when doing regression with voids. This is because orgioanlly
+    there was a bug where when regridding, the orgional eta field wouldn't be applied, so there would be "sqaures" of voids instead of
+    circles/spheres when using .xyzr files as the inital condition.
+    */
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box &bx = mfi.tilebox();
+        Set::Patch<Set::Scalar> eta    = eta_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> temp = temp_mf.Patch(lev, mfi);
+        Set::Patch<const Set::Scalar> eta_0 = eta_0_mf.Patch(lev, mfi);
+        Set::Patch<Set::Scalar> exceeded_Tcutoff = thermal.has_exceeded_Tcutoff.Patch(lev, mfi);
+
+        Set::Scalar Tcutoff = thermal.Tcutoff;
+
+        amrex::BoxList boxes_to_update;
+        if (lev == finest_level && prev_finest_level == finest_level)
+            boxes_to_update = amrex::complementIn(bx, prev_finest_ba).boxList();
+        else
+            boxes_to_update.push_back(bx);
+
+        for (const amrex::Box &box : boxes_to_update)
+            amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+
+                if (!exceeded_Tcutoff(i,j,k) && temp(i,j,k) < Tcutoff)
+                {
+                        eta(i, j, k) = eta_0(i, j, k);
+                }
+            });
+    }
+
+    if (lev == finest_level)
+    {
+        prev_finest_ba    = grids[finest_level];
+        prev_finest_level = finest_level;
+    }
+    }
 }
 
 void Flame::Integrate(int amrlev, Set::Scalar time, int step,
@@ -786,5 +896,4 @@ void Flame::Integrate(int amrlev, Set::Scalar time, int step,
     // time dependent pressure data from experimenta -> p = 0.0954521220950523 * exp(15.289993148880678 * t)
 }
 } // namespace Integrator
-
 

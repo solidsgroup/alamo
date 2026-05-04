@@ -15,6 +15,14 @@
 #include "Solver/Local/Riemann/HLLC.H"
 #include "AMReX_TimeIntegrator.H"
 
+#include "Model/Gas/Gas.H"
+#include "Model/Gas/Thermo/Thermo.H"
+#include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Transport/Transport.H"
+#include "Model/Gas/Transport/Mixture_Averaged.H"
+#include "Model/Gas/EOS/EOS.H"
+#include "Model/Gas/EOS/CPG.H"
+
 namespace Integrator
 {
 
@@ -47,15 +55,15 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         // density-based refinement
         pp.query_default("rho_refinement_criterion", value.rho_refinement_criterion, 1e100);
 
-        pp_query_required("gamma", value.gamma); // gamma for gamma law
+        pp_forbid("gamma", "replaced by gas->gamma(...)"); // gamma for gamma law
         pp_query_required("cfl", value.cfl); // cfl condition
         pp_query_default("cfl_v", value.cfl_v,1E100); // cfl condition
-        pp_query_required("mu", value.mu); // linear viscosity coefficient
+        pp_forbid("mu", "replaced with gas->dynamic_viscosity(...)"); // linear viscosity coefficient
         pp_forbid("Lfactor","replaced with mu");
         //pp_query_default("Lfactor", value.Lfactor,1.0); // (to be removed) test factor for viscous source
         pp_forbid("Pfactor","replaced with mu");
         //pp_query_default("Pfactor", value.Pfactor,1.0); // (to be removed) test factor for viscous source
-        pp_query_default("pref", value.pref,1.0); // reference pressure for Roe solver
+        pp_forbid("pref", "deprecated - use absolute pressure"); // reference pressure for Roe solver
 
         pp_forbid("rho.bc","--> density.bc");
         pp_forbid("p.bc","--> pressure.bc");
@@ -106,6 +114,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.momentum_old_mf, value.momentum_bc, 2, nghost, "momentum_old", false, true);
  
         value.RegisterNewFab(value.pressure_mf,  &value.bc_nothing, 1, nghost, "pressure",  true, false);
+        value.RegisterNewFab(value.temperature_mf,  &value.bc_nothing, 1, nghost, "temperature",  true, false);
         value.RegisterNewFab(value.velocity_mf,  &value.bc_nothing, 2, nghost, "velocity",  true, false,{"x","y"});
         value.RegisterNewFab(value.vorticity_mf, &value.bc_nothing, 1, nghost, "vorticity", true, false);
 
@@ -118,6 +127,10 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.solid.energy_mf,   &value.neumann_bc_1, 1, nghost, "solid.energy",   true, false);
 
         value.RegisterNewFab(value.Source_mf, &value.bc_nothing, 4, 0, "Source", true, false);
+
+        value.RegisterNewFab(value.mass_fraction_mf,  &value.bc_nothing, 1, nghost, "mass_fraction",     true , true);
+        value.RegisterNewFab(value.mole_fraction_mf,  &value.bc_nothing, 1, nghost, "mole_fraction",     true , true);
+        value.RegisterNewFab(value.scratch_mf,  &value.bc_nothing, 1, nghost, "scratch",     false , false);
     }
 
     pp_forbid("Velocity.ic.type", "--> velocity.ic.type");
@@ -172,6 +185,13 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
                         Solver::Local::Riemann::HLLE,
                         Solver::Local::Riemann::HLLC>("solver",value.riemannsolver);
 
+    // Gas model (Thermo, Transport, and EOS)
+    pp.queryclass<Model::Gas::Gas>("gas", value.gas);
+    value.nspecies = value.gas.nspecies;
+    std::cout << value.gas.thermo->model_name() << "\n";
+    std::cout << value.gas.transport->model_name() << "\n";
+    std::cout << value.gas.eos->model_name() << "\n";
+    std::cout << value.nspecies << "\n";
 
     std::string prescribedflowmode_str;
     // 
@@ -209,18 +229,17 @@ void Hydro::Initialize(int lev)
 
     velocity_ic      ->Initialize(lev, velocity_mf, 0.0);
     pressure_ic      ->Initialize(lev, pressure_mf, 0.0);
-    density_ic       ->Initialize(lev, density_mf, 0.0);
+    density_ic       ->Initialize(lev, density_mf,  0.0);
 
     density_ic       ->Initialize(lev, density_old_mf, 0.0);
 
-
-    solid.density_ic ->Initialize(lev, solid.density_mf, 0.0);
+    solid.density_ic ->Initialize(lev, solid.density_mf,  0.0);
     solid.momentum_ic->Initialize(lev, solid.momentum_mf, 0.0);
-    solid.energy_ic  ->Initialize(lev, solid.energy_mf, 0.0);
+    solid.energy_ic  ->Initialize(lev, solid.energy_mf,   0.0);
 
     ic_m0            ->Initialize(lev, m0_mf, 0.0);
-    ic_u0            ->Initialize(lev, u0_mf,    0.0);
-    ic_q             ->Initialize(lev, q_mf,            0.0);
+    ic_u0            ->Initialize(lev, u0_mf, 0.0);
+    ic_q             ->Initialize(lev, q_mf,  0.0);
 
     Source_mf[lev]   ->setVal(0.0);
 
@@ -238,8 +257,8 @@ void Hydro::Mix(int lev)
 
         Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
 
-        Set::Patch<const Set::Scalar> v         = velocity_mf.Patch(lev,mfi);
-        Set::Patch<const Set::Scalar> p         = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho       = density_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       rho_old   = density_old_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       M         = momentum_mf.Patch(lev,mfi);
@@ -249,31 +268,48 @@ void Hydro::Mix(int lev)
         Set::Patch<const Set::Scalar> rho_solid = solid.density_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
 
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {  
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
-            rho_old(i, j, k) = rho(i, j, k);
+            // Initially compute primitives (T,P,u) from given initial conditions
+            // But from then on, compute them from mixed values to avoid zero T conditions
+            // Except velocity - keep velocity from fluid values only
+            gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from fluid densities
+            Set::Scalar density = gas.ComputeD(rho, i, j, k); // If a gas mixture, this will compute the mixture density
+            T(i,j,k) = gas.ComputeT(p(i,j,k), density, X, i, j, k);
+            Set::Scalar E_fluid = gas.ComputeE(density, density*v(i,j,k,0), density*v(i,j,k,1), T(i,j,k), X, i, j, k);
 
-            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta  +  M_solid(i, j, k, 0)*(1.0-eta);
-            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta  +  M_solid(i, j, k, 1)*(1.0-eta);
+            // Mix
+            M(i, j, k, 0) = (rho(i, j, k)*v(i, j, k, 0))*eta +  M_solid(i, j, k, 0)*(1.0-eta);
+            M(i, j, k, 1) = (rho(i, j, k)*v(i, j, k, 1))*eta +  M_solid(i, j, k, 1)*(1.0-eta);
             M_old(i, j, k, 0) = M(i, j, k, 0);
             M_old(i, j, k, 1) = M(i, j, k, 1);
 
-            E(i, j, k) =
-                (0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1)) * rho(i, j, k) + (p(i, j, k) + pref) / (gamma - 1.0)) * eta 
-                + 
-                E_solid(i, j, k) * (1.0 - eta);
+            rho(i, j, k) = eta * rho(i, j, k) + (1.0 - eta) * rho_solid(i, j, k);
+            rho_old(i, j, k) = rho(i, j, k);
+
+            E(i, j, k) = E_fluid*eta + E_solid(i,j,k)*(1.0-eta);
             E_old(i, j, k) = E(i, j, k);
+            //Util::Message(INFO,"Energy: ", E(i,j,k), " Pressure: ", p(i,j,k), " Temp: ", T(i,j,k), " Density: ",density, " R: ", gas.R(X,i,j,k), " MW: ", gas.GetMW(X,i,j,k), " Rg: ", Set::Constant::Rg);
+
+            //gas.ComputeLocalFractions(rho, Y, X, i,j,k); // Get local mole/mass fractions from mixed densities
+            //density = gas.ComputeD(rho, i, j, k);
+            //T(i, j, k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            //p(i, j, k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
+            //v(i,j,k,0) = M(i,j,k,0)/density;
+            //v(i,j,k,1) = M(i,j,k,1)/density;
         });
+        //Util::Abort(INFO);
     }
     c_max = 0.0;
     vx_max = 0.0;
     vy_max = 0.0;
-    if (managed) mixed[lev] = true;
 }
 
 void Hydro::UpdateEta(int lev, Set::Scalar time)
@@ -469,30 +505,31 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> M_solid   = solid.momentum_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> E_solid   = solid.energy_mf.Patch(lev,mfi);
 
+        Set::Patch<Set::Scalar> scratch         = scratch_mf.Patch(lev,mfi);
+
         Set::Patch<Set::Scalar>       v         = velocity_mf.Patch(lev,mfi);
         Set::Patch<Set::Scalar>       p         = pressure_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       T         = temperature_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       Y         = mass_fraction_mf.Patch(lev,mfi);
+        Set::Patch<Set::Scalar>       X         = mole_fraction_mf.Patch(lev,mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Scalar eta = invert ? 1.0-eta_patch(i,j,k)*eta_patch(i,j,k) : eta_patch(i,j,k);
 
-            Set::Scalar etarho_fluid  = rho(i,j,k) - (1.-eta) * rho_solid(i,j,k);
-            Set::Scalar etaE_fluid    = E(i,j,k)   - (1.-eta) * E_solid(i,j,k);
-            
-            Set::Vector etaM_fluid;
+            // Compute T and P primitives from mixed values
+            Set::Scalar density = gas.ComputeD(rho, i, j, k);
+            T(i,j,k) = gas.ComputeT(density, M(i,j,k,0), M(i,j,k,1), E(i,j,k), T(i,j,k), X, i, j, k);
+            p(i,j,k) = gas.ComputeP(density, T(i,j,k), X, i, j, k);
 
-            etaM_fluid(0) = M(i,j,k,0) - (1.-eta) * M_solid(i,j,k,0);
-            etaM_fluid(1) = M(i,j,k,1) - (1.-eta) * M_solid(i,j,k,1);
-            
-            #if AMREX_SPACEDIM == 3
-                etaM_fluid(2) = 0.0;
-            #endif
-
-            //THESE ARE FLUID VELOCITY AND PRESSURE
-
-            v(i,j,k,0) = etaM_fluid(0) / (etarho_fluid + small);
-            v(i,j,k,1) = etaM_fluid(1) / (etarho_fluid + small);
-            p(i,j,k)   = (etaE_fluid / (eta + small) - 0.5 * (etaM_fluid(0)*etaM_fluid(0) + etaM_fluid(1)*etaM_fluid(1)) / (etarho_fluid + small)) * ((gamma - 1.0) / (eta + small))-pref;
+            // Compute velocity from fluid values
+            scratch(i,j,k) = (rho(i,j,k) - rho_solid(i,j,k)*(1.0 - eta))/(eta + small);
+            gas.ComputeLocalFractions(scratch, Y, X, i, j, k);
+            Set::Scalar density_fluid = gas.ComputeD(scratch, i, j, k);
+            Set::Scalar Mx_fluid = (M(i,j,k,0) - M_solid(i,j,k,0)*(1.0 - eta))/(eta + small);
+            Set::Scalar My_fluid = (M(i,j,k,1) - M_solid(i,j,k,1)*(1.0 - eta))/(eta + small);
+            v(i,j,k,0) = Mx_fluid/density_fluid;
+            v(i,j,k,1) = My_fluid/density_fluid;
 
             if (eta < small) 
             {
@@ -537,6 +574,8 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
         Set::Patch<const Set::Scalar> eta_patch = eta_old_mf->Patch(lev,mfi);
         Set::Patch<const Set::Scalar> etadot    = etadot_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> velocity  = velocity_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> T         = temperature_mf.Patch(lev,mfi);
+        Set::Patch<const Set::Scalar> molef     = mole_fraction_mf.Patch(lev,mfi);
 
         Set::Patch<const Set::Scalar> m0        = m0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> q         = q_mf.Patch(lev,mfi);
@@ -596,10 +635,14 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             }
 
 
-            Set::Scalar mdot0 = -m0(i,j,k)*grad_eta_mag;
+            Set::Scalar mdot0 = m0(i,j,k)*grad_eta_mag;
             Set::Vector Pdot0 = Set::Vector::Zero(); // Linear momentum source term
             Set::Scalar qdot0 = q0.dot(grad_eta);
 
+            Set::Scalar mu = gas.dynamic_viscosity(T(i,j,k), molef, i, j, k);
+
+            // sten is necessary here because sometimes corner ghost
+            // cells don't get filled
             Set::Matrix3 hess_M = Numeric::Hessian(M,i,j,k,DX);
             Set::Matrix3 hess_u = Set::Matrix3::Zero();
             for (int p = 0; p < 2; p++)
@@ -613,21 +656,20 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
 
             Set::Vector Ldot0 = Set::Vector::Zero();
             Set::Vector div_tau = Set::Vector::Zero();
+            Set::Scalar lambda = 0.0; //-2.0/3.0*mu_eff;
             for (int p = 0; p<2; p++)
                 for (int q = 0; q<2; q++)
                     for (int r = 0; r<2; r++)
                         for (int s = 0; s<2; s++)
                         {
-                            Set::Scalar Mpqrs = 0.0;
-                            if (p==r && q==s) Mpqrs += 0.5 * mu;
+                            Ldot0(p) += 0.25 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (u(r) - u0(r)) * hess_eta(q, s);
+                            div_tau(p) += 0.5 * (mu * ((p==r && q==s) + (p==s && q==r)) + lambda * (p==q && r==s)) * (hess_u(r,q,s) + hess_u(s,q,r));
 
-                            Ldot0(p) += 0.5*Mpqrs * (u(r) - u0(r)) * hess_eta(q, s);
-                            div_tau(p) += 2.0*Mpqrs * hess_u(r,s,q);
                         }
 
             Source(i,j, k, 0) = mdot0;
-            Source(i,j, k, 1) = (Pdot0(0) - Ldot0(0));
-            Source(i,j, k, 2) = (Pdot0(1) - Ldot0(1));
+            Source(i,j, k, 1) = Pdot0(0) - Ldot0(0);
+            Source(i,j, k, 2) = Pdot0(1) - Ldot0(1);
             Source(i,j, k, 3) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
 
             // Lagrange terms to enforce no-penetration
@@ -654,7 +696,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             Solver::Local::Riemann::State state_y_solid  (rho_solid, M_solid, E_solid, i, j  , k, Y); 
             Solver::Local::Riemann::State state_yhi_solid(rho_solid, M_solid, E_solid, i, j+1, k, Y); 
 
-
             Solver::Local::Riemann::State state_xlo_fluid = invert ? 
                 (state_xlo - (eta_patch(i-1,j,k))*state_xlo_solid) / (1.0 - eta_patch(i-1,j,k) + small) :
                 (state_xlo - (1.0 - eta_patch(i-1,j,k))*state_xlo_solid) / (eta_patch(i-1,j,k) + small);
@@ -679,12 +720,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
             try
             {
                 //lo interface fluxes
-                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gamma, pref, small) * eta;
-                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gamma, pref, small) * eta;
+                flux_xlo = riemannsolver->Solve(state_xlo_fluid, state_x_fluid, gas, molef, i, j, k, 0, small) * eta;
+                flux_ylo = riemannsolver->Solve(state_ylo_fluid, state_y_fluid, gas, molef, i, j, k, 2, small) * eta;
 
                 //hi interface fluxes
-                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gamma, pref, small) * eta;
-                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gamma, pref, small) * eta;
+                flux_xhi = riemannsolver->Solve(state_x_fluid, state_xhi_fluid, gas, molef, i, j, k, 1, small) * eta;
+                flux_yhi = riemannsolver->Solve(state_y_fluid, state_yhi_fluid, gas, molef, i, j, k, 3, small) * eta;
             }
             catch(...)
             {
@@ -692,7 +733,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::Abort(INFO);
             }
-
+                
 
             Set::Scalar drhof_dt = 
                 (flux_xlo.mass - flux_xhi.mass) / DX[0] +
@@ -732,7 +773,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 div_tau(1) * eta + 
                 g(1)*rho(i,j,k) +
                 Source(i, j, k, 2);
-                
+
             M_rhs(i,j,k,1) = 
                 //M_new(i, j, k, 1) = M(i, j, k, 1) +
                 //( 
@@ -771,7 +812,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/,
                 Util::ParallelMessage(INFO,"i=",i," j=",j);
                 Util::ParallelMessage(INFO,"drhof_dt ",drhof_dt); // dies
                 Util::ParallelMessage(INFO,"flux_xlo.mass ",flux_xlo.mass);
-                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, gamma, eta, pref, small
+                Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_xhi.mass); // dies, depends on state_xx, state_xhi, state_x_solid, state_xhi_solid, eta, small
                 Util::ParallelMessage(INFO,"flux_ylo.mass ",flux_ylo.mass);
                 Util::ParallelMessage(INFO,"flux_xhi.mass ",flux_yhi.mass);
                 Util::ParallelMessage(INFO,"eta ",eta);
