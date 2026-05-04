@@ -535,7 +535,7 @@ void Hydro::RefreshDerivedPlotFields(int lev)
 
     for (amrex::MFIter mfi(*velocity_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.growntilebox();
+        const amrex::Box& bx = mfi.tilebox();
 
         amrex::Array4<const Set::Scalar> const& eta_patch = (*(*eta_mf)[lev]).array(mfi);
 
@@ -919,30 +919,6 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                         }
 
 
-            std::array<double, NSPECIES> rhoY;
-            for (int n=0; n<NSPECIES; ++n)
-            {
-                Source(i,j, k, n) = mdot0[n];
-                rhoY[n] = rho(i,j,k,n);
-            }
-            Source(i,j, k, NSPECIES  ) = Pdot0(0) - Ldot0(0);
-            Source(i,j, k, NSPECIES+1) = Pdot0(1) - Ldot0(1);
-            Source(i,j, k, NSPECIES+2) = qdot0;// - Ldot0(0)*v(i,j,k,0) - Ldot0(1)*v(i,j,k,1);
-
-            std::array<double, NSPECIES> wdot;
-            Set::Scalar qdot = 0.0;
-            std::tie(wdot, qdot) = chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY, dt, &gas);
-
-            if (details)
-            {
-                qdot_arr(i,j,k) = qdot;
-                for (int n=0; n<NSPECIES; ++n) wdot_arr(i,j,k,n) = wdot[n];
-            }
-
-            // Lagrange terms to enforce no-penetration
-            Source(i,j,k,NSPECIES  ) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
-            Source(i,j,k,NSPECIES+1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
-
             //Godunov flux
             //states of total fields
             const int X = 0, Y = 1;
@@ -1001,11 +977,12 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                 Util::ParallelMessage(INFO,"i=",i,"j=",j);
                 Util::Abort(INFO);
             }
-                
-            Set::Scalar drhof_dt = 0.0;
+
+            std::array<double, NSPECIES> drhof_dt_hydro;
             for (int n=0; n<NSPECIES; ++n)
             {
-                drhof_dt = 
+                Source(i,j, k, n) = mdot0[n];
+                drhof_dt_hydro[n] = 
                     (flux_xlo.mass[n] - flux_xhi.mass[n]) / DX[0] +
                     (flux_ylo.mass[n] - flux_yhi.mass[n]) / DX[1] +
                     Source(i, j, k, n);
@@ -1014,17 +991,36 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
                     // species diffusion term, d/dx_i(rho*DKM*Y,i)
                     Set::Vector grad_rhoDYx     = Numeric::Gradient(rhoDYx,i,j,k,n,DX,sten);
                     Set::Vector grad_rhoDYy     = Numeric::Gradient(rhoDYy,i,j,k,n,DX,sten);
-                    drhof_dt += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
+                    drhof_dt_hydro[n] += eta * (grad_rhoDYx[0] + grad_rhoDYy[1]);
                 }
-                drhof_dt += eta * wdot[n];
+            }
 
+            Source(i,j, k, NSPECIES  ) = Pdot0(0) - Ldot0(0);
+            Source(i,j, k, NSPECIES+1) = Pdot0(1) - Ldot0(1);
+            Source(i,j, k, NSPECIES+2) = qdot0;
+
+            // Lagrange terms to enforce no-penetration
+            Source(i,j,k,NSPECIES  ) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(0);
+            Source(i,j,k,NSPECIES+1) -= lagrange*(u-u0).dot(grad_eta)*grad_eta(1);
+
+            std::array<double, NSPECIES> rhoY_intermediate;
+            for (int n=0; n<NSPECIES; ++n) rhoY_intermediate[n] = rho(i,j,k,n) + drhof_dt_hydro[n] * dt;
+
+            std::array<double, NSPECIES> wdot;
+            Set::Scalar qdot = 0.0;
+            std::tie(wdot, qdot) = chemistry.compute(pressure(i,j,k), temp(i,j,k), rhoY_intermediate, dt, &gas);
+
+            if (details)
+            {
+                qdot_arr(i,j,k) = qdot;
+                for (int n=0; n<NSPECIES; ++n) wdot_arr(i,j,k,n) = wdot[n];
+            }
+
+            for (int n=0; n<NSPECIES; ++n)
+            {
                 rho_rhs(i,j,k,n) = 
-                    // rho_new(i, j, k) = rho(i, j, k) + 
-                    //(
-                        drhof_dt +
-                        // todo add drhos_dt term if want time-evolving rhos
+                        drhof_dt_hydro[n] + eta * wdot[n] +
                         etadot(i,j,k) * (rho(i,j,k,n) - rho_solid(i,j,k,n)) / (eta + small)
-                    // ) * dt;
                     ;
             }
                 
