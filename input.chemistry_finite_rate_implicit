@@ -26,15 +26,17 @@ gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_
 
 gas.eos.type = tpg
 
-chemistry.type = frozen
+chemistry.type = finite_rate
+chemistry.finite_rate.yaml = h2o2.yaml
+chemistry.finite_rate.integration = implicit
 
 ### OUTPUT ###
 
-plot_file = output.chemistry_frozen
+plot_file = output.chemistry_finite_rate_implicit
 
 ### MESHING ###
 
-amr.plot_dt = 1e-4
+amr.plot_dt = 1e-6
 amr.max_level = 0
 amr.max_grid_size = 32
 amr.blocking_factor = 4
@@ -49,7 +51,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep  = 1.0e-4
+timestep  = 1.0e-7
 stop_time = 2e-4
 
 ### HYDRO PARAM ###

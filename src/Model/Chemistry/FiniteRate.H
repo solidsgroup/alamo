@@ -18,6 +18,13 @@ struct FiniteRate
 {
     static constexpr const char* name = "finite_rate";
 
+    enum class IntegrationType { EXPLICIT, SUBSTEP, IMPLICIT };
+    IntegrationType integration = IntegrationType::EXPLICIT;
+    int nsubsteps = 10;
+    int max_iter = 100;
+    double reltol = 1.0e-6;
+    double abstol = 1.0e-12;
+
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static double EvaluateTroeFactor(
         const double T,
@@ -42,6 +49,262 @@ struct FiniteRate
         double x = std::log10(std::max(Pr, 1.0e-300)) + c;
         double f1 = x / (n - d * x);
         return std::pow(10.0, logFcent / (1.0 + f1 * f1));
+    }
+
+    AMREX_FORCE_INLINE
+    static double norm2(const std::array<double, NSPECIES>& values)
+    {
+        double norm = 0.0;
+        for (int i = 0; i < NSPECIES; ++i) norm += values[i] * values[i];
+        return std::sqrt(norm);
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    static double sum_species(const std::array<double, NSPECIES>& values)
+    {
+        double sum = 0.0;
+        for (int i = 0; i < NSPECIES; ++i) sum += values[i];
+        return sum;
+    }
+
+    AMREX_FORCE_INLINE
+    static bool project_nonnegative_mass(std::array<double, NSPECIES>& values, const double target_mass)
+    {
+        if (target_mass < 0.0) return false;
+
+        double positive_sum = 0.0;
+        for (int i = 0; i < NSPECIES; ++i)
+        {
+            if (values[i] < 0.0) values[i] = 0.0;
+            positive_sum += values[i];
+        }
+
+        if (target_mass == 0.0)
+        {
+            for (int i = 0; i < NSPECIES; ++i) values[i] = 0.0;
+            return true;
+        }
+        if (!(positive_sum > 0.0)) return false;
+
+        const double scale = target_mass / positive_sum;
+        for (int i = 0; i < NSPECIES; ++i) values[i] *= scale;
+        return true;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Set::Scalar compute_qdot_from_wdot(
+        const Set::Scalar T,
+        const std::array<double, NSPECIES>& wdot,
+        const Model::Gas::Gas* gas) const
+    {
+        const double R = Set::Constant::Rg;
+        Set::Scalar qdot = 0.0;
+        for (int n = 0; n < NSPECIES; ++n)
+        {
+            double e_n = (gas->enthalpy_mol_species(T, n) - R * T) / gas->MW[n];
+            qdot -= wdot[n] * e_n;
+        }
+        return qdot;
+    }
+
+    AMREX_FORCE_INLINE
+    double compute_backward_euler_residual(
+        const Set::Scalar P,
+        const Set::Scalar T,
+        const std::array<double, NSPECIES>& rhoY_old,
+        const std::array<double, NSPECIES>& rhoY,
+        const Set::Scalar dt,
+        const Model::Gas::Gas* gas,
+        std::array<double, NSPECIES>& G,
+        std::array<double, NSPECIES>& wdot) const
+    {
+        auto source = evaluate_source(P, T, rhoY, gas);
+        wdot = source.first;
+
+        double residual_norm = 0.0;
+        for (int i = 0; i < NSPECIES; ++i)
+        {
+            G[i] = rhoY[i] - rhoY_old[i] - dt * wdot[i];
+            residual_norm += G[i] * G[i];
+        }
+        return std::sqrt(residual_norm);
+    }
+
+    AMREX_FORCE_INLINE
+    static bool solve_linear_system(double A[NSPECIES][NSPECIES], double b[NSPECIES])
+    {
+        for (int i = 0; i < NSPECIES; ++i)
+        {
+            int pivot = i;
+            for (int j = i + 1; j < NSPECIES; ++j)
+                if (std::abs(A[j][i]) > std::abs(A[pivot][i])) pivot = j;
+            
+            for (int j = 0; j < NSPECIES; ++j) { double tmp = A[i][j]; A[i][j] = A[pivot][j]; A[pivot][j] = tmp; }
+            { double tmp = b[i]; b[i] = b[pivot]; b[pivot] = tmp; }
+
+            if (std::abs(A[i][i]) < 1.0e-30) return false;
+
+            for (int j = i + 1; j < NSPECIES; ++j)
+            {
+                double factor = A[j][i] / A[i][i];
+                A[j][i] = 0.0;
+                for (int k = i + 1; k < NSPECIES; ++k) A[j][k] -= factor * A[i][k];
+                b[j] -= factor * b[i];
+            }
+        }
+
+        for (int i = NSPECIES - 1; i >= 0; --i)
+        {
+            for (int j = i + 1; j < NSPECIES; ++j) b[i] -= A[i][j] * b[j];
+            if (std::abs(A[i][i]) > 1.0e-30) b[i] /= A[i][i];
+            else return false;
+        }
+        return true;
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    std::pair<std::array<double,NSPECIES>,Set::Scalar>
+    compute_substep(
+        const Set::Scalar P,
+        const Set::Scalar T,
+        const std::array<double, NSPECIES>& rhoY_old,
+        const Set::Scalar dt,
+        const Model::Gas::Gas* gas) const
+    {
+        if (!(dt > 0.0)) return evaluate_source(P, T, rhoY_old, gas);
+
+        Util::Assert(INFO, TEST(nsubsteps > 0),
+            "Finite-rate substep integration requires nsubsteps > 0.");
+
+        std::array<double, NSPECIES> rhoY = rhoY_old;
+        Set::Scalar dt_sub = dt / (Set::Scalar)nsubsteps;
+        const double mass_old = sum_species(rhoY_old);
+
+        for (int s = 0; s < nsubsteps; ++s)
+        {
+            auto source = evaluate_source(P, T, rhoY, gas);
+            limit_wdot_positivity(source.first, rhoY, dt_sub);
+            for (int n = 0; n < NSPECIES; ++n)
+            {
+                rhoY[n] += source.first[n] * dt_sub;
+            }
+        }
+
+        std::array<double, NSPECIES> wdot_eff;
+        for (int n = 0; n < NSPECIES; ++n)
+        {
+            wdot_eff[n] = (rhoY[n] - rhoY_old[n]) / dt;
+        }
+
+        const double mass_change = sum_species(rhoY) - mass_old;
+        const double mass_tol = 1.0e-10 * std::max(1.0, std::abs(mass_old));
+        Util::Assert(INFO, TEST(std::abs(mass_change) <= mass_tol),
+            "Finite-rate substep integration produced a non-conservative update. Residual = ",
+            mass_change, ", tolerance = ", mass_tol, ".");
+
+        return {wdot_eff, compute_qdot_from_wdot(T, wdot_eff, gas)};
+    }
+
+    AMREX_FORCE_INLINE
+    std::pair<std::array<double,NSPECIES>,Set::Scalar>
+    compute_implicit(
+        const Set::Scalar P,
+        const Set::Scalar T,
+        const std::array<double, NSPECIES>& rhoY_old,
+        const Set::Scalar dt,
+        const Model::Gas::Gas* gas) const
+    {
+        if (!(dt > 0.0)) return evaluate_source(P, T, rhoY_old, gas);
+
+        Util::Assert(INFO, TEST(max_iter > 0),
+            "Finite-rate implicit integration requires max_iter > 0.");
+
+        std::array<double, NSPECIES> rhoY = rhoY_old;
+        std::array<double, NSPECIES> G;
+        std::array<double, NSPECIES> wdot;
+        const double state_scale = std::max(1.0, norm2(rhoY_old));
+        const double mass_old = sum_species(rhoY_old);
+        double res_norm = compute_backward_euler_residual(P, T, rhoY_old, rhoY, dt, gas, G, wdot);
+        const double residual_scale = std::max(state_scale, res_norm);
+        const double conv_tol = abstol + reltol * residual_scale;
+        bool converged = res_norm <= conv_tol;
+        
+        for (int iter = 0; iter < max_iter; ++iter)
+        {
+            if (converged) break;
+
+            double J[NSPECIES][NSPECIES];
+            double b[NSPECIES];
+            for (int j = 0; j < NSPECIES; ++j)
+            {
+                double eps = std::sqrt(1.0e-16) * std::max(std::abs(rhoY[j]), 1.0e-8 * state_scale);
+                std::array<double, NSPECIES> rhoY_pert = rhoY;
+                rhoY_pert[j] += eps;
+                auto source_pert = evaluate_source(P, T, rhoY_pert, gas);
+                for (int i = 0; i < NSPECIES; ++i)
+                {
+                    double dwdot_drhoY = (source_pert.first[i] - wdot[i]) / eps;
+                    J[i][j] = (i == j ? 1.0 : 0.0) - dt * dwdot_drhoY;
+                }
+                b[j] = -G[j];
+            }
+
+            Util::Assert(INFO, TEST(solve_linear_system(J, b)),
+                "Finite-rate implicit integration encountered a singular Newton system.");
+
+            bool accepted = false;
+            double alpha = 1.0;
+            for (int ls = 0; ls < 20; ++ls)
+            {
+                std::array<double, NSPECIES> rhoY_trial = rhoY;
+                for (int i = 0; i < NSPECIES; ++i)
+                {
+                    rhoY_trial[i] += alpha * b[i];
+                }
+
+                const bool projected = project_nonnegative_mass(rhoY_trial, mass_old);
+                std::array<double, NSPECIES> G_trial;
+                std::array<double, NSPECIES> wdot_trial;
+                const double trial_res_norm =
+                    compute_backward_euler_residual(P, T, rhoY_old, rhoY_trial, dt, gas, G_trial, wdot_trial);
+
+                if (projected && (trial_res_norm <= conv_tol || trial_res_norm < res_norm))
+                {
+                    rhoY = rhoY_trial;
+                    G = G_trial;
+                    wdot = wdot_trial;
+                    res_norm = trial_res_norm;
+                    converged = res_norm <= conv_tol;
+                    accepted = true;
+                    break;
+                }
+
+                alpha *= 0.5;
+            }
+
+            Util::Assert(INFO, TEST(accepted),
+                "Finite-rate implicit integration failed to find a positivity-preserving Newton update. ",
+                "Residual = ", res_norm, ", tolerance = ", conv_tol, ".");
+        }
+
+        Util::Assert(INFO, TEST(converged),
+            "Finite-rate implicit integration failed to converge after ", max_iter,
+            " Newton iterations. Residual = ", res_norm, ", tolerance = ", conv_tol, ".");
+
+        const double mass_change = sum_species(rhoY) - mass_old;
+        const double mass_tol =
+            std::sqrt((double)NSPECIES) * conv_tol + 1.0e-12 * std::max(1.0, std::abs(mass_old));
+        Util::Assert(INFO, TEST(std::abs(mass_change) <= mass_tol),
+            "Finite-rate implicit integration produced a non-conservative update. Residual = ",
+            mass_change, ", tolerance = ", mass_tol, ".");
+
+        std::array<double, NSPECIES> wdot_eff;
+        for (int n = 0; n < NSPECIES; ++n)
+        {
+            wdot_eff[n] = (rhoY[n] - rhoY_old[n]) / dt;
+        }
+
+        return {wdot_eff, compute_qdot_from_wdot(T, wdot_eff, gas)};
     }
 
     FiniteRate() = default;
@@ -269,6 +532,7 @@ struct FiniteRate
         }
     }
 
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     std::pair<std::array<double,NSPECIES>,Set::Scalar>
     compute(
         const Set::Scalar P,
@@ -277,25 +541,66 @@ struct FiniteRate
         const Set::Scalar dt,
         const Model::Gas::Gas* gas) const
     {
-        std::pair<std::array<double, NSPECIES>, Set::Scalar> source = evaluate_source(P, T, rhoY, gas);
-        if (dt > 0.0)
+        if (integration == IntegrationType::SUBSTEP)
         {
-            limit_wdot_positivity(source.first, rhoY, dt);
-            // Re-calculate qdot after limiting wdot to maintain energy consistency
-            const double R = Set::Constant::Rg;
-            source.second = 0.0;
-            for (int n = 0; n < NSPECIES; ++n)
-            {
-                double e_n = (gas->enthalpy_mol_species(T, n) - R * T) / gas->MW[n];
-                source.second -= source.first[n] * e_n;
-            }
+            return compute_substep(P, T, rhoY, dt, gas);
         }
-        return source;
+        else if (integration == IntegrationType::IMPLICIT)
+        {
+#ifdef AMREX_USE_GPU
+            Util::Abort(INFO,
+                "Finite-rate implicit integration is not supported inside GPU chemistry kernels. ",
+                "Use substep or explicit integration.");
+            return evaluate_source(P, T, rhoY, gas);
+#else
+            return compute_implicit(P, T, rhoY, dt, gas);
+#endif
+        }
+        else
+        {
+            std::pair<std::array<double, NSPECIES>, Set::Scalar> source = evaluate_source(P, T, rhoY, gas);
+            if (dt > 0.0)
+            {
+                limit_wdot_positivity(source.first, rhoY, dt);
+                source.second = compute_qdot_from_wdot(T, source.first, gas);
+            }
+            return source;
+        }
     }
 
     static void Parse(FiniteRate& value, IO::ParmParse& pp)
     {
         Util::Message(INFO,pp.getPrefix());
+
+        std::string integration_type_str = "explicit";
+        pp.query("integration", integration_type_str);
+        if (integration_type_str == "explicit") value.integration = IntegrationType::EXPLICIT;
+        else if (integration_type_str == "substep") value.integration = IntegrationType::SUBSTEP;
+        else if (integration_type_str == "implicit") value.integration = IntegrationType::IMPLICIT;
+        else Util::Abort(INFO, "Invalid integration type: ", integration_type_str);
+
+        pp.query("nsubsteps", value.nsubsteps);
+        pp.query_default("max_iter", value.max_iter, 100);
+        pp.query_default("reltol", value.reltol, 1e-6);
+        pp.query_default("abstol", value.abstol, 1e-4);
+
+        Util::Assert(INFO, TEST(value.nsubsteps > 0),
+            "chemistry.finite_rate.nsubsteps must be > 0.");
+        Util::Assert(INFO, TEST(value.max_iter > 0),
+            "chemistry.finite_rate.max_iter must be > 0.");
+        Util::Assert(INFO, TEST(value.reltol >= 0.0),
+            "chemistry.finite_rate.reltol must be >= 0.");
+        Util::Assert(INFO, TEST(value.abstol >= 0.0),
+            "chemistry.finite_rate.abstol must be >= 0.");
+        Util::Assert(INFO, TEST(value.reltol > 0.0 || value.abstol > 0.0),
+            "At least one of chemistry.finite_rate.reltol or chemistry.finite_rate.abstol must be > 0.");
+
+#ifdef AMREX_USE_GPU
+        Util::Assert(INFO, TEST(value.integration != IntegrationType::IMPLICIT),
+            "Finite-rate implicit integration currently uses a dense per-cell finite-difference Jacobian ",
+            "and is not supported on GPU builds. Use substep or explicit integration.");
+#endif
+
 #ifdef ALAMO_YAML
         if constexpr (NSPECIES > 1)
         {
@@ -368,7 +673,7 @@ struct FiniteRate
             }
 
             Util::Message(INFO, "Finite-rate kinetics initialized from ", value.yaml, " with ", value.NR,
-                " reactions using explicit integration.");
+                " reactions using ", integration_type_str, " integration.");
 
         }
 #else
