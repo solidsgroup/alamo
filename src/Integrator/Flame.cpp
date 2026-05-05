@@ -469,10 +469,10 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
 
             if (Hydro::prescribedflowmode == Hydro::PrescribedFlowMode::Relative)
             {
-                #if AMREX_SPACEDIM == 2
-                    Set::Vector T(N(1), -N(0));
-                    u0 = N * u0(0) + T * u0(1);
-                #endif
+            #if AMREX_SPACEDIM == 2
+                Set::Vector T(N(1), -N(0));
+                u0 = N * u0(0) + T * u0(1);
+            #endif
 
             #if AMREX_SPACEDIM == 3
                 Set::Vector T;

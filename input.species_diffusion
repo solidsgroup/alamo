@@ -3,7 +3,7 @@ solver.type = hllc
 
 ### GAS MODEL ###
 system.amount = kmol
-# CO2 O2 N2
+# CO2 O2
 gas.mw = 32.0_g/mol 32.0_g/mol
 
 gas.thermo.type = cpconstant
@@ -28,7 +28,7 @@ plot_file = output.species_diffusion
 
 ### MESHING ###
 
-amr.plot_dt = 1e-2
+amr.plot_dt = 2e-3
 amr.max_level = 3
 amr.max_grid_size = 500000
 amr.blocking_factor = 4
