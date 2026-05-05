@@ -166,7 +166,6 @@ protected:
     int nspecies;
     Model::Gas::Gas gas;
     
-
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4
     };
@@ -176,7 +175,6 @@ protected:
         Absolute, Relative
     };
     PrescribedFlowMode prescribedflowmode;
-
 
     Set::Vector g;
 

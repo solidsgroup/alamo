@@ -429,8 +429,8 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
         Set::Patch<Set::Scalar> u0 = Hydro::u0_mf.Patch(lev,mfi);
         Set::Patch<const Set::Scalar> p = Hydro::pressure_mf.Patch(lev,mfi);
 
-        Real M_AP = 27.645; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
-        Real M_HTPB = 28.0532; // Molar mass of Ethylene, main product of HTPB pyrolysis
+        Real M_AP = 117.22; // Molar mass of mixture after AP undergos pyrolysis (kg/mol)
+        Real M_HTPB = 1212.112; // Molar mass of Ethylene, main product of HTPB pyrolysis
         Real R = 8314; // Ideal gas constant (J/kmol-k)
         Real temp_gas = 750; // Set value for temperature of gas phase, this is just an approximation (K)
 
@@ -458,7 +458,7 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             m0(i,j,k) = hydro.rho_ap*phi + hydro.rho_htpb*(1.0 - phi); // example of setting value to m0
             solidrho(i,j,k) = m0(i,j,k);
 
-                Set::Vector u0;
+            Set::Vector u0;
             u0(0) = hydro.u0_ap*phi + hydro.u0_htpb*(1.0 - phi);
             u0(1) = 0.0; 
             #if AMREX_SPACEDIM == 3
