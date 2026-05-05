@@ -30,6 +30,21 @@ double Gas::entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j
     if (!thermo) Util::Abort(INFO, "[Gas::entropy_mol] No Thermo model attached.");
     return thermo->entropy_mol(T, X, i , j, k);
 }
+double Gas::cp_mol_species(double T, int n) const {
+    // Specific heat (constant pressure) for species n, J/(kmol-K)
+    if (!thermo) Util::Abort(INFO, "[Gas::cp_mol_species] No Thermo model attached.");
+    return thermo->cp_mol_species(T, n);
+}
+double Gas::enthalpy_mol_species(double T, int n) const {
+    // Specific enthalpy for species n, J/kmol
+    if (!thermo) Util::Abort(INFO, "[Gas::enthalpy_mol_species] No Thermo model attached.");
+    return thermo->enthalpy_mol_species(T, n);
+}
+double Gas::entropy_mol_species(double T, int n) const {
+    // specific entropy for species n, J/(kmol-K)
+    if (!thermo) Util::Abort(INFO, "[Gas::entropy_mol_species] No Thermo model attached.");
+    return thermo->entropy_mol_species(T, n);
+}
 
 // Transport quantities
 double Gas::dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
@@ -56,12 +71,12 @@ double Gas::ComputeT(
     if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
     return eos->ComputeT(density, momentumx, momentumy, E, Tguess, X, i , j, k, rtol);
 }
-double Gas::ComputeT(
+double Gas::ComputeT_from_primitives(
         double pressure, double density,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Temperature, K
     if (!eos) Util::Abort(INFO, "[Gas::ComputeT] No EOS model attached.");
-    return eos->ComputeT(pressure, density, X, i , j, k);
+    return eos->ComputeT_from_primitives(pressure, density, X, i , j, k);
 }
 double Gas::ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Pressure, Pa

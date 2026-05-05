@@ -518,6 +518,7 @@ Integrator::InitData()
     }
 
     if (plot_int > 0 || plot_dt > 0.0) {
+        PreparePlotFileData();
         WritePlotFile();
     }
 }
@@ -1087,12 +1088,14 @@ Integrator::Evolve()
 
         if (plot_int > 0 && (step + 1) % plot_int == 0) {
             last_plot_file_step = step + 1;
+            PreparePlotFileData();
             WritePlotFile();
             IO::WriteMetaData(plot_file, IO::Status::Running, (int)(100.0 * cur_time / stop_time));
         }
         else if (std::fabs(std::remainder(cur_time, plot_dt)) < 0.5 * dt[0])
         {
             last_plot_file_step = step + 1;
+            PreparePlotFileData();
             WritePlotFile();
             IO::WriteMetaData(plot_file, IO::Status::Running, (int)(100.0 * cur_time / stop_time));
         }
@@ -1100,6 +1103,7 @@ Integrator::Evolve()
         if (cur_time >= stop_time - 1.e-6 * dt[0]) break;
     }
     if (plot_int > 0 && istep[0] > last_plot_file_step) {
+        PreparePlotFileData();
         WritePlotFile();
     }
 }

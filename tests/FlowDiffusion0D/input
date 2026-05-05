@@ -1,0 +1,162 @@
+#@ [viscous-thermal-constant]
+#@ exe = hydro
+#@ dim = 2
+#@ nspecies = 3
+#@ args = gas.transport.mixture_averaged.type = constant
+#@ args = gas.transport.mixture_averaged.mu = 1462E-7_g/cm/s 2031E-7_g/cm/s 1754E-7_g/cm/s
+#@ args = gas.transport.mixture_averaged.k = 383e-7_cal/cm/s/K 612e-7_cal/cm/s/K 627e-7_cal/cm/s/K
+#@ check-file = reference/viscous-thermal-constant.csv
+
+#@ [viscous-thermal-LJ]
+#@ exe = hydro
+#@ dim = 2
+#@ nspecies = 3
+#@ args = gas.transport.mixture_averaged.type = LJ
+#@ args = gas.transport.mixture_averaged.LJdiameter = 3.996_ang 3.433_ang 3.667_ang
+#@ args = gas.transport.mixture_averaged.LJwelldepth = 190.0_K 113.0_K 99.8_K
+#@ check-file = reference/viscous-thermal-LJ.csv
+
+#@ [species-constant]
+#@ exe = hydro
+#@ dim = 2
+#@ nspecies = 3
+#@ args = gas.mw = 28.01_g/mol 44.01_g/mol 28.02_g/mol
+#@ args = gas.transport.mixture_averaged.type = constant
+#@ args = gas.transport.mixture_averaged.mu = 1740E-7_g/cm/s 1462E-7_g/cm/s 1754E-7_g/cm/s
+#@ args = gas.transport.mixture_averaged.k = 554e-7_cal/cm/s/K 383e-7_cal/cm/s/K 627e-7_cal/cm/s/K
+#@ args = gas.transport.mixture_averaged.d_fact = 1.4
+#@ args = density.ic.constant.value = 0.574470635009588 0.902622372251766 0.0
+#@ check-file = reference/species-constant.csv
+
+#@ [species-LJ]
+#@ exe = hydro
+#@ dim = 2
+#@ nspecies = 3
+#@ args = gas.mw = 28.01_g/mol 44.01_g/mol 28.02_g/mol
+#@ args = gas.transport.mixture_averaged.type = LJ
+#@ args = gas.transport.mixture_averaged.LJdiameter = 3.590_ang 3.996_ang 3.667_ang
+#@ args = gas.transport.mixture_averaged.LJwelldepth = 100.0_K 190.0_K 99.8_K
+#@ args = density.ic.constant.value = 0.574470635009588 0.902622372251766 0.0
+#@ check-file = reference/species-LJ.csv
+
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+# CO2 O2 N2
+gas.mw = 44.01_g/mol 32.00_g/mol 28.02_g/mol
+
+gas.thermo.type = cpconstant #dummy placeholders
+gas.thermo.cpconstant.cp_moles = 32.0_J/mol/K 32.0_J/mol/K 32.0_J/mol/K
+gas.thermo.cpconstant.h0 = 0.0 0.0 0.0
+gas.thermo.cpconstant.s0 = 0.0 0.0 0.0
+gas.thermo.cpconstant.Tref = 0.0_K 0.0_K 0.0_K
+
+gas.transport.type = mixture_averaged
+
+gas.eos.type = cpg
+
+### OUTPUT ###
+
+plot_file = output.mixture_transport
+
+### MESHING ###
+
+amr.plot_int = 1
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 1
+amr.regrid_int = 10
+amr.grid_eff = 0.7
+amr.n_cell = 2 2 0
+
+### DIMENSIONS ###
+geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
+geometry.prob_hi = 1.0 1.0 0.0 # [ m ]
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 1.0e-6
+stop_time = 10.0e-6
+
+### HYDRO PARAM ###
+
+cfl   = 10.0
+small = 1e-16
+cutoff = 0.2
+details = true
+
+### ETA IC ###
+
+eta.ic.type = expression
+eta.ic.expression.region0        = "1.0"
+
+m0.ic.constant.value = 0.0 0.0 0.0
+u0.ic.constant.value = 0.0 0.0
+q.ic.constant.value = 0.0 0.0
+
+# P = 1 atm, T = 293 K
+density.ic.constant.value = 0.243454875129296 0.0519074926855928 0.964970271235302
+velocity.ic.constant.value = 0.0 0.0
+pressure.ic.constant.value = 101325.0
+
+solid.density.ic.constant.value = 1.0 1.0 1.0
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.energy.ic.constant.value = 0.0
+
+### ETA BC  ###
+
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+
+density.bc.constant.type.xhi = neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann
+density.bc.constant.type.yhi = neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0
+
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion   = 10000000
+
+prescribedflowmode = relative
+
+#TODO

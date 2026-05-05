@@ -54,6 +54,7 @@ struct Unit : std::pair<double,std::array<int,7>>
         {"mm",        {1e-3,    "m"        }},
         {"um",        {1e-6,    "m"        }},
         {"nm",        {1e-9,    "m"        }},
+        {"ang",       {1e-10,   "m"        }}, // angstrom
         {"pm",        {1e-12,   "m"        }},
         {"in",        {0.0254,  "m"        }},
         {"ft",        {0.3048,  "m"        }},

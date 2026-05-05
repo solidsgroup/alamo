@@ -1,0 +1,389 @@
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+
+# Active species from ap_htpb_52sp_236r.yaml (64 species): [H2, O2, O, H, OH, HO2, H2O2, H2O, NO, HNO, HONO, NO2, NO3, HNO3, N2O, N, N2, NH, NNH, NH2, NH3, N2H2, N2H3, N2H4, H2NO, HCLO4, CL, CL2, HCL, CLO, CLOH, CLOO, CLO2, CLO3, NOCL, HOCL, CO2, CO, CH2, CH3, CH4, HCO, HCCO, CH2O, CH2CO, CH2CHO, CH3CO, C4H6, C4H6-2, i-C4H5, n-C4H5, C4H5-2, C2H2, C2H4, C2H3, C2H3CHO, CLCO, CLCHO, HCN, HCNO, H2CN, AR, CH3O, HE]
+gas.mw = 2.016_kg/kmol 31.998_kg/kmol 15.999_kg/kmol 1.008_kg/kmol 17.007_kg/kmol 33.006_kg/kmol 34.014_kg/kmol 18.015_kg/kmol 30.006_kg/kmol 31.014_kg/kmol 47.013_kg/kmol 46.005_kg/kmol 62.004_kg/kmol 63.012_kg/kmol 44.013_kg/kmol 14.007_kg/kmol 28.014_kg/kmol 15.015_kg/kmol 29.022_kg/kmol 16.023_kg/kmol 17.031_kg/kmol 30.03_kg/kmol 31.038_kg/kmol 32.046_kg/kmol 32.022_kg/kmol 100.454_kg/kmol 35.45_kg/kmol 70.9_kg/kmol 36.458_kg/kmol 51.449_kg/kmol 52.457_kg/kmol 67.448_kg/kmol 67.448_kg/kmol 83.447_kg/kmol 65.456_kg/kmol 52.457_kg/kmol 44.009_kg/kmol 28.01_kg/kmol 14.027_kg/kmol 15.035_kg/kmol 16.043_kg/kmol 29.018_kg/kmol 41.029_kg/kmol 30.026_kg/kmol 42.037_kg/kmol 43.045_kg/kmol 43.045_kg/kmol 54.092_kg/kmol 54.092_kg/kmol 53.084_kg/kmol 53.084_kg/kmol 53.084_kg/kmol 26.038_kg/kmol 28.054_kg/kmol 27.046_kg/kmol 56.064_kg/kmol 63.46_kg/kmol 64.468_kg/kmol 27.026_kg/kmol 43.025_kg/kmol 28.034_kg/kmol 39.948_kg/kmol 31.034_kg/kmol 4.0026_kg/kmol
+
+gas.thermo.type = nasa7
+gas.thermo.nasa7.type = yaml
+gas.thermo.nasa7.yaml = ap_htpb_52sp_236r.yaml
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter  = 2.92_ang 3.458_ang 2.75_ang 2.05_ang 2.75_ang 3.458_ang 3.458_ang 2.605_ang 3.621_ang 3.492_ang 3.6_ang 3.5_ang 5.18_ang 5.18_ang 3.828_ang 3.298_ang 3.621_ang 2.65_ang 3.798_ang 2.65_ang 2.92_ang 3.798_ang 3.9_ang 4.23_ang 5.18_ang 1.8_ang 3.613_ang 4.217_ang 3.339_ang 3.842_ang 3.842_ang 3.842_ang 3.842_ang 3.842_ang 3.842_ang 3.968_ang 3.763_ang 3.65_ang 3.8_ang 3.8_ang 3.746_ang 3.59_ang 2.5_ang 3.59_ang 3.97_ang 3.97_ang 3.97_ang 5.18_ang 5.18_ang 5.18_ang 5.18_ang 5.18_ang 4.1_ang 3.971_ang 4.1_ang 5.176_ang 4_ang 3.59_ang 3.63_ang 3.828_ang 3.59_ang 3.33_ang 3.69_ang 2.576_ang
+gas.transport.mixture_averaged.LJwelldepth = 38_K 107.4_K 80_K 145_K 80_K 107.4_K 107.4_K 572.4_K 97.53_K 116.7_K 572.4_K 200_K 436_K 436_K 232.4_K 71.4_K 97.53_K 80_K 71.4_K 80_K 481_K 71.4_K 200_K 205_K 436_K 452_K 130.8_K 316_K 344.7_K 184_K 184_K 184_K 184_K 184_K 184_K 453.97_K 244_K 98.1_K 144_K 144_K 141.4_K 498_K 150_K 498_K 436_K 436_K 436_K 357_K 357_K 357_K 357_K 357_K 209_K 280.8_K 209_K 357_K 860_K 498_K 569_K 232.4_K 498_K 136.5_K 417_K 10.2_K
+
+gas.eos.type = tpg
+
+chemistry.type = finite_rate
+chemistry.finite_rate.yaml = ap_htpb_52sp_236r.yaml
+
+### OUTPUT ###
+plot_file = output.sandwich_ap_htpb_chemistry
+details = 1
+
+### MESHING ###
+#amr.plot_dt = 1e-5
+amr.plot_int = 1000
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.regrid_int = 10
+amr.grid_eff = 0.7
+amr.n_cell = 64 64 0
+
+### DIMENSIONS ###
+geometry.prob_lo = -0.15 -0.03 0.0 # [ m ]
+geometry.prob_hi = 0.15 0.27 0.0 # [ m ]
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+timestep  = 1.0e-8
+stop_time = 5.0e-3
+
+integration.type = RungeKutta
+integration.rk.type = 3
+
+### HYDRO PARAM ###
+cfl   = 0.4
+small = 1e-14
+cutoff = 0.2
+
+### ETA IC ###
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.005
+eta.ic.expression.region0        = "0.5 * (erf((y+0.01)/eps) + 1)"
+
+### AP/HTPB SOURCE ASSUMPTIONS ###
+# AP density = 1950.0 kg/m3; HTPB density = 920.0 kg/m3; regression rate = 0.0100 m/s at 10 MPa.
+# AP occupies the center strip (-0.05 < x < 0.05); HTPB occupies the two outer strips, matching input.sandwich_chemistry masks.
+# AP := alpha(10 NH3 + 10 HCLO4) + (1-alpha)(2.7 N2 + 8.8 O2 + 17.7 H2O + 2.7 CL2 + 4.6 HCL + 1.5 NO2 + 1.5 N2O), alpha = 0.43.
+# HTPB := 20 C4H6 + 6 CH4 + 2 OH.
+# Nonzero AP partial solid densities [kg/m3]:
+#   O2 = 266.994913697
+#   H2O = 302.346548128
+#   NO2 = 65.4325394874
+#   N2O = 62.5993339954
+#   N2 = 71.7193542041
+#   NH3 = 121.823544327
+#   HCLO4 = 718.552188471
+#   CL2 = 181.51289402
+#   HCL = 159.018683669
+# Nonzero HTPB partial solid densities [kg/m3]:
+#   OH = 25.8168222078
+#   CH4 = 73.0603772589
+#   C4H6 = 821.122800533
+# Ejection velocities at P0=1e+07 Pa, T0=1000 K: AP=0.430354765592 m/s, HTPB=0.176700302483 m/s, width-weighted average=0.261251790186 m/s.
+
+m0.ic.type = expression
+m0.ic.expression.constant.rdot = 0.01
+m0.ic.expression.constant.eps_x = 0.01
+m0.ic.expression.constant.rho_AP_O2 = 266.994913697
+m0.ic.expression.constant.rho_AP_H2O = 302.346548128
+m0.ic.expression.constant.rho_AP_NO2 = 65.4325394874
+m0.ic.expression.constant.rho_AP_N2O = 62.5993339954
+m0.ic.expression.constant.rho_AP_N2 = 71.7193542041
+m0.ic.expression.constant.rho_AP_NH3 = 121.823544327
+m0.ic.expression.constant.rho_AP_HCLO4 = 718.552188471
+m0.ic.expression.constant.rho_AP_CL2 = 181.51289402
+m0.ic.expression.constant.rho_AP_HCL = 159.018683669
+m0.ic.expression.constant.rho_HTPB_OH = 25.8168222078
+m0.ic.expression.constant.rho_HTPB_CH4 = 73.0603772589
+m0.ic.expression.constant.rho_HTPB_C4H6 = 821.122800533
+m0.ic.expression.region0 = "0.0"
+m0.ic.expression.region1 = "rdot * rho_AP_O2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region2 = "0.0"
+m0.ic.expression.region3 = "0.0"
+m0.ic.expression.region4 = "rdot * rho_HTPB_OH * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+m0.ic.expression.region5 = "0.0"
+m0.ic.expression.region6 = "0.0"
+m0.ic.expression.region7 = "rdot * rho_AP_H2O * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region8 = "0.0"
+m0.ic.expression.region9 = "0.0"
+m0.ic.expression.region10 = "0.0"
+m0.ic.expression.region11 = "rdot * rho_AP_NO2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region12 = "0.0"
+m0.ic.expression.region13 = "0.0"
+m0.ic.expression.region14 = "rdot * rho_AP_N2O * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region15 = "0.0"
+m0.ic.expression.region16 = "rdot * rho_AP_N2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region17 = "0.0"
+m0.ic.expression.region18 = "0.0"
+m0.ic.expression.region19 = "0.0"
+m0.ic.expression.region20 = "rdot * rho_AP_NH3 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region21 = "0.0"
+m0.ic.expression.region22 = "0.0"
+m0.ic.expression.region23 = "0.0"
+m0.ic.expression.region24 = "0.0"
+m0.ic.expression.region25 = "rdot * rho_AP_HCLO4 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region26 = "0.0"
+m0.ic.expression.region27 = "rdot * rho_AP_CL2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region28 = "rdot * rho_AP_HCL * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region29 = "0.0"
+m0.ic.expression.region30 = "0.0"
+m0.ic.expression.region31 = "0.0"
+m0.ic.expression.region32 = "0.0"
+m0.ic.expression.region33 = "0.0"
+m0.ic.expression.region34 = "0.0"
+m0.ic.expression.region35 = "0.0"
+m0.ic.expression.region36 = "0.0"
+m0.ic.expression.region37 = "0.0"
+m0.ic.expression.region38 = "0.0"
+m0.ic.expression.region39 = "0.0"
+m0.ic.expression.region40 = "rdot * rho_HTPB_CH4 * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+m0.ic.expression.region41 = "0.0"
+m0.ic.expression.region42 = "0.0"
+m0.ic.expression.region43 = "0.0"
+m0.ic.expression.region44 = "0.0"
+m0.ic.expression.region45 = "0.0"
+m0.ic.expression.region46 = "0.0"
+m0.ic.expression.region47 = "rdot * rho_HTPB_C4H6 * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+m0.ic.expression.region48 = "0.0"
+m0.ic.expression.region49 = "0.0"
+m0.ic.expression.region50 = "0.0"
+m0.ic.expression.region51 = "0.0"
+m0.ic.expression.region52 = "0.0"
+m0.ic.expression.region53 = "0.0"
+m0.ic.expression.region54 = "0.0"
+m0.ic.expression.region55 = "0.0"
+m0.ic.expression.region56 = "0.0"
+m0.ic.expression.region57 = "0.0"
+m0.ic.expression.region58 = "0.0"
+m0.ic.expression.region59 = "0.0"
+m0.ic.expression.region60 = "0.0"
+m0.ic.expression.region61 = "0.0"
+m0.ic.expression.region62 = "0.0"
+m0.ic.expression.region63 = "0.0"
+
+u0.ic.type = expression
+u0.ic.expression.constant.U_eject_avg = 0.261251790186
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "U_eject_avg"
+
+q.ic.type = expression
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "0.0"
+
+density.ic.type = expression
+density.ic.expression.constant.P0 = 1.0e7
+density.ic.expression.constant.T0 = 1000.0
+density.ic.expression.constant.R_N2 = 296.796695158
+density.ic.expression.constant.eps_x = 0.01
+density.ic.expression.constant.eps_y = 0.005
+density.ic.expression.constant.rho_AP_O2 = 266.994913697
+density.ic.expression.constant.rho_AP_H2O = 302.346548128
+density.ic.expression.constant.rho_AP_NO2 = 65.4325394874
+density.ic.expression.constant.rho_AP_N2O = 62.5993339954
+density.ic.expression.constant.rho_AP_N2 = 71.7193542041
+density.ic.expression.constant.rho_AP_NH3 = 121.823544327
+density.ic.expression.constant.rho_AP_HCLO4 = 718.552188471
+density.ic.expression.constant.rho_AP_CL2 = 181.51289402
+density.ic.expression.constant.rho_AP_HCL = 159.018683669
+density.ic.expression.constant.rho_HTPB_OH = 25.8168222078
+density.ic.expression.constant.rho_HTPB_CH4 = 73.0603772589
+density.ic.expression.constant.rho_HTPB_C4H6 = 821.122800533
+density.ic.expression.region0 = "0.0"
+density.ic.expression.region1 = "rho_AP_O2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "0.0"
+density.ic.expression.region4 = "rho_HTPB_OH * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x))) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region5 = "0.0"
+density.ic.expression.region6 = "0.0"
+density.ic.expression.region7 = "rho_AP_H2O * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region8 = "0.0"
+density.ic.expression.region9 = "0.0"
+density.ic.expression.region10 = "0.0"
+density.ic.expression.region11 = "rho_AP_NO2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region12 = "0.0"
+density.ic.expression.region13 = "0.0"
+density.ic.expression.region14 = "rho_AP_N2O * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region15 = "0.0"
+density.ic.expression.region16 = "P0/R_N2/T0 * 0.5 * (erf((y+0.01)/eps_y) + 1.0) + rho_AP_N2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region17 = "0.0"
+density.ic.expression.region18 = "0.0"
+density.ic.expression.region19 = "0.0"
+density.ic.expression.region20 = "rho_AP_NH3 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region21 = "0.0"
+density.ic.expression.region22 = "0.0"
+density.ic.expression.region23 = "0.0"
+density.ic.expression.region24 = "0.0"
+density.ic.expression.region25 = "rho_AP_HCLO4 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region26 = "0.0"
+density.ic.expression.region27 = "rho_AP_CL2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region28 = "rho_AP_HCL * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region29 = "0.0"
+density.ic.expression.region30 = "0.0"
+density.ic.expression.region31 = "0.0"
+density.ic.expression.region32 = "0.0"
+density.ic.expression.region33 = "0.0"
+density.ic.expression.region34 = "0.0"
+density.ic.expression.region35 = "0.0"
+density.ic.expression.region36 = "0.0"
+density.ic.expression.region37 = "0.0"
+density.ic.expression.region38 = "0.0"
+density.ic.expression.region39 = "0.0"
+density.ic.expression.region40 = "rho_HTPB_CH4 * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x))) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region41 = "0.0"
+density.ic.expression.region42 = "0.0"
+density.ic.expression.region43 = "0.0"
+density.ic.expression.region44 = "0.0"
+density.ic.expression.region45 = "0.0"
+density.ic.expression.region46 = "0.0"
+density.ic.expression.region47 = "rho_HTPB_C4H6 * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x))) * (1.0 - 0.5 * (erf((y+0.01)/eps_y) + 1.0))"
+density.ic.expression.region48 = "0.0"
+density.ic.expression.region49 = "0.0"
+density.ic.expression.region50 = "0.0"
+density.ic.expression.region51 = "0.0"
+density.ic.expression.region52 = "0.0"
+density.ic.expression.region53 = "0.0"
+density.ic.expression.region54 = "0.0"
+density.ic.expression.region55 = "0.0"
+density.ic.expression.region56 = "0.0"
+density.ic.expression.region57 = "0.0"
+density.ic.expression.region58 = "0.0"
+density.ic.expression.region59 = "0.0"
+density.ic.expression.region60 = "0.0"
+density.ic.expression.region61 = "0.0"
+density.ic.expression.region62 = "0.0"
+density.ic.expression.region63 = "0.0"
+
+velocity.ic.type = expression
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "0.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.region0 = "1.0e7"
+
+solid.density.ic.type = expression
+solid.density.ic.expression.constant.eps_x = 0.01
+solid.density.ic.expression.constant.rho_AP_O2 = 266.994913697
+solid.density.ic.expression.constant.rho_AP_H2O = 302.346548128
+solid.density.ic.expression.constant.rho_AP_NO2 = 65.4325394874
+solid.density.ic.expression.constant.rho_AP_N2O = 62.5993339954
+solid.density.ic.expression.constant.rho_AP_N2 = 71.7193542041
+solid.density.ic.expression.constant.rho_AP_NH3 = 121.823544327
+solid.density.ic.expression.constant.rho_AP_HCLO4 = 718.552188471
+solid.density.ic.expression.constant.rho_AP_CL2 = 181.51289402
+solid.density.ic.expression.constant.rho_AP_HCL = 159.018683669
+solid.density.ic.expression.constant.rho_HTPB_OH = 25.8168222078
+solid.density.ic.expression.constant.rho_HTPB_CH4 = 73.0603772589
+solid.density.ic.expression.constant.rho_HTPB_C4H6 = 821.122800533
+solid.density.ic.expression.region0 = "0.0"
+solid.density.ic.expression.region1 = "rho_AP_O2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region2 = "0.0"
+solid.density.ic.expression.region3 = "0.0"
+solid.density.ic.expression.region4 = "rho_HTPB_OH * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+solid.density.ic.expression.region5 = "0.0"
+solid.density.ic.expression.region6 = "0.0"
+solid.density.ic.expression.region7 = "rho_AP_H2O * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region8 = "0.0"
+solid.density.ic.expression.region9 = "0.0"
+solid.density.ic.expression.region10 = "0.0"
+solid.density.ic.expression.region11 = "rho_AP_NO2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region12 = "0.0"
+solid.density.ic.expression.region13 = "0.0"
+solid.density.ic.expression.region14 = "rho_AP_N2O * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region15 = "0.0"
+solid.density.ic.expression.region16 = "rho_AP_N2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region17 = "0.0"
+solid.density.ic.expression.region18 = "0.0"
+solid.density.ic.expression.region19 = "0.0"
+solid.density.ic.expression.region20 = "rho_AP_NH3 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region21 = "0.0"
+solid.density.ic.expression.region22 = "0.0"
+solid.density.ic.expression.region23 = "0.0"
+solid.density.ic.expression.region24 = "0.0"
+solid.density.ic.expression.region25 = "rho_AP_HCLO4 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region26 = "0.0"
+solid.density.ic.expression.region27 = "rho_AP_CL2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region28 = "rho_AP_HCL * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region29 = "0.0"
+solid.density.ic.expression.region30 = "0.0"
+solid.density.ic.expression.region31 = "0.0"
+solid.density.ic.expression.region32 = "0.0"
+solid.density.ic.expression.region33 = "0.0"
+solid.density.ic.expression.region34 = "0.0"
+solid.density.ic.expression.region35 = "0.0"
+solid.density.ic.expression.region36 = "0.0"
+solid.density.ic.expression.region37 = "0.0"
+solid.density.ic.expression.region38 = "0.0"
+solid.density.ic.expression.region39 = "0.0"
+solid.density.ic.expression.region40 = "rho_HTPB_CH4 * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+solid.density.ic.expression.region41 = "0.0"
+solid.density.ic.expression.region42 = "0.0"
+solid.density.ic.expression.region43 = "0.0"
+solid.density.ic.expression.region44 = "0.0"
+solid.density.ic.expression.region45 = "0.0"
+solid.density.ic.expression.region46 = "0.0"
+solid.density.ic.expression.region47 = "rho_HTPB_C4H6 * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+solid.density.ic.expression.region48 = "0.0"
+solid.density.ic.expression.region49 = "0.0"
+solid.density.ic.expression.region50 = "0.0"
+solid.density.ic.expression.region51 = "0.0"
+solid.density.ic.expression.region52 = "0.0"
+solid.density.ic.expression.region53 = "0.0"
+solid.density.ic.expression.region54 = "0.0"
+solid.density.ic.expression.region55 = "0.0"
+solid.density.ic.expression.region56 = "0.0"
+solid.density.ic.expression.region57 = "0.0"
+solid.density.ic.expression.region58 = "0.0"
+solid.density.ic.expression.region59 = "0.0"
+solid.density.ic.expression.region60 = "0.0"
+solid.density.ic.expression.region61 = "0.0"
+solid.density.ic.expression.region62 = "0.0"
+solid.density.ic.expression.region63 = "0.0"
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.energy.ic.constant.value = 0.0
+
+### ETA BC  ###
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.yhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion   = 0.5
+
+prescribedflowmode = absolute

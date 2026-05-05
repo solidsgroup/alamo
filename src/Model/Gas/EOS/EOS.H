@@ -23,7 +23,7 @@ public:
     virtual double ComputeT(
         double density, double momentumx, double momentumy, double E, double Tguess,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol) const = 0;
-    virtual double ComputeT(
+    virtual double ComputeT_from_primitives(
         double pressure, double density,
         Set::Patch<const Set::Scalar>& X, int i, int j, int k) const = 0;
     // Pressure, Pa

@@ -65,16 +65,20 @@ public:
             Util::Warning(INFO,"The entropy fix is experimental and should be used with caution. Has previously caused errors with FlowDrivenCavity regression test");
     }
 
-    virtual Flux Solve(State lo, State hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
+    virtual Flux Solve(const State& lo, const State& hi, Model::Gas::Gas& gas, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int side, Set::Scalar small) override
     {
-        Set::Scalar rho_L = lo.rho       ,  rho_R = hi.rho;
         Set::Scalar Mn_L  = lo.M_normal  ,  Mn_R  = hi.M_normal  ;
         Set::Scalar Mt_L  = lo.M_tangent ,  Mt_R  = hi.M_tangent ;
         Set::Scalar E_L   = lo.E         ,  E_R   = hi.E         ;
 
         // Ensure no negative densities
-        rho_L = std::max(small,rho_L);
-        rho_R = std::max(small,rho_R);
+        Set::Scalar rho_sum_L = 0.0;
+        Set::Scalar rho_sum_R = 0.0;
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            rho_sum_L += std::max(small, lo.rho[n]);
+            rho_sum_R += std::max(small, hi.rho[n]);
+        }
 
         // STEP 1: Compute fluid primitives
 
@@ -83,51 +87,51 @@ public:
         Set::Scalar T_L=0, T_R=0, p_L=0, p_R=0, gamma_L=0, gamma_R=0;
         switch (side) {
             case 0: // xlo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i-1, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i-1, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i-1, j, k);
                 gamma_L = gas.gamma(T_L, X, i-1, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 1: // xhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i+1, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i+1, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i+1, j, k);
                 gamma_R = gas.gamma(T_R, X, i+1, j, k);
                 break;
             case 2: // ylo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j-1, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j-1 ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j-1, k);
                 gamma_L = gas.gamma(T_L, X, i, j-1, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 3: // yhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j+1, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j+1 ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j+1, k);
                 gamma_R = gas.gamma(T_R, X, i, j+1, k);
                 break;
             case 4: // zlo
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k-1);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k-1);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k-1);
                 gamma_L = gas.gamma(T_L, X, i, j, k-1);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k);
                 gamma_R = gas.gamma(T_R, X, i, j, k);
                 break;
             case 5: // zhi
-                T_L = gas.ComputeT(rho_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
-                p_L = gas.ComputeP(rho_L, T_L, X, i, j, k);
+                T_L = gas.ComputeT(rho_sum_L, lo.M_normal, lo.M_tangent, E_L, 500.0, X, i, j ,k);
+                p_L = gas.ComputeP(rho_sum_L, T_L, X, i, j, k);
                 gamma_L = gas.gamma(T_L, X, i, j, k);
-                T_R = gas.ComputeT(rho_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1);
-                p_R = gas.ComputeP(rho_R, T_R, X, i, j, k+1);
+                T_R = gas.ComputeT(rho_sum_R, hi.M_normal, hi.M_tangent, E_R, 500.0, X, i, j ,k+1);
+                p_R = gas.ComputeP(rho_sum_R, T_R, X, i, j, k+1);
                 gamma_R = gas.gamma(T_R, X, i, j, k+1);
                 break;
             default:
@@ -135,26 +139,26 @@ public:
         }
         //////////////////////////////////////////////////////////////////////////////////////////////////
 
-        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L /*+ Mt_L * Mt_L*/) / (rho_L+small); // KE per unit volume
+        Set::Scalar ke_L = 0.5 * (Mn_L * Mn_L /*+ Mt_L * Mt_L*/) / (rho_sum_L); // KE per unit volume
         Set::Scalar ue_L = E_L - ke_L;                                            // IE per unit volume
-        Set::Scalar h_TL = (ke_L + ue_L + p_L) / (rho_L+small);                   // specific stagnation enthalpy (per unit mass)
+        Set::Scalar h_TL = (ke_L + ue_L + p_L) / (rho_sum_L);                   // specific stagnation enthalpy (per unit mass)
 
-        Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R /*+ Mt_R * Mt_R*/) / (rho_R+small);
+        Set::Scalar ke_R = 0.5 * (Mn_R * Mn_R /*+ Mt_R * Mt_R*/) / (rho_sum_R);
         Set::Scalar ue_R = E_R - ke_R;
-        Set::Scalar h_TR = (ke_R + ue_R + p_R) / (rho_R+small);
+        Set::Scalar h_TR = (ke_R + ue_R + p_R) / (rho_sum_R);
 
-        Set::Scalar u_L   = Mn_L/(rho_L+small),  u_R   = Mn_R/(rho_R+small);
-        Set::Scalar v_L   = Mt_L/(rho_L+small),  v_R   = Mt_R/(rho_R+small);
+        Set::Scalar u_L   = Mn_L/(rho_sum_L),  u_R   = Mn_R/(rho_sum_R);
+        Set::Scalar v_L   = Mt_L/(rho_sum_L),  v_R   = Mt_R/(rho_sum_R);
         
         //
         // STEP 2: Compute Roe-averaged quantities
         // 
-        Set::Scalar rho_RL  = std::sqrt(rho_L * rho_R);
-        Set::Scalar u_RL    = (std::sqrt(rho_L) * u_L  + std::sqrt(rho_R) * u_R ) / (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
-        Set::Scalar h_RL    = (std::sqrt(rho_L) * h_TL + std::sqrt(rho_R) * h_TR) / (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
+        Set::Scalar rho_RL  = std::sqrt(rho_sum_L * rho_sum_R);
+        Set::Scalar u_RL    = (std::sqrt(rho_sum_L) * u_L  + std::sqrt(rho_sum_R) * u_R ) / (std::sqrt(rho_sum_L) + std::sqrt(rho_sum_R));
+        Set::Scalar h_RL    = (std::sqrt(rho_sum_L) * h_TL + std::sqrt(rho_sum_R) * h_TR) / (std::sqrt(rho_sum_L) + std::sqrt(rho_sum_R));
         // This is not thermodynamically consistent to compute gamma_RL - need to compute a Roe-Average composition, temperature, and then gamma for consistency
         // But is should be a semi-close appproximation for now.
-        Set::Scalar gamma_RL    = (std::sqrt(rho_L) * gamma_L + std::sqrt(rho_R) * gamma_R) / (std::sqrt(rho_L) + std::sqrt(rho_R) + small); 
+        Set::Scalar gamma_RL    = (std::sqrt(rho_sum_L) * gamma_L + std::sqrt(rho_sum_R) * gamma_R) / (std::sqrt(rho_sum_L) + std::sqrt(rho_sum_R)); 
         Set::Scalar a_RL_sq = std::max(0.0,(gamma_RL - 1.0) * (h_RL - 0.5 * u_RL * u_RL));
 
 #ifdef AMREX_DEBUG
@@ -162,17 +166,17 @@ public:
         {   
             Util::Message(INFO, "sound speed ", a_RL_sq);
 
-            Util::Message(INFO, "mixed rho ", lo.rho, " ", hi.rho);
+            //Util::Message(INFO, "mixed rho ", lo.rho, " ", hi.rho);
             Util::Message(INFO, "mixed Mn ", lo.M_normal, " ", hi.M_normal);
             Util::Message(INFO, "mixed Mt ", lo.M_tangent, " ", hi.M_tangent);
             Util::Message(INFO, "mixed E ", lo.E, " ", hi.E);
 
-            Util::Message(INFO, "fluid rho ", rho_L, " ", rho_R);
+            //Util::Message(INFO, "fluid rho ", rho_L, " ", rho_R);
             Util::Message(INFO, "fluid Mn ", Mn_L, " ", Mn_R);
             Util::Message(INFO, "fluid Mt ", Mt_L, " ", Mt_R);
             Util::Message(INFO, "fluid E ", E_L, " ", E_R);
 
-            Util::Message(INFO, "fluid rho ", rho_L, " ", rho_R);
+            //Util::Message(INFO, "fluid rho ", rho_L, " ", rho_R);
             Util::Message(INFO, "fluid u ", u_L, " ", u_R);
             Util::Message(INFO, "fluid v ", v_L, " ", v_R);
             Util::Message(INFO, "fluid p ", p_L, " ", p_R);
@@ -193,14 +197,14 @@ public:
         //
         // STEP 4: Compute wave strengths
         //
-        Set::Scalar deltarho= rho_R - rho_L;
+        Set::Scalar deltarho= rho_sum_R - rho_sum_L;
         Set::Scalar deltap  = p_R - p_L;
         Set::Scalar deltau  = u_R - u_L;
 
         if (lowmach)
         {
-            Set::Scalar v_RL    = (std::sqrt(rho_L) * v_L  + std::sqrt(rho_R) * v_R ) / 
-                (std::sqrt(rho_L) + std::sqrt(rho_R) + small);
+            Set::Scalar v_RL    = (std::sqrt(rho_sum_L) * v_L  + std::sqrt(rho_sum_R) * v_R ) / 
+                (std::sqrt(rho_sum_L) + std::sqrt(rho_sum_R));
             Set::Scalar Ma = (std::abs(u_RL) + std::abs(v_RL)) / (a_RL + small);
             Ma = std::min(Ma, 1.0);
             deltau *= Ma;
@@ -239,8 +243,8 @@ public:
             if ( lambda3 < deltau ) lambda3 = 0.5*(lambda3*lambda3 + deltau*deltau)/deltau;
         }
         else if (entropy_fix == 2) { // Jayanti
-            Set::Scalar a_L = std::sqrt(gamma_L * p_L / (rho_L + small)); // sound speed
-            Set::Scalar a_R = std::sqrt(gamma_R * p_R / (rho_R + small));
+            Set::Scalar a_L = std::sqrt(gamma_L * p_L / (rho_sum_L)); // sound speed
+            Set::Scalar a_R = std::sqrt(gamma_R * p_R / (rho_sum_R));
             Set::Scalar lambda1_L = u_L;         Set::Scalar lambda1_R = u_R; // eigenvalues
             Set::Scalar lambda2_L = u_L + a_L;   Set::Scalar lambda2_R = u_R + a_R;
             Set::Scalar lambda3_L = u_L - a_L;   Set::Scalar lambda3_R = u_R - a_R;
@@ -256,21 +260,28 @@ public:
         // STEP 7: Compute fluxes
         //
         Flux fl;
+
+        Set::Scalar mixed_mass_flux = (0.5*(rho_sum_L*u_L + rho_sum_R*u_R) - 0.5*(
+                    r11*fabs(lambda1)*deltav1 +
+                    r21*fabs(lambda2)*deltav2 +
+                    r31*fabs(lambda3)*deltav3)
+        );
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            Set::Scalar Y_L = std::max(small, lo.rho[n]) / rho_sum_L;
+            Set::Scalar Y_R = std::max(small, hi.rho[n]) / rho_sum_R;
+            Set::Scalar Y_face = (mixed_mass_flux >= 0.0) ? Y_L : Y_R;
+            fl.mass[n] = mixed_mass_flux * Y_face;
+        }
         
-        fl.mass = (0.5*(rho_L*u_L + rho_R*u_R) - 0.5*(
-                        r11*fabs(lambda1)*deltav1 +
-                        r21*fabs(lambda2)*deltav2 +
-                        r31*fabs(lambda3)*deltav3)
-            );
-        
-        if (fl.mass != fl.mass)
+        if (fl.mass[0] != fl.mass[0]) // check first element for NAN
         {
             if (verbose)
             {
                 Util::ParallelMessage(INFO,"hi ", hi);
                 Util::ParallelMessage(INFO,"lo ", lo);
-                Util::ParallelMessage(INFO,"rho_R ", rho_R);
-                Util::ParallelMessage(INFO,"rho_L ", rho_L);
+                //Util::ParallelMessage(INFO,"rho_R ", rho_R);
+                //Util::ParallelMessage(INFO,"rho_L ", rho_L);
                 Util::ParallelMessage(INFO,"rho_RL ", rho_RL); 
                 Util::ParallelMessage(INFO,"u_R ", u_R);
                 Util::ParallelMessage(INFO,"u_L ", u_L);
@@ -287,7 +298,7 @@ public:
         }
 
 
-        fl.momentum_normal = ( 0.5*(rho_L*u_L*u_L + p_L + rho_R*u_R*u_R + p_R) - 0.5*(
+        fl.momentum_normal = ( 0.5*(rho_sum_L*u_L*u_L + p_L + rho_sum_R*u_R*u_R + p_R) - 0.5*(
                                     r12*fabs(lambda1)*deltav1 +
                                     r22*fabs(lambda2)*deltav2 +
                                     r32*fabs(lambda3)*deltav3)
@@ -304,7 +315,7 @@ public:
         //
         // (Update the tangential momentum flux)
         //
-        fl.momentum_tangent = 0.5 * (rho_L * u_L * v_L + rho_R * u_R * v_R);
+        fl.momentum_tangent = 0.5 * (rho_sum_L * u_L * v_L + rho_sum_R * u_R * v_R);
 
         return fl;
     }

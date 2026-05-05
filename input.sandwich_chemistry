@@ -1,0 +1,216 @@
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+
+# Species: [H2, H, O, O2, OH, H2O, HO2, H2O2, AR, N2]
+gas.mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.948 28.013
+
+gas.thermo.type = nasa7
+gas.thermo.nasa7.type = yaml
+gas.thermo.nasa7.yaml = h2o2.yaml
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter  = 2.92_ang 2.05_ang 2.75_ang 3.458_ang 2.75_ang 2.605_ang 3.458_ang 3.458_ang 3.33_ang 3.621_ang
+gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_K 572.4_K 107.4_K 107.4_K 136.5_K 97.53_K
+
+gas.eos.type = tpg
+
+#chemistry.type = equilibrium
+#chemistry.equilibrium.yaml = h2o2.yaml
+chemistry.type = finite_rate
+chemistry.finite_rate.yaml = h2o2.yaml
+
+### OUTPUT ###
+
+plot_file = output.sandwich_chemistry
+details = 1
+
+### MESHING ###
+
+#amr.plot_dt = 1e-5
+amr.plot_int = 1
+amr.max_level = 0
+amr.max_grid_size = 500000
+amr.blocking_factor = 4
+amr.regrid_int = 10
+amr.grid_eff = 0.7
+amr.n_cell = 64 64 0
+
+### DIMENSIONS ###
+geometry.prob_lo = -0.15 -0.03 0.0 # [ m ]
+geometry.prob_hi = 0.15 0.27 0.0 # [ m ]
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 1.0e-7
+stop_time = 5.0e-3
+
+### HYDRO PARAM ###
+
+cfl   = 0.4
+small = 1e-14
+cutoff = 0.2
+
+### ETA IC ###
+
+eta.ic.type = expression
+eta.ic.expression.constant.eps   = 0.005
+eta.ic.expression.region0        = "0.5 * (erf((y+0.01)/eps) + 1)"
+
+m0.ic.type = expression
+m0.ic.expression.constant.P = 101325.0
+m0.ic.expression.constant.T = 1000.0
+m0.ic.expression.constant.R_H2 = 4124.237410
+m0.ic.expression.constant.R_O2 = 259.843820
+m0.ic.expression.constant.R_N2 = 296.800949
+m0.ic.expression.constant.X_O2 = 0.21
+m0.ic.expression.constant.X_N2 = 0.79
+m0.ic.expression.constant.m0_scale_H2 = 1.0
+m0.ic.expression.constant.m0_scale_center = 50.0
+m0.ic.expression.constant.eps_x = 0.01
+m0.ic.expression.region0 = "m0_scale_H2 * P/R_H2/T * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+m0.ic.expression.region1 = "0.0"
+m0.ic.expression.region2 = "0.0"
+m0.ic.expression.region3 = "m0_scale_center * X_O2 * P/R_O2/T * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+m0.ic.expression.region4 = "0.0"
+m0.ic.expression.region5 = "0.0"
+m0.ic.expression.region6 = "0.0"
+m0.ic.expression.region7 = "0.0"
+m0.ic.expression.region8 = "0.0"
+m0.ic.expression.region9 = "m0_scale_center * X_N2 * P/R_N2/T * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+
+u0.ic.type = expression
+u0.ic.expression.constant.P = 101325.0
+u0.ic.expression.constant.T = 1000.0
+u0.ic.expression.constant.R_H2 = 4124.237410
+u0.ic.expression.constant.R_O2 = 259.843820
+u0.ic.expression.constant.R_N2 = 296.800949
+u0.ic.expression.constant.X_O2 = 0.21
+u0.ic.expression.constant.X_N2 = 0.79
+u0.ic.expression.constant.eps_x = 0.01
+u0.ic.expression.constant.U_inj_H2 = 2.0
+u0.ic.expression.constant.U_inj_outer = 800.0
+u0.ic.expression.region0 = "0.0"
+u0.ic.expression.region1 = "U_inj_H2 * (P/R_H2/T * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))) + U_inj_outer * ((X_O2 * P/R_O2/T + X_N2 * P/R_N2/T) * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)))"
+
+q.ic.type = expression
+q.ic.expression.constant.P = 101325.0
+q.ic.expression.constant.T = 1000.0
+q.ic.expression.constant.R_H2 = 4124.237410
+q.ic.expression.constant.R_O2 = 259.843820
+q.ic.expression.constant.R_N2 = 296.800949
+q.ic.expression.constant.X_O2 = 0.21
+q.ic.expression.constant.X_N2 = 0.79
+q.ic.expression.constant.eps_x = 0.01
+q.ic.expression.constant.e_H2 = 6.13694e6
+q.ic.expression.constant.e_O2 = 4.49789e5
+q.ic.expression.constant.e_N2 = 4.69618e5
+q.ic.expression.constant.U_inj_H2 = 2.0
+q.ic.expression.constant.U_inj_outer = 800.0
+q.ic.expression.region0 = "0.0"
+q.ic.expression.region1 = "(e_H2 + 0.5 * U_inj_H2^2) * (P/R_H2/T * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))) + (e_O2 + 0.5 * U_inj_outer^2) * (50.0 * X_O2 * P/R_O2/T * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))) + (e_N2 + 0.5 * U_inj_outer^2) * (50.0 * X_N2 * P/R_N2/T * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x)))"
+
+density.ic.type = expression
+density.ic.expression.constant.P = 101325.0
+density.ic.expression.constant.T = 1000.0
+density.ic.expression.constant.R_H2 = 4124.237410
+density.ic.expression.constant.R_O2 = 259.843820
+density.ic.expression.constant.R_N2 = 296.800949
+density.ic.expression.constant.R_AR = 208.132137
+density.ic.expression.constant.eps_x = 0.01
+density.ic.expression.region0 = "0.0"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "0.0"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "0.0"
+density.ic.expression.region6 = "0.0"
+density.ic.expression.region7 = "0.0"
+density.ic.expression.region8 = "P/R_AR/T"
+density.ic.expression.region9 = "0.0"
+
+velocity.ic.type = expression
+velocity.ic.expression.constant.eps   = 0.1
+velocity.ic.expression.constant.x0    = -2.0
+velocity.ic.expression.region0 = "0.0"
+velocity.ic.expression.region1 = "2.0"
+
+pressure.ic.type = expression
+pressure.ic.expression.constant.gamma = 1.4
+pressure.ic.expression.constant.E_solid = 5.0
+pressure.ic.expression.region0 = "10325.0"
+
+solid.density.ic.type = expression
+solid.density.ic.expression.constant.solid_H2 = 20.0
+solid.density.ic.expression.constant.solid_O2 = 1.164577978740
+solid.density.ic.expression.constant.solid_N2 = 3.835422021260
+solid.density.ic.expression.constant.eps_x = 0.01
+solid.density.ic.expression.region0 = "solid_H2 * (0.5 * (1.0 - erf((x + 0.05)/eps_x)) + 0.5 * (1.0 + erf((x - 0.05)/eps_x)))"
+solid.density.ic.expression.region1 = "0.0"
+solid.density.ic.expression.region2 = "0.0"
+solid.density.ic.expression.region3 = "solid_O2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.density.ic.expression.region4 = "0.0"
+solid.density.ic.expression.region5 = "0.0"
+solid.density.ic.expression.region6 = "0.0"
+solid.density.ic.expression.region7 = "0.0"
+solid.density.ic.expression.region8 = "0.0"
+solid.density.ic.expression.region9 = "solid_N2 * 0.5 * (erf((x + 0.05)/eps_x) - erf((x - 0.05)/eps_x))"
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.energy.ic.constant.value = 0.0
+
+### ETA BC  ###
+
+pf.eta.bc.constant.type.xlo = neumann
+pf.eta.bc.constant.type.xhi = neumann
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
+pf.eta.bc.constant.val.xlo = 0.0
+pf.eta.bc.constant.val.xhi = 0.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+
+density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.yhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.type.ylo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.constant.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+density.bc.constant.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+
+momentum.bc.constant.type.xhi = neumann neumann
+momentum.bc.constant.type.xlo = neumann neumann
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+energy.bc.constant.val.xhi = 0.0
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.ylo = 0.0
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion   = 0.5
+
+prescribedflowmode = absolute

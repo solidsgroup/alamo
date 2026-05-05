@@ -40,7 +40,7 @@ jobs:
         run: >
           scripts/runtests.py --serial
           --timeout=50 --permit-timeout
-          --coverage --no-backspace
+          --coverage --no-backspace --exclude tests/Chemistry
       - name: Generate Coverage Report
         run: make cov-report
       - name: upload coverage report

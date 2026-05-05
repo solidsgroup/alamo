@@ -147,8 +147,10 @@ def validate(path,
         mag = numpy.sqrt(integrate(final_coord, (abs(new_final_var) + abs(ref_final_var))**2))
 
 
-
-        relerr = err/mag
+        if mag > 1e-8:
+            relerr = err/mag
+        else:
+            relerr = err/(mag + 1e-12)
 
         print("{} abs error [tolerance={}]: {}".format(var,abs_tol,err))
         print("{} norm".format(var),mag)
