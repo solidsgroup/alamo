@@ -72,12 +72,22 @@ public:
                         // if (field(i,j,k,m+1) > 1.) field(i,j,k,m+1) = 1.;
                         // value += field(i,j,k,m+1);
                     }
-                    field (i,j,k,invert) = 1.0 - value;
-                    field (i,j,k,1-invert) = value;
-                    if (field(i,j,k,invert) < 0.) field(i,j,k,invert) = 0.;
-                    if (field(i,j,k,invert) > 1.) field(i,j,k,invert) = 1.;
-                    if (field(i,j,k,1-invert) < 0.) field(i,j,k,1-invert) = 0.;
-                    if (field(i,j,k,1-invert) > 1.) field(i,j,k,1-invert) = 1.;
+                    if (value < 0.) value = 0.;
+                    if (value > 1.) value = 1.;
+
+                    if (ncomp == 1)
+                    {
+                        field(i,j,k,0) = invert ? 1.0 - value : value;
+                    }
+                    else
+                    {
+                        field (i,j,k,invert) = 1.0 - value;
+                        field (i,j,k,1-invert) = value;
+                        if (field(i,j,k,invert) < 0.) field(i,j,k,invert) = 0.;
+                        if (field(i,j,k,invert) > 1.) field(i,j,k,invert) = 1.;
+                        if (field(i,j,k,1-invert) < 0.) field(i,j,k,1-invert) = 0.;
+                        if (field(i,j,k,1-invert) > 1.) field(i,j,k,1-invert) = 1.;
+                    }
                 }
                 
             });
@@ -135,8 +145,8 @@ public:
             value.eps.resize(0);
 
             if (pp.contains("center") && pp.contains("x0")) Util::Abort(INFO,"Cannot specify both center (depricated) and x0");
-            pp_queryarr("center", x0); // center of the ellipse
-            pp_queryarr("x0", x0); // center of the ellipse
+            if (pp.contains("center")) pp_queryarr("center", x0); // center of the ellipse [depricated]
+            else pp_queryarr("x0", x0); // center of the ellipse
             
             if(x0.size() != value.number_of_inclusions*AMREX_SPACEDIM){
                 Util::Message(INFO, value.number_of_inclusions*AMREX_SPACEDIM);
@@ -160,9 +170,10 @@ public:
                 } 
                 else
                 {
-                    Set::Matrix _A1 = Set::Matrix::Zero();
-                    for (int i = 0; i < value.number_of_inclusions; i+= AMREX_SPACEDIM*AMREX_SPACEDIM)
+                    for (int m = 0; m < value.number_of_inclusions; m++)
                     {
+                        int i = m * AMREX_SPACEDIM * AMREX_SPACEDIM;
+                        Set::Matrix _A1 = Set::Matrix::Zero();
                         AMREX_D_PICK(   _A1(0,0) = _A[i];
                                         ,
                                         _A1(0,0) = _A[i]; _A1(0,1) = _A[i+1];
@@ -176,13 +187,15 @@ public:
                     }
                 }
             }
-            else if (pp.contains("radius"))
+            else if (pp.contains("a") || pp.contains("radius"))
             {
                 amrex::Vector<Set::Scalar> _r;
-                pp_queryarr("radius", _r); // Array of radii [depricated]
+                if (pp.contains("a") && pp.contains("radius")) Util::Abort(INFO, "Cannot specify both a and radius for ellipse initialization");
+                if (pp.contains("a")) pp_queryarr("a", _r); // Array of radii
+                else pp_queryarr("radius", _r); // Array of radii [depricated]
 
                 if(_r.size() != value.number_of_inclusions*AMREX_SPACEDIM && _r.size() != AMREX_SPACEDIM)
-                    Util::Abort(INFO, "Invalid value of radius for ellipse initialization");
+                    Util::Abort(INFO, "Invalid value of radii for ellipse initialization");
                 if(_r.size() ==  AMREX_SPACEDIM)
                 {
                     Set::Matrix _A1 = Set::Matrix::Zero();
@@ -195,10 +208,14 @@ public:
                     for (int i = 0; i < value.number_of_inclusions; i++)
                     {
                         Set::Matrix _A1 = Set::Matrix::Zero();
-                        for (int d = 0; d <  AMREX_SPACEDIM; d++) _A1(d,d) = 1.0/_r[i+d]/_r[i+d];
+                        for (int d = 0; d <  AMREX_SPACEDIM; d++) _A1(d,d) = 1.0/_r[i*AMREX_SPACEDIM+d]/_r[i*AMREX_SPACEDIM+d];
                         value.A.push_back(_A1);
                     }
                 }
+            }
+            else
+            {
+                Util::Abort(INFO, "Either A, a, or radius must be specified for ellipse initialization");
             }
 
             amrex::Vector<Set::Scalar> _eps;
@@ -214,6 +231,7 @@ public:
         }
         // Flip the inside and the outside
         pp_query("invert",value.invert);
+        if (value.invert != 0 && value.invert != 1) Util::Abort(INFO, "invert must be 0 or 1 for ellipse initialization");
     }
 };
 }
