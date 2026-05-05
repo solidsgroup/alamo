@@ -20,10 +20,10 @@ struct FiniteRate
 
     enum class IntegrationType { EXPLICIT, SUBSTEP, IMPLICIT };
     IntegrationType integration = IntegrationType::EXPLICIT;
-    int nsubsteps = 10;
-    int max_iter = 100;
-    double reltol = 1.0e-6;
-    double abstol = 1.0e-12;
+    int nsubsteps = 0;
+    int max_iter = 0;
+    double reltol = 0.0;
+    double abstol = 0.0;
 
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     static double EvaluateTroeFactor(
@@ -579,10 +579,10 @@ struct FiniteRate
         else if (integration_type_str == "implicit") value.integration = IntegrationType::IMPLICIT;
         else Util::Abort(INFO, "Invalid integration type: ", integration_type_str);
 
-        pp.query("nsubsteps", value.nsubsteps);
+        pp.query_default("nsubsteps", value.nsubsteps, 10);
         pp.query_default("max_iter", value.max_iter, 100);
         pp.query_default("reltol", value.reltol, 1e-6);
-        pp.query_default("abstol", value.abstol, 1e-4);
+        pp.query_default("abstol", value.abstol, 1e-12);
 
         Util::Assert(INFO, TEST(value.nsubsteps > 0),
             "chemistry.finite_rate.nsubsteps must be > 0.");
