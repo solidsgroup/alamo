@@ -1,13 +1,13 @@
 
 alamo.program = flame
 
-plot_file = output.scpsphereselastic
+plot_file = output.scpspheres_frozen_chemistry
 
 system.length = mm
 system.time = s
 
 # AMR and output parameters
-amr.plot_dt = 5e-4_s
+amr.plot_dt = 2.5e-7
 amr.max_grid_size = 16
 amr.blocking_factor = 16
 amr.base_regrid_int = 10
@@ -21,15 +21,15 @@ amr.cell.all = 1
 # Geometry and base grid size
 amr.max_level = 3
 
-# Full size
-amr.n_cell = 32 32 32
-geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
+# # Full size
+# amr.n_cell = 32 32 32
+# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+# geometry.prob_hi = 1.0_mm 1.0_mm 1.0_mm
 
 # Quarter size
-# amr.n_cell = 16 16 16
-# geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
-# geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
+amr.n_cell = 16 16 16
+geometry.prob_lo = 0.0_mm 0.0_mm 0.0_mm
+geometry.prob_hi = 0.5_mm 0.5_mm 0.5_mm
 
 geometry.is_periodic = 0 0 0
 
@@ -42,15 +42,15 @@ pf.eps = 1.0_um #0.0005 # [m]
 pf.lambda = 0.001_J/m^2
 
 ## Eta initial condition
-#pf.eta.ic.type = constant 
-#pf.eta.ic.constant.value = 1.0 
-pf.eta.ic.type = expression
-pf.eta.ic.expression.constant.eps = 20.0_um
-pf.eta.ic.expression.constant.x0 = 40.0_um
+pf.eta.ic.type = constant 
+pf.eta.ic.constant.value = 1.0 
+# pf.eta.ic.type = expression
+# pf.eta.ic.expression.constant.eps = 20.0_um
+# pf.eta.ic.expression.constant.x0 = 40.0_um
 # pf.eta.ic.expression.region0 = "(.5 + 0.5*erf((x-x0)/eps))*(erf(1000*(x-0.5)**2+1000*(y-0.5)**2))"
 # pf.eta.ic.expression.region0 = "x > x0"
 # pf.eta.ic.expression.region0 = "1.0"
-pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
+# pf.eta.ic.expression.region0 = "0.5 + 0.5*erf((x-x0)/eps)"
 # pf.eta.ic.expression.region0 = "1 - 1/(100**(x*x + y*y))"
 
 # Phi initial condition (Grain image)
@@ -148,10 +148,9 @@ laser.ic.type = expression
 laser.ic.expression.constant.tswitch = 1_ms
 laser.ic.expression.constant.qflux0 = 1.0e8_W/m^2
 laser.ic.expression.constant.qflux1 = 1.0e6_W/m^2
-laser.ic.expression.region0 = "qflux0*(t<tswitch) + qflux1*(t>=tswitch)"
-
-# Chamber pressure (used for regression model)
-chamber.pressure = 1.0_MPa  ## [MPa]
+laser.ic.expression.constant.eps = 20.0_um
+laser.ic.expression.constant.x0 = 20.0_um
+laser.ic.expression.region0 = "(qflux0*(t<tswitch) + qflux1*(t>=tswitch))*(0.5 - 0.5*erf((x-x0)/eps))"
 
 # Disable NAN checking
 amr.abort_on_nan = 1
@@ -195,42 +194,61 @@ system.amount = kmol
 hydro.gas.mw = 26 26 26 26 26 26
 
 hydro.gas.thermo.type = cpconstant
-hydro.gas.thermo.cpconstant
+hydro.gas.thermo.cpconstant.cp_moles = 32635.0 32635.0 32635.0 32635.0 32635.0 32635.0 # J/kmol/K
+hydro.gas.thermo.cpconstant.h0   =   0.0   0.0   0.0   0.0   0.0   0.0
+hydro.gas.thermo.cpconstant.s0   =   0.0   0.0   0.0   0.0   0.0   0.0
+hydro.gas.thermo.cpconstant.Tref = 300.0 300.0 300.0 300.0 300.0 300.0
+
+hydro.gas.transport.type = mixture_averaged
+hydro.gas.transport.mixture_averaged.type = constant
+
+hydro.gas.transport.mixture_averaged.mu = 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s 5.02e-5_Pa*s
+# hydro.gas.mixture_averaged.mu = 5.02e-5 5.02e-5 5.02e-5 5.02e-5 5.02e-5 5.02e-5
+hydro.gas.transport.mixture_averaged.k = 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K 0.0914_W/m/K
+
+hydro.gas.eos.type = tpg
+
+hydro.density.ic.type = constant
+hydro.density.ic.constant.value = 0.5 0.5 0.0 0.0 0.0 0.01
+
+hydro.pressure.ic.type = constant
+hydro.pressure.ic.constant.value = 101325.0
+
+hydro.velocity.ic.type = constant
+hydro.velocity.ic.constant.value = 0.0 0.0
+
+hydro.solid.density.ic.constant.value = 0.5 0.5 0.0 0.0 0.0 0.0
+hydro.solid.momentum.ic.constant.value = 0.0 0.0
+hydro.solid.energy.ic.constant.value = 0.0
 
 hydro.on = 1
-hydro.tstart = 1e-5 # Was 0.0005
+hydro.tstart = 1e-6 # Was 0.0005
 hydro.rho_ap = 2.0
 hydro.rho_htpb = 1.0
 hydro.u0_ap = 5.0
 hydro.u0_htpb = 20.0 # 20.0 
-hydro.density.ic.constant.value = 1.0
-hydro.solid.density.ic.constant.value = 1.0
 hydro.m0.ic.constant.value = "1.0" 
 hydro.u0.ic.constant.value = 0 0.0
 hydro.lagrange= 0.0
-hydro.lagrange_m0=1.0
 hydro.solver.type = roe
-# hydro.scheme = ssprk3
-hydro.gamma = 1.4
-hydro.mu    = 0.00001
 hydro.cfl   = 10.0
 hydro.cfl_v   = 10.0
 hydro.prescribedflowmode = relative
-hydro.velocity.ic.type = constant
-hydro.velocity.ic.constant.value = 0.0
-hydro.pressure.ic.type = expression
-hydro.pressure.ic.expression.constant.gamma = 1.4
-hydro.pressure.ic.expression.constant.E_solid = 5.0
-hydro.pressure.ic.expression.region0 = "(gamma - 1.0) * E_solid"
-hydro.solid.momentum.ic.constant.value = 0.0
-hydro.solid.energy.ic.constant.value = 0.0
 hydro.q.ic.constant.value = 0.0
 hydro.small=1E-3
 hydro.cutoff=0.2
+
+
 hydro.momentum.bc.constant.type.xhi = neumann neumann
-hydro.momentum.bc.constant.type.xlo = neumann neumann #dirichlet neumann
-hydro.momentum.bc.constant.type.ylo = neumann dirichlet
-hydro.momentum.bc.constant.type.yhi = neumann dirichlet
+hydro.momentum.bc.constant.type.xlo = neumann neumann
+hydro.momentum.bc.constant.type.ylo = neumann neumann
+hydro.momentum.bc.constant.type.yhi = neumann neumann
+
+hydro.density.bc.constant.type.xhi = neumann neumann neumann neumann neumann neumann
+hydro.density.bc.constant.type.xlo = neumann neumann neumann neumann neumann neumann
+hydro.density.bc.constant.type.yhi = neumann neumann neumann neumann neumann neumann
+hydro.density.bc.constant.type.ylo = neumann neumann neumann neumann neumann neumann
+
 hydro.energy.bc.constant.type.xhi = neumann
 hydro.energy.bc.constant.type.xlo = neumann #dirichlet #neumann
 hydro.energy.bc.constant.type.ylo = neumann

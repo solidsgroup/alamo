@@ -1,3 +1,5 @@
+// Calorically Perfect Gas
+
 #include "Model/Gas/Gas.H"
 #include "Model/Gas/EOS/CPG.H"
 

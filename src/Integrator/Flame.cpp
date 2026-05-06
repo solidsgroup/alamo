@@ -487,15 +487,15 @@ void Flame::UpdateFluxes(int lev, Set::Scalar a_time, Set::Scalar dt)
             solidM(i,j,k,0) = solidrho(i,j,k)*u0(0);
             solidM(i,j,k,1) = solidrho(i,j,k)*u0(1);
 
-        #if AMREX_SPACEDIM == 3
-        solidM(i,j,k,2) = solidrho(i,j,k)*u0(2);
-        #endif
+            #if AMREX_SPACEDIM == 3
+                solidM(i,j,k,2) = solidrho(i,j,k)*u0(2);
+            #endif
 
-            u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)*rho_tot_gas(i,j,k)*velocity_mult; // Update the velocity source term based on conservation of mass
-            u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)*rho_tot_gas(i,j,k)*velocity_mult;
-        #if AMREX_SPACEDIM == 3
-        u0_patch(i,j,k,2) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(2)*rho_tot_gas(i,j,k)*velocity_mult;
-        #endif
+                u0_patch(i,j,k,0) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(0)*rho_tot_gas(i,j,k)*velocity_mult; // Update the velocity source term based on conservation of mass
+                u0_patch(i,j,k,1) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(1)*rho_tot_gas(i,j,k)*velocity_mult;
+            #if AMREX_SPACEDIM == 3
+                u0_patch(i,j,k,2) = deta_dt*(rho_AP_solid*phi + rho_HTPB_solid*(1-phi))*N(2)*rho_tot_gas(i,j,k)*velocity_mult;
+            #endif
         });
     }
 

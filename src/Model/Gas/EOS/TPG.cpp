@@ -1,3 +1,5 @@
+// Thermally perfect gas
+
 #include "Model/Gas/Gas.H"
 #include "Model/Gas/EOS/TPG.H"
 #include "Util/Util.H"
