@@ -86,15 +86,42 @@ protected:
                 Hydro::Mix(lev);
                 Base::Mechanics<model_type>::Initialize(lev);
             }
-            hydro_initialized=true;
-            
+            hydro_initialized = true;
         }
+
         PF::TimeStepBegin(a_time, a_step);
-        if (hydro_initialized) {
+
+        if (hydro_initialized)
+        {
             Hydro::TimeStepBegin(a_time, a_step);
+
+            // Refresh psi pointer and fill ghost cells before mechanics solve
+            solver.setPsi(*Hydro::eta_mf);
+            for (int lev = 0; lev <= finest_level; lev++)
+                Util::RealFillBoundary(*(*Hydro::eta_mf)[lev], geom[lev]);
+
             Base::Mechanics<model_type>::TimeStepBegin(a_time, a_step);
         }
     }
+    // void TimeStepBegin(Set::Scalar a_time, int a_step) override
+    // {   
+    //     if (a_time > tstart && !hydro_initialized)
+    //     {
+    //         for (int lev = 0; lev <= finest_level; lev++)
+    //         {
+    //             Hydro::Initialize(lev);
+    //             Hydro::Mix(lev);
+    //             Base::Mechanics<model_type>::Initialize(lev);
+    //         }
+    //         hydro_initialized=true;
+            
+    //     }
+    //     PF::TimeStepBegin(a_time, a_step);
+    //     if (hydro_initialized) {
+    //         Hydro::TimeStepBegin(a_time, a_step);
+    //         Base::Mechanics<model_type>::TimeStepBegin(a_time, a_step);
+    //     }
+    // }
 
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override
     {
