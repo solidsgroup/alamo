@@ -147,7 +147,9 @@ parser.add_argument('--fft-only',dest="fft_only",default=False,action='store_tru
 parser.add_argument('--post-timeout', dest="post_timeout", default=10000, help='How long to wait before skipping results posting')
 parser.add_argument('--python', default=False,action='store_true', help='Include python tests')
 parser.add_argument('--only-python', default=False,action='store_true', help='Run python tests only')
-args=parser.parse_args()
+parser.add_argument('--nspecies',default=1,type=int,help='Run multispecies test cases with NSPECIES=nspecies')
+parser.add_argument('--exclude', nargs='+', help='Exclude specific test directories')
+args = parser.parse_args()
 
 if args.coverage and args.no_coverage:
     raise Exception("Cannot specify both --coverage and --no-coverage")
@@ -367,6 +369,10 @@ def test(testdir):
             if 'dim' in config[desc].keys():
                 dim = int(config[desc]['dim'])
                 config[desc].pop('dim')
+            nspecies = 1
+            if 'nspecies' in config[desc].keys():
+                nspecies = int(config[desc]['nspecies'])
+                config[desc].pop('nspecies')
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
             if 'nprocs' in config[desc].keys():
                 nprocs = int(config[desc]['nprocs'])
@@ -404,6 +410,7 @@ def test(testdir):
             # Specify alamo command.
             
             exestr = "./bin/{}-{}d".format(exe,dim)
+            if args.nspecies > 1: exestr += f"-{args.nspecies}species"
             if args.debug: exestr += "-debug"
             if args.memcheck: exestr += "-{}".format(args.memcheck)
             if args.profile: exestr += "-profile"
@@ -454,10 +461,17 @@ def test(testdir):
                     continue
                 config[desc].pop('skip')
 
-            command += exestr + " "
-            command += "{}/input ".format(testdir)
-            command += cmdargs
-            record['cmd_test'] = command
+        # Determine if this is a multispecies test
+        if (nspecies > 1) and not (args.nspecies > 1):
+            continue
+        
+        if not (nspecies > 1) and (args.nspecies > 1):
+            continue
+
+        command += exestr + " "
+        command += "{}/input ".format(testdir)
+        command += cmdargs
+        record['cmd_test'] = command
         
 
 
@@ -853,6 +867,12 @@ def test(testdir):
 # Otherwise look at everything in ./tests/
 if args.tests: tests = sorted(args.tests)
 else: tests = sorted(glob.glob("./tests/*"))
+
+if args.exclude:
+    tests = [t for t in tests if not any(fnmatch.fnmatch(t, e) or 
+                                         fnmatch.fnmatch(os.path.basename(t), e) or 
+                                         fnmatch.fnmatch(os.path.normpath(t), os.path.normpath(e))
+                                         for e in args.exclude)]
 
 tests = [str(pathlib.Path(f)) for f in tests]
 

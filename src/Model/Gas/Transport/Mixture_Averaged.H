@@ -2,12 +2,13 @@
 #define MODEL_GAS_TRANSPORT_MIXTURE_AVERAGED_H_
 
 #include <vector>
+#include <array>
 #include <memory>
 #include "IO/ParmParse.H"
 #include "Model/Gas/Transport/Transport.H"
 
 // Type: 0,1 determines if per species viscosity and thermal conductivity are 
-//           constant (type=0) or computed using kinetic theory (type=1)
+//           constant (type=constant) or computed using kinetic theory (type=LJ)
 // Either way, mixture averaging is used to compute the mixture values
 //
 // For kinetic theory: Chapman-Enskog is used to compute viscosity
@@ -42,17 +43,18 @@ public:
     virtual const char* model_name() const override { return name; }
 
 private:
-    int nspecies;
     std::vector<double> &MW;
     Thermo::Thermo const * const thermo;
     std::string type;
     std::vector<double> val1; // constant viscosity mu or Lennard-Jones collision diameter depending on type
     std::vector<double> val2; // constant thermal conductivity or Lennard-Jones potential well depth depending on type
+    double d_fact; // When type=constant, this is a correction factor such that self diffusion D_n = d_fact * mu_n/rho_mix
+    Set::Scalar P_1atm, L_1ang, A_1cmsq;
 
 public:
     Mixture_Averaged() = delete;
-    Mixture_Averaged(int a_nspecies, std::vector<double> &a_MW, Thermo::Thermo *a_thermo, IO::ParmParse& pp, std::string name)
-        : nspecies(a_nspecies), MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
+    Mixture_Averaged(std::vector<double> &a_MW, Thermo::Thermo *a_thermo, IO::ParmParse& pp, std::string name)
+        : MW(a_MW), thermo(a_thermo) // thermo is owned by Gas, should only be referenced here
     {
         pp.queryclass(name, *this);
     }
@@ -61,30 +63,28 @@ public:
 
     static void Parse(Mixture_Averaged & value, IO::ParmParse & pp)
     {
-        // Compute individual species transport properties as "constant" or from "LJ" (Lennard-Jones) theory
         pp.query_validate("type", value.type, {"constant", "LJ"});
         if (value.type == "constant")
         {
-            // Dynamic viscosity if type=constant
             pp.queryarr_required("mu", value.val1, Unit::Pressure() * Unit::Time());
-            // Thermal conductivity if type=constant
             pp.queryarr_required("k", value.val2, Unit::Power() / Unit::Length() / Unit::Temperature());
+            pp.query_default("d_fact", value.d_fact, "1.1", Unit::Less());
         }
         else if (value.type == "LJ")
         {
-            // Lennard-Jones diameter if type=LJ
             pp.queryarr_required("LJdiameter", value.val1, Unit::Length());
-            // Lennard-Jones well depth if type=LJ
             pp.queryarr_required("LJwelldepth", value.val2, Unit::Temperature());
         }
         else
         {
             Util::Abort(INFO, "Unrecognized type for transport model ", value.type);
         }
-        //pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        pp.query_default("P_1atm", value.P_1atm, "1_atm", Unit::Pressure());
+        pp.query_default("L_1ang", value.L_1ang, "1_ang", Unit::Length());
+        pp.query_default("A_1cmsq", value.A_1cmsq, "1_cm^2", Unit::Area());
 
-        Util::Assert(INFO, TEST(value.val1.size() == (size_t)value.nspecies));
-        Util::Assert(INFO, TEST(value.val2.size() == (size_t)value.nspecies));
+        Util::Assert(INFO, TEST(value.val1.size() == (size_t)NSPECIES));
+        Util::Assert(INFO, TEST(value.val2.size() == (size_t)NSPECIES));
     }
 
 private:
@@ -95,13 +95,13 @@ private:
         return S;
     }
     double mu_enskog(double T, int i) const {
-        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i] * val1[i] * collision_integral(T / val2[i]));
+        return 2.669570e-6 * sqrt(MW[i] * T) / (val1[i]/L_1ang * val1[i]/L_1ang * collision_integral(T / val2[i]));
     }
-    double k_eucken(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k, int n) const 
+    double k_eucken(double T, int n) const 
     {
         if (!thermo) Util::Abort(INFO, "[Transport::Mixture_Averaged::k_eucken] Thermo model not set.");
-        double cp = thermo->cp_mol(T, X, i, j, k);
-        return mu_enskog(T, n) * (X(i, j, k, n) * cp + 1.25 * Set::Constant::Rg) / MW[n];
+        double cp = thermo->cp_mol_species(T, n);
+        return mu_enskog(T, n) * (cp + 1.25 * Set::Constant::Rg) / MW[n];
     }
 
 public:
@@ -112,11 +112,11 @@ public:
         if ( type == "constant" )
         {
             // dynamic viscosity, mu, is constant per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = val1[a];
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = val1[b];
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -130,11 +130,11 @@ public:
         else if ( type == "LJ" )
         {
             // dynamic viscosity, mu, computed by Chapman-Enskog per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = mu_enskog(T, a);
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = mu_enskog(T, b);
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -161,11 +161,11 @@ public:
         if ( type == "constant" )
         {
             // thermal conductivity coefficient, k, is constant per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = val1[a];
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = val1[b];
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -179,11 +179,11 @@ public:
         else if ( type == "LJ" )
         {
             // thermal conductivity coefficient, k, computed by Eucken relation per species
-            for (int a = 0; a < nspecies; ++a) {
+            for (int a = 0; a < NSPECIES; ++a) {
                 double mua = mu_enskog(T, a);
                 double MWa = MW[a];
                 double phi = 0.0;
-                for (int b = 0; b < nspecies; ++b) {
+                for (int b = 0; b < NSPECIES; ++b) {
                     double mub = mu_enskog(T, b);
                     double MWb = MW[b];
                     double ratio = pow(MWb / MWa, 0.25);
@@ -191,7 +191,7 @@ public:
                     double term = sqrt(1.0 + MWa / MWb);
                     phi += X(i, j, k, b) * pow(1.0 + mu_ratio * ratio, 2.0) / (sqrt(8.0) * term);
                 }
-                k_mix += X(i, j, k, a) * k_eucken(T, X, i, j, k, a) / phi;
+                k_mix += X(i, j, k, a) * k_eucken(T, a) / phi;
             }
         }
         else
@@ -206,32 +206,60 @@ public:
             Set::Patch<Set::Scalar>& DKM, double T, double P,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) override
     {
-        // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
-        for (int a = 0; a < nspecies; ++a) {
-            double sumD = 0.0;
-            for (int b = 0; b < nspecies; ++b) {
-                if (a == b) continue;
-
-                double sigmaAB = 0.5 * (val1[a] + val1[b]);
-                double epsAB   = sqrt(val2[a] * val2[b]);
-                double Tstar   = T / epsAB;
-
-                double omegaAB =
-                    1.06036 / pow(Tstar, 0.15610) +
-                    0.19300 / exp(0.47635 * Tstar) +
-                    1.03587 / exp(1.52996 * Tstar) +
-                    1.76474 / exp(3.89411 * Tstar);
-
-                double DAB = 
-                    0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
-                    ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
-                DAB /= 1.0e4;
-
-                sumD += X(i, j, k, b) / DAB;
+        if ( type == "constant" )
+        {
+            // Mixture diffusion coefficients based on simple harmonic mean, m^2/s
+            double rho_mix = 0.0;
+            for (int n=0; n<NSPECIES; ++n)
+                rho_mix += X(i,j,k,n) * MW[n];
+            rho_mix *= P/(Set::Constant::Rg*T);
+            
+            // compute self-diffusion proxies D_n = mu_n/rho_mix
+            std::array<double, NSPECIES> D_self;
+            for (int n=0; n<NSPECIES; ++n)
+                D_self[n] = d_fact * val1[n] / rho_mix;
+            
+            // compute mixture diffusion coefficients
+            for (int a=0; a<NSPECIES; ++a) {
+                double sumD = 0.0;
+                for (int b=0; b<NSPECIES; ++b) {
+                    if (a==b) continue;
+                    double D_ab = 2.0 * D_self[a] * D_self[b] / (D_self[a] + D_self[b]); // harmonic mean
+                    sumD += X(i,j,k,b) / D_ab;
+                }
+                DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
+                if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
             }
+        }
+        else if ( type == "LJ" )
+        {
+            // Mixture diffusion coefficients (Chapman–Enskog), m^2/s
+            for (int a = 0; a < NSPECIES; ++a) {
+                double sumD = 0.0;
+                for (int b = 0; b < NSPECIES; ++b) {
+                    if (a == b) continue;
 
-            DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
-            if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+                    double sigmaAB = 0.5 * (val1[a] + val1[b]) / L_1ang; // in angstroms
+                    double epsAB   = sqrt(val2[a] * val2[b]);
+                    double Tstar   = T / epsAB;
+
+                    double omegaAB =
+                        1.06036 / pow(Tstar, 0.15610) +
+                        0.19300 / exp(0.47635 * Tstar) +
+                        1.03587 / exp(1.52996 * Tstar) +
+                        1.76474 / exp(3.89411 * Tstar);
+
+                    double DAB = 
+                        0.0018583 * sqrt(T*T*T * (1.0 / MW[a] + 1.0 / MW[b])) /
+                        ( (P / 101325.0) * sigmaAB*sigmaAB * omegaAB );
+                    DAB *= A_1cmsq; // convert cm^2/s to m^2/s
+
+                    sumD += X(i, j, k, b) / DAB;
+                }
+
+                DKM(i, j, k, a) = (1.0 - X(i, j, k ,a)) / sumD;
+                if (!(DKM(i, j, k, a) == DKM(i, j, k, a))) DKM(i, j, k, a) = 0.0; // NaN guard
+            }
         }
     }
 

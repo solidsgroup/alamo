@@ -15,6 +15,12 @@
 
 #include "Model/Gas/Gas.H"
 
+#include "Model/Chemistry/Chemistry.H"
+#include "Model/Chemistry/Frozen.H"
+#include "Model/Chemistry/Equilibrium.H"
+#include "Model/Chemistry/FiniteRate.H"
+#include "Model/Chemistry/Rocfire.H"
+
 namespace Integrator
 {
 class Hydro : virtual public Integrator
@@ -63,6 +69,10 @@ public:
         delete solid.energy_ic;
 
         delete riemannsolver;
+
+        delete neumann_bc_1;
+        delete neumann_bc_D;
+        delete neumann_bc_N;
     }
 
 protected:
@@ -73,12 +83,14 @@ protected:
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement(int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
+    void PreparePlotFileData() override;
 
     virtual void UpdateEta(int lev, Set::Scalar time);
     virtual void UpdateFluxes(int lev, Set::Scalar time, Set::Scalar dt);
 protected:
+    void RefreshDerivedPlotFields(int lev);
     
-    void RHS(   int lev, Set::Scalar time, 
+    void RHS(   int lev, Set::Scalar time, Set::Scalar dt,
                 amrex::MultiFab &rho_rhs_mf, 
                 amrex::MultiFab &M_rhs_mf, 
                 amrex::MultiFab &E_rhs_mf,
@@ -102,6 +114,12 @@ protected:
     Set::Field<Set::Scalar> mass_fraction_mf;
     Set::Field<Set::Scalar> mole_fraction_mf;
     Set::Field<Set::Scalar> scratch_mf;
+
+    Set::Field<Set::Scalar> viscosity_mf;
+    Set::Field<Set::Scalar> thermal_conductivity_coeff_mf;
+    Set::Field<Set::Scalar> diffusion_coeff_mf;
+    Set::Field<Set::Scalar> wdot_mf;
+    Set::Field<Set::Scalar> qdot_mf;
 
     struct {
         Set::Field<Set::Scalar> density_mf;
@@ -144,12 +162,14 @@ protected:
 
     BC::Nothing bc_nothing;
 
-    BC::Constant neumann_bc_1 = BC::Constant::ZeroNeumann(1);
-    BC::Constant neumann_bc_D = BC::Constant::ZeroNeumann(AMREX_SPACEDIM);
+    BC::BC<Set::Scalar>* neumann_bc_1 = nullptr;
+    BC::BC<Set::Scalar>* neumann_bc_D = nullptr;
+    BC::BC<Set::Scalar>* neumann_bc_N = nullptr;
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
+    bool details = false;
 
     Set::Scalar eta_refinement_criterion=NAN, omega_refinement_criterion=NAN, gradu_refinement_criterion=NAN, p_refinement_criterion=NAN, rho_refinement_criterion;
     Set::Scalar cfl=NAN, cfl_v=NAN;
@@ -161,12 +181,14 @@ protected:
 
     Solver::Local::Riemann::Riemann *riemannsolver = nullptr;
 
-    //std::vector<std::string> species;
-    //std::vector<double> mw_array, cp_array, h0_array, s0_array, Tref_array, mu_array, k_array; 
-    int nspecies;
+    Model::Chemistry::Chemistry<
+        Model::Chemistry::Frozen,
+        Model::Chemistry::Equilibrium,
+        Model::Chemistry::FiniteRate,
+        Model::Chemistry::Rocfire> chemistry;
+
     Model::Gas::Gas gas;
     
-
     enum IntegrationScheme {
         ForwardEuler, SSPRK3, RK4
     };
@@ -176,7 +198,6 @@ protected:
         Absolute, Relative
     };
     PrescribedFlowMode prescribedflowmode;
-
 
     Set::Vector g;
 

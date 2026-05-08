@@ -31,7 +31,7 @@ jobs:
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --no-backspace  --timeout=50 --permit-timeout --permit-skips --exclude tests/Chemistry
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-2d-asan-gcc
@@ -72,7 +72,7 @@ jobs:
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=asan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips --exclude tests/Chemistry
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-2d-asan-clang
@@ -113,7 +113,7 @@ jobs:
     - name: make (2d)
       run: make
     - name: regression tests with memory checking (2d)
-      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips
+      run: ./scripts/runtests.py --debug --serial --dim=2 --memcheck=msan --comp=clang++ --no-backspace  --timeout=50 --permit-timeout --permit-skips --exclude tests/Chemistry
     - name: create report
       if: always()
       run: python3 scripts/package_report.py --name memcheck-2d-msan-clang

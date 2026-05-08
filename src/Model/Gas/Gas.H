@@ -5,8 +5,10 @@
 #include <cmath>
 #include <memory>
 #include "Model/Gas/Thermo/CpConstant.H"
+#include "Model/Gas/Thermo/NASA7.H"
 #include "Model/Gas/Transport/Mixture_Averaged.H"
 #include "Model/Gas/EOS/CPG.H"
+#include "Model/Gas/EOS/TPG.H"
 #include "Util/Util.H"
 #include "Set/Base.H"
 #include "Set/Set.H"
@@ -14,11 +16,9 @@
 
 namespace Model {
 namespace Gas {
-
 class Gas {
 protected:
 public:
-    int nspecies;
     std::vector<double> MW;      // Species molecular weights, kg/kmol
     Thermo::Thermo *thermo = nullptr;
     Transport::Transport *transport = nullptr;
@@ -35,29 +35,32 @@ public:
     {
         // number of species
         pp.queryarr_required("mw",value.MW,Unit::Mass()/Unit::Amount());
-        value.nspecies = value.MW.size();
+        Util::Assert(INFO, TEST(value.MW.size() == NSPECIES), "Error: Runtime species count from input file (", value.MW.size(), ") doesn't match the compile-time NSPECIES (", NSPECIES, ")");
 
         delete value.thermo;
         value.thermo = nullptr;
         // thermo model
-        pp.select<Thermo::CpConstant>("thermo", value.thermo, value.nspecies);
+        pp.select<Thermo::CpConstant, Thermo::NASA7>("thermo", value.thermo);
 
         delete value.transport;
         value.transport = nullptr;
         // transport model
-        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.nspecies, value.MW, value.thermo);
+        pp.select<Transport::Mixture_Averaged>("transport", value.transport, value.MW, value.thermo);
 
         delete value.eos;
         value.eos = nullptr;
         // eos model
-        pp.select<EOS::CPG>("eos", value.eos, &value);
+        pp.select<EOS::CPG, EOS::TPG>("eos", value.eos, &value);
     }
-    
+
 public:
     // Thermodynamic quantities
     double cp_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double enthalpy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double entropy_mol(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
+    double cp_mol_species(double T, int n) const;
+    double enthalpy_mol_species(double T, int n) const;
+    double entropy_mol_species(double T, int n) const;
 
     // Transport quantities
     double dynamic_viscosity(double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
@@ -68,7 +71,7 @@ public:
     double ComputeT(
             double density, double momentumx, double momentumy, double E, double Tguess,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k, double rtol=1e-12) const;
-    double ComputeT(
+    double ComputeT_from_primitives(
             double pressure, double density,
             Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
     double ComputeP(double density, double T, Set::Patch<const Set::Scalar>& X, int i, int j, int k) const;
@@ -89,25 +92,37 @@ public:
         // has changed, since they are dependent on mole fraction
         double density = 0.0;
         double moles = 0.0;
-        for (int n=0; n<nspecies; ++n) {
+        for (int n=0; n<NSPECIES; ++n) {
             density += density_mf(i,j,k,n);
             moles += density_mf(i,j,k,n) / MW[n];
         }
-        for (int n=0; n<nspecies; ++n) {
+        if (density <= 0.0 || moles <= 0.0)
+        {
+            for (int n=0; n<NSPECIES; ++n)
+            {
+                mass_fraction_mf(i,j,k,n) = 0.0;
+                mole_fraction_mf(i,j,k,n) = 0.0;
+            }
+            return;
+        }
+        for (int n=0; n<NSPECIES; ++n) {
             mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
             mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
+            //Util::Message(INFO, "Mass fraction[n]: ", n, " ", mass_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) >= -1e-12), "Error: Mass fraction less than 0.0");
+            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) <= 1.0 + 1e-12), "Error: Mass fraction greater than 1.0");
         }
     }
     double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
         double mw = 0.0;
-        for (int n=0; n<nspecies; ++n) mw += X(i,j,k,n) * MW[n];
+        for (int n=0; n<NSPECIES; ++n) mw += X(i,j,k,n) * MW[n];
         return mw;
     }
     double ComputeD(Set::Patch<const Set::Scalar>& rhoY, int i, int j, int k) const {
         // Mixture density kg/m^3
         double rho = 0.0;
-        for (int n=0; n<nspecies; ++n) rho += rhoY(i,j,k,n);
+        for (int n=0; n<NSPECIES; ++n) rho += rhoY(i,j,k,n);
         return rho;
     }
     double R(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const { 

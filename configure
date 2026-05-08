@@ -116,6 +116,7 @@ if os.path.exists(pre_args.config):
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
+parser.add_argument('--nspecies', dest='nspecies', default=1, type=int, help='Number of species [1]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
@@ -145,6 +146,7 @@ parser.add_argument('--fft',default=False,action='store_true',help="Compile with
 parser.add_argument('--github-mode',default="http",help="Github checkout mode to use (http or ssh)")
 parser.add_argument("--save", action="store_true", help="Save current configuration to .alamo file")
 parser.add_argument("--config", default=CONFIG_FILE, help="Configuration file to load or save [.alamo]")
+parser.add_argument("--yaml", action="store_true", default=False, help="Build and link to yaml-cpp")
 parser.set_defaults(**defaults)
 
 
@@ -153,6 +155,8 @@ parser.set_defaults(**defaults)
 #
 
 args=parser.parse_args()
+if args.nspecies > 1:
+    args.yaml = True
 if args.buildamrexbranch and args.buildamrextag:
     raise(Exception(error("You cannot specify build-amrex-tag and build-amrex-branch at the same time")))
 if args.memcheck and not args.debug: 
@@ -214,6 +218,7 @@ if args.verbose:
 #
 postfix = ""
 postfix += str(args.dim)+"d"
+if args.nspecies > 1: postfix += f"-{args.nspecies}species"
 if args.debug: postfix += "-debug"
 if args.memcheck:
     if args.memcheck_tool == "asan": postfix += "-asan"
@@ -235,6 +240,13 @@ shellmessage("Current Hash",   "git log -1 --pretty=format:%H", hidecmd=True)
 #
 f.write("DIM = " + str(args.dim) + "\n")
 message("Dimension",str(args.dim))
+
+#
+# NSPECIES
+#
+f.write("NSPECIES = " + str(args.nspecies) + "\n")
+f.write("CXX_COMPILE_FLAGS += -DNSPECIES=" + str(args.nspecies) + "\n")
+message("NSpecies",str(args.nspecies))
 
 #
 # COMPILER
@@ -273,9 +285,7 @@ if args.buildamrex and not args.amrex:
                             cwd=f"ext/{args.amrexfork}")
     elif not args.offline:
         shellmessage("AMReX-Update",cmd=f"git -C ext/{args.amrexfork}/amrex fetch --all")
-        #p = subprocess.Popen("".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
-    
     if not args.offline:
         try:
             if args.buildamrextag:
@@ -338,7 +348,6 @@ if args.buildamrex and not args.amrex:
         message("AMReX-Status", "Using pre-downloaded version")
     message("AMReX-Directory", f"ext/{args.amrexfork}/amrex/{postfix_amrex}")
 
-
             
 elif (args.amrex != ""):
     # Check to make sure directory is valid 
@@ -387,7 +396,6 @@ if (args.geteigen):
     if not os.path.isdir("ext/libeigen"): subprocess.run(['mkdir','-p','ext/libeigen'])
     if not os.path.isdir("ext/libeigen/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
-        #p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
         p = subprocess.Popen((f"git clone {GITLAB_REMOTE}libeigen/eigen.git libeigen/eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
         p.wait()
@@ -395,7 +403,6 @@ if (args.geteigen):
             for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ "OUT " + line.decode('ascii').replace('\n',''))
         else:
             for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ color.red + "ERR " + line.decode('ascii').replace('\n',''))
-        #subprocess.run("mv eigen-git-mirror eigen3".split())
     message("Eigen-Directory","ext/libeigen/")
     f.write("EIGEN = ./ext/libeigen/\n")
 elif (args.eigen != ""):
@@ -404,6 +411,60 @@ elif (args.eigen != ""):
     message("Eigen-Directory",args.eigen)
     f.write("EIGEN = " + args.eigen + "\n")
 
+#
+# YAML-CPP
+#
+if args.yaml:
+    yaml_dir = "ext/yaml-cpp/"
+    message("YAML-CPP-Directory",yaml_dir)
+
+    if not os.path.isdir("ext"):
+        subprocess.run(['mkdir', '-p', 'ext'])
+
+    # Clone if needed
+    if not os.path.isdir(yaml_dir):
+        shellmessage(
+            "YAML-CPP-Clone",
+            cmd=f"git clone https://github.com/jbeder/yaml-cpp.git {yaml_dir}",
+            message="Cloning yaml-cpp"
+        )
+
+    build_dir = f"{yaml_dir}/build"
+    include_dir = f"{yaml_dir}/include"
+
+    subprocess.run(['mkdir', '-p', build_dir])
+
+    # Compile sources manually (no cmake)
+    srcs = glob.glob(f"{yaml_dir}/src/**/*.cpp", recursive=True)
+
+    objects = []
+
+    for src in srcs:
+        obj = src.replace(".cpp", ".o")
+        objects.append(obj)
+
+        # Skip compilation if object file is newer than source file
+        if not os.path.exists(obj) or os.path.getmtime(src) > os.path.getmtime(obj):
+            shellmessage(
+                "YAML-CPP-CXX",
+                cmd=f"{args.comp} -std=c++17 -fPIC -I{include_dir} -c {src} -o {obj}"
+            )
+
+    # Archive into static library
+    lib_path = f"{build_dir}/libyaml-cpp.a"
+
+    # Only archive if the lib doesn't exist or any objects were updated
+    if not os.path.exists(lib_path) or any(os.path.getmtime(obj) > os.path.getmtime(lib_path) for obj in objects):
+        shellmessage(
+            "YAML-CPP-AR",
+            cmd=f"ar rcs {lib_path} " + " ".join(objects)
+        )
+
+    # expose to build system
+    f.write(f"YAML_CPP_DIR = {yaml_dir}\n")
+    f.write(f"YAML_CPP_LIB = {lib_path}\n")
+    f.write(f"CXX_COMPILE_FLAGS += -I{include_dir} -DALAMO_YAML\n")
+    f.write(f"LIB += {lib_path}\n")
 
 #
 # MAC OS SUPPORT
@@ -550,10 +611,10 @@ if args.comp == 'clang++':
         f.write("CXX_COMPILE_FLAGS += -ggdb -g3 -fPIC\n")
     elif args.perf:
         f.write("CXX_COMPILE_FLAGS += -g -O2 -fno-omit-frame-pointer\n")
-        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")    
+        f.write("LINKER_FLAGS += -g -fno-omit-frame-pointer -lprofiler\n")   
     else:
         f.write("CXX_COMPILE_FLAGS += -O3\n")
-        f.write("LINKER_FLAGS += -flto \n")    
+        f.write("LINKER_FLAGS += -flto \n")   
 if args.comp == 'icc':
     f.write("MPI_LIB += -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
@@ -635,10 +696,13 @@ if not args.compile_commands:
     projectdir = os.getcwd()
 
     otherflags = ""
-    if args.fft: otherflags += "-DALAMO_FFT"
+    if args.fft: otherflags += " -DALAMO_FFT"
+    otherflags += f" -DNSPECIES={args.nspecies}"
 
     if args.amrex: otherflags += f" -I{args.amrex}/include"
     else: otherflags += f" -I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"
+
+    if args.yaml: otherflags += f" -I./ext/yaml-cpp/include -DALAMO_YAML"
 
     cc = compmpicmd
     command_objects = []
@@ -657,4 +721,3 @@ if not args.compile_commands:
 
     with open(Path("compile_commands.json"), "w") as f:
         json.dump(command_objects, f, indent=4)
-

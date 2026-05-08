@@ -205,8 +205,10 @@ struct Stencil<T, 2, 0, 0>
     {
         if (stencil[0] == StencilType::Central)
             return (f(i + 1, j, k, m) - 2.0 * f(i, j, k, m) + f(i - 1, j, k, m)) / dx[0] / dx[0];
-        else
-            return 0.0 * f(i, j, k, m); // TODO this is not a great way to do this
+        else if (stencil[0] == StencilType::Hi) // Forward
+            return (f(i, j, k, m) - 2.0 * f(i+1, j, k, m) + f(i+2, j, k, m)) / dx[0] / dx[0];
+        else // Lo -> Backward
+            return (f(i, j, k, m) - 2.0 * f(i-1, j, k, m) + f(i-2, j, k, m)) / dx[0] / dx[0];
     };
 };
 
@@ -221,8 +223,10 @@ struct Stencil<T, 0, 2, 0>
     {
         if (stencil[1] == StencilType::Central)
             return (f(i, j + 1, k, m) - 2.0 * f(i, j, k, m) + f(i, j - 1, k, m)) / dx[1] / dx[1];
-        else
-            return 0.0 * f(i, j, k, m); // TODO this is not a great way to do this
+        else if (stencil[1] == StencilType::Hi) // Forward
+            return (f(i, j, k, m) - 2.0 * f(i, j + 1, k, m) + f(i, j + 2, k, m)) / dx[1] / dx[1];
+        else // Lo -> Backward
+            return (f(i, j, k, m) - 2.0 * f(i, j - 1, k, m) + f(i, j - 2, k, m)) / dx[1] / dx[1];
     };
 };
 
@@ -237,8 +241,10 @@ struct Stencil<T, 0, 0, 2>
     {
         if (stencil[2] == StencilType::Central)
             return (f(i, j, k + 1, m) - 2.0 * f(i, j, k, m) + f(i, j, k - 1, m)) / dx[2] / dx[2];
-        else
-            return 0.0 * f(i, j, k, m); // TODO this is not a great way to do this
+        else if (stencil[2] == StencilType::Hi) // Forward
+            return (f(i, j, k, m) - 2.0 * f(i, j, k + 1, m) + f(i, j, k + 2, m)) / dx[2] / dx[2];
+        else // Lo -> Backward
+            return (f(i, j, k, m) - 2.0 * f(i, j, k - 1, m) + f(i, j, k - 2, m)) / dx[2] / dx[2];
     };
 };
 
@@ -1070,43 +1076,23 @@ Hessian(const amrex::Array4<const Set::Scalar>& f,
     const Set::Scalar DX[AMREX_SPACEDIM],
     std::array<StencilType, AMREX_SPACEDIM> stencil = DefaultType)
 {
-    Set::Matrix3 ret;
-    // 1D 
-#if AMREX_SPACEDIM>0
-    ret(0, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, 0, DX, stencil));
+    Set::Matrix3 ret = Set::Matrix3::Zero();
+    for (int m = 0; m < AMREX_SPACEDIM; m++)
+    {
+        ret(m, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, m, DX, stencil));
+#if AMREX_SPACEDIM > 1
+        ret(m, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, m, DX, stencil));
+        ret(m, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(f, i, j, k, m, DX, stencil));
+        ret(m, 1, 0) = ret(m, 0, 1);
+#if AMREX_SPACEDIM > 2
+        ret(m, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, m, DX, stencil));
+        ret(m, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(f, i, j, k, m, DX, stencil));
+        ret(m, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(f, i, j, k, m, DX, stencil));
+        ret(m, 2, 0) = ret(m, 0, 2);
+        ret(m, 2, 1) = ret(m, 1, 2);
 #endif
-    // 2D
-#if AMREX_SPACEDIM>1
-    ret(0, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(f, i, j, k, 0, DX, stencil));
-    ret(0, 1, 0) = ret(0, 0, 1);
-    ret(0, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, 0, DX, stencil));
-    ret(1, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, 1, DX, stencil));
-    ret(1, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(f, i, j, k, 1, DX, stencil));
-    ret(1, 1, 0) = ret(1, 0, 1);
-    ret(1, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, 1, DX, stencil));
-#endif 
-    // 3D
-#if AMREX_SPACEDIM>2
-    ret(0, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, 0, DX, stencil));
-    ret(0, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(f, i, j, k, 0, DX, stencil));
-    ret(0, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(f, i, j, k, 0, DX, stencil));
-    ret(0, 2, 0) = ret(0, 0, 2);
-    ret(0, 2, 1) = ret(0, 1, 2);;
-    ret(1, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, 1, DX, stencil));
-    ret(1, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(f, i, j, k, 1, DX, stencil));
-    ret(1, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(f, i, j, k, 1, DX, stencil));
-    ret(1, 2, 0) = ret(1, 0, 2);
-    ret(1, 2, 1) = ret(1, 1, 2);;
-    ret(2, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, 2, DX, stencil));
-    ret(2, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, 2, DX, stencil));
-    ret(2, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, 2, DX, stencil));
-    ret(2, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(f, i, j, k, 2, DX, stencil));
-    ret(2, 1, 0) = ret(2, 0, 1);
-    ret(2, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(f, i, j, k, 2, DX, stencil));
-    ret(2, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(f, i, j, k, 2, DX, stencil));
-    ret(2, 2, 0) = ret(2, 0, 2);
-    ret(2, 2, 1) = ret(2, 1, 2);;
 #endif
+    }
     return ret;
 }
 

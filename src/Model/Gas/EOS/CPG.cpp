@@ -1,3 +1,5 @@
+// Calorically Perfect Gas
+
 #include "Model/Gas/Gas.H"
 #include "Model/Gas/EOS/CPG.H"
 
@@ -14,7 +16,7 @@ double CPG::ComputeT(double density, double momentumx, double momentumy, double 
     double T = P / density / gas->R(X, i, j, k);
     return T;
 }
-double CPG::ComputeT(double pressure, double density,
+double CPG::ComputeT_from_primitives(double pressure, double density,
                 Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
     // Temperature, K
     double T = pressure / density / gas->R(X, i, j, k);

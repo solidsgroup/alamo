@@ -1,0 +1,128 @@
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+
+# Species: [H2, H, O, O2, OH, H2O, HO2, H2O2, AR, N2]
+gas.mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.948 28.013
+
+#gas.thermo.type = cpconstant
+## Approximated average Cp values in J/kmol/K
+#gas.thermo.cpconstant.cp_moles = 30000.0 20786.0 20786.0 34000.0 31000.0 45000.0 45000.0 60000.0 20786.0 33000.0
+## Standard enthalpies of formation at 298.15K in J/kmol
+#gas.thermo.cpconstant.h0 = 0.0 217.97e6 249.17e6 0.0 38.99e6 -241.82e6 3.3e6 -136.3e6 0.0 0.0
+#gas.thermo.cpconstant.s0 = 130.0 114.0 161.0 205.0 183.0 188.0 229.0 232.0 154.0 191.0
+#gas.thermo.cpconstant.Tref = 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15 298.15
+gas.thermo.type = nasa7
+gas.thermo.nasa7.type = yaml
+gas.thermo.nasa7.yaml = h2o2.yaml
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = LJ
+# [H2, H, O, O2, OH, H2O, HO2, H2O2, AR, N2]
+gas.transport.mixture_averaged.LJdiameter  = 2.92_ang 2.05_ang 2.75_ang 3.458_ang 2.75_ang 2.605_ang 3.458_ang 3.458_ang 3.33_ang 3.621_ang
+gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_K 572.4_K 107.4_K 107.4_K 136.5_K 97.53_K
+
+gas.eos.type = tpg
+
+chemistry.type = finite_rate
+chemistry.finite_rate.yaml = h2o2.yaml
+chemistry.finite_rate.integration = substep
+chemistry.finite_rate.nsubsteps = 10
+
+### OUTPUT ###
+
+plot_file = output.chemistry_finite_rate_substep
+
+### MESHING ###
+
+amr.plot_dt = 1e-6
+amr.max_level = 0
+amr.max_grid_size = 32
+amr.blocking_factor = 4
+amr.regrid_int = 10
+amr.grid_eff = 0.7
+amr.n_cell = 16 16 0 # Quasi-0D (small 2D grid)
+
+### DIMENSIONS ###
+geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
+geometry.prob_hi = 0.01 0.01 0.0 # [ m ]
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep  = 1.0e-7
+stop_time = 2e-4
+
+### HYDRO PARAM ###
+
+details = true
+cfl   = 0.1
+small = 1e-16
+cutoff = 0.2
+
+### ETA IC ###
+
+eta.ic.type = constant
+eta.ic.constant.value = 1.0
+
+m0.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+u0.ic.constant.value = 0.0 0.0
+q.ic.constant.value = 0.0 0.0
+
+density.ic.type = expression
+density.ic.expression.constant.P = 101325.0
+density.ic.expression.constant.T = 1000.0
+density.ic.expression.constant.R_H2 = 4124.0 
+density.ic.expression.constant.R_O2 = 259.8
+
+# Stoichiometric H2/O2: X_H2 = 2/3, X_O2 = 1/3
+# n_tot = P / (Ru * T) = 101325 / (8314.46 * 1000) = 0.01218 kmol/m3
+# rho_H2 = (2/3) * n_tot * 2.016 = 0.01638 kg/m3
+# rho_O2 = (1/3) * n_tot * 31.998 = 0.12997 kg/m3
+density.ic.expression.region0 = "0.01638"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "0.12997"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "0.0"
+density.ic.expression.region6 = "0.0"
+density.ic.expression.region7 = "0.0"
+density.ic.expression.region8 = "0.0"
+density.ic.expression.region9 = "0.0"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 101325.0
+
+solid.density.ic.constant.value = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.energy.ic.constant.value = 0.0
+
+### HYDRO BC ###
+
+# Neumann boundaries for density, energy, species
+density.bc.constant.type.xlo = neumann
+density.bc.constant.type.xhi = neumann
+density.bc.constant.type.ylo = neumann
+density.bc.constant.type.yhi = neumann
+
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.xhi = neumann
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+
+# Dirichlet momentum boundaries of 0.0
+momentum.bc.constant.type.xlo = dirichlet dirichlet
+momentum.bc.constant.type.xhi = dirichlet dirichlet
+momentum.bc.constant.type.ylo = dirichlet dirichlet
+momentum.bc.constant.type.yhi = dirichlet dirichlet
+momentum.bc.constant.val.xlo = 0.0 0.0
+momentum.bc.constant.val.xhi = 0.0 0.0
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+prescribedflowmode = relative
