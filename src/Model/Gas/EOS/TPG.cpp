@@ -35,6 +35,7 @@ double TPG::ComputeT(double density, double momentumx, double momentumy, double 
         h = gas->enthalpy_mass(T, X, i, j, k);
         e = h - gas->R(X, i, j, k) * T - e_ref;
         T = T_old - (e - e_int)/cv;
+        std::cout << T << std::endl;
         convergedT = ( std::fabs(T-T_old)/T < rtol );
     }
     if (!convergedT) {
