@@ -1,17 +1,31 @@
-#if AMREX_SPACEDIM==2
+// #if AMREX_SPACEDIM==2
 
 #ifndef INTEGRATOR_SFI_H
 #define INTEGRATOR_SFI_H
 
 #include "Hydro.H"
 
+#include <limits>
+#include "Integrator/Integrator.H"
+#include "Model/Solid/Finite/NeoHookeanPredeformed.H"
+#include "Model/Solid/Finite/NeoHookean.H"
+#include "IO/ParmParse.H"
+
+#include "BC/BC.H"
+#include "IC/IC.H"
+#include "Set/Set.H"
+
+#include "Base/Mechanics.H"
+
 namespace Integrator
 {
 template<class PF>
 class SFI : 
     virtual public PF,
-    virtual public Hydro
+    virtual public Hydro,
+    virtual public Base::Mechanics<Model::Solid::Finite::NeoHookeanPredeformed>
 {
+    using model_type = Model::Solid::Finite::NeoHookeanPredeformed;
 public:
     SFI():
         PF(),
@@ -30,6 +44,24 @@ public:
         // If true, set hydro_eta to 1-pf_eta
         pp.query_default("invert",value.invert,false);
 
+        // Whether to use Neo-hookean Elastic model
+        pp.query_default("elastic.on", value.elastic.on, 0); 
+
+        // Body force
+        pp.query_default("elastic.traction", value.elastic.traction, 0.0);
+
+        pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
+
+        // if (value.m_type != Type::Disable)
+        // {
+        //     // elastic model of Steel
+        //     pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_steel", value.elastic.model_steel);
+
+        //     // Use our current eta field as the psi field for the solver
+        //     value.psi_on = false;
+        //     solver.setPsi(Hydro::eta_mf);
+        // }
+
     }
 
 
@@ -38,21 +70,32 @@ protected:
     {
         PF::Initialize(lev);
         Hydro::Initialize(lev);
+        if (lev == 0)
+        {
+            psi_on = false;
+            solver.setPsi(*Hydro::eta_mf);
+        }
+        Base::Mechanics<model_type>::Initialize(lev);
     }
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
-    {
+    {   
         if (a_time > tstart && !hydro_initialized)
         {
             for (int lev = 0; lev <= finest_level; lev++)
             {
                 Hydro::Initialize(lev);
                 Hydro::Mix(lev);
+                Base::Mechanics<model_type>::Initialize(lev);
             }
             hydro_initialized=true;
+            
         }
         PF::TimeStepBegin(a_time, a_step);
-        if (hydro_initialized) Hydro::TimeStepBegin(a_time, a_step);
+        if (hydro_initialized) {
+            Hydro::TimeStepBegin(a_time, a_step);
+            Base::Mechanics<model_type>::TimeStepBegin(a_time, a_step);
+        }
     }
 
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override
@@ -64,7 +107,10 @@ protected:
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         PF::Advance(a_lev, a_time, a_dt);
-        if (hydro_initialized) Hydro::Advance(a_lev, a_time, a_dt);
+        if (hydro_initialized) {
+            Hydro::Advance(a_lev, a_time, a_dt);
+        }
+        Base::Mechanics<model_type>::Advance(a_lev, a_time, a_dt);
     }
 
     void TagCellsForRefinement(int a_lev, amrex::TagBoxArray& a_tags, Set::Scalar a_time, int a_ngrow) override
@@ -106,11 +152,96 @@ protected:
         Util::RealFillBoundary(*(*eta_old_mf)[lev], geom[lev]);
     }
 
+    void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override
+    {
+        amrex::Print() << "ENTER UpdateModel\n";
+    if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
+
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        amrex::Box domain = this->geom[lev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+        const Set::Scalar* DX = geom[lev].CellSize();
+        
+        Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev]);
+        // temp_mf[lev]->FillBoundary();
+
+        amrex::Print() << "model_mf ptr = " << model_mf[lev].get() << "\n";
+        amrex::Print() << "boxes = " << model_mf[lev]->nComp() << "\n";
+
+        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+        {   
+            amrex::Box smallbox = mfi.nodaltilebox();
+            const amrex::Box& bx = mfi.growntilebox();
+
+            amrex::Array4<model_type> model_arr = model_mf[lev]->array(mfi);
+
+            amrex::Array4<Set::Vector> rhs_arr = rhs_mf[lev]->array(mfi);
+
+            Set::Patch<model_type> model(model_arr);
+            Set::Patch<Set::Vector> rhs(rhs_arr);
+
+            // amrex::Box smallbox = mfi.nodaltilebox();
+            // amrex::Box bx = mfi.grownnodaltilebox() & domain;
+
+            // auto& model_fab = (*model_mf[lev])[mfi];
+            // auto& rhs_fab   = (*rhs_mf[lev])[mfi];
+
+            // Set::Patch<model_type> model(model_fab);
+            // Set::Patch<Set::Vector> rhs(rhs_fab);
+
+            Set::Patch<Set::Scalar> eta = Hydro::eta_mf->Patch(lev, mfi);
+            amrex::Print() << "ELASTIC ACTIVE\n";
+
+            if (elastic.on)
+            {
+                // Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
+                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+
+                {   
+                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+
+                    rhs(i, j, k) = (elastic.traction) * grad_eta;
+
+                });
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    model_type model_steel = elastic.model_steel;
+                    model_steel.F0 -= Set::Matrix::Identity();
+                    // steel.F0 *= (temp_avg - elastic.Telastic);
+                    model_steel.F0 += Set::Matrix::Identity();
+
+                    model(i, j, k) = model_steel;
+                });
+            }
+            else
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    model_type model_steel = elastic.model_steel;
+                    model_steel.F0 *= Set::Matrix::Zero();
+                    model(i, j, k) = model_steel;
+                });
+            }
+        }
+        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+
+    }
+}
+
     int invert = false;
     Set::Scalar tstart = NAN;
     bool hydro_initialized = false;
+
+    // Thermoelastic variables
+    struct {
+        int on = 0;
+        Set::Scalar Telastic = NAN;
+        model_type model_steel;
+        Set::Scalar traction = NAN;
+    } elastic;
 };
 } // namespace Integrator
 #endif
 
-#endif
+// #endif

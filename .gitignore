@@ -62,3 +62,10 @@ setup.py
 alamo.py
 .alamo
 
+auto-bisect.sh
+bisect.log
+scpthermalIAstate.zip
+scpthermalIAstatenova.zip
+scpthermalsandwhichnova.zip
+tempconverge.zip
+*.zip
