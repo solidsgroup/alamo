@@ -70,11 +70,9 @@ protected:
     {
         PF::Initialize(lev);
         Hydro::Initialize(lev);
-        if (lev == 0)
-        {
-            psi_on = false;
-            solver.setPsi(*Hydro::eta_mf);
-        }
+        psi_on = false;
+        solver.setPsi(*Hydro::eta_mf);
+
         Base::Mechanics<model_type>::Initialize(lev);
     }
 
@@ -159,11 +157,15 @@ protected:
 
     for (int lev = 0; lev <= finest_level; ++lev)
     {
+        // Ensure Hydro's eta ghost cells are populated before interpolating
+        (*Hydro::eta_mf)[lev]->FillBoundary(geom[lev].periodicity());
+        
         amrex::Box domain = this->geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
         const Set::Scalar* DX = geom[lev].CellSize();
         
-        Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev]);
+        // Util::RealFillBoundary(*(*Hydro::eta_mf)[lev], geom[lev]);
+        // Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev]);
         // temp_mf[lev]->FillBoundary();
 
         amrex::Print() << "model_mf ptr = " << model_mf[lev].get() << "\n";
@@ -172,7 +174,7 @@ protected:
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {   
             amrex::Box smallbox = mfi.nodaltilebox();
-            const amrex::Box& bx = mfi.growntilebox();
+            amrex::Box bx = mfi.grownnodaltilebox() & domain;
 
             amrex::Array4<model_type> model_arr = model_mf[lev]->array(mfi);
 
