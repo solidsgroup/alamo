@@ -90,28 +90,75 @@ public:
         // In place update for mass and mole fractions
         // This needs to be called before any other functions if cell composition 
         // has changed, since they are dependent on mole fraction
+        double raw_density = 0.0;
+        double density_scale = 0.0;
+        for (int n=0; n<NSPECIES; ++n)
+        {
+            Util::Assert(INFO, TEST(std::isfinite(MW[n]) && MW[n] > 0.0),
+                "Invalid molecular weight for species ", n, ": ", MW[n]);
+            raw_density += density_mf(i,j,k,n);
+            density_scale += std::fabs(density_mf(i,j,k,n));
+        }
+
+        const double density_tol = 1.0e-12 * ((density_scale > 1.0) ? density_scale : 1.0);
         double density = 0.0;
         double moles = 0.0;
-        for (int n=0; n<NSPECIES; ++n) {
-            density += density_mf(i,j,k,n);
-            moles += density_mf(i,j,k,n) / MW[n];
-        }
-        if (density <= 0.0 || moles <= 0.0)
+        double rho_clipped[NSPECIES];
+        for (int n=0; n<NSPECIES; ++n)
         {
-            for (int n=0; n<NSPECIES; ++n)
+            rho_clipped[n] = density_mf(i,j,k,n);
+            if (!std::isfinite(rho_clipped[n]))
             {
-                mass_fraction_mf(i,j,k,n) = 0.0;
-                mole_fraction_mf(i,j,k,n) = 0.0;
+                Util::Abort(INFO, "Non-finite species density in ComputeLocalFractions at (",
+                    i, ",", j, ",", k, "), species ", n, ": ", rho_clipped[n]);
             }
-            return;
+            if (rho_clipped[n] < 0.0)
+            {
+                if (rho_clipped[n] < -density_tol)
+                {
+                    Util::Abort(INFO, "Negative species density in ComputeLocalFractions at (",
+                        i, ",", j, ",", k, "), species ", n, ": rhoY=", rho_clipped[n],
+                        ", raw density=", raw_density, ", tolerance=", density_tol);
+                }
+                rho_clipped[n] = 0.0;
+            }
+            density += rho_clipped[n];
+            moles += rho_clipped[n] / MW[n];
         }
+        if (!std::isfinite(density) || !std::isfinite(moles) || density <= 0.0 || moles <= 0.0)
+        {
+            Util::Abort(INFO, "Invalid mixture state in ComputeLocalFractions at (",
+                i, ",", j, ",", k, "): raw density=", raw_density,
+                ", clipped density=", density, ", clipped moles=", moles,
+                ", tolerance=", density_tol);
+        }
+        double mass_fraction_sum = 0.0;
+        double mole_fraction_sum = 0.0;
         for (int n=0; n<NSPECIES; ++n) {
-            mass_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / density;
-            mole_fraction_mf(i,j,k,n) = density_mf(i,j,k,n) / MW[n] / moles;
+            mass_fraction_mf(i,j,k,n) = rho_clipped[n] / density;
+            mole_fraction_mf(i,j,k,n) = rho_clipped[n] / MW[n] / moles;
+            mass_fraction_sum += mass_fraction_mf(i,j,k,n);
+            mole_fraction_sum += mole_fraction_mf(i,j,k,n);
             //Util::Message(INFO, "Mass fraction[n]: ", n, " ", mass_fraction_mf(i,j,k,n));
-            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) >= -1e-12), "Error: Mass fraction less than 0.0");
-            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) <= 1.0 + 1e-12), "Error: Mass fraction greater than 1.0");
+            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) >= -1e-12),
+                "Error: Mass fraction less than 0.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mass_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mass_fraction_mf(i,j,k,n) <= 1.0 + 1e-12),
+                "Error: Mass fraction greater than 1.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mass_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mole_fraction_mf(i,j,k,n) >= -1e-12),
+                "Error: Mole fraction less than 0.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mole_fraction_mf(i,j,k,n));
+            Util::Assert(INFO, TEST(mole_fraction_mf(i,j,k,n) <= 1.0 + 1e-12),
+                "Error: Mole fraction greater than 1.0 at (", i, ",", j, ",", k,
+                "), species ", n, ": ", mole_fraction_mf(i,j,k,n));
         }
+        Util::Assert(INFO, TEST(std::fabs(mass_fraction_sum - 1.0) <= 1e-12),
+            "Error: Mass fractions do not sum to 1.0 at (", i, ",", j, ",", k,
+            "): sum=", mass_fraction_sum);
+        Util::Assert(INFO, TEST(std::fabs(mole_fraction_sum - 1.0) <= 1e-12),
+            "Error: Mole fractions do not sum to 1.0 at (", i, ",", j, ",", k,
+            "): sum=", mole_fraction_sum);
     }
     double GetMW(Set::Patch<const Set::Scalar>& X, int i, int j, int k) const {
         // Molecular weight, kg/kmol
