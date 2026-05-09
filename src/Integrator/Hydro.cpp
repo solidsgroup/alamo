@@ -30,6 +30,63 @@
 namespace Integrator
 {
 
+namespace
+{
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    void ProjectSpeciesDensities(std::array<double, NSPECIES>& rhoY, int i, int j, int k)
+    {
+        double raw_density = 0.0;
+        double positive_density = 0.0;
+        for (int n = 0; n < NSPECIES; ++n)
+        {
+            if (!std::isfinite(rhoY[n]))
+            {
+                Util::Abort(INFO, "Non-finite species density before projection at (",
+                    i, ",", j, ",", k, "), species ", n, ": ", rhoY[n]);
+            }
+            raw_density += rhoY[n];
+            if (rhoY[n] > 0.0) positive_density += rhoY[n];
+        }
+
+        if (!std::isfinite(raw_density) || raw_density <= 0.0 || positive_density <= 0.0)
+        {
+            Util::Abort(INFO, "Cannot project invalid species state at (",
+                i, ",", j, ",", k, "): raw density=", raw_density,
+                ", positive density=", positive_density);
+        }
+
+        const double scale = raw_density / positive_density;
+        if (!std::isfinite(scale) || scale <= 0.0)
+        {
+            Util::Abort(INFO, "Invalid species projection scale at (",
+                i, ",", j, ",", k, "): scale=", scale,
+                ", raw density=", raw_density, ", positive density=", positive_density);
+        }
+
+        for (int n = 0; n < NSPECIES; ++n)
+        {
+            rhoY[n] = (rhoY[n] > 0.0) ? rhoY[n] * scale : 0.0;
+        }
+    }
+
+    void ProjectSpeciesDensities(amrex::MultiFab& rho_mf)
+    {
+        for (amrex::MFIter mfi(rho_mf, false); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.validbox();
+            amrex::Array4<Set::Scalar> const& rho = rho_mf.array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                std::array<double, NSPECIES> rhoY;
+                for (int n = 0; n < NSPECIES; ++n) rhoY[n] = rho(i,j,k,n);
+                ProjectSpeciesDensities(rhoY, i, j, k);
+                for (int n = 0; n < NSPECIES; ++n) rho(i,j,k,n) = rhoY[n];
+            });
+        }
+    }
+}
+
 Hydro::Hydro(IO::ParmParse& pp) : Hydro()
 {
     pp_queryclass(*this);
@@ -435,6 +492,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Take care of filling boundaries during stages
     timeintegrator.set_post_stage_action([&](amrex::Vector<amrex::MultiFab> & stage_mf, Set::Scalar time) 
     {
+        ProjectSpeciesDensities(stage_mf[0]);
         density_bc->FillBoundary(stage_mf[0],0,NSPECIES,time,0);   
         stage_mf[0].FillBoundary(true);
         momentum_bc->FillBoundary(stage_mf[1],0,2,time,0);  
@@ -446,6 +504,7 @@ void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     // Do the update
     timeintegrator.advance(solution_old, solution_new, time, dt);
 
+    ProjectSpeciesDensities(*density_mf[lev]);
     density_bc->FillBoundary(*density_mf[lev], 0, NSPECIES, time + dt, 0);
     density_mf[lev]->FillBoundary(true);
     momentum_bc->FillBoundary(*momentum_mf[lev], 0, 2, time + dt, 0);
@@ -1005,6 +1064,7 @@ void Hydro::RHS(int lev, Set::Scalar /*time*/, Set::Scalar dt,
 
             std::array<double, NSPECIES> rhoY_intermediate;
             for (int n=0; n<NSPECIES; ++n) rhoY_intermediate[n] = rho(i,j,k,n) + drhof_dt_hydro[n] * dt;
+            ProjectSpeciesDensities(rhoY_intermediate, i, j, k);
 
             std::array<double, NSPECIES> wdot;
             Set::Scalar qdot = 0.0;
