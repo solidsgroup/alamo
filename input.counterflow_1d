@@ -1,0 +1,193 @@
+### RIEMANN SOLVER ###
+solver.type = hllc
+
+### GAS MODEL ###
+system.amount = kmol
+
+# Species: [H2, H, O, O2, OH, H2O, HO2, H2O2, AR, N2]
+gas.mw = 2.016 1.008 15.999 31.998 17.007 18.015 33.006 34.014 39.948 28.013
+
+gas.thermo.type = nasa7
+gas.thermo.nasa7.type = yaml
+gas.thermo.nasa7.yaml = h2o2.yaml
+
+gas.transport.type = mixture_averaged
+gas.transport.mixture_averaged.type = LJ
+gas.transport.mixture_averaged.LJdiameter  = 2.92_ang 2.05_ang 2.75_ang 3.458_ang 2.75_ang 2.605_ang 3.458_ang 3.458_ang 3.33_ang 3.621_ang
+gas.transport.mixture_averaged.LJwelldepth = 38.0_K 145.0_K 80.0_K 107.4_K 80.0_K 572.4_K 107.4_K 107.4_K 136.5_K 97.53_K
+
+gas.eos.type = tpg
+
+chemistry.type = finite_rate
+chemistry.finite_rate.yaml = h2o2.yaml
+chemistry.finite_rate.integration = substep
+chemistry.finite_rate.nsubsteps = 1
+
+### OUTPUT ###
+
+plot_file = output.counterflow_1d
+details = 1
+
+### MESHING ###
+
+amr.plot_dt = 1e-8
+amr.max_level = 0
+amr.max_grid_size = 4096
+amr.blocking_factor = 4
+amr.regrid_int = 10
+amr.grid_eff = 0.7
+amr.n_cell = 1024 4 0
+
+### DIMENSIONS ###
+
+geometry.prob_lo = -0.01 0.0 0.0
+geometry.prob_hi = 0.01 0.0004 0.0
+geometry.is_periodic = 0 0 0
+
+### TIME STEP ###
+
+timestep = 1.0e-9
+stop_time = 5.0e-3
+
+### HYDRO PARAM ###
+
+cfl = 0.4
+small = 1e-14
+
+### ETA IC ###
+
+eta.ic.type = constant
+eta.ic.constant.value = 1.0
+
+### INITIAL CONDITIONS ###
+
+density.ic.type = expression
+
+density.ic.expression.constant.P0 = 101325.0
+density.ic.expression.constant.T0 = 300.0
+
+density.ic.expression.constant.R_H2 = 4124.237410
+density.ic.expression.constant.R_O2 = 259.843820
+density.ic.expression.constant.R_N2 = 296.800949
+density.ic.expression.constant.R_AR = 208.132137
+
+density.ic.expression.constant.Y_O2 = 0.2329
+density.ic.expression.constant.Y_N2 = 0.7543
+density.ic.expression.constant.Y_AR = 0.0128
+
+density.ic.expression.region0 = "0.0"
+density.ic.expression.region1 = "0.0"
+density.ic.expression.region2 = "0.0"
+density.ic.expression.region3 = "P0/R_O2/T0 * Y_O2"
+density.ic.expression.region4 = "0.0"
+density.ic.expression.region5 = "0.0"
+density.ic.expression.region6 = "0.0"
+density.ic.expression.region7 = "0.0"
+density.ic.expression.region8 = "P0/R_AR/T0 * Y_AR"
+density.ic.expression.region9 = "P0/R_N2/T0 * Y_N2"
+
+velocity.ic.type = constant
+velocity.ic.constant.value = 0.0 0.0
+
+pressure.ic.type = constant
+pressure.ic.constant.value = 101325.0
+
+### AUXILIARY IC ###
+
+m0.ic.type = constant
+m0.ic.constant.value = 0.0
+
+u0.ic.type = constant
+u0.ic.constant.value = 0.0
+
+q.ic.type = constant
+q.ic.constant.value = 0.0 0.0
+
+### SOLID IC ###
+
+solid.density.ic.type = constant
+solid.density.ic.constant.value = 0.0
+
+solid.momentum.ic.constant.value = 0.0 0.0
+solid.energy.ic.constant.value = 0.0
+
+### ETA BC ###
+
+pf.eta.bc.constant.type.xlo = dirichlet
+pf.eta.bc.constant.type.xhi = dirichlet
+pf.eta.bc.constant.type.ylo = neumann
+pf.eta.bc.constant.type.yhi = neumann
+pf.eta.bc.constant.type.zlo = neumann
+pf.eta.bc.constant.type.zhi = neumann
+
+pf.eta.bc.constant.val.xlo = 1.0
+pf.eta.bc.constant.val.xhi = 1.0
+pf.eta.bc.constant.val.ylo = 0.0
+pf.eta.bc.constant.val.yhi = 0.0
+pf.eta.bc.constant.val.zlo = 0.0
+pf.eta.bc.constant.val.zhi = 0.0
+
+### HYDRO BC ###
+
+density.bc.type = expression
+
+density.bc.expression.type.xlo = neumann neumann neumann dirichlet neumann neumann neumann neumann dirichlet dirichlet
+density.bc.expression.type.xhi = dirichlet neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.expression.type.ylo = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+density.bc.expression.type.yhi = neumann neumann neumann neumann neumann neumann neumann neumann neumann neumann
+
+density.bc.expression.constant.P0 = 101325.0
+density.bc.expression.constant.T0 = 300.0
+
+density.bc.expression.constant.R_H2 = 4124.237410
+density.bc.expression.constant.R_O2 = 259.843820
+density.bc.expression.constant.R_N2 = 296.800949
+density.bc.expression.constant.R_AR = 208.132137
+
+density.bc.expression.constant.Y_O2 = 0.2329
+density.bc.expression.constant.Y_N2 = 0.7543
+density.bc.expression.constant.Y_AR = 0.0128
+
+density.bc.expression.val.xlo = "0.0" "0.0" "0.0" "P0/R_O2/T0 * Y_O2" "0.0" "0.0" "0.0" "0.0" "P0/R_AR/T0 * Y_AR" "P0/R_N2/T0 * Y_N2"
+
+density.bc.expression.val.xhi = "P0/R_H2/T0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+
+density.bc.expression.val.ylo = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+
+density.bc.expression.val.yhi = "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0" "0.0"
+
+### MOMENTUM BC ###
+
+momentum.bc.constant.type.xlo = dirichlet dirichlet
+momentum.bc.constant.type.xhi = dirichlet dirichlet
+
+momentum.bc.constant.type.ylo = neumann neumann
+momentum.bc.constant.type.yhi = neumann neumann
+
+momentum.bc.constant.val.xlo = 0.72 0.0
+momentum.bc.constant.val.xhi = -0.24 0.0
+
+momentum.bc.constant.val.ylo = 0.0 0.0
+momentum.bc.constant.val.yhi = 0.0 0.0
+
+### ENERGY BC ###
+
+energy.bc.constant.type.xlo = neumann
+energy.bc.constant.type.xhi = neumann
+
+energy.bc.constant.type.ylo = neumann
+energy.bc.constant.type.yhi = neumann
+
+energy.bc.constant.val.xlo = 0.0
+energy.bc.constant.val.xhi = 0.0
+
+energy.bc.constant.val.ylo = 0.0
+energy.bc.constant.val.yhi = 0.0
+
+### HYDRO REFINEMENT CRITERIA ###
+
+eta_refinement_criterion = 0.1
+omega_refinement_criterion = 10000000
+gradu_refinement_criterion = 0.1
+
+prescribedflowmode = absolute

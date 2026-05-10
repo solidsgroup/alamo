@@ -20,6 +20,8 @@ gas.eos.type = tpg
 
 chemistry.type = finite_rate
 chemistry.finite_rate.yaml = ap_htpb_52sp_236r.yaml
+chemistry.finite_rate.integration = substep
+chemistry.finite_rate.nsubsteps = 100
 
 ### OUTPUT ###
 plot_file = output.sandwich_ap_htpb_chemistry
@@ -27,11 +29,11 @@ details = 1
 
 ### MESHING ###
 #amr.plot_dt = 1e-5
-amr.plot_int = 1000
+amr.plot_int = 1
 amr.max_level = 0
 amr.max_grid_size = 500000
-amr.blocking_factor = 4
-amr.regrid_int = 10
+amr.blocking_factor = 16
+amr.regrid_int = 100
 amr.grid_eff = 0.7
 amr.n_cell = 64 64 0
 
