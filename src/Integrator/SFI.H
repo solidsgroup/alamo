@@ -98,10 +98,10 @@ protected:
             // Refresh psi pointer and fill ghost cells before mechanics solve
             solver.setPsi(*Hydro::eta_mf);
             for (int lev = 0; lev <= finest_level; lev++) {
-                amrex::Print() << "eta nGrow = " << Hydro::eta_mf[lev]->nGrow() << "\n";
-                eta_mf[lev]->FillBoundary();
+                amrex::Print() << "eta nGrow = " << (*Hydro::eta_mf)[lev]->nGrow() << "\n";
+                (*Hydro::eta_mf)[lev]->FillBoundary(geom[lev].periodicity());
                 // Try this instead - consistent with how model_mf is filled elsewhere in your code
-                Util::RealFillBoundary(*Hydro::eta_mf[lev], geom[lev]);
+                // Util::RealFillBoundary(*Hydro::eta_mf[lev], geom[lev]);
             }
             Base::Mechanics<model_type>::TimeStepBegin(a_time, a_step);
         }

@@ -93,7 +93,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
     }
     // Register FabFields:
     {
-        int nghost = 1;
+        int nghost = 2;
 
         if (!value.managed)
         {
