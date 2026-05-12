@@ -14,6 +14,7 @@ amr.n_cell = 32 24 0
 amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
+amr.cell.all = 1
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = -2.0 0 0
