@@ -52,15 +52,13 @@ public:
 
         pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
 
-        // if (value.m_type != Type::Disable)
-        // {
-        //     // elastic model of Steel
-        //     pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_steel", value.elastic.model_steel);
-
-        //     // Use our current eta field as the psi field for the solver
-        //     value.psi_on = false;
-        //     solver.setPsi(Hydro::eta_mf);
-        // }
+        if (value.m_type != Type::Disable)
+        {
+            // elastic model of Steel
+            pp.queryclass<Model::Solid::Finite::NeoHookeanPredeformed>("model_steel", value.elastic.model_steel);
+            // Use Hydro's eta field as the psi field for the solver
+            value.psi_on = false;
+        }
 
     }
 
@@ -181,54 +179,59 @@ protected:
     }
 
     void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override
-    {
-    if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
-    for (int lev = 0; lev <= finest_level; ++lev)
-    {
-        amrex::Box domain = this->geom[lev].Domain();
-        domain.convert(amrex::IntVect::TheNodeVector());
-        const Set::Scalar* DX = geom[lev].CellSize();
-
-        // Match Flame's pattern - FillBoundary on inputs before MFIter
-        (*Hydro::eta_mf)[lev]->FillBoundary(geom[lev].periodicity());
-
-        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+    {   
+        amrex::Print() << "SFI::UpdateModel called, m_type=" << (int)m_type << "\n";
+        if (m_type == Base::Mechanics<model_type>::Type::Disable) 
         {
-            amrex::Box smallbox = mfi.nodaltilebox();
-            amrex::Box bx = mfi.grownnodaltilebox() & domain;
-
-            // Match Flame's Patch() pattern exactly
-            Set::Patch<model_type>        model = model_mf.Patch(lev, mfi);
-            Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev, mfi);
-            Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);
-
-            if (elastic.on)
-            {
-                amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                    rhs(i, j, k) = (elastic.traction) * grad_eta;
-                });
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    model_type model_steel = elastic.model_steel;
-                    model_steel.F0 -= Set::Matrix::Identity();
-                    model_steel.F0 += Set::Matrix::Identity();
-                    model(i, j, k) = model_steel;
-                });
-            }
-            else
-            {
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    model_type model_steel = elastic.model_steel;
-                    model_steel.F0 *= Set::Matrix::Zero();
-                    model(i, j, k) = model_steel;
-                });
-            }
+            amrex::Print() << "RETURNING EARLY - mechanics disabled\n";
+            return;
         }
-        Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-    }
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            amrex::Box domain = this->geom[lev].Domain();
+            domain.convert(amrex::IntVect::TheNodeVector());
+            const Set::Scalar* DX = geom[lev].CellSize();
+
+            // Match Flame's pattern - FillBoundary on inputs before MFIter
+            (*Hydro::eta_mf)[lev]->FillBoundary(geom[lev].periodicity());
+
+            for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box smallbox = mfi.nodaltilebox();
+                amrex::Box bx = mfi.grownnodaltilebox() & domain;
+
+                // Match Flame's Patch() pattern exactly
+                Set::Patch<model_type>        model = model_mf.Patch(lev, mfi);
+                Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);
+
+                if (elastic.on)
+                {
+                    amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
+                        rhs(i, j, k) = (elastic.traction) * grad_eta;
+                    });
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        model_type model_steel = elastic.model_steel;
+                        model_steel.F0 -= Set::Matrix::Identity();
+                        model_steel.F0 += Set::Matrix::Identity();
+                        model(i, j, k) = model_steel;
+                    });
+                }
+                else
+                {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        model_type model_steel = elastic.model_steel;
+                        model_steel.F0 *= Set::Matrix::Zero();
+                        model(i, j, k) = model_steel;
+                    });
+                }
+            }
+            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+        }
     }
 
     // void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override

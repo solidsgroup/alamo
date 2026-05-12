@@ -9,7 +9,7 @@ stop_time = 1.0
 
 # AMR parameters
 amr.plot_dt = 0.1
-amr.max_level = 2
+amr.max_level = 0
 amr.n_cell = 32 24 0
 amr.blocking_factor = 8
 amr.regrid_int = 10
@@ -151,8 +151,8 @@ elastic.type = static
 elastic.on = 1
 elastic.interval = 1
 # Elastic model params
-model_steel.mu = 14191.376_MPa
-model_steel.kappa = 15162.376_MPa
+model_steel.mu = 14191.376
+model_steel.kappa = 15162.376
 model_steel.eps0 = 2.217e-5 0.0 0.0 0.0 2.217e-5 0.0 0.0 0.0 2.217e-5
 # Elastic solver information
 elastic.solver.verbose = 4
