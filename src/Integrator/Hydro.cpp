@@ -99,7 +99,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         {
             value.eta_mf = new Set::Field<Set::Scalar>();
             value.eta_old_mf = new Set::Field<Set::Scalar>();
-            value.RegisterNewFab(*value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true, true);
+            value.RegisterNewFab(*value.eta_mf,     value.eta_bc, 1, nghost, "eta",     true, true); // TODO may need to change back
             value.RegisterNewFab(*value.eta_old_mf, value.eta_bc, 1, nghost, "eta_old", true, true);
         }
         value.RegisterNewFab(value.etadot_mf,  value.eta_bc, 1, nghost, "etadot",  true, false);
