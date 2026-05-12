@@ -98,7 +98,7 @@ protected:
             // Refresh psi pointer and fill ghost cells before mechanics solve
             solver.setPsi(*Hydro::eta_mf);
             for (int lev = 0; lev <= finest_level; lev++) {
-                amrex::Print() << "eta nGrow = " << (*Hydro::eta_mf)[lev]->nGrow() << "\n";
+                // amrex::Print() << "eta nGrow = " << (*Hydro::eta_mf)[lev]->nGrow() << "\n";
                 (*Hydro::eta_mf)[lev]->FillBoundary(geom[lev].periodicity());
                 // Try this instead - consistent with how model_mf is filled elsewhere in your code
                 // Util::RealFillBoundary(*Hydro::eta_mf[lev], geom[lev]);
@@ -106,25 +106,6 @@ protected:
             Base::Mechanics<model_type>::TimeStepBegin(a_time, a_step);
         }
     }
-    // void TimeStepBegin(Set::Scalar a_time, int a_step) override
-    // {   
-    //     if (a_time > tstart && !hydro_initialized)
-    //     {
-    //         for (int lev = 0; lev <= finest_level; lev++)
-    //         {
-    //             Hydro::Initialize(lev);
-    //             Hydro::Mix(lev);
-    //             Base::Mechanics<model_type>::Initialize(lev);
-    //         }
-    //         hydro_initialized=true;
-            
-    //     }
-    //     PF::TimeStepBegin(a_time, a_step);
-    //     if (hydro_initialized) {
-    //         Hydro::TimeStepBegin(a_time, a_step);
-    //         Base::Mechanics<model_type>::TimeStepBegin(a_time, a_step);
-    //     }
-    // }
 
     void TimeStepComplete(Set::Scalar a_time, int a_iter) override
     {
@@ -157,8 +138,7 @@ protected:
     {
         for (amrex::MFIter mfi(*(*eta_mf)[lev], true); mfi.isValid(); ++mfi)
         {
-            //const amrex::Box& bx = mfi.growntilebox();
-            
+            //const amrex::Box& bx = mfi.growntilebox(); // TODO ask Dr. R why I need this change
             const amrex::Box& bx = mfi.tilebox();
             
             Set::Patch<Set::Scalar> eta_old          = Hydro::eta_old_mf->Patch(lev,mfi);
@@ -185,12 +165,12 @@ protected:
 
     void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override
     {   
-        amrex::Print() << "SFI::UpdateModel called, m_type=" << (int)m_type 
-                << " Type::Static=" << (int)Base::Mechanics<model_type>::Type::Static
-                << " Type::Disable=" << (int)Base::Mechanics<model_type>::Type::Disable << "\n";
-        amrex::Print() << "model_steel.mu = " << elastic.model_steel.mu << "\n";
-        amrex::Print() << "model_steel.F0 = \n" << elastic.model_steel.F0 << "\n";
-        amrex::Print() << "elastic.traction = " << elastic.traction << "\n";
+        // amrex::Print() << "SFI::UpdateModel called, m_type=" << (int)m_type 
+        //         << " Type::Static=" << (int)Base::Mechanics<model_type>::Type::Static
+        //         << " Type::Disable=" << (int)Base::Mechanics<model_type>::Type::Disable << "\n";
+        // amrex::Print() << "model_steel.mu = " << elastic.model_steel.mu << "\n";
+        // amrex::Print() << "model_steel.F0 = \n" << elastic.model_steel.F0 << "\n";
+        // amrex::Print() << "elastic.traction = " << elastic.traction << "\n";
 
         if (m_type == Base::Mechanics<model_type>::Type::Disable) 
         {
@@ -209,12 +189,12 @@ protected:
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box smallbox = mfi.nodaltilebox();
-                amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                amrex::Box bx = mfi.grownnodaltilebox() & domain; // TODO ask Dr.R about this change
 
                 // Match Flame's Patch() pattern exactly
                 Set::Patch<model_type>        model = model_mf.Patch(lev, mfi);
                 Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev, mfi);
-                Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);  // TODO ask Dr. R about this change
                 Set::Patch<const Set::Scalar>  pres  = Hydro::pressure_mf.Patch(lev, mfi);
 
                 if (elastic.on)
