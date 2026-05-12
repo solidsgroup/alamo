@@ -149,7 +149,7 @@ hydro.cfl_v   = 1.0
 elastic.type = static
 # Thermoelasticity
 elastic.on = 1
-elastic.interval = 1
+elastic.interval = 50
 # Elastic model params
 model_steel.mu = 14191.376
 model_steel.kappa = 15162.376

@@ -51,6 +51,8 @@ public:
         pp.query_default("elastic.traction", value.elastic.traction, 0.0);
 
         pp.queryclass<Base::Mechanics<model_type>>("elastic",value);
+        amrex::Print() << "After Mechanics parse: plot_stress=" << value.plot_stress 
+               << " m_type=" << (int)value.m_type << "\n";
 
         if (value.m_type != Type::Disable)
         {
@@ -183,10 +185,16 @@ protected:
 
     void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override
     {   
-        amrex::Print() << "SFI::UpdateModel called, m_type=" << (int)m_type << "\n";
+        amrex::Print() << "SFI::UpdateModel called, m_type=" << (int)m_type 
+                << " Type::Static=" << (int)Base::Mechanics<model_type>::Type::Static
+                << " Type::Disable=" << (int)Base::Mechanics<model_type>::Type::Disable << "\n";
+        amrex::Print() << "model_steel.mu = " << elastic.model_steel.mu << "\n";
+        amrex::Print() << "model_steel.F0 = \n" << elastic.model_steel.F0 << "\n";
+        amrex::Print() << "elastic.traction = " << elastic.traction << "\n";
+
         if (m_type == Base::Mechanics<model_type>::Type::Disable) 
         {
-            amrex::Print() << "RETURNING EARLY - mechanics disabled\n";
+            amrex::Print() << "RETURNING EARLY\n";
             return;
         }
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -207,13 +215,15 @@ protected:
                 Set::Patch<model_type>        model = model_mf.Patch(lev, mfi);
                 Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev, mfi);
                 Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);
+                Set::Patch<const Set::Scalar>  pres  = Hydro::pressure_mf.Patch(lev, mfi);
 
                 if (elastic.on)
                 {
                     amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
                         Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-                        rhs(i, j, k) = (elastic.traction) * grad_eta;
+                        Set::Scalar pres_avg = Numeric::Interpolate::CellToNodeAverage(pres, i, j, k, 0);
+                        rhs(i, j, k) = (elastic.traction) * grad_eta - pres_avg*grad_eta;
                     });
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
@@ -236,125 +246,6 @@ protected:
             Util::RealFillBoundary(*model_mf[lev], geom[lev]);
         }
     }
-
-    // void UpdateModel(int /*a_step*/, Set::Scalar /*a_time*/) override
-    // {
-    //     amrex::Print() << "ENTER UpdateModel\n";
-    //     amrex::Print() << "model_steel.F0 = \n" << elastic.model_steel.F0 << "\n";
-    //     amrex::Print() << "elastic.on = " << elastic.on << "\n";
-
-    // if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
-
-    // for (int lev = 0; lev <= finest_level; ++lev)
-    // {
-    //     // Ensure Hydro's eta ghost cells are populated before interpolating
-    //     (*Hydro::eta_mf)[lev]->FillBoundary(geom[lev].periodicity());
-
-    //     amrex::Box domain = this->geom[lev].Domain();
-    //     domain.convert(amrex::IntVect::TheNodeVector());
-    //     const Set::Scalar* DX = geom[lev].CellSize();
-        
-    //     // Util::RealFillBoundary(*(*Hydro::eta_mf)[lev], geom[lev]);
-    //     // Util::RealFillBoundary(*(*eta_mf)[lev], geom[lev]);
-    //     // temp_mf[lev]->FillBoundary();
-
-    //     Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-
-    //     amrex::Print() << "model_mf ptr = " << model_mf[lev].get() << "\n";
-    //     amrex::Print() << "boxes = " << model_mf[lev]->nComp() << "\n";
-
-    //     // Check for nan after fill
-    //     for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
-    //     {
-    //         const amrex::Box& fullbox = mfi.fabbox();
-    //         amrex::Array4<model_type> model_arr = model_mf[lev]->array(mfi);
-    //         amrex::ParallelFor(fullbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-    //         {
-    //             model_type m = model_arr(i, j, k);
-    //             for (int r = 0; r < AMREX_SPACEDIM; r++)
-    //                 for (int c = 0; c < AMREX_SPACEDIM; c++)
-    //                     if (std::isnan(m.F0(r,c)))
-    //                         amrex::Abort("nan in model_mf after FillBoundary at lev=" 
-    //                                     + std::to_string(lev) 
-    //                                     + " i=" + std::to_string(i)
-    //                                     + " j=" + std::to_string(j));
-    //         });
-    //     }
-
-    //     for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
-    //     {   
-    //         const amrex::Box& fullbox = mfi.fabbox(); // entire fab including ghosts
-    //         amrex::Array4<model_type> model_arr = model_mf[lev]->array(mfi);
-            
-    //         model_type init_model = elastic.model_steel;
-    //         init_model.F0 = Set::Matrix::Identity();
-            
-    //         amrex::ParallelFor(fullbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-    //         {
-    //             model_arr(i, j, k) = init_model;
-    //         });
-
-    //         amrex::Box smallbox = mfi.nodaltilebox();
-    //         amrex::Box bx = mfi.grownnodaltilebox() & domain;
-            
-    //         amrex::Print() << "lev=" << lev 
-    //                     << " validbox=" << mfi.validbox() 
-    //                     << " bx=" << bx 
-    //                     << " model nGrow=" << model_mf[lev]->nGrow() << "\n";
-
-    //         amrex::Array4<Set::Vector> rhs_arr = rhs_mf[lev]->array(mfi);
-
-    //         Set::Patch<model_type> model(model_arr);
-    //         Set::Patch<Set::Vector> rhs(rhs_arr);
-
-    //         // amrex::Box smallbox = mfi.nodaltilebox();
-    //         // amrex::Box bx = mfi.grownnodaltilebox() & domain;
-
-    //         // auto& model_fab = (*model_mf[lev])[mfi];
-    //         // auto& rhs_fab   = (*rhs_mf[lev])[mfi];
-
-    //         // Set::Patch<model_type> model(model_fab);
-    //         // Set::Patch<Set::Vector> rhs(rhs_fab);
-
-    //         Set::Patch<const Set::Scalar> eta = Hydro::eta_mf->Patch(lev, mfi);
-
-    //         if (elastic.on)
-    //         {
-    //             // Set::Patch <const Set::Scalar> temp = temp_mf.Patch(lev,mfi);
-    //             amrex::ParallelFor(smallbox, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-
-    //             {   
-    //                 Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
-
-    //                 rhs(i, j, k) = (elastic.traction) * grad_eta;
-
-    //             });
-    //             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-    //             {   
-    //                 model_type model_steel = elastic.model_steel;
-    //                 if (model_steel.F0.hasNaN()) 
-    //                     amrex::Abort("model_steel.F0 is nan before assignment");
-    //                 model_steel.F0 -= Set::Matrix::Identity();
-    //                 // steel.F0 *= (temp_avg - elastic.Telastic);
-    //                 model_steel.F0 += Set::Matrix::Identity();
-
-    //                 model(i, j, k) = model_steel;
-    //             });
-    //         }
-    //         else
-    //         {
-    //             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-    //             {
-    //                 model_type model_steel = elastic.model_steel;
-    //                 model_steel.F0 *= Set::Matrix::Zero();
-    //                 model(i, j, k) = model_steel;
-    //             });
-    //         }
-    //     }
-    //     Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-
-    // }
-    // }
 
     int invert = false;
     Set::Scalar tstart = NAN;
