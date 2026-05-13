@@ -203,7 +203,7 @@ protected:
                     {
                         Set::Vector grad_eta = Numeric::CellGradientOnNode(eta, i, j, k, 0, DX);
                         Set::Scalar pres_avg = Numeric::Interpolate::CellToNodeAverage(pres, i, j, k, 0);
-                        rhs(i, j, k) = (elastic.traction) * grad_eta - pres_avg*grad_eta;
+                        rhs(i, j, k) = (elastic.traction) * grad_eta + pres_avg*grad_eta;
                     });
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {

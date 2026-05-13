@@ -1,14 +1,9 @@
-#@ [serial]
-#@ exe=sfi
-#@ dim=2
-#@ args = stop_time=0.6
-
 # Simulation length
 timestep = 1E-4
-stop_time = 1.0
+stop_time = 5.0
 
 # AMR parameters
-amr.plot_dt = 0.01
+amr.plot_dt = 0.025
 amr.max_level = 3
 amr.n_cell = 32 24 0
 amr.blocking_factor = 8
