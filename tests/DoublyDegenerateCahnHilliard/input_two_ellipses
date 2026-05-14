@@ -6,42 +6,33 @@ plot_file = tests/DoublyDegenerateCahnHilliard/output_two_ellipses
 
 ### MESHING ###
 
-amr.plot_dt = 2.5e-6
-amr.max_level = 1
-amr.max_grid_size = 500000
-amr.blocking_factor = 2
-amr.grid_eff = 0.8
-amr.n_cell = 64 64 0
-amr.nsubsteps = 4
+amr.plot_dt = 1.0e-5
+amr.max_level = 0
+amr.n_cell = 128 128
 
-geometry.prob_lo = -0.5 -0.5  -0.5
-geometry.prob_hi =  0.5  0.5  -0.5
+geometry.prob_lo = -1.024 -1.024
+geometry.prob_hi = 1.024 1.024
 
-geometry.is_periodic = 1 1 1
+geometry.is_periodic = 0 0
 
-timestep  = 0.1e-9
-stop_time = 5.0e-4
+timestep  = 1e-9
+stop_time = 1.0e-3
 
 ### MODEL PARAMETERS ###
 
-eta.bc.constant.type.xlo = periodic
-eta.bc.constant.type.xhi = periodic
-eta.bc.constant.type.ylo = periodic
-eta.bc.constant.type.yhi = periodic
-eta.bc.constant.type.zlo = periodic
-eta.bc.constant.type.zhi = periodic
+eta.bc.constant.type.xlo = dirichlet
+eta.bc.constant.type.xhi = dirichlet
+eta.bc.constant.type.ylo = dirichlet
+eta.bc.constant.type.yhi = dirichlet
 
 eta.ic.type = ellipse
 eta.ic.ellipse.number_of_inclusions = 2
-eta.ic.ellipse.x0 = -0.20 0.0 0.20 0.0
-eta.ic.ellipse.radius = 0.15 0.15
-eta.ic.ellipse.eps = 0.1 0.1
-eta.ic.ellipse.invert = 1
+eta.ic.ellipse.x0 = -0.512 0.512 0.512 -0.512
+eta.ic.ellipse.a = 0.35 0.35 0.25 0.25
+eta.ic.ellipse.eps = 0.2 0.2
 
-epsilon = 1.5e-2
+epsilon = 3.0e-2
 omega = 1.0e0
 gamma = 1.0e0
-alpha = 1.0e0
+alpha = 1.0e-1
 mu = 7.5e0
-
-refinement_threshold = 1e-2
