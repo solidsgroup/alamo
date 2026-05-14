@@ -195,7 +195,7 @@ protected:
                 Set::Patch<model_type>        model = model_mf.Patch(lev, mfi);
                 Set::Patch<Set::Vector>       rhs   = rhs_mf.Patch(lev, mfi);
                 Set::Patch<const Set::Scalar> eta   = Hydro::eta_mf->Patch(lev, mfi);  // TODO ask Dr. R about this change
-                Set::Patch<const Set::Scalar>  pres  = Hydro::pressure_mf.Patch(lev, mfi);
+                Set::Patch<const Set::Scalar> pres  = Hydro::pressure_mf.Patch(lev, mfi);
 
                 if (elastic.on)
                 {
