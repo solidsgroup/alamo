@@ -636,11 +636,22 @@ if not args.compile_commands:
 
     projectdir = os.getcwd()
 
-    otherflags = ""
-    if args.fft: otherflags += "-DALAMO_FFT"
+    otherflags = []
+    if args.fft: otherflags.append("-DALAMO_FFT")
 
-    if args.amrex: otherflags += f" -I{args.amrex}/include"
-    else: otherflags += f" -I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include"
+    if args.geteigen:
+        otherflags.extend(["-isystem", "./ext/libeigen"])
+    elif args.eigen:
+        otherflags.extend(["-isystem", args.eigen])
+
+    if args.amrex:
+        otherflags.append(f"-I{args.amrex}/include")
+    else:
+        otherflags.append(f"-I./ext/{args.amrexfork}/amrex/{postfix_amrex}/include")
+
+    for pth in os.environ.get("CPLUS_INCLUDE_PATH", "").split(os.pathsep):
+        if pth:
+            otherflags.append(f"-I{pth}")
 
     cc = compmpicmd
     command_objects = []
@@ -648,8 +659,8 @@ if not args.compile_commands:
         "directory": projectdir,
         "file": srcfile,
         "arguments": [
-            *cc.split(" "),
-            *otherflags.split(" "),
+            *cc.split(),
+            *otherflags,
             "-std=c++17",
             "-I./src/",
             srcfile,
@@ -659,4 +670,3 @@ if not args.compile_commands:
 
     with open(Path("compile_commands.json"), "w") as f:
         json.dump(command_objects, f, indent=4)
-
