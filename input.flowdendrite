@@ -22,7 +22,7 @@ plot_file = ./output.dendrite
 tstart = 000.1
 invert = 1
 
-dendrite.ic.phi.region0  = "(x-1.0)^2 + (y-1.0)^2 + z^2 < 0.1"
+dendrite.ic.phi.region0  = "(x-1.0)^2 + (y-0.0)^2 + z^2 < 0.1"
 dendrite.ic.temp.constant.DeltaT = 0.25
 dendrite.ic.temp.region0 = "-DeltaT*(x^2 + y^2 + z^2 > 0.1)"
 dendrite.tau = 3E-4
@@ -109,8 +109,8 @@ hydro.energy.bc.constant.val.ylo = 0.0
 hydro.energy.bc.constant.val.yhi = 0.0
 hydro.momentum.bc.constant.type.xhi = neumann neumann
 hydro.momentum.bc.constant.type.xlo = dirichlet neumann
-hydro.momentum.bc.constant.type.ylo = neumann neumann
-hydro.momentum.bc.constant.type.yhi = neumann neumann
+hydro.momentum.bc.constant.type.ylo = neumann dirichlet
+hydro.momentum.bc.constant.type.yhi = neumann dirichlet
 hydro.momentum.bc.constant.val.xhi = 0.0 0.0
 hydro.momentum.bc.constant.val.xlo = 24.0 0.0
 hydro.momentum.bc.constant.val.ylo = 0.0 0.0
@@ -160,11 +160,11 @@ elastic.print_residual = 1
 # Mechanics boundary conditions
 elastic.bc.type = constant
 elastic.bc.constant.type.xlo = trac trac 
-elastic.bc.constant.type.ylo = trac disp 
-elastic.bc.constant.type.yhi = trac disp
-elastic.bc.constant.type.xloylo = trac disp 
-elastic.bc.constant.type.xloyhi = trac disp
+elastic.bc.constant.type.ylo = disp disp 
+elastic.bc.constant.type.yhi = trac trac
+elastic.bc.constant.type.xloylo = trac trac 
+elastic.bc.constant.type.xloyhi = trac trac
 # No traction on free surface
 elastic.traction = 0.0
-#elastic.elastic_ref_threshold = 0.0005
+elastic.elastic_ref_threshold = 0.0005
 elastic.zero_out_displacement = 0 # Zero out the displacement before each elastic solver iternation
