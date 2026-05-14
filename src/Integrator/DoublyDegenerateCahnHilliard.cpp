@@ -1,4 +1,5 @@
 #include <AMReX_MLPoisson.H>
+#include <AMReX_Reduce.H>
 
 #include "BC/Constant.H"
 #include "DoublyDegenerateCahnHilliard.H"
@@ -33,8 +34,6 @@ void DoublyDegenerateCahnHilliard::Parse(DoublyDegenerateCahnHilliard &value, IO
     pp.query_default("alpha", value.alpha, 1e-4);
     // Mobility parameter
     pp.query_default("mu", value.mu, 36.0);
-    // Regridding criterion
-    pp.query_default("refinement_threshold", value.refinement_threshold, 1e100);
 
     // initial condition for :math:`\eta`
     pp.select_default<IC::Ellipse, IC::Random>("eta.ic", value.ic, value.geom);
@@ -43,15 +42,40 @@ void DoublyDegenerateCahnHilliard::Parse(DoublyDegenerateCahnHilliard &value, IO
 
     value.RegisterNewFab(value.etanew_mf, value.bc, 1, 1, "eta", true);
     value.RegisterNewFab(value.etaold_mf, value.bc, 1, 1, "eta_old", false);
-    value.RegisterNewFab(value.driving_force_mf, value.bc, 1, 1, "driving_Force", false, false);
+    value.RegisterNewFab(value.deta_mf, value.bc, 1, 1, "deta", true);
+    value.RegisterNewFab(value.driving_force_mf, value.bc, 1, 1, "driving_Force", true, false);
+
+    value.RegisterIntegratedVariable(&value.volume, "volume");
+    value.integrate_variables_before_advance = false;
+    if (value.thermo.plot_int <= 0 && value.thermo.plot_dt <= 0.0)
+    {
+        if (value.plot_int > 0)
+            value.thermo.plot_int = value.plot_int;
+        if (value.plot_dt > 0.0)
+            value.thermo.plot_dt = value.plot_dt;
+    }
 }
 
 void
 DoublyDegenerateCahnHilliard::Initialize(int lev)
 {
     driving_force_mf[lev]->setVal(0.0);
+    deta_mf[lev]->setVal(0.0);
     ic->Initialize(lev, etanew_mf);
     ic->Initialize(lev, etaold_mf);
+}
+
+void
+DoublyDegenerateCahnHilliard::TimeStepBegin(Set::Scalar time, int step)
+{
+    if (step == 0)
+        IntegrateVariables(time, step);
+}
+
+void
+DoublyDegenerateCahnHilliard::TimeStepComplete(Set::Scalar time, int step)
+{
+    IntegrateVariables(time + dt[0], step + 1);
 }
 
 void
@@ -88,6 +112,7 @@ DoublyDegenerateCahnHilliard::Advance(int lev, Set::Scalar /*time*/, Set::Scalar
         Set::Patch<Set::Scalar> &etanew = etanew_mf[lev]->array(mfi);
         Set::Patch<const Set::Scalar> &etaold = etaold_mf[lev]->array(mfi);
         Set::Patch<const Set::Scalar> &driving_force = driving_force_mf[lev]->array(mfi);
+        Set::Patch<Set::Scalar> &deta = deta_mf[lev]->array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
             Set::Scalar eta = etaold(i, j, k);
@@ -98,27 +123,33 @@ DoublyDegenerateCahnHilliard::Advance(int lev, Set::Scalar /*time*/, Set::Scalar
             Set::Scalar lap_driving_force = Numeric::Laplacian(driving_force, i, j, k, 0, DX);
 
             etanew(i, j, k) = 1.0 / epsilon * (M_alphaprime * grad_eta.dot(grad_driving_force) + M_alpha * lap_driving_force) * dt + etaold(i, j, k);
+            deta(i, j, k) = etanew(i, j, k) - etaold(i, j, k);
         });
     }
 }
 
 void
-DoublyDegenerateCahnHilliard::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar /*time*/, int /*ngrow*/)
+DoublyDegenerateCahnHilliard::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/, const amrex::MFIter &mfi, const amrex::Box &box)
 {
-    const Set::Scalar *DX = geom[lev].CellSize();
-    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+    BL_PROFILE("DoublyDegenerateCahnHilliard::Integrate");
 
-    for (amrex::MFIter mfi(*etanew_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box &bx = mfi.tilebox();
-        amrex::Array4<char> const &tags = a_tags.array(mfi);
-        Set::Patch<const Set::Scalar> eta = (*etanew_mf[lev]).array(mfi);
+    const Set::Scalar *DX = geom[amrlev].CellSize();
+    Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+    Set::Patch<const Set::Scalar> eta = etanew_mf[amrlev]->array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (grad.lpNorm<2>() * dr > refinement_threshold)
-                tags(i, j, k) = amrex::TagBox::SET;
-        });
-    }
+    amrex::ReduceOps<amrex::ReduceOpSum> reduce_op;
+    amrex::ReduceData<Set::Scalar> reduce_data(reduce_op);
+    using ReduceTuple = typename decltype(reduce_data)::Type;
+
+    reduce_op.eval(box, reduce_data, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> ReduceTuple {
+        return { eta(i, j, k, 0) * dv };
+    });
+    ReduceTuple hv = reduce_data.value(reduce_op);
+    volume += amrex::get<0>(hv);
+}
+
+void
+DoublyDegenerateCahnHilliard::TagCellsForRefinement(int /*lev*/, amrex::TagBoxArray & /*tags*/, amrex::Real /*time*/, int /*ngrow*/)
+{
 }
 }

@@ -35,14 +35,21 @@ public:
 protected:
     /// Set values in fields
     void Initialize(int lev) override;
+    /// Integrate initial thermo output
+    void TimeStepBegin(Set::Scalar time, int step) override;
+    /// Integrate thermo output after each completed timestep
+    void TimeStepComplete(Set::Scalar time, int step) override;
     /// Integrate eta over one timestep on lev
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
+    /// Integrate eta volume for thermo output
+    void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &box) override;
     /// Mark any cells that need to be refined
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &tags, amrex::Real time, int ngrow) override;
 
 private:
-    Set::Field<Set::Scalar> etanew_mf;    /// The new value for eta this timestep
-    Set::Field<Set::Scalar> etaold_mf;    /// Last timestep's value for eta
+    Set::Field<Set::Scalar> etanew_mf;        /// The new value for eta this timestep
+    Set::Field<Set::Scalar> etaold_mf;        /// Last timestep's value for eta
+    Set::Field<Set::Scalar> deta_mf;          /// Change in eta from the previous timestep
     Set::Field<Set::Scalar> driving_force_mf; /// The variational derivative of the free energy functional
 
     BC::BC<Set::Scalar> *bc; /// eta's bc object
@@ -54,7 +61,7 @@ private:
     // Set::Scalar p = NAN;
     Set::Scalar alpha = NAN;
     Set::Scalar mu = NAN;
-    Set::Scalar refinement_threshold = NAN;
+    Set::Scalar volume = 0.0;
 };
 }
 #endif
