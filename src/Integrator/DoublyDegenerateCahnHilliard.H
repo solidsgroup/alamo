@@ -47,10 +47,11 @@ protected:
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &tags, amrex::Real time, int ngrow) override;
 
 private:
-    Set::Field<Set::Scalar> etanew_mf;        /// The new value for eta this timestep
-    Set::Field<Set::Scalar> etaold_mf;        /// Last timestep's value for eta
-    Set::Field<Set::Scalar> deta_mf;          /// Change in eta from the previous timestep
-    Set::Field<Set::Scalar> driving_force_mf; /// The variational derivative of the free energy functional
+    Set::Field<Set::Scalar> etanew_mf;                  /// The new value for eta this timestep
+    Set::Field<Set::Scalar> etaold_mf;                  /// Last timestep's value for eta
+    Set::Field<Set::Scalar> deta_mf;                    /// Change in eta from the previous timestep
+    Set::Field<Set::Scalar> driving_force_mf;           /// The variational derivative of the free energy functional
+    Set::Field<Set::Vector> evolution_driving_force_mf; /// The product of the degenerate mobility with the gradient of the driving force
 
     BC::BC<Set::Scalar> *bc; /// eta's bc object
     IC::IC<Set::Scalar> *ic; /// eta's ic object
