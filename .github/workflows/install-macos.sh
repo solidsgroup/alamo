@@ -10,7 +10,7 @@ set -eu -o pipefail
 # [ you should only need to do this once ]
 #
 brew update
-brew reinstall --force --binaries llvm gfortran openmpi eigen libpng
+brew reinstall --force --binaries llvm openmpi eigen libpng
 
 #
 # CONFIGURATION
@@ -19,7 +19,6 @@ brew reinstall --force --binaries llvm gfortran openmpi eigen libpng
 EIGEN_PREFIX="$(brew --prefix eigen)"
 LIBPNG_PREFIX="$(brew --prefix libpng)"
 LLVM_PREFIX="$(brew --prefix llvm)"
-GCC_PREFIX="$(brew --prefix gcc)"
 
 #
 # This command updates the include path to be able to find
@@ -39,7 +38,7 @@ export PATH="$LLVM_PREFIX/bin:$PATH"
 #
 # [ you need to include these arguments every time you configure ]
 #
-./configure --comp clang++ --link "$LLVM_PREFIX/lib/c++" "$GCC_PREFIX/lib/gcc/current" "$LIBPNG_PREFIX/lib"
+./configure --comp clang++ --link "$LLVM_PREFIX/lib/c++" "$LIBPNG_PREFIX/lib"
 
 #
 # Compile the code by running make
