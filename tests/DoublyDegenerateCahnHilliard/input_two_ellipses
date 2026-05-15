@@ -16,7 +16,7 @@ geometry.prob_hi = 1.024 1.024
 geometry.is_periodic = 0 0
 
 timestep  = 1e-9
-stop_time = 1.0e-3
+stop_time = 2.5e-3
 
 ### MODEL PARAMETERS ###
 
