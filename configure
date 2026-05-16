@@ -131,7 +131,6 @@ parser.add_argument('--offline', dest='offline', action='store_true',default=Fal
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
-parser.add_argument('--macos',dest='macos',default=False,action='store_true',help='Compile without libpng (currently needed for macos)')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.add_argument('--perf',dest='perf',action='store_true',default=False,help="Add profile flags")
 parser.add_argument('--coverage',dest='coverage',action='store_true',default=False,help="Enable test coverage with gcov")
@@ -469,7 +468,11 @@ if (sys.platform == "darwin"
 #
 # MAC OS SUPPORT
 #
-if args.macos:
+# Apple's ld64 won't coalesce weak symbols across TUs the way GNU ld does;
+# AMREX_FORCE_INLINE makes templated definitions inline-deduped instead.
+#
+if sys.platform == "darwin":
+    message("Darwin", "Defining ALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE (ld64 weak-symbol workaround)")
     f.write("ALAMO_INCLUDE += -DALAMO_SINGLE_DEFINITION=AMREX_FORCE_INLINE\n")
 
 #
